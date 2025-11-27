@@ -2,6 +2,8 @@
 
 This phase implements the terminal user interface using TermUI's Elm Architecture pattern. The architecture guarantees predictable state management through immutable model updates, message-based event handling, and pure view functions that render the current state.
 
+**Note:** This phase includes creating a new pick-list widget in the term_ui library (`../term_ui`) for provider/model selection.
+
 ## 3.1 Core TUI Structure
 
 The TUI application follows TermUI's Elm Architecture with three core functions: `init/1` for initial state, `update/2` for state transitions, and `view/1` for rendering. This pattern ensures all state changes flow through a single update function.
@@ -92,11 +94,33 @@ Optional panel showing Chain-of-Thought reasoning steps during complex queries.
 ### 3.2.4 Status Bar
 - [ ] **Task 3.2.4 Complete**
 
-Display current configuration and agent status in status bar.
+Display current configuration and agent status in status bar. Handle unconfigured states since explicit provider configuration is required.
 
 - [ ] 3.2.4.1 Create `render_status_bar/1` component
 - [ ] 3.2.4.2 Display current provider and model: "anthropic:claude-3-5-sonnet"
-- [ ] 3.2.4.3 Show agent status: idle (green), processing (yellow), error (red)
-- [ ] 3.2.4.4 Display CoT indicator when reasoning is active
-- [ ] 3.2.4.5 Add keyboard shortcut hints: "Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit"
-- [ ] 3.2.4.6 Update status bar reactively on config/status changes
+- [ ] 3.2.4.3 Display "No provider configured" (red/warning) when provider is not set
+- [ ] 3.2.4.4 Display "No model selected" when model is missing from config
+- [ ] 3.2.4.5 Show agent status: idle (green), processing (yellow), error (red), unconfigured (red/dim)
+- [ ] 3.2.4.6 Display CoT indicator when reasoning is active
+- [ ] 3.2.4.7 Add keyboard shortcut hints: "Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit"
+- [ ] 3.2.4.8 Update status bar reactively on config/status changes
+
+## 3.3 TermUI Pick-List Widget
+
+A new widget for term_ui (`../term_ui`) that displays a scrollable modal overlay for selecting from a list of items. Used for provider and model selection.
+
+### 3.3.1 Pick-List Widget Implementation
+- [ ] **Task 3.3.1 Complete**
+
+Create the pick-list widget in the term_ui library.
+
+- [ ] 3.3.1.1 Create `TermUI.Widget.PickList` module in `../term_ui`
+- [ ] 3.3.1.2 Render as modal overlay centered on screen with border
+- [ ] 3.3.1.3 Display scrollable list of items with current selection highlighted
+- [ ] 3.3.1.4 Support keyboard navigation: Up/Down arrows, Page Up/Down, Home/End
+- [ ] 3.3.1.5 Support type-ahead filtering: typing filters list to matching items
+- [ ] 3.3.1.6 Enter key confirms selection and returns selected value
+- [ ] 3.3.1.7 Escape key cancels and returns nil
+- [ ] 3.3.1.8 Display item count and current position: "Item 5 of 50"
+- [ ] 3.3.1.9 Handle empty list state gracefully
+- [ ] 3.3.1.10 Write widget tests for navigation and selection (success: all interactions work)

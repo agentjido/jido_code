@@ -22,15 +22,16 @@ Create the primary LLM agent that handles chat interactions with configurable mo
 ### 2.1.2 Provider Configuration API
 - [ ] **Task 2.1.2 Complete**
 
-Implement runtime API for switching LLM providers and models without restart.
+Implement runtime API for switching LLM providers and models without restart. Any provider from `Jido.AI.Provider.providers/0` is valid (50+ providers via ReqLLM). Model names are validated against the provider's available models.
 
 - [ ] 2.1.2.1 Create `JidoCode.Agents.LLMAgent.configure/2` to update agent model settings
-- [ ] 2.1.2.2 Support provider atoms: `:anthropic`, `:openai`, `:openrouter`
-- [ ] 2.1.2.3 Validate model names against known models per provider
-- [ ] 2.1.2.4 Implement `get_current_config/1` to inspect active model settings
-- [ ] 2.1.2.5 Add API key validation via `Jido.AI.Keyring.test_key/2`
-- [ ] 2.1.2.6 Broadcast config change events for TUI status display
-- [ ] 2.1.2.7 Write tests for hot-swapping providers (success: config changes apply immediately)
+- [ ] 2.1.2.2 Accept any provider atom from `Jido.AI.Provider.providers/0` (dynamic discovery)
+- [ ] 2.1.2.3 Validate model exists for provider via `Jido.AI.Provider.get_model/2` before accepting config
+- [ ] 2.1.2.4 Return descriptive error if model invalid: "Model X not found for provider Y"
+- [ ] 2.1.2.5 Implement `get_current_config/1` to inspect active model settings
+- [ ] 2.1.2.6 Add API key validation via `Jido.AI.Keyring` for the configured provider
+- [ ] 2.1.2.7 Broadcast config change events for TUI status display
+- [ ] 2.1.2.8 Write tests for hot-swapping providers (success: config changes apply immediately)
 
 ## 2.2 Chain-of-Thought Integration
 

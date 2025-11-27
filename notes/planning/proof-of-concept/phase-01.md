@@ -21,15 +21,16 @@ Generate the base Elixir application with supervision tree support and configure
 ### 1.1.2 Configure LLM Provider Settings
 - [ ] **Task 1.1.2 Complete**
 
-Establish the configuration schema for LLM providers using JidoAI's Keyring and Model systems.
+Establish the configuration schema for LLM providers using JidoAI's Keyring and Model systems. JidoAI supports 50+ providers through ReqLLM integration - any provider returned by `Jido.AI.Provider.providers/0` is valid.
 
 - [ ] 1.1.2.1 Define `:jido_code, :llm` configuration key with provider, model, temperature, max_tokens options
 - [ ] 1.1.2.2 Create `JidoCode.Config` module to read and validate LLM configuration
 - [ ] 1.1.2.3 Implement `Config.get_llm_config/0` returning validated `{provider, opts}` tuple
-- [ ] 1.1.2.4 Support environment variable overrides: `JIDO_CODE_PROVIDER`, `JIDO_CODE_MODEL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
-- [ ] 1.1.2.5 Add runtime validation that API key exists for configured provider
-- [ ] 1.1.2.6 Require explicit provider configuration (no default) - error on startup if not configured
-- [ ] 1.1.2.7 Write config tests verifying provider switching and validation (success: tests pass)
+- [ ] 1.1.2.4 Validate provider exists via `Jido.AI.Provider.providers/0` (supports 50+ providers via ReqLLM)
+- [ ] 1.1.2.5 Support environment variable overrides: `JIDO_CODE_PROVIDER`, `JIDO_CODE_MODEL`, provider-specific API key env vars
+- [ ] 1.1.2.6 Add runtime validation that API key exists for configured provider via Keyring
+- [ ] 1.1.2.7 Require explicit provider configuration (no default) - error on startup if not configured
+- [ ] 1.1.2.8 Write config tests verifying provider switching and validation (success: tests pass)
 
 ## 1.2 OTP Supervision Tree
 

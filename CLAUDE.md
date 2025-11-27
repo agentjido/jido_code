@@ -56,6 +56,13 @@ Code entities extend CodeOntology with Elixir-specific constructs: modules, patt
 {:phoenix_pubsub, "~> 2.1"}
 ```
 
+## Local Development Dependencies
+
+These sibling repositories contain libraries we depend on and can modify if needed:
+
+- `../jido_ai` - JidoAI library (agents, CoT runner, provider integration)
+- `../term_ui` - TermUI library (Elm Architecture TUI framework, widgets)
+
 ## Research Documents
 
 - `notes/research/1.00-architecture/` - Core multi-agent TUI architecture design

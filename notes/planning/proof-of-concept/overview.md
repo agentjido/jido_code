@@ -38,7 +38,7 @@ The proof-of-concept establishes three core architectural layers: the TUI Presen
 
 - Working `jido_code` Elixir application with TUI
 - Streaming response display for real-time token output
-- Configurable LLM agent supporting Anthropic, OpenAI, OpenRouter (explicit config required)
+- Configurable LLM agent supporting 50+ providers via JidoAI/ReqLLM (explicit config required)
 - Chain-of-Thought reasoning integration for complex queries
 - Command interface for runtime configuration
 - Knowledge graph infrastructure stub (RDF.ex + libgraph) for future expansion

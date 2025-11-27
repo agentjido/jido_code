@@ -12,7 +12,7 @@ The project initialization creates the standard Elixir application structure wit
 Generate the base Elixir application with supervision tree support and configure mix.exs with all required dependencies.
 
 - [ ] 1.1.1.1 Run `mix new jido_code --sup` to create supervised application
-- [ ] 1.1.1.2 Configure mix.exs with dependencies: jido (~> 1.1.0), jido_ai (~> 0.5.0), term_ui, phoenix_pubsub (~> 2.1), jason, rdf (~> 2.0), libgraph (~> 0.16)
+- [ ] 1.1.1.2 Configure mix.exs with dependencies: jido (~> 1.1.0), jido_ai (~> 0.5.0), term_ui, phoenix_pubsub (~> 2.1), jason, luerl, rdf (~> 2.0), libgraph (~> 0.16)
 - [ ] 1.1.1.3 Add development dependencies: ex_doc, credo, dialyxir
 - [ ] 1.1.1.4 Create config/config.exs with base configuration structure
 - [ ] 1.1.1.5 Create config/runtime.exs for environment-specific LLM configuration
@@ -59,3 +59,71 @@ Create the agent supervisor that manages LLM agent lifecycle with proper restart
 - [ ] 1.2.2.4 Configure agent restart strategy: `restart: :transient` (restart on abnormal exit only)
 - [ ] 1.2.2.5 Add agent process registration via AgentRegistry
 - [ ] 1.2.2.6 Write tests for agent start/stop/restart behavior (success: agent recovers from crash)
+
+## 1.3 Settings File System
+
+A two-level JSON configuration system that persists user preferences across sessions. Global settings in `~/.jido_code/settings.json` apply to all projects, while local settings in `./jido_code/settings.json` override global values for project-specific configuration.
+
+### 1.3.1 Settings File Structure
+- [ ] **Task 1.3.1 Complete**
+
+Define the JSON schema and file locations for persistent settings.
+
+- [ ] 1.3.1.1 Create `JidoCode.Settings` module for settings management
+- [ ] 1.3.1.2 Define global settings path: `~/.jido_code/settings.json`
+- [ ] 1.3.1.3 Define local settings path: `./jido_code/settings.json` (project root)
+- [ ] 1.3.1.4 Define settings JSON schema:
+  ```json
+  {
+    "provider": "anthropic",
+    "model": "claude-3-5-sonnet",
+    "providers": ["anthropic", "openai", "openrouter"],
+    "models": {
+      "anthropic": ["claude-3-5-sonnet", "claude-3-opus"],
+      "openai": ["gpt-4o", "gpt-4-turbo"]
+    }
+  }
+  ```
+- [ ] 1.3.1.5 Create directory `~/.jido_code/` on first write if not exists
+- [ ] 1.3.1.6 Create directory `./jido_code/` on first write if not exists
+- [ ] 1.3.1.7 Write schema validation tests (success: valid JSON parses, invalid rejects)
+
+### 1.3.2 Settings Loading and Merging
+- [ ] **Task 1.3.2 Complete**
+
+Implement loading, merging, and accessing settings with local override priority.
+
+- [ ] 1.3.2.1 Implement `Settings.load/0` to read and merge global + local settings
+- [ ] 1.3.2.2 Load global settings first, then overlay local settings (local wins on conflict)
+- [ ] 1.3.2.3 Handle missing files gracefully (return empty map for missing file)
+- [ ] 1.3.2.4 Handle malformed JSON with error logging and fallback to defaults
+- [ ] 1.3.2.5 Implement `Settings.get/1` and `Settings.get/2` for accessing values with defaults
+- [ ] 1.3.2.6 Cache loaded settings in memory to avoid repeated file reads
+- [ ] 1.3.2.7 Write merge tests verifying local overrides global (success: correct precedence)
+
+### 1.3.3 Settings Persistence
+- [ ] **Task 1.3.3 Complete**
+
+Implement saving settings updates to the appropriate file.
+
+- [ ] 1.3.3.1 Implement `Settings.save/2` accepting scope (`:global` or `:local`) and settings map
+- [ ] 1.3.3.2 Implement `Settings.set/3` for updating individual keys with scope
+- [ ] 1.3.3.3 Auto-save provider and model to local settings on `/model` command
+- [ ] 1.3.3.4 Implement `Settings.add_provider/2` to add provider to allowed providers list
+- [ ] 1.3.3.5 Implement `Settings.add_model/3` to add model to provider's model list
+- [ ] 1.3.3.6 Write atomic file writes (write to temp, then rename) to prevent corruption
+- [ ] 1.3.3.7 Invalidate memory cache on save
+- [ ] 1.3.3.8 Write persistence tests verifying round-trip save/load (success: data survives restart)
+
+### 1.3.4 Provider and Model Lists
+- [ ] **Task 1.3.4 Complete**
+
+Use settings file lists to filter available providers and models in pick-list UI.
+
+- [ ] 1.3.4.1 Implement `Settings.get_providers/0` returning providers list from settings
+- [ ] 1.3.4.2 If `providers` list exists in settings, use it for `/providers` pick-list
+- [ ] 1.3.4.3 If `providers` list is empty/missing, fall back to `Jido.AI.Provider.providers/0`
+- [ ] 1.3.4.4 Implement `Settings.get_models/1` returning models list for a provider
+- [ ] 1.3.4.5 If `models[provider]` exists in settings, use it for `/models` pick-list
+- [ ] 1.3.4.6 If `models[provider]` is empty/missing, fall back to provider's full model list
+- [ ] 1.3.4.7 Write tests verifying settings lists override dynamic discovery (success: custom lists used)

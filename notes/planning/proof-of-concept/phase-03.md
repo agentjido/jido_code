@@ -1,126 +1,152 @@
-# Phase 3: TUI Application with Elm Architecture
+# Phase 3: Tool Calling and Sandbox
 
-This phase implements the terminal user interface using TermUI's Elm Architecture pattern. The architecture guarantees predictable state management through immutable model updates, message-based event handling, and pure view functions that render the current state.
+This phase implements the tool calling infrastructure that enables the LLM agent to interact with the codebase. All tool execution is sandboxed through a Lua-based tool manager that enforces security boundaries, preventing direct shell access and restricting operations to the current project directory.
 
-**Note:** This phase includes creating a new pick-list widget in the term_ui library (`../term_ui`) for provider/model selection.
+## 3.1 Tool Infrastructure
 
-## 3.1 Core TUI Structure
+The tool system defines a schema for tools, handles registration, and manages the execution flow between the LLM agent and the sandboxed tool manager.
 
-The TUI application follows TermUI's Elm Architecture with three core functions: `init/1` for initial state, `update/2` for state transitions, and `view/1` for rendering. This pattern ensures all state changes flow through a single update function.
-
-### 3.1.1 Application Module Setup
+### 3.1.1 Tool Schema and Registration
 - [ ] **Task 3.1.1 Complete**
 
-Create the main TUI module implementing the TermUI.Elm behaviour.
+Define the tool schema and implement tool registration.
 
-- [ ] 3.1.1.1 Create `JidoCode.TUI` module with `use TermUI.Elm`
-- [ ] 3.1.1.2 Define `Model` struct with fields: input_buffer, messages, agent_status, config, reasoning_steps
-- [ ] 3.1.1.3 Implement `init/1` returning initial Model with empty state
-- [ ] 3.1.1.4 Subscribe to PubSub topic `"tui.events"` in init
-- [ ] 3.1.1.5 Store window dimensions from init context
-- [ ] 3.1.1.6 Configure TUI runtime in Application supervisor
-- [ ] 3.1.1.7 Verify TUI starts and renders blank screen (success: terminal shows UI)
+- [ ] 3.1.1.1 Create `JidoCode.Tools` namespace module
+- [ ] 3.1.1.2 Define tool schema struct: `%Tool{name, description, parameters, handler}`
+- [ ] 3.1.1.3 Define parameter schema: `%Param{name, type, description, required}`
+- [ ] 3.1.1.4 Create `JidoCode.Tools.Registry` for tool registration and lookup
+- [ ] 3.1.1.5 Implement `Registry.register/1` to add tools at startup
+- [ ] 3.1.1.6 Implement `Registry.list/0` returning all registered tools
+- [ ] 3.1.1.7 Implement `Registry.get/1` to lookup tool by name
+- [ ] 3.1.1.8 Generate tool descriptions in LLM-compatible format for system prompt
+- [ ] 3.1.1.9 Write registry tests (success: tools register and lookup correctly)
 
-### 3.1.2 Event Handling
+### 3.1.2 Tool Execution Flow
 - [ ] **Task 3.1.2 Complete**
 
-Implement the event_to_msg callback and update function for user input and agent events.
+Implement the flow from LLM tool call to sandboxed execution and result handling.
 
-- [ ] 3.1.2.1 Define message types: `:key_input`, `:submit`, `:agent_response`, `:status_update`, `:config_change`
-- [ ] 3.1.2.2 Implement `event_to_msg/2` mapping keyboard events to messages
-- [ ] 3.1.2.3 Handle Enter key → `:submit` message
-- [ ] 3.1.2.4 Handle printable characters → `:key_input` with character
-- [ ] 3.1.2.5 Handle Backspace → `:key_input` with `:backspace`
-- [ ] 3.1.2.6 Handle Ctrl+C → `:quit` message
-- [ ] 3.1.2.7 Implement `update/2` for each message type updating Model
-- [ ] 3.1.2.8 Write update tests verifying state transitions (success: input buffer updates correctly)
+- [ ] 3.1.2.1 Create `JidoCode.Tools.Executor` module for tool execution coordination
+- [ ] 3.1.2.2 Parse tool calls from LLM response (JSON function calling format)
+- [ ] 3.1.2.3 Validate tool name exists in registry
+- [ ] 3.1.2.4 Validate parameters against tool schema (type checking, required fields)
+- [ ] 3.1.2.5 Delegate execution to ToolManager (never execute directly)
+- [ ] 3.1.2.6 Handle tool execution timeout (configurable, default 30s)
+- [ ] 3.1.2.7 Format tool results for LLM consumption
+- [ ] 3.1.2.8 Support sequential tool calls (one result feeds into next call)
+- [ ] 3.1.2.9 Write execution flow tests with mock tool manager (success: full round-trip)
 
-### 3.1.3 PubSub Integration
-- [ ] **Task 3.1.3 Complete**
+## 3.2 Lua Sandbox Tool Manager
 
-Connect TUI to agent events via Phoenix PubSub for real-time updates.
+All tool execution is delegated to a Lua-based sandbox using the `luerl` Erlang library. The tool manager enforces security boundaries: no direct shell access, no operations outside project directory, controlled API access.
 
-- [ ] 3.1.3.1 Subscribe to `"tui.events"` in TUI init
-- [ ] 3.1.3.2 Handle `{:agent_response, content}` messages in update
-- [ ] 3.1.3.3 Handle `{:agent_status, status}` for processing/idle indicators
-- [ ] 3.1.3.4 Handle `{:reasoning_step, step}` for CoT progress display
-- [ ] 3.1.3.5 Handle `{:config_changed, config}` for model switch notifications
-- [ ] 3.1.3.6 Implement message queueing for rapid updates
-- [ ] 3.1.3.7 Write integration test with mock PubSub messages (success: UI updates on events)
-
-## 3.2 View Rendering
-
-The view layer composes TermUI primitives into a multi-pane interface showing the conversation, input area, status bar, and optionally reasoning steps. Views are pure functions of the Model.
-
-### 3.2.1 Main Layout Structure
+### 3.2.1 Luerl Integration
 - [ ] **Task 3.2.1 Complete**
 
-Implement the primary view function with three-pane layout: status, conversation, input.
+Set up the Luerl Lua runtime integration for sandboxed execution.
 
-- [ ] 3.2.1.1 Implement `view/1` returning composed TermUI elements
-- [ ] 3.2.1.2 Create status bar at top: model name, provider, status indicator
-- [ ] 3.2.1.3 Create main conversation area with scrollable message history
-- [ ] 3.2.1.4 Create input bar at bottom with prompt indicator and input buffer
-- [ ] 3.2.1.5 Apply TermUI styling: colors for roles (user: cyan, assistant: white)
-- [ ] 3.2.1.6 Handle terminal resize events updating layout
-- [ ] 3.2.1.7 Verify layout renders correctly at various terminal sizes (success: no overflow/clipping)
+- [ ] 3.2.1.1 Add `luerl` dependency to mix.exs
+- [ ] 3.2.1.2 Create `JidoCode.Tools.Manager` module wrapping Luerl
+- [ ] 3.2.1.3 Initialize Lua state with restricted standard library (no `os.execute`, `io.popen`, `loadfile`)
+- [ ] 3.2.1.4 Implement `Manager.start_link/1` as GenServer for state management
+- [ ] 3.2.1.5 Store project root path in Manager state for boundary enforcement
+- [ ] 3.2.1.6 Implement `Manager.execute/3` accepting tool name, params, and timeout
+- [ ] 3.2.1.7 Add Manager to supervision tree under AgentSupervisor
+- [ ] 3.2.1.8 Write Luerl integration tests (success: Lua code executes in sandbox)
 
-### 3.2.2 Message Display
+### 3.2.2 Security Boundaries
 - [ ] **Task 3.2.2 Complete**
 
-Render conversation messages with role indicators and proper text wrapping.
+Implement security restrictions to prevent unauthorized access.
 
-- [ ] 3.2.2.1 Create `render_messages/2` helper function
-- [ ] 3.2.2.2 Display user messages with "You:" prefix in cyan
-- [ ] 3.2.2.3 Display assistant messages with "Assistant:" prefix
-- [ ] 3.2.2.4 Implement text wrapping for long messages
-- [ ] 3.2.2.5 Add timestamp display for each message
-- [ ] 3.2.2.6 Implement auto-scroll to latest message
-- [ ] 3.2.2.7 Support scrolling through message history with arrow keys
+- [ ] 3.2.2.1 Define project boundary as current working directory at startup
+- [ ] 3.2.2.2 Implement `validate_path/1` ensuring all paths resolve within project boundary
+- [ ] 3.2.2.3 Reject any path containing `..` that escapes project root after resolution
+- [ ] 3.2.2.4 Reject absolute paths outside project directory
+- [ ] 3.2.2.5 Reject symlinks pointing outside project directory
+- [ ] 3.2.2.6 Block all direct shell execution (no `os.execute`, `io.popen` equivalents)
+- [ ] 3.2.2.7 Whitelist allowed Lua standard library functions
+- [ ] 3.2.2.8 Implement resource limits: memory cap, execution time cap
+- [ ] 3.2.2.9 Log all security boundary violations for debugging
+- [ ] 3.2.2.10 Write security boundary tests (success: escape attempts blocked)
 
-### 3.2.3 Reasoning Panel
+### 3.2.3 Erlang Bridge Functions
 - [ ] **Task 3.2.3 Complete**
 
-Optional panel showing Chain-of-Thought reasoning steps during complex queries.
+Expose controlled Erlang functions to Lua for file, shell, and API operations.
 
-- [ ] 3.2.3.1 Create `render_reasoning/1` for reasoning step display
-- [ ] 3.2.3.2 Show reasoning panel only when steps are present in Model
-- [ ] 3.2.3.3 Display step list with status indicators (pending/active/complete)
-- [ ] 3.2.3.4 Highlight currently executing step
-- [ ] 3.2.3.5 Show confidence score after validation
-- [ ] 3.2.3.6 Implement toggle keybinding (Ctrl+R) to show/hide reasoning
-- [ ] 3.2.3.7 Position panel as right sidebar or bottom drawer based on terminal width
+- [ ] 3.2.3.1 Create `JidoCode.Tools.Manager.Bridge` module for Erlang-Lua bindings
+- [ ] 3.2.3.2 Implement `bridge_read_file/2` - read file contents (path validated)
+- [ ] 3.2.3.3 Implement `bridge_write_file/3` - write file contents (path validated)
+- [ ] 3.2.3.4 Implement `bridge_list_dir/2` - list directory contents (path validated)
+- [ ] 3.2.3.5 Implement `bridge_file_exists/2` - check file existence (path validated)
+- [ ] 3.2.3.6 Implement `bridge_shell/2` - execute shell command via controlled subprocess
+- [ ] 3.2.3.7 Shell bridge captures stdout/stderr, enforces timeout, runs in project dir
+- [ ] 3.2.3.8 Implement `bridge_http/2` - HTTP requests via Req (allowlist domains if needed)
+- [ ] 3.2.3.9 Register all bridge functions in Lua state as `jido.*` namespace
+- [ ] 3.2.3.10 Write bridge function tests (success: operations work within boundaries)
 
-### 3.2.4 Status Bar
-- [ ] **Task 3.2.4 Complete**
+## 3.3 Core Coding Tools
 
-Display current configuration and agent status in status bar. Handle unconfigured states since explicit provider configuration is required.
+Implement the essential tools for coding assistance: file operations, search, and shell execution.
 
-- [ ] 3.2.4.1 Create `render_status_bar/1` component
-- [ ] 3.2.4.2 Display current provider and model: "anthropic:claude-3-5-sonnet"
-- [ ] 3.2.4.3 Display "No provider configured" (red/warning) when provider is not set
-- [ ] 3.2.4.4 Display "No model selected" when model is missing from config
-- [ ] 3.2.4.5 Show agent status: idle (green), processing (yellow), error (red), unconfigured (red/dim)
-- [ ] 3.2.4.6 Display CoT indicator when reasoning is active
-- [ ] 3.2.4.7 Add keyboard shortcut hints: "Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit"
-- [ ] 3.2.4.8 Update status bar reactively on config/status changes
-
-## 3.3 TermUI Pick-List Widget
-
-A new widget for term_ui (`../term_ui`) that displays a scrollable modal overlay for selecting from a list of items. Used for provider and model selection.
-
-### 3.3.1 Pick-List Widget Implementation
+### 3.3.1 File System Tools
 - [ ] **Task 3.3.1 Complete**
 
-Create the pick-list widget in the term_ui library.
+Create tools for reading and writing files.
 
-- [ ] 3.3.1.1 Create `TermUI.Widget.PickList` module in `../term_ui`
-- [ ] 3.3.1.2 Render as modal overlay centered on screen with border
-- [ ] 3.3.1.3 Display scrollable list of items with current selection highlighted
-- [ ] 3.3.1.4 Support keyboard navigation: Up/Down arrows, Page Up/Down, Home/End
-- [ ] 3.3.1.5 Support type-ahead filtering: typing filters list to matching items
-- [ ] 3.3.1.6 Enter key confirms selection and returns selected value
-- [ ] 3.3.1.7 Escape key cancels and returns nil
-- [ ] 3.3.1.8 Display item count and current position: "Item 5 of 50"
-- [ ] 3.3.1.9 Handle empty list state gracefully
-- [ ] 3.3.1.10 Write widget tests for navigation and selection (success: all interactions work)
+- [ ] 3.3.1.1 Create `read_file` tool: read file contents, params: `{path: string}`
+- [ ] 3.3.1.2 Create `write_file` tool: write/overwrite file, params: `{path: string, content: string}`
+- [ ] 3.3.1.3 Create `list_directory` tool: list files/dirs, params: `{path: string, recursive: boolean}`
+- [ ] 3.3.1.4 Create `file_info` tool: get file metadata, params: `{path: string}`
+- [ ] 3.3.1.5 Create `create_directory` tool: create dir, params: `{path: string}`
+- [ ] 3.3.1.6 Create `delete_file` tool: remove file, params: `{path: string}` (with confirmation flag)
+- [ ] 3.3.1.7 All file tools delegate to ToolManager bridge functions
+- [ ] 3.3.1.8 Return structured results: `{ok: content}` or `{error: reason}`
+- [ ] 3.3.1.9 Write file tool tests (success: CRUD operations work)
+
+### 3.3.2 Search Tools
+- [ ] **Task 3.3.2 Complete**
+
+Create tools for searching the codebase.
+
+- [ ] 3.3.2.1 Create `grep` tool: search file contents, params: `{pattern: string, path: string, recursive: boolean}`
+- [ ] 3.3.2.2 Create `find_files` tool: find files by name/glob, params: `{pattern: string, path: string}`
+- [ ] 3.3.2.3 Grep tool returns matched lines with file paths and line numbers
+- [ ] 3.3.2.4 Find tool returns list of matching file paths
+- [ ] 3.3.2.5 Implement result truncation for large result sets (configurable limit)
+- [ ] 3.3.2.6 Search tools delegate to ToolManager for execution
+- [ ] 3.3.2.7 Write search tool tests (success: patterns match correctly)
+
+### 3.3.3 Shell Execution Tool
+- [ ] **Task 3.3.3 Complete**
+
+Create controlled shell execution tool.
+
+- [ ] 3.3.3.1 Create `run_command` tool: execute shell command, params: `{command: string, args: [string]}`
+- [ ] 3.3.3.2 Command runs in project directory (cwd enforced)
+- [ ] 3.3.3.3 Capture stdout and stderr separately
+- [ ] 3.3.3.4 Return exit code with output: `{exit_code: int, stdout: string, stderr: string}`
+- [ ] 3.3.3.5 Enforce execution timeout (default 60s, configurable)
+- [ ] 3.3.3.6 Optionally allow/block specific commands via configuration
+- [ ] 3.3.3.7 Shell tool delegates to ToolManager bridge (never direct execution)
+- [ ] 3.3.3.8 Write shell tool tests with safe commands (success: commands execute in sandbox)
+
+## 3.4 Tool Result Handling
+
+Display tool calls and results in the TUI for transparency.
+
+### 3.4.1 Tool Call Display
+- [ ] **Task 3.4.1 Complete**
+
+Show tool invocations and results in the TUI conversation.
+
+- [ ] 3.4.1.1 Broadcast `{:tool_call, tool_name, params}` via PubSub when tool is invoked
+- [ ] 3.4.1.2 Broadcast `{:tool_result, tool_name, result}` when tool completes
+- [ ] 3.4.1.3 TUI displays tool calls with distinct styling (e.g., dimmed, prefixed with "⚙")
+- [ ] 3.4.1.4 Display tool parameters in condensed format
+- [ ] 3.4.1.5 Display tool results with syntax highlighting for code/file contents
+- [ ] 3.4.1.6 Truncate long results with "Show more" indicator
+- [ ] 3.4.1.7 Handle tool errors with red error styling
+- [ ] 3.4.1.8 Add toggle keybinding (Ctrl+T) to show/hide tool call details
+- [ ] 3.4.1.9 Write TUI tool display tests (success: tool calls render correctly)

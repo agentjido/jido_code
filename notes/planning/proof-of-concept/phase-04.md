@@ -1,105 +1,127 @@
-# Phase 4: Integration and Message Flow
+# Phase 4: TUI Application with Elm Architecture
 
-This phase connects all components into a working system: user input flows to the agent, responses stream back through PubSub, and the TUI updates in real-time. This establishes the core interaction loop.
+This phase implements the terminal user interface using TermUI's Elm Architecture pattern. The architecture guarantees predictable state management through immutable model updates, message-based event handling, and pure view functions that render the current state.
 
-## 4.1 User Input Processing
+**Note:** This phase includes creating a new pick-list widget in the term_ui library (`../term_ui`) for provider/model selection.
 
-User input captured by the TUI must be packaged and sent to the appropriate agent. The flow handles input validation, agent selection, and async dispatch.
+## 4.1 Core TUI Structure
 
-### 4.1.1 Input Submission Handler
+The TUI application follows TermUI's Elm Architecture with three core functions: `init/1` for initial state, `update/2` for state transitions, and `view/1` for rendering. This pattern ensures all state changes flow through a single update function.
+
+### 4.1.1 Application Module Setup
 - [ ] **Task 4.1.1 Complete**
 
-Implement the complete flow from Enter key to agent invocation. Both provider AND model must be configured before allowing chat.
+Create the main TUI module implementing the TermUI.Elm behaviour.
 
-- [ ] 4.1.1.1 In TUI update, handle `:submit` by extracting input_buffer content
-- [ ] 4.1.1.2 Check if input is a command (starts with `/`) - route to command handler
-- [ ] 4.1.1.3 If not a command, verify both provider and model are configured
-- [ ] 4.1.1.4 If unconfigured, show error: "Please configure a model first. Use /model <provider>:<model> or /models <provider> to see options."
-- [ ] 4.1.1.5 Clear input_buffer and add user message to messages list
-- [ ] 4.1.1.6 Set agent_status to `:processing`
-- [ ] 4.1.1.7 Lookup LLMAgent via Registry
-- [ ] 4.1.1.8 Classify query for CoT using QueryClassifier
-- [ ] 4.1.1.9 Dispatch async task calling appropriate agent function
-- [ ] 4.1.1.10 Return updated Model with pending response indicator
-- [ ] 4.1.1.11 Write end-to-end test: input → agent → response (success: full round-trip works)
+- [ ] 4.1.1.1 Create `JidoCode.TUI` module with `use TermUI.Elm`
+- [ ] 4.1.1.2 Define `Model` struct with fields: input_buffer, messages, agent_status, config, reasoning_steps
+- [ ] 4.1.1.3 Implement `init/1` returning initial Model with empty state
+- [ ] 4.1.1.4 Load settings via `Settings.load/0` and populate config from saved provider/model
+- [ ] 4.1.1.5 Subscribe to PubSub topic `"tui.events"` in init
+- [ ] 4.1.1.6 Store window dimensions from init context
+- [ ] 4.1.1.7 Configure TUI runtime in Application supervisor
+- [ ] 4.1.1.8 Verify TUI starts and renders blank screen (success: terminal shows UI)
 
-### 4.1.2 Response Streaming
+### 4.1.2 Event Handling
 - [ ] **Task 4.1.2 Complete**
 
-Implement token-by-token streaming display showing LLM output as it arrives for better user experience.
+Implement the event_to_msg callback and update function for user input and agent events.
 
-- [ ] 4.1.2.1 Configure JidoAI agent with streaming enabled in model options
-- [ ] 4.1.2.2 Implement stream handler in LLMAgent that broadcasts chunks via PubSub
-- [ ] 4.1.2.3 Agent broadcasts partial responses: `{:stream_chunk, text}` for each token batch
-- [ ] 4.1.2.4 TUI update appends chunks to current streaming message with cursor indicator
-- [ ] 4.1.2.5 Display streaming indicator (blinking cursor or spinner) during response generation
-- [ ] 4.1.2.6 Agent broadcasts completion: `{:stream_end, full_content}` when done
-- [ ] 4.1.2.7 TUI finalizes message, removes streaming indicator, clears streaming state
-- [ ] 4.1.2.8 Handle stream errors gracefully with error message display
-- [ ] 4.1.2.9 Update agent_status to `:idle` on completion
-- [ ] 4.1.2.10 Write streaming test verifying incremental display (success: chunks appear progressively)
+- [ ] 4.1.2.1 Define message types: `:key_input`, `:submit`, `:agent_response`, `:status_update`, `:config_change`
+- [ ] 4.1.2.2 Implement `event_to_msg/2` mapping keyboard events to messages
+- [ ] 4.1.2.3 Handle Enter key → `:submit` message
+- [ ] 4.1.2.4 Handle printable characters → `:key_input` with character
+- [ ] 4.1.2.5 Handle Backspace → `:key_input` with `:backspace`
+- [ ] 4.1.2.6 Handle Ctrl+C → `:quit` message
+- [ ] 4.1.2.7 Implement `update/2` for each message type updating Model
+- [ ] 4.1.2.8 Write update tests verifying state transitions (success: input buffer updates correctly)
 
-## 4.2 Configuration Commands
+### 4.1.3 PubSub Integration
+- [ ] **Task 4.1.3 Complete**
 
-Users can change LLM provider/model at runtime through TUI commands. This enables experimentation without restarting the application.
+Connect TUI to agent events via Phoenix PubSub for real-time updates.
 
-### 4.2.1 Command Parser
+- [ ] 4.1.3.1 Subscribe to `"tui.events"` in TUI init
+- [ ] 4.1.3.2 Handle `{:agent_response, content}` messages in update
+- [ ] 4.1.3.3 Handle `{:agent_status, status}` for processing/idle indicators
+- [ ] 4.1.3.4 Handle `{:reasoning_step, step}` for CoT progress display
+- [ ] 4.1.3.5 Handle `{:config_changed, config}` for model switch notifications
+- [ ] 4.1.3.6 Implement message queueing for rapid updates
+- [ ] 4.1.3.7 Write integration test with mock PubSub messages (success: UI updates on events)
+
+## 4.2 View Rendering
+
+The view layer composes TermUI primitives into a multi-pane interface showing the conversation, input area, status bar, and optionally reasoning steps. Views are pure functions of the Model.
+
+### 4.2.1 Main Layout Structure
 - [ ] **Task 4.2.1 Complete**
 
-Parse and execute configuration commands from user input.
+Implement the primary view function with three-pane layout: status, conversation, input.
 
-- [ ] 4.2.1.1 Create `JidoCode.Commands` module for command handling
-- [ ] 4.2.1.2 Detect command prefix `/` in input
-- [ ] 4.2.1.3 Implement `/model <provider>:<model>` command (sets both provider and model)
-- [ ] 4.2.1.4 Implement `/model <model>` command (requires provider already set, validates model for current provider)
-- [ ] 4.2.1.5 Implement `/provider <provider>` command (sets provider, clears model - user must then select model)
-- [ ] 4.2.1.6 Implement `/models` command - opens pick-list modal with models for current provider (error if no provider set), returns selected model
-- [ ] 4.2.1.7 Implement `/models <provider>` command - opens pick-list modal with models for specified provider, returns selected model
-- [ ] 4.2.1.8 Implement `/providers` command - opens pick-list modal with all available providers, returns selected provider
-- [ ] 4.2.1.9 Implement `/config` to display current configuration
-- [ ] 4.2.1.10 Implement `/help` listing available commands
-- [ ] 4.2.1.11 Return command result or error message for TUI display
-- [ ] 4.2.1.12 Write command parsing tests (success: all commands parse correctly)
+- [ ] 4.2.1.1 Implement `view/1` returning composed TermUI elements
+- [ ] 4.2.1.2 Create status bar at top: model name, provider, status indicator
+- [ ] 4.2.1.3 Create main conversation area with scrollable message history
+- [ ] 4.2.1.4 Create input bar at bottom with prompt indicator and input buffer
+- [ ] 4.2.1.5 Apply TermUI styling: colors for roles (user: cyan, assistant: white)
+- [ ] 4.2.1.6 Handle terminal resize events updating layout
+- [ ] 4.2.1.7 Verify layout renders correctly at various terminal sizes (success: no overflow/clipping)
 
-### 4.2.2 Model Switching
+### 4.2.2 Message Display
 - [ ] **Task 4.2.2 Complete**
 
-Execute model configuration changes and update agent. Any provider from `Jido.AI.Provider.providers/0` is valid. Models are validated against the provider before accepting.
+Render conversation messages with role indicators and proper text wrapping.
 
-- [ ] 4.2.2.1 On `/model` command, parse provider and model name
-- [ ] 4.2.2.2 Validate provider exists in `Jido.AI.Provider.providers/0` (50+ providers supported)
-- [ ] 4.2.2.3 Validate model exists for provider via `Jido.AI.Provider.get_model/2`
-- [ ] 4.2.2.4 On invalid model, show error: "Model X not found for provider Y. Use /models Y to list available models."
-- [ ] 4.2.2.5 Validate API key exists for provider via Keyring
-- [ ] 4.2.2.6 Call `LLMAgent.configure/2` with new settings
-- [ ] 4.2.2.7 Broadcast `{:config_changed, config}` on success
-- [ ] 4.2.2.8 Display success/error message in TUI
-- [ ] 4.2.2.9 Write integration test for model switching (success: subsequent queries use new model)
+- [ ] 4.2.2.1 Create `render_messages/2` helper function
+- [ ] 4.2.2.2 Display user messages with "You:" prefix in cyan
+- [ ] 4.2.2.3 Display assistant messages with "Assistant:" prefix
+- [ ] 4.2.2.4 Implement text wrapping for long messages
+- [ ] 4.2.2.5 Add timestamp display for each message
+- [ ] 4.2.2.6 Implement auto-scroll to latest message
+- [ ] 4.2.2.7 Support scrolling through message history with arrow keys
 
-## 4.3 Knowledge Graph Foundation Stub
+### 4.2.3 Reasoning Panel
+- [ ] **Task 4.2.3 Complete**
 
-The knowledge graph stub establishes the RDF.ex and libgraph infrastructure for future context management. This phase creates placeholder modules and basic data structures without implementing full functionality.
+Optional panel showing Chain-of-Thought reasoning steps during complex queries.
 
-### 4.3.1 RDF Infrastructure Setup
+- [ ] 4.2.3.1 Create `render_reasoning/1` for reasoning step display
+- [ ] 4.2.3.2 Show reasoning panel only when steps are present in Model
+- [ ] 4.2.3.3 Display step list with status indicators (pending/active/complete)
+- [ ] 4.2.3.4 Highlight currently executing step
+- [ ] 4.2.3.5 Show confidence score after validation
+- [ ] 4.2.3.6 Implement toggle keybinding (Ctrl+R) to show/hide reasoning
+- [ ] 4.2.3.7 Position panel as right sidebar or bottom drawer based on terminal width
+
+### 4.2.4 Status Bar
+- [ ] **Task 4.2.4 Complete**
+
+Display current configuration and agent status in status bar. Handle unconfigured states since explicit provider configuration is required.
+
+- [ ] 4.2.4.1 Create `render_status_bar/1` component
+- [ ] 4.2.4.2 Display current provider and model: "anthropic:claude-3-5-sonnet"
+- [ ] 4.2.4.3 Display "No provider configured" (red/warning) when provider is not set
+- [ ] 4.2.4.4 Display "No model selected" when model is missing from config
+- [ ] 4.2.4.5 Show agent status: idle (green), processing (yellow), error (red), unconfigured (red/dim)
+- [ ] 4.2.4.6 Display CoT indicator when reasoning is active
+- [ ] 4.2.4.7 Add keyboard shortcut hints: "Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit"
+- [ ] 4.2.4.8 Update status bar reactively on config/status changes
+
+## 4.3 TermUI Pick-List Widget
+
+A new widget for term_ui (`../term_ui`) that displays a scrollable modal overlay for selecting from a list of items. Used for provider and model selection.
+
+### 4.3.1 Pick-List Widget Implementation
 - [ ] **Task 4.3.1 Complete**
 
-Create the foundation modules for RDF-based knowledge representation.
+Create the pick-list widget in the term_ui library.
 
-- [ ] 4.3.1.1 Create `JidoCode.KnowledgeGraph` namespace module
-- [ ] 4.3.1.2 Create `JidoCode.KnowledgeGraph.Store` with basic RDF.Graph wrapper
-- [ ] 4.3.1.3 Define placeholder namespace for code entities: `JidoCode.KnowledgeGraph.Vocab.Code`
-- [ ] 4.3.1.4 Implement stub functions: `add_entity/2`, `query/2`, `clear/0` returning `:not_implemented`
-- [ ] 4.3.1.5 Create `JidoCode.KnowledgeGraph.Entity` struct for code entities (module, function, type)
-- [ ] 4.3.1.6 Verify RDF.ex dependency works with basic graph operations (success: can create/query empty graph)
-
-### 4.3.2 Graph Operations Placeholder
-- [ ] **Task 4.3.2 Complete**
-
-Create libgraph-based infrastructure for in-memory graph algorithms.
-
-- [ ] 4.3.2.1 Create `JidoCode.KnowledgeGraph.InMemory` module using libgraph
-- [ ] 4.3.2.2 Implement stub `build_dependency_graph/1` returning empty graph
-- [ ] 4.3.2.3 Implement stub `find_related_entities/2` returning empty list
-- [ ] 4.3.2.4 Define graph schema for code relationships (calls, defines, imports)
-- [ ] 4.3.2.5 Add placeholder for future GraphRAG integration
-- [ ] 4.3.2.6 Write basic test verifying libgraph operations work (success: graph creation/traversal)
+- [ ] 4.3.1.1 Create `TermUI.Widget.PickList` module in `../term_ui`
+- [ ] 4.3.1.2 Render as modal overlay centered on screen with border
+- [ ] 4.3.1.3 Display scrollable list of items with current selection highlighted
+- [ ] 4.3.1.4 Support keyboard navigation: Up/Down arrows, Page Up/Down, Home/End
+- [ ] 4.3.1.5 Support type-ahead filtering: typing filters list to matching items
+- [ ] 4.3.1.6 Enter key confirms selection and returns selected value
+- [ ] 4.3.1.7 Escape key cancels and returns nil
+- [ ] 4.3.1.8 Display item count and current position: "Item 5 of 50"
+- [ ] 4.3.1.9 Handle empty list state gracefully
+- [ ] 4.3.1.10 Write widget tests for navigation and selection (success: all interactions work)

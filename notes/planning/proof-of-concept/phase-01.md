@@ -19,18 +19,18 @@ Generate the base Elixir application with supervision tree support and configure
 - [x] 1.1.1.6 Run `mix deps.get` and verify all dependencies compile (success: `mix compile` exits 0)
 
 ### 1.1.2 Configure LLM Provider Settings
-- [ ] **Task 1.1.2 Complete**
+- [x] **Task 1.1.2 Complete**
 
 Establish the configuration schema for LLM providers using JidoAI's Keyring and Model systems. JidoAI supports 50+ providers through ReqLLM integration - any provider returned by `Jido.AI.Provider.providers/0` is valid.
 
-- [ ] 1.1.2.1 Define `:jido_code, :llm` configuration key with provider, model, temperature, max_tokens options
-- [ ] 1.1.2.2 Create `JidoCode.Config` module to read and validate LLM configuration
-- [ ] 1.1.2.3 Implement `Config.get_llm_config/0` returning validated `{provider, opts}` tuple
-- [ ] 1.1.2.4 Validate provider exists via `Jido.AI.Provider.providers/0` (supports 50+ providers via ReqLLM)
-- [ ] 1.1.2.5 Support environment variable overrides: `JIDO_CODE_PROVIDER`, `JIDO_CODE_MODEL`, provider-specific API key env vars
-- [ ] 1.1.2.6 Add runtime validation that API key exists for configured provider via Keyring
-- [ ] 1.1.2.7 Require explicit provider configuration (no default) - error on startup if not configured
-- [ ] 1.1.2.8 Write config tests verifying provider switching and validation (success: tests pass)
+- [x] 1.1.2.1 Define `:jido_code, :llm` configuration key with provider, model, temperature, max_tokens options
+- [x] 1.1.2.2 Create `JidoCode.Config` module to read and validate LLM configuration
+- [x] 1.1.2.3 Implement `Config.get_llm_config/0` returning validated `{:ok, config}` or `{:error, reason}`
+- [x] 1.1.2.4 Validate provider exists via `Jido.AI.Provider.providers/0` (supports 50+ providers via ReqLLM)
+- [x] 1.1.2.5 Support environment variable overrides: `JIDO_CODE_PROVIDER`, `JIDO_CODE_MODEL`, provider-specific API key env vars
+- [x] 1.1.2.6 Add runtime validation that API key exists for configured provider via Keyring
+- [x] 1.1.2.7 Require explicit provider configuration (no default) - error on startup if not configured
+- [x] 1.1.2.8 Write config tests verifying provider switching and validation (success: 13 tests pass)
 
 ## 1.2 OTP Supervision Tree
 

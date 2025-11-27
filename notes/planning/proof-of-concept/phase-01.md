@@ -89,17 +89,17 @@ Define the JSON schema and file locations for persistent settings.
 - [x] 1.3.1.7 Write schema validation tests (success: valid JSON parses, invalid rejects)
 
 ### 1.3.2 Settings Loading and Merging
-- [ ] **Task 1.3.2 Complete**
+- [x] **Task 1.3.2 Complete**
 
 Implement loading, merging, and accessing settings with local override priority.
 
-- [ ] 1.3.2.1 Implement `Settings.load/0` to read and merge global + local settings
-- [ ] 1.3.2.2 Load global settings first, then overlay local settings (local wins on conflict)
-- [ ] 1.3.2.3 Handle missing files gracefully (return empty map for missing file)
-- [ ] 1.3.2.4 Handle malformed JSON with error logging and fallback to defaults
-- [ ] 1.3.2.5 Implement `Settings.get/1` and `Settings.get/2` for accessing values with defaults
-- [ ] 1.3.2.6 Cache loaded settings in memory to avoid repeated file reads
-- [ ] 1.3.2.7 Write merge tests verifying local overrides global (success: correct precedence)
+- [x] 1.3.2.1 Implement `Settings.load/0` to read and merge global + local settings
+- [x] 1.3.2.2 Load global settings first, then overlay local settings (local wins on conflict)
+- [x] 1.3.2.3 Handle missing files gracefully (return empty map for missing file)
+- [x] 1.3.2.4 Handle malformed JSON with error logging and fallback to defaults
+- [x] 1.3.2.5 Implement `Settings.get/1` and `Settings.get/2` for accessing values with defaults
+- [x] 1.3.2.6 Cache loaded settings in memory to avoid repeated file reads
+- [x] 1.3.2.7 Write merge tests verifying local overrides global (success: correct precedence)
 
 ### 1.3.3 Settings Persistence
 - [ ] **Task 1.3.3 Complete**

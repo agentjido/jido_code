@@ -65,14 +65,14 @@ Create the agent supervisor that manages LLM agent lifecycle with proper restart
 A two-level JSON configuration system that persists user preferences across sessions. Global settings in `~/.jido_code/settings.json` apply to all projects, while local settings in `./jido_code/settings.json` override global values for project-specific configuration.
 
 ### 1.3.1 Settings File Structure
-- [ ] **Task 1.3.1 Complete**
+- [x] **Task 1.3.1 Complete**
 
 Define the JSON schema and file locations for persistent settings.
 
-- [ ] 1.3.1.1 Create `JidoCode.Settings` module for settings management
-- [ ] 1.3.1.2 Define global settings path: `~/.jido_code/settings.json`
-- [ ] 1.3.1.3 Define local settings path: `./jido_code/settings.json` (project root)
-- [ ] 1.3.1.4 Define settings JSON schema:
+- [x] 1.3.1.1 Create `JidoCode.Settings` module for settings management
+- [x] 1.3.1.2 Define global settings path: `~/.jido_code/settings.json`
+- [x] 1.3.1.3 Define local settings path: `./jido_code/settings.json` (project root)
+- [x] 1.3.1.4 Define settings JSON schema:
   ```json
   {
     "provider": "anthropic",
@@ -84,9 +84,9 @@ Define the JSON schema and file locations for persistent settings.
     }
   }
   ```
-- [ ] 1.3.1.5 Create directory `~/.jido_code/` on first write if not exists
-- [ ] 1.3.1.6 Create directory `./jido_code/` on first write if not exists
-- [ ] 1.3.1.7 Write schema validation tests (success: valid JSON parses, invalid rejects)
+- [x] 1.3.1.5 Create directory `~/.jido_code/` on first write if not exists
+- [x] 1.3.1.6 Create directory `./jido_code/` on first write if not exists
+- [x] 1.3.1.7 Write schema validation tests (success: valid JSON parses, invalid rejects)
 
 ### 1.3.2 Settings Loading and Merging
 - [ ] **Task 1.3.2 Complete**

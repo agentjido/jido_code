@@ -49,16 +49,16 @@ Implement the main application supervisor with proper child ordering and restart
 - [x] 1.2.1.6 Verify supervision tree starts correctly via `mix run --no-halt` (success: runs 5+ seconds without errors)
 
 ### 1.2.2 Agent Supervisor Implementation
-- [ ] **Task 1.2.2 Complete**
+- [x] **Task 1.2.2 Complete**
 
 Create the agent supervisor that manages LLM agent lifecycle with proper restart policies.
 
-- [ ] 1.2.2.1 Create `JidoCode.AgentSupervisor` as DynamicSupervisor
-- [ ] 1.2.2.2 Implement `start_agent/1` to spawn supervised agent processes
-- [ ] 1.2.2.3 Implement `stop_agent/1` for graceful agent termination
-- [ ] 1.2.2.4 Configure agent restart strategy: `restart: :transient` (restart on abnormal exit only)
-- [ ] 1.2.2.5 Add agent process registration via AgentRegistry
-- [ ] 1.2.2.6 Write tests for agent start/stop/restart behavior (success: agent recovers from crash)
+- [x] 1.2.2.1 Create `JidoCode.AgentSupervisor` as DynamicSupervisor
+- [x] 1.2.2.2 Implement `start_agent/1` to spawn supervised agent processes
+- [x] 1.2.2.3 Implement `stop_agent/1` for graceful agent termination
+- [x] 1.2.2.4 Configure agent restart strategy: `restart: :transient` (restart on abnormal exit only)
+- [x] 1.2.2.5 Add agent process registration via AgentRegistry
+- [x] 1.2.2.6 Write tests for agent start/stop/restart behavior (success: agent recovers from crash)
 
 ## 1.3 Settings File System
 

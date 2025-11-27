@@ -14,17 +14,27 @@ defmodule JidoCode.AgentSupervisor do
 
   ## Usage
 
-      # Start an agent (implementation in task 1.2.2)
-      {:ok, pid} = JidoCode.AgentSupervisor.start_agent(agent_spec)
+      # Start an agent
+      {:ok, pid} = JidoCode.AgentSupervisor.start_agent(%{
+        name: :my_agent,
+        module: JidoCode.TestAgent,
+        args: []
+      })
 
-      # Stop an agent
+      # Lookup an agent by name
+      {:ok, pid} = JidoCode.AgentSupervisor.lookup_agent(:my_agent)
+
+      # Stop an agent by pid or name
       :ok = JidoCode.AgentSupervisor.stop_agent(pid)
+      :ok = JidoCode.AgentSupervisor.stop_agent(:my_agent)
 
       # List running agents
       agents = JidoCode.AgentSupervisor.which_children()
   """
 
   use DynamicSupervisor
+
+  @registry JidoCode.AgentRegistry
 
   @doc """
   Starts the AgentSupervisor.
@@ -36,6 +46,109 @@ defmodule JidoCode.AgentSupervisor do
   @impl true
   def init(_init_arg) do
     DynamicSupervisor.init(strategy: :one_for_one)
+  end
+
+  @doc """
+  Starts a supervised agent process.
+
+  ## Options
+
+  - `:name` - (required) Unique name for the agent, used for Registry lookup
+  - `:module` - (required) The GenServer module to start
+  - `:args` - (optional) Arguments to pass to the module's start_link/1
+
+  ## Returns
+
+  - `{:ok, pid}` - Agent started successfully
+  - `{:error, {:already_started, pid}}` - Agent with this name already exists
+  - `{:error, reason}` - Failed to start agent
+
+  ## Examples
+
+      iex> JidoCode.AgentSupervisor.start_agent(%{
+      ...>   name: :my_agent,
+      ...>   module: JidoCode.TestAgent,
+      ...>   args: []
+      ...> })
+      {:ok, #PID<0.123.0>}
+  """
+  @spec start_agent(map()) :: {:ok, pid()} | {:error, term()}
+  def start_agent(%{name: name, module: module} = spec) do
+    args = Map.get(spec, :args, [])
+
+    # Build the via tuple for Registry registration
+    via_name = {:via, Registry, {@registry, name}}
+
+    # Build child spec with transient restart
+    child_spec = %{
+      id: name,
+      start: {module, :start_link, [Keyword.put(args, :name, via_name)]},
+      restart: :transient
+    }
+
+    DynamicSupervisor.start_child(__MODULE__, child_spec)
+  end
+
+  def start_agent(_invalid_spec) do
+    {:error, :invalid_agent_spec}
+  end
+
+  @doc """
+  Stops a supervised agent process.
+
+  Accepts either a pid or an agent name. The agent is terminated gracefully
+  using `DynamicSupervisor.terminate_child/2`.
+
+  ## Returns
+
+  - `:ok` - Agent stopped successfully
+  - `{:error, :not_found}` - No agent with this name/pid exists
+
+  ## Examples
+
+      iex> JidoCode.AgentSupervisor.stop_agent(:my_agent)
+      :ok
+
+      iex> JidoCode.AgentSupervisor.stop_agent(pid)
+      :ok
+  """
+  @spec stop_agent(pid() | atom()) :: :ok | {:error, :not_found}
+  def stop_agent(pid) when is_pid(pid) do
+    case DynamicSupervisor.terminate_child(__MODULE__, pid) do
+      :ok -> :ok
+      {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
+  def stop_agent(name) when is_atom(name) do
+    case lookup_agent(name) do
+      {:ok, pid} -> stop_agent(pid)
+      {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Looks up an agent by name in the Registry.
+
+  ## Returns
+
+  - `{:ok, pid}` - Agent found
+  - `{:error, :not_found}` - No agent with this name
+
+  ## Examples
+
+      iex> JidoCode.AgentSupervisor.lookup_agent(:my_agent)
+      {:ok, #PID<0.123.0>}
+
+      iex> JidoCode.AgentSupervisor.lookup_agent(:unknown)
+      {:error, :not_found}
+  """
+  @spec lookup_agent(atom()) :: {:ok, pid()} | {:error, :not_found}
+  def lookup_agent(name) do
+    case Registry.lookup(@registry, name) do
+      [{pid, _value}] -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
   end
 
   @doc """

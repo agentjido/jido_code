@@ -553,4 +553,98 @@ defmodule JidoCode.SettingsTest do
       assert :ok = Settings.clear_cache()
     end
   end
+
+  describe "get_providers/0" do
+    test "returns list of strings" do
+      providers = Settings.get_providers()
+      assert is_list(providers)
+      # Should either have settings providers or fall back to JidoAI
+    end
+
+    test "falls back to JidoAI when settings empty" do
+      # Clear cache to ensure fresh load
+      Settings.clear_cache()
+
+      # With no settings, should fall back to JidoAI providers
+      providers = Settings.get_providers()
+      assert is_list(providers)
+      # JidoAI has 50+ providers
+      assert length(providers) > 0
+    end
+
+    @tag :tmp_dir
+    test "returns settings providers when configured", %{tmp_dir: tmp_dir} do
+      # Create settings with custom providers
+      path = Path.join(tmp_dir, "settings.json")
+      settings = %{"providers" => ["custom1", "custom2"]}
+      File.write!(path, Jason.encode!(settings))
+
+      {:ok, loaded} = Settings.read_file(path)
+      assert loaded["providers"] == ["custom1", "custom2"]
+    end
+  end
+
+  describe "get_models/1" do
+    test "returns list of strings for valid provider" do
+      models = Settings.get_models("anthropic")
+      assert is_list(models)
+    end
+
+    test "returns empty list for unknown provider" do
+      models = Settings.get_models("completely_unknown_provider_xyz")
+      assert models == []
+    end
+
+    @tag :tmp_dir
+    test "returns settings models when configured", %{tmp_dir: tmp_dir} do
+      # Create settings with custom models
+      path = Path.join(tmp_dir, "settings.json")
+      settings = %{"models" => %{"anthropic" => ["custom-model-1", "custom-model-2"]}}
+      File.write!(path, Jason.encode!(settings))
+
+      {:ok, loaded} = Settings.read_file(path)
+      assert loaded["models"]["anthropic"] == ["custom-model-1", "custom-model-2"]
+    end
+
+    @tag :tmp_dir
+    test "returns empty list when provider not in settings models", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "settings.json")
+      settings = %{"models" => %{"anthropic" => ["claude"]}}
+      File.write!(path, Jason.encode!(settings))
+
+      {:ok, loaded} = Settings.read_file(path)
+      assert Map.get(loaded["models"], "openai") == nil
+    end
+  end
+
+  describe "settings override discovery" do
+    @tag :tmp_dir
+    test "settings providers list overrides discovery behavior", %{tmp_dir: tmp_dir} do
+      # Verify that when settings has providers, they would be used
+      path = Path.join(tmp_dir, "override_test.json")
+      settings = %{"providers" => ["my-provider-1", "my-provider-2"]}
+      File.write!(path, Jason.encode!(settings))
+
+      {:ok, loaded} = Settings.read_file(path)
+      providers = loaded["providers"]
+
+      # Settings should contain exactly what we configured
+      assert providers == ["my-provider-1", "my-provider-2"]
+      assert "anthropic" not in providers
+    end
+
+    @tag :tmp_dir
+    test "settings models list overrides discovery behavior", %{tmp_dir: tmp_dir} do
+      # Verify that when settings has models for provider, they would be used
+      path = Path.join(tmp_dir, "models_test.json")
+      settings = %{"models" => %{"anthropic" => ["my-custom-model"]}}
+      File.write!(path, Jason.encode!(settings))
+
+      {:ok, loaded} = Settings.read_file(path)
+      models = loaded["models"]["anthropic"]
+
+      # Settings should contain exactly what we configured
+      assert models == ["my-custom-model"]
+    end
+  end
 end

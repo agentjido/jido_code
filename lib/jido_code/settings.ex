@@ -689,4 +689,119 @@ defmodule JidoCode.Settings do
         {:error, Exception.message(e)}
     end
   end
+
+  # ============================================================================
+  # Provider and Model Lists
+  # ============================================================================
+
+  @doc """
+  Returns the list of available providers.
+
+  First checks settings for a user-configured "providers" list.
+  If not configured or empty, falls back to `Jido.AI.Provider.providers/0`.
+
+  ## Returns
+
+  List of provider name strings.
+
+  ## Examples
+
+      # When settings has providers configured
+      iex> JidoCode.Settings.get_providers()
+      ["anthropic", "openai", "openrouter"]
+
+      # Falls back to JidoAI discovery when not configured
+      iex> JidoCode.Settings.get_providers()
+      ["anthropic", "azure", "openai", ...]
+  """
+  @spec get_providers() :: [String.t()]
+  def get_providers do
+    case get("providers") do
+      providers when is_list(providers) and providers != [] ->
+        providers
+
+      _ ->
+        get_jido_providers()
+    end
+  end
+
+  @doc """
+  Returns the list of available models for a provider.
+
+  First checks settings for a user-configured "models[provider]" list.
+  If not configured or empty, falls back to JidoAI discovery.
+
+  ## Parameters
+
+  - `provider` - Provider name (string)
+
+  ## Returns
+
+  List of model name strings. Returns empty list for unknown providers.
+
+  ## Examples
+
+      # When settings has models configured
+      iex> JidoCode.Settings.get_models("anthropic")
+      ["claude-3-5-sonnet", "claude-3-opus"]
+
+      # Falls back to JidoAI discovery when not configured
+      iex> JidoCode.Settings.get_models("openai")
+      ["gpt-4o", "gpt-4-turbo", ...]
+  """
+  @spec get_models(String.t()) :: [String.t()]
+  def get_models(provider) when is_binary(provider) do
+    models_map = get("models") || %{}
+
+    case Map.get(models_map, provider) do
+      models when is_list(models) and models != [] ->
+        models
+
+      _ ->
+        get_jido_models(provider)
+    end
+  end
+
+  # ============================================================================
+  # Private: JidoAI Integration
+  # ============================================================================
+
+  defp get_jido_providers do
+    try do
+      Jido.AI.Provider.providers()
+      |> Keyword.keys()
+      |> Enum.map(&Atom.to_string/1)
+    rescue
+      _ -> []
+    catch
+      :exit, _ -> []
+    end
+  end
+
+  defp get_jido_models(provider) do
+    try do
+      provider_atom = String.to_existing_atom(provider)
+
+      case Jido.AI.Provider.list_all_models_enhanced(provider_atom) do
+        {:ok, models} when is_list(models) ->
+          models
+          |> Enum.map(fn model ->
+            case model do
+              %{id: id} when is_binary(id) -> id
+              %{name: name} when is_binary(name) -> name
+              _ -> nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+
+        _ ->
+          []
+      end
+    rescue
+      ArgumentError -> []
+      _ -> []
+    catch
+      :exit, _ -> []
+    end
+  end
 end

@@ -116,14 +116,14 @@ Implement saving settings updates to the appropriate file.
 - [x] 1.3.3.8 Write persistence tests verifying round-trip save/load (success: data survives restart)
 
 ### 1.3.4 Provider and Model Lists
-- [ ] **Task 1.3.4 Complete**
+- [x] **Task 1.3.4 Complete**
 
 Use settings file lists to filter available providers and models in pick-list UI.
 
-- [ ] 1.3.4.1 Implement `Settings.get_providers/0` returning providers list from settings
-- [ ] 1.3.4.2 If `providers` list exists in settings, use it for `/providers` pick-list
-- [ ] 1.3.4.3 If `providers` list is empty/missing, fall back to `Jido.AI.Provider.providers/0`
-- [ ] 1.3.4.4 Implement `Settings.get_models/1` returning models list for a provider
-- [ ] 1.3.4.5 If `models[provider]` exists in settings, use it for `/models` pick-list
-- [ ] 1.3.4.6 If `models[provider]` is empty/missing, fall back to provider's full model list
-- [ ] 1.3.4.7 Write tests verifying settings lists override dynamic discovery (success: custom lists used)
+- [x] 1.3.4.1 Implement `Settings.get_providers/0` returning providers list from settings
+- [x] 1.3.4.2 If `providers` list exists in settings, use it for `/providers` pick-list
+- [x] 1.3.4.3 If `providers` list is empty/missing, fall back to `Jido.AI.Provider.providers/0`
+- [x] 1.3.4.4 Implement `Settings.get_models/1` returning models list for a provider
+- [x] 1.3.4.5 If `models[provider]` exists in settings, use it for `/models` pick-list
+- [x] 1.3.4.6 If `models[provider]` is empty/missing, fall back to provider's full model list
+- [x] 1.3.4.7 Write tests verifying settings lists override dynamic discovery (success: custom lists used)

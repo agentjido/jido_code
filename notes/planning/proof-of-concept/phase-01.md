@@ -7,16 +7,16 @@ This phase establishes the Elixir project structure, dependency management, and 
 The project initialization creates the standard Elixir application structure with proper configuration for all required dependencies. The project name `jido_code` reflects its purpose as a coding assistant built on the Jido framework.
 
 ### 1.1.1 Create Elixir Project Structure
-- [ ] **Task 1.1.1 Complete**
+- [x] **Task 1.1.1 Complete**
 
 Generate the base Elixir application with supervision tree support and configure mix.exs with all required dependencies.
 
-- [ ] 1.1.1.1 Run `mix new jido_code --sup` to create supervised application
-- [ ] 1.1.1.2 Configure mix.exs with dependencies: jido (~> 1.1.0), jido_ai (~> 0.5.0), term_ui, phoenix_pubsub (~> 2.1), jason, luerl, rdf (~> 2.0), libgraph (~> 0.16)
-- [ ] 1.1.1.3 Add development dependencies: ex_doc, credo, dialyxir
-- [ ] 1.1.1.4 Create config/config.exs with base configuration structure
-- [ ] 1.1.1.5 Create config/runtime.exs for environment-specific LLM configuration
-- [ ] 1.1.1.6 Run `mix deps.get` and verify all dependencies compile (success: `mix compile` exits 0)
+- [x] 1.1.1.1 Run `mix new jido_code --sup` to create supervised application
+- [x] 1.1.1.2 Configure mix.exs with dependencies: jido (~> 1.2), jido_ai (local), term_ui (local), phoenix_pubsub (~> 2.1), jason, luerl, rdf (~> 2.0), libgraph (~> 0.16)
+- [x] 1.1.1.3 Add development dependencies: ex_doc, credo, dialyxir
+- [x] 1.1.1.4 Create config/config.exs with base configuration structure
+- [x] 1.1.1.5 Create config/runtime.exs for environment-specific LLM configuration
+- [x] 1.1.1.6 Run `mix deps.get` and verify all dependencies compile (success: `mix compile` exits 0)
 
 ### 1.1.2 Configure LLM Provider Settings
 - [ ] **Task 1.1.2 Complete**

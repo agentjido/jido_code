@@ -23,10 +23,12 @@ defmodule JidoCode.Application do
       {Phoenix.PubSub, name: JidoCode.PubSub},
 
       # Registry for agent lookup
-      {Registry, keys: :unique, name: JidoCode.AgentRegistry}
+      {Registry, keys: :unique, name: JidoCode.AgentRegistry},
+
+      # DynamicSupervisor for agent processes
+      JidoCode.AgentSupervisor
 
       # Future children will be added here:
-      # - JidoCode.AgentSupervisor (Phase 1.2)
       # - JidoCode.Tools.Manager (Phase 3)
       # - JidoCode.TUI (Phase 4)
     ]

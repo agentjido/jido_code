@@ -37,16 +37,16 @@ Establish the configuration schema for LLM providers using JidoAI's Keyring and 
 The supervision tree implements fault isolation between infrastructure services, agents, and the TUI layer. Using `:one_for_one` strategy at the top level ensures that a crash in one subsystem doesn't cascade.
 
 ### 1.2.1 Application Supervisor Structure
-- [ ] **Task 1.2.1 Complete**
+- [x] **Task 1.2.1 Complete**
 
 Implement the main application supervisor with proper child ordering and restart strategies.
 
-- [ ] 1.2.1.1 Create `JidoCode.Application` module with `start/2` callback
-- [ ] 1.2.1.2 Add Phoenix.PubSub as first child: `{Phoenix.PubSub, name: JidoCode.PubSub}`
-- [ ] 1.2.1.3 Add Registry for agent lookup: `{Registry, keys: :unique, name: JidoCode.AgentRegistry}`
-- [ ] 1.2.1.4 Add `JidoCode.AgentSupervisor` as DynamicSupervisor for agent processes
-- [ ] 1.2.1.5 Configure top-level supervisor with `strategy: :one_for_one`
-- [ ] 1.2.1.6 Verify supervision tree starts correctly via `mix run --no-halt` (success: no errors for 5s)
+- [x] 1.2.1.1 Create `JidoCode.Application` module with `start/2` callback (existed from 1.1.1)
+- [x] 1.2.1.2 Add Phoenix.PubSub as first child: `{Phoenix.PubSub, name: JidoCode.PubSub}` (existed from 1.1.1)
+- [x] 1.2.1.3 Add Registry for agent lookup: `{Registry, keys: :unique, name: JidoCode.AgentRegistry}` (existed from 1.1.1)
+- [x] 1.2.1.4 Add `JidoCode.AgentSupervisor` as DynamicSupervisor for agent processes
+- [x] 1.2.1.5 Configure top-level supervisor with `strategy: :one_for_one`
+- [x] 1.2.1.6 Verify supervision tree starts correctly via `mix run --no-halt` (success: runs 5+ seconds without errors)
 
 ### 1.2.2 Agent Supervisor Implementation
 - [ ] **Task 1.2.2 Complete**

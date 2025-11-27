@@ -102,18 +102,18 @@ Implement loading, merging, and accessing settings with local override priority.
 - [x] 1.3.2.7 Write merge tests verifying local overrides global (success: correct precedence)
 
 ### 1.3.3 Settings Persistence
-- [ ] **Task 1.3.3 Complete**
+- [x] **Task 1.3.3 Complete**
 
 Implement saving settings updates to the appropriate file.
 
-- [ ] 1.3.3.1 Implement `Settings.save/2` accepting scope (`:global` or `:local`) and settings map
-- [ ] 1.3.3.2 Implement `Settings.set/3` for updating individual keys with scope
-- [ ] 1.3.3.3 Auto-save provider and model to local settings on `/model` command
-- [ ] 1.3.3.4 Implement `Settings.add_provider/2` to add provider to allowed providers list
-- [ ] 1.3.3.5 Implement `Settings.add_model/3` to add model to provider's model list
-- [ ] 1.3.3.6 Write atomic file writes (write to temp, then rename) to prevent corruption
-- [ ] 1.3.3.7 Invalidate memory cache on save
-- [ ] 1.3.3.8 Write persistence tests verifying round-trip save/load (success: data survives restart)
+- [x] 1.3.3.1 Implement `Settings.save/2` accepting scope (`:global` or `:local`) and settings map
+- [x] 1.3.3.2 Implement `Settings.set/3` for updating individual keys with scope
+- [x] 1.3.3.3 Auto-save provider and model to local settings on `/model` command (API ready, TUI integration in Phase 4)
+- [x] 1.3.3.4 Implement `Settings.add_provider/2` to add provider to allowed providers list
+- [x] 1.3.3.5 Implement `Settings.add_model/3` to add model to provider's model list
+- [x] 1.3.3.6 Write atomic file writes (write to temp, then rename) to prevent corruption
+- [x] 1.3.3.7 Invalidate memory cache on save
+- [x] 1.3.3.8 Write persistence tests verifying round-trip save/load (success: data survives restart)
 
 ### 1.3.4 Provider and Model Lists
 - [ ] **Task 1.3.4 Complete**

@@ -500,4 +500,193 @@ defmodule JidoCode.Settings do
         overlay_value
     end)
   end
+
+  # ============================================================================
+  # Settings Persistence
+  # ============================================================================
+
+  @doc """
+  Saves settings to the specified scope file.
+
+  Uses atomic write pattern (write to temp file, then rename) to prevent
+  corruption. Invalidates cache after successful save.
+
+  ## Parameters
+
+  - `scope` - `:global` or `:local`
+  - `settings` - Map of settings to save
+
+  ## Returns
+
+  - `:ok` - Settings saved successfully
+  - `{:error, reason}` - Failed to save
+
+  ## Examples
+
+      iex> JidoCode.Settings.save(:local, %{"provider" => "anthropic"})
+      :ok
+
+      iex> JidoCode.Settings.save(:global, %{"model" => "gpt-4o"})
+      :ok
+  """
+  @spec save(atom(), map()) :: :ok | {:error, term()}
+  def save(scope, settings) when scope in [:global, :local] and is_map(settings) do
+    case validate(settings) do
+      {:ok, _} ->
+        path = scope_to_path(scope)
+        dir = Path.dirname(path)
+
+        with :ok <- ensure_dir(dir),
+             :ok <- write_atomic(path, settings) do
+          clear_cache()
+          :ok
+        end
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  def save(scope, _settings) when scope not in [:global, :local] do
+    {:error, "scope must be :global or :local, got: #{inspect(scope)}"}
+  end
+
+  def save(_scope, settings) when not is_map(settings) do
+    {:error, "settings must be a map, got: #{inspect(settings)}"}
+  end
+
+  @doc """
+  Updates a single setting key in the specified scope.
+
+  Reads current settings for the scope, merges the new key/value,
+  and saves. Invalidates cache after successful save.
+
+  ## Parameters
+
+  - `scope` - `:global` or `:local`
+  - `key` - Setting key (string)
+  - `value` - Setting value
+
+  ## Returns
+
+  - `:ok` - Setting updated successfully
+  - `{:error, reason}` - Failed to update
+
+  ## Examples
+
+      iex> JidoCode.Settings.set(:local, "provider", "openai")
+      :ok
+
+      iex> JidoCode.Settings.set(:global, "model", "claude-3-opus")
+      :ok
+  """
+  @spec set(atom(), String.t(), term()) :: :ok | {:error, term()}
+  def set(scope, key, value) when scope in [:global, :local] and is_binary(key) do
+    current = read_scope_settings(scope)
+    updated = Map.put(current, key, value)
+    save(scope, updated)
+  end
+
+  @doc """
+  Adds a provider to the providers list in the specified scope.
+
+  If the provider already exists, it won't be duplicated.
+
+  ## Parameters
+
+  - `scope` - `:global` or `:local`
+  - `provider` - Provider name (string)
+
+  ## Returns
+
+  - `:ok` - Provider added successfully
+  - `{:error, reason}` - Failed to add
+
+  ## Examples
+
+      iex> JidoCode.Settings.add_provider(:global, "openrouter")
+      :ok
+  """
+  @spec add_provider(atom(), String.t()) :: :ok | {:error, term()}
+  def add_provider(scope, provider) when scope in [:global, :local] and is_binary(provider) do
+    current = read_scope_settings(scope)
+    providers = Map.get(current, "providers", [])
+
+    if provider in providers do
+      :ok
+    else
+      updated = Map.put(current, "providers", providers ++ [provider])
+      save(scope, updated)
+    end
+  end
+
+  @doc """
+  Adds a model to a provider's model list in the specified scope.
+
+  If the model already exists for the provider, it won't be duplicated.
+
+  ## Parameters
+
+  - `scope` - `:global` or `:local`
+  - `provider` - Provider name (string)
+  - `model` - Model name (string)
+
+  ## Returns
+
+  - `:ok` - Model added successfully
+  - `{:error, reason}` - Failed to add
+
+  ## Examples
+
+      iex> JidoCode.Settings.add_model(:local, "anthropic", "claude-3-5-sonnet")
+      :ok
+  """
+  @spec add_model(atom(), String.t(), String.t()) :: :ok | {:error, term()}
+  def add_model(scope, provider, model)
+      when scope in [:global, :local] and is_binary(provider) and is_binary(model) do
+    current = read_scope_settings(scope)
+    models = Map.get(current, "models", %{})
+    provider_models = Map.get(models, provider, [])
+
+    if model in provider_models do
+      :ok
+    else
+      updated_provider_models = provider_models ++ [model]
+      updated_models = Map.put(models, provider, updated_provider_models)
+      updated = Map.put(current, "models", updated_models)
+      save(scope, updated)
+    end
+  end
+
+  # ============================================================================
+  # Private: Persistence Helpers
+  # ============================================================================
+
+  defp scope_to_path(:global), do: global_path()
+  defp scope_to_path(:local), do: local_path()
+
+  defp read_scope_settings(scope) do
+    path = scope_to_path(scope)
+
+    case read_file(path) do
+      {:ok, settings} -> settings
+      {:error, _} -> %{}
+    end
+  end
+
+  defp write_atomic(path, settings) do
+    temp_path = path <> ".tmp"
+    json = Jason.encode!(settings, pretty: true)
+
+    try do
+      File.write!(temp_path, json)
+      File.rename!(temp_path, path)
+      :ok
+    rescue
+      e in File.Error ->
+        # Clean up temp file if it exists
+        File.rm(temp_path)
+        {:error, Exception.message(e)}
+    end
+  end
 end

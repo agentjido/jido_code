@@ -902,4 +902,232 @@ defmodule JidoCode.TUITest do
       assert model.scroll_offset == 0
     end
   end
+
+  describe "show_reasoning field" do
+    test "has default value of false" do
+      model = %Model{}
+      assert model.show_reasoning == false
+    end
+
+    test "init sets show_reasoning to false" do
+      model = TUI.init([])
+      assert model.show_reasoning == false
+    end
+  end
+
+  describe "toggle_reasoning" do
+    test "Ctrl+R returns :toggle_reasoning" do
+      model = %Model{}
+      event = Event.key(:r, modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == :toggle_reasoning
+    end
+
+    test "plain 'r' key returns {:key_input, \"r\"}" do
+      model = %Model{}
+      event = Event.key(:r, char: "r")
+
+      assert TUI.event_to_msg(event, model) == {:key_input, "r"}
+    end
+
+    test "toggle_reasoning flips show_reasoning from false to true" do
+      model = %Model{show_reasoning: false}
+
+      {new_model, commands} = TUI.update(:toggle_reasoning, model)
+
+      assert new_model.show_reasoning == true
+      assert commands == []
+    end
+
+    test "toggle_reasoning flips show_reasoning from true to false" do
+      model = %Model{show_reasoning: true}
+
+      {new_model, commands} = TUI.update(:toggle_reasoning, model)
+
+      assert new_model.show_reasoning == false
+      assert commands == []
+    end
+  end
+
+  describe "render_reasoning/1" do
+    test "renders empty state when no reasoning steps" do
+      model = %Model{reasoning_steps: []}
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Reasoning"
+      assert view_text =~ "No reasoning steps"
+    end
+
+    test "renders pending step with circle indicator" do
+      model = %Model{
+        reasoning_steps: [%{step: "Understanding query", status: :pending}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "○"
+      assert view_text =~ "Understanding query"
+    end
+
+    test "renders active step with filled circle indicator" do
+      model = %Model{
+        reasoning_steps: [%{step: "Analyzing code", status: :active}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "●"
+      assert view_text =~ "Analyzing code"
+    end
+
+    test "renders complete step with checkmark indicator" do
+      model = %Model{
+        reasoning_steps: [%{step: "Found solution", status: :complete}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "✓"
+      assert view_text =~ "Found solution"
+    end
+
+    test "renders multiple steps with different statuses" do
+      model = %Model{
+        reasoning_steps: [
+          %{step: "Step 1", status: :complete},
+          %{step: "Step 2", status: :active},
+          %{step: "Step 3", status: :pending}
+        ]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "✓"
+      assert view_text =~ "●"
+      assert view_text =~ "○"
+      assert view_text =~ "Step 1"
+      assert view_text =~ "Step 2"
+      assert view_text =~ "Step 3"
+    end
+
+    test "renders confidence score when present" do
+      model = %Model{
+        reasoning_steps: [%{step: "Validated", status: :complete, confidence: 0.92}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "confidence: 0.92"
+    end
+  end
+
+  describe "render_reasoning_compact/1" do
+    test "renders compact format for empty steps" do
+      model = %Model{reasoning_steps: []}
+
+      view = TUI.render_reasoning_compact(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Reasoning"
+      assert view_text =~ "none"
+    end
+
+    test "renders compact format with multiple steps" do
+      model = %Model{
+        reasoning_steps: [
+          %{step: "Step 1", status: :complete},
+          %{step: "Step 2", status: :active}
+        ]
+      }
+
+      view = TUI.render_reasoning_compact(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "✓"
+      assert view_text =~ "●"
+      assert view_text =~ "│"
+    end
+  end
+
+  describe "reasoning panel in view" do
+    test "status bar shows Ctrl+R: Reasoning when panel is hidden" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: false
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+R: Reasoning"
+    end
+
+    test "status bar shows Ctrl+R: Hide when panel is visible" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: true
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+R: Hide"
+    end
+
+    test "view includes reasoning panel when show_reasoning is true (wide terminal)" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: true,
+        reasoning_steps: [%{step: "Test step", status: :active}],
+        window: {120, 40}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Reasoning"
+      assert view_text =~ "Test step"
+    end
+
+    test "view uses compact reasoning in narrow terminal" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: true,
+        reasoning_steps: [%{step: "Test step", status: :active}],
+        window: {80, 24}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Compact view uses │ separator
+      assert view_text =~ "Reasoning"
+    end
+
+    test "view does not include reasoning panel when show_reasoning is false" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: false,
+        reasoning_steps: [%{step: "Hidden step", status: :active}]
+      }
+
+      view = TUI.view(model)
+
+      # Main view should have 3 children when reasoning is hidden
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = view
+      assert length(children) == 3
+    end
+  end
 end

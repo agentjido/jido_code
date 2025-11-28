@@ -104,7 +104,8 @@ defmodule JidoCode.TUI do
             reasoning_steps: [reasoning_step()],
             window: {non_neg_integer(), non_neg_integer()},
             message_queue: [queued_message()],
-            scroll_offset: non_neg_integer()
+            scroll_offset: non_neg_integer(),
+            show_reasoning: boolean()
           }
 
     @enforce_keys []
@@ -115,7 +116,8 @@ defmodule JidoCode.TUI do
               reasoning_steps: [],
               window: {80, 24},
               message_queue: [],
-              scroll_offset: 0
+              scroll_offset: 0,
+              show_reasoning: false
   end
 
   # ============================================================================
@@ -147,7 +149,8 @@ defmodule JidoCode.TUI do
       reasoning_steps: [],
       window: {80, 24},
       message_queue: [],
-      scroll_offset: 0
+      scroll_offset: 0,
+      show_reasoning: false
     }
   end
 
@@ -174,6 +177,14 @@ defmodule JidoCode.TUI do
       :quit
     else
       {:key_input, "c"}
+    end
+  end
+
+  def event_to_msg(%Event.Key{key: :r, modifiers: modifiers}, _state) do
+    if :ctrl in modifiers do
+      :toggle_reasoning
+    else
+      {:key_input, "r"}
     end
   end
 
@@ -309,6 +320,10 @@ defmodule JidoCode.TUI do
     {%{state | reasoning_steps: []}, []}
   end
 
+  def update(:toggle_reasoning, state) do
+    {%{state | show_reasoning: not state.show_reasoning}, []}
+  end
+
   # Catch-all for unhandled messages
   def update(_msg, state) do
     {state, []}
@@ -336,9 +351,45 @@ defmodule JidoCode.TUI do
   end
 
   defp render_main_view(state) do
+    {width, _height} = state.window
+
+    if state.show_reasoning do
+      # Show reasoning panel
+      if width >= 100 do
+        # Wide terminal: side-by-side layout
+        render_main_view_with_sidebar(state)
+      else
+        # Narrow terminal: stacked layout with compact reasoning
+        render_main_view_with_drawer(state)
+      end
+    else
+      # Standard layout without reasoning panel
+      stack(:vertical, [
+        render_status_bar(state),
+        render_conversation(state),
+        render_input_bar(state)
+      ])
+    end
+  end
+
+  defp render_main_view_with_sidebar(state) do
+    # Side-by-side layout for wide terminals
+    stack(:vertical, [
+      render_status_bar(state),
+      stack(:horizontal, [
+        render_conversation(state),
+        render_reasoning(state)
+      ]),
+      render_input_bar(state)
+    ])
+  end
+
+  defp render_main_view_with_drawer(state) do
+    # Stacked layout with reasoning drawer for narrow terminals
     stack(:vertical, [
       render_status_bar(state),
       render_conversation(state),
+      render_reasoning_compact(state),
       render_input_bar(state)
     ])
   end
@@ -492,7 +543,8 @@ defmodule JidoCode.TUI do
   defp render_status_bar(state) do
     config_text = format_config(state.config)
     status_text = format_status(state.agent_status)
-    hints = "Ctrl+C: Quit"
+    reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
+    hints = "#{reasoning_hint} | Ctrl+C: Quit"
 
     text("#{config_text} | #{status_text} | #{hints}", Style.new(fg: :white, bg: :blue))
   end
@@ -597,6 +649,102 @@ defmodule JidoCode.TUI do
     prompt = ">"
 
     text("#{prompt} #{state.input_buffer}#{cursor}", Style.new(fg: :green))
+  end
+
+  # ============================================================================
+  # View Helpers - Reasoning Panel
+  # ============================================================================
+
+  @doc """
+  Renders the reasoning panel showing Chain-of-Thought steps.
+
+  Steps are displayed with status indicators:
+  - ○ pending (dim)
+  - ● active (yellow)
+  - ✓ complete (green)
+  """
+  def render_reasoning(state) do
+    case state.reasoning_steps do
+      [] ->
+        render_empty_reasoning()
+
+      steps ->
+        render_reasoning_steps(steps)
+    end
+  end
+
+  defp render_empty_reasoning do
+    stack(:vertical, [
+      text("Reasoning (Ctrl+R to hide)", Style.new(fg: :magenta, attrs: [:bold])),
+      text("─────────────────────────", Style.new(fg: :bright_black)),
+      text("No reasoning steps yet.", Style.new(fg: :bright_black))
+    ])
+  end
+
+  defp render_reasoning_steps(steps) do
+    header = [
+      text("Reasoning (Ctrl+R to hide)", Style.new(fg: :magenta, attrs: [:bold])),
+      text("─────────────────────────", Style.new(fg: :bright_black))
+    ]
+
+    step_lines = Enum.map(steps, &format_reasoning_step/1)
+
+    stack(:vertical, header ++ step_lines)
+  end
+
+  defp format_reasoning_step(%{step: step_text, status: status} = step) do
+    {indicator, style} = step_indicator(status)
+    confidence_text = format_confidence(step)
+
+    text("#{indicator} #{step_text}#{confidence_text}", style)
+  end
+
+  # Handle steps that may be maps with string keys
+  defp format_reasoning_step(step) when is_map(step) do
+    step_text = Map.get(step, :step) || Map.get(step, "step") || "Unknown step"
+    status = Map.get(step, :status) || Map.get(step, "status") || :pending
+    status_atom = normalize_status(status)
+
+    format_reasoning_step(%{step: step_text, status: status_atom, confidence: Map.get(step, :confidence)})
+  end
+
+  defp normalize_status(status) when is_atom(status), do: status
+  defp normalize_status("pending"), do: :pending
+  defp normalize_status("active"), do: :active
+  defp normalize_status("complete"), do: :complete
+  defp normalize_status(_), do: :pending
+
+  defp step_indicator(:pending), do: {"○", Style.new(fg: :bright_black)}
+  defp step_indicator(:active), do: {"●", Style.new(fg: :yellow, attrs: [:bold])}
+  defp step_indicator(:complete), do: {"✓", Style.new(fg: :green)}
+
+  defp format_confidence(%{confidence: confidence}) when is_number(confidence) do
+    " (confidence: #{Float.round(confidence, 2)})"
+  end
+
+  defp format_confidence(_), do: ""
+
+  @doc """
+  Renders reasoning steps as a compact single-line display for narrow terminals.
+  """
+  def render_reasoning_compact(state) do
+    case state.reasoning_steps do
+      [] ->
+        text("Reasoning: (none)", Style.new(fg: :bright_black))
+
+      steps ->
+        step_indicators =
+          Enum.map_join(steps, " │ ", fn step ->
+            status = Map.get(step, :status) || :pending
+            {indicator, _style} = step_indicator(status)
+            step_text = Map.get(step, :step) || "?"
+            # Truncate step text for compact display
+            short_text = String.slice(step_text, 0, 15)
+            "#{indicator} #{short_text}"
+          end)
+
+        text("Reasoning: #{step_indicators}", Style.new(fg: :magenta))
+    end
   end
 
   # ============================================================================

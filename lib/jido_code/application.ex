@@ -28,6 +28,9 @@ defmodule JidoCode.Application do
       # Registry for agent lookup
       {Registry, keys: :unique, name: JidoCode.AgentRegistry},
 
+      # Tool registry for LLM function calling
+      JidoCode.Tools.Registry,
+
       # DynamicSupervisor for agent processes
       JidoCode.AgentSupervisor
 

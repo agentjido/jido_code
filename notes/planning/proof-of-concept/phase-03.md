@@ -7,19 +7,19 @@ This phase implements the tool calling infrastructure that enables the LLM agent
 The tool system defines a schema for tools, handles registration, and manages the execution flow between the LLM agent and the sandboxed tool manager.
 
 ### 3.1.1 Tool Schema and Registration
-- [ ] **Task 3.1.1 Complete**
+- [x] **Task 3.1.1 Complete**
 
 Define the tool schema and implement tool registration.
 
-- [ ] 3.1.1.1 Create `JidoCode.Tools` namespace module
-- [ ] 3.1.1.2 Define tool schema struct: `%Tool{name, description, parameters, handler}`
-- [ ] 3.1.1.3 Define parameter schema: `%Param{name, type, description, required}`
-- [ ] 3.1.1.4 Create `JidoCode.Tools.Registry` for tool registration and lookup
-- [ ] 3.1.1.5 Implement `Registry.register/1` to add tools at startup
-- [ ] 3.1.1.6 Implement `Registry.list/0` returning all registered tools
-- [ ] 3.1.1.7 Implement `Registry.get/1` to lookup tool by name
-- [ ] 3.1.1.8 Generate tool descriptions in LLM-compatible format for system prompt
-- [ ] 3.1.1.9 Write registry tests (success: tools register and lookup correctly)
+- [x] 3.1.1.1 Create `JidoCode.Tools` namespace module
+- [x] 3.1.1.2 Define tool schema struct: `%Tool{name, description, parameters, handler}`
+- [x] 3.1.1.3 Define parameter schema: `%Param{name, type, description, required}`
+- [x] 3.1.1.4 Create `JidoCode.Tools.Registry` for tool registration and lookup
+- [x] 3.1.1.5 Implement `Registry.register/1` to add tools at startup
+- [x] 3.1.1.6 Implement `Registry.list/0` returning all registered tools
+- [x] 3.1.1.7 Implement `Registry.get/1` to lookup tool by name
+- [x] 3.1.1.8 Generate tool descriptions in LLM-compatible format for system prompt
+- [x] 3.1.1.9 Write registry tests (success: tools register and lookup correctly)
 
 ### 3.1.2 Tool Execution Flow
 - [ ] **Task 3.1.2 Complete**

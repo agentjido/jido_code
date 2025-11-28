@@ -7,17 +7,17 @@ This phase implements the core LLM agent using JidoAI's Agent and Chain-of-Thoug
 The LLM agent encapsulates all LLM interaction logic using JidoAI's `Jido.AI.Agent` pattern. It supports multiple providers (Anthropic, OpenAI) with runtime configuration and integrates Chain-of-Thought reasoning for improved accuracy on complex coding tasks.
 
 ### 2.1.1 Basic Agent Module
-- [ ] **Task 2.1.1 Complete**
+- [x] **Task 2.1.1 Complete**
 
 Create the primary LLM agent that handles chat interactions with configurable model selection.
 
-- [ ] 2.1.1.1 Create `JidoCode.Agents.LLMAgent` module
-- [ ] 2.1.1.2 Implement `start_link/1` using `Jido.AI.Agent.start_link/1` with dynamic model config
-- [ ] 2.1.1.3 Build model from config: `Jido.AI.Model.from({provider, model: model_name, ...})`
-- [ ] 2.1.1.4 Define system prompt for coding assistant personality and capabilities
-- [ ] 2.1.1.5 Implement `chat/2` function calling `Jido.AI.Agent.chat_response/3`
-- [ ] 2.1.1.6 Add PubSub broadcast of responses to `"tui.events"` topic
-- [ ] 2.1.1.7 Write integration test with mock LLM responses (success: message round-trip works)
+- [x] 2.1.1.1 Create `JidoCode.Agents.LLMAgent` module
+- [x] 2.1.1.2 Implement `start_link/1` using `Jido.AI.Agent.start_link/1` with dynamic model config
+- [x] 2.1.1.3 Build model from config: `Jido.AI.Model.from({provider, model: model_name, ...})`
+- [x] 2.1.1.4 Define system prompt for coding assistant personality and capabilities
+- [x] 2.1.1.5 Implement `chat/2` function calling `Jido.AI.Agent.chat_response/3`
+- [x] 2.1.1.6 Add PubSub broadcast of responses to `"tui.events"` topic
+- [x] 2.1.1.7 Write integration test with mock LLM responses (success: message round-trip works)
 
 ### 2.1.2 Provider Configuration API
 - [ ] **Task 2.1.2 Complete**

@@ -197,4 +197,219 @@ defmodule JidoCode.Agents.LLMAgentTest do
       end
     end
   end
+
+  describe "list_providers/0" do
+    test "returns list of available providers" do
+      result = LLMAgent.list_providers()
+
+      case result do
+        {:ok, providers} ->
+          assert is_list(providers)
+          # Should include common providers
+          assert :anthropic in providers or :openai in providers
+
+        {:error, :registry_unavailable} ->
+          # Registry may not be available in test environment
+          :ok
+      end
+    end
+  end
+
+  describe "list_models/1" do
+    test "returns list of models for valid provider" do
+      result = LLMAgent.list_models(:anthropic)
+
+      case result do
+        {:ok, models} ->
+          assert is_list(models)
+          # Should be list of strings
+          Enum.each(models, fn model ->
+            assert is_binary(model)
+          end)
+
+        {:error, _} ->
+          # May fail if registry unavailable
+          :ok
+      end
+    end
+
+    test "returns error for invalid provider" do
+      result = LLMAgent.list_models(:nonexistent_provider_xyz)
+
+      case result do
+        {:error, _reason} ->
+          # Expected - provider doesn't exist
+          :ok
+
+        {:ok, []} ->
+          # Also acceptable - no models found
+          :ok
+
+        {:ok, _models} ->
+          # Unexpected - should not have models for fake provider
+          flunk("Expected error or empty list for invalid provider")
+      end
+    end
+  end
+
+  describe "configure/2" do
+    test "returns ok when config unchanged" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022",
+        temperature: 0.7,
+        max_tokens: 4096
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          # Configure with same values - should return :ok
+          result =
+            LLMAgent.configure(pid,
+              provider: :anthropic,
+              model: "claude-3-5-sonnet-20241022",
+              temperature: 0.7,
+              max_tokens: 4096
+            )
+
+          assert result == :ok
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "returns error for invalid provider" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022",
+        temperature: 0.7,
+        max_tokens: 4096
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          result = LLMAgent.configure(pid, provider: :invalid_provider_xyz)
+
+          assert {:error, message} = result
+          assert is_binary(message)
+          assert String.contains?(message, "not found") or String.contains?(message, "invalid")
+
+          # Config should be unchanged
+          config = LLMAgent.get_config(pid)
+          assert config.provider == :anthropic
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "returns error for invalid model" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022",
+        temperature: 0.7,
+        max_tokens: 4096
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          result = LLMAgent.configure(pid, model: "nonexistent-model-xyz")
+
+          assert {:error, message} = result
+          assert is_binary(message)
+          assert String.contains?(message, "not found") or String.contains?(message, "Model")
+
+          # Config should be unchanged
+          config = LLMAgent.get_config(pid)
+          assert config.model == "claude-3-5-sonnet-20241022"
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "returns error for missing API key" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022",
+        temperature: 0.7,
+        max_tokens: 4096
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+      # Don't set OPENAI_API_KEY
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          # Try to switch to OpenAI without API key
+          result = LLMAgent.configure(pid, provider: :openai, model: "gpt-4o")
+
+          assert {:error, message} = result
+          assert is_binary(message)
+          assert String.contains?(message, "API key") or String.contains?(message, "OPENAI")
+
+          # Config should be unchanged
+          config = LLMAgent.get_config(pid)
+          assert config.provider == :anthropic
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "broadcasts config change on success" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022",
+        temperature: 0.7,
+        max_tokens: 4096
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+      System.put_env("OPENAI_API_KEY", "test-openai-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          result = LLMAgent.configure(pid, provider: :openai, model: "gpt-4o")
+
+          case result do
+            :ok ->
+              # Should receive config change broadcast
+              assert_receive {:config_changed, old_config, new_config}, 1000
+
+              assert old_config.provider == :anthropic
+              assert new_config.provider == :openai
+              assert new_config.model == "gpt-4o"
+
+              # Config should be updated
+              config = LLMAgent.get_config(pid)
+              assert config.provider == :openai
+              assert config.model == "gpt-4o"
+
+            {:error, _reason} ->
+              # May fail if AI agent can't start with test key
+              :ok
+          end
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+  end
 end

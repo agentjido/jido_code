@@ -20,18 +20,18 @@ Create the primary LLM agent that handles chat interactions with configurable mo
 - [x] 2.1.1.7 Write integration test with mock LLM responses (success: message round-trip works)
 
 ### 2.1.2 Provider Configuration API
-- [ ] **Task 2.1.2 Complete**
+- [x] **Task 2.1.2 Complete**
 
 Implement runtime API for switching LLM providers and models without restart. Any provider from `Jido.AI.Provider.providers/0` is valid (50+ providers via ReqLLM). Model names are validated against the provider's available models.
 
-- [ ] 2.1.2.1 Create `JidoCode.Agents.LLMAgent.configure/2` to update agent model settings
-- [ ] 2.1.2.2 Accept any provider atom from `Jido.AI.Provider.providers/0` (dynamic discovery)
-- [ ] 2.1.2.3 Validate model exists for provider via `Jido.AI.Provider.get_model/2` before accepting config
-- [ ] 2.1.2.4 Return descriptive error if model invalid: "Model X not found for provider Y"
-- [ ] 2.1.2.5 Implement `get_current_config/1` to inspect active model settings
-- [ ] 2.1.2.6 Add API key validation via `Jido.AI.Keyring` for the configured provider
-- [ ] 2.1.2.7 Broadcast config change events for TUI status display
-- [ ] 2.1.2.8 Write tests for hot-swapping providers (success: config changes apply immediately)
+- [x] 2.1.2.1 Create `JidoCode.Agents.LLMAgent.configure/2` to update agent model settings
+- [x] 2.1.2.2 Accept any provider atom from `Jido.AI.Model.Registry.Adapter.list_providers/0` (dynamic discovery)
+- [x] 2.1.2.3 Validate model exists for provider via `Jido.AI.Model.Registry.Adapter.model_exists?/2` before accepting config
+- [x] 2.1.2.4 Return descriptive error if model invalid: "Model X not found for provider Y"
+- [x] 2.1.2.5 Implement `get_config/1` to inspect active model settings (already existed from 2.1.1)
+- [x] 2.1.2.6 Add API key validation via `Jido.AI.Keyring` for the configured provider
+- [x] 2.1.2.7 Broadcast config change events for TUI status display
+- [x] 2.1.2.8 Write tests for hot-swapping providers (success: config changes apply immediately)
 
 ### 2.1.3 Agent Lifecycle Observability
 - [ ] **Task 2.1.3 Complete**

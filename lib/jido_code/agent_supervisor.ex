@@ -34,6 +34,8 @@ defmodule JidoCode.AgentSupervisor do
 
   use DynamicSupervisor
 
+  alias JidoCode.Telemetry.AgentInstrumentation
+
   @registry JidoCode.AgentRegistry
 
   @doc """
@@ -86,7 +88,22 @@ defmodule JidoCode.AgentSupervisor do
       restart: :transient
     }
 
-    DynamicSupervisor.start_child(__MODULE__, child_spec)
+    case DynamicSupervisor.start_child(__MODULE__, child_spec) do
+      {:ok, pid} ->
+        # Store module info for later retrieval on stop
+        store_agent_module(name, module)
+        # Emit telemetry event for agent start
+        AgentInstrumentation.emit_start(name, module)
+        {:ok, pid}
+
+      {:ok, pid, info} ->
+        store_agent_module(name, module)
+        AgentInstrumentation.emit_start(name, module)
+        {:ok, pid, info}
+
+      error ->
+        error
+    end
   end
 
   def start_agent(invalid_spec) do
@@ -114,6 +131,8 @@ defmodule JidoCode.AgentSupervisor do
   """
   @spec stop_agent(pid() | atom()) :: :ok | {:error, :not_found}
   def stop_agent(pid) when is_pid(pid) do
+    # For pid-based stop, we can't emit telemetry with name/module info
+    # as we don't have access to it. Use stop_agent(name) when possible.
     case DynamicSupervisor.terminate_child(__MODULE__, pid) do
       :ok -> :ok
       {:error, :not_found} -> {:error, :not_found}
@@ -122,8 +141,27 @@ defmodule JidoCode.AgentSupervisor do
 
   def stop_agent(name) when is_atom(name) do
     case lookup_agent(name) do
-      {:ok, pid} -> stop_agent(pid)
-      {:error, :not_found} -> {:error, :not_found}
+      {:ok, pid} ->
+        # Get module info before stopping (if available from registry metadata)
+        module = get_agent_module(name)
+
+        case DynamicSupervisor.terminate_child(__MODULE__, pid) do
+          :ok ->
+            # Emit telemetry event for agent stop
+            if module do
+              AgentInstrumentation.emit_stop(name, module, :normal)
+            end
+
+            # Clean up stored module info
+            cleanup_agent_module(name)
+            :ok
+
+          {:error, :not_found} ->
+            {:error, :not_found}
+        end
+
+      {:error, :not_found} ->
+        {:error, :not_found}
     end
   end
 
@@ -170,5 +208,33 @@ defmodule JidoCode.AgentSupervisor do
   @spec which_children() :: [{:undefined, pid() | :restarting, :worker | :supervisor, [module()]}]
   def which_children do
     DynamicSupervisor.which_children(__MODULE__)
+  end
+
+  # ============================================================================
+  # Private Functions
+  # ============================================================================
+
+  # Store agent module info in ETS for retrieval on stop
+  # Uses the same ETS table as AgentInstrumentation
+  defp store_agent_module(name, module) do
+    AgentInstrumentation.setup()
+    :ets.insert(:jido_code_agent_restarts, {{:module, name}, module})
+  end
+
+  # Retrieve stored module info for an agent
+  defp get_agent_module(name) do
+    case :ets.lookup(:jido_code_agent_restarts, {:module, name}) do
+      [{{:module, ^name}, module}] -> module
+      [] -> nil
+    end
+  rescue
+    ArgumentError -> nil
+  end
+
+  # Clean up stored module info for an agent
+  defp cleanup_agent_module(name) do
+    :ets.delete(:jido_code_agent_restarts, {:module, name})
+  rescue
+    ArgumentError -> :ok
   end
 end

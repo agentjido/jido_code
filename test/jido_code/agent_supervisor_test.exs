@@ -3,6 +3,7 @@ defmodule JidoCode.AgentSupervisorTest do
 
   alias JidoCode.AgentSupervisor
   alias JidoCode.TestAgent
+  alias JidoCode.Telemetry.AgentInstrumentation
 
   setup do
     # Ensure supervisor starts with no children
@@ -202,6 +203,68 @@ defmodule JidoCode.AgentSupervisorTest do
 
       TestAgent.set_state(pid, %{custom: "value"})
       assert %{custom: "value"} = TestAgent.get_state(pid)
+    end
+  end
+
+  describe "telemetry integration" do
+    setup do
+      # Ensure ETS table is set up
+      AgentInstrumentation.setup()
+
+      # Attach a test handler to capture events
+      test_pid = self()
+
+      :telemetry.attach_many(
+        "supervisor-test-handler-#{inspect(self())}",
+        [
+          AgentInstrumentation.event_start(),
+          AgentInstrumentation.event_stop()
+        ],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry_event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn ->
+        :telemetry.detach("supervisor-test-handler-#{inspect(test_pid)}")
+      end)
+
+      :ok
+    end
+
+    test "emits start event when agent starts" do
+      {:ok, _pid} =
+        AgentSupervisor.start_agent(%{
+          name: :telemetry_start_agent,
+          module: TestAgent,
+          args: []
+        })
+
+      assert_receive {:telemetry_event, [:jido_code, :agent, :start], _measurements, metadata}
+      assert metadata.name == :telemetry_start_agent
+      assert metadata.module == TestAgent
+    end
+
+    test "emits stop event when agent stops by name" do
+      {:ok, _pid} =
+        AgentSupervisor.start_agent(%{
+          name: :telemetry_stop_agent,
+          module: TestAgent,
+          args: []
+        })
+
+      # Clear the start event
+      assert_receive {:telemetry_event, [:jido_code, :agent, :start], _, _}
+
+      # Stop the agent
+      AgentSupervisor.stop_agent(:telemetry_stop_agent)
+
+      assert_receive {:telemetry_event, [:jido_code, :agent, :stop], measurements, metadata}
+      assert metadata.name == :telemetry_stop_agent
+      assert metadata.module == TestAgent
+      assert metadata.reason == :normal
+      assert is_integer(measurements.duration)
     end
   end
 end

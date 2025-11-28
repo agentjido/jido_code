@@ -77,14 +77,14 @@ Implement heuristics to determine when CoT reasoning should be applied vs. direc
 - [x] 2.2.2.7 Write classification tests with example queries (success: 90%+ correct classification)
 
 ### 2.2.3 Reasoning Display Format
-- [ ] **Task 2.2.3 Complete**
+- [x] **Task 2.2.3 Complete**
 
 Format Chain-of-Thought reasoning steps for clear TUI presentation.
 
-- [ ] 2.2.3.1 Create `JidoCode.Reasoning.Formatter` module
-- [ ] 2.2.3.2 Define reasoning step struct: `%Step{number: int, description: string, outcome: string}`
-- [ ] 2.2.3.3 Implement `format_plan/1` converting ReasoningPlan to display strings
-- [ ] 2.2.3.4 Add step status indicators: pending (○), in-progress (◐), complete (●), failed (✗)
-- [ ] 2.2.3.5 Format validation results with confidence scores
-- [ ] 2.2.3.6 Create collapsible reasoning summary for long chains
-- [ ] 2.2.3.7 Write formatter tests with sample reasoning plans (success: output is human-readable)
+- [x] 2.2.3.1 Create `JidoCode.Reasoning.Formatter` module
+- [x] 2.2.3.2 Define reasoning step struct: `%Step{number: int, description: string, outcome: string}`
+- [x] 2.2.3.3 Implement `format_plan/1` converting ReasoningPlan to display strings
+- [x] 2.2.3.4 Add step status indicators: pending (○), in-progress (◐), complete (●), failed (✗)
+- [x] 2.2.3.5 Format validation results with confidence scores
+- [x] 2.2.3.6 Create collapsible reasoning summary for long chains
+- [x] 2.2.3.7 Write formatter tests with sample reasoning plans (success: output is human-readable)

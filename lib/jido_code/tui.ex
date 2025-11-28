@@ -62,9 +62,15 @@ defmodule JidoCode.TUI do
           | {:submit}
           | :quit
           | {:agent_response, String.t()}
+          | {:agent_status, Model.agent_status()}
           | {:status_update, Model.agent_status()}
+          | {:config_changed, map()}
           | {:config_change, map()}
           | {:reasoning_step, Model.reasoning_step()}
+          | :clear_reasoning_steps
+
+  # Maximum number of messages to keep in the debug queue
+  @max_queue_size 100
 
   # ============================================================================
   # Model
@@ -88,13 +94,16 @@ defmodule JidoCode.TUI do
 
     @type agent_status :: :idle | :processing | :error | :unconfigured
 
+    @type queued_message :: {term(), DateTime.t()}
+
     @type t :: %__MODULE__{
             input_buffer: String.t(),
             messages: [message()],
             agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
             reasoning_steps: [reasoning_step()],
-            window: {non_neg_integer(), non_neg_integer()}
+            window: {non_neg_integer(), non_neg_integer()},
+            message_queue: [queued_message()]
           }
 
     @enforce_keys []
@@ -103,7 +112,8 @@ defmodule JidoCode.TUI do
               agent_status: :unconfigured,
               config: %{provider: nil, model: nil},
               reasoning_steps: [],
-              window: {80, 24}
+              window: {80, 24},
+              message_queue: []
   end
 
   # ============================================================================
@@ -133,7 +143,8 @@ defmodule JidoCode.TUI do
       agent_status: status,
       config: config,
       reasoning_steps: [],
-      window: {80, 24}
+      window: {80, 24},
+      message_queue: []
     }
   end
 
@@ -225,17 +236,30 @@ defmodule JidoCode.TUI do
     {%{state | window: {width, height}}, []}
   end
 
-  # PubSub message handlers (basic implementation, expanded in 4.1.3)
+  # PubSub message handlers with message queueing
   def update({:agent_response, content}, state) do
     message = %{role: :assistant, content: content, timestamp: DateTime.utc_now()}
-    new_state = %{state | messages: state.messages ++ [message]}
+    queue = queue_message(state.message_queue, {:agent_response, content})
+
+    new_state = %{state |
+      messages: state.messages ++ [message],
+      message_queue: queue
+    }
+
     {new_state, []}
   end
 
+  # Support both :status_update and :agent_status (per phase plan naming)
   def update({:status_update, status}, state) do
-    {%{state | agent_status: status}, []}
+    queue = queue_message(state.message_queue, {:status_update, status})
+    {%{state | agent_status: status, message_queue: queue}, []}
   end
 
+  def update({:agent_status, status}, state) do
+    update({:status_update, status}, state)
+  end
+
+  # Support both :config_change and :config_changed (per phase plan naming)
   def update({:config_change, config}, state) do
     new_config = %{
       provider: Map.get(config, :provider, Map.get(config, "provider")),
@@ -243,11 +267,21 @@ defmodule JidoCode.TUI do
     }
 
     new_status = determine_status(new_config)
-    {%{state | config: new_config, agent_status: new_status}, []}
+    queue = queue_message(state.message_queue, {:config_change, config})
+    {%{state | config: new_config, agent_status: new_status, message_queue: queue}, []}
+  end
+
+  def update({:config_changed, config}, state) do
+    update({:config_change, config}, state)
   end
 
   def update({:reasoning_step, step}, state) do
-    {%{state | reasoning_steps: state.reasoning_steps ++ [step]}, []}
+    queue = queue_message(state.message_queue, {:reasoning_step, step})
+    {%{state | reasoning_steps: state.reasoning_steps ++ [step], message_queue: queue}, []}
+  end
+
+  def update(:clear_reasoning_steps, state) do
+    {%{state | reasoning_steps: []}, []}
   end
 
   # Catch-all for unhandled messages
@@ -310,6 +344,17 @@ defmodule JidoCode.TUI do
       is_nil(config.model) -> :unconfigured
       true -> :idle
     end
+  end
+
+  @doc """
+  Queues a message with timestamp, limiting to @max_queue_size entries.
+
+  Used for debugging and preventing unbounded message accumulation during rapid updates.
+  """
+  @spec queue_message([Model.queued_message()], term()) :: [Model.queued_message()]
+  def queue_message(queue, msg) do
+    [{msg, DateTime.utc_now()} | queue]
+    |> Enum.take(@max_queue_size)
   end
 
   # ============================================================================

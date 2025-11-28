@@ -37,17 +37,17 @@ Implement the event_to_msg callback and update function for user input and agent
 - [x] 4.1.2.8 Write update tests verifying state transitions (success: input buffer updates correctly)
 
 ### 4.1.3 PubSub Integration
-- [ ] **Task 4.1.3 Complete**
+- [x] **Task 4.1.3 Complete**
 
 Connect TUI to agent events via Phoenix PubSub for real-time updates.
 
-- [ ] 4.1.3.1 Subscribe to `"tui.events"` in TUI init
-- [ ] 4.1.3.2 Handle `{:agent_response, content}` messages in update
-- [ ] 4.1.3.3 Handle `{:agent_status, status}` for processing/idle indicators
-- [ ] 4.1.3.4 Handle `{:reasoning_step, step}` for CoT progress display
-- [ ] 4.1.3.5 Handle `{:config_changed, config}` for model switch notifications
-- [ ] 4.1.3.6 Implement message queueing for rapid updates
-- [ ] 4.1.3.7 Write integration test with mock PubSub messages (success: UI updates on events)
+- [x] 4.1.3.1 Subscribe to `"tui.events"` in TUI init
+- [x] 4.1.3.2 Handle `{:agent_response, content}` messages in update
+- [x] 4.1.3.3 Handle `{:agent_status, status}` for processing/idle indicators
+- [x] 4.1.3.4 Handle `{:reasoning_step, step}` for CoT progress display
+- [x] 4.1.3.5 Handle `{:config_changed, config}` for model switch notifications
+- [x] 4.1.3.6 Implement message queueing for rapid updates
+- [x] 4.1.3.7 Write integration test with mock PubSub messages (success: UI updates on events)
 
 ## 4.2 View Rendering
 

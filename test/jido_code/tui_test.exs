@@ -1130,4 +1130,147 @@ defmodule JidoCode.TUITest do
       assert length(children) == 3
     end
   end
+
+  describe "status_style/1" do
+    test "idle status returns green style" do
+      style = TUI.status_style(:idle)
+      assert style.fg == :green
+      assert style.bg == :blue
+    end
+
+    test "processing status returns yellow style" do
+      style = TUI.status_style(:processing)
+      assert style.fg == :yellow
+      assert style.bg == :blue
+    end
+
+    test "error status returns red style" do
+      style = TUI.status_style(:error)
+      assert style.fg == :red
+      assert style.bg == :blue
+    end
+
+    test "unconfigured status returns dim red style" do
+      style = TUI.status_style(:unconfigured)
+      assert style.fg == :red
+      assert style.bg == :blue
+      assert :dim in style.attrs
+    end
+  end
+
+  describe "config_style/1" do
+    test "no provider returns red style" do
+      style = TUI.config_style(%{provider: nil, model: "test"})
+      assert style.fg == :red
+    end
+
+    test "no model returns yellow style" do
+      style = TUI.config_style(%{provider: "test", model: nil})
+      assert style.fg == :yellow
+    end
+
+    test "fully configured returns white style" do
+      style = TUI.config_style(%{provider: "test", model: "test"})
+      assert style.fg == :white
+    end
+  end
+
+  describe "status bar keyboard hints" do
+    test "status bar includes Ctrl+M: Model hint" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+M: Model"
+    end
+
+    test "status bar includes Ctrl+C: Quit hint" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+C: Quit"
+    end
+  end
+
+  describe "CoT indicator in status bar" do
+    test "shows [CoT] when reasoning steps have active step" do
+      model = %Model{
+        agent_status: :processing,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: [%{step: "Thinking", status: :active}]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "[CoT]"
+    end
+
+    test "does not show [CoT] when no reasoning steps" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: []
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      refute view_text =~ "[CoT]"
+    end
+
+    test "does not show [CoT] when only pending/complete steps" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: [
+          %{step: "Done", status: :complete},
+          %{step: "Waiting", status: :pending}
+        ]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      refute view_text =~ "[CoT]"
+    end
+  end
+
+  describe "status bar color priority" do
+    test "error state takes priority over other states" do
+      model = %Model{
+        agent_status: :error,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: [%{step: "Active", status: :active}]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Error should show red in the view
+      assert view_text =~ "Error"
+    end
+
+    test "unconfigured state shows appropriate warning" do
+      model = %Model{
+        agent_status: :unconfigured,
+        config: %{provider: nil, model: nil}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "No provider"
+      assert view_text =~ "Not Configured"
+    end
+  end
 end

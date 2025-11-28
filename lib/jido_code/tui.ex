@@ -541,18 +541,64 @@ defmodule JidoCode.TUI do
   # ============================================================================
 
   defp render_status_bar(state) do
+    # Build status bar components
     config_text = format_config(state.config)
     status_text = format_status(state.agent_status)
+    cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
     reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
-    hints = "#{reasoning_hint} | Ctrl+C: Quit"
+    hints = "#{reasoning_hint} | Ctrl+M: Model | Ctrl+C: Quit"
 
-    text("#{config_text} | #{status_text} | #{hints}", Style.new(fg: :white, bg: :blue))
+    # Build the full status bar text
+    full_text = "#{config_text} | #{status_text}#{cot_indicator} | #{hints}"
+
+    # Use status-aware style based on the most important state
+    bar_style = build_status_bar_style(state)
+
+    text(full_text, bar_style)
+  end
+
+  defp build_status_bar_style(state) do
+    # Determine the primary color based on the most important state
+    fg_color =
+      cond do
+        state.agent_status == :error -> :red
+        state.agent_status == :unconfigured -> :red
+        state.config.provider == nil -> :red
+        state.config.model == nil -> :yellow
+        state.agent_status == :processing -> :yellow
+        has_active_reasoning?(state) -> :magenta
+        true -> :white
+      end
+
+    Style.new(fg: fg_color, bg: :blue)
+  end
+
+  defp has_active_reasoning?(state) do
+    state.reasoning_steps != [] and
+      Enum.any?(state.reasoning_steps, fn step ->
+        Map.get(step, :status) == :active
+      end)
   end
 
   defp format_status(:idle), do: "Idle"
   defp format_status(:processing), do: "Processing..."
   defp format_status(:error), do: "Error"
   defp format_status(:unconfigured), do: "Not Configured"
+
+  @doc """
+  Returns the style for a given agent status.
+  """
+  def status_style(:idle), do: Style.new(fg: :green, bg: :blue)
+  def status_style(:processing), do: Style.new(fg: :yellow, bg: :blue)
+  def status_style(:error), do: Style.new(fg: :red, bg: :blue)
+  def status_style(:unconfigured), do: Style.new(fg: :red, bg: :blue, attrs: [:dim])
+
+  @doc """
+  Returns the style for the config display based on configuration state.
+  """
+  def config_style(%{provider: nil}), do: Style.new(fg: :red, bg: :blue)
+  def config_style(%{model: nil}), do: Style.new(fg: :yellow, bg: :blue)
+  def config_style(_), do: Style.new(fg: :white, bg: :blue)
 
   defp format_config(%{provider: nil}), do: "No provider"
   defp format_config(%{model: nil, provider: p}), do: "#{p} (no model)"

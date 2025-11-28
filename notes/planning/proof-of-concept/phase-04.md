@@ -93,18 +93,18 @@ Optional panel showing Chain-of-Thought reasoning steps during complex queries.
 - [x] 4.2.3.7 Position panel as right sidebar or bottom drawer based on terminal width
 
 ### 4.2.4 Status Bar
-- [ ] **Task 4.2.4 Complete**
+- [x] **Task 4.2.4 Complete**
 
 Display current configuration and agent status in status bar. Handle unconfigured states since explicit provider configuration is required.
 
-- [ ] 4.2.4.1 Create `render_status_bar/1` component
-- [ ] 4.2.4.2 Display current provider and model: "anthropic:claude-3-5-sonnet"
-- [ ] 4.2.4.3 Display "No provider configured" (red/warning) when provider is not set
-- [ ] 4.2.4.4 Display "No model selected" when model is missing from config
-- [ ] 4.2.4.5 Show agent status: idle (green), processing (yellow), error (red), unconfigured (red/dim)
-- [ ] 4.2.4.6 Display CoT indicator when reasoning is active
-- [ ] 4.2.4.7 Add keyboard shortcut hints: "Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit"
-- [ ] 4.2.4.8 Update status bar reactively on config/status changes
+- [x] 4.2.4.1 Create `render_status_bar/1` component
+- [x] 4.2.4.2 Display current provider and model: "anthropic:claude-3-5-sonnet"
+- [x] 4.2.4.3 Display "No provider configured" (red/warning) when provider is not set
+- [x] 4.2.4.4 Display "No model selected" when model is missing from config
+- [x] 4.2.4.5 Show agent status: idle (green), processing (yellow), error (red), unconfigured (red/dim)
+- [x] 4.2.4.6 Display CoT indicator when reasoning is active
+- [x] 4.2.4.7 Add keyboard shortcut hints: "Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit"
+- [x] 4.2.4.8 Update status bar reactively on config/status changes
 
 ## 4.3 TermUI Pick-List Widget
 

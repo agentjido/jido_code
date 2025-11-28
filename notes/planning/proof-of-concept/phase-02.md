@@ -51,17 +51,17 @@ Add telemetry and logging for agent lifecycle events to enable debugging and mon
 Chain-of-Thought (CoT) reasoning enables step-by-step problem decomposition for complex coding queries. Using JidoAI's CoT runner provides 8-15% accuracy improvement on multi-step reasoning tasks at the cost of 3-4x token usage.
 
 ### 2.2.1 CoT Runner Configuration
-- [ ] **Task 2.2.1 Complete**
+- [x] **Task 2.2.1 Complete**
 
 Configure the Chain-of-Thought runner with appropriate settings for coding assistance.
 
-- [ ] 2.2.1.1 Create `JidoCode.Reasoning.ChainOfThought` wrapper module
-- [ ] 2.2.1.2 Define default CoT config: `mode: :zero_shot`, `temperature: 0.2`, `enable_validation: true`
-- [ ] 2.2.1.3 Implement `run_with_reasoning/3` accepting agent, query, and optional config overrides
-- [ ] 2.2.1.4 Parse reasoning plan from `Jido.AI.Runner.ChainOfThought` output
-- [ ] 2.2.1.5 Extract and format reasoning steps for TUI display
-- [ ] 2.2.1.6 Handle CoT fallback to direct execution on reasoning failure
-- [ ] 2.2.1.7 Add telemetry events for reasoning duration and token usage
+- [x] 2.2.1.1 Create `JidoCode.Reasoning.ChainOfThought` wrapper module
+- [x] 2.2.1.2 Define default CoT config: `mode: :zero_shot`, `temperature: 0.2`, `enable_validation: true`
+- [x] 2.2.1.3 Implement `run_with_reasoning/3` accepting agent, query, and optional config overrides
+- [x] 2.2.1.4 Parse reasoning plan from LLM response (zero_shot and structured formats)
+- [x] 2.2.1.5 Extract and format reasoning steps for TUI display
+- [x] 2.2.1.6 Handle CoT fallback to direct execution on reasoning failure
+- [x] 2.2.1.7 Add telemetry events for reasoning duration and step count
 
 ### 2.2.2 Query Classification
 - [ ] **Task 2.2.2 Complete**

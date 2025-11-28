@@ -41,18 +41,18 @@ Implement the flow from LLM tool call to sandboxed execution and result handling
 All tool execution is delegated to a Lua-based sandbox using the `luerl` Erlang library. The tool manager enforces security boundaries: no direct shell access, no operations outside project directory, controlled API access.
 
 ### 3.2.1 Luerl Integration
-- [ ] **Task 3.2.1 Complete**
+- [x] **Task 3.2.1 Complete**
 
 Set up the Luerl Lua runtime integration for sandboxed execution.
 
-- [ ] 3.2.1.1 Add `luerl` dependency to mix.exs
-- [ ] 3.2.1.2 Create `JidoCode.Tools.Manager` module wrapping Luerl
-- [ ] 3.2.1.3 Initialize Lua state with restricted standard library (no `os.execute`, `io.popen`, `loadfile`)
-- [ ] 3.2.1.4 Implement `Manager.start_link/1` as GenServer for state management
-- [ ] 3.2.1.5 Store project root path in Manager state for boundary enforcement
-- [ ] 3.2.1.6 Implement `Manager.execute/3` accepting tool name, params, and timeout
-- [ ] 3.2.1.7 Add Manager to supervision tree under AgentSupervisor
-- [ ] 3.2.1.8 Write Luerl integration tests (success: Lua code executes in sandbox)
+- [x] 3.2.1.1 Add `luerl` dependency to mix.exs
+- [x] 3.2.1.2 Create `JidoCode.Tools.Manager` module wrapping Luerl
+- [x] 3.2.1.3 Initialize Lua state with restricted standard library (no `os.execute`, `io.popen`, `loadfile`)
+- [x] 3.2.1.4 Implement `Manager.start_link/1` as GenServer for state management
+- [x] 3.2.1.5 Store project root path in Manager state for boundary enforcement
+- [x] 3.2.1.6 Implement `Manager.execute/3` accepting tool name, params, and timeout
+- [x] 3.2.1.7 Add Manager to supervision tree under AgentSupervisor
+- [x] 3.2.1.8 Write Luerl integration tests (success: Lua code executes in sandbox)
 
 ### 3.2.2 Security Boundaries
 - [ ] **Task 3.2.2 Complete**

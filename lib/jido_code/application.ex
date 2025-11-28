@@ -31,11 +31,13 @@ defmodule JidoCode.Application do
       # Tool registry for LLM function calling
       JidoCode.Tools.Registry,
 
+      # Lua sandbox for tool execution
+      JidoCode.Tools.Manager,
+
       # DynamicSupervisor for agent processes
       JidoCode.AgentSupervisor
 
       # Future children will be added here:
-      # - JidoCode.Tools.Manager (Phase 3)
       # - JidoCode.TUI (Phase 4)
     ]
 

@@ -44,9 +44,12 @@ defmodule JidoCode.Agents.LLMAgent do
   alias JidoCode.Config
 
   @pubsub JidoCode.PubSub
-  @tui_topic "tui.events"
+  @tui_topic_prefix "tui.events"
   @default_timeout 60_000
+  @max_message_length 10_000
 
+  # System prompt should NOT include user input to prevent prompt injection attacks.
+  # User messages are passed separately to the AI agent via chat_response/3.
   @system_prompt """
   You are JidoCode, an expert coding assistant running in a terminal interface.
 
@@ -63,8 +66,6 @@ defmodule JidoCode.Agents.LLMAgent do
   - When showing code changes, be specific about file locations
   - Ask clarifying questions when requirements are ambiguous
   - Acknowledge limitations when you're uncertain
-
-  Answer the user's question: <%= @message %>
   """
 
   # ============================================================================
@@ -81,6 +82,7 @@ defmodule JidoCode.Agents.LLMAgent do
   - `:temperature` - Override temperature (0.0-1.0)
   - `:max_tokens` - Override max tokens
   - `:name` - GenServer name for registration (optional)
+  - `:session_id` - Session ID for PubSub topic isolation (optional, defaults to agent PID string)
 
   ## Returns
 
@@ -90,6 +92,7 @@ defmodule JidoCode.Agents.LLMAgent do
   ## Examples
 
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link()
+      {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(session_id: "user-123")
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(name: {:via, Registry, {MyRegistry, :llm}})
   """
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -107,7 +110,7 @@ defmodule JidoCode.Agents.LLMAgent do
   ## Parameters
 
   - `pid` - The agent process
-  - `message` - The user's message string
+  - `message` - The user's message string (max #{@max_message_length} characters)
   - `opts` - Options (`:timeout` defaults to 60 seconds)
 
   ## Returns
@@ -121,8 +124,14 @@ defmodule JidoCode.Agents.LLMAgent do
   """
   @spec chat(GenServer.server(), String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def chat(pid, message, opts \\ []) when is_binary(message) do
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
-    GenServer.call(pid, {:chat, message}, timeout + 5_000)
+    case validate_message(message) do
+      :ok ->
+        timeout = Keyword.get(opts, :timeout, @default_timeout)
+        GenServer.call(pid, {:chat, message}, timeout + 5_000)
+
+      {:error, _} = error ->
+        error
+    end
   end
 
   @doc """
@@ -131,6 +140,36 @@ defmodule JidoCode.Agents.LLMAgent do
   @spec get_config(GenServer.server()) :: map()
   def get_config(pid) do
     GenServer.call(pid, :get_config)
+  end
+
+  @doc """
+  Returns the session ID and PubSub topic for this agent.
+
+  Use the topic to subscribe to events from this specific agent instance.
+
+  ## Example
+
+      {:ok, session_id, topic} = JidoCode.Agents.LLMAgent.get_session_info(pid)
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+  """
+  @spec get_session_info(GenServer.server()) :: {:ok, String.t(), String.t()}
+  def get_session_info(pid) do
+    GenServer.call(pid, :get_session_info)
+  end
+
+  @doc """
+  Builds a PubSub topic for a given session ID.
+
+  This is useful for subscribing to events before the agent is started.
+
+  ## Example
+
+      topic = JidoCode.Agents.LLMAgent.topic_for_session("user-123")
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+  """
+  @spec topic_for_session(String.t()) :: String.t()
+  def topic_for_session(session_id) when is_binary(session_id) do
+    "#{@tui_topic_prefix}.#{session_id}"
   end
 
   @doc """
@@ -233,13 +272,21 @@ defmodule JidoCode.Agents.LLMAgent do
     # Trap exits so we can handle AI agent crashes gracefully
     Process.flag(:trap_exit, true)
 
-    case build_config(opts) do
+    # Extract session_id before building config
+    {session_id, config_opts} = Keyword.pop(opts, :session_id)
+
+    case build_config(config_opts) do
       {:ok, config} ->
         case start_ai_agent(config) do
           {:ok, ai_pid} ->
+            # Use provided session_id or generate one based on agent PID
+            actual_session_id = session_id || inspect(self())
+
             state = %{
               ai_pid: ai_pid,
-              config: config
+              config: config,
+              session_id: actual_session_id,
+              topic: build_topic(actual_session_id)
             }
 
             {:ok, state}
@@ -273,24 +320,37 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   @impl true
-  def handle_call({:chat, message}, _from, state) do
-    result = do_chat(state.ai_pid, message)
+  def handle_call({:chat, message}, from, state) do
+    # Async pattern: offload LLM call to Task to avoid blocking GenServer
+    ai_pid = state.ai_pid
+    topic = state.topic
 
-    # Broadcast to PubSub for TUI
-    case result do
-      {:ok, response} ->
-        broadcast_response(response)
+    Task.start(fn ->
+      result = do_chat(ai_pid, message)
 
-      _ ->
-        :ok
-    end
+      # Broadcast to session-specific PubSub topic for TUI
+      case result do
+        {:ok, response} ->
+          broadcast_response(topic, response)
 
-    {:reply, result, state}
+        _ ->
+          :ok
+      end
+
+      GenServer.reply(from, result)
+    end)
+
+    {:noreply, state}
   end
 
   @impl true
   def handle_call(:get_config, _from, state) do
     {:reply, state.config, state}
+  end
+
+  @impl true
+  def handle_call(:get_session_info, _from, state) do
+    {:reply, {:ok, state.session_id, state.topic}, state}
   end
 
   @impl true
@@ -318,8 +378,8 @@ defmodule JidoCode.Agents.LLMAgent do
               old_config = state.config
               new_state = %{state | ai_pid: new_ai_pid, config: new_config}
 
-              # Broadcast config change
-              broadcast_config_change(old_config, new_config)
+              # Broadcast config change to session-specific topic
+              broadcast_config_change(state.topic, old_config, new_config)
 
               {:reply, :ok, new_state}
 
@@ -361,31 +421,44 @@ defmodule JidoCode.Agents.LLMAgent do
   # ============================================================================
 
   defp build_config(opts) do
-    case Config.get_llm_config() do
-      {:ok, base_config} ->
-        config = %{
-          provider: Keyword.get(opts, :provider, base_config.provider),
-          model: Keyword.get(opts, :model, base_config.model),
-          temperature: Keyword.get(opts, :temperature, base_config.temperature),
-          max_tokens: Keyword.get(opts, :max_tokens, base_config.max_tokens)
-        }
-
-        {:ok, config}
-
-      {:error, _reason} = error ->
-        # Allow starting with explicit opts even without base config
-        if Keyword.has_key?(opts, :provider) and Keyword.has_key?(opts, :model) do
+    config_result =
+      case Config.get_llm_config() do
+        {:ok, base_config} ->
           config = %{
-            provider: Keyword.fetch!(opts, :provider),
-            model: Keyword.fetch!(opts, :model),
-            temperature: Keyword.get(opts, :temperature, 0.7),
-            max_tokens: Keyword.get(opts, :max_tokens, 4096)
+            provider: Keyword.get(opts, :provider, base_config.provider),
+            model: Keyword.get(opts, :model, base_config.model),
+            temperature: Keyword.get(opts, :temperature, base_config.temperature),
+            max_tokens: Keyword.get(opts, :max_tokens, base_config.max_tokens)
           }
 
           {:ok, config}
-        else
-          error
+
+        {:error, _reason} = error ->
+          # Allow starting with explicit opts even without base config
+          if Keyword.has_key?(opts, :provider) and Keyword.has_key?(opts, :model) do
+            config = %{
+              provider: Keyword.fetch!(opts, :provider),
+              model: Keyword.fetch!(opts, :model),
+              temperature: Keyword.get(opts, :temperature, 0.7),
+              max_tokens: Keyword.get(opts, :max_tokens, 4096)
+            }
+
+            {:ok, config}
+          else
+            error
+          end
+      end
+
+    # Validate config before returning to ensure agents cannot start in invalid state
+    case config_result do
+      {:ok, config} ->
+        case validate_config(config) do
+          :ok -> {:ok, config}
+          {:error, reason} -> {:error, reason}
         end
+
+      error ->
+        error
     end
   end
 
@@ -431,12 +504,16 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp broadcast_response(response) do
-    Phoenix.PubSub.broadcast(@pubsub, @tui_topic, {:llm_response, response})
+  defp build_topic(session_id) do
+    "#{@tui_topic_prefix}.#{session_id}"
   end
 
-  defp broadcast_config_change(old_config, new_config) do
-    Phoenix.PubSub.broadcast(@pubsub, @tui_topic, {:config_changed, old_config, new_config})
+  defp broadcast_response(topic, response) do
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:llm_response, response})
+  end
+
+  defp broadcast_config_change(topic, old_config, new_config) do
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:config_changed, old_config, new_config})
   end
 
   defp stop_ai_agent(ai_pid) when is_pid(ai_pid) do
@@ -454,6 +531,18 @@ defmodule JidoCode.Agents.LLMAgent do
   # ============================================================================
   # Validation Functions
   # ============================================================================
+
+  defp validate_message(message) when byte_size(message) > @max_message_length do
+    {:error,
+     {:message_too_long,
+      "Message exceeds maximum length of #{@max_message_length} characters (received #{byte_size(message)})"}}
+  end
+
+  defp validate_message(message) when byte_size(message) == 0 do
+    {:error, {:empty_message, "Message cannot be empty"}}
+  end
+
+  defp validate_message(_message), do: :ok
 
   defp validate_config(config) do
     with :ok <- validate_provider(config.provider),

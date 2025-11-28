@@ -53,6 +53,10 @@ defmodule JidoCode.Reasoning.ChainOfThought do
     fallback_on_error: true
   }
 
+  # Maximum response length to prevent ReDoS attacks during parsing
+  # LLM responses exceeding this will be truncated before regex parsing
+  @max_response_length 100_000
+
   # Telemetry event names
   @event_start [:jido_code, :reasoning, :start]
   @event_complete [:jido_code, :reasoning, :complete]
@@ -101,7 +105,8 @@ defmodule JidoCode.Reasoning.ChainOfThought do
           temperature: float(),
           max_iterations: pos_integer(),
           enable_validation: boolean(),
-          fallback_on_error: boolean()
+          fallback_on_error: boolean(),
+          chat_fn: (GenServer.server(), String.t(), keyword() -> {:ok, String.t()} | {:error, term()})
         ]
 
   # ============================================================================
@@ -181,7 +186,7 @@ defmodule JidoCode.Reasoning.ChainOfThought do
         emit_fallback(reason, config)
 
         # Fall back to direct chat
-        case execute_direct(agent, query) do
+        case execute_direct(agent, query, config) do
           {:ok, response} ->
             duration_ms = System.monotonic_time(:millisecond) - start_time
 
@@ -275,19 +280,27 @@ defmodule JidoCode.Reasoning.ChainOfThought do
   # Telemetry Event Names (for external attachment)
   # ============================================================================
 
-  @doc "Returns the telemetry event name for reasoning start."
+  @doc """
+  Returns the telemetry event name for reasoning start events.
+  """
   @spec event_start() :: [atom()]
   def event_start, do: @event_start
 
-  @doc "Returns the telemetry event name for reasoning complete."
+  @doc """
+  Returns the telemetry event name for reasoning complete events.
+  """
   @spec event_complete() :: [atom()]
   def event_complete, do: @event_complete
 
-  @doc "Returns the telemetry event name for reasoning fallback."
+  @doc """
+  Returns the telemetry event name for reasoning fallback events.
+  """
   @spec event_fallback() :: [atom()]
   def event_fallback, do: @event_fallback
 
-  @doc "Returns the telemetry event name for reasoning error."
+  @doc """
+  Returns the telemetry event name for reasoning error events.
+  """
   @spec event_error() :: [atom()]
   def event_error, do: @event_error
 
@@ -327,8 +340,11 @@ defmodule JidoCode.Reasoning.ChainOfThought do
     # Build the CoT-enhanced prompt
     cot_prompt = build_cot_prompt(query, config)
 
+    # Get chat function (allows injection for testing)
+    chat_fn = Map.get(config, :chat_fn, &LLMAgent.chat/3)
+
     # Execute through the agent
-    case LLMAgent.chat(agent, cot_prompt, timeout: 120_000) do
+    case chat_fn.(agent, cot_prompt, timeout: 120_000) do
       {:ok, response} ->
         # Try to parse reasoning from response
         case parse_reasoning_response(response) do
@@ -345,8 +361,9 @@ defmodule JidoCode.Reasoning.ChainOfThought do
     end
   end
 
-  defp execute_direct(agent, query) do
-    LLMAgent.chat(agent, query, timeout: 60_000)
+  defp execute_direct(agent, query, config) do
+    chat_fn = Map.get(config, :chat_fn, &LLMAgent.chat/3)
+    chat_fn.(agent, query, timeout: 60_000)
   end
 
   defp build_cot_prompt(query, config) do
@@ -412,51 +429,72 @@ defmodule JidoCode.Reasoning.ChainOfThought do
   end
 
   defp parse_reasoning_response(response) do
+    # Truncate response to prevent ReDoS attacks during regex parsing
+    safe_response = truncate_for_parsing(response)
+
     # Try to extract structured reasoning from the response
     cond do
-      String.contains?(response, "REASONING:") and String.contains?(response, "ANSWER:") ->
-        parse_zero_shot_response(response)
+      String.contains?(safe_response, "REASONING:") and String.contains?(safe_response, "ANSWER:") ->
+        parse_zero_shot_response(safe_response)
 
-      String.contains?(response, "UNDERSTAND:") and String.contains?(response, "ANSWER:") ->
-        parse_structured_response(response)
+      String.contains?(safe_response, "UNDERSTAND:") and String.contains?(safe_response, "ANSWER:") ->
+        parse_structured_response(safe_response)
 
       true ->
         {:error, :no_reasoning_found}
     end
   end
 
+  defp truncate_for_parsing(response) when byte_size(response) > @max_response_length do
+    # Truncate at safe boundary (avoid cutting in middle of unicode char)
+    binary_part(response, 0, @max_response_length)
+  end
+
+  defp truncate_for_parsing(response), do: response
+
+  # Unified response parser with configurable section mappings
   defp parse_zero_shot_response(response) do
-    # Split on ANSWER: to get reasoning and final answer
-    case String.split(response, ~r/ANSWER:/i, parts: 2) do
-      [reasoning_part, answer_part] ->
-        steps = extract_numbered_steps(reasoning_part)
-
-        reasoning_plan = %{
-          goal: extract_goal_from_reasoning(reasoning_part),
-          analysis: extract_section(reasoning_part, "REASONING:"),
-          steps: steps,
-          expected_results: String.trim(answer_part),
-          potential_issues: []
-        }
-
-        {:ok, reasoning_plan, String.trim(answer_part)}
-
-      _ ->
-        {:error, :no_reasoning_found}
-    end
+    parse_response_with_sections(response, %{
+      goal_extractor: &extract_goal_from_reasoning/1,
+      analysis_section: "REASONING:",
+      results_from_answer: true
+    })
   end
 
   defp parse_structured_response(response) do
-    # Split on ANSWER: to get reasoning and final answer
+    parse_response_with_sections(response, %{
+      goal_section: "UNDERSTAND:",
+      analysis_section: "PLAN:",
+      results_section: "VALIDATE:"
+    })
+  end
+
+  defp parse_response_with_sections(response, section_config) do
     case String.split(response, ~r/ANSWER:/i, parts: 2) do
       [reasoning_part, answer_part] ->
         steps = extract_numbered_steps(reasoning_part)
 
+        goal =
+          if section_config[:goal_extractor] do
+            section_config.goal_extractor.(reasoning_part)
+          else
+            extract_section(reasoning_part, section_config.goal_section)
+          end
+
+        analysis = extract_section(reasoning_part, section_config.analysis_section)
+
+        expected_results =
+          if section_config[:results_from_answer] do
+            String.trim(answer_part)
+          else
+            extract_section(reasoning_part, section_config.results_section)
+          end
+
         reasoning_plan = %{
-          goal: extract_section(reasoning_part, "UNDERSTAND:"),
-          analysis: extract_section(reasoning_part, "PLAN:"),
+          goal: goal,
+          analysis: analysis,
           steps: steps,
-          expected_results: extract_section(reasoning_part, "VALIDATE:"),
+          expected_results: expected_results,
           potential_issues: []
         }
 

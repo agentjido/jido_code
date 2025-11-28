@@ -270,6 +270,41 @@ defmodule JidoCode.Telemetry.AgentInstrumentation do
   def event_crash, do: @event_crash
 
   # ============================================================================
+  # ETS Accessor Functions (for AgentSupervisor)
+  # ============================================================================
+
+  @doc """
+  Stores the module for an agent name in the instrumentation table.
+
+  Used by AgentSupervisor to track agent module associations.
+  """
+  @spec store_agent_module(atom(), module()) :: true
+  def store_agent_module(name, module) when is_atom(name) do
+    :ets.insert(@ets_table, {{:module, name}, module})
+  end
+
+  @doc """
+  Retrieves the module for an agent name.
+
+  Returns `{:ok, module}` if found, `:error` otherwise.
+  """
+  @spec get_agent_module(atom()) :: {:ok, module()} | :error
+  def get_agent_module(name) when is_atom(name) do
+    case :ets.lookup(@ets_table, {:module, name}) do
+      [{{:module, ^name}, module}] -> {:ok, module}
+      [] -> :error
+    end
+  end
+
+  @doc """
+  Removes the module entry for an agent name.
+  """
+  @spec delete_agent_module(atom()) :: true
+  def delete_agent_module(name) when is_atom(name) do
+    :ets.delete(@ets_table, {:module, name})
+  end
+
+  # ============================================================================
   # Private Functions
   # ============================================================================
 

@@ -16,9 +16,6 @@ defmodule JidoCode.Agents.LLMAgentTest do
       [{:jido_code, :llm}]
     )
 
-    # Subscribe to PubSub for response verification
-    Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
-
     :ok
   end
 
@@ -37,6 +34,35 @@ defmodule JidoCode.Agents.LLMAgentTest do
       # No config set, no explicit opts - should return error tuple
       assert {:error, reason} = LLMAgent.start_link()
       assert is_binary(reason) or is_atom(reason) or is_tuple(reason)
+    end
+
+    test "validates config at startup - rejects invalid provider" do
+      # Set API key but use invalid provider
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      result =
+        LLMAgent.start_link(
+          provider: :completely_invalid_provider_xyz,
+          model: "some-model"
+        )
+
+      assert {:error, message} = result
+      assert is_binary(message)
+      assert String.contains?(message, "not found") or String.contains?(message, "invalid")
+    end
+
+    test "validates config at startup - rejects invalid model" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      result =
+        LLMAgent.start_link(
+          provider: :anthropic,
+          model: "nonexistent-model-xyz"
+        )
+
+      assert {:error, message} = result
+      assert is_binary(message)
+      assert String.contains?(message, "not found") or String.contains?(message, "Model")
     end
 
     test "starts with explicit provider and model opts" do
@@ -147,18 +173,73 @@ defmodule JidoCode.Agents.LLMAgentTest do
         max_tokens: 100
       )
 
+      session_id = "test-session-#{System.unique_integer([:positive])}"
+
+      # Subscribe to session-specific topic before starting agent
+      topic = LLMAgent.topic_for_session(session_id)
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+
       # Requires real API key in environment
-      {:ok, pid} = LLMAgent.start_link()
+      {:ok, pid} = LLMAgent.start_link(session_id: session_id)
 
       {:ok, response} = LLMAgent.chat(pid, "Say 'Hello' and nothing else.")
 
       assert is_binary(response)
       assert String.contains?(String.downcase(response), "hello")
 
-      # Verify PubSub broadcast
+      # Verify PubSub broadcast on session-specific topic
       assert_receive {:llm_response, ^response}, 1000
 
       stop_agent(pid)
+    end
+
+    test "rejects empty messages" do
+      # Note: We don't need a running agent - validation happens before GenServer call
+      result = LLMAgent.chat(self(), "")
+      assert {:error, {:empty_message, message}} = result
+      assert String.contains?(message, "empty")
+    end
+
+    test "rejects messages exceeding maximum length" do
+      # Generate a message that exceeds 10,000 characters
+      long_message = String.duplicate("x", 10_001)
+      result = LLMAgent.chat(self(), long_message)
+
+      assert {:error, {:message_too_long, message}} = result
+      assert String.contains?(message, "10000")
+      assert String.contains?(message, "10001")
+    end
+
+    test "accepts messages at the exact maximum length" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          # Generate a message exactly at 10,000 characters
+          max_message = String.duplicate("x", 10_000)
+          # This should not fail validation, but may fail LLM call (that's ok)
+          result = LLMAgent.chat(pid, max_message, timeout: 1_000)
+
+          # Should NOT be a message_too_long error
+          case result do
+            {:error, {:message_too_long, _}} ->
+              flunk("Should not reject message at exact max length")
+
+            _ ->
+              # Any other result is acceptable (LLM call may timeout or fail)
+              :ok
+          end
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
     end
   end
 
@@ -248,6 +329,58 @@ defmodule JidoCode.Agents.LLMAgentTest do
         {:ok, _models} ->
           # Unexpected - should not have models for fake provider
           flunk("Expected error or empty list for invalid provider")
+      end
+    end
+  end
+
+  describe "session topics" do
+    test "topic_for_session builds correct topic format" do
+      topic = LLMAgent.topic_for_session("my-session-123")
+      assert topic == "tui.events.my-session-123"
+    end
+
+    test "get_session_info returns session_id and topic" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(session_id: "explicit-session-id") do
+        {:ok, pid} ->
+          {:ok, session_id, topic} = LLMAgent.get_session_info(pid)
+
+          assert session_id == "explicit-session-id"
+          assert topic == "tui.events.explicit-session-id"
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "default session_id is generated from PID when not provided" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          {:ok, session_id, topic} = LLMAgent.get_session_info(pid)
+
+          # Should contain PID format
+          assert String.contains?(session_id, "#PID<")
+          assert String.starts_with?(topic, "tui.events.")
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
       end
     end
   end
@@ -382,13 +515,19 @@ defmodule JidoCode.Agents.LLMAgentTest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
       System.put_env("OPENAI_API_KEY", "test-openai-key")
 
-      case LLMAgent.start_link() do
+      session_id = "test-session-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(session_id: session_id) do
         {:ok, pid} ->
+          # Subscribe to session-specific topic
+          {:ok, ^session_id, topic} = LLMAgent.get_session_info(pid)
+          Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+
           result = LLMAgent.configure(pid, provider: :openai, model: "gpt-4o")
 
           case result do
             :ok ->
-              # Should receive config change broadcast
+              # Should receive config change broadcast on session-specific topic
               assert_receive {:config_changed, old_config, new_config}, 1000
 
               assert old_config.provider == :anthropic

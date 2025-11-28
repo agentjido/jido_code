@@ -214,26 +214,23 @@ defmodule JidoCode.AgentSupervisor do
   # Private Functions
   # ============================================================================
 
-  # Store agent module info in ETS for retrieval on stop
-  # Uses the same ETS table as AgentInstrumentation
+  # Store agent module info via AgentInstrumentation (ETS owner)
   defp store_agent_module(name, module) do
     AgentInstrumentation.setup()
-    :ets.insert(:jido_code_agent_restarts, {{:module, name}, module})
+    AgentInstrumentation.store_agent_module(name, module)
   end
 
-  # Retrieve stored module info for an agent
+  # Retrieve stored module info via AgentInstrumentation
   defp get_agent_module(name) do
-    case :ets.lookup(:jido_code_agent_restarts, {:module, name}) do
-      [{{:module, ^name}, module}] -> module
-      [] -> nil
+    case AgentInstrumentation.get_agent_module(name) do
+      {:ok, module} -> module
+      :error -> nil
     end
-  rescue
-    ArgumentError -> nil
   end
 
-  # Clean up stored module info for an agent
+  # Clean up stored module info via AgentInstrumentation
   defp cleanup_agent_module(name) do
-    :ets.delete(:jido_code_agent_restarts, {:module, name})
+    AgentInstrumentation.delete_agent_module(name)
   rescue
     ArgumentError -> :ok
   end

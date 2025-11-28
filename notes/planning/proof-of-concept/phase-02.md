@@ -64,17 +64,17 @@ Configure the Chain-of-Thought runner with appropriate settings for coding assis
 - [x] 2.2.1.7 Add telemetry events for reasoning duration and step count
 
 ### 2.2.2 Query Classification
-- [ ] **Task 2.2.2 Complete**
+- [x] **Task 2.2.2 Complete**
 
 Implement heuristics to determine when CoT reasoning should be applied vs. direct response.
 
-- [ ] 2.2.2.1 Create `JidoCode.Reasoning.QueryClassifier` module
-- [ ] 2.2.2.2 Define query complexity indicators: code keywords, multi-step phrases, debugging patterns
-- [ ] 2.2.2.3 Implement `should_use_cot?/1` returning boolean based on query analysis
-- [ ] 2.2.2.4 Classify as complex: "debug", "explain", "step by step", "how to", code blocks
-- [ ] 2.2.2.5 Classify as simple: greetings, single-word queries, confirmations
-- [ ] 2.2.2.6 Add configuration option to force CoT on/off regardless of classification
-- [ ] 2.2.2.7 Write classification tests with example queries (success: 90%+ correct classification)
+- [x] 2.2.2.1 Create `JidoCode.Reasoning.QueryClassifier` module
+- [x] 2.2.2.2 Define query complexity indicators: code keywords, multi-step phrases, debugging patterns
+- [x] 2.2.2.3 Implement `should_use_cot?/1` returning boolean based on query analysis
+- [x] 2.2.2.4 Classify as complex: "debug", "explain", "step by step", "how to", code blocks
+- [x] 2.2.2.5 Classify as simple: greetings, single-word queries, confirmations
+- [x] 2.2.2.6 Add configuration option to force CoT on/off regardless of classification
+- [x] 2.2.2.7 Write classification tests with example queries (success: 90%+ correct classification)
 
 ### 2.2.3 Reasoning Display Format
 - [ ] **Task 2.2.3 Complete**

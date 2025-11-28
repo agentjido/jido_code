@@ -71,20 +71,20 @@ Implement security restrictions to prevent unauthorized access.
 - [x] 3.2.2.10 Write security boundary tests (success: escape attempts blocked)
 
 ### 3.2.3 Erlang Bridge Functions
-- [ ] **Task 3.2.3 Complete**
+- [x] **Task 3.2.3 Complete**
 
 Expose controlled Erlang functions to Lua for file, shell, and API operations.
 
-- [ ] 3.2.3.1 Create `JidoCode.Tools.Manager.Bridge` module for Erlang-Lua bindings
-- [ ] 3.2.3.2 Implement `bridge_read_file/2` - read file contents (path validated)
-- [ ] 3.2.3.3 Implement `bridge_write_file/3` - write file contents (path validated)
-- [ ] 3.2.3.4 Implement `bridge_list_dir/2` - list directory contents (path validated)
-- [ ] 3.2.3.5 Implement `bridge_file_exists/2` - check file existence (path validated)
-- [ ] 3.2.3.6 Implement `bridge_shell/2` - execute shell command via controlled subprocess
-- [ ] 3.2.3.7 Shell bridge captures stdout/stderr, enforces timeout, runs in project dir
-- [ ] 3.2.3.8 Implement `bridge_http/2` - HTTP requests via Req (allowlist domains if needed)
-- [ ] 3.2.3.9 Register all bridge functions in Lua state as `jido.*` namespace
-- [ ] 3.2.3.10 Write bridge function tests (success: operations work within boundaries)
+- [x] 3.2.3.1 Create `JidoCode.Tools.Bridge` module for Erlang-Lua bindings
+- [x] 3.2.3.2 Implement `lua_read_file/3` - read file contents (path validated)
+- [x] 3.2.3.3 Implement `lua_write_file/3` - write file contents (path validated)
+- [x] 3.2.3.4 Implement `lua_list_dir/3` - list directory contents (path validated)
+- [x] 3.2.3.5 Implement `lua_file_exists/3` - check file existence (path validated)
+- [x] 3.2.3.6 Implement `lua_shell/3` - execute shell command via controlled subprocess
+- [x] 3.2.3.7 Shell bridge captures stdout/stderr, runs in project dir (timeout TBD)
+- [ ] 3.2.3.8 Implement `bridge_http/2` - HTTP requests via Req (deferred - not needed for POC)
+- [x] 3.2.3.9 Register all bridge functions in Lua state as `jido.*` namespace
+- [x] 3.2.3.10 Write bridge function tests (success: operations work within boundaries)
 
 ## 3.3 Core Coding Tools
 

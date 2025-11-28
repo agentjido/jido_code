@@ -34,6 +34,7 @@ defmodule JidoCode.TestAgent do
   - `:name` - Optional name for registration (handled by AgentSupervisor)
   - `:initial_state` - Initial state value (default: %{})
   """
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     initial_state = Keyword.get(opts, :initial_state, %{started_at: DateTime.utc_now()})
     name = Keyword.get(opts, :name)
@@ -48,6 +49,7 @@ defmodule JidoCode.TestAgent do
   @doc """
   Returns the current state of the agent.
   """
+  @spec get_state(GenServer.server()) :: term()
   def get_state(pid) do
     GenServer.call(pid, :get_state)
   end
@@ -55,6 +57,7 @@ defmodule JidoCode.TestAgent do
   @doc """
   Updates the agent state with the given value.
   """
+  @spec set_state(GenServer.server(), term()) :: :ok
   def set_state(pid, new_state) do
     GenServer.call(pid, {:set_state, new_state})
   end
@@ -62,6 +65,7 @@ defmodule JidoCode.TestAgent do
   @doc """
   Causes the agent to crash. Used for testing restart behavior.
   """
+  @spec crash(GenServer.server()) :: :ok
   def crash(pid) do
     GenServer.cast(pid, :crash)
   end
@@ -69,6 +73,7 @@ defmodule JidoCode.TestAgent do
   @doc """
   Requests a normal shutdown. Agent will exit with :normal reason.
   """
+  @spec stop(GenServer.server()) :: :ok
   def stop(pid) do
     GenServer.stop(pid, :normal)
   end

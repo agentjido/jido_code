@@ -54,9 +54,15 @@ defmodule JidoCode.AgentSupervisorTest do
     end
 
     test "returns error for invalid spec" do
-      assert {:error, :invalid_agent_spec} = AgentSupervisor.start_agent(%{})
-      assert {:error, :invalid_agent_spec} = AgentSupervisor.start_agent(%{name: :foo})
-      assert {:error, :invalid_agent_spec} = AgentSupervisor.start_agent(%{module: TestAgent})
+      assert {:error, msg} = AgentSupervisor.start_agent(%{})
+      assert msg =~ "invalid agent spec"
+      assert msg =~ ":name and :module"
+
+      assert {:error, msg} = AgentSupervisor.start_agent(%{name: :foo})
+      assert msg =~ "invalid agent spec"
+
+      assert {:error, msg} = AgentSupervisor.start_agent(%{module: TestAgent})
+      assert msg =~ "invalid agent spec"
     end
 
     test "increments child count" do

@@ -33,6 +33,19 @@ Implement runtime API for switching LLM providers and models without restart. An
 - [ ] 2.1.2.7 Broadcast config change events for TUI status display
 - [ ] 2.1.2.8 Write tests for hot-swapping providers (success: config changes apply immediately)
 
+### 2.1.3 Agent Lifecycle Observability
+- [ ] **Task 2.1.3 Complete**
+
+Add telemetry and logging for agent lifecycle events to enable debugging and monitoring.
+
+- [ ] 2.1.3.1 Add Telemetry events for agent start: `[:jido_code, :agent, :start]`
+- [ ] 2.1.3.2 Add Telemetry events for agent stop: `[:jido_code, :agent, :stop]`
+- [ ] 2.1.3.3 Add Telemetry events for agent crash: `[:jido_code, :agent, :crash]`
+- [ ] 2.1.3.4 Include metadata: agent name, module, duration, error reason (for crashes)
+- [ ] 2.1.3.5 Add optional Logger handler for telemetry events (configurable log level)
+- [ ] 2.1.3.6 Track restart counts per agent for detecting restart loops
+- [ ] 2.1.3.7 Write tests verifying telemetry events are emitted (success: events captured in test)
+
 ## 2.2 Chain-of-Thought Integration
 
 Chain-of-Thought (CoT) reasoning enables step-by-step problem decomposition for complex coding queries. Using JidoAI's CoT runner provides 8-15% accuracy improvement on multi-step reasoning tasks at the cost of 3-4x token usage.

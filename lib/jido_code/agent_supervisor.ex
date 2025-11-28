@@ -61,7 +61,7 @@ defmodule JidoCode.AgentSupervisor do
 
   - `{:ok, pid}` - Agent started successfully
   - `{:error, {:already_started, pid}}` - Agent with this name already exists
-  - `{:error, reason}` - Failed to start agent
+  - `{:error, String.t()}` - Invalid agent spec (descriptive message)
 
   ## Examples
 
@@ -89,8 +89,8 @@ defmodule JidoCode.AgentSupervisor do
     DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
-  def start_agent(_invalid_spec) do
-    {:error, :invalid_agent_spec}
+  def start_agent(invalid_spec) do
+    {:error, "invalid agent spec: must be a map with :name and :module keys, got: #{inspect(invalid_spec)}"}
   end
 
   @doc """

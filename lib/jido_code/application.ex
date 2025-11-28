@@ -19,6 +19,9 @@ defmodule JidoCode.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      # Settings cache (must start before anything that might use Settings)
+      JidoCode.Settings.Cache,
+
       # PubSub for agent-TUI communication
       {Phoenix.PubSub, name: JidoCode.PubSub},
 

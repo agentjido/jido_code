@@ -49,6 +49,7 @@ defmodule JidoCode.Config do
 
   @default_temperature 0.7
   @default_max_tokens 4096
+  @providers_cache_key {__MODULE__, :providers}
 
   @doc """
   Returns the validated LLM configuration.
@@ -201,11 +202,28 @@ defmodule JidoCode.Config do
   end
 
   defp get_available_providers do
-    try do
-      Jido.AI.Provider.providers()
-      |> Enum.map(fn {provider_id, _adapter} -> provider_id end)
-    rescue
-      _ -> [:anthropic, :openai, :openrouter, :google, :cloudflare]
+    # Use persistent_term cache to avoid repeated JidoAI calls
+    case :persistent_term.get(@providers_cache_key, :not_cached) do
+      :not_cached ->
+        providers = fetch_providers()
+        :persistent_term.put(@providers_cache_key, providers)
+        providers
+
+      cached_providers ->
+        cached_providers
+    end
+  end
+
+  defp fetch_providers do
+    # Use ReqLLM registry via Jido.AI.Model.Registry.Adapter
+    # This returns all 57+ ReqLLM providers without legacy fallback warnings
+    case Jido.AI.Model.Registry.Adapter.list_providers() do
+      {:ok, providers} when is_list(providers) ->
+        providers
+
+      _ ->
+        # Fallback only if ReqLLM registry is completely unavailable
+        [:anthropic, :openai, :openrouter, :google, :cloudflare]
     end
   end
 

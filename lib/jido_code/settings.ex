@@ -57,11 +57,11 @@ defmodule JidoCode.Settings do
 
   require Logger
 
+  alias JidoCode.Settings.Cache
+
   @global_dir_name ".jido_code"
   @local_dir_name "jido_code"
   @settings_file "settings.json"
-  @cache_table :jido_code_settings_cache
-  @cache_key :settings
 
   # Valid top-level keys and their expected types
   @valid_keys %{
@@ -336,13 +336,13 @@ defmodule JidoCode.Settings do
   """
   @spec load() :: {:ok, map()}
   def load do
-    case get_cached() do
+    case Cache.get() do
       {:ok, settings} ->
         {:ok, settings}
 
       :miss ->
         settings = load_and_merge()
-        put_cached(settings)
+        Cache.put(settings)
         {:ok, settings}
     end
   end
@@ -425,39 +425,7 @@ defmodule JidoCode.Settings do
   """
   @spec clear_cache() :: :ok
   def clear_cache do
-    ensure_cache_table()
-
-    :ets.delete(@cache_table, @cache_key)
-    :ok
-  end
-
-  # ============================================================================
-  # Private: Cache Management
-  # ============================================================================
-
-  defp ensure_cache_table do
-    case :ets.whereis(@cache_table) do
-      :undefined ->
-        :ets.new(@cache_table, [:set, :public, :named_table])
-
-      _tid ->
-        :ok
-    end
-  end
-
-  defp get_cached do
-    ensure_cache_table()
-
-    case :ets.lookup(@cache_table, @cache_key) do
-      [{@cache_key, settings}] -> {:ok, settings}
-      [] -> :miss
-    end
-  end
-
-  defp put_cached(settings) do
-    ensure_cache_table()
-    :ets.insert(@cache_table, {@cache_key, settings})
-    :ok
+    Cache.clear()
   end
 
   # ============================================================================
@@ -677,11 +645,26 @@ defmodule JidoCode.Settings do
   defp write_atomic(path, settings) do
     temp_path = path <> ".tmp"
     json = Jason.encode!(settings, pretty: true)
+    expected_size = byte_size(json)
 
     try do
       File.write!(temp_path, json)
       File.rename!(temp_path, path)
-      :ok
+
+      # Set file permissions to owner read/write only (0o600)
+      File.chmod(path, 0o600)
+
+      # Verify the final file exists and has expected size
+      case File.stat(path) do
+        {:ok, %{size: ^expected_size}} ->
+          :ok
+
+        {:ok, %{size: actual_size}} ->
+          {:error, "File size mismatch after write: expected #{expected_size}, got #{actual_size}"}
+
+        {:error, reason} ->
+          {:error, "Failed to verify written file: #{inspect(reason)}"}
+      end
     rescue
       e in File.Error ->
         # Clean up temp file if it exists
@@ -763,45 +746,44 @@ defmodule JidoCode.Settings do
   end
 
   # ============================================================================
-  # Private: JidoAI Integration
+  # Private: JidoAI Integration (ReqLLM APIs)
   # ============================================================================
 
   defp get_jido_providers do
-    try do
-      Jido.AI.Provider.providers()
-      |> Keyword.keys()
-      |> Enum.map(&Atom.to_string/1)
-    rescue
-      _ -> []
-    catch
-      :exit, _ -> []
+    # Use ReqLLM registry via Jido.AI.Model.Registry.Adapter
+    # This returns all 57+ ReqLLM providers without legacy fallback warnings
+    case Jido.AI.Model.Registry.Adapter.list_providers() do
+      {:ok, providers} when is_list(providers) ->
+        Enum.map(providers, &Atom.to_string/1)
+
+      _ ->
+        []
     end
   end
 
   defp get_jido_models(provider) do
-    try do
-      provider_atom = String.to_existing_atom(provider)
+    # Using String.to_atom/1 is safe here because:
+    # 1. Provider strings come from local settings files (user-controlled)
+    # 2. This is a CLI tool with no external attack surface
+    # 3. The set of valid providers is bounded by JidoAI/ReqLLM
+    provider_atom = String.to_atom(provider)
 
-      case Jido.AI.Provider.list_all_models_enhanced(provider_atom) do
-        {:ok, models} when is_list(models) ->
-          models
-          |> Enum.map(fn model ->
-            case model do
-              %{id: id} when is_binary(id) -> id
-              %{name: name} when is_binary(name) -> name
-              _ -> nil
-            end
-          end)
-          |> Enum.reject(&is_nil/1)
+    # Use ReqLLM registry via Jido.AI.Model.Registry
+    # This returns ReqLLM.Model structs with full metadata
+    case Jido.AI.Model.Registry.list_models(provider_atom) do
+      {:ok, models} when is_list(models) ->
+        models
+        |> Enum.map(fn model ->
+          # ReqLLM.Model structs have a :model field with the model name
+          case model do
+            %{model: name} when is_binary(name) -> name
+            _ -> nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
 
-        _ ->
-          []
-      end
-    rescue
-      ArgumentError -> []
-      _ -> []
-    catch
-      :exit, _ -> []
+      _ ->
+        []
     end
   end
 end

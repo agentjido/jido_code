@@ -33,16 +33,22 @@ defmodule JidoCode.ApplicationTest do
       assert counts.workers == 0
     end
 
+    test "Settings.Cache is running" do
+      assert Process.whereis(JidoCode.Settings.Cache) != nil
+    end
+
     test "all supervisor children are running" do
       # Verify all expected children are present
       children = Supervisor.which_children(JidoCode.Supervisor)
 
-      # Should have 3 children: PubSub, Registry, AgentSupervisor
-      assert length(children) == 3
+      # Should have 4 children: Settings.Cache, PubSub, Registry, AgentSupervisor
+      assert length(children) == 4
 
       # Extract child ids
       child_ids = Enum.map(children, fn {id, _pid, _type, _modules} -> id end)
 
+      # Settings.Cache starts first
+      assert JidoCode.Settings.Cache in child_ids
       # PubSub registers as Phoenix.PubSub.Supervisor internally
       assert Phoenix.PubSub.Supervisor in child_ids
       assert JidoCode.AgentRegistry in child_ids

@@ -22,19 +22,19 @@ Define the tool schema and implement tool registration.
 - [x] 3.1.1.9 Write registry tests (success: tools register and lookup correctly)
 
 ### 3.1.2 Tool Execution Flow
-- [ ] **Task 3.1.2 Complete**
+- [x] **Task 3.1.2 Complete**
 
 Implement the flow from LLM tool call to sandboxed execution and result handling.
 
-- [ ] 3.1.2.1 Create `JidoCode.Tools.Executor` module for tool execution coordination
-- [ ] 3.1.2.2 Parse tool calls from LLM response (JSON function calling format)
-- [ ] 3.1.2.3 Validate tool name exists in registry
-- [ ] 3.1.2.4 Validate parameters against tool schema (type checking, required fields)
-- [ ] 3.1.2.5 Delegate execution to ToolManager (never execute directly)
-- [ ] 3.1.2.6 Handle tool execution timeout (configurable, default 30s)
-- [ ] 3.1.2.7 Format tool results for LLM consumption
-- [ ] 3.1.2.8 Support sequential tool calls (one result feeds into next call)
-- [ ] 3.1.2.9 Write execution flow tests with mock tool manager (success: full round-trip)
+- [x] 3.1.2.1 Create `JidoCode.Tools.Executor` module for tool execution coordination
+- [x] 3.1.2.2 Parse tool calls from LLM response (JSON function calling format)
+- [x] 3.1.2.3 Validate tool name exists in registry
+- [x] 3.1.2.4 Validate parameters against tool schema (type checking, required fields)
+- [x] 3.1.2.5 Delegate execution to ToolManager (never execute directly)
+- [x] 3.1.2.6 Handle tool execution timeout (configurable, default 30s)
+- [x] 3.1.2.7 Format tool results for LLM consumption
+- [x] 3.1.2.8 Support sequential tool calls (one result feeds into next call)
+- [x] 3.1.2.9 Write execution flow tests with mock tool manager (success: full round-trip)
 
 ## 3.2 Lua Sandbox Tool Manager
 

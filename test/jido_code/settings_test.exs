@@ -111,10 +111,17 @@ defmodule JidoCode.SettingsTest do
     end
 
     test "rejects non-positive-integer version" do
-      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => 0})
-      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => -1})
-      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => "1"})
-      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => 1.5})
+      assert {:error, "version must be a positive integer" <> _} =
+               Settings.validate(%{"version" => 0})
+
+      assert {:error, "version must be a positive integer" <> _} =
+               Settings.validate(%{"version" => -1})
+
+      assert {:error, "version must be a positive integer" <> _} =
+               Settings.validate(%{"version" => "1"})
+
+      assert {:error, "version must be a positive integer" <> _} =
+               Settings.validate(%{"version" => 1.5})
     end
 
     test "rejects non-string provider" do

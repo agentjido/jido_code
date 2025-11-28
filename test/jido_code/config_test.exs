@@ -51,6 +51,7 @@ defmodule JidoCode.ConfigTest do
         temperature: 0.5,
         max_tokens: 2048
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert {:ok, config} = Config.get_llm_config()
@@ -65,6 +66,7 @@ defmodule JidoCode.ConfigTest do
         provider: :anthropic,
         model: "claude-3-5-sonnet"
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert {:ok, config} = Config.get_llm_config()
@@ -79,6 +81,7 @@ defmodule JidoCode.ConfigTest do
         provider: :openai,
         model: "gpt-4"
       )
+
       System.put_env("JIDO_CODE_PROVIDER", "anthropic")
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
@@ -91,6 +94,7 @@ defmodule JidoCode.ConfigTest do
         provider: :anthropic,
         model: "claude-3-opus"
       )
+
       System.put_env("JIDO_CODE_MODEL", "claude-3-5-sonnet")
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
@@ -103,6 +107,7 @@ defmodule JidoCode.ConfigTest do
         provider: :anthropic,
         model: "claude-3-5-sonnet"
       )
+
       System.put_env("JIDO_CODE_PROVIDER", "")
       System.put_env("JIDO_CODE_MODEL", "")
       System.put_env("ANTHROPIC_API_KEY", "test-key")
@@ -125,6 +130,7 @@ defmodule JidoCode.ConfigTest do
         provider: :anthropic,
         model: "claude-3-5-sonnet"
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       config = Config.get_llm_config!()
@@ -142,6 +148,7 @@ defmodule JidoCode.ConfigTest do
         provider: :anthropic,
         model: "claude-3-5-sonnet"
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert Config.configured?()
@@ -156,6 +163,7 @@ defmodule JidoCode.ConfigTest do
         model: "claude-3-5-sonnet",
         temperature: -0.5
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert {:ok, config} = Config.get_llm_config()
@@ -168,6 +176,7 @@ defmodule JidoCode.ConfigTest do
         model: "claude-3-5-sonnet",
         temperature: 1.5
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert {:ok, config} = Config.get_llm_config()
@@ -180,6 +189,7 @@ defmodule JidoCode.ConfigTest do
         model: "claude-3-5-sonnet",
         max_tokens: 0
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert {:ok, config} = Config.get_llm_config()
@@ -192,6 +202,7 @@ defmodule JidoCode.ConfigTest do
         model: "claude-3-5-sonnet",
         max_tokens: -100
       )
+
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert {:ok, config} = Config.get_llm_config()

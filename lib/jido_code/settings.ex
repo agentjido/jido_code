@@ -61,6 +61,8 @@ defmodule JidoCode.Settings do
 
   require Logger
 
+  alias Jido.AI.Model.Registry
+  alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
   alias JidoCode.Settings.Cache
 
   @global_dir_name ".jido_code"
@@ -344,9 +346,14 @@ defmodule JidoCode.Settings do
 
   defp parse_json(content) do
     case Jason.decode(content) do
-      {:ok, data} when is_map(data) -> {:ok, data}
-      {:ok, data} -> {:error, {:invalid_json, "expected object, got: #{inspect(data)}"}}
-      {:error, %Jason.DecodeError{} = error} -> {:error, {:invalid_json, Exception.message(error)}}
+      {:ok, data} when is_map(data) ->
+        {:ok, data}
+
+      {:ok, data} ->
+        {:error, {:invalid_json, "expected object, got: #{inspect(data)}"}}
+
+      {:error, %Jason.DecodeError{} = error} ->
+        {:error, {:invalid_json, Exception.message(error)}}
     end
   end
 
@@ -704,7 +711,8 @@ defmodule JidoCode.Settings do
           :ok
 
         {:ok, %{size: actual_size}} ->
-          {:error, "File size mismatch after write: expected #{expected_size}, got #{actual_size}"}
+          {:error,
+           "File size mismatch after write: expected #{expected_size}, got #{actual_size}"}
 
         {:error, reason} ->
           {:error, "Failed to verify written file: #{inspect(reason)}"}
@@ -794,9 +802,9 @@ defmodule JidoCode.Settings do
   # ============================================================================
 
   defp get_jido_providers do
-    # Use ReqLLM registry via Jido.AI.Model.Registry.Adapter
+    # Use ReqLLM registry via RegistryAdapter
     # This returns all 57+ ReqLLM providers without legacy fallback warnings
-    case Jido.AI.Model.Registry.Adapter.list_providers() do
+    case RegistryAdapter.list_providers() do
       {:ok, providers} when is_list(providers) ->
         Enum.map(providers, &Atom.to_string/1)
 
@@ -812,22 +820,26 @@ defmodule JidoCode.Settings do
     # 3. The set of valid providers is bounded by JidoAI/ReqLLM
     provider_atom = String.to_atom(provider)
 
-    # Use ReqLLM registry via Jido.AI.Model.Registry
+    # Use ReqLLM registry via Registry
     # This returns ReqLLM.Model structs with full metadata
-    case Jido.AI.Model.Registry.list_models(provider_atom) do
+    case Registry.list_models(provider_atom) do
       {:ok, models} when is_list(models) ->
-        models
-        |> Enum.map(fn model ->
-          # ReqLLM.Model structs have a :model field with the model name
-          case model do
-            %{model: name} when is_binary(name) -> name
-            _ -> nil
-          end
-        end)
-        |> Enum.reject(&is_nil/1)
+        extract_model_names(models)
 
       _ ->
         []
     end
+  end
+
+  defp extract_model_names(models) do
+    models
+    |> Enum.map(fn model ->
+      # ReqLLM.Model structs have a :model field with the model name
+      case model do
+        %{model: name} when is_binary(name) -> name
+        _ -> nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
   end
 end

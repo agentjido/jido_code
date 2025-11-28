@@ -2,8 +2,8 @@ defmodule JidoCode.AgentSupervisorTest do
   use ExUnit.Case, async: false
 
   alias JidoCode.AgentSupervisor
-  alias JidoCode.TestAgent
   alias JidoCode.Telemetry.AgentInstrumentation
+  alias JidoCode.TestAgent
 
   setup do
     # Ensure supervisor starts with no children

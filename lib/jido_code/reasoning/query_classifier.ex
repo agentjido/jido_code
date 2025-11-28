@@ -249,7 +249,11 @@ defmodule JidoCode.Reasoning.QueryClassifier do
       QueryClassifier.analyze("How do I debug this error?")
       # => %{score: 2, reasons: ["keyword: debug", "keyword: error"], should_use_cot: true}
   """
-  @spec analyze(String.t()) :: %{score: number(), reasons: [String.t()], should_use_cot: boolean()}
+  @spec analyze(String.t()) :: %{
+          score: number(),
+          reasons: [String.t()],
+          should_use_cot: boolean()
+        }
   def analyze(query) when is_binary(query) do
     normalized = normalize_query(query)
 
@@ -381,12 +385,10 @@ defmodule JidoCode.Reasoning.QueryClassifier do
   defp check_length(original) do
     len = String.length(original)
 
-    cond do
-      len >= @min_complex_length ->
-        {1, ["long query (#{len} chars)"]}
-
-      true ->
-        {0, []}
+    if len >= @min_complex_length do
+      {1, ["long query (#{len} chars)"]}
+    else
+      {0, []}
     end
   end
 

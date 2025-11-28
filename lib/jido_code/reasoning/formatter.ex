@@ -260,10 +260,7 @@ defmodule JidoCode.Reasoning.Formatter do
     if valid or Enum.empty?(issues) do
       base
     else
-      issue_lines =
-        issues
-        |> Enum.map(&"  - #{&1}")
-        |> Enum.join("\n")
+      issue_lines = Enum.map_join(issues, "\n", &"  - #{&1}")
 
       "#{base}\n#{issue_lines}"
     end
@@ -450,10 +447,7 @@ defmodule JidoCode.Reasoning.Formatter do
   defp format_potential_issues([], _indent), do: nil
 
   defp format_potential_issues(issues, indent) when is_list(issues) do
-    issue_lines =
-      issues
-      |> Enum.map(&"#{indent}  ⚠ #{truncate(&1, 55)}")
-      |> Enum.join("\n")
+    issue_lines = Enum.map_join(issues, "\n", &"#{indent}  ⚠ #{truncate(&1, 55)}")
 
     """
     #{indent}Potential Issues:
@@ -477,6 +471,7 @@ defmodule JidoCode.Reasoning.Formatter do
   end
 
   defp truncate(nil, _max), do: ""
+
   defp truncate(text, max) when is_binary(text) do
     text = String.trim(text)
 

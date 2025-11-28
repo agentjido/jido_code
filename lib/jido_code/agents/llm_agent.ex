@@ -40,7 +40,9 @@ defmodule JidoCode.Agents.LLMAgent do
   require Logger
 
   alias Jido.AI.Agent, as: AIAgent
+  alias Jido.AI.Keyring
   alias Jido.AI.Model
+  alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
   alias JidoCode.Config
 
   @pubsub JidoCode.PubSub
@@ -226,7 +228,7 @@ defmodule JidoCode.Agents.LLMAgent do
   """
   @spec list_providers() :: {:ok, [atom()]} | {:error, term()}
   def list_providers do
-    Jido.AI.Model.Registry.Adapter.list_providers()
+    RegistryAdapter.list_providers()
   end
 
   @doc """
@@ -244,24 +246,20 @@ defmodule JidoCode.Agents.LLMAgent do
   """
   @spec list_models(atom()) :: {:ok, [String.t()]} | {:error, term()}
   def list_models(provider) when is_atom(provider) do
-    case Jido.AI.Model.Registry.Adapter.list_models(provider) do
-      {:ok, models} ->
-        model_names =
-          models
-          |> Enum.map(fn model ->
-            case model do
-              %{model: name} when is_binary(name) -> name
-              _ -> nil
-            end
-          end)
-          |> Enum.reject(&is_nil/1)
-
-        {:ok, model_names}
-
-      {:error, _} = error ->
-        error
+    case RegistryAdapter.list_models(provider) do
+      {:ok, models} -> {:ok, extract_model_names(models)}
+      {:error, _} = error -> error
     end
   end
+
+  defp extract_model_names(models) do
+    models
+    |> Enum.map(&get_model_name/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp get_model_name(%{model: name}) when is_binary(name), do: name
+  defp get_model_name(_), do: nil
 
   # ============================================================================
   # GenServer Callbacks
@@ -367,38 +365,7 @@ defmodule JidoCode.Agents.LLMAgent do
     if new_config == state.config do
       {:reply, :ok, state}
     else
-      case validate_config(new_config) do
-        :ok ->
-          # Stop existing AI agent
-          stop_ai_agent(state.ai_pid)
-
-          # Start new AI agent with new config
-          case start_ai_agent(new_config) do
-            {:ok, new_ai_pid} ->
-              old_config = state.config
-              new_state = %{state | ai_pid: new_ai_pid, config: new_config}
-
-              # Broadcast config change to session-specific topic
-              broadcast_config_change(state.topic, old_config, new_config)
-
-              {:reply, :ok, new_state}
-
-            {:error, reason} ->
-              # Failed to start new agent - try to restart with old config
-              case start_ai_agent(state.config) do
-                {:ok, restored_pid} ->
-                  {:reply, {:error, "Failed to apply new config: #{inspect(reason)}"},
-                   %{state | ai_pid: restored_pid}}
-
-                {:error, _} ->
-                  # Critical failure - stop the GenServer
-                  {:stop, {:error, :cannot_restore_agent}, {:error, reason}, state}
-              end
-          end
-
-        {:error, _} = error ->
-          {:reply, error, state}
-      end
+      apply_config_change(new_config, state)
     end
   end
 
@@ -528,6 +495,41 @@ defmodule JidoCode.Agents.LLMAgent do
 
   defp stop_ai_agent(_), do: :ok
 
+  defp apply_config_change(new_config, state) do
+    case validate_config(new_config) do
+      :ok ->
+        stop_ai_agent(state.ai_pid)
+        do_apply_config(new_config, state)
+
+      {:error, _} = error ->
+        {:reply, error, state}
+    end
+  end
+
+  defp do_apply_config(new_config, state) do
+    case start_ai_agent(new_config) do
+      {:ok, new_ai_pid} ->
+        old_config = state.config
+        new_state = %{state | ai_pid: new_ai_pid, config: new_config}
+        broadcast_config_change(state.topic, old_config, new_config)
+        {:reply, :ok, new_state}
+
+      {:error, reason} ->
+        restore_old_config(reason, state)
+    end
+  end
+
+  defp restore_old_config(reason, state) do
+    case start_ai_agent(state.config) do
+      {:ok, restored_pid} ->
+        {:reply, {:error, "Failed to apply new config: #{inspect(reason)}"},
+         %{state | ai_pid: restored_pid}}
+
+      {:error, _} ->
+        {:stop, {:error, :cannot_restore_agent}, {:error, reason}, state}
+    end
+  end
+
   # ============================================================================
   # Validation Functions
   # ============================================================================
@@ -546,14 +548,13 @@ defmodule JidoCode.Agents.LLMAgent do
 
   defp validate_config(config) do
     with :ok <- validate_provider(config.provider),
-         :ok <- validate_model(config.provider, config.model),
-         :ok <- validate_api_key(config.provider) do
-      :ok
+         :ok <- validate_model(config.provider, config.model) do
+      validate_api_key(config.provider)
     end
   end
 
   defp validate_provider(provider) do
-    case Jido.AI.Model.Registry.Adapter.list_providers() do
+    case RegistryAdapter.list_providers() do
       {:ok, providers} ->
         if provider in providers do
           :ok
@@ -561,8 +562,7 @@ defmodule JidoCode.Agents.LLMAgent do
           available =
             providers
             |> Enum.take(10)
-            |> Enum.map(&Atom.to_string/1)
-            |> Enum.join(", ")
+            |> Enum.map_join(", ", &Atom.to_string/1)
 
           {:error,
            "Provider '#{provider}' not found. Available providers include: #{available}... (#{length(providers)} total)"}
@@ -579,26 +579,25 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   defp validate_model(provider, model) do
-    case Jido.AI.Model.Registry.Adapter.model_exists?(provider, model) do
-      true ->
-        :ok
+    if RegistryAdapter.model_exists?(provider, model) do
+      :ok
+    else
+      {:error, model_not_found_error(provider, model)}
+    end
+  end
 
-      false ->
-        # Get available models for better error message
-        case Jido.AI.Model.Registry.Adapter.list_models(provider) do
-          {:ok, models} ->
-            available =
-              models
-              |> Enum.take(5)
-              |> Enum.map(fn m -> Map.get(m, :model, "unknown") end)
-              |> Enum.join(", ")
+  defp model_not_found_error(provider, model) do
+    case RegistryAdapter.list_models(provider) do
+      {:ok, models} ->
+        available =
+          models
+          |> Enum.take(5)
+          |> Enum.map_join(", ", fn m -> Map.get(m, :model, "unknown") end)
 
-            {:error,
-             "Model '#{model}' not found for provider '#{provider}'. Available models include: #{available}..."}
+        "Model '#{model}' not found for provider '#{provider}'. Available models include: #{available}..."
 
-          {:error, _} ->
-            {:error, "Model '#{model}' not found for provider '#{provider}'"}
-        end
+      {:error, _} ->
+        "Model '#{model}' not found for provider '#{provider}'"
     end
   end
 
@@ -613,7 +612,8 @@ defmodule JidoCode.Agents.LLMAgent do
         try_keyring_validation(provider, api_key_name, env_key)
 
       "" ->
-        {:error, "API key for provider '#{provider}' is empty. Set #{env_key} environment variable."}
+        {:error,
+         "API key for provider '#{provider}' is empty. Set #{env_key} environment variable."}
 
       _key ->
         :ok
@@ -621,27 +621,25 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   defp try_keyring_validation(provider, api_key_name, env_key) do
-    try do
-      case Jido.AI.Keyring.get(api_key_name, nil) do
-        nil ->
-          {:error,
-           "No API key found for provider '#{provider}'. Set #{env_key} environment variable."}
-
-        "" ->
-          {:error,
-           "API key for provider '#{provider}' is empty. Set #{env_key} environment variable."}
-
-        _key ->
-          :ok
-      end
-    rescue
-      _ ->
+    case Keyring.get(api_key_name, nil) do
+      nil ->
         {:error,
          "No API key found for provider '#{provider}'. Set #{env_key} environment variable."}
-    catch
-      :exit, _ ->
+
+      "" ->
         {:error,
-         "No API key found for provider '#{provider}'. Set #{env_key} environment variable."}
+         "API key for provider '#{provider}' is empty. Set #{env_key} environment variable."}
+
+      _key ->
+        :ok
     end
+  rescue
+    _ ->
+      {:error,
+       "No API key found for provider '#{provider}'. Set #{env_key} environment variable."}
+  catch
+    :exit, _ ->
+      {:error,
+       "No API key found for provider '#{provider}'. Set #{env_key} environment variable."}
   end
 end

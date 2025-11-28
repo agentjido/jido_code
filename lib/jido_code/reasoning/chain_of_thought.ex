@@ -106,7 +106,8 @@ defmodule JidoCode.Reasoning.ChainOfThought do
           max_iterations: pos_integer(),
           enable_validation: boolean(),
           fallback_on_error: boolean(),
-          chat_fn: (GenServer.server(), String.t(), keyword() -> {:ok, String.t()} | {:error, term()})
+          chat_fn: (GenServer.server(), String.t(), keyword() ->
+                      {:ok, String.t()} | {:error, term()})
         ]
 
   # ============================================================================
@@ -182,7 +183,10 @@ defmodule JidoCode.Reasoning.ChainOfThought do
         {:ok, result}
 
       {:error, reason} when config.fallback_on_error ->
-        Logger.warning("CoT reasoning failed, falling back to direct execution: #{inspect(reason)}")
+        Logger.warning(
+          "CoT reasoning failed, falling back to direct execution: #{inspect(reason)}"
+        )
+
         emit_fallback(reason, config)
 
         # Fall back to direct chat
@@ -437,7 +441,8 @@ defmodule JidoCode.Reasoning.ChainOfThought do
       String.contains?(safe_response, "REASONING:") and String.contains?(safe_response, "ANSWER:") ->
         parse_zero_shot_response(safe_response)
 
-      String.contains?(safe_response, "UNDERSTAND:") and String.contains?(safe_response, "ANSWER:") ->
+      String.contains?(safe_response, "UNDERSTAND:") and
+          String.contains?(safe_response, "ANSWER:") ->
         parse_structured_response(safe_response)
 
       true ->

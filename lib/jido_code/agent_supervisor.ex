@@ -107,7 +107,8 @@ defmodule JidoCode.AgentSupervisor do
   end
 
   def start_agent(invalid_spec) do
-    {:error, "invalid agent spec: must be a map with :name and :module keys, got: #{inspect(invalid_spec)}"}
+    {:error,
+     "invalid agent spec: must be a map with :name and :module keys, got: #{inspect(invalid_spec)}"}
   end
 
   @doc """
@@ -140,30 +141,20 @@ defmodule JidoCode.AgentSupervisor do
   end
 
   def stop_agent(name) when is_atom(name) do
-    case lookup_agent(name) do
-      {:ok, pid} ->
-        # Get module info before stopping (if available from registry metadata)
-        module = get_agent_module(name)
-
-        case DynamicSupervisor.terminate_child(__MODULE__, pid) do
-          :ok ->
-            # Emit telemetry event for agent stop
-            if module do
-              AgentInstrumentation.emit_stop(name, module, :normal)
-            end
-
-            # Clean up stored module info
-            cleanup_agent_module(name)
-            :ok
-
-          {:error, :not_found} ->
-            {:error, :not_found}
-        end
-
-      {:error, :not_found} ->
-        {:error, :not_found}
+    with {:ok, pid} <- lookup_agent(name),
+         module = get_agent_module(name),
+         :ok <- DynamicSupervisor.terminate_child(__MODULE__, pid) do
+      emit_stop_telemetry(name, module)
+      cleanup_agent_module(name)
+      :ok
     end
   end
+
+  defp emit_stop_telemetry(name, module) when not is_nil(module) do
+    AgentInstrumentation.emit_stop(name, module, :normal)
+  end
+
+  defp emit_stop_telemetry(_name, _module), do: :ok
 
   @doc """
   Looks up an agent by name in the Registry.

@@ -172,7 +172,8 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
 
     test "truncates long goals" do
       reasoning_plan = %{
-        goal: "This is a very long goal that should be truncated because it exceeds fifty characters",
+        goal:
+          "This is a very long goal that should be truncated because it exceeds fifty characters",
         analysis: "Analysis",
         steps: [%{number: 1, description: "Step", expected_outcome: nil}],
         expected_results: "Result",
@@ -223,7 +224,8 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
         {:ok, @zero_shot_response}
       end
 
-      {:ok, result} = ChainOfThought.run_with_reasoning(:mock_agent, "How do I do X?", chat_fn: mock_chat)
+      {:ok, result} =
+        ChainOfThought.run_with_reasoning(:mock_agent, "How do I do X?", chat_fn: mock_chat)
 
       assert is_binary(result.response)
       assert result.response =~ "GenServer with proper supervision"
@@ -256,7 +258,8 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
         {:ok, @structured_response}
       end
 
-      {:ok, result} = ChainOfThought.run_with_reasoning(:mock, "Query", chat_fn: mock_chat, mode: :structured)
+      {:ok, result} =
+        ChainOfThought.run_with_reasoning(:mock, "Query", chat_fn: mock_chat, mode: :structured)
 
       assert result.reasoning_plan != nil
       assert result.reasoning_plan.goal =~ "rate limiting"
@@ -293,10 +296,11 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
         end
       end
 
-      {:ok, result} = ChainOfThought.run_with_reasoning(:mock, "Query",
-        chat_fn: mock_chat,
-        fallback_on_error: true
-      )
+      {:ok, result} =
+        ChainOfThought.run_with_reasoning(:mock, "Query",
+          chat_fn: mock_chat,
+          fallback_on_error: true
+        )
 
       assert result.response == "Direct response without reasoning"
       assert result.used_fallback == true
@@ -308,10 +312,11 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
         {:error, :llm_unavailable}
       end
 
-      result = ChainOfThought.run_with_reasoning(:mock, "Query",
-        chat_fn: mock_chat,
-        fallback_on_error: false
-      )
+      result =
+        ChainOfThought.run_with_reasoning(:mock, "Query",
+          chat_fn: mock_chat,
+          fallback_on_error: false
+        )
 
       assert {:error, :llm_unavailable} = result
     end
@@ -329,7 +334,9 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
       assert metadata.mode == :zero_shot
 
       # Check for complete event
-      assert_receive {:telemetry_event, [:jido_code, :reasoning, :complete], measurements, metadata}
+      assert_receive {:telemetry_event, [:jido_code, :reasoning, :complete], measurements,
+                      metadata}
+
       assert is_integer(measurements.duration_ms)
       assert is_integer(measurements.step_count)
       assert metadata.used_fallback == false
@@ -349,13 +356,16 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
         end
       end
 
-      {:ok, _result} = ChainOfThought.run_with_reasoning(:mock, "Query",
-        chat_fn: mock_chat,
-        fallback_on_error: true
-      )
+      {:ok, _result} =
+        ChainOfThought.run_with_reasoning(:mock, "Query",
+          chat_fn: mock_chat,
+          fallback_on_error: true
+        )
 
       # Check for fallback event
-      assert_receive {:telemetry_event, [:jido_code, :reasoning, :fallback], _measurements, metadata}
+      assert_receive {:telemetry_event, [:jido_code, :reasoning, :fallback], _measurements,
+                      metadata}
+
       assert metadata.reason =~ "first_call_failed"
     end
 
@@ -364,10 +374,11 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
         {:error, :total_failure}
       end
 
-      {:error, :total_failure} = ChainOfThought.run_with_reasoning(:mock, "Query",
-        chat_fn: mock_chat,
-        fallback_on_error: false
-      )
+      {:error, :total_failure} =
+        ChainOfThought.run_with_reasoning(:mock, "Query",
+          chat_fn: mock_chat,
+          fallback_on_error: false
+        )
 
       # Check for error event
       assert_receive {:telemetry_event, [:jido_code, :reasoning, :error], _measurements, metadata}
@@ -400,10 +411,11 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
         {:ok, @structured_response}
       end
 
-      {:ok, _result} = ChainOfThought.run_with_reasoning(:mock, "Test query",
-        chat_fn: mock_chat,
-        mode: :structured
-      )
+      {:ok, _result} =
+        ChainOfThought.run_with_reasoning(:mock, "Test query",
+          chat_fn: mock_chat,
+          mode: :structured
+        )
 
       message = :persistent_term.get(:test_captured_message)
       assert message =~ "systematically using structured reasoning"
@@ -420,10 +432,11 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
       end
 
       # Temperature above 2.0 should be clamped to default
-      {:ok, _result} = ChainOfThought.run_with_reasoning(:mock, "Query",
-        chat_fn: mock_chat,
-        temperature: 5.0
-      )
+      {:ok, _result} =
+        ChainOfThought.run_with_reasoning(:mock, "Query",
+          chat_fn: mock_chat,
+          temperature: 5.0
+        )
 
       # Should not crash - temperature is validated internally
     end
@@ -434,17 +447,19 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
       end
 
       # Invalid mode should default to zero_shot
-      {:ok, _result} = ChainOfThought.run_with_reasoning(:mock, "Query",
-        chat_fn: mock_chat,
-        mode: :invalid_mode
-      )
+      {:ok, _result} =
+        ChainOfThought.run_with_reasoning(:mock, "Query",
+          chat_fn: mock_chat,
+          mode: :invalid_mode
+        )
 
       # Should not crash - mode is validated internally
     end
 
     test "includes duration_ms in result" do
       mock_chat = fn _agent, _message, _opts ->
-        Process.sleep(10)  # Small delay to ensure measurable duration
+        # Small delay to ensure measurable duration
+        Process.sleep(10)
         {:ok, @plain_response}
       end
 
@@ -512,10 +527,11 @@ defmodule JidoCode.Reasoning.ChainOfThoughtTest do
 
       mock_chat = fn _agent, _message, _opts -> {:ok, response} end
 
-      {:ok, result} = ChainOfThought.run_with_reasoning(:mock, "Query",
-        chat_fn: mock_chat,
-        mode: :structured
-      )
+      {:ok, result} =
+        ChainOfThought.run_with_reasoning(:mock, "Query",
+          chat_fn: mock_chat,
+          mode: :structured
+        )
 
       assert result.reasoning_plan.goal =~ "cache"
       assert result.reasoning_plan.analysis =~ "Design ETS"

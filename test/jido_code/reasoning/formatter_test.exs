@@ -14,10 +14,26 @@ defmodule JidoCode.Reasoning.FormatterTest do
     goal: "Implement rate limiting for API endpoints",
     analysis: "Need to track request counts and enforce limits",
     steps: [
-      %{number: 1, description: "Analyze current request handling", expected_outcome: "Understand flow"},
-      %{number: 2, description: "Design rate limiting algorithm", expected_outcome: "Algorithm chosen"},
-      %{number: 3, description: "Implement token bucket", expected_outcome: "Working implementation"},
-      %{number: 4, description: "Add configuration options", expected_outcome: "Configurable limits"},
+      %{
+        number: 1,
+        description: "Analyze current request handling",
+        expected_outcome: "Understand flow"
+      },
+      %{
+        number: 2,
+        description: "Design rate limiting algorithm",
+        expected_outcome: "Algorithm chosen"
+      },
+      %{
+        number: 3,
+        description: "Implement token bucket",
+        expected_outcome: "Working implementation"
+      },
+      %{
+        number: 4,
+        description: "Add configuration options",
+        expected_outcome: "Configurable limits"
+      },
       %{number: 5, description: "Write tests", expected_outcome: "Full coverage"}
     ],
     expected_results: "Working rate limiter with configurable limits",
@@ -344,7 +360,11 @@ defmodule JidoCode.Reasoning.FormatterTest do
     test "shows step completion counts in collapsed view" do
       steps =
         Enum.map(1..6, fn i ->
-          %{number: i, description: "Step #{i}", status: if(i <= 2, do: :complete, else: :pending)}
+          %{
+            number: i,
+            description: "Step #{i}",
+            status: if(i <= 2, do: :complete, else: :pending)
+          }
         end)
 
       plan = %{goal: "Test", steps: steps, expected_results: nil, potential_issues: nil}

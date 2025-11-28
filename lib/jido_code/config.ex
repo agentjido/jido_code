@@ -40,6 +40,9 @@ defmodule JidoCode.Config do
 
   require Logger
 
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
+
   @type config :: %{
           provider: atom(),
           model: String.t(),
@@ -201,7 +204,7 @@ defmodule JidoCode.Config do
     if provider in providers do
       :ok
     else
-      available = providers |> Enum.take(10) |> Enum.map(&Atom.to_string/1) |> Enum.join(", ")
+      available = providers |> Enum.take(10) |> Enum.map_join(", ", &Atom.to_string/1)
 
       {:error,
        "Invalid provider '#{provider}'. Available providers include: #{available}... (#{length(providers)} total)"}
@@ -222,9 +225,9 @@ defmodule JidoCode.Config do
   end
 
   defp fetch_providers do
-    # Use ReqLLM registry via Jido.AI.Model.Registry.Adapter
+    # Use ReqLLM registry via RegistryAdapter
     # This returns all 57+ ReqLLM providers without legacy fallback warnings
-    case Jido.AI.Model.Registry.Adapter.list_providers() do
+    case RegistryAdapter.list_providers() do
       {:ok, providers} when is_list(providers) ->
         providers
 
@@ -258,7 +261,7 @@ defmodule JidoCode.Config do
     env_key = api_key_name |> Atom.to_string() |> String.upcase()
 
     try do
-      case Jido.AI.Keyring.get(api_key_name, nil) do
+      case Keyring.get(api_key_name, nil) do
         nil ->
           {:error,
            "No API key found for provider '#{provider}'. Set #{env_key} environment variable."}

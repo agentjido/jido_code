@@ -127,10 +127,12 @@ Create controlled shell execution tool.
 - [x] 3.3.3.2 Command runs in project directory (cwd enforced)
 - [x] 3.3.3.3 Capture stdout and stderr separately (Note: merged for POC simplicity)
 - [x] 3.3.3.4 Return exit code with output: `{exit_code: int, stdout: string, stderr: string}`
-- [x] 3.3.3.5 Enforce execution timeout (default 60s, configurable)
-- [ ] 3.3.3.6 Optionally allow/block specific commands via configuration (deferred)
-- [x] 3.3.3.7 Shell tool delegates to ToolManager bridge (never direct execution)
+- [x] 3.3.3.5 Enforce execution timeout (default 25s, configurable)
+- [x] 3.3.3.6 Allow/block specific commands via allowlist and shell interpreter blocking
+- [x] 3.3.3.7 Shell tool uses direct Elixir execution with security validation (matches FileSystem pattern)
 - [x] 3.3.3.8 Write shell tool tests with safe commands (success: commands execute in sandbox)
+- [x] 3.3.3.9 Path argument validation blocks traversal and absolute paths outside project
+- [x] 3.3.3.10 Output truncation at 1MB prevents memory exhaustion
 
 ## 3.4 Tool Result Handling
 

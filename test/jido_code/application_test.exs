@@ -41,8 +41,8 @@ defmodule JidoCode.ApplicationTest do
       # Verify all expected children are present
       children = Supervisor.which_children(JidoCode.Supervisor)
 
-      # Should have 5 children: Settings.Cache, PubSub, AgentRegistry, Tools.Registry, AgentSupervisor
-      assert length(children) == 5
+      # Should have 6 children: Settings.Cache, PubSub, AgentRegistry, Tools.Registry, Tools.Manager, AgentSupervisor
+      assert length(children) == 6
 
       # Extract child ids
       child_ids = Enum.map(children, fn {id, _pid, _type, _modules} -> id end)
@@ -54,6 +54,8 @@ defmodule JidoCode.ApplicationTest do
       assert JidoCode.AgentRegistry in child_ids
       # Tools.Registry for LLM function calling
       assert JidoCode.Tools.Registry in child_ids
+      # Tools.Manager for Lua sandbox
+      assert JidoCode.Tools.Manager in child_ids
       assert JidoCode.AgentSupervisor in child_ids
     end
   end

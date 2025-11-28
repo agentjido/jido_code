@@ -36,7 +36,35 @@ defmodule JidoCode.TUI do
   use TermUI.Elm
 
   alias JidoCode.Settings
+  alias TermUI.Event
   alias TermUI.Renderer.Style
+
+  # ============================================================================
+  # Message Types
+  # ============================================================================
+
+  # Messages handled by update/2:
+  #
+  # Keyboard input:
+  #   {:key_input, char}     - Printable character typed
+  #   {:key_input, :backspace} - Backspace pressed
+  #   {:submit}              - Enter key pressed
+  #   :quit                  - Ctrl+C pressed
+  #
+  # PubSub messages (from agent):
+  #   {:agent_response, content}  - Agent response received
+  #   {:status_update, status}    - Agent status changed
+  #   {:config_change, config}    - Configuration changed
+  #   {:reasoning_step, step}     - Chain-of-Thought step
+
+  @type msg ::
+          {:key_input, String.t() | :backspace}
+          | {:submit}
+          | :quit
+          | {:agent_response, String.t()}
+          | {:status_update, Model.agent_status()}
+          | {:config_change, map()}
+          | {:reasoning_step, Model.reasoning_step()}
 
   # ============================================================================
   # Model
@@ -112,10 +140,37 @@ defmodule JidoCode.TUI do
   @doc """
   Converts terminal events to TUI messages.
 
-  Currently returns :ignore for all events. Event handling will be
-  implemented in task 4.1.2.
+  Handles keyboard events:
+  - Enter → {:submit}
+  - Printable characters → {:key_input, char}
+  - Backspace → {:key_input, :backspace}
+  - Ctrl+C → :quit
   """
   @impl true
+  def event_to_msg(%Event.Key{key: :enter}, _state) do
+    {:submit}
+  end
+
+  def event_to_msg(%Event.Key{key: :backspace}, _state) do
+    {:key_input, :backspace}
+  end
+
+  def event_to_msg(%Event.Key{key: :c, modifiers: modifiers}, _state) do
+    if :ctrl in modifiers do
+      :quit
+    else
+      {:key_input, "c"}
+    end
+  end
+
+  def event_to_msg(%Event.Key{char: char}, _state) when is_binary(char) and char != "" do
+    {:key_input, char}
+  end
+
+  def event_to_msg(%Event.Resize{width: width, height: height}, _state) do
+    {:resize, width, height}
+  end
+
   def event_to_msg(_event, _state) do
     :ignore
   end
@@ -123,10 +178,79 @@ defmodule JidoCode.TUI do
   @doc """
   Updates state based on messages.
 
-  Currently returns state unchanged. Full message handling will be
-  implemented in task 4.1.2.
+  Handles:
+  - `{:key_input, char}` - Append character to input buffer
+  - `{:key_input, :backspace}` - Remove last character from buffer
+  - `{:submit}` - Submit current input, clear buffer, add to messages
+  - `:quit` - Return quit command
+  - `{:resize, width, height}` - Update window dimensions
+  - PubSub messages for agent events (to be fully implemented in 4.1.3)
   """
   @impl true
+  def update({:key_input, char}, state) when is_binary(char) do
+    new_buffer = state.input_buffer <> char
+    {%{state | input_buffer: new_buffer}, []}
+  end
+
+  def update({:key_input, :backspace}, state) do
+    new_buffer =
+      if String.length(state.input_buffer) > 0 do
+        String.slice(state.input_buffer, 0..-2//1)
+      else
+        ""
+      end
+
+    {%{state | input_buffer: new_buffer}, []}
+  end
+
+  def update({:submit}, state) do
+    text = String.trim(state.input_buffer)
+
+    if text == "" do
+      {state, []}
+    else
+      message = %{role: :user, content: text, timestamp: DateTime.utc_now()}
+
+      new_state = %{state | input_buffer: "", messages: state.messages ++ [message]}
+
+      {new_state, []}
+    end
+  end
+
+  def update(:quit, state) do
+    {state, [:quit]}
+  end
+
+  def update({:resize, width, height}, state) do
+    {%{state | window: {width, height}}, []}
+  end
+
+  # PubSub message handlers (basic implementation, expanded in 4.1.3)
+  def update({:agent_response, content}, state) do
+    message = %{role: :assistant, content: content, timestamp: DateTime.utc_now()}
+    new_state = %{state | messages: state.messages ++ [message]}
+    {new_state, []}
+  end
+
+  def update({:status_update, status}, state) do
+    {%{state | agent_status: status}, []}
+  end
+
+  def update({:config_change, config}, state) do
+    new_config = %{
+      provider: Map.get(config, :provider, Map.get(config, "provider")),
+      model: Map.get(config, :model, Map.get(config, "model"))
+    }
+
+    new_status = determine_status(new_config)
+    {%{state | config: new_config, agent_status: new_status}, []}
+  end
+
+  def update({:reasoning_step, step}, state) do
+    {%{state | reasoning_steps: state.reasoning_steps ++ [step]}, []}
+  end
+
+  # Catch-all for unhandled messages
   def update(_msg, state) do
     {state, []}
   end

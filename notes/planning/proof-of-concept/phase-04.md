@@ -23,18 +23,18 @@ Create the main TUI module implementing the TermUI.Elm behaviour.
 - [x] 4.1.1.8 Verify TUI starts and renders blank screen (success: terminal shows UI)
 
 ### 4.1.2 Event Handling
-- [ ] **Task 4.1.2 Complete**
+- [x] **Task 4.1.2 Complete**
 
 Implement the event_to_msg callback and update function for user input and agent events.
 
-- [ ] 4.1.2.1 Define message types: `:key_input`, `:submit`, `:agent_response`, `:status_update`, `:config_change`
-- [ ] 4.1.2.2 Implement `event_to_msg/2` mapping keyboard events to messages
-- [ ] 4.1.2.3 Handle Enter key → `:submit` message
-- [ ] 4.1.2.4 Handle printable characters → `:key_input` with character
-- [ ] 4.1.2.5 Handle Backspace → `:key_input` with `:backspace`
-- [ ] 4.1.2.6 Handle Ctrl+C → `:quit` message
-- [ ] 4.1.2.7 Implement `update/2` for each message type updating Model
-- [ ] 4.1.2.8 Write update tests verifying state transitions (success: input buffer updates correctly)
+- [x] 4.1.2.1 Define message types: `:key_input`, `:submit`, `:agent_response`, `:status_update`, `:config_change`
+- [x] 4.1.2.2 Implement `event_to_msg/2` mapping keyboard events to messages
+- [x] 4.1.2.3 Handle Enter key → `:submit` message
+- [x] 4.1.2.4 Handle printable characters → `:key_input` with character
+- [x] 4.1.2.5 Handle Backspace → `:key_input` with `:backspace`
+- [x] 4.1.2.6 Handle Ctrl+C → `:quit` message
+- [x] 4.1.2.7 Implement `update/2` for each message type updating Model
+- [x] 4.1.2.8 Write update tests verifying state transitions (success: input buffer updates correctly)
 
 ### 4.1.3 PubSub Integration
 - [ ] **Task 4.1.3 Complete**

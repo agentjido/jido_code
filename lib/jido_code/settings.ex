@@ -10,6 +10,7 @@ defmodule JidoCode.Settings do
 
   ```json
   {
+    "version": 1,
     "provider": "anthropic",
     "model": "claude-3-5-sonnet",
     "providers": ["anthropic", "openai", "openrouter"],
@@ -19,6 +20,9 @@ defmodule JidoCode.Settings do
     }
   }
   ```
+
+  The `version` field enables future schema migrations when breaking changes
+  are introduced. Current schema version: 1.
 
   All keys are optional. Local settings override global settings.
 
@@ -63,13 +67,32 @@ defmodule JidoCode.Settings do
   @local_dir_name "jido_code"
   @settings_file "settings.json"
 
+  # Current schema version - increment when making breaking changes
+  @schema_version 1
+
   # Valid top-level keys and their expected types
   @valid_keys %{
+    "version" => :positive_integer,
     "provider" => :string,
     "model" => :string,
     "providers" => :list_of_strings,
     "models" => :map_of_string_lists
   }
+
+  @typedoc """
+  Settings map structure.
+
+  All keys are optional:
+  - `"version"` - Schema version number (positive integer, default: 1)
+  - `"provider"` - Default LLM provider name (e.g., "anthropic", "openai")
+  - `"model"` - Default model name (e.g., "claude-3-5-sonnet", "gpt-4o")
+  - `"providers"` - List of available provider names
+  - `"models"` - Map of provider name to list of model names
+  """
+  @type t :: %{
+          optional(String.t()) =>
+            pos_integer() | String.t() | [String.t()] | %{optional(String.t()) => [String.t()]}
+        }
 
   # ============================================================================
   # Path Helpers
@@ -127,6 +150,20 @@ defmodule JidoCode.Settings do
     Path.join(local_dir(), @settings_file)
   end
 
+  @doc """
+  Returns the current settings schema version.
+
+  This version number is incremented when breaking changes are made to the
+  settings schema. It can be used for migration logic.
+
+  ## Example
+
+      iex> JidoCode.Settings.schema_version()
+      1
+  """
+  @spec schema_version() :: pos_integer()
+  def schema_version, do: @schema_version
+
   # ============================================================================
   # Schema Validation
   # ============================================================================
@@ -139,6 +176,7 @@ defmodule JidoCode.Settings do
 
   ## Valid Keys
 
+  - `"version"` - Positive integer, schema version number
   - `"provider"` - String, the LLM provider name
   - `"model"` - String, the model identifier
   - `"providers"` - List of strings, allowed provider names
@@ -155,7 +193,7 @@ defmodule JidoCode.Settings do
       iex> JidoCode.Settings.validate(%{"unknown_key" => "value"})
       {:error, "unknown key: unknown_key"}
   """
-  @spec validate(map()) :: {:ok, map()} | {:error, String.t()}
+  @spec validate(term()) :: {:ok, t()} | {:error, String.t()}
   def validate(settings) when is_map(settings) do
     case validate_keys(settings) do
       :ok -> {:ok, settings}
@@ -181,6 +219,12 @@ defmodule JidoCode.Settings do
       nil -> {:error, "unknown key: #{key}"}
       expected_type -> validate_type(key, value, expected_type)
     end
+  end
+
+  defp validate_type(_key, value, :positive_integer) when is_integer(value) and value > 0, do: :ok
+
+  defp validate_type(key, value, :positive_integer) do
+    {:error, "#{key} must be a positive integer, got: #{inspect(value)}"}
   end
 
   defp validate_type(_key, value, :string) when is_binary(value), do: :ok
@@ -289,7 +333,7 @@ defmodule JidoCode.Settings do
       iex> JidoCode.Settings.read_file("/nonexistent/path.json")
       {:error, :not_found}
   """
-  @spec read_file(String.t()) :: {:ok, map()} | {:error, :not_found | {:invalid_json, term()}}
+  @spec read_file(String.t()) :: {:ok, t()} | {:error, :not_found | {:invalid_json, term()}}
   def read_file(path) do
     case File.read(path) do
       {:ok, content} -> parse_json(content)
@@ -334,7 +378,7 @@ defmodule JidoCode.Settings do
       iex> JidoCode.Settings.load()
       {:ok, %{"provider" => "anthropic", "model" => "gpt-4o"}}
   """
-  @spec load() :: {:ok, map()}
+  @spec load() :: {:ok, t()}
   def load do
     case Cache.get() do
       {:ok, settings} ->
@@ -359,7 +403,7 @@ defmodule JidoCode.Settings do
       iex> JidoCode.Settings.reload()
       {:ok, %{"provider" => "anthropic"}}
   """
-  @spec reload() :: {:ok, map()}
+  @spec reload() :: {:ok, t()}
   def reload do
     clear_cache()
     load()
@@ -497,7 +541,7 @@ defmodule JidoCode.Settings do
       iex> JidoCode.Settings.save(:global, %{"model" => "gpt-4o"})
       :ok
   """
-  @spec save(atom(), map()) :: :ok | {:error, term()}
+  @spec save(atom(), t()) :: :ok | {:error, term()}
   def save(scope, settings) when scope in [:global, :local] and is_map(settings) do
     case validate(settings) do
       {:ok, _} ->

@@ -34,9 +34,20 @@ defmodule JidoCode.SettingsTest do
     end
   end
 
+  describe "schema_version/0" do
+    test "returns current schema version" do
+      assert Settings.schema_version() == 1
+    end
+  end
+
   describe "validate/1 - valid settings" do
     test "accepts empty map" do
       assert {:ok, %{}} = Settings.validate(%{})
+    end
+
+    test "accepts valid version number" do
+      assert {:ok, %{"version" => 1}} = Settings.validate(%{"version" => 1})
+      assert {:ok, %{"version" => 42}} = Settings.validate(%{"version" => 42})
     end
 
     test "accepts valid provider string" do
@@ -97,6 +108,13 @@ defmodule JidoCode.SettingsTest do
 
     test "rejects unknown keys" do
       assert {:error, "unknown key: unknown"} = Settings.validate(%{"unknown" => "value"})
+    end
+
+    test "rejects non-positive-integer version" do
+      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => 0})
+      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => -1})
+      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => "1"})
+      assert {:error, "version must be a positive integer" <> _} = Settings.validate(%{"version" => 1.5})
     end
 
     test "rejects non-string provider" do

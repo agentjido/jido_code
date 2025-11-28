@@ -2,36 +2,13 @@ defmodule JidoCode.ConfigTest do
   use ExUnit.Case, async: false
 
   alias JidoCode.Config
+  alias JidoCode.TestHelpers.EnvIsolation
 
-  # Store original env values to restore after tests
   setup do
-    original_provider = System.get_env("JIDO_CODE_PROVIDER")
-    original_model = System.get_env("JIDO_CODE_MODEL")
-    original_anthropic_key = System.get_env("ANTHROPIC_API_KEY")
-    original_openai_key = System.get_env("OPENAI_API_KEY")
-    original_app_config = Application.get_env(:jido_code, :llm)
-
-    on_exit(fn ->
-      # Restore env vars
-      if original_provider, do: System.put_env("JIDO_CODE_PROVIDER", original_provider), else: System.delete_env("JIDO_CODE_PROVIDER")
-      if original_model, do: System.put_env("JIDO_CODE_MODEL", original_model), else: System.delete_env("JIDO_CODE_MODEL")
-      if original_anthropic_key, do: System.put_env("ANTHROPIC_API_KEY", original_anthropic_key), else: System.delete_env("ANTHROPIC_API_KEY")
-      if original_openai_key, do: System.put_env("OPENAI_API_KEY", original_openai_key), else: System.delete_env("OPENAI_API_KEY")
-
-      # Restore app config
-      if original_app_config do
-        Application.put_env(:jido_code, :llm, original_app_config)
-      else
-        Application.delete_env(:jido_code, :llm)
-      end
-    end)
-
-    # Clear env for clean test state
-    System.delete_env("JIDO_CODE_PROVIDER")
-    System.delete_env("JIDO_CODE_MODEL")
-    Application.delete_env(:jido_code, :llm)
-
-    :ok
+    EnvIsolation.isolate(
+      ["JIDO_CODE_PROVIDER", "JIDO_CODE_MODEL", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+      [{:jido_code, :llm}]
+    )
   end
 
   describe "get_llm_config/0" do
@@ -168,6 +145,57 @@ defmodule JidoCode.ConfigTest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert Config.configured?()
+    end
+  end
+
+  describe "parameter range validation" do
+    test "temperature is clamped to [0.0, 1.0] range" do
+      # Below 0
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet",
+        temperature: -0.5
+      )
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert {:ok, config} = Config.get_llm_config()
+      assert config.temperature == 0.0
+    end
+
+    test "temperature above 1.0 is clamped to 1.0" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet",
+        temperature: 1.5
+      )
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert {:ok, config} = Config.get_llm_config()
+      assert config.temperature == 1.0
+    end
+
+    test "non-positive max_tokens falls back to default" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet",
+        max_tokens: 0
+      )
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert {:ok, config} = Config.get_llm_config()
+      assert config.max_tokens == 4096
+    end
+
+    test "negative max_tokens falls back to default" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet",
+        max_tokens: -100
+      )
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert {:ok, config} = Config.get_llm_config()
+      assert config.max_tokens == 4096
     end
   end
 end

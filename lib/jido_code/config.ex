@@ -123,60 +123,67 @@ defmodule JidoCode.Config do
   # Private functions
 
   defp get_provider do
-    provider =
-      case System.get_env("JIDO_CODE_PROVIDER") do
-        nil -> get_config_value(:provider)
-        "" -> get_config_value(:provider)
-        env_provider -> String.to_atom(env_provider)
-      end
-
-    case provider do
+    case get_env_or_config("JIDO_CODE_PROVIDER", :provider) do
       nil ->
         {:error,
          "No LLM provider configured. Set JIDO_CODE_PROVIDER or configure :jido_code, :llm, :provider"}
 
-      provider when is_atom(provider) ->
-        {:ok, provider}
+      value when is_atom(value) ->
+        {:ok, value}
 
-      provider when is_binary(provider) ->
-        {:ok, String.to_atom(provider)}
+      value when is_binary(value) ->
+        {:ok, String.to_atom(value)}
     end
   end
 
   defp get_model do
-    model =
-      case System.get_env("JIDO_CODE_MODEL") do
-        nil -> get_config_value(:model)
-        "" -> get_config_value(:model)
-        env_model -> env_model
-      end
-
-    case model do
+    case get_env_or_config("JIDO_CODE_MODEL", :model) do
       nil ->
         {:error,
          "No LLM model configured. Set JIDO_CODE_MODEL or configure :jido_code, :llm, :model"}
 
-      model when is_binary(model) ->
-        {:ok, model}
+      value when is_binary(value) ->
+        {:ok, value}
 
-      model when is_atom(model) ->
-        {:ok, Atom.to_string(model)}
+      value when is_atom(value) ->
+        {:ok, Atom.to_string(value)}
+    end
+  end
+
+  # Returns env var value if set and non-empty, otherwise falls back to config
+  defp get_env_or_config(env_key, config_key) do
+    case System.get_env(env_key) do
+      nil -> get_config_value(config_key)
+      "" -> get_config_value(config_key)
+      value -> value
     end
   end
 
   defp get_temperature do
     case get_config_value(:temperature) do
-      nil -> @default_temperature
-      temp when is_number(temp) -> temp / 1
-      _ -> @default_temperature
+      nil ->
+        @default_temperature
+
+      temp when is_number(temp) ->
+        # Clamp to valid range [0.0, 1.0]
+        temp |> max(0.0) |> min(1.0)
+
+      _ ->
+        @default_temperature
     end
   end
 
   defp get_max_tokens do
     case get_config_value(:max_tokens) do
-      nil -> @default_max_tokens
-      tokens when is_integer(tokens) -> tokens
-      _ -> @default_max_tokens
+      nil ->
+        @default_max_tokens
+
+      tokens when is_integer(tokens) and tokens > 0 ->
+        tokens
+
+      _invalid ->
+        # Non-positive or non-integer falls back to default
+        @default_max_tokens
     end
   end
 

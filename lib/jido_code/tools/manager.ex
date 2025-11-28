@@ -40,6 +40,8 @@ defmodule JidoCode.Tools.Manager do
 
   use GenServer
 
+  alias JidoCode.Tools.Security
+
   require Logger
 
   @type state :: %{
@@ -125,6 +127,32 @@ defmodule JidoCode.Tools.Manager do
   end
 
   @doc """
+  Validates a path is within the project boundary.
+
+  This delegates to `JidoCode.Tools.Security.validate_path/3` using the
+  Manager's configured project root.
+
+  ## Parameters
+
+  - `path` - The path to validate (relative or absolute)
+  - `opts` - Options passed to Security.validate_path/3
+
+  ## Returns
+
+  - `{:ok, resolved_path}` - Path is valid and resolved
+  - `{:error, reason}` - Path violates security boundary
+
+  ## Examples
+
+      {:ok, safe_path} = Manager.validate_path("src/file.ex")
+      {:error, :path_escapes_boundary} = Manager.validate_path("../../../etc/passwd")
+  """
+  @spec validate_path(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
+  def validate_path(path, opts \\ []) do
+    GenServer.call(__MODULE__, {:validate_path, path, opts})
+  end
+
+  @doc """
   Checks if a function is restricted in the sandbox.
 
   ## Parameters
@@ -168,6 +196,12 @@ defmodule JidoCode.Tools.Manager do
   @impl true
   def handle_call(:project_root, _from, state) do
     {:reply, {:ok, state.project_root}, state}
+  end
+
+  @impl true
+  def handle_call({:validate_path, path, opts}, _from, state) do
+    result = Security.validate_path(path, state.project_root, opts)
+    {:reply, result, state}
   end
 
   # ============================================================================

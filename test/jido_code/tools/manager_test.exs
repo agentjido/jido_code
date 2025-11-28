@@ -238,4 +238,28 @@ defmodule JidoCode.Tools.ManagerTest do
       assert {:ok, "second"} = Manager.execute("return args.value", %{"value" => "second"})
     end
   end
+
+  describe "validate_path/2" do
+    test "accepts valid relative path" do
+      {:ok, project_root} = Manager.project_root()
+      {:ok, resolved} = Manager.validate_path("src/file.ex", log_violations: false)
+      assert String.starts_with?(resolved, project_root)
+    end
+
+    test "rejects path traversal" do
+      assert {:error, :path_escapes_boundary} =
+               Manager.validate_path("../../../etc/passwd", log_violations: false)
+    end
+
+    test "rejects absolute path outside project" do
+      assert {:error, :path_outside_boundary} =
+               Manager.validate_path("/etc/passwd", log_violations: false)
+    end
+
+    test "uses project root from Manager state" do
+      {:ok, project_root} = Manager.project_root()
+      {:ok, resolved} = Manager.validate_path("test.txt", log_violations: false)
+      assert resolved == Path.join(project_root, "test.txt")
+    end
+  end
 end

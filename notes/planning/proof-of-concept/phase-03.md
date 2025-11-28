@@ -55,20 +55,20 @@ Set up the Luerl Lua runtime integration for sandboxed execution.
 - [x] 3.2.1.8 Write Luerl integration tests (success: Lua code executes in sandbox)
 
 ### 3.2.2 Security Boundaries
-- [ ] **Task 3.2.2 Complete**
+- [x] **Task 3.2.2 Complete**
 
 Implement security restrictions to prevent unauthorized access.
 
-- [ ] 3.2.2.1 Define project boundary as current working directory at startup
-- [ ] 3.2.2.2 Implement `validate_path/1` ensuring all paths resolve within project boundary
-- [ ] 3.2.2.3 Reject any path containing `..` that escapes project root after resolution
-- [ ] 3.2.2.4 Reject absolute paths outside project directory
-- [ ] 3.2.2.5 Reject symlinks pointing outside project directory
-- [ ] 3.2.2.6 Block all direct shell execution (no `os.execute`, `io.popen` equivalents)
-- [ ] 3.2.2.7 Whitelist allowed Lua standard library functions
-- [ ] 3.2.2.8 Implement resource limits: memory cap, execution time cap
-- [ ] 3.2.2.9 Log all security boundary violations for debugging
-- [ ] 3.2.2.10 Write security boundary tests (success: escape attempts blocked)
+- [x] 3.2.2.1 Define project boundary as current working directory at startup
+- [x] 3.2.2.2 Implement `validate_path/1` ensuring all paths resolve within project boundary
+- [x] 3.2.2.3 Reject any path containing `..` that escapes project root after resolution
+- [x] 3.2.2.4 Reject absolute paths outside project directory
+- [x] 3.2.2.5 Reject symlinks pointing outside project directory
+- [x] 3.2.2.6 Block all direct shell execution (no `os.execute`, `io.popen` equivalents)
+- [x] 3.2.2.7 Whitelist allowed Lua standard library functions
+- [x] 3.2.2.8 Implement resource limits: memory cap, execution time cap
+- [x] 3.2.2.9 Log all security boundary violations for debugging
+- [x] 3.2.2.10 Write security boundary tests (success: escape attempts blocked)
 
 ### 3.2.3 Erlang Bridge Functions
 - [ ] **Task 3.2.3 Complete**

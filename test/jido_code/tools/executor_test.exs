@@ -415,4 +415,90 @@ defmodule JidoCode.Tools.ExecutorTest do
       assert message.content == "Contents of /src/main.ex"
     end
   end
+
+  describe "PubSub broadcasting" do
+    test "broadcasts tool_call event when executing" do
+      # Subscribe to global topic
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
+      tool_call = %{id: "call_pubsub_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      {:ok, _result} = Executor.execute(tool_call)
+
+      # Should receive tool_call event
+      assert_receive {:tool_call, "read_file", %{"path" => "/test.txt"}, "call_pubsub_1"}, 1000
+    end
+
+    test "broadcasts tool_result event when executing" do
+      # Subscribe to global topic
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
+      tool_call = %{id: "call_pubsub_2", name: "read_file", arguments: %{"path" => "/result.txt"}}
+      {:ok, _result} = Executor.execute(tool_call)
+
+      # Should receive tool_result event
+      assert_receive {:tool_result, result}, 1000
+      assert result.tool_call_id == "call_pubsub_2"
+      assert result.tool_name == "read_file"
+      assert result.status == :ok
+    end
+
+    test "broadcasts to session-specific topic when session_id provided" do
+      session_id = "test_session_123"
+      # Subscribe to session-specific topic
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events.#{session_id}")
+
+      tool_call = %{id: "call_session_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      {:ok, _result} = Executor.execute(tool_call, session_id: session_id)
+
+      # Should receive events on session topic
+      assert_receive {:tool_call, "read_file", _, "call_session_1"}, 1000
+      assert_receive {:tool_result, _result}, 1000
+    end
+
+    test "does not broadcast to global topic when session_id provided" do
+      session_id = "isolated_session"
+      # Subscribe to global topic (should not receive)
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
+      tool_call = %{id: "call_isolated", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      {:ok, _result} = Executor.execute(tool_call, session_id: session_id)
+
+      # Should NOT receive events on global topic
+      refute_receive {:tool_call, _, _, "call_isolated"}, 100
+    end
+
+    test "broadcasts error result for non-existent tool" do
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
+      tool_call = %{id: "call_error_1", name: "nonexistent", arguments: %{}}
+      {:ok, _result} = Executor.execute(tool_call)
+
+      # Should receive error result
+      assert_receive {:tool_result, result}, 1000
+      assert result.status == :error
+      assert result.content =~ "not found"
+    end
+
+    test "broadcasts timeout result" do
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
+      tool_call = %{id: "call_timeout_1", name: "slow_tool", arguments: %{"slow" => 500}}
+      {:ok, _result} = Executor.execute(tool_call, timeout: 50)
+
+      # Should receive both call and timeout result
+      assert_receive {:tool_call, "slow_tool", _, "call_timeout_1"}, 1000
+      assert_receive {:tool_result, result}, 1000
+      assert result.status == :timeout
+    end
+  end
+
+  describe "pubsub_topic/1" do
+    test "returns global topic for nil session_id" do
+      assert Executor.pubsub_topic(nil) == "tui.events"
+    end
+
+    test "returns session-specific topic for session_id" do
+      assert Executor.pubsub_topic("session_abc") == "tui.events.session_abc"
+    end
+  end
 end

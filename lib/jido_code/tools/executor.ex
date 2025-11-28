@@ -39,6 +39,17 @@ defmodule JidoCode.Tools.Executor do
   - `:executor` - Function `(tool, args, context) -> {:ok, result} | {:error, reason}`
   - `:timeout` - Execution timeout in milliseconds (default: 30_000)
   - `:context` - Additional context passed to the executor
+  - `:session_id` - Optional session ID for PubSub topic routing
+
+  ## PubSub Events
+
+  When a session_id is provided, the executor broadcasts events to the
+  `"tui.events.{session_id}"` topic. Without a session_id, events go to
+  `"tui.events"`.
+
+  Events broadcast:
+  - `{:tool_call, tool_name, params, call_id}` - When tool execution starts
+  - `{:tool_result, result}` - When tool execution completes (Result struct)
   """
 
   alias JidoCode.Tools.{Registry, Result, Tool}
@@ -60,7 +71,8 @@ defmodule JidoCode.Tools.Executor do
   @type execute_opts :: [
           executor: (Tool.t(), map(), map() -> {:ok, term()} | {:error, term()}),
           timeout: pos_integer(),
-          context: map()
+          context: map(),
+          session_id: String.t() | nil
         ]
 
   # ============================================================================
@@ -163,20 +175,36 @@ defmodule JidoCode.Tools.Executor do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     context = Keyword.get(opts, :context, %{})
     executor = Keyword.get(opts, :executor, &default_executor/3)
+    session_id = Keyword.get(opts, :session_id)
 
     start_time = System.monotonic_time(:millisecond)
 
     with {:ok, tool} <- validate_tool_exists(name),
          :ok <- validate_arguments(tool, args) do
-      execute_with_timeout(id, name, tool, args, context, executor, timeout, start_time)
+      # Broadcast tool call start
+      broadcast_tool_call(session_id, name, args, id)
+
+      result = execute_with_timeout(id, name, tool, args, context, executor, timeout, start_time)
+
+      # Broadcast tool result
+      case result do
+        {:ok, tool_result} -> broadcast_tool_result(session_id, tool_result)
+        _ -> :ok
+      end
+
+      result
     else
       {:error, :not_found} ->
         duration = System.monotonic_time(:millisecond) - start_time
-        {:ok, Result.error(id, name, "Tool '#{name}' not found", duration)}
+        error_result = Result.error(id, name, "Tool '#{name}' not found", duration)
+        broadcast_tool_result(session_id, error_result)
+        {:ok, error_result}
 
       {:error, reason} ->
         duration = System.monotonic_time(:millisecond) - start_time
-        {:ok, Result.error(id, name, reason, duration)}
+        error_result = Result.error(id, name, reason, duration)
+        broadcast_tool_result(session_id, error_result)
+        {:ok, error_result}
     end
   end
 
@@ -388,4 +416,62 @@ defmodule JidoCode.Tools.Executor do
       {:exit, :timeout} -> Result.timeout("unknown", "unknown", @default_timeout)
     end)
   end
+
+  # ============================================================================
+  # PubSub Broadcasting
+  # ============================================================================
+
+  @doc """
+  Broadcasts a tool call event via PubSub.
+
+  ## Parameters
+
+  - `session_id` - Optional session ID for topic routing (nil uses global topic)
+  - `tool_name` - Name of the tool being called
+  - `params` - Parameters being passed to the tool
+  - `call_id` - Unique ID for this tool call
+
+  ## Events
+
+  Broadcasts `{:tool_call, tool_name, params, call_id}` to the topic.
+  """
+  @spec broadcast_tool_call(String.t() | nil, String.t(), map(), String.t()) :: :ok
+  def broadcast_tool_call(session_id, tool_name, params, call_id) do
+    topic = pubsub_topic(session_id)
+    Phoenix.PubSub.broadcast(JidoCode.PubSub, topic, {:tool_call, tool_name, params, call_id})
+  end
+
+  @doc """
+  Broadcasts a tool result event via PubSub.
+
+  ## Parameters
+
+  - `session_id` - Optional session ID for topic routing (nil uses global topic)
+  - `result` - The `%Result{}` struct from tool execution
+
+  ## Events
+
+  Broadcasts `{:tool_result, result}` to the topic.
+  """
+  @spec broadcast_tool_result(String.t() | nil, Result.t()) :: :ok
+  def broadcast_tool_result(session_id, result) do
+    topic = pubsub_topic(session_id)
+    Phoenix.PubSub.broadcast(JidoCode.PubSub, topic, {:tool_result, result})
+  end
+
+  @doc """
+  Returns the PubSub topic for a given session ID.
+
+  ## Parameters
+
+  - `session_id` - Session ID or nil
+
+  ## Returns
+
+  - `"tui.events.{session_id}"` if session_id is provided
+  - `"tui.events"` if session_id is nil
+  """
+  @spec pubsub_topic(String.t() | nil) :: String.t()
+  def pubsub_topic(nil), do: "tui.events"
+  def pubsub_topic(session_id) when is_binary(session_id), do: "tui.events.#{session_id}"
 end

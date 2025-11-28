@@ -9,18 +9,18 @@ This phase implements the terminal user interface using TermUI's Elm Architectur
 The TUI application follows TermUI's Elm Architecture with three core functions: `init/1` for initial state, `update/2` for state transitions, and `view/1` for rendering. This pattern ensures all state changes flow through a single update function.
 
 ### 4.1.1 Application Module Setup
-- [ ] **Task 4.1.1 Complete**
+- [x] **Task 4.1.1 Complete**
 
 Create the main TUI module implementing the TermUI.Elm behaviour.
 
-- [ ] 4.1.1.1 Create `JidoCode.TUI` module with `use TermUI.Elm`
-- [ ] 4.1.1.2 Define `Model` struct with fields: input_buffer, messages, agent_status, config, reasoning_steps
-- [ ] 4.1.1.3 Implement `init/1` returning initial Model with empty state
-- [ ] 4.1.1.4 Load settings via `Settings.load/0` and populate config from saved provider/model
-- [ ] 4.1.1.5 Subscribe to PubSub topic `"tui.events"` in init
-- [ ] 4.1.1.6 Store window dimensions from init context
-- [ ] 4.1.1.7 Configure TUI runtime in Application supervisor
-- [ ] 4.1.1.8 Verify TUI starts and renders blank screen (success: terminal shows UI)
+- [x] 4.1.1.1 Create `JidoCode.TUI` module with `use TermUI.Elm`
+- [x] 4.1.1.2 Define `Model` struct with fields: input_buffer, messages, agent_status, config, reasoning_steps
+- [x] 4.1.1.3 Implement `init/1` returning initial Model with empty state
+- [x] 4.1.1.4 Load settings via `Settings.load/0` and populate config from saved provider/model
+- [x] 4.1.1.5 Subscribe to PubSub topic `"tui.events"` in init
+- [x] 4.1.1.6 Store window dimensions from init context
+- [x] 4.1.1.7 Configure TUI runtime in Application supervisor (documented, not auto-started)
+- [x] 4.1.1.8 Verify TUI starts and renders blank screen (success: terminal shows UI)
 
 ### 4.1.2 Event Handling
 - [ ] **Task 4.1.2 Complete**

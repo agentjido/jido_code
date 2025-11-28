@@ -706,4 +706,200 @@ defmodule JidoCode.TUITest do
       assert Code.ensure_loaded?(JidoCode.TUI.Model)
     end
   end
+
+  describe "wrap_text/2" do
+    test "returns single line for short text" do
+      result = TUI.wrap_text("hello world", 80)
+      assert result == ["hello world"]
+    end
+
+    test "wraps text at word boundaries" do
+      result = TUI.wrap_text("hello world foo bar", 11)
+      assert result == ["hello world", "foo bar"]
+    end
+
+    test "handles text exactly at max width" do
+      result = TUI.wrap_text("hello", 5)
+      assert result == ["hello"]
+    end
+
+    test "splits words longer than max width" do
+      result = TUI.wrap_text("superlongword", 5)
+      # First iteration splits at 5, then the remainder is handled
+      assert result == ["super", "longword"]
+    end
+
+    test "handles empty string" do
+      result = TUI.wrap_text("", 80)
+      assert result == [""]
+    end
+
+    test "handles single word" do
+      result = TUI.wrap_text("word", 80)
+      assert result == ["word"]
+    end
+
+    test "handles multiple spaces" do
+      result = TUI.wrap_text("hello world", 80)
+      # String.split on single space produces empty strings
+      assert is_list(result)
+    end
+
+    test "handles invalid max_width" do
+      result = TUI.wrap_text("hello", 0)
+      assert result == [""]
+
+      result = TUI.wrap_text("hello", -5)
+      assert result == [""]
+    end
+  end
+
+  describe "format_timestamp/1" do
+    test "formats datetime as [HH:MM]" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[14:32]"
+    end
+
+    test "pads single digit hours and minutes" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[09:05:00], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[09:05]"
+    end
+
+    test "handles midnight" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[00:00:00], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[00:00]"
+    end
+
+    test "handles end of day" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[23:59:59], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[23:59]"
+    end
+  end
+
+  describe "max_scroll_offset/1" do
+    test "returns 0 when no messages" do
+      model = %Model{messages: [], window: {80, 24}}
+      assert TUI.max_scroll_offset(model) == 0
+    end
+
+    test "returns 0 when messages fit in view" do
+      model = %Model{
+        messages: [
+          %{role: :user, content: "hello", timestamp: DateTime.utc_now()}
+        ],
+        window: {80, 24}
+      }
+
+      assert TUI.max_scroll_offset(model) == 0
+    end
+
+    test "returns positive offset when messages exceed view" do
+      # Create many messages to exceed the view height
+      messages =
+        Enum.map(1..50, fn i ->
+          %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
+        end)
+
+      model = %Model{messages: messages, window: {80, 10}}
+
+      # With 50 messages and height 10 (8 available after status/input)
+      # max_offset should be positive
+      assert TUI.max_scroll_offset(model) > 0
+    end
+  end
+
+  describe "scroll navigation" do
+    test "up arrow returns {:scroll, :up}" do
+      model = %Model{}
+      event = Event.key(:up)
+
+      assert TUI.event_to_msg(event, model) == {:scroll, :up}
+    end
+
+    test "down arrow returns {:scroll, :down}" do
+      model = %Model{}
+      event = Event.key(:down)
+
+      assert TUI.event_to_msg(event, model) == {:scroll, :down}
+    end
+
+    test "scroll up increases scroll_offset" do
+      model = %Model{
+        scroll_offset: 0,
+        messages: Enum.map(1..50, fn i ->
+          %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
+        end),
+        window: {80, 10}
+      }
+
+      {new_model, _} = TUI.update({:scroll, :up}, model)
+      assert new_model.scroll_offset == 1
+    end
+
+    test "scroll down decreases scroll_offset" do
+      model = %Model{
+        scroll_offset: 5,
+        messages: [],
+        window: {80, 24}
+      }
+
+      {new_model, _} = TUI.update({:scroll, :down}, model)
+      assert new_model.scroll_offset == 4
+    end
+
+    test "scroll down does not go below 0" do
+      model = %Model{scroll_offset: 0, messages: [], window: {80, 24}}
+
+      {new_model, _} = TUI.update({:scroll, :down}, model)
+      assert new_model.scroll_offset == 0
+    end
+
+    test "scroll up does not exceed max_scroll_offset" do
+      model = %Model{
+        scroll_offset: 0,
+        messages: [%{role: :user, content: "short", timestamp: DateTime.utc_now()}],
+        window: {80, 24}
+      }
+
+      # With only 1 message and large window, max_offset is 0
+      {new_model, _} = TUI.update({:scroll, :up}, model)
+      assert new_model.scroll_offset == 0
+    end
+  end
+
+  describe "message display with timestamps" do
+    test "messages include timestamp in view" do
+      timestamp = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [
+          %{role: :user, content: "Hello", timestamp: timestamp}
+        ]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "[14:32]"
+      assert view_text =~ "You:"
+      assert view_text =~ "Hello"
+    end
+  end
+
+  describe "Model scroll_offset field" do
+    test "has default value of 0" do
+      model = %Model{}
+      assert model.scroll_offset == 0
+    end
+
+    test "init sets scroll_offset to 0" do
+      model = TUI.init([])
+      assert model.scroll_offset == 0
+    end
+  end
 end

@@ -67,17 +67,17 @@ Implement the primary view function with three-pane layout: status, conversation
 - [x] 4.2.1.7 Verify layout renders correctly at various terminal sizes (success: no overflow/clipping)
 
 ### 4.2.2 Message Display
-- [ ] **Task 4.2.2 Complete**
+- [x] **Task 4.2.2 Complete**
 
 Render conversation messages with role indicators and proper text wrapping.
 
-- [ ] 4.2.2.1 Create `render_messages/2` helper function
-- [ ] 4.2.2.2 Display user messages with "You:" prefix in cyan
-- [ ] 4.2.2.3 Display assistant messages with "Assistant:" prefix
-- [ ] 4.2.2.4 Implement text wrapping for long messages
-- [ ] 4.2.2.5 Add timestamp display for each message
-- [ ] 4.2.2.6 Implement auto-scroll to latest message
-- [ ] 4.2.2.7 Support scrolling through message history with arrow keys
+- [x] 4.2.2.1 Create `render_messages/2` helper function
+- [x] 4.2.2.2 Display user messages with "You:" prefix in cyan
+- [x] 4.2.2.3 Display assistant messages with "Assistant:" prefix
+- [x] 4.2.2.4 Implement text wrapping for long messages
+- [x] 4.2.2.5 Add timestamp display for each message
+- [x] 4.2.2.6 Implement auto-scroll to latest message
+- [x] 4.2.2.7 Support scrolling through message history with arrow keys
 
 ### 4.2.3 Reasoning Panel
 - [ ] **Task 4.2.3 Complete**

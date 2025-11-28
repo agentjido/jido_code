@@ -103,7 +103,8 @@ defmodule JidoCode.TUI do
             config: %{provider: String.t() | nil, model: String.t() | nil},
             reasoning_steps: [reasoning_step()],
             window: {non_neg_integer(), non_neg_integer()},
-            message_queue: [queued_message()]
+            message_queue: [queued_message()],
+            scroll_offset: non_neg_integer()
           }
 
     @enforce_keys []
@@ -113,7 +114,8 @@ defmodule JidoCode.TUI do
               config: %{provider: nil, model: nil},
               reasoning_steps: [],
               window: {80, 24},
-              message_queue: []
+              message_queue: [],
+              scroll_offset: 0
   end
 
   # ============================================================================
@@ -144,7 +146,8 @@ defmodule JidoCode.TUI do
       config: config,
       reasoning_steps: [],
       window: {80, 24},
-      message_queue: []
+      message_queue: [],
+      scroll_offset: 0
     }
   end
 
@@ -180,6 +183,14 @@ defmodule JidoCode.TUI do
 
   def event_to_msg(%Event.Resize{width: width, height: height}, _state) do
     {:resize, width, height}
+  end
+
+  def event_to_msg(%Event.Key{key: :up}, _state) do
+    {:scroll, :up}
+  end
+
+  def event_to_msg(%Event.Key{key: :down}, _state) do
+    {:scroll, :down}
   end
 
   def event_to_msg(_event, _state) do
@@ -234,6 +245,20 @@ defmodule JidoCode.TUI do
 
   def update({:resize, width, height}, state) do
     {%{state | window: {width, height}}, []}
+  end
+
+  # Scroll navigation
+  def update({:scroll, :up}, state) do
+    # Scroll up (towards older messages) - increase offset
+    max_offset = max_scroll_offset(state)
+    new_offset = min(state.scroll_offset + 1, max_offset)
+    {%{state | scroll_offset: new_offset}, []}
+  end
+
+  def update({:scroll, :down}, state) do
+    # Scroll down (towards newer messages) - decrease offset
+    new_offset = max(state.scroll_offset - 1, 0)
+    {%{state | scroll_offset: new_offset}, []}
   end
 
   # PubSub message handlers with message queueing
@@ -379,6 +404,87 @@ defmodule JidoCode.TUI do
     |> Enum.take(@max_queue_size)
   end
 
+  @doc """
+  Calculates the maximum scroll offset based on message count and available height.
+
+  Returns 0 if all messages fit on screen, otherwise returns the number of lines
+  that can be scrolled up (towards older messages).
+  """
+  @spec max_scroll_offset(Model.t()) :: non_neg_integer()
+  def max_scroll_offset(state) do
+    {width, height} = state.window
+    available_height = max(height - 2, 1)
+    # Calculate total lines with wrapping
+    total_lines = calculate_total_lines(state.messages, width)
+    max(total_lines - available_height, 0)
+  end
+
+  # Calculate total lines accounting for text wrapping
+  defp calculate_total_lines(messages, width) do
+    Enum.reduce(messages, 0, fn msg, acc ->
+      # Account for prefix length in wrapping
+      prefix_len = prefix_length(msg.role)
+      content_width = max(width - prefix_len, 20)
+      lines = wrap_text(msg.content, content_width)
+      acc + length(lines)
+    end)
+  end
+
+  defp prefix_length(:user), do: String.length("[00:00] You: ")
+  defp prefix_length(:assistant), do: String.length("[00:00] Assistant: ")
+  defp prefix_length(:system), do: String.length("[00:00] System: ")
+
+  @doc """
+  Wraps text to fit within the specified width.
+
+  Words are kept together when possible. Words longer than max_width are split.
+  Returns a list of lines.
+  """
+  @spec wrap_text(String.t(), pos_integer()) :: [String.t()]
+  def wrap_text(text, max_width) when max_width > 0 do
+    text
+    |> String.split(" ")
+    |> Enum.reduce({[], ""}, fn word, acc -> wrap_word(word, acc, max_width) end)
+    |> finalize_wrap()
+  end
+
+  def wrap_text(_text, _max_width), do: [""]
+
+  defp wrap_word(word, {lines, current_line}, max_width) do
+    new_line = if current_line == "", do: word, else: current_line <> " " <> word
+
+    cond do
+      String.length(new_line) <= max_width ->
+        {lines, new_line}
+
+      current_line == "" ->
+        # Word is longer than max_width, split it
+        {lines ++ [String.slice(word, 0, max_width)], String.slice(word, max_width..-1//1)}
+
+      true ->
+        {lines ++ [current_line], word}
+    end
+  end
+
+  defp finalize_wrap({lines, last}) do
+    result = if last == "", do: lines, else: lines ++ [last]
+
+    case result do
+      [] -> [""]
+      final_lines -> final_lines
+    end
+  end
+
+  @doc """
+  Formats a timestamp as HH:MM.
+  """
+  @spec format_timestamp(DateTime.t()) :: String.t()
+  def format_timestamp(datetime) do
+    hour = datetime.hour |> Integer.to_string() |> String.pad_leading(2, "0")
+    minute = datetime.minute |> Integer.to_string() |> String.pad_leading(2, "0")
+    "[#{hour}:#{minute}]"
+  end
+
   # ============================================================================
   # View Helpers - Status Bar
   # ============================================================================
@@ -405,7 +511,7 @@ defmodule JidoCode.TUI do
   # ============================================================================
 
   defp render_conversation(state) do
-    {_width, height} = state.window
+    {width, height} = state.window
 
     # Reserve 2 lines for status bar and input bar
     available_height = max(height - 2, 1)
@@ -415,7 +521,7 @@ defmodule JidoCode.TUI do
         render_empty_conversation(available_height)
 
       messages ->
-        render_messages(messages, available_height)
+        render_messages(messages, available_height, width, state.scroll_offset)
     end
   end
 
@@ -426,29 +532,61 @@ defmodule JidoCode.TUI do
     ])
   end
 
-  defp render_messages(messages, available_height) do
-    # Build message lines
-    message_lines = Enum.flat_map(messages, &format_message/1)
+  defp render_messages(messages, available_height, width, scroll_offset) do
+    # Build message lines with text wrapping
+    message_lines = Enum.flat_map(messages, &format_message(&1, width))
 
-    # Take the last N lines that fit in available space
+    total_lines = length(message_lines)
+
+    # Calculate which lines to show based on scroll offset
+    # scroll_offset of 0 = show latest, higher = show older
+    end_index = total_lines - scroll_offset
+    start_index = max(end_index - available_height, 0)
+
     visible_lines =
       message_lines
-      |> Enum.take(-available_height)
+      |> Enum.slice(start_index, available_height)
 
     stack(:vertical, visible_lines)
   end
 
-  defp format_message(%{role: :user, content: content}) do
-    [text("You: #{content}", Style.new(fg: :cyan))]
+  defp format_message(%{role: role, content: content, timestamp: timestamp}, width) do
+    ts = format_timestamp(timestamp)
+    prefix = role_prefix(role)
+    style = role_style(role)
+
+    # Calculate content width accounting for prefix
+    prefix_len = String.length("#{ts} #{prefix}")
+    content_width = max(width - prefix_len, 20)
+
+    # Wrap content and format each line
+    lines = wrap_text(content, content_width)
+
+    lines
+    |> Enum.with_index()
+    |> Enum.map(fn {line, index} ->
+      if index == 0 do
+        text("#{ts} #{prefix}#{line}", style)
+      else
+        # Continuation lines: indent to align with content
+        padding = String.duplicate(" ", prefix_len)
+        text("#{padding}#{line}", style)
+      end
+    end)
   end
 
-  defp format_message(%{role: :assistant, content: content}) do
-    [text("Assistant: #{content}", Style.new(fg: :white))]
+  # Fallback for messages without timestamp (legacy format)
+  defp format_message(%{role: role, content: content}, width) do
+    format_message(%{role: role, content: content, timestamp: DateTime.utc_now()}, width)
   end
 
-  defp format_message(%{role: :system, content: content}) do
-    [text("System: #{content}", Style.new(fg: :yellow))]
-  end
+  defp role_prefix(:user), do: "You: "
+  defp role_prefix(:assistant), do: "Assistant: "
+  defp role_prefix(:system), do: "System: "
+
+  defp role_style(:user), do: Style.new(fg: :cyan)
+  defp role_style(:assistant), do: Style.new(fg: :white)
+  defp role_style(:system), do: Style.new(fg: :yellow)
 
   # ============================================================================
   # View Helpers - Input Bar

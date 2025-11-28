@@ -91,19 +91,19 @@ Expose controlled Erlang functions to Lua for file, shell, and API operations.
 Implement the essential tools for coding assistance: file operations, search, and shell execution.
 
 ### 3.3.1 File System Tools
-- [ ] **Task 3.3.1 Complete**
+- [x] **Task 3.3.1 Complete**
 
 Create tools for reading and writing files.
 
-- [ ] 3.3.1.1 Create `read_file` tool: read file contents, params: `{path: string}`
-- [ ] 3.3.1.2 Create `write_file` tool: write/overwrite file, params: `{path: string, content: string}`
-- [ ] 3.3.1.3 Create `list_directory` tool: list files/dirs, params: `{path: string, recursive: boolean}`
-- [ ] 3.3.1.4 Create `file_info` tool: get file metadata, params: `{path: string}`
-- [ ] 3.3.1.5 Create `create_directory` tool: create dir, params: `{path: string}`
-- [ ] 3.3.1.6 Create `delete_file` tool: remove file, params: `{path: string}` (with confirmation flag)
-- [ ] 3.3.1.7 All file tools delegate to ToolManager bridge functions
-- [ ] 3.3.1.8 Return structured results: `{ok: content}` or `{error: reason}`
-- [ ] 3.3.1.9 Write file tool tests (success: CRUD operations work)
+- [x] 3.3.1.1 Create `read_file` tool: read file contents, params: `{path: string}`
+- [x] 3.3.1.2 Create `write_file` tool: write/overwrite file, params: `{path: string, content: string}`
+- [x] 3.3.1.3 Create `list_directory` tool: list files/dirs, params: `{path: string, recursive: boolean}`
+- [x] 3.3.1.4 Create `file_info` tool: get file metadata, params: `{path: string}`
+- [x] 3.3.1.5 Create `create_directory` tool: create dir, params: `{path: string}`
+- [x] 3.3.1.6 Create `delete_file` tool: remove file, params: `{path: string}` (with confirmation flag)
+- [x] 3.3.1.7 All file tools delegate to ToolManager bridge functions
+- [x] 3.3.1.8 Return structured results: `{ok: content}` or `{error: reason}`
+- [x] 3.3.1.9 Write file tool tests (success: CRUD operations work)
 
 ### 3.3.2 Search Tools
 - [ ] **Task 3.3.2 Complete**

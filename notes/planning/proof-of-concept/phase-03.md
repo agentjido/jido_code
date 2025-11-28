@@ -106,17 +106,17 @@ Create tools for reading and writing files.
 - [x] 3.3.1.9 Write file tool tests (success: CRUD operations work)
 
 ### 3.3.2 Search Tools
-- [ ] **Task 3.3.2 Complete**
+- [x] **Task 3.3.2 Complete**
 
 Create tools for searching the codebase.
 
-- [ ] 3.3.2.1 Create `grep` tool: search file contents, params: `{pattern: string, path: string, recursive: boolean}`
-- [ ] 3.3.2.2 Create `find_files` tool: find files by name/glob, params: `{pattern: string, path: string}`
-- [ ] 3.3.2.3 Grep tool returns matched lines with file paths and line numbers
-- [ ] 3.3.2.4 Find tool returns list of matching file paths
-- [ ] 3.3.2.5 Implement result truncation for large result sets (configurable limit)
-- [ ] 3.3.2.6 Search tools delegate to ToolManager for execution
-- [ ] 3.3.2.7 Write search tool tests (success: patterns match correctly)
+- [x] 3.3.2.1 Create `grep` tool: search file contents, params: `{pattern: string, path: string, recursive: boolean}`
+- [x] 3.3.2.2 Create `find_files` tool: find files by name/glob, params: `{pattern: string, path: string}`
+- [x] 3.3.2.3 Grep tool returns matched lines with file paths and line numbers
+- [x] 3.3.2.4 Find tool returns list of matching file paths
+- [x] 3.3.2.5 Implement result truncation for large result sets (configurable limit)
+- [x] 3.3.2.6 Search tools delegate to ToolManager for execution
+- [x] 3.3.2.7 Write search tool tests (success: patterns match correctly)
 
 ### 3.3.3 Shell Execution Tool
 - [ ] **Task 3.3.3 Complete**

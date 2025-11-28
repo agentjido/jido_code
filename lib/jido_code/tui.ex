@@ -292,11 +292,33 @@ defmodule JidoCode.TUI do
   @doc """
   Renders the current state to a render tree.
 
-  Currently renders a minimal placeholder UI. Full view rendering will be
-  implemented in task 4.2.x.
+  Implements a three-pane layout:
+  - Status bar (top): Provider, model, agent status, keyboard hints
+  - Conversation area (middle): Message history with role indicators
+  - Input bar (bottom): Prompt indicator and current input buffer
   """
   @impl true
   def view(state) do
+    case state.agent_status do
+      :unconfigured ->
+        # Show configuration screen when not configured
+        render_unconfigured_view(state)
+
+      _ ->
+        # Show main chat interface when configured
+        render_main_view(state)
+    end
+  end
+
+  defp render_main_view(state) do
+    stack(:vertical, [
+      render_status_bar(state),
+      render_conversation(state),
+      render_input_bar(state)
+    ])
+  end
+
+  defp render_unconfigured_view(state) do
     stack(:vertical, [
       render_status_bar(state),
       text("", nil),
@@ -358,24 +380,90 @@ defmodule JidoCode.TUI do
   end
 
   # ============================================================================
-  # View Helpers (Minimal)
+  # View Helpers - Status Bar
   # ============================================================================
 
   defp render_status_bar(state) do
-    status_text = format_status(state.agent_status)
     config_text = format_config(state.config)
+    status_text = format_status(state.agent_status)
+    hints = "Ctrl+C: Quit"
 
-    text("#{config_text} | #{status_text}", Style.new(fg: :white, bg: :blue))
+    text("#{config_text} | #{status_text} | #{hints}", Style.new(fg: :white, bg: :blue))
   end
 
-  defp format_status(:idle), do: "Status: Idle"
-  defp format_status(:processing), do: "Status: Processing..."
-  defp format_status(:error), do: "Status: Error"
-  defp format_status(:unconfigured), do: "Status: Not Configured"
+  defp format_status(:idle), do: "Idle"
+  defp format_status(:processing), do: "Processing..."
+  defp format_status(:error), do: "Error"
+  defp format_status(:unconfigured), do: "Not Configured"
 
-  defp format_config(%{provider: nil}), do: "No provider configured"
+  defp format_config(%{provider: nil}), do: "No provider"
   defp format_config(%{model: nil, provider: p}), do: "#{p} (no model)"
   defp format_config(%{provider: p, model: m}), do: "#{p}:#{m}"
+
+  # ============================================================================
+  # View Helpers - Conversation Area
+  # ============================================================================
+
+  defp render_conversation(state) do
+    {_width, height} = state.window
+
+    # Reserve 2 lines for status bar and input bar
+    available_height = max(height - 2, 1)
+
+    case state.messages do
+      [] ->
+        render_empty_conversation(available_height)
+
+      messages ->
+        render_messages(messages, available_height)
+    end
+  end
+
+  defp render_empty_conversation(_height) do
+    stack(:vertical, [
+      text("", nil),
+      text("No messages yet. Type a message and press Enter.", Style.new(fg: :bright_black))
+    ])
+  end
+
+  defp render_messages(messages, available_height) do
+    # Build message lines
+    message_lines = Enum.flat_map(messages, &format_message/1)
+
+    # Take the last N lines that fit in available space
+    visible_lines =
+      message_lines
+      |> Enum.take(-available_height)
+
+    stack(:vertical, visible_lines)
+  end
+
+  defp format_message(%{role: :user, content: content}) do
+    [text("You: #{content}", Style.new(fg: :cyan))]
+  end
+
+  defp format_message(%{role: :assistant, content: content}) do
+    [text("Assistant: #{content}", Style.new(fg: :white))]
+  end
+
+  defp format_message(%{role: :system, content: content}) do
+    [text("System: #{content}", Style.new(fg: :yellow))]
+  end
+
+  # ============================================================================
+  # View Helpers - Input Bar
+  # ============================================================================
+
+  defp render_input_bar(state) do
+    cursor = "_"
+    prompt = ">"
+
+    text("#{prompt} #{state.input_buffer}#{cursor}", Style.new(fg: :green))
+  end
+
+  # ============================================================================
+  # View Helpers - Configuration Screen
+  # ============================================================================
 
   defp render_config_info(state) do
     case state.agent_status do

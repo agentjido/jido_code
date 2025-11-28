@@ -54,17 +54,17 @@ Connect TUI to agent events via Phoenix PubSub for real-time updates.
 The view layer composes TermUI primitives into a multi-pane interface showing the conversation, input area, status bar, and optionally reasoning steps. Views are pure functions of the Model.
 
 ### 4.2.1 Main Layout Structure
-- [ ] **Task 4.2.1 Complete**
+- [x] **Task 4.2.1 Complete**
 
 Implement the primary view function with three-pane layout: status, conversation, input.
 
-- [ ] 4.2.1.1 Implement `view/1` returning composed TermUI elements
-- [ ] 4.2.1.2 Create status bar at top: model name, provider, status indicator
-- [ ] 4.2.1.3 Create main conversation area with scrollable message history
-- [ ] 4.2.1.4 Create input bar at bottom with prompt indicator and input buffer
-- [ ] 4.2.1.5 Apply TermUI styling: colors for roles (user: cyan, assistant: white)
-- [ ] 4.2.1.6 Handle terminal resize events updating layout
-- [ ] 4.2.1.7 Verify layout renders correctly at various terminal sizes (success: no overflow/clipping)
+- [x] 4.2.1.1 Implement `view/1` returning composed TermUI elements
+- [x] 4.2.1.2 Create status bar at top: model name, provider, status indicator
+- [x] 4.2.1.3 Create main conversation area with scrollable message history
+- [x] 4.2.1.4 Create input bar at bottom with prompt indicator and input buffer
+- [x] 4.2.1.5 Apply TermUI styling: colors for roles (user: cyan, assistant: white)
+- [x] 4.2.1.6 Handle terminal resize events updating layout
+- [x] 4.2.1.7 Verify layout renders correctly at various terminal sizes (success: no overflow/clipping)
 
 ### 4.2.2 Message Display
 - [ ] **Task 4.2.2 Complete**

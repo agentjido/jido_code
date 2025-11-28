@@ -555,6 +555,143 @@ defmodule JidoCode.TUITest do
 
       assert view_text =~ "anthropic" or view_text =~ "Idle"
     end
+
+    test "main view has three-pane layout when configured" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        messages: [],
+        input_buffer: ""
+      }
+
+      view = TUI.view(model)
+
+      # Main view should have 3 children: status bar, conversation, input bar
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = view
+      assert length(children) == 3
+    end
+
+    test "status bar shows provider and model" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "openai", model: "gpt-4"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "openai:gpt-4"
+    end
+
+    test "status bar shows keyboard hints" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+C"
+    end
+
+    test "conversation shows empty message when no messages" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: []
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "No messages yet"
+    end
+
+    test "conversation shows user messages with You: prefix" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [
+          %{role: :user, content: "Hello there", timestamp: DateTime.utc_now()}
+        ]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "You:"
+      assert view_text =~ "Hello there"
+    end
+
+    test "conversation shows assistant messages with Assistant: prefix" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [
+          %{role: :assistant, content: "Hi! How can I help?", timestamp: DateTime.utc_now()}
+        ]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Assistant:"
+      assert view_text =~ "Hi! How can I help?"
+    end
+
+    test "input bar shows current buffer" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        input_buffer: "typing something"
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "typing something"
+      # Should show cursor indicator
+      assert view_text =~ "_"
+    end
+
+    test "input bar shows prompt indicator" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        input_buffer: ""
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Should show > prompt
+      assert view_text =~ ">"
+    end
+
+    test "status bar shows processing status" do
+      model = %Model{
+        agent_status: :processing,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Processing"
+    end
+
+    test "status bar shows error status" do
+      model = %Model{
+        agent_status: :error,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Error"
+    end
   end
 
   describe "integration" do

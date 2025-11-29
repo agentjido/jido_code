@@ -80,17 +80,17 @@ Render conversation messages with role indicators and proper text wrapping.
 - [x] 4.2.2.7 Support scrolling through message history with arrow keys
 
 ### 4.2.3 Reasoning Panel
-- [ ] **Task 4.2.3 Complete**
+- [x] **Task 4.2.3 Complete**
 
 Optional panel showing Chain-of-Thought reasoning steps during complex queries.
 
-- [ ] 4.2.3.1 Create `render_reasoning/1` for reasoning step display
-- [ ] 4.2.3.2 Show reasoning panel only when steps are present in Model
-- [ ] 4.2.3.3 Display step list with status indicators (pending/active/complete)
-- [ ] 4.2.3.4 Highlight currently executing step
-- [ ] 4.2.3.5 Show confidence score after validation
-- [ ] 4.2.3.6 Implement toggle keybinding (Ctrl+R) to show/hide reasoning
-- [ ] 4.2.3.7 Position panel as right sidebar or bottom drawer based on terminal width
+- [x] 4.2.3.1 Create `render_reasoning/1` for reasoning step display
+- [x] 4.2.3.2 Show reasoning panel only when steps are present in Model
+- [x] 4.2.3.3 Display step list with status indicators (pending/active/complete)
+- [x] 4.2.3.4 Highlight currently executing step
+- [x] 4.2.3.5 Show confidence score after validation
+- [x] 4.2.3.6 Implement toggle keybinding (Ctrl+R) to show/hide reasoning
+- [x] 4.2.3.7 Position panel as right sidebar or bottom drawer based on terminal width
 
 ### 4.2.4 Status Bar
 - [ ] **Task 4.2.4 Complete**

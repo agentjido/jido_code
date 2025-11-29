@@ -72,7 +72,8 @@ defmodule JidoCode.TUI do
             config: %{provider: String.t() | nil, model: String.t() | nil},
             reasoning_steps: [reasoning_step()],
             window: {non_neg_integer(), non_neg_integer()},
-            scroll_offset: non_neg_integer()
+            scroll_offset: non_neg_integer(),
+            show_reasoning: boolean()
           }
 
     @enforce_keys []
@@ -82,7 +83,8 @@ defmodule JidoCode.TUI do
               config: %{provider: nil, model: nil},
               reasoning_steps: [],
               window: {80, 24},
-              scroll_offset: 0
+              scroll_offset: 0,
+              show_reasoning: false
   end
 
   # ============================================================================
@@ -110,7 +112,8 @@ defmodule JidoCode.TUI do
       config: config,
       reasoning_steps: [],
       window: {80, 24},
-      scroll_offset: 0
+      scroll_offset: 0,
+      show_reasoning: false
     }
   end
 
@@ -139,6 +142,14 @@ defmodule JidoCode.TUI do
       {:msg, :quit}
     else
       {:msg, {:key_input, "c"}}
+    end
+  end
+
+  def event_to_msg(%Event.Key{key: :r, modifiers: modifiers}, _state) do
+    if :ctrl in modifiers do
+      {:msg, :toggle_reasoning}
+    else
+      {:msg, {:key_input, "r"}}
     end
   end
 
@@ -228,6 +239,10 @@ defmodule JidoCode.TUI do
     {%{state | scroll_offset: new_offset}, []}
   end
 
+  def update(:toggle_reasoning, state) do
+    {%{state | show_reasoning: not state.show_reasoning}, []}
+  end
+
   # ============================================================================
   # PubSub Message Handlers
   # ============================================================================
@@ -303,18 +318,64 @@ defmodule JidoCode.TUI do
   @doc """
   Renders the current state to a render tree.
 
-  Implements a three-pane layout:
+  Implements a multi-pane layout:
   - Status bar at top (provider:model, status indicator, keyboard hints)
   - Conversation area in the middle (message history)
+  - Optional reasoning panel (right sidebar or bottom drawer based on width)
   - Input bar at bottom (prompt + input buffer)
   """
   @impl true
   def view(state) do
+    {width, _height} = state.window
+    show_panel = state.show_reasoning and not Enum.empty?(state.reasoning_steps)
+
+    if show_panel and width >= 100 do
+      # Wide terminal: reasoning panel as right sidebar
+      render_wide_layout(state)
+    else
+      # Narrow terminal or no panel: vertical layout
+      render_narrow_layout(state, show_panel)
+    end
+  end
+
+  defp render_wide_layout(state) do
+    # Right sidebar layout for wide terminals
     stack(:vertical, [
-      render_status_bar(state),
-      render_conversation(state),
+      stack(:horizontal, [
+        # Left side: status bar
+        render_status_bar(state),
+        text(" | "),
+        # Right side: reasoning header
+        render_reasoning_header(state)
+      ]),
+      stack(:horizontal, [
+        # Left side: conversation
+        render_conversation(state),
+        text(" "),
+        # Right side: reasoning steps
+        render_reasoning_steps(state)
+      ]),
       render_input_bar(state)
     ])
+  end
+
+  defp render_narrow_layout(state, show_panel) do
+    elements = [
+      render_status_bar(state),
+      render_conversation(state)
+    ]
+
+    # Add reasoning panel as bottom drawer if enabled
+    elements =
+      if show_panel do
+        elements ++ [render_reasoning_panel(state)]
+      else
+        elements
+      end
+
+    elements = elements ++ [render_input_bar(state)]
+
+    stack(:vertical, elements)
   end
 
   # ============================================================================
@@ -593,6 +654,58 @@ defmodule JidoCode.TUI do
     {line, remaining} = build_line(first, rest, max_width)
     [line | wrap_remaining(remaining, max_width)]
   end
+
+  # ============================================================================
+  # View Helpers - Reasoning Panel
+  # ============================================================================
+
+  # Header for the reasoning panel showing step count
+  defp render_reasoning_header(state) do
+    step_count = length(state.reasoning_steps)
+    text("Reasoning (#{step_count})", Style.new(fg: :magenta, attrs: [:bold]))
+  end
+
+  # Renders reasoning steps as a vertical list (for wide layout sidebar)
+  defp render_reasoning_steps(state) do
+    step_nodes =
+      state.reasoning_steps
+      |> Enum.map(&render_reasoning_step/1)
+
+    stack(:vertical, step_nodes)
+  end
+
+  # Renders the full reasoning panel as a bottom drawer (for narrow layout)
+  defp render_reasoning_panel(state) do
+    step_count = length(state.reasoning_steps)
+    header = text("Reasoning (#{step_count})", Style.new(fg: :magenta, attrs: [:bold]))
+
+    # In narrow mode, render steps horizontally to save vertical space
+    step_texts =
+      state.reasoning_steps
+      |> Enum.map(&format_step_inline/1)
+      |> Enum.join(" │ ")
+
+    steps_line = text(step_texts)
+
+    stack(:vertical, [header, steps_line])
+  end
+
+  # Renders a single reasoning step with status indicator
+  defp render_reasoning_step(%{step: step_text, status: status}) do
+    {indicator, style} = step_indicator(status)
+    text("#{indicator} #{step_text}", style)
+  end
+
+  # Formats a step inline for narrow layout (horizontal display)
+  defp format_step_inline(%{step: step_text, status: status}) do
+    {indicator, _style} = step_indicator(status)
+    "#{indicator} #{step_text}"
+  end
+
+  # Returns the status indicator symbol and style for a reasoning step
+  defp step_indicator(:pending), do: {"○", Style.new(fg: :bright_black)}
+  defp step_indicator(:active), do: {"●", Style.new(fg: :yellow, attrs: [:bold])}
+  defp step_indicator(:complete), do: {"✓", Style.new(fg: :green)}
 
   # ============================================================================
   # View Helpers - Input Bar

@@ -17,6 +17,7 @@ defmodule JidoCode.TUITest do
       assert model.reasoning_steps == []
       assert model.window == {80, 24}
       assert model.scroll_offset == 0
+      assert model.show_reasoning == false
     end
 
     test "supports all required fields" do
@@ -27,7 +28,8 @@ defmodule JidoCode.TUITest do
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
         reasoning_steps: [%{step: "analyzing", status: :active}],
         window: {120, 40},
-        scroll_offset: 5
+        scroll_offset: 5,
+        show_reasoning: true
       }
 
       assert model.input_buffer == "test input"
@@ -38,6 +40,7 @@ defmodule JidoCode.TUITest do
       assert length(model.reasoning_steps) == 1
       assert model.window == {120, 40}
       assert model.scroll_offset == 5
+      assert model.show_reasoning == true
     end
   end
 
@@ -132,6 +135,18 @@ defmodule JidoCode.TUITest do
       state = %Model{}
       event = Event.key(:down)
       assert TUI.event_to_msg(event, state) == {:msg, :scroll_down}
+    end
+
+    test "maps Ctrl+R to :toggle_reasoning message" do
+      state = %Model{}
+      event = Event.key(:r, modifiers: [:ctrl])
+      assert TUI.event_to_msg(event, state) == {:msg, :toggle_reasoning}
+    end
+
+    test "maps 'r' without Ctrl to {:key_input, \"r\"}" do
+      state = %Model{}
+      event = Event.key(:r, char: "r")
+      assert TUI.event_to_msg(event, state) == {:msg, {:key_input, "r"}}
     end
   end
 
@@ -278,6 +293,22 @@ defmodule JidoCode.TUITest do
       }
       {new_state, _} = TUI.update(:submit, state)
       assert new_state.scroll_offset == 0
+    end
+
+    test ":toggle_reasoning toggles show_reasoning from false to true" do
+      state = %Model{show_reasoning: false}
+      {new_state, commands} = TUI.update(:toggle_reasoning, state)
+
+      assert new_state.show_reasoning == true
+      assert commands == []
+    end
+
+    test ":toggle_reasoning toggles show_reasoning from true to false" do
+      state = %Model{show_reasoning: true}
+      {new_state, commands} = TUI.update(:toggle_reasoning, state)
+
+      assert new_state.show_reasoning == false
+      assert commands == []
     end
   end
 
@@ -625,6 +656,141 @@ defmodule JidoCode.TUITest do
       texts = extract_texts([conversation])
       assert Enum.any?(texts, &(&1 =~ "more message(s) below"))
     end
+
+    test "reasoning panel is hidden when show_reasoning is false" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :processing,
+        show_reasoning: false,
+        reasoning_steps: [
+          %{step: "Analyzing", status: :active}
+        ],
+        window: {120, 40}
+      }
+
+      view = TUI.view(state)
+
+      # Should be simple 3-pane layout without reasoning panel
+      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
+      assert length(children) == 3
+
+      # Should not contain "Reasoning" header
+      texts = extract_texts(children)
+      refute Enum.any?(texts, &(&1 =~ "Reasoning"))
+    end
+
+    test "reasoning panel is hidden when reasoning_steps is empty" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :processing,
+        show_reasoning: true,
+        reasoning_steps: [],
+        window: {120, 40}
+      }
+
+      view = TUI.view(state)
+
+      # Should be simple 3-pane layout without reasoning panel
+      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
+      assert length(children) == 3
+
+      # Should not contain "Reasoning" header
+      texts = extract_texts(children)
+      refute Enum.any?(texts, &(&1 =~ "Reasoning"))
+    end
+
+    test "reasoning panel shows as bottom drawer for narrow terminals" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :processing,
+        show_reasoning: true,
+        reasoning_steps: [
+          %{step: "Step 1", status: :complete},
+          %{step: "Step 2", status: :active},
+          %{step: "Step 3", status: :pending}
+        ],
+        window: {80, 24}  # Narrow terminal (< 100)
+      }
+
+      view = TUI.view(state)
+
+      # Should have 4 panes in narrow mode: status, conversation, reasoning panel, input
+      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
+      assert length(children) == 4
+
+      # Check that reasoning panel is present
+      texts = extract_texts(children)
+      assert Enum.any?(texts, &(&1 =~ "Reasoning (3)"))
+    end
+
+    test "reasoning panel shows as right sidebar for wide terminals" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :processing,
+        show_reasoning: true,
+        reasoning_steps: [
+          %{step: "Step 1", status: :complete},
+          %{step: "Step 2", status: :active}
+        ],
+        window: {120, 40}  # Wide terminal (>= 100)
+      }
+
+      view = TUI.view(state)
+
+      # Wide layout uses horizontal stacks for sidebar
+      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
+
+      # First child should be horizontal stack with status and reasoning header
+      [first_row | _] = children
+      assert %RenderNode{type: :stack, direction: :horizontal} = first_row
+
+      # Check that reasoning header is present
+      texts = extract_texts(children)
+      assert Enum.any?(texts, &(&1 =~ "Reasoning (2)"))
+    end
+
+    test "reasoning panel displays step status indicators" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :processing,
+        show_reasoning: true,
+        reasoning_steps: [
+          %{step: "Complete step", status: :complete},
+          %{step: "Active step", status: :active},
+          %{step: "Pending step", status: :pending}
+        ],
+        window: {80, 24}  # Narrow for bottom drawer
+      }
+
+      view = TUI.view(state)
+
+      texts = extract_texts([view])
+      combined = Enum.join(texts, " ")
+
+      # Check for status indicators
+      assert combined =~ "✓"  # Complete
+      assert combined =~ "●"  # Active
+      assert combined =~ "○"  # Pending
+    end
+
+    test "reasoning panel step styling uses correct colors" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :processing,
+        show_reasoning: true,
+        reasoning_steps: [
+          %{step: "Step", status: :complete}
+        ],
+        window: {120, 40}  # Wide for sidebar
+      }
+
+      view = TUI.view(state)
+
+      # Find the step node in the view
+      step_node = find_step_node(view)
+      assert step_node != nil
+      assert step_node.style.fg == :green  # Complete step is green
+    end
   end
 
   describe "wrap_text/3" do
@@ -694,4 +860,26 @@ defmodule JidoCode.TUITest do
   end
 
   defp find_message_with_content(_, _), do: nil
+
+  # Helper to find a step node (text with status indicator)
+  defp find_step_node(nodes) when is_list(nodes) do
+    Enum.find_value(nodes, fn node -> find_step_node(node) end)
+  end
+
+  defp find_step_node(%RenderNode{type: :text, content: content} = node)
+       when is_binary(content) do
+    # Step nodes contain status indicators
+    if String.contains?(content, "✓") or String.contains?(content, "●") or
+         String.contains?(content, "○") do
+      node
+    else
+      nil
+    end
+  end
+
+  defp find_step_node(%RenderNode{type: :stack, children: children}) do
+    find_step_node(children)
+  end
+
+  defp find_step_node(_), do: nil
 end

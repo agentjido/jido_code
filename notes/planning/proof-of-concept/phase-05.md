@@ -116,16 +116,28 @@ Execute model configuration changes and update agent. Any provider from `Jido.AI
 The knowledge graph stub establishes the RDF.ex and libgraph infrastructure for future context management. This phase creates placeholder modules and basic data structures without implementing full functionality.
 
 ### 5.3.1 RDF Infrastructure Setup
-- [ ] **Task 5.3.1 Complete**
+- [x] **Task 5.3.1 Complete**
 
 Create the foundation modules for RDF-based knowledge representation.
 
-- [ ] 5.3.1.1 Create `JidoCode.KnowledgeGraph` namespace module
-- [ ] 5.3.1.2 Create `JidoCode.KnowledgeGraph.Store` with basic RDF.Graph wrapper
-- [ ] 5.3.1.3 Define placeholder namespace for code entities: `JidoCode.KnowledgeGraph.Vocab.Code`
-- [ ] 5.3.1.4 Implement stub functions: `add_entity/2`, `query/2`, `clear/0` returning `:not_implemented`
-- [ ] 5.3.1.5 Create `JidoCode.KnowledgeGraph.Entity` struct for code entities (module, function, type)
-- [ ] 5.3.1.6 Verify RDF.ex dependency works with basic graph operations (success: can create/query empty graph)
+- [x] 5.3.1.1 Create `JidoCode.KnowledgeGraph` namespace module
+- [x] 5.3.1.2 Create `JidoCode.KnowledgeGraph.Store` with basic RDF.Graph wrapper
+- [x] 5.3.1.3 Define placeholder namespace for code entities: `JidoCode.KnowledgeGraph.Vocab.Code`
+- [x] 5.3.1.4 Implement stub functions: `add_entity/2`, `query/2`, `clear/0` returning `:not_implemented`
+- [x] 5.3.1.5 Create `JidoCode.KnowledgeGraph.Entity` struct for code entities (module, function, type)
+- [x] 5.3.1.6 Verify RDF.ex dependency works with basic graph operations (success: can create/query empty graph)
+
+**Implementation Notes:**
+- `JidoCode.KnowledgeGraph` namespace module with base_iri and version
+- `JidoCode.KnowledgeGraph.Vocab` defines Code vocabulary using RDF.ex defvocab macro
+- Entity types: Module, Function, Type, Protocol, Behaviour, Macro, Struct, Exception
+- Relationships: defines, calls, imports, uses, implements, depends_on, supervises, aliases
+- Properties: name, arity, visibility, doc, file_path, line_number, module_name, spec
+- `JidoCode.KnowledgeGraph.Entity` struct with type, name, module, arity, visibility, file_path, line_number, doc, metadata
+- `JidoCode.KnowledgeGraph.Store` wraps RDF.Graph with working add_triple/2, empty?/1, count/1
+- Stub functions return `{:error, :not_implemented}`
+- 35 new tests for knowledge graph modules
+- 924 tests total, 0 failures
 
 ### 5.3.2 Graph Operations Placeholder
 - [ ] **Task 5.3.2 Complete**

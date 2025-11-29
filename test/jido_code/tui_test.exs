@@ -396,6 +396,68 @@ defmodule JidoCode.TUITest do
       assert new_model.agent_status == :idle
     end
 
+    # Streaming tests
+    test "stream_chunk appends to streaming_message" do
+      model = %Model{streaming_message: "", is_streaming: true}
+
+      {new_model, _} = TUI.update({:stream_chunk, "Hello "}, model)
+
+      assert new_model.streaming_message == "Hello "
+      assert new_model.is_streaming == true
+
+      # Append another chunk
+      {new_model2, _} = TUI.update({:stream_chunk, "world!"}, new_model)
+
+      assert new_model2.streaming_message == "Hello world!"
+      assert new_model2.is_streaming == true
+    end
+
+    test "stream_chunk starts with nil streaming_message" do
+      model = %Model{streaming_message: nil, is_streaming: false}
+
+      {new_model, _} = TUI.update({:stream_chunk, "Hello"}, model)
+
+      assert new_model.streaming_message == "Hello"
+      assert new_model.is_streaming == true
+    end
+
+    test "stream_end finalizes message and clears streaming state" do
+      model = %Model{
+        messages: [],
+        streaming_message: "Complete response",
+        is_streaming: true,
+        agent_status: :processing
+      }
+
+      {new_model, _} = TUI.update({:stream_end, "Complete response"}, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :assistant
+      assert hd(new_model.messages).content == "Complete response"
+      assert new_model.streaming_message == nil
+      assert new_model.is_streaming == false
+      assert new_model.agent_status == :idle
+    end
+
+    test "stream_error shows error message and clears streaming" do
+      model = %Model{
+        messages: [],
+        streaming_message: "Partial",
+        is_streaming: true,
+        agent_status: :processing
+      }
+
+      {new_model, _} = TUI.update({:stream_error, :connection_failed}, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "Streaming error"
+      assert hd(new_model.messages).content =~ "connection_failed"
+      assert new_model.streaming_message == nil
+      assert new_model.is_streaming == false
+      assert new_model.agent_status == :error
+    end
+
     test "handles status_update" do
       model = %Model{agent_status: :idle}
 
@@ -772,7 +834,8 @@ defmodule JidoCode.TUITest do
       view = TUI.view(model)
       view_text = inspect(view)
 
-      assert view_text =~ "Processing"
+      # Status changed to "Streaming..." for better UX during streaming responses
+      assert view_text =~ "Streaming"
     end
 
     test "status bar shows error status" do

@@ -77,6 +77,9 @@ defmodule JidoCode.TUI do
           | {:tool_call, String.t(), map(), String.t()}
           | {:tool_result, Result.t()}
           | :toggle_tool_details
+          | {:stream_chunk, String.t()}
+          | {:stream_end, String.t()}
+          | {:stream_error, term()}
 
   # Maximum number of messages to keep in the debug queue
   @max_queue_size 100
@@ -125,7 +128,9 @@ defmodule JidoCode.TUI do
             message_queue: [queued_message()],
             scroll_offset: non_neg_integer(),
             show_reasoning: boolean(),
-            agent_name: atom()
+            agent_name: atom(),
+            streaming_message: String.t() | nil,
+            is_streaming: boolean()
           }
 
     @enforce_keys []
@@ -140,7 +145,9 @@ defmodule JidoCode.TUI do
               message_queue: [],
               scroll_offset: 0,
               show_reasoning: false,
-              agent_name: :llm_agent
+              agent_name: :llm_agent,
+              streaming_message: nil,
+              is_streaming: false
   end
 
   # ============================================================================
@@ -176,7 +183,9 @@ defmodule JidoCode.TUI do
       message_queue: [],
       scroll_offset: 0,
       show_reasoning: false,
-      agent_name: :llm_agent
+      agent_name: :llm_agent,
+      streaming_message: nil,
+      is_streaming: false
     }
   end
 
@@ -333,19 +342,19 @@ defmodule JidoCode.TUI do
     # Classify query for CoT (for future use)
     _use_cot = QueryClassifier.should_use_cot?(text)
 
-    # Look up and dispatch to agent
+    # Look up and dispatch to agent with streaming
     case AgentSupervisor.lookup_agent(state.agent_name) do
       {:ok, agent_pid} ->
-        # Dispatch async - agent will broadcast response via PubSub
-        Task.start(fn ->
-          LLMAgent.chat(agent_pid, text)
-        end)
+        # Dispatch async with streaming - agent will broadcast chunks via PubSub
+        LLMAgent.chat_stream(agent_pid, text)
 
         new_state = %{state |
           input_buffer: "",
           messages: state.messages ++ [user_msg],
           agent_status: :processing,
-          scroll_offset: 0
+          scroll_offset: 0,
+          streaming_message: "",
+          is_streaming: true
         }
 
         {new_state, []}
@@ -406,6 +415,59 @@ defmodule JidoCode.TUI do
   # Handle LLM response (alternative message format from LLMAgent)
   def update({:llm_response, content}, state) do
     update({:agent_response, content}, state)
+  end
+
+  # Streaming message handlers
+  def update({:stream_chunk, chunk}, state) do
+    # Append chunk to streaming message
+    new_streaming_message = (state.streaming_message || "") <> chunk
+    queue = queue_message(state.message_queue, {:stream_chunk, chunk})
+
+    new_state = %{state |
+      streaming_message: new_streaming_message,
+      is_streaming: true,
+      message_queue: queue
+    }
+
+    {new_state, []}
+  end
+
+  def update({:stream_end, _full_content}, state) do
+    # Finalize streaming - add accumulated message to messages list
+    message = %{
+      role: :assistant,
+      content: state.streaming_message || "",
+      timestamp: DateTime.utc_now()
+    }
+
+    queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
+
+    new_state = %{state |
+      messages: state.messages ++ [message],
+      streaming_message: nil,
+      is_streaming: false,
+      agent_status: :idle,
+      message_queue: queue
+    }
+
+    {new_state, []}
+  end
+
+  def update({:stream_error, reason}, state) do
+    # Show error message and clear streaming state
+    error_content = "Streaming error: #{inspect(reason)}"
+    error_msg = %{role: :system, content: error_content, timestamp: DateTime.utc_now()}
+    queue = queue_message(state.message_queue, {:stream_error, reason})
+
+    new_state = %{state |
+      messages: state.messages ++ [error_msg],
+      streaming_message: nil,
+      is_streaming: false,
+      agent_status: :error,
+      message_queue: queue
+    }
+
+    {new_state, []}
   end
 
   # Support both :status_update and :agent_status (per phase plan naming)
@@ -750,7 +812,7 @@ defmodule JidoCode.TUI do
   end
 
   defp format_status(:idle), do: "Idle"
-  defp format_status(:processing), do: "Processing..."
+  defp format_status(:processing), do: "Streaming..."
   defp format_status(:error), do: "Error"
   defp format_status(:unconfigured), do: "Not Configured"
 
@@ -783,7 +845,7 @@ defmodule JidoCode.TUI do
     # Reserve 2 lines for status bar and input bar
     available_height = max(height - 2, 1)
 
-    has_content = state.messages != [] or state.tool_calls != []
+    has_content = state.messages != [] or state.tool_calls != [] or state.is_streaming
 
     if has_content do
       render_conversation_content(state, available_height, width)
@@ -806,8 +868,16 @@ defmodule JidoCode.TUI do
     # Build tool call lines
     tool_call_lines = Enum.flat_map(state.tool_calls, &format_tool_call_entry(&1, state.show_tool_details))
 
-    # Combine all lines (tool calls appear after messages for now)
-    all_lines = message_lines ++ tool_call_lines
+    # Build streaming message line if streaming
+    streaming_lines =
+      if state.is_streaming and state.streaming_message != nil do
+        format_streaming_message(state.streaming_message, width)
+      else
+        []
+      end
+
+    # Combine all lines (tool calls appear after messages, streaming at the end)
+    all_lines = message_lines ++ tool_call_lines ++ streaming_lines
 
     total_lines = length(all_lines)
 
@@ -821,6 +891,37 @@ defmodule JidoCode.TUI do
       |> Enum.slice(start_index, available_height)
 
     stack(:vertical, visible_lines)
+  end
+
+  # Format streaming message with cursor indicator
+  defp format_streaming_message(content, width) do
+    # Use current time as timestamp for streaming
+    ts = format_timestamp(DateTime.utc_now())
+    prefix = "Assistant: "
+    cursor = "▌"
+    style = Style.new(fg: :white)
+
+    # Calculate content width accounting for prefix
+    prefix_len = String.length("#{ts} #{prefix}")
+    content_width = max(width - prefix_len, 20)
+
+    # Append cursor to content for display
+    content_with_cursor = content <> cursor
+
+    # Wrap content and format each line
+    lines = wrap_text(content_with_cursor, content_width)
+
+    lines
+    |> Enum.with_index()
+    |> Enum.map(fn {line, index} ->
+      if index == 0 do
+        text("#{ts} #{prefix}#{line}", style)
+      else
+        # Continuation lines: indent to align with content
+        padding = String.duplicate(" ", prefix_len)
+        text("#{padding}#{line}", style)
+      end
+    end)
   end
 
   defp format_message(%{role: role, content: content, timestamp: timestamp}, width) do

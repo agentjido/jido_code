@@ -31,20 +31,29 @@ Implement the complete flow from Enter key to agent invocation. Both provider AN
 - 155 tests passing (9 new tests for submit flow)
 
 ### 5.1.2 Response Streaming
-- [ ] **Task 5.1.2 Complete**
+- [x] **Task 5.1.2 Complete**
 
 Implement token-by-token streaming display showing LLM output as it arrives for better user experience.
 
-- [ ] 5.1.2.1 Configure JidoAI agent with streaming enabled in model options
-- [ ] 5.1.2.2 Implement stream handler in LLMAgent that broadcasts chunks via PubSub
-- [ ] 5.1.2.3 Agent broadcasts partial responses: `{:stream_chunk, text}` for each token batch
-- [ ] 5.1.2.4 TUI update appends chunks to current streaming message with cursor indicator
-- [ ] 5.1.2.5 Display streaming indicator (blinking cursor or spinner) during response generation
-- [ ] 5.1.2.6 Agent broadcasts completion: `{:stream_end, full_content}` when done
-- [ ] 5.1.2.7 TUI finalizes message, removes streaming indicator, clears streaming state
-- [ ] 5.1.2.8 Handle stream errors gracefully with error message display
-- [ ] 5.1.2.9 Update agent_status to `:idle` on completion
-- [ ] 5.1.2.10 Write streaming test verifying incremental display (success: chunks appear progressively)
+- [x] 5.1.2.1 Configure JidoAI agent with streaming enabled in model options
+- [x] 5.1.2.2 Implement stream handler in LLMAgent that broadcasts chunks via PubSub
+- [x] 5.1.2.3 Agent broadcasts partial responses: `{:stream_chunk, text}` for each token batch
+- [x] 5.1.2.4 TUI update appends chunks to current streaming message with cursor indicator
+- [x] 5.1.2.5 Display streaming indicator (blinking cursor or spinner) during response generation
+- [x] 5.1.2.6 Agent broadcasts completion: `{:stream_end, full_content}` when done
+- [x] 5.1.2.7 TUI finalizes message, removes streaming indicator, clears streaming state
+- [x] 5.1.2.8 Handle stream errors gracefully with error message display
+- [x] 5.1.2.9 Update agent_status to `:idle` on completion
+- [x] 5.1.2.10 Write streaming test verifying incremental display (success: chunks appear progressively)
+
+**Implementation Notes:**
+- Added `chat_stream/3` function to LLMAgent alongside existing `chat/3`
+- Uses `Jido.AI.Actions.ReqLlm.ChatCompletion` with `stream: true` option
+- Broadcasts `{:stream_chunk, text}`, `{:stream_end, content}`, `{:stream_error, reason}` via PubSub
+- Added `streaming_message`, `is_streaming` fields to TUI Model
+- Streaming message displays with `▌` cursor indicator
+- Status bar shows "Streaming..." during streaming
+- 159 tests passing (4 new streaming tests)
 
 ## 5.2 Configuration Commands
 

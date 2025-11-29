@@ -39,10 +39,12 @@ defmodule JidoCode.Agents.LLMAgent do
   use GenServer
   require Logger
 
+  alias Jido.AI.Actions.ReqLlm.ChatCompletion
   alias Jido.AI.Agent, as: AIAgent
   alias Jido.AI.Keyring
   alias Jido.AI.Model
   alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
+  alias Jido.AI.Prompt
   alias JidoCode.Config
 
   @pubsub JidoCode.PubSub
@@ -130,6 +132,49 @@ defmodule JidoCode.Agents.LLMAgent do
       :ok ->
         timeout = Keyword.get(opts, :timeout, @default_timeout)
         GenServer.call(pid, {:chat, message}, timeout + 5_000)
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Sends a chat message to the agent with streaming response.
+
+  Unlike `chat/3`, this function broadcasts response chunks via PubSub as they arrive,
+  providing real-time streaming feedback. The function returns immediately after
+  starting the stream.
+
+  ## PubSub Events
+
+  The following events are broadcast to the session's PubSub topic:
+
+  - `{:stream_chunk, text}` - Partial response text as it arrives
+  - `{:stream_end, full_content}` - Stream completed with full response
+  - `{:stream_error, reason}` - Stream failed with error
+
+  ## Parameters
+
+  - `pid` - The agent process
+  - `message` - The user's message string (max #{@max_message_length} characters)
+  - `opts` - Options (`:timeout` defaults to 60 seconds)
+
+  ## Returns
+
+  - `:ok` - Stream started successfully (responses come via PubSub)
+  - `{:error, reason}` - Failed to start stream
+
+  ## Examples
+
+      :ok = JidoCode.Agents.LLMAgent.chat_stream(pid, "Explain pattern matching")
+      # Subscribe to PubSub to receive {:stream_chunk, text} events
+  """
+  @spec chat_stream(GenServer.server(), String.t(), keyword()) :: :ok | {:error, term()}
+  def chat_stream(pid, message, opts \\ []) when is_binary(message) do
+    case validate_message(message) do
+      :ok ->
+        timeout = Keyword.get(opts, :timeout, @default_timeout)
+        GenServer.cast(pid, {:chat_stream, message, timeout})
 
       {:error, _} = error ->
         error
@@ -370,6 +415,18 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   @impl true
+  def handle_cast({:chat_stream, message, timeout}, state) do
+    topic = state.topic
+    config = state.config
+
+    Task.start(fn ->
+      do_chat_stream(config, message, topic, timeout)
+    end)
+
+    {:noreply, state}
+  end
+
+  @impl true
   def terminate(_reason, state) do
     # Stop the AI agent if running - catch any errors silently
     if state[:ai_pid] && Process.alive?(state.ai_pid) do
@@ -481,6 +538,115 @@ defmodule JidoCode.Agents.LLMAgent do
 
   defp broadcast_config_change(topic, old_config, new_config) do
     Phoenix.PubSub.broadcast(@pubsub, topic, {:config_changed, old_config, new_config})
+  end
+
+  defp broadcast_stream_chunk(topic, chunk) do
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_chunk, chunk})
+  end
+
+  defp broadcast_stream_end(topic, full_content) do
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, full_content})
+  end
+
+  defp broadcast_stream_error(topic, reason) do
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_error, reason})
+  end
+
+  defp do_chat_stream(config, message, topic, _timeout) do
+    # Build model from config
+    model_tuple =
+      {config.provider,
+       [
+         model: config.model,
+         temperature: config.temperature,
+         max_tokens: config.max_tokens
+       ]}
+
+    case Model.from(model_tuple) do
+      {:ok, model} ->
+        execute_stream(model, message, topic)
+
+      {:error, reason} ->
+        Logger.error("Failed to create model for streaming: #{inspect(reason)}")
+        broadcast_stream_error(topic, {:model_error, reason})
+    end
+  end
+
+  defp execute_stream(model, message, topic) do
+    # Build prompt with system message and user message
+    prompt = Prompt.new(%{
+      messages: [
+        %{role: :system, content: @system_prompt, engine: :none},
+        %{role: :user, content: message, engine: :none}
+      ]
+    })
+
+    # Execute streaming chat completion
+    case ChatCompletion.run(%{
+      model: model,
+      prompt: prompt,
+      stream: true
+    }, %{}) do
+      {:ok, stream} ->
+        process_stream(stream, topic)
+
+      {:error, reason} ->
+        Logger.error("Failed to start stream: #{inspect(reason)}")
+        broadcast_stream_error(topic, reason)
+    end
+  end
+
+  defp process_stream(stream, topic) do
+    # Accumulate full content while streaming chunks
+    full_content =
+      Enum.reduce_while(stream, "", fn chunk, acc ->
+        case extract_chunk_content(chunk) do
+          {:ok, content} ->
+            broadcast_stream_chunk(topic, content)
+            {:cont, acc <> content}
+
+          {:finish, content} ->
+            # Last chunk with finish_reason
+            if content != "" do
+              broadcast_stream_chunk(topic, content)
+            end
+            {:halt, acc <> content}
+        end
+      end)
+
+    # Broadcast stream completion
+    broadcast_stream_end(topic, full_content)
+  rescue
+    error ->
+      Logger.error("Stream processing error: #{inspect(error)}")
+      broadcast_stream_error(topic, error)
+  end
+
+  defp extract_chunk_content(%{content: content, finish_reason: nil}) do
+    {:ok, content || ""}
+  end
+
+  defp extract_chunk_content(%{content: content, finish_reason: _reason}) do
+    {:finish, content || ""}
+  end
+
+  defp extract_chunk_content(%{delta: %{content: content}} = chunk) do
+    finish_reason = Map.get(chunk, :finish_reason)
+    if finish_reason do
+      {:finish, content || ""}
+    else
+      {:ok, content || ""}
+    end
+  end
+
+  defp extract_chunk_content(chunk) when is_binary(chunk) do
+    {:ok, chunk}
+  end
+
+  defp extract_chunk_content(chunk) do
+    # Unknown chunk format - try to extract content
+    content = Map.get(chunk, :content) || Map.get(chunk, "content") || ""
+    {:ok, content}
   end
 
   defp stop_ai_agent(ai_pid) when is_pid(ai_pid) do

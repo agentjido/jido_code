@@ -203,6 +203,123 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  describe "update/2 PubSub messages" do
+    test "{:agent_response, content} adds assistant message to history" do
+      state = %Model{messages: [], agent_status: :processing}
+      {new_state, commands} = TUI.update({:agent_response, "Hello from assistant!"}, state)
+
+      assert length(new_state.messages) == 1
+      [message] = new_state.messages
+      assert message.role == :assistant
+      assert message.content == "Hello from assistant!"
+      assert %DateTime{} = message.timestamp
+      assert new_state.agent_status == :idle
+      assert commands == []
+    end
+
+    test "{:agent_response, content} appends to existing messages" do
+      existing_msg = %{role: :user, content: "Hi", timestamp: DateTime.utc_now()}
+      state = %Model{messages: [existing_msg], agent_status: :processing}
+      {new_state, commands} = TUI.update({:agent_response, "Hello!"}, state)
+
+      assert length(new_state.messages) == 2
+      assert Enum.at(new_state.messages, 0).role == :user
+      assert Enum.at(new_state.messages, 1).role == :assistant
+      assert commands == []
+    end
+
+    test "{:agent_status, status} updates agent status" do
+      state = %Model{agent_status: :idle}
+
+      {new_state, _} = TUI.update({:agent_status, :processing}, state)
+      assert new_state.agent_status == :processing
+
+      {new_state, _} = TUI.update({:agent_status, :error}, new_state)
+      assert new_state.agent_status == :error
+
+      {new_state, _} = TUI.update({:agent_status, :idle}, new_state)
+      assert new_state.agent_status == :idle
+    end
+
+    test "{:reasoning_step, step} adds new reasoning step" do
+      state = %Model{reasoning_steps: []}
+      step = %{step: "Analyzing query", status: :active}
+      {new_state, commands} = TUI.update({:reasoning_step, step}, state)
+
+      assert length(new_state.reasoning_steps) == 1
+      [added_step] = new_state.reasoning_steps
+      assert added_step.step == "Analyzing query"
+      assert added_step.status == :active
+      assert commands == []
+    end
+
+    test "{:reasoning_step, step} updates existing step status" do
+      existing_step = %{step: "Analyzing query", status: :pending}
+      state = %Model{reasoning_steps: [existing_step]}
+      update = %{step: "Analyzing query", status: :complete}
+      {new_state, commands} = TUI.update({:reasoning_step, update}, state)
+
+      assert length(new_state.reasoning_steps) == 1
+      [updated_step] = new_state.reasoning_steps
+      assert updated_step.step == "Analyzing query"
+      assert updated_step.status == :complete
+      assert commands == []
+    end
+
+    test "{:reasoning_step, string} adds step as pending" do
+      state = %Model{reasoning_steps: []}
+      {new_state, commands} = TUI.update({:reasoning_step, "Thinking..."}, state)
+
+      assert length(new_state.reasoning_steps) == 1
+      [step] = new_state.reasoning_steps
+      assert step.step == "Thinking..."
+      assert step.status == :pending
+      assert commands == []
+    end
+
+    test "{:config_changed, config} updates config with atom keys" do
+      state = %Model{
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      new_config = %{provider: "anthropic", model: "claude-3-5-sonnet"}
+      {new_state, commands} = TUI.update({:config_changed, new_config}, state)
+
+      assert new_state.config.provider == "anthropic"
+      assert new_state.config.model == "claude-3-5-sonnet"
+      assert new_state.agent_status == :idle
+      assert commands == []
+    end
+
+    test "{:config_changed, config} updates config with string keys" do
+      state = %Model{
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      new_config = %{"provider" => "openai", "model" => "gpt-4"}
+      {new_state, commands} = TUI.update({:config_changed, new_config}, state)
+
+      assert new_state.config.provider == "openai"
+      assert new_state.config.model == "gpt-4"
+      assert new_state.agent_status == :idle
+      assert commands == []
+    end
+
+    test "{:config_changed, config} sets unconfigured when provider nil" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        agent_status: :idle
+      }
+
+      new_config = %{provider: nil, model: "some-model"}
+      {new_state, _} = TUI.update({:config_changed, new_config}, state)
+
+      assert new_state.agent_status == :unconfigured
+    end
+  end
+
   describe "view/1" do
     alias TermUI.Component.RenderNode
 

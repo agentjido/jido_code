@@ -90,14 +90,11 @@ defmodule JidoCode.TUI do
   @doc """
   Initializes the TUI state.
 
-  Loads settings from disk, subscribes to PubSub events, and determines
-  initial agent status based on configuration.
+  Loads settings from disk and determines initial agent status based on configuration.
+  PubSub subscription is handled by PubSubBridge which forwards messages to this component.
   """
   @impl true
   def init(_opts) do
-    # Subscribe to TUI events
-    Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
-
     # Load configuration from settings
     config = load_config()
 
@@ -202,8 +199,74 @@ defmodule JidoCode.TUI do
     {%{state | window: {width, height}}, []}
   end
 
+  # ============================================================================
+  # PubSub Message Handlers
+  # ============================================================================
+
+  # Handles agent response from PubSub - adds assistant message to conversation history
+  def update({:agent_response, content}, state) do
+    message = %{
+      role: :assistant,
+      content: content,
+      timestamp: DateTime.utc_now()
+    }
+
+    new_state = %{state |
+      messages: state.messages ++ [message],
+      agent_status: :idle
+    }
+
+    {new_state, []}
+  end
+
+  # Handles agent status change from PubSub - updates the agent_status indicator
+  def update({:agent_status, status}, state) when status in [:idle, :processing, :error] do
+    {%{state | agent_status: status}, []}
+  end
+
+  # Handles reasoning step update from PubSub - adds or updates reasoning steps for CoT display
+  def update({:reasoning_step, step}, state) do
+    # Add new step or update existing one based on step content
+    new_steps = update_reasoning_steps(state.reasoning_steps, step)
+    {%{state | reasoning_steps: new_steps}, []}
+  end
+
+  # Handles configuration change from PubSub - updates config and re-determines status
+  def update({:config_changed, new_config}, state) do
+    config = %{
+      provider: Map.get(new_config, :provider) || Map.get(new_config, "provider"),
+      model: Map.get(new_config, :model) || Map.get(new_config, "model")
+    }
+
+    status = determine_status(config)
+
+    {%{state | config: config, agent_status: status}, []}
+  end
+
   def update(_msg, state) do
     {state, []}
+  end
+
+  # ============================================================================
+  # Reasoning Step Helpers
+  # ============================================================================
+
+  defp update_reasoning_steps(steps, %{step: step_text, status: status}) do
+    # Look for existing step with same text
+    case Enum.find_index(steps, fn s -> s.step == step_text end) do
+      nil ->
+        # Add new step
+        steps ++ [%{step: step_text, status: status}]
+
+      index ->
+        # Update existing step status
+        List.update_at(steps, index, fn s -> %{s | status: status} end)
+    end
+  end
+
+  defp update_reasoning_steps(steps, step_text) when is_binary(step_text) do
+    # Simple text step - add as pending
+    steps ++ [%{step: step_text, status: :pending}]
   end
 
   @doc """
@@ -232,11 +295,37 @@ defmodule JidoCode.TUI do
   @doc """
   Runs the TUI application.
 
+  Starts the TermUI Runtime with a registered name, then starts the PubSub bridge
+  to forward agent events to the TUI component.
+
   This blocks the calling process until the TUI exits (e.g., user presses Ctrl+C).
   """
   @spec run() :: :ok
   def run do
-    TermUI.Runtime.run(root: __MODULE__)
+    # Start runtime with registered name so PubSubBridge can send messages to it
+    {:ok, runtime_pid} = TermUI.Runtime.start_link(
+      root: __MODULE__,
+      name: __MODULE__.Runtime
+    )
+
+    # Monitor runtime to know when it exits
+    ref = Process.monitor(runtime_pid)
+
+    # Start PubSub bridge to forward agent events to the TUI
+    {:ok, bridge_pid} = JidoCode.TUI.PubSubBridge.start_link(
+      runtime: __MODULE__.Runtime,
+      name: __MODULE__.PubSubBridge
+    )
+
+    # Block until runtime exits
+    receive do
+      {:DOWN, ^ref, :process, ^runtime_pid, _reason} ->
+        # Stop the bridge when runtime exits
+        if Process.alive?(bridge_pid) do
+          JidoCode.TUI.PubSubBridge.stop(bridge_pid)
+        end
+        :ok
+    end
   end
 
   # ============================================================================

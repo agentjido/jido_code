@@ -30,12 +30,15 @@ defmodule JidoCode.TUI do
   - `agent_status` - Current agent state (:idle, :processing, :error, :unconfigured)
   - `config` - Provider and model configuration
   - `reasoning_steps` - Chain-of-Thought progress
+  - `tool_calls` - Tool execution history with results
   - `window` - Terminal dimensions
   """
 
   use TermUI.Elm
 
   alias JidoCode.Settings
+  alias JidoCode.Tools.Display
+  alias JidoCode.Tools.Result
   alias TermUI.Event
   alias TermUI.Renderer.Style
 
@@ -68,6 +71,9 @@ defmodule JidoCode.TUI do
           | {:config_change, map()}
           | {:reasoning_step, Model.reasoning_step()}
           | :clear_reasoning_steps
+          | {:tool_call, String.t(), map(), String.t()}
+          | {:tool_result, Result.t()}
+          | :toggle_tool_details
 
   # Maximum number of messages to keep in the debug queue
   @max_queue_size 100
@@ -92,6 +98,14 @@ defmodule JidoCode.TUI do
             status: :pending | :active | :complete
           }
 
+    @type tool_call_entry :: %{
+            call_id: String.t(),
+            tool_name: String.t(),
+            params: map(),
+            result: JidoCode.Tools.Result.t() | nil,
+            timestamp: DateTime.t()
+          }
+
     @type agent_status :: :idle | :processing | :error | :unconfigured
 
     @type queued_message :: {term(), DateTime.t()}
@@ -102,6 +116,8 @@ defmodule JidoCode.TUI do
             agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
             reasoning_steps: [reasoning_step()],
+            tool_calls: [tool_call_entry()],
+            show_tool_details: boolean(),
             window: {non_neg_integer(), non_neg_integer()},
             message_queue: [queued_message()],
             scroll_offset: non_neg_integer(),
@@ -114,6 +130,8 @@ defmodule JidoCode.TUI do
               agent_status: :unconfigured,
               config: %{provider: nil, model: nil},
               reasoning_steps: [],
+              tool_calls: [],
+              show_tool_details: false,
               window: {80, 24},
               message_queue: [],
               scroll_offset: 0,
@@ -147,6 +165,8 @@ defmodule JidoCode.TUI do
       agent_status: status,
       config: config,
       reasoning_steps: [],
+      tool_calls: [],
+      show_tool_details: false,
       window: {80, 24},
       message_queue: [],
       scroll_offset: 0,
@@ -185,6 +205,14 @@ defmodule JidoCode.TUI do
       :toggle_reasoning
     else
       {:key_input, "r"}
+    end
+  end
+
+  def event_to_msg(%Event.Key{key: :t, modifiers: modifiers}, _state) do
+    if :ctrl in modifiers do
+      :toggle_tool_details
+    else
+      {:key_input, "t"}
     end
   end
 
@@ -322,6 +350,51 @@ defmodule JidoCode.TUI do
 
   def update(:toggle_reasoning, state) do
     {%{state | show_reasoning: not state.show_reasoning}, []}
+  end
+
+  def update(:toggle_tool_details, state) do
+    {%{state | show_tool_details: not state.show_tool_details}, []}
+  end
+
+  # Tool call handling - add pending tool call to list
+  def update({:tool_call, tool_name, params, call_id}, state) do
+    tool_call_entry = %{
+      call_id: call_id,
+      tool_name: tool_name,
+      params: params,
+      result: nil,
+      timestamp: DateTime.utc_now()
+    }
+
+    queue = queue_message(state.message_queue, {:tool_call, tool_name, params, call_id})
+
+    new_state = %{state |
+      tool_calls: state.tool_calls ++ [tool_call_entry],
+      message_queue: queue
+    }
+
+    {new_state, []}
+  end
+
+  # Tool result handling - match result to pending call and update
+  def update({:tool_result, %Result{} = result}, state) do
+    updated_tool_calls =
+      Enum.map(state.tool_calls, fn entry ->
+        if entry.call_id == result.tool_call_id do
+          %{entry | result: result}
+        else
+          entry
+        end
+      end)
+
+    queue = queue_message(state.message_queue, {:tool_result, result})
+
+    new_state = %{state |
+      tool_calls: updated_tool_calls,
+      message_queue: queue
+    }
+
+    {new_state, []}
   end
 
   # Catch-all for unhandled messages
@@ -546,7 +619,8 @@ defmodule JidoCode.TUI do
     status_text = format_status(state.agent_status)
     cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
     reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
-    hints = "#{reasoning_hint} | Ctrl+M: Model | Ctrl+C: Quit"
+    tools_hint = if state.show_tool_details, do: "Ctrl+T: Hide", else: "Ctrl+T: Tools"
+    hints = "#{reasoning_hint} | #{tools_hint} | Ctrl+M: Model | Ctrl+C: Quit"
 
     # Build the full status bar text
     full_text = "#{config_text} | #{status_text}#{cot_indicator} | #{hints}"
@@ -614,12 +688,12 @@ defmodule JidoCode.TUI do
     # Reserve 2 lines for status bar and input bar
     available_height = max(height - 2, 1)
 
-    case state.messages do
-      [] ->
-        render_empty_conversation(available_height)
+    has_content = state.messages != [] or state.tool_calls != []
 
-      messages ->
-        render_messages(messages, available_height, width, state.scroll_offset)
+    if has_content do
+      render_conversation_content(state, available_height, width)
+    else
+      render_empty_conversation(available_height)
     end
   end
 
@@ -630,19 +704,25 @@ defmodule JidoCode.TUI do
     ])
   end
 
-  defp render_messages(messages, available_height, width, scroll_offset) do
+  defp render_conversation_content(state, available_height, width) do
     # Build message lines with text wrapping
-    message_lines = Enum.flat_map(messages, &format_message(&1, width))
+    message_lines = Enum.flat_map(state.messages, &format_message(&1, width))
 
-    total_lines = length(message_lines)
+    # Build tool call lines
+    tool_call_lines = Enum.flat_map(state.tool_calls, &format_tool_call_entry(&1, state.show_tool_details))
+
+    # Combine all lines (tool calls appear after messages for now)
+    all_lines = message_lines ++ tool_call_lines
+
+    total_lines = length(all_lines)
 
     # Calculate which lines to show based on scroll offset
     # scroll_offset of 0 = show latest, higher = show older
-    end_index = total_lines - scroll_offset
+    end_index = total_lines - state.scroll_offset
     start_index = max(end_index - available_height, 0)
 
     visible_lines =
-      message_lines
+      all_lines
       |> Enum.slice(start_index, available_height)
 
     stack(:vertical, visible_lines)
@@ -685,6 +765,60 @@ defmodule JidoCode.TUI do
   defp role_style(:user), do: Style.new(fg: :cyan)
   defp role_style(:assistant), do: Style.new(fg: :white)
   defp role_style(:system), do: Style.new(fg: :yellow)
+
+  # ============================================================================
+  # View Helpers - Tool Calls
+  # ============================================================================
+
+  @doc """
+  Formats a tool call entry for display.
+
+  Returns a list of render nodes representing the tool call and its result.
+
+  ## Parameters
+
+  - `entry` - Tool call entry with call_id, tool_name, params, result, timestamp
+  - `show_details` - Whether to show full details (true) or condensed (false)
+  """
+  def format_tool_call_entry(entry, show_details) do
+    call_line = render_tool_call_line(entry)
+    result_lines = render_tool_result_lines(entry, show_details)
+
+    [call_line | result_lines]
+  end
+
+  defp render_tool_call_line(entry) do
+    ts = format_timestamp(entry.timestamp)
+    formatted = Display.format_tool_call(entry.tool_name, entry.params, entry.call_id)
+    style = Style.new(fg: :bright_black)
+
+    text("#{ts} #{formatted}", style)
+  end
+
+  defp render_tool_result_lines(%{result: nil}, _show_details) do
+    # No result yet - tool is still executing
+    [text("       ⋯ executing...", Style.new(fg: :bright_black, attrs: [:dim]))]
+  end
+
+  defp render_tool_result_lines(%{result: result}, show_details) do
+    {icon, style} = tool_result_style(result.status)
+    duration_text = "[#{result.duration_ms}ms]"
+
+    content_preview =
+      if show_details do
+        result.content
+      else
+        Display.truncate_content(result.content, 80)
+      end
+
+    # Format the result line
+    result_text = "       #{icon} #{result.tool_name} #{duration_text}: #{content_preview}"
+    [text(result_text, style)]
+  end
+
+  defp tool_result_style(:ok), do: {"✓", Style.new(fg: :green)}
+  defp tool_result_style(:error), do: {"✗", Style.new(fg: :red)}
+  defp tool_result_style(:timeout), do: {"⏱", Style.new(fg: :yellow)}
 
   # ============================================================================
   # View Helpers - Input Bar

@@ -1273,4 +1273,404 @@ defmodule JidoCode.TUITest do
       assert view_text =~ "Not Configured"
     end
   end
+
+  # ============================================================================
+  # Tool Call Display Tests
+  # ============================================================================
+
+  describe "tool_calls and show_tool_details fields" do
+    test "Model has default empty tool_calls list" do
+      model = %Model{}
+      assert model.tool_calls == []
+    end
+
+    test "Model has default false show_tool_details" do
+      model = %Model{}
+      assert model.show_tool_details == false
+    end
+
+    test "init sets tool_calls to empty list" do
+      model = TUI.init([])
+      assert model.tool_calls == []
+    end
+
+    test "init sets show_tool_details to false" do
+      model = TUI.init([])
+      assert model.show_tool_details == false
+    end
+  end
+
+  describe "toggle_tool_details" do
+    test "Ctrl+T returns :toggle_tool_details" do
+      model = %Model{}
+      event = Event.key(:t, modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == :toggle_tool_details
+    end
+
+    test "plain 't' key returns {:key_input, \"t\"}" do
+      model = %Model{}
+      event = Event.key(:t, char: "t")
+
+      assert TUI.event_to_msg(event, model) == {:key_input, "t"}
+    end
+
+    test "toggle_tool_details flips show_tool_details from false to true" do
+      model = %Model{show_tool_details: false}
+
+      {new_model, commands} = TUI.update(:toggle_tool_details, model)
+
+      assert new_model.show_tool_details == true
+      assert commands == []
+    end
+
+    test "toggle_tool_details flips show_tool_details from true to false" do
+      model = %Model{show_tool_details: true}
+
+      {new_model, commands} = TUI.update(:toggle_tool_details, model)
+
+      assert new_model.show_tool_details == false
+      assert commands == []
+    end
+  end
+
+  describe "update/2 - tool_call message" do
+    test "adds tool call entry to tool_calls list" do
+      model = %Model{tool_calls: []}
+
+      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+
+      assert length(new_model.tool_calls) == 1
+      entry = hd(new_model.tool_calls)
+      assert entry.call_id == "call_123"
+      assert entry.tool_name == "read_file"
+      assert entry.params == %{"path" => "test.ex"}
+      assert entry.result == nil
+      assert %DateTime{} = entry.timestamp
+    end
+
+    test "appends to existing tool calls" do
+      existing = %{
+        call_id: "call_1",
+        tool_name: "grep",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [existing]}
+
+      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2"}, model)
+
+      assert length(new_model.tool_calls) == 2
+      assert Enum.at(new_model.tool_calls, 0).call_id == "call_1"
+      assert Enum.at(new_model.tool_calls, 1).call_id == "call_2"
+    end
+
+    test "adds tool_call to message queue" do
+      model = %Model{tool_calls: [], message_queue: []}
+
+      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+
+      assert length(new_model.message_queue) == 1
+      {{:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, _ts} = hd(new_model.message_queue)
+    end
+  end
+
+  describe "update/2 - tool_result message" do
+    alias JidoCode.Tools.Result
+
+    test "matches result to pending tool call by call_id" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending]}
+
+      result = Result.ok("call_123", "read_file", "file contents", 45)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      assert length(new_model.tool_calls) == 1
+      entry = hd(new_model.tool_calls)
+      assert entry.result != nil
+      assert entry.result.status == :ok
+      assert entry.result.content == "file contents"
+      assert entry.result.duration_ms == 45
+    end
+
+    test "does not modify unmatched tool calls" do
+      pending1 = %{
+        call_id: "call_1",
+        tool_name: "read_file",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      pending2 = %{
+        call_id: "call_2",
+        tool_name: "grep",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending1, pending2]}
+
+      result = Result.ok("call_1", "read_file", "content", 30)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      assert Enum.at(new_model.tool_calls, 0).result != nil
+      assert Enum.at(new_model.tool_calls, 1).result == nil
+    end
+
+    test "handles error results" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending]}
+
+      result = Result.error("call_123", "read_file", "File not found", 12)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      entry = hd(new_model.tool_calls)
+      assert entry.result.status == :error
+      assert entry.result.content == "File not found"
+    end
+
+    test "handles timeout results" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "slow_op",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending]}
+
+      result = Result.timeout("call_123", "slow_op", 30000)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      entry = hd(new_model.tool_calls)
+      assert entry.result.status == :timeout
+    end
+
+    test "adds tool_result to message queue" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending], message_queue: []}
+
+      result = Result.ok("call_123", "read_file", "content", 30)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      assert length(new_model.message_queue) == 1
+      {{:tool_result, ^result}, _ts} = hd(new_model.message_queue)
+    end
+  end
+
+  describe "format_tool_call_entry/2" do
+    alias JidoCode.Tools.Result
+
+    test "formats pending tool call (no result yet)" do
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: nil,
+        timestamp: DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      assert length(lines) == 2
+      # First line is the tool call
+      call_text = inspect(Enum.at(lines, 0))
+      assert call_text =~ "[14:32]"
+      assert call_text =~ "⚙"
+      assert call_text =~ "read_file"
+      # Second line is "executing..."
+      exec_text = inspect(Enum.at(lines, 1))
+      assert exec_text =~ "executing"
+    end
+
+    test "formats successful tool result" do
+      result = Result.ok("call_123", "read_file", "file contents", 45)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: result,
+        timestamp: DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      assert length(lines) == 2
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "✓"
+      assert result_text =~ "[45ms]"
+      assert result_text =~ "file contents"
+    end
+
+    test "formats error tool result" do
+      result = Result.error("call_123", "read_file", "File not found", 12)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "✗"
+      assert result_text =~ "File not found"
+    end
+
+    test "formats timeout tool result" do
+      result = Result.timeout("call_123", "slow_op", 30000)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "slow_op",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "⏱"
+      assert result_text =~ "[30000ms]"
+    end
+
+    test "truncates long content when show_details is false" do
+      long_content = String.duplicate("x", 200)
+      result = Result.ok("call_123", "read_file", long_content, 45)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "[...]"
+    end
+
+    test "shows full content when show_details is true" do
+      long_content = String.duplicate("x", 200)
+      result = Result.ok("call_123", "read_file", long_content, 45)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, true)
+
+      result_text = inspect(Enum.at(lines, 1))
+      refute result_text =~ "[...]"
+    end
+  end
+
+  describe "status bar tool hints" do
+    test "status bar shows Ctrl+T: Tools when show_tool_details is false" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_tool_details: false
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+T: Tools"
+    end
+
+    test "status bar shows Ctrl+T: Hide when show_tool_details is true" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_tool_details: true
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+T: Hide"
+    end
+  end
+
+  describe "tool calls in conversation view" do
+    alias JidoCode.Tools.Result
+
+    test "conversation shows tool calls" do
+      result = Result.ok("call_123", "read_file", "file contents", 45)
+      tool_call = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [],
+        tool_calls: [tool_call]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "⚙"
+      assert view_text =~ "read_file"
+      assert view_text =~ "✓"
+    end
+
+    test "conversation shows tool call without empty message text" do
+      tool_call = %{
+        call_id: "call_123",
+        tool_name: "grep",
+        params: %{"pattern" => "TODO"},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [],
+        tool_calls: [tool_call]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Should NOT show "No messages yet" when there are tool calls
+      refute view_text =~ "No messages yet"
+      assert view_text =~ "grep"
+    end
+  end
 end

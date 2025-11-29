@@ -140,13 +140,23 @@ Create the foundation modules for RDF-based knowledge representation.
 - 924 tests total, 0 failures
 
 ### 5.3.2 Graph Operations Placeholder
-- [ ] **Task 5.3.2 Complete**
+- [x] **Task 5.3.2 Complete**
 
 Create libgraph-based infrastructure for in-memory graph algorithms.
 
-- [ ] 5.3.2.1 Create `JidoCode.KnowledgeGraph.InMemory` module using libgraph
-- [ ] 5.3.2.2 Implement stub `build_dependency_graph/1` returning empty graph
-- [ ] 5.3.2.3 Implement stub `find_related_entities/2` returning empty list
-- [ ] 5.3.2.4 Define graph schema for code relationships (calls, defines, imports)
-- [ ] 5.3.2.5 Add placeholder for future GraphRAG integration
-- [ ] 5.3.2.6 Write basic test verifying libgraph operations work (success: graph creation/traversal)
+- [x] 5.3.2.1 Create `JidoCode.KnowledgeGraph.InMemory` module using libgraph
+- [x] 5.3.2.2 Implement stub `build_dependency_graph/1` returning empty graph
+- [x] 5.3.2.3 Implement stub `find_related_entities/2` returning empty list
+- [x] 5.3.2.4 Define graph schema for code relationships (calls, defines, imports)
+- [x] 5.3.2.5 Add placeholder for future GraphRAG integration
+- [x] 5.3.2.6 Write basic test verifying libgraph operations work (success: graph creation/traversal)
+
+**Implementation Notes:**
+- `JidoCode.KnowledgeGraph.InMemory` wraps libgraph with directed graph for code relationships
+- Graph schema defines 8 edge types (defines, calls, imports, uses, implements, depends_on, supervises, aliases)
+- Graph schema defines 8 entity types matching Entity struct (module, function, type, protocol, behaviour, macro, struct, exception)
+- Working helpers: new/0, empty?/1, vertex_count/1, edge_count/1
+- Stub functions return `{:error, :not_implemented}`
+- `JidoCode.KnowledgeGraph.GraphRAG` placeholder with query/3, build_context/3, rank_entities/3
+- 25 new tests for InMemory and GraphRAG modules
+- 954 tests total, 0 failures

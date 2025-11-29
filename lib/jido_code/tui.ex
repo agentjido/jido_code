@@ -290,123 +290,11 @@ defmodule JidoCode.TUI do
 
       # Command input - starts with /
       String.starts_with?(text, "/") ->
-        handle_command(text, state)
+        do_handle_command(text, state)
 
       # Chat input - requires configured provider/model
       true ->
-        handle_chat_submit(text, state)
-    end
-  end
-
-  # Handle slash commands
-  defp handle_command(text, state) do
-    case Commands.execute(text, state.config) do
-      {:ok, message, new_config} ->
-        system_msg = %{
-          role: :system,
-          content: message,
-          timestamp: DateTime.utc_now()
-        }
-
-        # Merge new config with existing config
-        updated_config =
-          if map_size(new_config) > 0 do
-            %{
-              provider: new_config[:provider] || state.config.provider,
-              model: new_config[:model] || state.config.model
-            }
-          else
-            state.config
-          end
-
-        # Determine new status based on config
-        new_status = determine_status(updated_config)
-
-        new_state = %{state |
-          input_buffer: "",
-          messages: state.messages ++ [system_msg],
-          config: updated_config,
-          agent_status: new_status
-        }
-
-        {new_state, []}
-
-      {:error, error_message} ->
-        error_msg = %{
-          role: :system,
-          content: error_message,
-          timestamp: DateTime.utc_now()
-        }
-
-        new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
-        {new_state, []}
-    end
-  end
-
-  # Handle chat message submission
-  defp handle_chat_submit(text, state) do
-    # Check if provider and model are configured
-    case {state.config.provider, state.config.model} do
-      {nil, _} ->
-        show_config_error(state)
-
-      {_, nil} ->
-        show_config_error(state)
-
-      {_provider, _model} ->
-        dispatch_to_agent(text, state)
-    end
-  end
-
-  defp show_config_error(state) do
-    error_msg = %{
-      role: :system,
-      content: "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select.",
-      timestamp: DateTime.utc_now()
-    }
-
-    new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
-    {new_state, []}
-  end
-
-  defp dispatch_to_agent(text, state) do
-    # Add user message to conversation
-    user_msg = %{role: :user, content: text, timestamp: DateTime.utc_now()}
-
-    # Classify query for CoT (for future use)
-    _use_cot = QueryClassifier.should_use_cot?(text)
-
-    # Look up and dispatch to agent with streaming
-    case AgentSupervisor.lookup_agent(state.agent_name) do
-      {:ok, agent_pid} ->
-        # Dispatch async with streaming - agent will broadcast chunks via PubSub
-        LLMAgent.chat_stream(agent_pid, text)
-
-        new_state = %{state |
-          input_buffer: "",
-          messages: state.messages ++ [user_msg],
-          agent_status: :processing,
-          scroll_offset: 0,
-          streaming_message: "",
-          is_streaming: true
-        }
-
-        {new_state, []}
-
-      {:error, :not_found} ->
-        error_msg = %{
-          role: :system,
-          content: "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})",
-          timestamp: DateTime.utc_now()
-        }
-
-        new_state = %{state |
-          input_buffer: "",
-          messages: state.messages ++ [user_msg, error_msg],
-          agent_status: :error
-        }
-
-        {new_state, []}
+        do_handle_chat_submit(text, state)
     end
   end
 
@@ -591,6 +479,122 @@ defmodule JidoCode.TUI do
   # Catch-all for unhandled messages
   def update(_msg, state) do
     {state, []}
+  end
+
+  # ============================================================================
+  # Update Helpers
+  # ============================================================================
+
+  # Handle command input (starts with /)
+  defp do_handle_command(text, state) do
+    case Commands.execute(text, state.config) do
+      {:ok, message, new_config} ->
+        system_msg = %{
+          role: :system,
+          content: message,
+          timestamp: DateTime.utc_now()
+        }
+
+        # Merge new config with existing config
+        updated_config =
+          if map_size(new_config) > 0 do
+            %{
+              provider: new_config[:provider] || state.config.provider,
+              model: new_config[:model] || state.config.model
+            }
+          else
+            state.config
+          end
+
+        # Determine new status based on config
+        new_status = determine_status(updated_config)
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [system_msg],
+          config: updated_config,
+          agent_status: new_status
+        }
+
+        {new_state, []}
+
+      {:error, error_message} ->
+        error_msg = %{
+          role: :system,
+          content: error_message,
+          timestamp: DateTime.utc_now()
+        }
+
+        new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+        {new_state, []}
+    end
+  end
+
+  # Handle chat message submission
+  defp do_handle_chat_submit(text, state) do
+    # Check if provider and model are configured
+    case {state.config.provider, state.config.model} do
+      {nil, _} ->
+        do_show_config_error(state)
+
+      {_, nil} ->
+        do_show_config_error(state)
+
+      {_provider, _model} ->
+        do_dispatch_to_agent(text, state)
+    end
+  end
+
+  defp do_show_config_error(state) do
+    error_msg = %{
+      role: :system,
+      content: "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select.",
+      timestamp: DateTime.utc_now()
+    }
+
+    new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+    {new_state, []}
+  end
+
+  defp do_dispatch_to_agent(text, state) do
+    # Add user message to conversation
+    user_msg = %{role: :user, content: text, timestamp: DateTime.utc_now()}
+
+    # Classify query for CoT (for future use)
+    _use_cot = QueryClassifier.should_use_cot?(text)
+
+    # Look up and dispatch to agent with streaming
+    case AgentSupervisor.lookup_agent(state.agent_name) do
+      {:ok, agent_pid} ->
+        # Dispatch async with streaming - agent will broadcast chunks via PubSub
+        LLMAgent.chat_stream(agent_pid, text)
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [user_msg],
+          agent_status: :processing,
+          scroll_offset: 0,
+          streaming_message: "",
+          is_streaming: true
+        }
+
+        {new_state, []}
+
+      {:error, :not_found} ->
+        error_msg = %{
+          role: :system,
+          content: "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})",
+          timestamp: DateTime.utc_now()
+        }
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [user_msg, error_msg],
+          agent_status: :error
+        }
+
+        {new_state, []}
+    end
   end
 
   @doc """

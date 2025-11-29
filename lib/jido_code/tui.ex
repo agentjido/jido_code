@@ -482,10 +482,10 @@ defmodule JidoCode.TUI do
   end
 
   # ============================================================================
-  # Submit Handlers (extracted from update/2 for code organization)
+  # Update Helpers
   # ============================================================================
 
-  # Handle slash commands
+  # Handle command input (starts with /)
   defp do_handle_command(text, state) do
     case Commands.execute(text, state.config) do
       {:ok, message, new_config} ->

@@ -422,7 +422,6 @@ defmodule JidoCode.TUI do
   # Private Helpers
   # ============================================================================
 
-  @spec load_config() :: %{provider: String.t() | nil, model: String.t() | nil}
   defp load_config do
     {:ok, settings} = Settings.load()
 
@@ -433,7 +432,6 @@ defmodule JidoCode.TUI do
   end
 
   @doc false
-  @spec determine_status(%{provider: String.t() | nil, model: String.t() | nil}) :: Model.agent_status()
   def determine_status(config) do
     cond do
       is_nil(config.provider) -> :unconfigured
@@ -566,20 +564,19 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Optimized scroll offset handling using Enum.take/2 instead of double Enum.reverse/1
+  defp get_visible_messages(messages, 0), do: messages
+  defp get_visible_messages(messages, scroll_offset) do
+    keep_count = length(messages) - scroll_offset
+    if keep_count > 0, do: Enum.take(messages, keep_count), else: messages
+  end
+
   defp render_messages(state) do
     {width, _height} = state.window
     messages = state.messages
 
     # Apply scroll offset - skip messages from the end
-    visible_messages =
-      if state.scroll_offset > 0 do
-        messages
-        |> Enum.reverse()
-        |> Enum.drop(state.scroll_offset)
-        |> Enum.reverse()
-      else
-        messages
-      end
+    visible_messages = get_visible_messages(messages, state.scroll_offset)
 
     message_nodes =
       visible_messages
@@ -596,38 +593,20 @@ defmodule JidoCode.TUI do
     stack(:vertical, [text("") | message_nodes] ++ scroll_indicator)
   end
 
-  defp render_message(%{role: :user, content: content, timestamp: timestamp}, width) do
+  # Message role configuration: {label, style}
+  defp message_config(:user), do: {"You", Style.new(fg: :cyan)}
+  defp message_config(:assistant), do: {"Assistant", Style.new(fg: :white)}
+  defp message_config(:system), do: {"System", Style.new(fg: :bright_black)}
+
+  defp render_message(%{role: role, content: content, timestamp: timestamp}, width) do
+    {label, style} = message_config(role)
     time_str = format_timestamp(timestamp)
-    prefix = "[#{time_str}] You: "
+    prefix = "[#{time_str}] #{label}: "
     wrapped_lines = wrap_message(prefix, content, width)
 
     lines_as_nodes =
       wrapped_lines
-      |> Enum.map(fn line -> text(line, Style.new(fg: :cyan)) end)
-
-    stack(:vertical, lines_as_nodes)
-  end
-
-  defp render_message(%{role: :assistant, content: content, timestamp: timestamp}, width) do
-    time_str = format_timestamp(timestamp)
-    prefix = "[#{time_str}] Assistant: "
-    wrapped_lines = wrap_message(prefix, content, width)
-
-    lines_as_nodes =
-      wrapped_lines
-      |> Enum.map(fn line -> text(line, Style.new(fg: :white)) end)
-
-    stack(:vertical, lines_as_nodes)
-  end
-
-  defp render_message(%{role: :system, content: content, timestamp: timestamp}, width) do
-    time_str = format_timestamp(timestamp)
-    prefix = "[#{time_str}] System: "
-    wrapped_lines = wrap_message(prefix, content, width)
-
-    lines_as_nodes =
-      wrapped_lines
-      |> Enum.map(fn line -> text(line, Style.new(fg: :bright_black)) end)
+      |> Enum.map(fn line -> text(line, style) end)
 
     stack(:vertical, lines_as_nodes)
   end
@@ -661,6 +640,7 @@ defmodule JidoCode.TUI do
 
   # Wraps text at word boundaries
   @doc false
+  @spec wrap_text(String.t(), non_neg_integer(), non_neg_integer()) :: [String.t()]
   def wrap_text(text, first_line_width, continuation_width) do
     words = String.split(text, ~r/\s+/, trim: true)
 

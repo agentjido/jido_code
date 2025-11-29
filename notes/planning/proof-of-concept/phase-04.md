@@ -111,17 +111,33 @@ Display current configuration and agent status in status bar. Handle unconfigure
 A new widget for term_ui (`../term_ui`) that displays a scrollable modal overlay for selecting from a list of items. Used for provider and model selection.
 
 ### 4.3.1 Pick-List Widget Implementation
-- [ ] **Task 4.3.1 Complete**
+- [x] **Task 4.3.1 Complete**
 
 Create the pick-list widget in the term_ui library.
 
-- [ ] 4.3.1.1 Create `TermUI.Widget.PickList` module in `../term_ui`
-- [ ] 4.3.1.2 Render as modal overlay centered on screen with border
-- [ ] 4.3.1.3 Display scrollable list of items with current selection highlighted
-- [ ] 4.3.1.4 Support keyboard navigation: Up/Down arrows, Page Up/Down, Home/End
-- [ ] 4.3.1.5 Support type-ahead filtering: typing filters list to matching items
-- [ ] 4.3.1.6 Enter key confirms selection and returns selected value
-- [ ] 4.3.1.7 Escape key cancels and returns nil
-- [ ] 4.3.1.8 Display item count and current position: "Item 5 of 50"
-- [ ] 4.3.1.9 Handle empty list state gracefully
-- [ ] 4.3.1.10 Write widget tests for navigation and selection (success: all interactions work)
+- [x] 4.3.1.1 Create `TermUI.Widget.PickList` module in `../term_ui`
+- [x] 4.3.1.2 Render as modal overlay centered on screen with border
+- [x] 4.3.1.3 Display scrollable list of items with current selection highlighted
+- [x] 4.3.1.4 Support keyboard navigation: Up/Down arrows, Page Up/Down, Home/End
+- [x] 4.3.1.5 Support type-ahead filtering: typing filters list to matching items
+- [x] 4.3.1.6 Enter key confirms selection and returns selected value
+- [x] 4.3.1.7 Escape key cancels and returns nil
+- [x] 4.3.1.8 Display item count and current position: "Item 5 of 50"
+- [x] 4.3.1.9 Handle empty list state gracefully
+- [x] 4.3.1.10 Write widget tests for navigation and selection (success: all interactions work)
+
+## 4.4 Code Review Fixes
+
+Post-implementation improvements based on Phase 4 review.
+
+### 4.4.1 Review Concerns Addressed
+- [x] **Task 4.4.1 Complete**
+
+Address concerns identified in `notes/reviews/phase-04-review.md`.
+
+- [x] 4.4.1.1 Consolidate message rendering duplication via `message_config/1` helper
+- [x] 4.4.1.2 Remove `@spec` from private functions (`load_config/0`, `determine_status/1`)
+- [x] 4.4.1.3 Add `@spec` to public function `wrap_text/3`
+- [x] 4.4.1.4 Optimize scroll offset with `Enum.take/2` instead of double `Enum.reverse/1`
+- [x] 4.4.1.5 Remove unused test helper `find_step_node/1`
+- [x] 4.4.1.6 Verify all 75 tests pass

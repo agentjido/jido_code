@@ -978,28 +978,6 @@ defmodule JidoCode.TUITest do
 
   defp find_message_with_content(_, _), do: nil
 
-  # Helper to find a step node (text with status indicator)
-  defp find_step_node(nodes) when is_list(nodes) do
-    Enum.find_value(nodes, fn node -> find_step_node(node) end)
-  end
-
-  defp find_step_node(%RenderNode{type: :text, content: content} = node)
-       when is_binary(content) do
-    # Step nodes contain status indicators
-    if String.contains?(content, "✓") or String.contains?(content, "●") or
-         String.contains?(content, "○") do
-      node
-    else
-      nil
-    end
-  end
-
-  defp find_step_node(%RenderNode{type: :stack, children: children}) do
-    find_step_node(children)
-  end
-
-  defp find_step_node(_), do: nil
-
   # Helper to find a step node with checkmark (complete indicator only)
   defp find_step_with_checkmark(nodes) when is_list(nodes) do
     Enum.find_value(nodes, fn node -> find_step_with_checkmark(node) end)

@@ -27,18 +27,24 @@ Create unit tests for all core modules.
 - 954 total tests, 0 failures, 2 skipped
 
 ### 6.1.2 Integration Tests
-- [ ] **Task 6.1.2 Complete**
+- [x] **Task 6.1.2 Complete**
 
 Create integration tests for end-to-end flows.
 
-- [ ] 6.1.2.1 Test supervision tree startup and process registration
-- [ ] 6.1.2.2 Test agent start/configure/stop lifecycle
-- [ ] 6.1.2.3 Test full message flow with mocked LLM responses
-- [ ] 6.1.2.4 Test PubSub message delivery between agent and TUI
-- [ ] 6.1.2.5 Test model switching during active session
-- [ ] 6.1.2.6 Test tool execution flow: agent → executor → manager → bridge
-- [ ] 6.1.2.7 Test tool sandbox prevents path traversal and shell escape
-- [ ] 6.1.2.8 Test graceful error handling and recovery
+- [x] 6.1.2.1 Test supervision tree startup and process registration
+- [x] 6.1.2.2 Test agent start/configure/stop lifecycle
+- [x] 6.1.2.3 Test full message flow with mocked LLM responses
+- [x] 6.1.2.4 Test PubSub message delivery between agent and TUI
+- [x] 6.1.2.5 Test model switching during active session
+- [x] 6.1.2.6 Test tool execution flow: agent → executor → manager → bridge
+- [x] 6.1.2.7 Test tool sandbox prevents path traversal and shell escape
+- [x] 6.1.2.8 Test graceful error handling and recovery
+
+**Implementation Notes:**
+- 44 integration tests covering all 8 end-to-end flows
+- Tests use mocked LLM responses to avoid real API calls
+- Environment isolation used to prevent test interference
+- All tests tagged with `@moduletag :integration` for filtering
 
 ## 6.2 Documentation
 

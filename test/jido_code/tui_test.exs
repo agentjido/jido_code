@@ -323,29 +323,234 @@ defmodule JidoCode.TUITest do
   describe "view/1" do
     alias TermUI.Component.RenderNode
 
-    test "returns a render tree" do
+    test "returns a three-pane vertical layout" do
       state = %Model{}
       view = TUI.view(state)
 
-      # View should return a RenderNode with type :stack
+      # View should return a RenderNode with type :stack (vertical)
       assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
       assert is_list(children)
-      assert length(children) > 0
+      # Three panes: status bar, conversation, input bar
+      assert length(children) == 3
     end
 
-    test "includes status bar in view" do
+    test "first pane is status bar with blue background" do
       state = %Model{
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
         agent_status: :idle
       }
 
-      %RenderNode{children: children} = TUI.view(state)
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
 
-      # First child should be status bar (text with style)
-      [status_bar | _rest] = children
       assert %RenderNode{type: :text, content: content, style: style} = status_bar
-      assert content =~ "anthropic"
+      assert content =~ "anthropic:claude-3-5-sonnet"
+      assert content =~ "Idle"
+      assert content =~ "Ctrl+C: Quit"
       assert style.bg == :blue
+      assert style.fg == :white
+    end
+
+    test "status bar shows 'No provider configured' when unconfigured" do
+      state = %Model{
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :text, content: content} = status_bar
+      assert content =~ "No provider configured"
+      assert content =~ "Not Configured"
+    end
+
+    test "status bar shows processing status" do
+      state = %Model{
+        config: %{provider: "openai", model: "gpt-4"},
+        agent_status: :processing
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :text, content: content} = status_bar
+      assert content =~ "Processing..."
+    end
+
+    test "status bar shows CoT indicator when reasoning steps are active" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        agent_status: :processing,
+        reasoning_steps: [
+          %{step: "Analyzing", status: :complete},
+          %{step: "Planning", status: :active},
+          %{step: "Executing", status: :pending}
+        ]
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :text, content: content} = status_bar
+      assert content =~ "CoT: 1/3"
+    end
+
+    test "second pane is conversation area" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        agent_status: :idle,
+        messages: []
+      }
+
+      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+
+      # Conversation should be a stack
+      assert %RenderNode{type: :stack, direction: :vertical} = conversation
+    end
+
+    test "conversation shows welcome message when empty and configured" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        agent_status: :idle,
+        messages: []
+      }
+
+      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+
+      # Check for welcome text in conversation
+      assert %RenderNode{type: :stack, children: children} = conversation
+      texts = extract_texts(children)
+      assert Enum.any?(texts, &(&1 =~ "JidoCode"))
+      assert Enum.any?(texts, &(&1 =~ "Ready"))
+    end
+
+    test "conversation shows configuration message when unconfigured" do
+      state = %Model{
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured,
+        messages: []
+      }
+
+      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: children} = conversation
+      texts = extract_texts(children)
+      assert Enum.any?(texts, &(&1 =~ "Configuration Required"))
+    end
+
+    test "conversation displays user messages with cyan styling" do
+      timestamp = DateTime.utc_now()
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        agent_status: :idle,
+        messages: [
+          %{role: :user, content: "Hello, assistant!", timestamp: timestamp}
+        ]
+      }
+
+      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+
+      # Find the message in the conversation
+      assert %RenderNode{type: :stack, children: children} = conversation
+      user_message = find_message_with_content(children, "Hello, assistant!")
+      assert user_message != nil
+      assert user_message.style.fg == :cyan
+    end
+
+    test "conversation displays assistant messages with white styling" do
+      timestamp = DateTime.utc_now()
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        agent_status: :idle,
+        messages: [
+          %{role: :assistant, content: "Hello, human!", timestamp: timestamp}
+        ]
+      }
+
+      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: children} = conversation
+      assistant_message = find_message_with_content(children, "Hello, human!")
+      assert assistant_message != nil
+      assert assistant_message.style.fg == :white
+    end
+
+    test "messages include timestamps" do
+      timestamp = ~U[2024-01-15 14:30:00Z]
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        agent_status: :idle,
+        messages: [
+          %{role: :user, content: "Test message", timestamp: timestamp}
+        ]
+      }
+
+      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: children} = conversation
+      texts = extract_texts(children)
+      # Should show HH:MM format
+      assert Enum.any?(texts, &(&1 =~ "[14:30]"))
+    end
+
+    test "third pane is input bar with green prompt" do
+      state = %Model{
+        input_buffer: "test input"
+      }
+
+      %RenderNode{children: [_status, _conversation, input_bar]} = TUI.view(state)
+
+      # Input bar should be horizontal stack with prompt and buffer
+      assert %RenderNode{type: :stack, direction: :horizontal, children: [prompt, buffer]} = input_bar
+
+      # Check prompt styling
+      assert %RenderNode{type: :text, content: "> ", style: style} = prompt
+      assert style.fg == :green
+      assert :bold in MapSet.to_list(style.attrs)
+
+      # Check buffer content
+      assert %RenderNode{type: :text, content: "test input"} = buffer
+    end
+
+    test "input bar shows empty buffer" do
+      state = %Model{
+        input_buffer: ""
+      }
+
+      %RenderNode{children: [_status, _conversation, input_bar]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, direction: :horizontal, children: [_prompt, buffer]} = input_bar
+      assert %RenderNode{type: :text, content: ""} = buffer
     end
   end
+
+  # Helper functions for view tests
+
+  alias TermUI.Component.RenderNode
+
+  defp extract_texts(nodes) when is_list(nodes) do
+    Enum.flat_map(nodes, &extract_texts/1)
+  end
+
+  defp extract_texts(%RenderNode{type: :text, content: content}) when is_binary(content) do
+    [content]
+  end
+
+  defp extract_texts(%RenderNode{type: :stack, children: children}) do
+    extract_texts(children)
+  end
+
+  defp extract_texts(_), do: []
+
+  defp find_message_with_content(nodes, content) when is_list(nodes) do
+    Enum.find_value(nodes, fn node -> find_message_with_content(node, content) end)
+  end
+
+  defp find_message_with_content(%RenderNode{type: :text, content: text_content} = node, content)
+       when is_binary(text_content) do
+    if String.contains?(text_content, content), do: node, else: nil
+  end
+
+  defp find_message_with_content(%RenderNode{type: :stack, children: children}, content) do
+    find_message_with_content(children, content)
+  end
+
+  defp find_message_with_content(_, _), do: nil
 end

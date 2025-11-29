@@ -272,19 +272,17 @@ defmodule JidoCode.TUI do
   @doc """
   Renders the current state to a render tree.
 
-  Currently renders a placeholder view. Full view implementation
-  will be done in task 4.2.1.
+  Implements a three-pane layout:
+  - Status bar at top (provider:model, status indicator, keyboard hints)
+  - Conversation area in the middle (message history)
+  - Input bar at bottom (prompt + input buffer)
   """
   @impl true
   def view(state) do
     stack(:vertical, [
       render_status_bar(state),
-      text(""),
-      text("JidoCode - Agentic Coding Assistant", Style.new(fg: :cyan, attrs: [:bold])),
-      text(""),
-      render_config_info(state),
-      text(""),
-      text("Press Ctrl+C to quit", Style.new(fg: :bright_black))
+      render_conversation(state),
+      render_input_bar(state)
     ])
   end
 
@@ -353,29 +351,63 @@ defmodule JidoCode.TUI do
   end
 
   # ============================================================================
-  # View Helpers
+  # View Helpers - Status Bar
   # ============================================================================
 
   defp render_status_bar(state) do
     config_text = format_config(state.config)
-    status_text = format_status(state.agent_status)
+    status_indicator = format_status_indicator(state.agent_status)
+    cot_indicator = format_cot_indicator(state.reasoning_steps)
+    hints = "Ctrl+C: Quit"
 
-    text("#{config_text} | #{status_text}", Style.new(fg: :white, bg: :blue))
+    # Build status bar content
+    content =
+      [config_text, status_indicator, cot_indicator, hints]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" | ")
+
+    text(content, Style.new(fg: :white, bg: :blue))
   end
 
   defp format_config(%{provider: nil}), do: "No provider configured"
   defp format_config(%{model: nil, provider: p}), do: "#{p} (no model)"
   defp format_config(%{provider: p, model: m}), do: "#{p}:#{m}"
 
-  defp format_status(:idle), do: "Idle"
-  defp format_status(:processing), do: "Processing..."
-  defp format_status(:error), do: "Error"
-  defp format_status(:unconfigured), do: "Not Configured"
+  defp format_status_indicator(:idle), do: "Idle"
+  defp format_status_indicator(:processing), do: "Processing..."
+  defp format_status_indicator(:error), do: "Error"
+  defp format_status_indicator(:unconfigured), do: "Not Configured"
 
-  defp render_config_info(state) do
+  defp format_cot_indicator([]), do: nil
+  defp format_cot_indicator(steps) when is_list(steps) do
+    active_count = Enum.count(steps, fn s -> s.status == :active end)
+    complete_count = Enum.count(steps, fn s -> s.status == :complete end)
+    total = length(steps)
+
+    if active_count > 0 do
+      "CoT: #{complete_count}/#{total}"
+    else
+      nil
+    end
+  end
+
+  # ============================================================================
+  # View Helpers - Conversation Area
+  # ============================================================================
+
+  defp render_conversation(state) do
+    if Enum.empty?(state.messages) do
+      render_empty_conversation(state)
+    else
+      render_messages(state.messages)
+    end
+  end
+
+  defp render_empty_conversation(state) do
     case state.agent_status do
       :unconfigured ->
         stack(:vertical, [
+          text(""),
           text("Configuration Required", Style.new(fg: :yellow, attrs: [:bold])),
           text(""),
           text("No provider or model configured."),
@@ -384,16 +416,62 @@ defmodule JidoCode.TUI do
           text("  {", Style.new(fg: :bright_black)),
           text(~s(    "provider": "anthropic",), Style.new(fg: :bright_black)),
           text(~s(    "model": "claude-3-5-sonnet"), Style.new(fg: :bright_black)),
-          text("  }", Style.new(fg: :bright_black))
+          text("  }", Style.new(fg: :bright_black)),
+          text("")
         ])
 
       _ ->
         stack(:vertical, [
-          text("Ready", Style.new(fg: :green, attrs: [:bold])),
           text(""),
-          text("Provider: #{state.config.provider || "none"}"),
-          text("Model: #{state.config.model || "none"}")
+          text("JidoCode - Agentic Coding Assistant", Style.new(fg: :cyan, attrs: [:bold])),
+          text(""),
+          text("Ready. Type a message and press Enter to send."),
+          text("")
         ])
     end
+  end
+
+  defp render_messages(messages) do
+    message_nodes =
+      messages
+      |> Enum.map(&render_message/1)
+
+    stack(:vertical, [text("") | message_nodes])
+  end
+
+  defp render_message(%{role: :user, content: content, timestamp: timestamp}) do
+    time_str = format_timestamp(timestamp)
+    stack(:vertical, [
+      text("[#{time_str}] You: #{content}", Style.new(fg: :cyan))
+    ])
+  end
+
+  defp render_message(%{role: :assistant, content: content, timestamp: timestamp}) do
+    time_str = format_timestamp(timestamp)
+    stack(:vertical, [
+      text("[#{time_str}] Assistant: #{content}", Style.new(fg: :white))
+    ])
+  end
+
+  defp render_message(%{role: :system, content: content, timestamp: timestamp}) do
+    time_str = format_timestamp(timestamp)
+    stack(:vertical, [
+      text("[#{time_str}] System: #{content}", Style.new(fg: :bright_black))
+    ])
+  end
+
+  defp format_timestamp(datetime) do
+    Calendar.strftime(datetime, "%H:%M")
+  end
+
+  # ============================================================================
+  # View Helpers - Input Bar
+  # ============================================================================
+
+  defp render_input_bar(state) do
+    prompt = text("> ", Style.new(fg: :green, attrs: [:bold]))
+    input = text(state.input_buffer)
+
+    stack(:horizontal, [prompt, input])
   end
 end

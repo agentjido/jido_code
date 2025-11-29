@@ -36,6 +36,8 @@ defmodule JidoCode.TUI do
   @behaviour TermUI.Elm
 
   alias JidoCode.Settings
+  alias TermUI.Command
+  alias TermUI.Event
   alias TermUI.Renderer.Style
 
   # Import only Component.Helpers (avoid text/1 conflict with Elm.Helpers)
@@ -115,10 +117,39 @@ defmodule JidoCode.TUI do
   @doc """
   Converts terminal events to TUI messages.
 
-  Currently returns :ignore for all events. Event handling will be
-  implemented in task 4.1.2.
+  ## Message Types
+
+  - `:submit` - Enter key pressed (submit input)
+  - `{:key_input, char}` - Printable character typed
+  - `{:key_input, :backspace}` - Backspace pressed
+  - `:quit` - Ctrl+C pressed (exit application)
+  - `{:resize, width, height}` - Terminal resized
   """
   @impl true
+  def event_to_msg(%Event.Key{key: :enter}, _state) do
+    {:msg, :submit}
+  end
+
+  def event_to_msg(%Event.Key{key: :backspace}, _state) do
+    {:msg, {:key_input, :backspace}}
+  end
+
+  def event_to_msg(%Event.Key{key: :c, modifiers: modifiers}, _state) do
+    if :ctrl in modifiers do
+      {:msg, :quit}
+    else
+      {:msg, {:key_input, "c"}}
+    end
+  end
+
+  def event_to_msg(%Event.Key{char: char}, _state) when is_binary(char) and char != "" do
+    {:msg, {:key_input, char}}
+  end
+
+  def event_to_msg(%Event.Resize{width: width, height: height}, _state) do
+    {:msg, {:resize, width, height}}
+  end
+
   def event_to_msg(_event, _state) do
     :ignore
   end
@@ -126,10 +157,51 @@ defmodule JidoCode.TUI do
   @doc """
   Updates state based on messages.
 
-  Currently returns state unchanged. Message handling will be
-  implemented in task 4.1.2.
+  Handles the following messages:
+  - `:submit` - Add user message to history, clear input buffer
+  - `{:key_input, char}` - Append character to input buffer
+  - `{:key_input, :backspace}` - Remove last character from input buffer
+  - `:quit` - Return Command.quit() to exit application
+  - `{:resize, width, height}` - Update window dimensions
   """
   @impl true
+  def update(:submit, state) do
+    if state.input_buffer != "" do
+      message = %{
+        role: :user,
+        content: state.input_buffer,
+        timestamp: DateTime.utc_now()
+      }
+
+      new_state = %{state | input_buffer: "", messages: state.messages ++ [message]}
+      {new_state, []}
+    else
+      {state, []}
+    end
+  end
+
+  def update({:key_input, :backspace}, state) do
+    if state.input_buffer != "" do
+      new_buffer = String.slice(state.input_buffer, 0..-2//1)
+      {%{state | input_buffer: new_buffer}, []}
+    else
+      {state, []}
+    end
+  end
+
+  def update({:key_input, char}, state) when is_binary(char) do
+    new_buffer = state.input_buffer <> char
+    {%{state | input_buffer: new_buffer}, []}
+  end
+
+  def update(:quit, state) do
+    {state, [Command.quit(:user_requested)]}
+  end
+
+  def update({:resize, width, height}, state) do
+    {%{state | window: {width, height}}, []}
+  end
+
   def update(_msg, state) do
     {state, []}
   end

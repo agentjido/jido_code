@@ -222,26 +222,6 @@ defmodule JidoCode.TUITest do
   end
 
   describe "update/2 - submit" do
-    test "clears input buffer and adds message" do
-      model = %Model{input_buffer: "hello", messages: []}
-
-      {new_model, commands} = TUI.update({:submit}, model)
-
-      assert new_model.input_buffer == ""
-      assert length(new_model.messages) == 1
-      assert hd(new_model.messages).role == :user
-      assert hd(new_model.messages).content == "hello"
-      assert commands == []
-    end
-
-    test "trims whitespace from input" do
-      model = %Model{input_buffer: "  hello world  ", messages: []}
-
-      {new_model, _} = TUI.update({:submit}, model)
-
-      assert hd(new_model.messages).content == "hello world"
-    end
-
     test "does nothing with empty input" do
       model = %Model{input_buffer: "", messages: []}
 
@@ -259,14 +239,109 @@ defmodule JidoCode.TUITest do
       assert new_model.messages == []
     end
 
-    test "appends to existing messages" do
-      existing_msg = %{role: :assistant, content: "hi", timestamp: DateTime.utc_now()}
-      model = %Model{input_buffer: "hello", messages: [existing_msg]}
+    test "shows config error when provider is nil" do
+      model = %Model{
+        input_buffer: "hello",
+        messages: [],
+        config: %{provider: nil, model: "test"}
+      }
 
       {new_model, _} = TUI.update({:submit}, model)
 
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "configure a model"
+    end
+
+    test "shows config error when model is nil" do
+      model = %Model{
+        input_buffer: "hello",
+        messages: [],
+        config: %{provider: "test", model: nil}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "configure a model"
+    end
+
+    test "handles command input with / prefix" do
+      model = %Model{
+        input_buffer: "/help",
+        messages: [],
+        config: %{provider: "test", model: "test"}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "Commands not yet implemented"
+    end
+
+    test "shows agent not found error when agent not started" do
+      model = %Model{
+        input_buffer: "hello",
+        messages: [],
+        config: %{provider: "test", model: "test"},
+        agent_name: :nonexistent_agent
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      # Should have user message and error message
       assert length(new_model.messages) == 2
-      assert List.last(new_model.messages).role == :user
+      assert Enum.at(new_model.messages, 0).role == :user
+      assert Enum.at(new_model.messages, 1).role == :system
+      assert Enum.at(new_model.messages, 1).content =~ "not running"
+      assert new_model.agent_status == :error
+    end
+
+    @tag :requires_api_key
+    test "sets status to processing when dispatching to agent" do
+      # Start a mock agent for this test
+      {:ok, _pid} = JidoCode.AgentSupervisor.start_agent(%{
+        name: :test_llm_agent,
+        module: JidoCode.Agents.LLMAgent,
+        args: [provider: :anthropic, model: "claude-3-5-haiku-latest"]
+      })
+
+      model = %Model{
+        input_buffer: "hello",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-latest"},
+        agent_name: :test_llm_agent
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :user
+      assert hd(new_model.messages).content == "hello"
+      assert new_model.agent_status == :processing
+
+      # Cleanup
+      JidoCode.AgentSupervisor.stop_agent(:test_llm_agent)
+    end
+
+    test "trims whitespace from input before processing" do
+      model = %Model{
+        input_buffer: "  /help  ",
+        messages: [],
+        config: %{provider: "test", model: "test"}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      # Command should be received without leading whitespace
+      assert hd(new_model.messages).content =~ "/help"
     end
   end
 
@@ -300,6 +375,25 @@ defmodule JidoCode.TUITest do
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :assistant
       assert hd(new_model.messages).content == "Hello!"
+    end
+
+    test "agent_response sets status to idle" do
+      model = %Model{messages: [], agent_status: :processing}
+
+      {new_model, _} = TUI.update({:agent_response, "Done!"}, model)
+
+      assert new_model.agent_status == :idle
+    end
+
+    test "handles llm_response as alias for agent_response" do
+      model = %Model{messages: [], agent_status: :processing}
+
+      {new_model, _} = TUI.update({:llm_response, "Hello from LLM!"}, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :assistant
+      assert hd(new_model.messages).content == "Hello from LLM!"
+      assert new_model.agent_status == :idle
     end
 
     test "handles status_update" do

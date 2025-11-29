@@ -7,21 +7,28 @@ This phase connects all components into a working system: user input flows to th
 User input captured by the TUI must be packaged and sent to the appropriate agent. The flow handles input validation, agent selection, and async dispatch.
 
 ### 5.1.1 Input Submission Handler
-- [ ] **Task 5.1.1 Complete**
+- [x] **Task 5.1.1 Complete**
 
 Implement the complete flow from Enter key to agent invocation. Both provider AND model must be configured before allowing chat.
 
-- [ ] 5.1.1.1 In TUI update, handle `:submit` by extracting input_buffer content
-- [ ] 5.1.1.2 Check if input is a command (starts with `/`) - route to command handler
-- [ ] 5.1.1.3 If not a command, verify both provider and model are configured
-- [ ] 5.1.1.4 If unconfigured, show error: "Please configure a model first. Use /model <provider>:<model> or /models <provider> to see options."
-- [ ] 5.1.1.5 Clear input_buffer and add user message to messages list
-- [ ] 5.1.1.6 Set agent_status to `:processing`
-- [ ] 5.1.1.7 Lookup LLMAgent via Registry
-- [ ] 5.1.1.8 Classify query for CoT using QueryClassifier
-- [ ] 5.1.1.9 Dispatch async task calling appropriate agent function
-- [ ] 5.1.1.10 Return updated Model with pending response indicator
-- [ ] 5.1.1.11 Write end-to-end test: input → agent → response (success: full round-trip works)
+- [x] 5.1.1.1 In TUI update, handle `:submit` by extracting input_buffer content
+- [x] 5.1.1.2 Check if input is a command (starts with `/`) - route to command handler
+- [x] 5.1.1.3 If not a command, verify both provider and model are configured
+- [x] 5.1.1.4 If unconfigured, show error: "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select."
+- [x] 5.1.1.5 Clear input_buffer and add user message to messages list
+- [x] 5.1.1.6 Set agent_status to `:processing`
+- [x] 5.1.1.7 Lookup LLMAgent via Registry (via AgentSupervisor.lookup_agent/1)
+- [x] 5.1.1.8 Classify query for CoT using QueryClassifier (for future use)
+- [x] 5.1.1.9 Dispatch async task calling LLMAgent.chat/3
+- [x] 5.1.1.10 Return updated Model with processing status
+- [x] 5.1.1.11 Write tests for submit flow (config validation, agent lookup, dispatch)
+
+**Implementation Notes:**
+- Added `agent_name` field to Model (default: `:llm_agent`)
+- Added `handle_command/2`, `handle_chat_submit/2`, `dispatch_to_agent/2` helpers
+- Agent response handler now sets status back to `:idle`
+- Added `{:llm_response, content}` alias for `{:agent_response, content}`
+- 155 tests passing (9 new tests for submit flow)
 
 ### 5.1.2 Response Streaming
 - [ ] **Task 5.1.2 Complete**

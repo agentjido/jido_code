@@ -36,6 +36,9 @@ defmodule JidoCode.TUI do
 
   use TermUI.Elm
 
+  alias JidoCode.Agents.LLMAgent
+  alias JidoCode.AgentSupervisor
+  alias JidoCode.Reasoning.QueryClassifier
   alias JidoCode.Settings
   alias JidoCode.Tools.Display
   alias JidoCode.Tools.Result
@@ -121,7 +124,8 @@ defmodule JidoCode.TUI do
             window: {non_neg_integer(), non_neg_integer()},
             message_queue: [queued_message()],
             scroll_offset: non_neg_integer(),
-            show_reasoning: boolean()
+            show_reasoning: boolean(),
+            agent_name: atom()
           }
 
     @enforce_keys []
@@ -135,7 +139,8 @@ defmodule JidoCode.TUI do
               window: {80, 24},
               message_queue: [],
               scroll_offset: 0,
-              show_reasoning: false
+              show_reasoning: false,
+              agent_name: :llm_agent
   end
 
   # ============================================================================
@@ -170,7 +175,8 @@ defmodule JidoCode.TUI do
       window: {80, 24},
       message_queue: [],
       scroll_offset: 0,
-      show_reasoning: false
+      show_reasoning: false,
+      agent_name: :llm_agent
     }
   end
 
@@ -267,14 +273,97 @@ defmodule JidoCode.TUI do
   def update({:submit}, state) do
     text = String.trim(state.input_buffer)
 
-    if text == "" do
-      {state, []}
-    else
-      message = %{role: :user, content: text, timestamp: DateTime.utc_now()}
+    cond do
+      # Empty input - do nothing
+      text == "" ->
+        {state, []}
 
-      new_state = %{state | input_buffer: "", messages: state.messages ++ [message]}
+      # Command input - starts with /
+      String.starts_with?(text, "/") ->
+        handle_command(text, state)
 
-      {new_state, []}
+      # Chat input - requires configured provider/model
+      true ->
+        handle_chat_submit(text, state)
+    end
+  end
+
+  # Handle slash commands (stub for now - full implementation in 5.2.1)
+  defp handle_command(text, state) do
+    system_msg = %{
+      role: :system,
+      content: "Commands not yet implemented. Received: #{text}",
+      timestamp: DateTime.utc_now()
+    }
+
+    new_state = %{state | input_buffer: "", messages: state.messages ++ [system_msg]}
+    {new_state, []}
+  end
+
+  # Handle chat message submission
+  defp handle_chat_submit(text, state) do
+    # Check if provider and model are configured
+    case {state.config.provider, state.config.model} do
+      {nil, _} ->
+        show_config_error(state)
+
+      {_, nil} ->
+        show_config_error(state)
+
+      {_provider, _model} ->
+        dispatch_to_agent(text, state)
+    end
+  end
+
+  defp show_config_error(state) do
+    error_msg = %{
+      role: :system,
+      content: "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select.",
+      timestamp: DateTime.utc_now()
+    }
+
+    new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+    {new_state, []}
+  end
+
+  defp dispatch_to_agent(text, state) do
+    # Add user message to conversation
+    user_msg = %{role: :user, content: text, timestamp: DateTime.utc_now()}
+
+    # Classify query for CoT (for future use)
+    _use_cot = QueryClassifier.should_use_cot?(text)
+
+    # Look up and dispatch to agent
+    case AgentSupervisor.lookup_agent(state.agent_name) do
+      {:ok, agent_pid} ->
+        # Dispatch async - agent will broadcast response via PubSub
+        Task.start(fn ->
+          LLMAgent.chat(agent_pid, text)
+        end)
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [user_msg],
+          agent_status: :processing,
+          scroll_offset: 0
+        }
+
+        {new_state, []}
+
+      {:error, :not_found} ->
+        error_msg = %{
+          role: :system,
+          content: "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})",
+          timestamp: DateTime.utc_now()
+        }
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [user_msg, error_msg],
+          agent_status: :error
+        }
+
+        {new_state, []}
     end
   end
 
@@ -307,10 +396,16 @@ defmodule JidoCode.TUI do
 
     new_state = %{state |
       messages: state.messages ++ [message],
-      message_queue: queue
+      message_queue: queue,
+      agent_status: :idle
     }
 
     {new_state, []}
+  end
+
+  # Handle LLM response (alternative message format from LLMAgent)
+  def update({:llm_response, content}, state) do
+    update({:agent_response, content}, state)
   end
 
   # Support both :status_update and :agent_status (per phase plan naming)

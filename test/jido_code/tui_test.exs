@@ -9,6 +9,24 @@ defmodule JidoCode.TUITest do
   setup do
     # Clear settings cache before each test
     Settings.clear_cache()
+
+    # Save and remove local settings file temporarily to avoid test interference
+    settings_path = Settings.local_path()
+    backup_path = settings_path <> ".bak"
+
+    if File.exists?(settings_path) do
+      File.rename(settings_path, backup_path)
+    end
+
+    on_exit(fn ->
+      # Restore settings file after test
+      if File.exists?(backup_path) do
+        File.rename(backup_path, settings_path)
+      end
+
+      Settings.clear_cache()
+    end)
+
     :ok
   end
 
@@ -281,7 +299,68 @@ defmodule JidoCode.TUITest do
       assert new_model.input_buffer == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :system
-      assert hd(new_model.messages).content =~ "Commands not yet implemented"
+      assert hd(new_model.messages).content =~ "Available commands"
+    end
+
+    test "/config command shows current configuration" do
+      model = %Model{
+        input_buffer: "/config",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).content =~ "Provider: anthropic"
+      assert hd(new_model.messages).content =~ "Model: claude-3-5-sonnet"
+    end
+
+    test "/provider command updates config and status" do
+      model = %Model{
+        input_buffer: "/provider anthropic",
+        messages: [],
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.config.provider == "anthropic"
+      assert new_model.config.model == nil
+      # Still unconfigured because model is nil
+      assert new_model.agent_status == :unconfigured
+    end
+
+    test "/model provider:model command updates config and status" do
+      model = %Model{
+        input_buffer: "/model anthropic:claude-3-5-sonnet",
+        messages: [],
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.config.provider == "anthropic"
+      assert new_model.config.model == "claude-3-5-sonnet"
+      # Now configured - status should be idle
+      assert new_model.agent_status == :idle
+    end
+
+    test "unknown command shows error" do
+      model = %Model{
+        input_buffer: "/unknown_cmd",
+        messages: [],
+        config: %{provider: "test", model: "test"}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "Unknown command"
     end
 
     test "shows agent not found error when agent not started" do

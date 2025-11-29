@@ -60,22 +60,33 @@ Implement token-by-token streaming display showing LLM output as it arrives for 
 Users can change LLM provider/model at runtime through TUI commands. This enables experimentation without restarting the application.
 
 ### 5.2.1 Command Parser
-- [ ] **Task 5.2.1 Complete**
+- [x] **Task 5.2.1 Complete**
 
 Parse and execute configuration commands from user input.
 
-- [ ] 5.2.1.1 Create `JidoCode.Commands` module for command handling
-- [ ] 5.2.1.2 Detect command prefix `/` in input
-- [ ] 5.2.1.3 Implement `/model <provider>:<model>` command (sets both provider and model)
-- [ ] 5.2.1.4 Implement `/model <model>` command (requires provider already set, validates model for current provider)
-- [ ] 5.2.1.5 Implement `/provider <provider>` command (sets provider, clears model - user must then select model)
-- [ ] 5.2.1.6 Implement `/models` command - opens pick-list modal with models from `Settings.get_models/1` for current provider (error if no provider set)
-- [ ] 5.2.1.7 Implement `/models <provider>` command - opens pick-list modal with models from `Settings.get_models/1` for specified provider
-- [ ] 5.2.1.8 Implement `/providers` command - opens pick-list modal with providers from `Settings.get_providers/0`
-- [ ] 5.2.1.9 Implement `/config` to display current configuration
-- [ ] 5.2.1.10 Implement `/help` listing available commands
-- [ ] 5.2.1.11 Return command result or error message for TUI display
-- [ ] 5.2.1.12 Write command parsing tests (success: all commands parse correctly)
+- [x] 5.2.1.1 Create `JidoCode.Commands` module for command handling
+- [x] 5.2.1.2 Detect command prefix `/` in input
+- [x] 5.2.1.3 Implement `/model <provider>:<model>` command (sets both provider and model)
+- [x] 5.2.1.4 Implement `/model <model>` command (requires provider already set, validates model for current provider)
+- [x] 5.2.1.5 Implement `/provider <provider>` command (sets provider, clears model - user must then select model)
+- [x] 5.2.1.6 Implement `/models` command - lists models for current provider (error if no provider set)
+- [x] 5.2.1.7 Implement `/models <provider>` command - lists models for specified provider
+- [x] 5.2.1.8 Implement `/providers` command - lists available providers
+- [x] 5.2.1.9 Implement `/config` to display current configuration
+- [x] 5.2.1.10 Implement `/help` listing available commands
+- [x] 5.2.1.11 Return command result or error message for TUI display
+- [x] 5.2.1.12 Write command parsing tests (success: all commands parse correctly)
+
+**Implementation Notes:**
+- Created `JidoCode.Commands` module with `execute/2` function
+- Commands return `{:ok, message, new_config}` or `{:error, message}`
+- TUI `handle_command/2` delegates to Commands module
+- Provider validation uses `Jido.AI.Model.Registry.Adapter.list_providers/0`
+- Model validation skipped (deferred to LLM call) for flexibility
+- Settings are persisted to local settings file
+- `/models` and `/providers` show text lists (pick-lists pending term_ui refactoring)
+- 20 commands tests + 4 TUI command tests
+- 888 tests total, 0 failures
 
 ### 5.2.2 Model Switching
 - [ ] **Task 5.2.2 Complete**

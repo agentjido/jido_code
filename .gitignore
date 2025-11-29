@@ -29,3 +29,4 @@ jido_code-*.tar
 /.elixir_ls/
 /.elixir-tools/
 *.beam
+/jido_code/

@@ -38,6 +38,7 @@ defmodule JidoCode.TUI do
 
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.AgentSupervisor
+  alias JidoCode.Commands
   alias JidoCode.Reasoning.QueryClassifier
   alias JidoCode.Settings
   alias JidoCode.Tools.Display
@@ -297,16 +298,49 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Handle slash commands (stub for now - full implementation in 5.2.1)
+  # Handle slash commands
   defp handle_command(text, state) do
-    system_msg = %{
-      role: :system,
-      content: "Commands not yet implemented. Received: #{text}",
-      timestamp: DateTime.utc_now()
-    }
+    case Commands.execute(text, state.config) do
+      {:ok, message, new_config} ->
+        system_msg = %{
+          role: :system,
+          content: message,
+          timestamp: DateTime.utc_now()
+        }
 
-    new_state = %{state | input_buffer: "", messages: state.messages ++ [system_msg]}
-    {new_state, []}
+        # Merge new config with existing config
+        updated_config =
+          if map_size(new_config) > 0 do
+            %{
+              provider: new_config[:provider] || state.config.provider,
+              model: new_config[:model] || state.config.model
+            }
+          else
+            state.config
+          end
+
+        # Determine new status based on config
+        new_status = determine_status(updated_config)
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [system_msg],
+          config: updated_config,
+          agent_status: new_status
+        }
+
+        {new_state, []}
+
+      {:error, error_message} ->
+        error_msg = %{
+          role: :system,
+          content: error_message,
+          timestamp: DateTime.utc_now()
+        }
+
+        new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+        {new_state, []}
+    end
   end
 
   # Handle chat message submission

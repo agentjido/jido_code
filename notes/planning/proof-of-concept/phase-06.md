@@ -7,19 +7,24 @@ This phase ensures the proof-of-concept is properly tested and documented. Compr
 The test suite covers unit tests for individual modules and integration tests for the complete message flow.
 
 ### 6.1.1 Unit Tests
-- [ ] **Task 6.1.1 Complete**
+- [x] **Task 6.1.1 Complete**
 
 Create unit tests for all core modules.
 
-- [ ] 6.1.1.1 Test `JidoCode.Config` provider configuration loading
-- [ ] 6.1.1.2 Test `JidoCode.Settings` load/save/merge operations
-- [ ] 6.1.1.3 Test `JidoCode.Reasoning.QueryClassifier` classification accuracy
-- [ ] 6.1.1.4 Test `JidoCode.Reasoning.Formatter` output formatting
-- [ ] 6.1.1.5 Test `JidoCode.Commands` command parsing
-- [ ] 6.1.1.6 Test `JidoCode.Tools.Registry` tool registration and lookup
-- [ ] 6.1.1.7 Test `JidoCode.Tools.Manager` security boundary enforcement
-- [ ] 6.1.1.8 Test TUI Model state transitions in update/2
-- [ ] 6.1.1.9 Achieve minimum 80% code coverage
+- [x] 6.1.1.1 Test `JidoCode.Config` provider configuration loading (17 tests, 79.41% coverage)
+- [x] 6.1.1.2 Test `JidoCode.Settings` load/save/merge operations (69 tests, 75.00% coverage)
+- [x] 6.1.1.3 Test `JidoCode.Reasoning.QueryClassifier` classification accuracy (30 tests, 100% coverage)
+- [x] 6.1.1.4 Test `JidoCode.Reasoning.Formatter` output formatting (51 tests, 95.60% coverage)
+- [x] 6.1.1.5 Test `JidoCode.Commands` command parsing (21 tests, 88.89% coverage)
+- [x] 6.1.1.6 Test `JidoCode.Tools.Registry` tool registration and lookup (20 tests, 89.13% coverage)
+- [x] 6.1.1.7 Test `JidoCode.Tools.Manager` security boundary enforcement (40 tests, 75.90% coverage)
+- [x] 6.1.1.8 Test TUI Model state transitions in update/2 (163 tests, 84.23% coverage)
+- [x] 6.1.1.9 Achieve minimum 80% code coverage (80.23% achieved)
+
+**Implementation Notes:**
+- All 8 modules have comprehensive test suites with 411 tests total
+- Overall coverage: 80.23% (exceeds 80% minimum)
+- 954 total tests, 0 failures, 2 skipped
 
 ### 6.1.2 Integration Tests
 - [ ] **Task 6.1.2 Complete**

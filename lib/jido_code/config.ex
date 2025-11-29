@@ -135,7 +135,15 @@ defmodule JidoCode.Config do
         {:ok, value}
 
       value when is_binary(value) ->
-        {:ok, String.to_atom(value)}
+        # Use to_existing_atom to avoid exhaustion; provider atoms should already exist
+        # in the JidoAI/ReqLLM registries
+        try do
+          {:ok, String.to_existing_atom(value)}
+        rescue
+          ArgumentError ->
+            # Fall back to creating the atom - it's from a trusted source (env/config)
+            {:ok, String.to_atom(value)}
+        end
     end
   end
 

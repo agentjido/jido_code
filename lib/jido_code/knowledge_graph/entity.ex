@@ -137,7 +137,8 @@ defmodule JidoCode.KnowledgeGraph.Entity do
   """
   @spec to_iri(t()) :: RDF.IRI.t()
   def to_iri(%__MODULE__{} = entity) do
+    base = JidoCode.KnowledgeGraph.entity_base_iri()
     name = qualified_name(entity) |> URI.encode()
-    RDF.iri("https://jidocode.dev/entity/#{name}")
+    RDF.iri("#{base}#{name}")
   end
 end

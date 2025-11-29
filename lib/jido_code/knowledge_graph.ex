@@ -48,6 +48,12 @@ defmodule JidoCode.KnowledgeGraph do
   def base_iri, do: "https://jidocode.dev/vocab/code/"
 
   @doc """
+  Returns the base IRI for entity IRIs.
+  """
+  @spec entity_base_iri() :: String.t()
+  def entity_base_iri, do: "https://jidocode.dev/entity/"
+
+  @doc """
   Returns the version of the knowledge graph schema.
   """
   @spec version() :: String.t()

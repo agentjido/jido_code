@@ -814,20 +814,27 @@ defmodule JidoCode.Settings do
   end
 
   defp get_jido_models(provider) do
-    # Using String.to_atom/1 is safe here because:
-    # 1. Provider strings come from local settings files (user-controlled)
-    # 2. This is a CLI tool with no external attack surface
-    # 3. The set of valid providers is bounded by JidoAI/ReqLLM
-    provider_atom = String.to_atom(provider)
+    # Use String.to_existing_atom/1 to avoid atom exhaustion
+    # If the provider atom doesn't exist, we won't find models anyway
+    provider_atom =
+      try do
+        String.to_existing_atom(provider)
+      rescue
+        ArgumentError -> nil
+      end
 
-    # Use ReqLLM registry via Registry
-    # This returns ReqLLM.Model structs with full metadata
-    case Registry.list_models(provider_atom) do
-      {:ok, models} when is_list(models) ->
-        extract_model_names(models)
+    if provider_atom do
+      # Use ReqLLM registry via Registry
+      # This returns ReqLLM.Model structs with full metadata
+      case Registry.list_models(provider_atom) do
+        {:ok, models} when is_list(models) ->
+          extract_model_names(models)
 
-      _ ->
-        []
+        _ ->
+          []
+      end
+    else
+      []
     end
   end
 

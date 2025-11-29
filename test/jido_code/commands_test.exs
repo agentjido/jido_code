@@ -119,8 +119,9 @@ defmodule JidoCode.CommandsTest do
 
       {:error, message} = Commands.execute("/model anthropic:claude-3-5-sonnet", config)
 
-      assert message =~ "No API key found for anthropic"
-      assert message =~ "ANTHROPIC_API_KEY"
+      # Error message is now generic for security (doesn't expose env var names)
+      assert message =~ "not configured"
+      assert message =~ "anthropic"
     end
 
     test "/model without argument shows usage" do

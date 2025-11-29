@@ -38,10 +38,10 @@ defmodule JidoCode.Commands do
   alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.AgentSupervisor
+  alias JidoCode.PubSubTopics
   alias JidoCode.Settings
 
   @pubsub JidoCode.PubSub
-  @tui_topic "tui.events"
 
   @type config :: %{provider: String.t() | nil, model: String.t() | nil}
   @type result :: {:ok, String.t(), config()} | {:error, String.t()}
@@ -265,9 +265,12 @@ defmodule JidoCode.Commands do
   defp validate_provider(provider) do
     case RegistryAdapter.list_providers() do
       {:ok, providers} ->
-        provider_atom = String.to_atom(provider)
+        # Use String.to_existing_atom/1 to avoid atom exhaustion from user input
+        # Fall back to checking if the string matches a known provider atom
+        provider_in_list? =
+          Enum.any?(providers, fn p -> Atom.to_string(p) == provider end)
 
-        if provider_atom in providers do
+        if provider_in_list? do
           :ok
         else
           # Build helpful error message
@@ -301,38 +304,51 @@ defmodule JidoCode.Commands do
 
     case Keyring.get(key_name) do
       nil ->
-        env_var = key_name |> Atom.to_string() |> String.upcase()
-        {:error, "No API key found for #{provider}.\n\nSet the #{env_var} environment variable."}
+        # Use generic message - don't expose env var names
+        {:error, "Provider #{provider} is not configured. Please set up API credentials."}
 
       "" ->
-        env_var = key_name |> Atom.to_string() |> String.upcase()
-        {:error, "API key for #{provider} is empty.\n\nSet the #{env_var} environment variable."}
+        # Use generic message - don't expose env var names
+        {:error, "Provider #{provider} has empty credentials. Please configure API credentials."}
 
       _key ->
         :ok
     end
   end
 
+  # Known provider to API key name mapping
+  # This whitelist prevents atom exhaustion from arbitrary user input
+  @known_provider_keys %{
+    "openai" => :openai_api_key,
+    "anthropic" => :anthropic_api_key,
+    "openrouter" => :openrouter_api_key,
+    "azure" => :azure_api_key,
+    "google" => :google_api_key,
+    "gemini" => :google_api_key,
+    "cohere" => :cohere_api_key,
+    "mistral" => :mistral_api_key,
+    "groq" => :groq_api_key,
+    "together" => :together_api_key,
+    "fireworks" => :fireworks_api_key,
+    "deepseek" => :deepseek_api_key,
+    "perplexity" => :perplexity_api_key,
+    "xai" => :xai_api_key,
+    "ollama" => :ollama_api_key,
+    "cerebras" => :cerebras_api_key,
+    "sambanova" => :sambanova_api_key
+  }
+
   # Map provider names to their keyring key names
   defp provider_to_key_name(provider) do
-    # Most providers follow the pattern: provider_api_key
-    # Special cases can be added here
-    case provider do
-      "openai" -> :openai_api_key
-      "anthropic" -> :anthropic_api_key
-      "openrouter" -> :openrouter_api_key
-      "azure" -> :azure_api_key
-      "google" -> :google_api_key
-      "gemini" -> :google_api_key
-      "cohere" -> :cohere_api_key
-      "mistral" -> :mistral_api_key
-      "groq" -> :groq_api_key
-      "together" -> :together_api_key
-      "fireworks" -> :fireworks_api_key
-      "deepseek" -> :deepseek_api_key
-      "perplexity" -> :perplexity_api_key
-      "xai" -> :xai_api_key
-      _ -> String.to_atom("#{provider}_api_key")
+    # Use whitelist to prevent atom exhaustion from user input
+    case Map.get(@known_provider_keys, provider) do
+      nil ->
+        # For unknown providers, return a generic key (don't create new atoms)
+        # This will likely fail API key validation, which is the correct behavior
+        :unknown_provider_api_key
+
+      key ->
+        key
     end
   end
 
@@ -369,6 +385,6 @@ defmodule JidoCode.Commands do
   end
 
   defp broadcast_config_change(config) do
-    Phoenix.PubSub.broadcast(@pubsub, @tui_topic, {:config_changed, config})
+    Phoenix.PubSub.broadcast(@pubsub, PubSubTopics.tui_events(), {:config_changed, config})
   end
 end

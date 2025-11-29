@@ -22,8 +22,8 @@ defmodule JidoCode.Agents.LLMAgent do
 
   ## PubSub Integration
 
-  Responses are broadcast to the `"tui.events"` topic with the event type
-  `{:llm_response, response}` for TUI consumption.
+  Responses are broadcast to the session-specific PubSub topic with the event type
+  `{:agent_response, response}` for TUI consumption.
 
   ## Supervision
 
@@ -46,9 +46,9 @@ defmodule JidoCode.Agents.LLMAgent do
   alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
   alias Jido.AI.Prompt
   alias JidoCode.Config
+  alias JidoCode.PubSubTopics
 
   @pubsub JidoCode.PubSub
-  @tui_topic_prefix "tui.events"
   @default_timeout 60_000
   @max_message_length 10_000
 
@@ -216,7 +216,7 @@ defmodule JidoCode.Agents.LLMAgent do
   """
   @spec topic_for_session(String.t()) :: String.t()
   def topic_for_session(session_id) when is_binary(session_id) do
-    "#{@tui_topic_prefix}.#{session_id}"
+    PubSubTopics.llm_stream(session_id)
   end
 
   @doc """
@@ -419,8 +419,19 @@ defmodule JidoCode.Agents.LLMAgent do
     topic = state.topic
     config = state.config
 
+    # Spawn a monitored task with timeout handling
     Task.start(fn ->
-      do_chat_stream(config, message, topic, timeout)
+      try do
+        do_chat_stream_with_timeout(config, message, topic, timeout)
+      catch
+        :exit, {:timeout, _} ->
+          Logger.warning("Stream timed out after #{timeout}ms")
+          broadcast_stream_error(topic, :timeout)
+
+        kind, reason ->
+          Logger.error("Stream failed: #{kind} - #{inspect(reason)}")
+          broadcast_stream_error(topic, {kind, reason})
+      end
     end)
 
     {:noreply, state}
@@ -529,11 +540,11 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   defp build_topic(session_id) do
-    "#{@tui_topic_prefix}.#{session_id}"
+    PubSubTopics.llm_stream(session_id)
   end
 
   defp broadcast_response(topic, response) do
-    Phoenix.PubSub.broadcast(@pubsub, topic, {:llm_response, response})
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:agent_response, response})
   end
 
   defp broadcast_config_change(topic, old_config, new_config) do
@@ -552,7 +563,25 @@ defmodule JidoCode.Agents.LLMAgent do
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_error, reason})
   end
 
-  defp do_chat_stream(config, message, topic, _timeout) do
+  # Wrapper that enforces timeout on stream operations
+  defp do_chat_stream_with_timeout(config, message, topic, timeout) do
+    # Use a Task to enforce timeout on the entire streaming operation
+    task = Task.async(fn ->
+      do_chat_stream(config, message, topic)
+    end)
+
+    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, _result} ->
+        :ok
+
+      nil ->
+        # Task was killed due to timeout
+        Logger.warning("Streaming operation timed out after #{timeout}ms")
+        broadcast_stream_error(topic, :timeout)
+    end
+  end
+
+  defp do_chat_stream(config, message, topic) do
     # Build model from config
     model_tuple =
       {config.provider,

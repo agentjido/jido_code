@@ -26,19 +26,22 @@ defmodule JidoCode.TUI do
 
   The TUI state contains:
   - `input_buffer` - Current text being typed
-  - `messages` - Conversation history
+  - `messages` - Conversation history (stored in reverse order for O(1) prepend)
   - `agent_status` - Current agent state (:idle, :processing, :error, :unconfigured)
   - `config` - Provider and model configuration
-  - `reasoning_steps` - Chain-of-Thought progress
-  - `tool_calls` - Tool execution history with results
+  - `reasoning_steps` - Chain-of-Thought progress (stored in reverse order)
+  - `tool_calls` - Tool execution history with results (stored in reverse order)
   - `window` - Terminal dimensions
   """
 
   use TermUI.Elm
 
+  require Logger
+
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.AgentSupervisor
   alias JidoCode.Commands
+  alias JidoCode.PubSubTopics
   alias JidoCode.Reasoning.QueryClassifier
   alias JidoCode.Settings
   alias JidoCode.Tools.Display
@@ -131,7 +134,8 @@ defmodule JidoCode.TUI do
             show_reasoning: boolean(),
             agent_name: atom(),
             streaming_message: String.t() | nil,
-            is_streaming: boolean()
+            is_streaming: boolean(),
+            session_topic: String.t() | nil
           }
 
     @enforce_keys []
@@ -148,7 +152,8 @@ defmodule JidoCode.TUI do
               show_reasoning: false,
               agent_name: :llm_agent,
               streaming_message: nil,
-              is_streaming: false
+              is_streaming: false,
+              session_topic: nil
   end
 
   # ============================================================================
@@ -163,8 +168,8 @@ defmodule JidoCode.TUI do
   """
   @impl true
   def init(_opts) do
-    # Subscribe to TUI events
-    Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+    # Subscribe to TUI events using centralized topic
+    Phoenix.PubSub.subscribe(JidoCode.PubSub, PubSubTopics.tui_events())
 
     # Load configuration from settings
     config = load_config()
@@ -321,22 +326,18 @@ defmodule JidoCode.TUI do
   end
 
   # PubSub message handlers with message queueing
+  # Note: Messages are stored in reverse order (newest first) for O(1) prepend
   def update({:agent_response, content}, state) do
-    message = %{role: :assistant, content: content, timestamp: DateTime.utc_now()}
+    message = assistant_message(content)
     queue = queue_message(state.message_queue, {:agent_response, content})
 
     new_state = %{state |
-      messages: state.messages ++ [message],
+      messages: [message | state.messages],
       message_queue: queue,
       agent_status: :idle
     }
 
     {new_state, []}
-  end
-
-  # Handle LLM response (alternative message format from LLMAgent)
-  def update({:llm_response, content}, state) do
-    update({:agent_response, content}, state)
   end
 
   # Streaming message handlers
@@ -356,16 +357,11 @@ defmodule JidoCode.TUI do
 
   def update({:stream_end, _full_content}, state) do
     # Finalize streaming - add accumulated message to messages list
-    message = %{
-      role: :assistant,
-      content: state.streaming_message || "",
-      timestamp: DateTime.utc_now()
-    }
-
+    message = assistant_message(state.streaming_message || "")
     queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
 
     new_state = %{state |
-      messages: state.messages ++ [message],
+      messages: [message | state.messages],
       streaming_message: nil,
       is_streaming: false,
       agent_status: :idle,
@@ -378,11 +374,11 @@ defmodule JidoCode.TUI do
   def update({:stream_error, reason}, state) do
     # Show error message and clear streaming state
     error_content = "Streaming error: #{inspect(reason)}"
-    error_msg = %{role: :system, content: error_content, timestamp: DateTime.utc_now()}
+    error_msg = system_message(error_content)
     queue = queue_message(state.message_queue, {:stream_error, reason})
 
     new_state = %{state |
-      messages: state.messages ++ [error_msg],
+      messages: [error_msg | state.messages],
       streaming_message: nil,
       is_streaming: false,
       agent_status: :error,
@@ -420,7 +416,8 @@ defmodule JidoCode.TUI do
 
   def update({:reasoning_step, step}, state) do
     queue = queue_message(state.message_queue, {:reasoning_step, step})
-    {%{state | reasoning_steps: state.reasoning_steps ++ [step], message_queue: queue}, []}
+    # Prepend for O(1) - reverse when displaying
+    {%{state | reasoning_steps: [step | state.reasoning_steps], message_queue: queue}, []}
   end
 
   def update(:clear_reasoning_steps, state) do
@@ -448,7 +445,7 @@ defmodule JidoCode.TUI do
     queue = queue_message(state.message_queue, {:tool_call, tool_name, params, call_id})
 
     new_state = %{state |
-      tool_calls: state.tool_calls ++ [tool_call_entry],
+      tool_calls: [tool_call_entry | state.tool_calls],
       message_queue: queue
     }
 
@@ -477,8 +474,37 @@ defmodule JidoCode.TUI do
   end
 
   # Catch-all for unhandled messages
-  def update(_msg, state) do
+  def update(msg, state) do
+    Logger.debug("TUI unhandled message: #{inspect(msg)}")
     {state, []}
+  end
+
+  # ============================================================================
+  # Message Builder Helpers
+  # ============================================================================
+
+  @doc """
+  Creates a user message with the current timestamp.
+  """
+  @spec user_message(String.t()) :: Model.message()
+  def user_message(content) do
+    %{role: :user, content: content, timestamp: DateTime.utc_now()}
+  end
+
+  @doc """
+  Creates an assistant message with the current timestamp.
+  """
+  @spec assistant_message(String.t()) :: Model.message()
+  def assistant_message(content) do
+    %{role: :assistant, content: content, timestamp: DateTime.utc_now()}
+  end
+
+  @doc """
+  Creates a system message with the current timestamp.
+  """
+  @spec system_message(String.t()) :: Model.message()
+  def system_message(content) do
+    %{role: :system, content: content, timestamp: DateTime.utc_now()}
   end
 
   # ============================================================================
@@ -489,11 +515,7 @@ defmodule JidoCode.TUI do
   defp do_handle_command(text, state) do
     case Commands.execute(text, state.config) do
       {:ok, message, new_config} ->
-        system_msg = %{
-          role: :system,
-          content: message,
-          timestamp: DateTime.utc_now()
-        }
+        system_msg = system_message(message)
 
         # Merge new config with existing config
         updated_config =
@@ -511,7 +533,7 @@ defmodule JidoCode.TUI do
 
         new_state = %{state |
           input_buffer: "",
-          messages: state.messages ++ [system_msg],
+          messages: [system_msg | state.messages],
           config: updated_config,
           agent_status: new_status
         }
@@ -519,13 +541,9 @@ defmodule JidoCode.TUI do
         {new_state, []}
 
       {:error, error_message} ->
-        error_msg = %{
-          role: :system,
-          content: error_message,
-          timestamp: DateTime.utc_now()
-        }
+        error_msg = system_message(error_message)
 
-        new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+        new_state = %{state | input_buffer: "", messages: [error_msg | state.messages]}
         {new_state, []}
     end
   end
@@ -546,19 +564,15 @@ defmodule JidoCode.TUI do
   end
 
   defp do_show_config_error(state) do
-    error_msg = %{
-      role: :system,
-      content: "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select.",
-      timestamp: DateTime.utc_now()
-    }
+    error_msg = system_message("Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select.")
 
-    new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+    new_state = %{state | input_buffer: "", messages: [error_msg | state.messages]}
     {new_state, []}
   end
 
   defp do_dispatch_to_agent(text, state) do
     # Add user message to conversation
-    user_msg = %{role: :user, content: text, timestamp: DateTime.utc_now()}
+    user_msg = user_message(text)
 
     # Classify query for CoT (for future use)
     _use_cot = QueryClassifier.should_use_cot?(text)
@@ -566,34 +580,55 @@ defmodule JidoCode.TUI do
     # Look up and dispatch to agent with streaming
     case AgentSupervisor.lookup_agent(state.agent_name) do
       {:ok, agent_pid} ->
+        # Subscribe to session-specific topic if not already subscribed
+        new_state = ensure_session_subscription(state, agent_pid)
+
         # Dispatch async with streaming - agent will broadcast chunks via PubSub
         LLMAgent.chat_stream(agent_pid, text)
 
-        new_state = %{state |
+        updated_state = %{new_state |
           input_buffer: "",
-          messages: state.messages ++ [user_msg],
+          messages: [user_msg | new_state.messages],
           agent_status: :processing,
           scroll_offset: 0,
           streaming_message: "",
           is_streaming: true
         }
 
-        {new_state, []}
+        {updated_state, []}
 
       {:error, :not_found} ->
-        error_msg = %{
-          role: :system,
-          content: "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})",
-          timestamp: DateTime.utc_now()
-        }
+        error_msg = system_message("LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})")
 
         new_state = %{state |
           input_buffer: "",
-          messages: state.messages ++ [user_msg, error_msg],
+          messages: [error_msg, user_msg | state.messages],
           agent_status: :error
         }
 
         {new_state, []}
+    end
+  end
+
+  # Subscribe to the agent's session-specific topic if not already subscribed
+  defp ensure_session_subscription(state, agent_pid) do
+    case LLMAgent.get_session_info(agent_pid) do
+      {:ok, _session_id, topic} ->
+        if state.session_topic != topic do
+          # Unsubscribe from old topic if we had one
+          if state.session_topic do
+            Phoenix.PubSub.unsubscribe(JidoCode.PubSub, state.session_topic)
+          end
+
+          # Subscribe to new session topic
+          Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+          %{state | session_topic: topic}
+        else
+          state
+        end
+
+      _ ->
+        state
     end
   end
 
@@ -901,10 +936,12 @@ defmodule JidoCode.TUI do
 
   defp render_conversation_content(state, available_height, width) do
     # Build message lines with text wrapping
-    message_lines = Enum.flat_map(state.messages, &format_message(&1, width))
+    # Messages are stored in reverse order (newest first), so reverse for display
+    message_lines = Enum.flat_map(Enum.reverse(state.messages), &format_message(&1, width))
 
     # Build tool call lines
-    tool_call_lines = Enum.flat_map(state.tool_calls, &format_tool_call_entry(&1, state.show_tool_details))
+    # Tool calls are stored in reverse order (newest first), so reverse for display
+    tool_call_lines = Enum.flat_map(Enum.reverse(state.tool_calls), &format_tool_call_entry(&1, state.show_tool_details))
 
     # Build streaming message line if streaming
     streaming_lines =
@@ -1101,7 +1138,8 @@ defmodule JidoCode.TUI do
       text("─────────────────────────", Style.new(fg: :bright_black))
     ]
 
-    step_lines = Enum.map(steps, &format_reasoning_step/1)
+    # Steps are stored in reverse order (newest first), so reverse for display
+    step_lines = Enum.map(Enum.reverse(steps), &format_reasoning_step/1)
 
     stack(:vertical, header ++ step_lines)
   end
@@ -1147,8 +1185,9 @@ defmodule JidoCode.TUI do
         text("Reasoning: (none)", Style.new(fg: :bright_black))
 
       steps ->
+        # Steps are stored in reverse order (newest first), so reverse for display
         step_indicators =
-          Enum.map_join(steps, " │ ", fn step ->
+          Enum.map_join(Enum.reverse(steps), " │ ", fn step ->
             status = Map.get(step, :status) || :pending
             {indicator, _style} = step_indicator(status)
             step_text = Map.get(step, :step) || "?"

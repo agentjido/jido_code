@@ -399,10 +399,11 @@ defmodule JidoCode.TUITest do
 
       assert new_model.input_buffer == ""
       # Should have user message and error message
+      # Messages are stored in reverse order (newest first)
       assert length(new_model.messages) == 2
-      assert Enum.at(new_model.messages, 0).role == :user
-      assert Enum.at(new_model.messages, 1).role == :system
-      assert Enum.at(new_model.messages, 1).content =~ "not running"
+      assert Enum.at(new_model.messages, 0).role == :system
+      assert Enum.at(new_model.messages, 0).content =~ "not running"
+      assert Enum.at(new_model.messages, 1).role == :user
       assert new_model.agent_status == :error
     end
 
@@ -494,15 +495,16 @@ defmodule JidoCode.TUITest do
       assert new_model.agent_status == :idle
     end
 
-    test "handles llm_response as alias for agent_response" do
+    test "unhandled messages are logged but do not change state" do
+      # After message type normalization, :llm_response is no longer supported
+      # It should go to the catch-all handler and not change state
       model = %Model{messages: [], agent_status: :processing}
 
       {new_model, _} = TUI.update({:llm_response, "Hello from LLM!"}, model)
 
-      assert length(new_model.messages) == 1
-      assert hd(new_model.messages).role == :assistant
-      assert hd(new_model.messages).content == "Hello from LLM!"
-      assert new_model.agent_status == :idle
+      # State should remain unchanged - message goes to catch-all
+      assert length(new_model.messages) == 0
+      assert new_model.agent_status == :processing
     end
 
     # Streaming tests
@@ -744,9 +746,10 @@ defmodule JidoCode.TUITest do
       {model, _} = TUI.update({:reasoning_step, %{step: "Planning", status: :pending}}, model)
       {model, _} = TUI.update({:reasoning_step, %{step: "Executing", status: :pending}}, model)
 
+      # Steps are stored in reverse order (newest first)
       assert length(model.reasoning_steps) == 3
-      assert Enum.at(model.reasoning_steps, 0).step == "Understanding"
-      assert Enum.at(model.reasoning_steps, 2).step == "Executing"
+      assert Enum.at(model.reasoning_steps, 0).step == "Executing"
+      assert Enum.at(model.reasoning_steps, 2).step == "Understanding"
 
       # Clear reasoning steps for next query
       {model, _} = TUI.update(:clear_reasoning_steps, model)
@@ -1627,9 +1630,10 @@ defmodule JidoCode.TUITest do
 
       {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2"}, model)
 
+      # Tool calls are stored in reverse order (newest first)
       assert length(new_model.tool_calls) == 2
-      assert Enum.at(new_model.tool_calls, 0).call_id == "call_1"
-      assert Enum.at(new_model.tool_calls, 1).call_id == "call_2"
+      assert Enum.at(new_model.tool_calls, 0).call_id == "call_2"
+      assert Enum.at(new_model.tool_calls, 1).call_id == "call_1"
     end
 
     test "adds tool_call to message queue" do

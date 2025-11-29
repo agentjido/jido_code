@@ -447,40 +447,83 @@ defmodule JidoCode.TUI do
   # ============================================================================
 
   defp render_status_bar(state) do
-    config_text = format_config(state.config)
-    status_indicator = format_status_indicator(state.agent_status)
-    cot_indicator = format_cot_indicator(state.reasoning_steps)
-    hints = "Ctrl+C: Quit"
+    # Build segments with individual styling
+    segments = [
+      render_config_segment(state.config),
+      text(" | ", Style.new(fg: :white, bg: :blue)),
+      render_status_segment(state.agent_status)
+    ]
 
-    # Build status bar content
-    content =
-      [config_text, status_indicator, cot_indicator, hints]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" | ")
+    # Add CoT indicator if active
+    segments =
+      case render_cot_segment(state.reasoning_steps) do
+        nil -> segments
+        cot -> segments ++ [text(" | ", Style.new(fg: :white, bg: :blue)), cot]
+      end
 
-    text(content, Style.new(fg: :white, bg: :blue))
+    # Add keyboard hints
+    segments = segments ++ [
+      text(" | ", Style.new(fg: :white, bg: :blue)),
+      render_hints_segment()
+    ]
+
+    stack(:horizontal, segments)
   end
 
-  defp format_config(%{provider: nil}), do: "No provider configured"
-  defp format_config(%{model: nil, provider: p}), do: "#{p} (no model)"
-  defp format_config(%{provider: p, model: m}), do: "#{p}:#{m}"
+  # Config segment with warning colors for unconfigured states
+  defp render_config_segment(%{provider: nil}) do
+    text("No provider configured", Style.new(fg: :red, bg: :blue))
+  end
 
-  defp format_status_indicator(:idle), do: "Idle"
-  defp format_status_indicator(:processing), do: "Processing..."
-  defp format_status_indicator(:error), do: "Error"
-  defp format_status_indicator(:unconfigured), do: "Not Configured"
+  defp render_config_segment(%{model: nil, provider: p}) do
+    text("#{p} (no model)", Style.new(fg: :yellow, bg: :blue))
+  end
 
-  defp format_cot_indicator([]), do: nil
-  defp format_cot_indicator(steps) when is_list(steps) do
+  defp render_config_segment(%{provider: p, model: m}) do
+    text("#{p}:#{m}", Style.new(fg: :white, bg: :blue))
+  end
+
+  # Status segment with colored indicators
+  defp render_status_segment(status) do
+    {indicator, label, style} = status_indicator_style(status)
+    text("#{indicator} #{label}", style)
+  end
+
+  # Returns indicator symbol, label, and style for each status
+  defp status_indicator_style(:idle) do
+    {"●", "Idle", Style.new(fg: :green, bg: :blue)}
+  end
+
+  defp status_indicator_style(:processing) do
+    {"●", "Processing", Style.new(fg: :yellow, bg: :blue)}
+  end
+
+  defp status_indicator_style(:error) do
+    {"●", "Error", Style.new(fg: :red, bg: :blue)}
+  end
+
+  defp status_indicator_style(:unconfigured) do
+    {"○", "Not Configured", Style.new(fg: :bright_black, bg: :blue)}
+  end
+
+  # CoT segment (returns nil if no active reasoning)
+  defp render_cot_segment([]), do: nil
+
+  defp render_cot_segment(steps) when is_list(steps) do
     active_count = Enum.count(steps, fn s -> s.status == :active end)
     complete_count = Enum.count(steps, fn s -> s.status == :complete end)
     total = length(steps)
 
     if active_count > 0 do
-      "CoT: #{complete_count}/#{total}"
+      text("CoT: #{complete_count}/#{total}", Style.new(fg: :magenta, bg: :blue))
     else
       nil
     end
+  end
+
+  # Keyboard hints segment
+  defp render_hints_segment do
+    text("Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit", Style.new(fg: :bright_black, bg: :blue))
   end
 
   # ============================================================================

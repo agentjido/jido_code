@@ -453,7 +453,7 @@ defmodule JidoCode.TUITest do
       assert length(children) == 3
     end
 
-    test "first pane is status bar with blue background" do
+    test "first pane is status bar with segments" do
       state = %Model{
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
         agent_status: :idle
@@ -461,15 +461,21 @@ defmodule JidoCode.TUITest do
 
       %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
 
-      assert %RenderNode{type: :text, content: content, style: style} = status_bar
-      assert content =~ "anthropic:claude-3-5-sonnet"
-      assert content =~ "Idle"
-      assert content =~ "Ctrl+C: Quit"
-      assert style.bg == :blue
-      assert style.fg == :white
+      # Status bar is now a horizontal stack of segments
+      assert %RenderNode{type: :stack, direction: :horizontal, children: segments} = status_bar
+      texts = extract_texts(segments)
+      combined = Enum.join(texts, "")
+
+      assert combined =~ "anthropic:claude-3-5-sonnet"
+      assert combined =~ "Idle"
+      assert combined =~ "Ctrl+C: Quit"
+
+      # Check config segment has blue background
+      config_segment = Enum.at(segments, 0)
+      assert config_segment.style.bg == :blue
     end
 
-    test "status bar shows 'No provider configured' when unconfigured" do
+    test "status bar shows 'No provider configured' with red warning" do
       state = %Model{
         config: %{provider: nil, model: nil},
         agent_status: :unconfigured
@@ -477,12 +483,19 @@ defmodule JidoCode.TUITest do
 
       %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
 
-      assert %RenderNode{type: :text, content: content} = status_bar
-      assert content =~ "No provider configured"
-      assert content =~ "Not Configured"
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+      texts = extract_texts(segments)
+      combined = Enum.join(texts, "")
+
+      assert combined =~ "No provider configured"
+      assert combined =~ "Not Configured"
+
+      # Config segment should be red for warning
+      config_segment = Enum.at(segments, 0)
+      assert config_segment.style.fg == :red
     end
 
-    test "status bar shows processing status" do
+    test "status bar shows processing status with yellow indicator" do
       state = %Model{
         config: %{provider: "openai", model: "gpt-4"},
         agent_status: :processing
@@ -490,8 +503,17 @@ defmodule JidoCode.TUITest do
 
       %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
 
-      assert %RenderNode{type: :text, content: content} = status_bar
-      assert content =~ "Processing..."
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+      texts = extract_texts(segments)
+      combined = Enum.join(texts, "")
+
+      assert combined =~ "Processing"
+
+      # Find status segment and check it's yellow
+      status_segment = Enum.find(segments, fn s ->
+        s.type == :text and s.content != nil and s.content =~ "Processing"
+      end)
+      assert status_segment.style.fg == :yellow
     end
 
     test "status bar shows CoT indicator when reasoning steps are active" do
@@ -507,8 +529,103 @@ defmodule JidoCode.TUITest do
 
       %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
 
-      assert %RenderNode{type: :text, content: content} = status_bar
-      assert content =~ "CoT: 1/3"
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+      texts = extract_texts(segments)
+      combined = Enum.join(texts, "")
+
+      assert combined =~ "CoT: 1/3"
+
+      # CoT segment should be magenta
+      cot_segment = Enum.find(segments, fn s ->
+        s.type == :text and s.content != nil and s.content =~ "CoT:"
+      end)
+      assert cot_segment.style.fg == :magenta
+    end
+
+    test "status bar shows idle status with green indicator" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :idle
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+
+      # Find idle status segment
+      status_segment = Enum.find(segments, fn s ->
+        s.type == :text and s.content != nil and s.content =~ "Idle"
+      end)
+      assert status_segment.style.fg == :green
+      assert status_segment.content =~ "●"  # Filled indicator
+    end
+
+    test "status bar shows error status with red indicator" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :error
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+
+      # Find error status segment
+      status_segment = Enum.find(segments, fn s ->
+        s.type == :text and s.content != nil and s.content =~ "Error"
+      end)
+      assert status_segment.style.fg == :red
+    end
+
+    test "status bar shows unconfigured status with dim indicator" do
+      state = %Model{
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+
+      # Find unconfigured status segment
+      status_segment = Enum.find(segments, fn s ->
+        s.type == :text and s.content != nil and s.content =~ "Not Configured"
+      end)
+      assert status_segment.style.fg == :bright_black  # Dim
+      assert status_segment.content =~ "○"  # Empty indicator
+    end
+
+    test "status bar shows 'no model' with yellow warning" do
+      state = %Model{
+        config: %{provider: "anthropic", model: nil},
+        agent_status: :unconfigured
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+
+      # First segment is config
+      config_segment = Enum.at(segments, 0)
+      assert config_segment.content =~ "no model"
+      assert config_segment.style.fg == :yellow
+    end
+
+    test "status bar includes keyboard hints with Ctrl+M and Ctrl+R" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :idle
+      }
+
+      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
+
+      assert %RenderNode{type: :stack, children: segments} = status_bar
+      texts = extract_texts(segments)
+      combined = Enum.join(texts, "")
+
+      assert combined =~ "Ctrl+M: Model"
+      assert combined =~ "Ctrl+R: Reasoning"
+      assert combined =~ "Ctrl+C: Quit"
     end
 
     test "second pane is conversation area" do
@@ -674,9 +791,9 @@ defmodule JidoCode.TUITest do
       assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
       assert length(children) == 3
 
-      # Should not contain "Reasoning" header
+      # Should not contain "Reasoning (N)" header (note: "Ctrl+R: Reasoning" is in hints)
       texts = extract_texts(children)
-      refute Enum.any?(texts, &(&1 =~ "Reasoning"))
+      refute Enum.any?(texts, &(&1 =~ "Reasoning ("))
     end
 
     test "reasoning panel is hidden when reasoning_steps is empty" do
@@ -694,9 +811,9 @@ defmodule JidoCode.TUITest do
       assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
       assert length(children) == 3
 
-      # Should not contain "Reasoning" header
+      # Should not contain "Reasoning (N)" header (note: "Ctrl+R: Reasoning" is in hints)
       texts = extract_texts(children)
-      refute Enum.any?(texts, &(&1 =~ "Reasoning"))
+      refute Enum.any?(texts, &(&1 =~ "Reasoning ("))
     end
 
     test "reasoning panel shows as bottom drawer for narrow terminals" do
@@ -776,18 +893,18 @@ defmodule JidoCode.TUITest do
     test "reasoning panel step styling uses correct colors" do
       state = %Model{
         config: %{provider: "anthropic", model: "claude"},
-        agent_status: :processing,
+        agent_status: :idle,  # Use idle to avoid processing indicator matching
         show_reasoning: true,
         reasoning_steps: [
-          %{step: "Step", status: :complete}
+          %{step: "Completed Task", status: :complete}
         ],
         window: {120, 40}  # Wide for sidebar
       }
 
       view = TUI.view(state)
 
-      # Find the step node in the view
-      step_node = find_step_node(view)
+      # Find the step node with checkmark (complete indicator)
+      step_node = find_step_with_checkmark(view)
       assert step_node != nil
       assert step_node.style.fg == :green  # Complete step is green
     end
@@ -882,4 +999,24 @@ defmodule JidoCode.TUITest do
   end
 
   defp find_step_node(_), do: nil
+
+  # Helper to find a step node with checkmark (complete indicator only)
+  defp find_step_with_checkmark(nodes) when is_list(nodes) do
+    Enum.find_value(nodes, fn node -> find_step_with_checkmark(node) end)
+  end
+
+  defp find_step_with_checkmark(%RenderNode{type: :text, content: content} = node)
+       when is_binary(content) do
+    if String.contains?(content, "✓") do
+      node
+    else
+      nil
+    end
+  end
+
+  defp find_step_with_checkmark(%RenderNode{type: :stack, children: children}) do
+    find_step_with_checkmark(children)
+  end
+
+  defp find_step_with_checkmark(_), do: nil
 end

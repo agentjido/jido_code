@@ -71,7 +71,8 @@ defmodule JidoCode.TUI do
             agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
             reasoning_steps: [reasoning_step()],
-            window: {non_neg_integer(), non_neg_integer()}
+            window: {non_neg_integer(), non_neg_integer()},
+            scroll_offset: non_neg_integer()
           }
 
     @enforce_keys []
@@ -80,7 +81,8 @@ defmodule JidoCode.TUI do
               agent_status: :unconfigured,
               config: %{provider: nil, model: nil},
               reasoning_steps: [],
-              window: {80, 24}
+              window: {80, 24},
+              scroll_offset: 0
   end
 
   # ============================================================================
@@ -107,7 +109,8 @@ defmodule JidoCode.TUI do
       agent_status: status,
       config: config,
       reasoning_steps: [],
-      window: {80, 24}
+      window: {80, 24},
+      scroll_offset: 0
     }
   end
 
@@ -147,6 +150,14 @@ defmodule JidoCode.TUI do
     {:msg, {:resize, width, height}}
   end
 
+  def event_to_msg(%Event.Key{key: :up}, _state) do
+    {:msg, :scroll_up}
+  end
+
+  def event_to_msg(%Event.Key{key: :down}, _state) do
+    {:msg, :scroll_down}
+  end
+
   def event_to_msg(_event, _state) do
     :ignore
   end
@@ -170,7 +181,12 @@ defmodule JidoCode.TUI do
         timestamp: DateTime.utc_now()
       }
 
-      new_state = %{state | input_buffer: "", messages: state.messages ++ [message]}
+      # Reset scroll_offset to 0 for auto-scroll to latest message
+      new_state = %{state |
+        input_buffer: "",
+        messages: state.messages ++ [message],
+        scroll_offset: 0
+      }
       {new_state, []}
     else
       {state, []}
@@ -199,6 +215,19 @@ defmodule JidoCode.TUI do
     {%{state | window: {width, height}}, []}
   end
 
+  def update(:scroll_up, state) do
+    # Increase offset to scroll up through history (show older messages)
+    max_offset = max(0, length(state.messages) - 1)
+    new_offset = min(state.scroll_offset + 1, max_offset)
+    {%{state | scroll_offset: new_offset}, []}
+  end
+
+  def update(:scroll_down, state) do
+    # Decrease offset to scroll down (show newer messages)
+    new_offset = max(0, state.scroll_offset - 1)
+    {%{state | scroll_offset: new_offset}, []}
+  end
+
   # ============================================================================
   # PubSub Message Handlers
   # ============================================================================
@@ -211,9 +240,11 @@ defmodule JidoCode.TUI do
       timestamp: DateTime.utc_now()
     }
 
+    # Reset scroll_offset to 0 for auto-scroll to latest message
     new_state = %{state |
       messages: state.messages ++ [message],
-      agent_status: :idle
+      agent_status: :idle,
+      scroll_offset: 0
     }
 
     {new_state, []}
@@ -399,7 +430,7 @@ defmodule JidoCode.TUI do
     if Enum.empty?(state.messages) do
       render_empty_conversation(state)
     else
-      render_messages(state.messages)
+      render_messages(state)
     end
   end
 
@@ -431,37 +462,136 @@ defmodule JidoCode.TUI do
     end
   end
 
-  defp render_messages(messages) do
+  defp render_messages(state) do
+    {width, _height} = state.window
+    messages = state.messages
+
+    # Apply scroll offset - skip messages from the end
+    visible_messages =
+      if state.scroll_offset > 0 do
+        messages
+        |> Enum.reverse()
+        |> Enum.drop(state.scroll_offset)
+        |> Enum.reverse()
+      else
+        messages
+      end
+
     message_nodes =
-      messages
-      |> Enum.map(&render_message/1)
+      visible_messages
+      |> Enum.map(&render_message(&1, width))
 
-    stack(:vertical, [text("") | message_nodes])
+    # Add scroll indicator if not at bottom
+    scroll_indicator =
+      if state.scroll_offset > 0 do
+        [text("  ↓ #{state.scroll_offset} more message(s) below", Style.new(fg: :bright_black))]
+      else
+        []
+      end
+
+    stack(:vertical, [text("") | message_nodes] ++ scroll_indicator)
   end
 
-  defp render_message(%{role: :user, content: content, timestamp: timestamp}) do
+  defp render_message(%{role: :user, content: content, timestamp: timestamp}, width) do
     time_str = format_timestamp(timestamp)
-    stack(:vertical, [
-      text("[#{time_str}] You: #{content}", Style.new(fg: :cyan))
-    ])
+    prefix = "[#{time_str}] You: "
+    wrapped_lines = wrap_message(prefix, content, width)
+
+    lines_as_nodes =
+      wrapped_lines
+      |> Enum.map(fn line -> text(line, Style.new(fg: :cyan)) end)
+
+    stack(:vertical, lines_as_nodes)
   end
 
-  defp render_message(%{role: :assistant, content: content, timestamp: timestamp}) do
+  defp render_message(%{role: :assistant, content: content, timestamp: timestamp}, width) do
     time_str = format_timestamp(timestamp)
-    stack(:vertical, [
-      text("[#{time_str}] Assistant: #{content}", Style.new(fg: :white))
-    ])
+    prefix = "[#{time_str}] Assistant: "
+    wrapped_lines = wrap_message(prefix, content, width)
+
+    lines_as_nodes =
+      wrapped_lines
+      |> Enum.map(fn line -> text(line, Style.new(fg: :white)) end)
+
+    stack(:vertical, lines_as_nodes)
   end
 
-  defp render_message(%{role: :system, content: content, timestamp: timestamp}) do
+  defp render_message(%{role: :system, content: content, timestamp: timestamp}, width) do
     time_str = format_timestamp(timestamp)
-    stack(:vertical, [
-      text("[#{time_str}] System: #{content}", Style.new(fg: :bright_black))
-    ])
+    prefix = "[#{time_str}] System: "
+    wrapped_lines = wrap_message(prefix, content, width)
+
+    lines_as_nodes =
+      wrapped_lines
+      |> Enum.map(fn line -> text(line, Style.new(fg: :bright_black)) end)
+
+    stack(:vertical, lines_as_nodes)
   end
 
   defp format_timestamp(datetime) do
     Calendar.strftime(datetime, "%H:%M")
+  end
+
+  # Wraps a message with a prefix, using continuation indent for wrapped lines
+  defp wrap_message(prefix, content, max_width) do
+    # First line includes prefix
+    first_line_width = max_width - String.length(prefix)
+    # Continuation lines are indented to align with content after prefix
+    indent = String.duplicate(" ", String.length(prefix))
+
+    if first_line_width <= 0 do
+      # Terminal too narrow, just show as-is
+      [prefix <> content]
+    else
+      wrap_text(content, first_line_width, max_width - String.length(indent))
+      |> Enum.with_index()
+      |> Enum.map(fn {line, index} ->
+        if index == 0 do
+          prefix <> line
+        else
+          indent <> line
+        end
+      end)
+    end
+  end
+
+  # Wraps text at word boundaries
+  @doc false
+  def wrap_text(text, first_line_width, continuation_width) do
+    words = String.split(text, ~r/\s+/, trim: true)
+
+    case words do
+      [] ->
+        [""]
+
+      [first | rest] ->
+        # Handle first line with potentially different width
+        {first_line, remaining_words} = build_line(first, rest, first_line_width)
+
+        # Handle remaining lines with continuation width
+        continuation_lines = wrap_remaining(remaining_words, continuation_width)
+
+        [first_line | continuation_lines]
+    end
+  end
+
+  defp build_line(current, [], _max_width), do: {current, []}
+
+  defp build_line(current, [next | rest], max_width) do
+    candidate = current <> " " <> next
+
+    if String.length(candidate) <= max_width do
+      build_line(candidate, rest, max_width)
+    else
+      {current, [next | rest]}
+    end
+  end
+
+  defp wrap_remaining([], _max_width), do: []
+
+  defp wrap_remaining([first | rest], max_width) do
+    {line, remaining} = build_line(first, rest, max_width)
+    [line | wrap_remaining(remaining, max_width)]
   end
 
   # ============================================================================

@@ -16,6 +16,7 @@ defmodule JidoCode.TUITest do
       assert model.config == %{provider: nil, model: nil}
       assert model.reasoning_steps == []
       assert model.window == {80, 24}
+      assert model.scroll_offset == 0
     end
 
     test "supports all required fields" do
@@ -25,7 +26,8 @@ defmodule JidoCode.TUITest do
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
         reasoning_steps: [%{step: "analyzing", status: :active}],
-        window: {120, 40}
+        window: {120, 40},
+        scroll_offset: 5
       }
 
       assert model.input_buffer == "test input"
@@ -35,6 +37,7 @@ defmodule JidoCode.TUITest do
       assert model.config.model == "claude-3-5-sonnet"
       assert length(model.reasoning_steps) == 1
       assert model.window == {120, 40}
+      assert model.scroll_offset == 5
     end
   end
 
@@ -114,9 +117,21 @@ defmodule JidoCode.TUITest do
 
     test "returns :ignore for non-printable key events" do
       state = %Model{}
-      # Arrow keys have no char
-      event = %Event.Key{key: :up, char: nil, modifiers: []}
+      # F1 key has no char and is not handled
+      event = %Event.Key{key: :f1, char: nil, modifiers: []}
       assert TUI.event_to_msg(event, state) == :ignore
+    end
+
+    test "maps Up arrow to :scroll_up message" do
+      state = %Model{}
+      event = Event.key(:up)
+      assert TUI.event_to_msg(event, state) == {:msg, :scroll_up}
+    end
+
+    test "maps Down arrow to :scroll_down message" do
+      state = %Model{}
+      event = Event.key(:down)
+      assert TUI.event_to_msg(event, state) == {:msg, :scroll_down}
     end
   end
 
@@ -201,6 +216,69 @@ defmodule JidoCode.TUITest do
       assert new_state.window == {120, 40}
       assert commands == []
     end
+
+    test ":scroll_up increases scroll_offset" do
+      state = %Model{
+        messages: [
+          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()},
+          %{role: :assistant, content: "msg2", timestamp: DateTime.utc_now()}
+        ],
+        scroll_offset: 0
+      }
+      {new_state, commands} = TUI.update(:scroll_up, state)
+
+      assert new_state.scroll_offset == 1
+      assert commands == []
+    end
+
+    test ":scroll_up caps at max offset" do
+      state = %Model{
+        messages: [
+          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()}
+        ],
+        scroll_offset: 0
+      }
+      # Max offset is length - 1 = 0, so scrolling up shouldn't increase beyond 0
+      {new_state, _} = TUI.update(:scroll_up, state)
+      assert new_state.scroll_offset == 0
+    end
+
+    test ":scroll_down decreases scroll_offset" do
+      state = %Model{
+        messages: [
+          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()},
+          %{role: :assistant, content: "msg2", timestamp: DateTime.utc_now()}
+        ],
+        scroll_offset: 1
+      }
+      {new_state, commands} = TUI.update(:scroll_down, state)
+
+      assert new_state.scroll_offset == 0
+      assert commands == []
+    end
+
+    test ":scroll_down doesn't go below 0" do
+      state = %Model{
+        messages: [
+          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()}
+        ],
+        scroll_offset: 0
+      }
+      {new_state, _} = TUI.update(:scroll_down, state)
+      assert new_state.scroll_offset == 0
+    end
+
+    test ":submit resets scroll_offset to 0" do
+      state = %Model{
+        input_buffer: "hello",
+        messages: [
+          %{role: :user, content: "old", timestamp: DateTime.utc_now()}
+        ],
+        scroll_offset: 1
+      }
+      {new_state, _} = TUI.update(:submit, state)
+      assert new_state.scroll_offset == 0
+    end
   end
 
   describe "update/2 PubSub messages" do
@@ -226,6 +304,16 @@ defmodule JidoCode.TUITest do
       assert Enum.at(new_state.messages, 0).role == :user
       assert Enum.at(new_state.messages, 1).role == :assistant
       assert commands == []
+    end
+
+    test "{:agent_response, content} resets scroll_offset to 0" do
+      state = %Model{
+        messages: [%{role: :user, content: "Hi", timestamp: DateTime.utc_now()}],
+        agent_status: :processing,
+        scroll_offset: 1
+      }
+      {new_state, _} = TUI.update({:agent_response, "Hello!"}, state)
+      assert new_state.scroll_offset == 0
     end
 
     test "{:agent_status, status} updates agent status" do
@@ -518,6 +606,59 @@ defmodule JidoCode.TUITest do
 
       assert %RenderNode{type: :stack, direction: :horizontal, children: [_prompt, buffer]} = input_bar
       assert %RenderNode{type: :text, content: ""} = buffer
+    end
+
+    test "conversation shows scroll indicator when scrolled up" do
+      state = %Model{
+        config: %{provider: "anthropic", model: "claude"},
+        agent_status: :idle,
+        messages: [
+          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()},
+          %{role: :assistant, content: "msg2", timestamp: DateTime.utc_now()},
+          %{role: :user, content: "msg3", timestamp: DateTime.utc_now()}
+        ],
+        scroll_offset: 1
+      }
+
+      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+
+      texts = extract_texts([conversation])
+      assert Enum.any?(texts, &(&1 =~ "more message(s) below"))
+    end
+  end
+
+  describe "wrap_text/3" do
+    test "returns single line when text fits" do
+      result = TUI.wrap_text("hello world", 20, 20)
+      assert result == ["hello world"]
+    end
+
+    test "wraps text at word boundaries" do
+      result = TUI.wrap_text("hello world foo bar", 11, 11)
+      assert result == ["hello world", "foo bar"]
+    end
+
+    test "handles empty text" do
+      result = TUI.wrap_text("", 20, 20)
+      assert result == [""]
+    end
+
+    test "handles single word longer than width" do
+      result = TUI.wrap_text("superlongword", 5, 5)
+      # Single word doesn't fit but we keep it anyway
+      assert result == ["superlongword"]
+    end
+
+    test "handles multiple words requiring multiple lines" do
+      result = TUI.wrap_text("one two three four five", 10, 10)
+      assert result == ["one two", "three four", "five"]
+    end
+
+    test "respects different first line and continuation widths" do
+      result = TUI.wrap_text("hello world foo bar baz", 11, 15)
+      # First line: "hello world" (11 chars)
+      # Continuation: "foo bar baz" (11 chars, fits in 15)
+      assert result == ["hello world", "foo bar baz"]
     end
   end
 

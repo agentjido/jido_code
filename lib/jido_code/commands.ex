@@ -34,8 +34,14 @@ defmodule JidoCode.Commands do
       #=> {:error, "Unknown command: /unknown. Type /help for available commands."}
   """
 
+  alias Jido.AI.Keyring
   alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
+  alias JidoCode.Agents.LLMAgent
+  alias JidoCode.AgentSupervisor
   alias JidoCode.Settings
+
+  @pubsub JidoCode.PubSub
+  @tui_topic "tui.events"
 
   @type config :: %{provider: String.t() | nil, model: String.t() | nil}
   @type result :: {:ok, String.t(), config()} | {:error, String.t()}
@@ -185,21 +191,39 @@ defmodule JidoCode.Commands do
 
   defp set_provider_and_model(provider, model) do
     with :ok <- validate_provider(provider),
-         :ok <- validate_model(provider, model) do
+         :ok <- validate_model(provider, model),
+         :ok <- validate_api_key(provider) do
+      # Save to settings
       Settings.set(:local, "provider", provider)
       Settings.set(:local, "model", model)
 
       new_config = %{provider: provider, model: model}
+
+      # Configure running agent if available
+      configure_agent(new_config)
+
+      # Broadcast config change
+      broadcast_config_change(new_config)
+
       {:ok, "Model set to #{provider}:#{model}", new_config}
     end
   end
 
   defp set_model_for_provider(provider, model) do
-    :ok = validate_model(provider, model)
-    Settings.set(:local, "model", model)
+    with :ok <- validate_model(provider, model),
+         :ok <- validate_api_key(provider) do
+      Settings.set(:local, "model", model)
 
-    new_config = %{provider: provider, model: model}
-    {:ok, "Model set to #{model}", new_config}
+      new_config = %{provider: provider, model: model}
+
+      # Configure running agent if available
+      configure_agent(new_config)
+
+      # Broadcast config change
+      broadcast_config_change(new_config)
+
+      {:ok, "Model set to #{model}", new_config}
+    end
   end
 
   defp execute_models_command(provider) do
@@ -272,6 +296,46 @@ defmodule JidoCode.Commands do
     :ok
   end
 
+  defp validate_api_key(provider) do
+    key_name = provider_to_key_name(provider)
+
+    case Keyring.get(key_name) do
+      nil ->
+        env_var = key_name |> Atom.to_string() |> String.upcase()
+        {:error, "No API key found for #{provider}.\n\nSet the #{env_var} environment variable."}
+
+      "" ->
+        env_var = key_name |> Atom.to_string() |> String.upcase()
+        {:error, "API key for #{provider} is empty.\n\nSet the #{env_var} environment variable."}
+
+      _key ->
+        :ok
+    end
+  end
+
+  # Map provider names to their keyring key names
+  defp provider_to_key_name(provider) do
+    # Most providers follow the pattern: provider_api_key
+    # Special cases can be added here
+    case provider do
+      "openai" -> :openai_api_key
+      "anthropic" -> :anthropic_api_key
+      "openrouter" -> :openrouter_api_key
+      "azure" -> :azure_api_key
+      "google" -> :google_api_key
+      "gemini" -> :google_api_key
+      "cohere" -> :cohere_api_key
+      "mistral" -> :mistral_api_key
+      "groq" -> :groq_api_key
+      "together" -> :together_api_key
+      "fireworks" -> :fireworks_api_key
+      "deepseek" -> :deepseek_api_key
+      "perplexity" -> :perplexity_api_key
+      "xai" -> :xai_api_key
+      _ -> String.to_atom("#{provider}_api_key")
+    end
+  end
+
   # Simple substring matching for suggestions
   defp find_similar_providers(input, providers) do
     input_lower = String.downcase(input)
@@ -283,5 +347,28 @@ defmodule JidoCode.Commands do
       String.contains?(p_lower, input_lower) or String.contains?(input_lower, p_lower)
     end)
     |> Enum.take(3)
+  end
+
+  # ============================================================================
+  # Agent Configuration
+  # ============================================================================
+
+  defp configure_agent(config) do
+    case AgentSupervisor.lookup_agent(:llm_agent) do
+      {:ok, pid} ->
+        # Configure the running agent with new settings
+        LLMAgent.configure(pid,
+          provider: config.provider,
+          model: config.model
+        )
+
+      {:error, :not_found} ->
+        # Agent not running - that's OK, it will use settings when started
+        :ok
+    end
+  end
+
+  defp broadcast_config_change(config) do
+    Phoenix.PubSub.broadcast(@pubsub, @tui_topic, {:config_changed, config})
   end
 end

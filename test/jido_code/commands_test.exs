@@ -1,7 +1,28 @@
 defmodule JidoCode.CommandsTest do
   use ExUnit.Case, async: true
 
+  alias Jido.AI.Keyring
   alias JidoCode.Commands
+
+  # Helper to set up API key for tests
+  defp setup_api_key(provider) do
+    key_name = provider_to_key_name(provider)
+    Keyring.set_session_value(key_name, "test-api-key-#{provider}")
+  end
+
+  defp cleanup_api_key(provider) do
+    key_name = provider_to_key_name(provider)
+    Keyring.clear_session_value(key_name)
+  end
+
+  defp provider_to_key_name(provider) do
+    case provider do
+      "openai" -> :openai_api_key
+      "anthropic" -> :anthropic_api_key
+      "openrouter" -> :openrouter_api_key
+      _ -> String.to_atom("#{provider}_api_key")
+    end
+  end
 
   describe "execute/2" do
     test "/help returns command list" do
@@ -62,6 +83,7 @@ defmodule JidoCode.CommandsTest do
     end
 
     test "/model provider:model sets both" do
+      setup_api_key("anthropic")
       config = %{provider: nil, model: nil}
 
       {:ok, message, new_config} = Commands.execute("/model anthropic:claude-3-5-sonnet", config)
@@ -69,9 +91,11 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Model set to anthropic:claude-3-5-sonnet"
       assert new_config.provider == "anthropic"
       assert new_config.model == "claude-3-5-sonnet"
+      cleanup_api_key("anthropic")
     end
 
     test "/model with only model name works when provider is set" do
+      setup_api_key("anthropic")
       config = %{provider: "anthropic", model: nil}
 
       {:ok, message, new_config} = Commands.execute("/model claude-3-5-sonnet", config)
@@ -79,6 +103,7 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Model set to claude-3-5-sonnet"
       assert new_config.provider == "anthropic"
       assert new_config.model == "claude-3-5-sonnet"
+      cleanup_api_key("anthropic")
     end
 
     test "/model with only model name fails when no provider" do
@@ -87,6 +112,15 @@ defmodule JidoCode.CommandsTest do
       {:error, message} = Commands.execute("/model gpt-4o", config)
 
       assert message =~ "No provider set"
+    end
+
+    test "/model fails when API key not set" do
+      config = %{provider: nil, model: nil}
+
+      {:error, message} = Commands.execute("/model anthropic:claude-3-5-sonnet", config)
+
+      assert message =~ "No API key found for anthropic"
+      assert message =~ "ANTHROPIC_API_KEY"
     end
 
     test "/model without argument shows usage" do
@@ -191,12 +225,14 @@ defmodule JidoCode.CommandsTest do
     end
 
     test "/model with string key provider set" do
+      setup_api_key("anthropic")
       config = %{"provider" => "anthropic", "model" => nil}
 
       {:ok, message, new_config} = Commands.execute("/model claude-3-5-sonnet", config)
 
       assert message =~ "Model set to"
       assert new_config.model == "claude-3-5-sonnet"
+      cleanup_api_key("anthropic")
     end
   end
 end

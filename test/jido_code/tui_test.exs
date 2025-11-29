@@ -1,13 +1,37 @@
 defmodule JidoCode.TUITest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
+  alias JidoCode.Settings
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
-  alias TermUI.Command
   alias TermUI.Event
 
+  setup do
+    # Clear settings cache before each test
+    Settings.clear_cache()
+
+    # Save and remove local settings file temporarily to avoid test interference
+    settings_path = Settings.local_path()
+    backup_path = settings_path <> ".bak"
+
+    if File.exists?(settings_path) do
+      File.rename(settings_path, backup_path)
+    end
+
+    on_exit(fn ->
+      # Restore settings file after test
+      if File.exists?(backup_path) do
+        File.rename(backup_path, settings_path)
+      end
+
+      Settings.clear_cache()
+    end)
+
+    :ok
+  end
+
   describe "Model struct" do
-    test "creates with default values" do
+    test "has correct default values" do
       model = %Model{}
 
       assert model.input_buffer == ""
@@ -16,42 +40,72 @@ defmodule JidoCode.TUITest do
       assert model.config == %{provider: nil, model: nil}
       assert model.reasoning_steps == []
       assert model.window == {80, 24}
-      assert model.scroll_offset == 0
-      assert model.show_reasoning == false
     end
 
-    test "supports all required fields" do
+    test "can be created with custom values" do
       model = %Model{
         input_buffer: "test input",
         messages: [%{role: :user, content: "hello", timestamp: DateTime.utc_now()}],
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        reasoning_steps: [%{step: "analyzing", status: :active}],
-        window: {120, 40},
-        scroll_offset: 5,
-        show_reasoning: true
+        reasoning_steps: [%{step: "thinking", status: :active}],
+        window: {120, 40}
       }
 
       assert model.input_buffer == "test input"
       assert length(model.messages) == 1
       assert model.agent_status == :idle
       assert model.config.provider == "anthropic"
-      assert model.config.model == "claude-3-5-sonnet"
-      assert length(model.reasoning_steps) == 1
       assert model.window == {120, 40}
-      assert model.scroll_offset == 5
-      assert model.show_reasoning == true
+    end
+  end
+
+  describe "init/1" do
+    test "returns a Model struct" do
+      model = TUI.init([])
+      assert %Model{} = model
+    end
+
+    test "subscribes to PubSub tui.events topic" do
+      _model = TUI.init([])
+
+      # Verify subscription by broadcasting and receiving
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events", {:test_message, "hello"})
+      assert_receive {:test_message, "hello"}, 1000
+    end
+
+    test "sets agent_status to :unconfigured when no provider" do
+      # Ensure no settings file exists (use empty settings)
+      model = TUI.init([])
+
+      # Without settings file, provider and model will be nil
+      assert model.agent_status == :unconfigured
+    end
+
+    test "initializes with empty messages list" do
+      model = TUI.init([])
+      assert model.messages == []
+    end
+
+    test "initializes with empty input buffer" do
+      model = TUI.init([])
+      assert model.input_buffer == ""
+    end
+
+    test "initializes with empty reasoning steps" do
+      model = TUI.init([])
+      assert model.reasoning_steps == []
     end
   end
 
   describe "determine_status/1" do
     test "returns :unconfigured when provider is nil" do
-      config = %{provider: nil, model: "claude-3-5-sonnet"}
+      config = %{provider: nil, model: "gpt-4"}
       assert TUI.determine_status(config) == :unconfigured
     end
 
     test "returns :unconfigured when model is nil" do
-      config = %{provider: "anthropic", model: nil}
+      config = %{provider: "openai", model: nil}
       assert TUI.determine_status(config) == :unconfigured
     end
 
@@ -67,934 +121,1792 @@ defmodule JidoCode.TUITest do
   end
 
   describe "event_to_msg/2" do
-    test "returns :ignore for unknown events" do
-      state = %Model{}
-      assert TUI.event_to_msg(:unknown_event, state) == :ignore
-    end
-
-    test "maps Enter key to :submit message" do
-      state = %Model{}
+    test "Enter key returns {:submit}" do
+      model = %Model{}
       event = Event.key(:enter)
-      assert TUI.event_to_msg(event, state) == {:msg, :submit}
+
+      assert TUI.event_to_msg(event, model) == {:submit}
     end
 
-    test "maps Backspace to {:key_input, :backspace} message" do
-      state = %Model{}
+    test "Backspace returns {:key_input, :backspace}" do
+      model = %Model{}
       event = Event.key(:backspace)
-      assert TUI.event_to_msg(event, state) == {:msg, {:key_input, :backspace}}
+
+      assert TUI.event_to_msg(event, model) == {:key_input, :backspace}
     end
 
-    test "maps Ctrl+C to :quit message" do
-      state = %Model{}
+    test "Ctrl+C returns :quit" do
+      model = %Model{}
       event = Event.key(:c, modifiers: [:ctrl])
-      assert TUI.event_to_msg(event, state) == {:msg, :quit}
+
+      assert TUI.event_to_msg(event, model) == :quit
     end
 
-    test "maps 'c' without Ctrl to {:key_input, \"c\"}" do
-      state = %Model{}
+    test "plain 'c' key returns {:key_input, \"c\"}" do
+      model = %Model{}
       event = Event.key(:c, char: "c")
-      assert TUI.event_to_msg(event, state) == {:msg, {:key_input, "c"}}
+
+      assert TUI.event_to_msg(event, model) == {:key_input, "c"}
     end
 
-    test "maps printable characters to {:key_input, char} message" do
-      state = %Model{}
+    test "printable characters return {:key_input, char}" do
+      model = %Model{}
 
-      # Test letter
-      event = Event.key(:a, char: "a")
-      assert TUI.event_to_msg(event, state) == {:msg, {:key_input, "a"}}
-
-      # Test number
-      event = Event.key(:"1", char: "1")
-      assert TUI.event_to_msg(event, state) == {:msg, {:key_input, "1"}}
-
-      # Test space
-      event = Event.key(:space, char: " ")
-      assert TUI.event_to_msg(event, state) == {:msg, {:key_input, " "}}
+      # Test various printable characters
+      assert TUI.event_to_msg(Event.key(:a, char: "a"), model) == {:key_input, "a"}
+      assert TUI.event_to_msg(Event.key(:z, char: "Z"), model) == {:key_input, "Z"}
+      assert TUI.event_to_msg(Event.key(:space, char: " "), model) == {:key_input, " "}
+      assert TUI.event_to_msg(Event.key(:"1", char: "1"), model) == {:key_input, "1"}
     end
 
-    test "maps Resize event to {:resize, width, height} message" do
-      state = %Model{}
+    test "resize event returns {:resize, width, height}" do
+      model = %Model{}
       event = Event.resize(120, 40)
-      assert TUI.event_to_msg(event, state) == {:msg, {:resize, 120, 40}}
+
+      assert TUI.event_to_msg(event, model) == {:resize, 120, 40}
     end
 
-    test "returns :ignore for non-printable key events" do
-      state = %Model{}
-      # F1 key has no char and is not handled
-      event = %Event.Key{key: :f1, char: nil, modifiers: []}
-      assert TUI.event_to_msg(event, state) == :ignore
-    end
+    test "returns :ignore for unhandled events" do
+      model = %Model{}
 
-    test "maps Up arrow to :scroll_up message" do
-      state = %Model{}
-      event = Event.key(:up)
-      assert TUI.event_to_msg(event, state) == {:msg, :scroll_up}
-    end
+      # Mouse events
+      assert TUI.event_to_msg(Event.mouse(:click, :left, 10, 10), model) == :ignore
 
-    test "maps Down arrow to :scroll_down message" do
-      state = %Model{}
-      event = Event.key(:down)
-      assert TUI.event_to_msg(event, state) == {:msg, :scroll_down}
-    end
+      # Focus events
+      assert TUI.event_to_msg(Event.focus(:gained), model) == :ignore
 
-    test "maps Ctrl+R to :toggle_reasoning message" do
-      state = %Model{}
-      event = Event.key(:r, modifiers: [:ctrl])
-      assert TUI.event_to_msg(event, state) == {:msg, :toggle_reasoning}
-    end
+      # Keys without char (function keys, etc.)
+      assert TUI.event_to_msg(Event.key(:f1), model) == :ignore
 
-    test "maps 'r' without Ctrl to {:key_input, \"r\"}" do
-      state = %Model{}
-      event = Event.key(:r, char: "r")
-      assert TUI.event_to_msg(event, state) == {:msg, {:key_input, "r"}}
+      # Unknown events
+      assert TUI.event_to_msg(:some_event, model) == :ignore
+      assert TUI.event_to_msg(nil, model) == :ignore
     end
   end
 
-  describe "update/2" do
-    test "returns state unchanged for unknown messages" do
-      state = %Model{input_buffer: "test"}
-      {new_state, commands} = TUI.update(:unknown_message, state)
+  describe "update/2 - key input" do
+    test "appends character to input buffer" do
+      model = %Model{input_buffer: "hel"}
 
-      assert new_state == state
+      {new_model, commands} = TUI.update({:key_input, "l"}, model)
+
+      assert new_model.input_buffer == "hell"
       assert commands == []
     end
 
-    test ":submit adds user message to history and clears buffer" do
-      state = %Model{input_buffer: "Hello world", messages: []}
-      {new_state, commands} = TUI.update(:submit, state)
+    test "appends to empty input buffer" do
+      model = %Model{input_buffer: ""}
 
-      assert new_state.input_buffer == ""
-      assert length(new_state.messages) == 1
+      {new_model, _} = TUI.update({:key_input, "a"}, model)
 
-      [message] = new_state.messages
-      assert message.role == :user
-      assert message.content == "Hello world"
-      assert %DateTime{} = message.timestamp
+      assert new_model.input_buffer == "a"
+    end
 
+    test "handles multiple characters" do
+      model = %Model{input_buffer: ""}
+
+      {model1, _} = TUI.update({:key_input, "h"}, model)
+      {model2, _} = TUI.update({:key_input, "i"}, model1)
+
+      assert model2.input_buffer == "hi"
+    end
+  end
+
+  describe "update/2 - backspace" do
+    test "removes last character from input buffer" do
+      model = %Model{input_buffer: "hello"}
+
+      {new_model, commands} = TUI.update({:key_input, :backspace}, model)
+
+      assert new_model.input_buffer == "hell"
       assert commands == []
     end
 
-    test ":submit with empty buffer does nothing" do
-      state = %Model{input_buffer: "", messages: []}
-      {new_state, commands} = TUI.update(:submit, state)
+    test "does nothing on empty buffer" do
+      model = %Model{input_buffer: ""}
 
-      assert new_state == state
-      assert commands == []
+      {new_model, _} = TUI.update({:key_input, :backspace}, model)
+
+      assert new_model.input_buffer == ""
     end
 
-    test "{:key_input, char} appends character to buffer" do
-      state = %Model{input_buffer: "hel"}
-      {new_state, commands} = TUI.update({:key_input, "l"}, state)
+    test "handles single character buffer" do
+      model = %Model{input_buffer: "a"}
 
-      assert new_state.input_buffer == "hell"
-      assert commands == []
+      {new_model, _} = TUI.update({:key_input, :backspace}, model)
+
+      assert new_model.input_buffer == ""
+    end
+  end
+
+  describe "update/2 - submit" do
+    test "does nothing with empty input" do
+      model = %Model{input_buffer: "", messages: []}
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert new_model.messages == []
     end
 
-    test "{:key_input, char} works with empty buffer" do
-      state = %Model{input_buffer: ""}
-      {new_state, commands} = TUI.update({:key_input, "a"}, state)
+    test "does nothing with whitespace-only input" do
+      model = %Model{input_buffer: "   ", messages: []}
 
-      assert new_state.input_buffer == "a"
-      assert commands == []
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.messages == []
     end
 
-    test "{:key_input, :backspace} removes last character" do
-      state = %Model{input_buffer: "hello"}
-      {new_state, commands} = TUI.update({:key_input, :backspace}, state)
-
-      assert new_state.input_buffer == "hell"
-      assert commands == []
-    end
-
-    test "{:key_input, :backspace} with empty buffer does nothing" do
-      state = %Model{input_buffer: ""}
-      {new_state, commands} = TUI.update({:key_input, :backspace}, state)
-
-      assert new_state.input_buffer == ""
-      assert commands == []
-    end
-
-    test ":quit returns Command.quit()" do
-      state = %Model{}
-      {new_state, commands} = TUI.update(:quit, state)
-
-      assert new_state == state
-      assert length(commands) == 1
-      [quit_cmd] = commands
-      assert %Command{type: :quit, payload: :user_requested} = quit_cmd
-    end
-
-    test "{:resize, width, height} updates window dimensions" do
-      state = %Model{window: {80, 24}}
-      {new_state, commands} = TUI.update({:resize, 120, 40}, state)
-
-      assert new_state.window == {120, 40}
-      assert commands == []
-    end
-
-    test ":scroll_up increases scroll_offset" do
-      state = %Model{
-        messages: [
-          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()},
-          %{role: :assistant, content: "msg2", timestamp: DateTime.utc_now()}
-        ],
-        scroll_offset: 0
-      }
-      {new_state, commands} = TUI.update(:scroll_up, state)
-
-      assert new_state.scroll_offset == 1
-      assert commands == []
-    end
-
-    test ":scroll_up caps at max offset" do
-      state = %Model{
-        messages: [
-          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()}
-        ],
-        scroll_offset: 0
-      }
-      # Max offset is length - 1 = 0, so scrolling up shouldn't increase beyond 0
-      {new_state, _} = TUI.update(:scroll_up, state)
-      assert new_state.scroll_offset == 0
-    end
-
-    test ":scroll_down decreases scroll_offset" do
-      state = %Model{
-        messages: [
-          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()},
-          %{role: :assistant, content: "msg2", timestamp: DateTime.utc_now()}
-        ],
-        scroll_offset: 1
-      }
-      {new_state, commands} = TUI.update(:scroll_down, state)
-
-      assert new_state.scroll_offset == 0
-      assert commands == []
-    end
-
-    test ":scroll_down doesn't go below 0" do
-      state = %Model{
-        messages: [
-          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()}
-        ],
-        scroll_offset: 0
-      }
-      {new_state, _} = TUI.update(:scroll_down, state)
-      assert new_state.scroll_offset == 0
-    end
-
-    test ":submit resets scroll_offset to 0" do
-      state = %Model{
+    test "shows config error when provider is nil" do
+      model = %Model{
         input_buffer: "hello",
-        messages: [
-          %{role: :user, content: "old", timestamp: DateTime.utc_now()}
-        ],
-        scroll_offset: 1
+        messages: [],
+        config: %{provider: nil, model: "test"}
       }
-      {new_state, _} = TUI.update(:submit, state)
-      assert new_state.scroll_offset == 0
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "configure a model"
     end
 
-    test ":toggle_reasoning toggles show_reasoning from false to true" do
-      state = %Model{show_reasoning: false}
-      {new_state, commands} = TUI.update(:toggle_reasoning, state)
+    test "shows config error when model is nil" do
+      model = %Model{
+        input_buffer: "hello",
+        messages: [],
+        config: %{provider: "test", model: nil}
+      }
 
-      assert new_state.show_reasoning == true
-      assert commands == []
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "configure a model"
     end
 
-    test ":toggle_reasoning toggles show_reasoning from true to false" do
-      state = %Model{show_reasoning: true}
-      {new_state, commands} = TUI.update(:toggle_reasoning, state)
+    test "handles command input with / prefix" do
+      model = %Model{
+        input_buffer: "/help",
+        messages: [],
+        config: %{provider: "test", model: "test"}
+      }
 
-      assert new_state.show_reasoning == false
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "Available commands"
+    end
+
+    test "/config command shows current configuration" do
+      model = %Model{
+        input_buffer: "/config",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).content =~ "Provider: anthropic"
+      assert hd(new_model.messages).content =~ "Model: claude-3-5-sonnet"
+    end
+
+    test "/provider command updates config and status" do
+      model = %Model{
+        input_buffer: "/provider anthropic",
+        messages: [],
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.config.provider == "anthropic"
+      assert new_model.config.model == nil
+      # Still unconfigured because model is nil
+      assert new_model.agent_status == :unconfigured
+    end
+
+    test "/model provider:model command updates config and status" do
+      model = %Model{
+        input_buffer: "/model anthropic:claude-3-5-sonnet",
+        messages: [],
+        config: %{provider: nil, model: nil},
+        agent_status: :unconfigured
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.config.provider == "anthropic"
+      assert new_model.config.model == "claude-3-5-sonnet"
+      # Now configured - status should be idle
+      assert new_model.agent_status == :idle
+    end
+
+    test "unknown command shows error" do
+      model = %Model{
+        input_buffer: "/unknown_cmd",
+        messages: [],
+        config: %{provider: "test", model: "test"}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "Unknown command"
+    end
+
+    test "shows agent not found error when agent not started" do
+      model = %Model{
+        input_buffer: "hello",
+        messages: [],
+        config: %{provider: "test", model: "test"},
+        agent_name: :nonexistent_agent
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      # Should have user message and error message
+      assert length(new_model.messages) == 2
+      assert Enum.at(new_model.messages, 0).role == :user
+      assert Enum.at(new_model.messages, 1).role == :system
+      assert Enum.at(new_model.messages, 1).content =~ "not running"
+      assert new_model.agent_status == :error
+    end
+
+    @tag :requires_api_key
+    test "sets status to processing when dispatching to agent" do
+      # Start a mock agent for this test
+      {:ok, _pid} = JidoCode.AgentSupervisor.start_agent(%{
+        name: :test_llm_agent,
+        module: JidoCode.Agents.LLMAgent,
+        args: [provider: :anthropic, model: "claude-3-5-haiku-latest"]
+      })
+
+      model = %Model{
+        input_buffer: "hello",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-latest"},
+        agent_name: :test_llm_agent
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      assert new_model.input_buffer == ""
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :user
+      assert hd(new_model.messages).content == "hello"
+      assert new_model.agent_status == :processing
+
+      # Cleanup
+      JidoCode.AgentSupervisor.stop_agent(:test_llm_agent)
+    end
+
+    test "trims whitespace from input before processing" do
+      model = %Model{
+        input_buffer: "  /help  ",
+        messages: [],
+        config: %{provider: "test", model: "test"}
+      }
+
+      {new_model, _} = TUI.update({:submit}, model)
+
+      # Command should be received without leading whitespace
+      assert hd(new_model.messages).content =~ "/help"
+    end
+  end
+
+  describe "update/2 - quit" do
+    test "returns :quit command" do
+      model = %Model{}
+
+      {_new_model, commands} = TUI.update(:quit, model)
+
+      assert commands == [:quit]
+    end
+  end
+
+  describe "update/2 - resize" do
+    test "updates window dimensions" do
+      model = %Model{window: {80, 24}}
+
+      {new_model, commands} = TUI.update({:resize, 120, 40}, model)
+
+      assert new_model.window == {120, 40}
       assert commands == []
     end
   end
 
-  describe "update/2 PubSub messages" do
-    test "{:agent_response, content} adds assistant message to history" do
-      state = %Model{messages: [], agent_status: :processing}
-      {new_state, commands} = TUI.update({:agent_response, "Hello from assistant!"}, state)
+  describe "update/2 - agent messages" do
+    test "handles agent_response" do
+      model = %Model{messages: []}
 
-      assert length(new_state.messages) == 1
-      [message] = new_state.messages
-      assert message.role == :assistant
-      assert message.content == "Hello from assistant!"
-      assert %DateTime{} = message.timestamp
-      assert new_state.agent_status == :idle
-      assert commands == []
+      {new_model, _} = TUI.update({:agent_response, "Hello!"}, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :assistant
+      assert hd(new_model.messages).content == "Hello!"
     end
 
-    test "{:agent_response, content} appends to existing messages" do
-      existing_msg = %{role: :user, content: "Hi", timestamp: DateTime.utc_now()}
-      state = %Model{messages: [existing_msg], agent_status: :processing}
-      {new_state, commands} = TUI.update({:agent_response, "Hello!"}, state)
+    test "agent_response sets status to idle" do
+      model = %Model{messages: [], agent_status: :processing}
 
-      assert length(new_state.messages) == 2
-      assert Enum.at(new_state.messages, 0).role == :user
-      assert Enum.at(new_state.messages, 1).role == :assistant
-      assert commands == []
+      {new_model, _} = TUI.update({:agent_response, "Done!"}, model)
+
+      assert new_model.agent_status == :idle
     end
 
-    test "{:agent_response, content} resets scroll_offset to 0" do
-      state = %Model{
-        messages: [%{role: :user, content: "Hi", timestamp: DateTime.utc_now()}],
-        agent_status: :processing,
-        scroll_offset: 1
-      }
-      {new_state, _} = TUI.update({:agent_response, "Hello!"}, state)
-      assert new_state.scroll_offset == 0
+    test "handles llm_response as alias for agent_response" do
+      model = %Model{messages: [], agent_status: :processing}
+
+      {new_model, _} = TUI.update({:llm_response, "Hello from LLM!"}, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :assistant
+      assert hd(new_model.messages).content == "Hello from LLM!"
+      assert new_model.agent_status == :idle
     end
 
-    test "{:agent_status, status} updates agent status" do
-      state = %Model{agent_status: :idle}
+    # Streaming tests
+    test "stream_chunk appends to streaming_message" do
+      model = %Model{streaming_message: "", is_streaming: true}
 
-      {new_state, _} = TUI.update({:agent_status, :processing}, state)
-      assert new_state.agent_status == :processing
+      {new_model, _} = TUI.update({:stream_chunk, "Hello "}, model)
 
-      {new_state, _} = TUI.update({:agent_status, :error}, new_state)
-      assert new_state.agent_status == :error
+      assert new_model.streaming_message == "Hello "
+      assert new_model.is_streaming == true
 
-      {new_state, _} = TUI.update({:agent_status, :idle}, new_state)
-      assert new_state.agent_status == :idle
+      # Append another chunk
+      {new_model2, _} = TUI.update({:stream_chunk, "world!"}, new_model)
+
+      assert new_model2.streaming_message == "Hello world!"
+      assert new_model2.is_streaming == true
     end
 
-    test "{:reasoning_step, step} adds new reasoning step" do
-      state = %Model{reasoning_steps: []}
-      step = %{step: "Analyzing query", status: :active}
-      {new_state, commands} = TUI.update({:reasoning_step, step}, state)
+    test "stream_chunk starts with nil streaming_message" do
+      model = %Model{streaming_message: nil, is_streaming: false}
 
-      assert length(new_state.reasoning_steps) == 1
-      [added_step] = new_state.reasoning_steps
-      assert added_step.step == "Analyzing query"
-      assert added_step.status == :active
-      assert commands == []
+      {new_model, _} = TUI.update({:stream_chunk, "Hello"}, model)
+
+      assert new_model.streaming_message == "Hello"
+      assert new_model.is_streaming == true
     end
 
-    test "{:reasoning_step, step} updates existing step status" do
-      existing_step = %{step: "Analyzing query", status: :pending}
-      state = %Model{reasoning_steps: [existing_step]}
-      update = %{step: "Analyzing query", status: :complete}
-      {new_state, commands} = TUI.update({:reasoning_step, update}, state)
-
-      assert length(new_state.reasoning_steps) == 1
-      [updated_step] = new_state.reasoning_steps
-      assert updated_step.step == "Analyzing query"
-      assert updated_step.status == :complete
-      assert commands == []
-    end
-
-    test "{:reasoning_step, string} adds step as pending" do
-      state = %Model{reasoning_steps: []}
-      {new_state, commands} = TUI.update({:reasoning_step, "Thinking..."}, state)
-
-      assert length(new_state.reasoning_steps) == 1
-      [step] = new_state.reasoning_steps
-      assert step.step == "Thinking..."
-      assert step.status == :pending
-      assert commands == []
-    end
-
-    test "{:config_changed, config} updates config with atom keys" do
-      state = %Model{
-        config: %{provider: nil, model: nil},
-        agent_status: :unconfigured
+    test "stream_end finalizes message and clears streaming state" do
+      model = %Model{
+        messages: [],
+        streaming_message: "Complete response",
+        is_streaming: true,
+        agent_status: :processing
       }
 
-      new_config = %{provider: "anthropic", model: "claude-3-5-sonnet"}
-      {new_state, commands} = TUI.update({:config_changed, new_config}, state)
+      {new_model, _} = TUI.update({:stream_end, "Complete response"}, model)
 
-      assert new_state.config.provider == "anthropic"
-      assert new_state.config.model == "claude-3-5-sonnet"
-      assert new_state.agent_status == :idle
-      assert commands == []
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :assistant
+      assert hd(new_model.messages).content == "Complete response"
+      assert new_model.streaming_message == nil
+      assert new_model.is_streaming == false
+      assert new_model.agent_status == :idle
     end
 
-    test "{:config_changed, config} updates config with string keys" do
-      state = %Model{
-        config: %{provider: nil, model: nil},
-        agent_status: :unconfigured
+    test "stream_error shows error message and clears streaming" do
+      model = %Model{
+        messages: [],
+        streaming_message: "Partial",
+        is_streaming: true,
+        agent_status: :processing
       }
 
-      new_config = %{"provider" => "openai", "model" => "gpt-4"}
-      {new_state, commands} = TUI.update({:config_changed, new_config}, state)
+      {new_model, _} = TUI.update({:stream_error, :connection_failed}, model)
 
-      assert new_state.config.provider == "openai"
-      assert new_state.config.model == "gpt-4"
-      assert new_state.agent_status == :idle
-      assert commands == []
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).role == :system
+      assert hd(new_model.messages).content =~ "Streaming error"
+      assert hd(new_model.messages).content =~ "connection_failed"
+      assert new_model.streaming_message == nil
+      assert new_model.is_streaming == false
+      assert new_model.agent_status == :error
     end
 
-    test "{:config_changed, config} sets unconfigured when provider nil" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        agent_status: :idle
-      }
+    test "handles status_update" do
+      model = %Model{agent_status: :idle}
 
-      new_config = %{provider: nil, model: "some-model"}
-      {new_state, _} = TUI.update({:config_changed, new_config}, state)
+      {new_model, _} = TUI.update({:status_update, :processing}, model)
 
-      assert new_state.agent_status == :unconfigured
+      assert new_model.agent_status == :processing
+    end
+
+    test "handles agent_status as alias for status_update" do
+      model = %Model{agent_status: :idle}
+
+      {new_model, _} = TUI.update({:agent_status, :processing}, model)
+
+      assert new_model.agent_status == :processing
+    end
+
+    test "handles config_change with atom keys" do
+      model = %Model{config: %{provider: nil, model: nil}}
+
+      {new_model, _} = TUI.update({:config_change, %{provider: "anthropic", model: "claude"}}, model)
+
+      assert new_model.config.provider == "anthropic"
+      assert new_model.config.model == "claude"
+      assert new_model.agent_status == :idle
+    end
+
+    test "handles config_change with string keys" do
+      model = %Model{config: %{provider: nil, model: nil}}
+
+      {new_model, _} = TUI.update({:config_change, %{"provider" => "openai", "model" => "gpt-4"}}, model)
+
+      assert new_model.config.provider == "openai"
+      assert new_model.config.model == "gpt-4"
+    end
+
+    test "handles config_changed as alias for config_change" do
+      model = %Model{config: %{provider: nil, model: nil}}
+
+      {new_model, _} = TUI.update({:config_changed, %{provider: "openai", model: "gpt-4"}}, model)
+
+      assert new_model.config.provider == "openai"
+      assert new_model.config.model == "gpt-4"
+      assert new_model.agent_status == :idle
+    end
+
+    test "handles reasoning_step" do
+      model = %Model{reasoning_steps: []}
+      step = %{step: "Thinking...", status: :active}
+
+      {new_model, _} = TUI.update({:reasoning_step, step}, model)
+
+      assert length(new_model.reasoning_steps) == 1
+      assert hd(new_model.reasoning_steps) == step
+    end
+
+    test "handles clear_reasoning_steps" do
+      model = %Model{reasoning_steps: [%{step: "Step 1", status: :complete}]}
+
+      {new_model, _} = TUI.update(:clear_reasoning_steps, model)
+
+      assert new_model.reasoning_steps == []
+    end
+  end
+
+  describe "message queueing" do
+    test "agent_response adds to message queue" do
+      model = %Model{message_queue: []}
+
+      {new_model, _} = TUI.update({:agent_response, "Hello!"}, model)
+
+      assert length(new_model.message_queue) == 1
+      {{:agent_response, "Hello!"}, _timestamp} = hd(new_model.message_queue)
+    end
+
+    test "status_update adds to message queue" do
+      model = %Model{message_queue: []}
+
+      {new_model, _} = TUI.update({:status_update, :processing}, model)
+
+      assert length(new_model.message_queue) == 1
+      {{:status_update, :processing}, _timestamp} = hd(new_model.message_queue)
+    end
+
+    test "config_change adds to message queue" do
+      model = %Model{message_queue: []}
+
+      {new_model, _} = TUI.update({:config_change, %{provider: "test"}}, model)
+
+      assert length(new_model.message_queue) == 1
+    end
+
+    test "reasoning_step adds to message queue" do
+      model = %Model{message_queue: []}
+      step = %{step: "Thinking", status: :active}
+
+      {new_model, _} = TUI.update({:reasoning_step, step}, model)
+
+      assert length(new_model.message_queue) == 1
+    end
+
+    test "message queue limits size to max_queue_size" do
+      # Create a model with a queue at max size
+      large_queue =
+        Enum.map(1..100, fn i ->
+          {{:test_message, i}, DateTime.utc_now()}
+        end)
+
+      model = %Model{message_queue: large_queue}
+
+      # Add one more message
+      {new_model, _} = TUI.update({:agent_response, "New message"}, model)
+
+      # Queue should still be at max size (100)
+      assert length(new_model.message_queue) == 100
+
+      # Most recent message should be first
+      {{:agent_response, "New message"}, _} = hd(new_model.message_queue)
+    end
+
+    test "queue_message maintains LIFO order" do
+      queue = []
+      queue = TUI.queue_message(queue, :msg1)
+      queue = TUI.queue_message(queue, :msg2)
+      queue = TUI.queue_message(queue, :msg3)
+
+      assert length(queue) == 3
+      {:msg3, _} = Enum.at(queue, 0)
+      {:msg2, _} = Enum.at(queue, 1)
+      {:msg1, _} = Enum.at(queue, 2)
+    end
+  end
+
+  describe "PubSub integration" do
+    test "init subscribes to tui.events topic" do
+      _model = TUI.init([])
+
+      # Verify subscription by broadcasting and receiving
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events", {:test_pubsub, "integration"})
+      assert_receive {:test_pubsub, "integration"}, 1000
+    end
+
+    test "full message flow: agent_response via PubSub" do
+      model = TUI.init([])
+
+      # Simulate receiving a PubSub message
+      msg = {:agent_response, "Test response from agent"}
+      {new_model, _} = TUI.update(msg, model)
+
+      assert length(new_model.messages) == 1
+      assert hd(new_model.messages).content == "Test response from agent"
+      assert hd(new_model.messages).role == :assistant
+    end
+
+    test "full message flow: status transitions" do
+      model = TUI.init([])
+
+      # Start processing
+      {model, _} = TUI.update({:agent_status, :processing}, model)
+      assert model.agent_status == :processing
+
+      # Complete with response
+      {model, _} = TUI.update({:agent_response, "Done!"}, model)
+      assert length(model.messages) == 1
+
+      # Back to idle
+      {model, _} = TUI.update({:agent_status, :idle}, model)
+      assert model.agent_status == :idle
+    end
+
+    test "full message flow: reasoning steps accumulation" do
+      model = TUI.init([])
+
+      # Simulate CoT reasoning flow
+      {model, _} = TUI.update({:reasoning_step, %{step: "Understanding", status: :active}}, model)
+      {model, _} = TUI.update({:reasoning_step, %{step: "Planning", status: :pending}}, model)
+      {model, _} = TUI.update({:reasoning_step, %{step: "Executing", status: :pending}}, model)
+
+      assert length(model.reasoning_steps) == 3
+      assert Enum.at(model.reasoning_steps, 0).step == "Understanding"
+      assert Enum.at(model.reasoning_steps, 2).step == "Executing"
+
+      # Clear reasoning steps for next query
+      {model, _} = TUI.update(:clear_reasoning_steps, model)
+      assert model.reasoning_steps == []
+    end
+
+    test "rapid message handling doesn't exceed queue limit" do
+      model = TUI.init([])
+
+      # Simulate rapid message burst (150 messages)
+      model =
+        Enum.reduce(1..150, model, fn i, acc ->
+          {new_model, _} = TUI.update({:agent_response, "Message #{i}"}, acc)
+          new_model
+        end)
+
+      # Queue should be limited to 100
+      assert length(model.message_queue) == 100
+
+      # All 150 messages should be in the messages list
+      assert length(model.messages) == 150
+    end
+  end
+
+  describe "update/2 - unknown messages" do
+    test "returns state unchanged for unknown messages" do
+      model = %Model{input_buffer: "test"}
+
+      {new_model, commands} = TUI.update(:unknown_message, model)
+
+      assert new_model == model
+      assert commands == []
     end
   end
 
   describe "view/1" do
-    alias TermUI.Component.RenderNode
-
-    test "returns a three-pane vertical layout" do
-      state = %Model{}
-      view = TUI.view(state)
-
-      # View should return a RenderNode with type :stack (vertical)
-      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
-      assert is_list(children)
-      # Three panes: status bar, conversation, input bar
-      assert length(children) == 3
-    end
-
-    test "first pane is status bar with segments" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        agent_status: :idle
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      # Status bar is now a horizontal stack of segments
-      assert %RenderNode{type: :stack, direction: :horizontal, children: segments} = status_bar
-      texts = extract_texts(segments)
-      combined = Enum.join(texts, "")
-
-      assert combined =~ "anthropic:claude-3-5-sonnet"
-      assert combined =~ "Idle"
-      assert combined =~ "Ctrl+C: Quit"
-
-      # Check config segment has blue background
-      config_segment = Enum.at(segments, 0)
-      assert config_segment.style.bg == :blue
-    end
-
-    test "status bar shows 'No provider configured' with red warning" do
-      state = %Model{
-        config: %{provider: nil, model: nil},
-        agent_status: :unconfigured
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-      texts = extract_texts(segments)
-      combined = Enum.join(texts, "")
-
-      assert combined =~ "No provider configured"
-      assert combined =~ "Not Configured"
-
-      # Config segment should be red for warning
-      config_segment = Enum.at(segments, 0)
-      assert config_segment.style.fg == :red
-    end
-
-    test "status bar shows processing status with yellow indicator" do
-      state = %Model{
-        config: %{provider: "openai", model: "gpt-4"},
-        agent_status: :processing
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-      texts = extract_texts(segments)
-      combined = Enum.join(texts, "")
-
-      assert combined =~ "Processing"
-
-      # Find status segment and check it's yellow
-      status_segment = Enum.find(segments, fn s ->
-        s.type == :text and s.content != nil and s.content =~ "Processing"
-      end)
-      assert status_segment.style.fg == :yellow
-    end
-
-    test "status bar shows CoT indicator when reasoning steps are active" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        agent_status: :processing,
-        reasoning_steps: [
-          %{step: "Analyzing", status: :complete},
-          %{step: "Planning", status: :active},
-          %{step: "Executing", status: :pending}
-        ]
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-      texts = extract_texts(segments)
-      combined = Enum.join(texts, "")
-
-      assert combined =~ "CoT: 1/3"
-
-      # CoT segment should be magenta
-      cot_segment = Enum.find(segments, fn s ->
-        s.type == :text and s.content != nil and s.content =~ "CoT:"
-      end)
-      assert cot_segment.style.fg == :magenta
-    end
-
-    test "status bar shows idle status with green indicator" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :idle
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-
-      # Find idle status segment
-      status_segment = Enum.find(segments, fn s ->
-        s.type == :text and s.content != nil and s.content =~ "Idle"
-      end)
-      assert status_segment.style.fg == :green
-      assert status_segment.content =~ "●"  # Filled indicator
-    end
-
-    test "status bar shows error status with red indicator" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :error
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-
-      # Find error status segment
-      status_segment = Enum.find(segments, fn s ->
-        s.type == :text and s.content != nil and s.content =~ "Error"
-      end)
-      assert status_segment.style.fg == :red
-    end
-
-    test "status bar shows unconfigured status with dim indicator" do
-      state = %Model{
-        config: %{provider: nil, model: nil},
-        agent_status: :unconfigured
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-
-      # Find unconfigured status segment
-      status_segment = Enum.find(segments, fn s ->
-        s.type == :text and s.content != nil and s.content =~ "Not Configured"
-      end)
-      assert status_segment.style.fg == :bright_black  # Dim
-      assert status_segment.content =~ "○"  # Empty indicator
-    end
-
-    test "status bar shows 'no model' with yellow warning" do
-      state = %Model{
-        config: %{provider: "anthropic", model: nil},
-        agent_status: :unconfigured
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-
-      # First segment is config
-      config_segment = Enum.at(segments, 0)
-      assert config_segment.content =~ "no model"
-      assert config_segment.style.fg == :yellow
-    end
-
-    test "status bar includes keyboard hints with Ctrl+M and Ctrl+R" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :idle
-      }
-
-      %RenderNode{children: [status_bar | _rest]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: segments} = status_bar
-      texts = extract_texts(segments)
-      combined = Enum.join(texts, "")
-
-      assert combined =~ "Ctrl+M: Model"
-      assert combined =~ "Ctrl+R: Reasoning"
-      assert combined =~ "Ctrl+C: Quit"
-    end
-
-    test "second pane is conversation area" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+    test "returns a render tree" do
+      model = %Model{
         agent_status: :idle,
-        messages: []
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
       }
 
-      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+      view = TUI.view(model)
 
-      # Conversation should be a stack
-      assert %RenderNode{type: :stack, direction: :vertical} = conversation
+      # View should return a RenderNode with type :stack
+      assert %TermUI.Component.RenderNode{type: :stack, direction: :vertical} = view
     end
 
-    test "conversation shows welcome message when empty and configured" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        agent_status: :idle,
-        messages: []
-      }
-
-      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
-
-      # Check for welcome text in conversation
-      assert %RenderNode{type: :stack, children: children} = conversation
-      texts = extract_texts(children)
-      assert Enum.any?(texts, &(&1 =~ "JidoCode"))
-      assert Enum.any?(texts, &(&1 =~ "Ready"))
-    end
-
-    test "conversation shows configuration message when unconfigured" do
-      state = %Model{
-        config: %{provider: nil, model: nil},
+    test "renders unconfigured status message" do
+      model = %Model{
         agent_status: :unconfigured,
-        messages: []
+        config: %{provider: nil, model: nil}
       }
 
-      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+      view = TUI.view(model)
 
-      assert %RenderNode{type: :stack, children: children} = conversation
-      texts = extract_texts(children)
-      assert Enum.any?(texts, &(&1 =~ "Configuration Required"))
+      # Convert view tree to string for inspection
+      view_text = inspect(view)
+
+      assert view_text =~ "Not Configured" or view_text =~ "unconfigured"
     end
 
-    test "conversation displays user messages with cyan styling" do
-      timestamp = DateTime.utc_now()
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+    test "renders configured status" do
+      model = %Model{
         agent_status: :idle,
-        messages: [
-          %{role: :user, content: "Hello, assistant!", timestamp: timestamp}
-        ]
+        config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
       }
 
-      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+      view = TUI.view(model)
+      view_text = inspect(view)
 
-      # Find the message in the conversation
-      assert %RenderNode{type: :stack, children: children} = conversation
-      user_message = find_message_with_content(children, "Hello, assistant!")
-      assert user_message != nil
-      assert user_message.style.fg == :cyan
+      assert view_text =~ "anthropic" or view_text =~ "Idle"
     end
 
-    test "conversation displays assistant messages with white styling" do
-      timestamp = DateTime.utc_now()
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+    test "main view has three-pane layout when configured" do
+      model = %Model{
         agent_status: :idle,
-        messages: [
-          %{role: :assistant, content: "Hello, human!", timestamp: timestamp}
-        ]
-      }
-
-      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: children} = conversation
-      assistant_message = find_message_with_content(children, "Hello, human!")
-      assert assistant_message != nil
-      assert assistant_message.style.fg == :white
-    end
-
-    test "messages include timestamps" do
-      timestamp = ~U[2024-01-15 14:30:00Z]
-      state = %Model{
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        agent_status: :idle,
-        messages: [
-          %{role: :user, content: "Test message", timestamp: timestamp}
-        ]
-      }
-
-      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
-
-      assert %RenderNode{type: :stack, children: children} = conversation
-      texts = extract_texts(children)
-      # Should show HH:MM format
-      assert Enum.any?(texts, &(&1 =~ "[14:30]"))
-    end
-
-    test "third pane is input bar with green prompt" do
-      state = %Model{
-        input_buffer: "test input"
-      }
-
-      %RenderNode{children: [_status, _conversation, input_bar]} = TUI.view(state)
-
-      # Input bar should be horizontal stack with prompt and buffer
-      assert %RenderNode{type: :stack, direction: :horizontal, children: [prompt, buffer]} = input_bar
-
-      # Check prompt styling
-      assert %RenderNode{type: :text, content: "> ", style: style} = prompt
-      assert style.fg == :green
-      assert :bold in MapSet.to_list(style.attrs)
-
-      # Check buffer content
-      assert %RenderNode{type: :text, content: "test input"} = buffer
-    end
-
-    test "input bar shows empty buffer" do
-      state = %Model{
+        messages: [],
         input_buffer: ""
       }
 
-      %RenderNode{children: [_status, _conversation, input_bar]} = TUI.view(state)
+      view = TUI.view(model)
 
-      assert %RenderNode{type: :stack, direction: :horizontal, children: [_prompt, buffer]} = input_bar
-      assert %RenderNode{type: :text, content: ""} = buffer
+      # Main view should have 3 children: status bar, conversation, input bar
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = view
+      assert length(children) == 3
     end
 
-    test "conversation shows scroll indicator when scrolled up" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
+    test "status bar shows provider and model" do
+      model = %Model{
         agent_status: :idle,
+        config: %{provider: "openai", model: "gpt-4"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "openai:gpt-4"
+    end
+
+    test "status bar shows keyboard hints" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+C"
+    end
+
+    test "conversation shows empty message when no messages" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: []
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "No messages yet"
+    end
+
+    test "conversation shows user messages with You: prefix" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
         messages: [
-          %{role: :user, content: "msg1", timestamp: DateTime.utc_now()},
-          %{role: :assistant, content: "msg2", timestamp: DateTime.utc_now()},
-          %{role: :user, content: "msg3", timestamp: DateTime.utc_now()}
-        ],
-        scroll_offset: 1
+          %{role: :user, content: "Hello there", timestamp: DateTime.utc_now()}
+        ]
       }
 
-      %RenderNode{children: [_status, conversation, _input]} = TUI.view(state)
+      view = TUI.view(model)
+      view_text = inspect(view)
 
-      texts = extract_texts([conversation])
-      assert Enum.any?(texts, &(&1 =~ "more message(s) below"))
+      assert view_text =~ "You:"
+      assert view_text =~ "Hello there"
     end
 
-    test "reasoning panel is hidden when show_reasoning is false" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
+    test "conversation shows assistant messages with Assistant: prefix" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [
+          %{role: :assistant, content: "Hi! How can I help?", timestamp: DateTime.utc_now()}
+        ]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Assistant:"
+      assert view_text =~ "Hi! How can I help?"
+    end
+
+    test "input bar shows current buffer" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        input_buffer: "typing something"
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "typing something"
+      # Should show cursor indicator
+      assert view_text =~ "_"
+    end
+
+    test "input bar shows prompt indicator" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        input_buffer: ""
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Should show > prompt
+      assert view_text =~ ">"
+    end
+
+    test "status bar shows processing status" do
+      model = %Model{
         agent_status: :processing,
-        show_reasoning: false,
-        reasoning_steps: [
-          %{step: "Analyzing", status: :active}
-        ],
-        window: {120, 40}
+        config: %{provider: "test", model: "test"}
       }
 
-      view = TUI.view(state)
+      view = TUI.view(model)
+      view_text = inspect(view)
 
-      # Should be simple 3-pane layout without reasoning panel
-      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
-      assert length(children) == 3
-
-      # Should not contain "Reasoning (N)" header (note: "Ctrl+R: Reasoning" is in hints)
-      texts = extract_texts(children)
-      refute Enum.any?(texts, &(&1 =~ "Reasoning ("))
+      # Status changed to "Streaming..." for better UX during streaming responses
+      assert view_text =~ "Streaming"
     end
 
-    test "reasoning panel is hidden when reasoning_steps is empty" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :processing,
-        show_reasoning: true,
-        reasoning_steps: [],
-        window: {120, 40}
+    test "status bar shows error status" do
+      model = %Model{
+        agent_status: :error,
+        config: %{provider: "test", model: "test"}
       }
 
-      view = TUI.view(state)
+      view = TUI.view(model)
+      view_text = inspect(view)
 
-      # Should be simple 3-pane layout without reasoning panel
-      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
-      assert length(children) == 3
-
-      # Should not contain "Reasoning (N)" header (note: "Ctrl+R: Reasoning" is in hints)
-      texts = extract_texts(children)
-      refute Enum.any?(texts, &(&1 =~ "Reasoning ("))
-    end
-
-    test "reasoning panel shows as bottom drawer for narrow terminals" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :processing,
-        show_reasoning: true,
-        reasoning_steps: [
-          %{step: "Step 1", status: :complete},
-          %{step: "Step 2", status: :active},
-          %{step: "Step 3", status: :pending}
-        ],
-        window: {80, 24}  # Narrow terminal (< 100)
-      }
-
-      view = TUI.view(state)
-
-      # Should have 4 panes in narrow mode: status, conversation, reasoning panel, input
-      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
-      assert length(children) == 4
-
-      # Check that reasoning panel is present
-      texts = extract_texts(children)
-      assert Enum.any?(texts, &(&1 =~ "Reasoning (3)"))
-    end
-
-    test "reasoning panel shows as right sidebar for wide terminals" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :processing,
-        show_reasoning: true,
-        reasoning_steps: [
-          %{step: "Step 1", status: :complete},
-          %{step: "Step 2", status: :active}
-        ],
-        window: {120, 40}  # Wide terminal (>= 100)
-      }
-
-      view = TUI.view(state)
-
-      # Wide layout uses horizontal stacks for sidebar
-      assert %RenderNode{type: :stack, direction: :vertical, children: children} = view
-
-      # First child should be horizontal stack with status and reasoning header
-      [first_row | _] = children
-      assert %RenderNode{type: :stack, direction: :horizontal} = first_row
-
-      # Check that reasoning header is present
-      texts = extract_texts(children)
-      assert Enum.any?(texts, &(&1 =~ "Reasoning (2)"))
-    end
-
-    test "reasoning panel displays step status indicators" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :processing,
-        show_reasoning: true,
-        reasoning_steps: [
-          %{step: "Complete step", status: :complete},
-          %{step: "Active step", status: :active},
-          %{step: "Pending step", status: :pending}
-        ],
-        window: {80, 24}  # Narrow for bottom drawer
-      }
-
-      view = TUI.view(state)
-
-      texts = extract_texts([view])
-      combined = Enum.join(texts, " ")
-
-      # Check for status indicators
-      assert combined =~ "✓"  # Complete
-      assert combined =~ "●"  # Active
-      assert combined =~ "○"  # Pending
-    end
-
-    test "reasoning panel step styling uses correct colors" do
-      state = %Model{
-        config: %{provider: "anthropic", model: "claude"},
-        agent_status: :idle,  # Use idle to avoid processing indicator matching
-        show_reasoning: true,
-        reasoning_steps: [
-          %{step: "Completed Task", status: :complete}
-        ],
-        window: {120, 40}  # Wide for sidebar
-      }
-
-      view = TUI.view(state)
-
-      # Find the step node with checkmark (complete indicator)
-      step_node = find_step_with_checkmark(view)
-      assert step_node != nil
-      assert step_node.style.fg == :green  # Complete step is green
+      assert view_text =~ "Error"
     end
   end
 
-  describe "wrap_text/3" do
-    test "returns single line when text fits" do
-      result = TUI.wrap_text("hello world", 20, 20)
+  describe "integration" do
+    test "TUI module uses TermUI.Elm behaviour" do
+      # Verify the module implements the required callbacks
+      behaviours = JidoCode.TUI.__info__(:attributes)[:behaviour] || []
+      assert TermUI.Elm in behaviours
+    end
+
+    test "Model struct is accessible via JidoCode.TUI.Model" do
+      # Verify the nested module is accessible
+      assert Code.ensure_loaded?(JidoCode.TUI.Model)
+    end
+  end
+
+  describe "wrap_text/2" do
+    test "returns single line for short text" do
+      result = TUI.wrap_text("hello world", 80)
       assert result == ["hello world"]
     end
 
     test "wraps text at word boundaries" do
-      result = TUI.wrap_text("hello world foo bar", 11, 11)
+      result = TUI.wrap_text("hello world foo bar", 11)
       assert result == ["hello world", "foo bar"]
     end
 
-    test "handles empty text" do
-      result = TUI.wrap_text("", 20, 20)
+    test "handles text exactly at max width" do
+      result = TUI.wrap_text("hello", 5)
+      assert result == ["hello"]
+    end
+
+    test "splits words longer than max width" do
+      result = TUI.wrap_text("superlongword", 5)
+      # First iteration splits at 5, then the remainder is handled
+      assert result == ["super", "longword"]
+    end
+
+    test "handles empty string" do
+      result = TUI.wrap_text("", 80)
       assert result == [""]
     end
 
-    test "handles single word longer than width" do
-      result = TUI.wrap_text("superlongword", 5, 5)
-      # Single word doesn't fit but we keep it anyway
-      assert result == ["superlongword"]
+    test "handles single word" do
+      result = TUI.wrap_text("word", 80)
+      assert result == ["word"]
     end
 
-    test "handles multiple words requiring multiple lines" do
-      result = TUI.wrap_text("one two three four five", 10, 10)
-      assert result == ["one two", "three four", "five"]
+    test "handles multiple spaces" do
+      result = TUI.wrap_text("hello world", 80)
+      # String.split on single space produces empty strings
+      assert is_list(result)
     end
 
-    test "respects different first line and continuation widths" do
-      result = TUI.wrap_text("hello world foo bar baz", 11, 15)
-      # First line: "hello world" (11 chars)
-      # Continuation: "foo bar baz" (11 chars, fits in 15)
-      assert result == ["hello world", "foo bar baz"]
-    end
-  end
+    test "handles invalid max_width" do
+      result = TUI.wrap_text("hello", 0)
+      assert result == [""]
 
-  # Helper functions for view tests
-
-  alias TermUI.Component.RenderNode
-
-  defp extract_texts(nodes) when is_list(nodes) do
-    Enum.flat_map(nodes, &extract_texts/1)
-  end
-
-  defp extract_texts(%RenderNode{type: :text, content: content}) when is_binary(content) do
-    [content]
-  end
-
-  defp extract_texts(%RenderNode{type: :stack, children: children}) do
-    extract_texts(children)
-  end
-
-  defp extract_texts(_), do: []
-
-  defp find_message_with_content(nodes, content) when is_list(nodes) do
-    Enum.find_value(nodes, fn node -> find_message_with_content(node, content) end)
-  end
-
-  defp find_message_with_content(%RenderNode{type: :text, content: text_content} = node, content)
-       when is_binary(text_content) do
-    if String.contains?(text_content, content), do: node, else: nil
-  end
-
-  defp find_message_with_content(%RenderNode{type: :stack, children: children}, content) do
-    find_message_with_content(children, content)
-  end
-
-  defp find_message_with_content(_, _), do: nil
-
-  # Helper to find a step node with checkmark (complete indicator only)
-  defp find_step_with_checkmark(nodes) when is_list(nodes) do
-    Enum.find_value(nodes, fn node -> find_step_with_checkmark(node) end)
-  end
-
-  defp find_step_with_checkmark(%RenderNode{type: :text, content: content} = node)
-       when is_binary(content) do
-    if String.contains?(content, "✓") do
-      node
-    else
-      nil
+      result = TUI.wrap_text("hello", -5)
+      assert result == [""]
     end
   end
 
-  defp find_step_with_checkmark(%RenderNode{type: :stack, children: children}) do
-    find_step_with_checkmark(children)
+  describe "format_timestamp/1" do
+    test "formats datetime as [HH:MM]" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[14:32]"
+    end
+
+    test "pads single digit hours and minutes" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[09:05:00], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[09:05]"
+    end
+
+    test "handles midnight" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[00:00:00], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[00:00]"
+    end
+
+    test "handles end of day" do
+      datetime = DateTime.new!(~D[2024-01-15], ~T[23:59:59], "Etc/UTC")
+      result = TUI.format_timestamp(datetime)
+      assert result == "[23:59]"
+    end
   end
 
-  defp find_step_with_checkmark(_), do: nil
+  describe "max_scroll_offset/1" do
+    test "returns 0 when no messages" do
+      model = %Model{messages: [], window: {80, 24}}
+      assert TUI.max_scroll_offset(model) == 0
+    end
+
+    test "returns 0 when messages fit in view" do
+      model = %Model{
+        messages: [
+          %{role: :user, content: "hello", timestamp: DateTime.utc_now()}
+        ],
+        window: {80, 24}
+      }
+
+      assert TUI.max_scroll_offset(model) == 0
+    end
+
+    test "returns positive offset when messages exceed view" do
+      # Create many messages to exceed the view height
+      messages =
+        Enum.map(1..50, fn i ->
+          %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
+        end)
+
+      model = %Model{messages: messages, window: {80, 10}}
+
+      # With 50 messages and height 10 (8 available after status/input)
+      # max_offset should be positive
+      assert TUI.max_scroll_offset(model) > 0
+    end
+  end
+
+  describe "scroll navigation" do
+    test "up arrow returns {:scroll, :up}" do
+      model = %Model{}
+      event = Event.key(:up)
+
+      assert TUI.event_to_msg(event, model) == {:scroll, :up}
+    end
+
+    test "down arrow returns {:scroll, :down}" do
+      model = %Model{}
+      event = Event.key(:down)
+
+      assert TUI.event_to_msg(event, model) == {:scroll, :down}
+    end
+
+    test "scroll up increases scroll_offset" do
+      model = %Model{
+        scroll_offset: 0,
+        messages: Enum.map(1..50, fn i ->
+          %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
+        end),
+        window: {80, 10}
+      }
+
+      {new_model, _} = TUI.update({:scroll, :up}, model)
+      assert new_model.scroll_offset == 1
+    end
+
+    test "scroll down decreases scroll_offset" do
+      model = %Model{
+        scroll_offset: 5,
+        messages: [],
+        window: {80, 24}
+      }
+
+      {new_model, _} = TUI.update({:scroll, :down}, model)
+      assert new_model.scroll_offset == 4
+    end
+
+    test "scroll down does not go below 0" do
+      model = %Model{scroll_offset: 0, messages: [], window: {80, 24}}
+
+      {new_model, _} = TUI.update({:scroll, :down}, model)
+      assert new_model.scroll_offset == 0
+    end
+
+    test "scroll up does not exceed max_scroll_offset" do
+      model = %Model{
+        scroll_offset: 0,
+        messages: [%{role: :user, content: "short", timestamp: DateTime.utc_now()}],
+        window: {80, 24}
+      }
+
+      # With only 1 message and large window, max_offset is 0
+      {new_model, _} = TUI.update({:scroll, :up}, model)
+      assert new_model.scroll_offset == 0
+    end
+  end
+
+  describe "message display with timestamps" do
+    test "messages include timestamp in view" do
+      timestamp = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [
+          %{role: :user, content: "Hello", timestamp: timestamp}
+        ]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "[14:32]"
+      assert view_text =~ "You:"
+      assert view_text =~ "Hello"
+    end
+  end
+
+  describe "Model scroll_offset field" do
+    test "has default value of 0" do
+      model = %Model{}
+      assert model.scroll_offset == 0
+    end
+
+    test "init sets scroll_offset to 0" do
+      model = TUI.init([])
+      assert model.scroll_offset == 0
+    end
+  end
+
+  describe "show_reasoning field" do
+    test "has default value of false" do
+      model = %Model{}
+      assert model.show_reasoning == false
+    end
+
+    test "init sets show_reasoning to false" do
+      model = TUI.init([])
+      assert model.show_reasoning == false
+    end
+  end
+
+  describe "toggle_reasoning" do
+    test "Ctrl+R returns :toggle_reasoning" do
+      model = %Model{}
+      event = Event.key(:r, modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == :toggle_reasoning
+    end
+
+    test "plain 'r' key returns {:key_input, \"r\"}" do
+      model = %Model{}
+      event = Event.key(:r, char: "r")
+
+      assert TUI.event_to_msg(event, model) == {:key_input, "r"}
+    end
+
+    test "toggle_reasoning flips show_reasoning from false to true" do
+      model = %Model{show_reasoning: false}
+
+      {new_model, commands} = TUI.update(:toggle_reasoning, model)
+
+      assert new_model.show_reasoning == true
+      assert commands == []
+    end
+
+    test "toggle_reasoning flips show_reasoning from true to false" do
+      model = %Model{show_reasoning: true}
+
+      {new_model, commands} = TUI.update(:toggle_reasoning, model)
+
+      assert new_model.show_reasoning == false
+      assert commands == []
+    end
+  end
+
+  describe "render_reasoning/1" do
+    test "renders empty state when no reasoning steps" do
+      model = %Model{reasoning_steps: []}
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Reasoning"
+      assert view_text =~ "No reasoning steps"
+    end
+
+    test "renders pending step with circle indicator" do
+      model = %Model{
+        reasoning_steps: [%{step: "Understanding query", status: :pending}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "○"
+      assert view_text =~ "Understanding query"
+    end
+
+    test "renders active step with filled circle indicator" do
+      model = %Model{
+        reasoning_steps: [%{step: "Analyzing code", status: :active}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "●"
+      assert view_text =~ "Analyzing code"
+    end
+
+    test "renders complete step with checkmark indicator" do
+      model = %Model{
+        reasoning_steps: [%{step: "Found solution", status: :complete}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "✓"
+      assert view_text =~ "Found solution"
+    end
+
+    test "renders multiple steps with different statuses" do
+      model = %Model{
+        reasoning_steps: [
+          %{step: "Step 1", status: :complete},
+          %{step: "Step 2", status: :active},
+          %{step: "Step 3", status: :pending}
+        ]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "✓"
+      assert view_text =~ "●"
+      assert view_text =~ "○"
+      assert view_text =~ "Step 1"
+      assert view_text =~ "Step 2"
+      assert view_text =~ "Step 3"
+    end
+
+    test "renders confidence score when present" do
+      model = %Model{
+        reasoning_steps: [%{step: "Validated", status: :complete, confidence: 0.92}]
+      }
+
+      view = TUI.render_reasoning(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "confidence: 0.92"
+    end
+  end
+
+  describe "render_reasoning_compact/1" do
+    test "renders compact format for empty steps" do
+      model = %Model{reasoning_steps: []}
+
+      view = TUI.render_reasoning_compact(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Reasoning"
+      assert view_text =~ "none"
+    end
+
+    test "renders compact format with multiple steps" do
+      model = %Model{
+        reasoning_steps: [
+          %{step: "Step 1", status: :complete},
+          %{step: "Step 2", status: :active}
+        ]
+      }
+
+      view = TUI.render_reasoning_compact(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "✓"
+      assert view_text =~ "●"
+      assert view_text =~ "│"
+    end
+  end
+
+  describe "reasoning panel in view" do
+    test "status bar shows Ctrl+R: Reasoning when panel is hidden" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: false
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+R: Reasoning"
+    end
+
+    test "status bar shows Ctrl+R: Hide when panel is visible" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: true
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+R: Hide"
+    end
+
+    test "view includes reasoning panel when show_reasoning is true (wide terminal)" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: true,
+        reasoning_steps: [%{step: "Test step", status: :active}],
+        window: {120, 40}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Reasoning"
+      assert view_text =~ "Test step"
+    end
+
+    test "view uses compact reasoning in narrow terminal" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: true,
+        reasoning_steps: [%{step: "Test step", status: :active}],
+        window: {80, 24}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Compact view uses │ separator
+      assert view_text =~ "Reasoning"
+    end
+
+    test "view does not include reasoning panel when show_reasoning is false" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_reasoning: false,
+        reasoning_steps: [%{step: "Hidden step", status: :active}]
+      }
+
+      view = TUI.view(model)
+
+      # Main view should have 3 children when reasoning is hidden
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = view
+      assert length(children) == 3
+    end
+  end
+
+  describe "status_style/1" do
+    test "idle status returns green style" do
+      style = TUI.status_style(:idle)
+      assert style.fg == :green
+      assert style.bg == :blue
+    end
+
+    test "processing status returns yellow style" do
+      style = TUI.status_style(:processing)
+      assert style.fg == :yellow
+      assert style.bg == :blue
+    end
+
+    test "error status returns red style" do
+      style = TUI.status_style(:error)
+      assert style.fg == :red
+      assert style.bg == :blue
+    end
+
+    test "unconfigured status returns dim red style" do
+      style = TUI.status_style(:unconfigured)
+      assert style.fg == :red
+      assert style.bg == :blue
+      assert :dim in style.attrs
+    end
+  end
+
+  describe "config_style/1" do
+    test "no provider returns red style" do
+      style = TUI.config_style(%{provider: nil, model: "test"})
+      assert style.fg == :red
+    end
+
+    test "no model returns yellow style" do
+      style = TUI.config_style(%{provider: "test", model: nil})
+      assert style.fg == :yellow
+    end
+
+    test "fully configured returns white style" do
+      style = TUI.config_style(%{provider: "test", model: "test"})
+      assert style.fg == :white
+    end
+  end
+
+  describe "status bar keyboard hints" do
+    test "status bar includes Ctrl+M: Model hint" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+M: Model"
+    end
+
+    test "status bar includes Ctrl+C: Quit hint" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+C: Quit"
+    end
+  end
+
+  describe "CoT indicator in status bar" do
+    test "shows [CoT] when reasoning steps have active step" do
+      model = %Model{
+        agent_status: :processing,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: [%{step: "Thinking", status: :active}]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "[CoT]"
+    end
+
+    test "does not show [CoT] when no reasoning steps" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: []
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      refute view_text =~ "[CoT]"
+    end
+
+    test "does not show [CoT] when only pending/complete steps" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: [
+          %{step: "Done", status: :complete},
+          %{step: "Waiting", status: :pending}
+        ]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      refute view_text =~ "[CoT]"
+    end
+  end
+
+  describe "status bar color priority" do
+    test "error state takes priority over other states" do
+      model = %Model{
+        agent_status: :error,
+        config: %{provider: "test", model: "test"},
+        reasoning_steps: [%{step: "Active", status: :active}]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Error should show red in the view
+      assert view_text =~ "Error"
+    end
+
+    test "unconfigured state shows appropriate warning" do
+      model = %Model{
+        agent_status: :unconfigured,
+        config: %{provider: nil, model: nil}
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "No provider"
+      assert view_text =~ "Not Configured"
+    end
+  end
+
+  # ============================================================================
+  # Tool Call Display Tests
+  # ============================================================================
+
+  describe "tool_calls and show_tool_details fields" do
+    test "Model has default empty tool_calls list" do
+      model = %Model{}
+      assert model.tool_calls == []
+    end
+
+    test "Model has default false show_tool_details" do
+      model = %Model{}
+      assert model.show_tool_details == false
+    end
+
+    test "init sets tool_calls to empty list" do
+      model = TUI.init([])
+      assert model.tool_calls == []
+    end
+
+    test "init sets show_tool_details to false" do
+      model = TUI.init([])
+      assert model.show_tool_details == false
+    end
+  end
+
+  describe "toggle_tool_details" do
+    test "Ctrl+T returns :toggle_tool_details" do
+      model = %Model{}
+      event = Event.key(:t, modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == :toggle_tool_details
+    end
+
+    test "plain 't' key returns {:key_input, \"t\"}" do
+      model = %Model{}
+      event = Event.key(:t, char: "t")
+
+      assert TUI.event_to_msg(event, model) == {:key_input, "t"}
+    end
+
+    test "toggle_tool_details flips show_tool_details from false to true" do
+      model = %Model{show_tool_details: false}
+
+      {new_model, commands} = TUI.update(:toggle_tool_details, model)
+
+      assert new_model.show_tool_details == true
+      assert commands == []
+    end
+
+    test "toggle_tool_details flips show_tool_details from true to false" do
+      model = %Model{show_tool_details: true}
+
+      {new_model, commands} = TUI.update(:toggle_tool_details, model)
+
+      assert new_model.show_tool_details == false
+      assert commands == []
+    end
+  end
+
+  describe "update/2 - tool_call message" do
+    test "adds tool call entry to tool_calls list" do
+      model = %Model{tool_calls: []}
+
+      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+
+      assert length(new_model.tool_calls) == 1
+      entry = hd(new_model.tool_calls)
+      assert entry.call_id == "call_123"
+      assert entry.tool_name == "read_file"
+      assert entry.params == %{"path" => "test.ex"}
+      assert entry.result == nil
+      assert %DateTime{} = entry.timestamp
+    end
+
+    test "appends to existing tool calls" do
+      existing = %{
+        call_id: "call_1",
+        tool_name: "grep",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [existing]}
+
+      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2"}, model)
+
+      assert length(new_model.tool_calls) == 2
+      assert Enum.at(new_model.tool_calls, 0).call_id == "call_1"
+      assert Enum.at(new_model.tool_calls, 1).call_id == "call_2"
+    end
+
+    test "adds tool_call to message queue" do
+      model = %Model{tool_calls: [], message_queue: []}
+
+      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+
+      assert length(new_model.message_queue) == 1
+      {{:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, _ts} = hd(new_model.message_queue)
+    end
+  end
+
+  describe "update/2 - tool_result message" do
+    alias JidoCode.Tools.Result
+
+    test "matches result to pending tool call by call_id" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending]}
+
+      result = Result.ok("call_123", "read_file", "file contents", 45)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      assert length(new_model.tool_calls) == 1
+      entry = hd(new_model.tool_calls)
+      assert entry.result != nil
+      assert entry.result.status == :ok
+      assert entry.result.content == "file contents"
+      assert entry.result.duration_ms == 45
+    end
+
+    test "does not modify unmatched tool calls" do
+      pending1 = %{
+        call_id: "call_1",
+        tool_name: "read_file",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      pending2 = %{
+        call_id: "call_2",
+        tool_name: "grep",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending1, pending2]}
+
+      result = Result.ok("call_1", "read_file", "content", 30)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      assert Enum.at(new_model.tool_calls, 0).result != nil
+      assert Enum.at(new_model.tool_calls, 1).result == nil
+    end
+
+    test "handles error results" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending]}
+
+      result = Result.error("call_123", "read_file", "File not found", 12)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      entry = hd(new_model.tool_calls)
+      assert entry.result.status == :error
+      assert entry.result.content == "File not found"
+    end
+
+    test "handles timeout results" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "slow_op",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending]}
+
+      result = Result.timeout("call_123", "slow_op", 30000)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      entry = hd(new_model.tool_calls)
+      assert entry.result.status == :timeout
+    end
+
+    test "adds tool_result to message queue" do
+      pending = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{tool_calls: [pending], message_queue: []}
+
+      result = Result.ok("call_123", "read_file", "content", 30)
+
+      {new_model, _} = TUI.update({:tool_result, result}, model)
+
+      assert length(new_model.message_queue) == 1
+      {{:tool_result, ^result}, _ts} = hd(new_model.message_queue)
+    end
+  end
+
+  describe "format_tool_call_entry/2" do
+    alias JidoCode.Tools.Result
+
+    test "formats pending tool call (no result yet)" do
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: nil,
+        timestamp: DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      assert length(lines) == 2
+      # First line is the tool call
+      call_text = inspect(Enum.at(lines, 0))
+      assert call_text =~ "[14:32]"
+      assert call_text =~ "⚙"
+      assert call_text =~ "read_file"
+      # Second line is "executing..."
+      exec_text = inspect(Enum.at(lines, 1))
+      assert exec_text =~ "executing"
+    end
+
+    test "formats successful tool result" do
+      result = Result.ok("call_123", "read_file", "file contents", 45)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: result,
+        timestamp: DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      assert length(lines) == 2
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "✓"
+      assert result_text =~ "[45ms]"
+      assert result_text =~ "file contents"
+    end
+
+    test "formats error tool result" do
+      result = Result.error("call_123", "read_file", "File not found", 12)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "✗"
+      assert result_text =~ "File not found"
+    end
+
+    test "formats timeout tool result" do
+      result = Result.timeout("call_123", "slow_op", 30000)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "slow_op",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "⏱"
+      assert result_text =~ "[30000ms]"
+    end
+
+    test "truncates long content when show_details is false" do
+      long_content = String.duplicate("x", 200)
+      result = Result.ok("call_123", "read_file", long_content, 45)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, false)
+
+      result_text = inspect(Enum.at(lines, 1))
+      assert result_text =~ "[...]"
+    end
+
+    test "shows full content when show_details is true" do
+      long_content = String.duplicate("x", 200)
+      result = Result.ok("call_123", "read_file", long_content, 45)
+      entry = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+
+      lines = TUI.format_tool_call_entry(entry, true)
+
+      result_text = inspect(Enum.at(lines, 1))
+      refute result_text =~ "[...]"
+    end
+  end
+
+  describe "status bar tool hints" do
+    test "status bar shows Ctrl+T: Tools when show_tool_details is false" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_tool_details: false
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+T: Tools"
+    end
+
+    test "status bar shows Ctrl+T: Hide when show_tool_details is true" do
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        show_tool_details: true
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "Ctrl+T: Hide"
+    end
+  end
+
+  describe "tool calls in conversation view" do
+    alias JidoCode.Tools.Result
+
+    test "conversation shows tool calls" do
+      result = Result.ok("call_123", "read_file", "file contents", 45)
+      tool_call = %{
+        call_id: "call_123",
+        tool_name: "read_file",
+        params: %{"path" => "test.ex"},
+        result: result,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [],
+        tool_calls: [tool_call]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      assert view_text =~ "⚙"
+      assert view_text =~ "read_file"
+      assert view_text =~ "✓"
+    end
+
+    test "conversation shows tool call without empty message text" do
+      tool_call = %{
+        call_id: "call_123",
+        tool_name: "grep",
+        params: %{"pattern" => "TODO"},
+        result: nil,
+        timestamp: DateTime.utc_now()
+      }
+      model = %Model{
+        agent_status: :idle,
+        config: %{provider: "test", model: "test"},
+        messages: [],
+        tool_calls: [tool_call]
+      }
+
+      view = TUI.view(model)
+      view_text = inspect(view)
+
+      # Should NOT show "No messages yet" when there are tool calls
+      refute view_text =~ "No messages yet"
+      assert view_text =~ "grep"
+    end
+  end
 end

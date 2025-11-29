@@ -12,7 +12,7 @@ defmodule JidoCode.TUI do
   - Agent responses
   - Status changes (idle, processing, error)
   - Reasoning steps (Chain-of-Thought progress)
-  - Configuration changes
+  - Tool calls and results
 
   ## Usage
 
@@ -30,18 +30,60 @@ defmodule JidoCode.TUI do
   - `agent_status` - Current agent state (:idle, :processing, :error, :unconfigured)
   - `config` - Provider and model configuration
   - `reasoning_steps` - Chain-of-Thought progress
+  - `tool_calls` - Tool execution history with results
   - `window` - Terminal dimensions
   """
 
-  @behaviour TermUI.Elm
+  use TermUI.Elm
 
+  alias JidoCode.Agents.LLMAgent
+  alias JidoCode.AgentSupervisor
+  alias JidoCode.Commands
+  alias JidoCode.Reasoning.QueryClassifier
   alias JidoCode.Settings
-  alias TermUI.Command
+  alias JidoCode.Tools.Display
+  alias JidoCode.Tools.Result
   alias TermUI.Event
   alias TermUI.Renderer.Style
 
-  # Import only Component.Helpers (avoid text/1 conflict with Elm.Helpers)
-  import TermUI.Component.Helpers, only: [text: 1, text: 2, stack: 2]
+  # ============================================================================
+  # Message Types
+  # ============================================================================
+
+  # Messages handled by update/2:
+  #
+  # Keyboard input:
+  #   {:key_input, char}     - Printable character typed
+  #   {:key_input, :backspace} - Backspace pressed
+  #   {:submit}              - Enter key pressed
+  #   :quit                  - Ctrl+C pressed
+  #
+  # PubSub messages (from agent):
+  #   {:agent_response, content}  - Agent response received
+  #   {:status_update, status}    - Agent status changed
+  #   {:config_change, config}    - Configuration changed
+  #   {:reasoning_step, step}     - Chain-of-Thought step
+
+  @type msg ::
+          {:key_input, String.t() | :backspace}
+          | {:submit}
+          | :quit
+          | {:agent_response, String.t()}
+          | {:agent_status, Model.agent_status()}
+          | {:status_update, Model.agent_status()}
+          | {:config_changed, map()}
+          | {:config_change, map()}
+          | {:reasoning_step, Model.reasoning_step()}
+          | :clear_reasoning_steps
+          | {:tool_call, String.t(), map(), String.t()}
+          | {:tool_result, Result.t()}
+          | :toggle_tool_details
+          | {:stream_chunk, String.t()}
+          | {:stream_end, String.t()}
+          | {:stream_error, term()}
+
+  # Maximum number of messages to keep in the debug queue
+  @max_queue_size 100
 
   # ============================================================================
   # Model
@@ -63,7 +105,17 @@ defmodule JidoCode.TUI do
             status: :pending | :active | :complete
           }
 
+    @type tool_call_entry :: %{
+            call_id: String.t(),
+            tool_name: String.t(),
+            params: map(),
+            result: JidoCode.Tools.Result.t() | nil,
+            timestamp: DateTime.t()
+          }
+
     @type agent_status :: :idle | :processing | :error | :unconfigured
+
+    @type queued_message :: {term(), DateTime.t()}
 
     @type t :: %__MODULE__{
             input_buffer: String.t(),
@@ -71,9 +123,15 @@ defmodule JidoCode.TUI do
             agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
             reasoning_steps: [reasoning_step()],
+            tool_calls: [tool_call_entry()],
+            show_tool_details: boolean(),
             window: {non_neg_integer(), non_neg_integer()},
+            message_queue: [queued_message()],
             scroll_offset: non_neg_integer(),
-            show_reasoning: boolean()
+            show_reasoning: boolean(),
+            agent_name: atom(),
+            streaming_message: String.t() | nil,
+            is_streaming: boolean()
           }
 
     @enforce_keys []
@@ -82,9 +140,15 @@ defmodule JidoCode.TUI do
               agent_status: :unconfigured,
               config: %{provider: nil, model: nil},
               reasoning_steps: [],
+              tool_calls: [],
+              show_tool_details: false,
               window: {80, 24},
+              message_queue: [],
               scroll_offset: 0,
-              show_reasoning: false
+              show_reasoning: false,
+              agent_name: :llm_agent,
+              streaming_message: nil,
+              is_streaming: false
   end
 
   # ============================================================================
@@ -94,11 +158,14 @@ defmodule JidoCode.TUI do
   @doc """
   Initializes the TUI state.
 
-  Loads settings from disk and determines initial agent status based on configuration.
-  PubSub subscription is handled by PubSubBridge which forwards messages to this component.
+  Loads settings from disk, subscribes to PubSub events, and determines
+  initial agent status based on configuration.
   """
   @impl true
   def init(_opts) do
+    # Subscribe to TUI events
+    Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
     # Load configuration from settings
     config = load_config()
 
@@ -111,62 +178,74 @@ defmodule JidoCode.TUI do
       agent_status: status,
       config: config,
       reasoning_steps: [],
+      tool_calls: [],
+      show_tool_details: false,
       window: {80, 24},
+      message_queue: [],
       scroll_offset: 0,
-      show_reasoning: false
+      show_reasoning: false,
+      agent_name: :llm_agent,
+      streaming_message: nil,
+      is_streaming: false
     }
   end
 
   @doc """
   Converts terminal events to TUI messages.
 
-  ## Message Types
-
-  - `:submit` - Enter key pressed (submit input)
-  - `{:key_input, char}` - Printable character typed
-  - `{:key_input, :backspace}` - Backspace pressed
-  - `:quit` - Ctrl+C pressed (exit application)
-  - `{:resize, width, height}` - Terminal resized
+  Handles keyboard events:
+  - Enter → {:submit}
+  - Printable characters → {:key_input, char}
+  - Backspace → {:key_input, :backspace}
+  - Ctrl+C → :quit
   """
   @impl true
   def event_to_msg(%Event.Key{key: :enter}, _state) do
-    {:msg, :submit}
+    {:submit}
   end
 
   def event_to_msg(%Event.Key{key: :backspace}, _state) do
-    {:msg, {:key_input, :backspace}}
+    {:key_input, :backspace}
   end
 
   def event_to_msg(%Event.Key{key: :c, modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
-      {:msg, :quit}
+      :quit
     else
-      {:msg, {:key_input, "c"}}
+      {:key_input, "c"}
     end
   end
 
   def event_to_msg(%Event.Key{key: :r, modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
-      {:msg, :toggle_reasoning}
+      :toggle_reasoning
     else
-      {:msg, {:key_input, "r"}}
+      {:key_input, "r"}
+    end
+  end
+
+  def event_to_msg(%Event.Key{key: :t, modifiers: modifiers}, _state) do
+    if :ctrl in modifiers do
+      :toggle_tool_details
+    else
+      {:key_input, "t"}
     end
   end
 
   def event_to_msg(%Event.Key{char: char}, _state) when is_binary(char) and char != "" do
-    {:msg, {:key_input, char}}
+    {:key_input, char}
   end
 
   def event_to_msg(%Event.Resize{width: width, height: height}, _state) do
-    {:msg, {:resize, width, height}}
+    {:resize, width, height}
   end
 
   def event_to_msg(%Event.Key{key: :up}, _state) do
-    {:msg, :scroll_up}
+    {:scroll, :up}
   end
 
   def event_to_msg(%Event.Key{key: :down}, _state) do
-    {:msg, :scroll_down}
+    {:scroll, :down}
   end
 
   def event_to_msg(_event, _state) do
@@ -176,206 +255,423 @@ defmodule JidoCode.TUI do
   @doc """
   Updates state based on messages.
 
-  Handles the following messages:
-  - `:submit` - Add user message to history, clear input buffer
+  Handles:
   - `{:key_input, char}` - Append character to input buffer
-  - `{:key_input, :backspace}` - Remove last character from input buffer
-  - `:quit` - Return Command.quit() to exit application
+  - `{:key_input, :backspace}` - Remove last character from buffer
+  - `{:submit}` - Submit current input, clear buffer, add to messages
+  - `:quit` - Return quit command
   - `{:resize, width, height}` - Update window dimensions
+  - PubSub messages for agent events (to be fully implemented in 4.1.3)
   """
   @impl true
-  def update(:submit, state) do
-    if state.input_buffer != "" do
-      message = %{
-        role: :user,
-        content: state.input_buffer,
-        timestamp: DateTime.utc_now()
-      }
-
-      # Reset scroll_offset to 0 for auto-scroll to latest message
-      new_state = %{state |
-        input_buffer: "",
-        messages: state.messages ++ [message],
-        scroll_offset: 0
-      }
-      {new_state, []}
-    else
-      {state, []}
-    end
-  end
-
-  def update({:key_input, :backspace}, state) do
-    if state.input_buffer != "" do
-      new_buffer = String.slice(state.input_buffer, 0..-2//1)
-      {%{state | input_buffer: new_buffer}, []}
-    else
-      {state, []}
-    end
-  end
-
   def update({:key_input, char}, state) when is_binary(char) do
     new_buffer = state.input_buffer <> char
     {%{state | input_buffer: new_buffer}, []}
   end
 
+  def update({:key_input, :backspace}, state) do
+    new_buffer =
+      if String.length(state.input_buffer) > 0 do
+        String.slice(state.input_buffer, 0..-2//1)
+      else
+        ""
+      end
+
+    {%{state | input_buffer: new_buffer}, []}
+  end
+
+  def update({:submit}, state) do
+    text = String.trim(state.input_buffer)
+
+    cond do
+      # Empty input - do nothing
+      text == "" ->
+        {state, []}
+
+      # Command input - starts with /
+      String.starts_with?(text, "/") ->
+        do_handle_command(text, state)
+
+      # Chat input - requires configured provider/model
+      true ->
+        do_handle_chat_submit(text, state)
+    end
+  end
+
   def update(:quit, state) do
-    {state, [Command.quit(:user_requested)]}
+    {state, [:quit]}
   end
 
   def update({:resize, width, height}, state) do
     {%{state | window: {width, height}}, []}
   end
 
-  def update(:scroll_up, state) do
-    # Increase offset to scroll up through history (show older messages)
-    max_offset = max(0, length(state.messages) - 1)
+  # Scroll navigation
+  def update({:scroll, :up}, state) do
+    # Scroll up (towards older messages) - increase offset
+    max_offset = max_scroll_offset(state)
     new_offset = min(state.scroll_offset + 1, max_offset)
     {%{state | scroll_offset: new_offset}, []}
   end
 
-  def update(:scroll_down, state) do
-    # Decrease offset to scroll down (show newer messages)
-    new_offset = max(0, state.scroll_offset - 1)
+  def update({:scroll, :down}, state) do
+    # Scroll down (towards newer messages) - decrease offset
+    new_offset = max(state.scroll_offset - 1, 0)
     {%{state | scroll_offset: new_offset}, []}
+  end
+
+  # PubSub message handlers with message queueing
+  def update({:agent_response, content}, state) do
+    message = %{role: :assistant, content: content, timestamp: DateTime.utc_now()}
+    queue = queue_message(state.message_queue, {:agent_response, content})
+
+    new_state = %{state |
+      messages: state.messages ++ [message],
+      message_queue: queue,
+      agent_status: :idle
+    }
+
+    {new_state, []}
+  end
+
+  # Handle LLM response (alternative message format from LLMAgent)
+  def update({:llm_response, content}, state) do
+    update({:agent_response, content}, state)
+  end
+
+  # Streaming message handlers
+  def update({:stream_chunk, chunk}, state) do
+    # Append chunk to streaming message
+    new_streaming_message = (state.streaming_message || "") <> chunk
+    queue = queue_message(state.message_queue, {:stream_chunk, chunk})
+
+    new_state = %{state |
+      streaming_message: new_streaming_message,
+      is_streaming: true,
+      message_queue: queue
+    }
+
+    {new_state, []}
+  end
+
+  def update({:stream_end, _full_content}, state) do
+    # Finalize streaming - add accumulated message to messages list
+    message = %{
+      role: :assistant,
+      content: state.streaming_message || "",
+      timestamp: DateTime.utc_now()
+    }
+
+    queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
+
+    new_state = %{state |
+      messages: state.messages ++ [message],
+      streaming_message: nil,
+      is_streaming: false,
+      agent_status: :idle,
+      message_queue: queue
+    }
+
+    {new_state, []}
+  end
+
+  def update({:stream_error, reason}, state) do
+    # Show error message and clear streaming state
+    error_content = "Streaming error: #{inspect(reason)}"
+    error_msg = %{role: :system, content: error_content, timestamp: DateTime.utc_now()}
+    queue = queue_message(state.message_queue, {:stream_error, reason})
+
+    new_state = %{state |
+      messages: state.messages ++ [error_msg],
+      streaming_message: nil,
+      is_streaming: false,
+      agent_status: :error,
+      message_queue: queue
+    }
+
+    {new_state, []}
+  end
+
+  # Support both :status_update and :agent_status (per phase plan naming)
+  def update({:status_update, status}, state) do
+    queue = queue_message(state.message_queue, {:status_update, status})
+    {%{state | agent_status: status, message_queue: queue}, []}
+  end
+
+  def update({:agent_status, status}, state) do
+    update({:status_update, status}, state)
+  end
+
+  # Support both :config_change and :config_changed (per phase plan naming)
+  def update({:config_change, config}, state) do
+    new_config = %{
+      provider: Map.get(config, :provider, Map.get(config, "provider")),
+      model: Map.get(config, :model, Map.get(config, "model"))
+    }
+
+    new_status = determine_status(new_config)
+    queue = queue_message(state.message_queue, {:config_change, config})
+    {%{state | config: new_config, agent_status: new_status, message_queue: queue}, []}
+  end
+
+  def update({:config_changed, config}, state) do
+    update({:config_change, config}, state)
+  end
+
+  def update({:reasoning_step, step}, state) do
+    queue = queue_message(state.message_queue, {:reasoning_step, step})
+    {%{state | reasoning_steps: state.reasoning_steps ++ [step], message_queue: queue}, []}
+  end
+
+  def update(:clear_reasoning_steps, state) do
+    {%{state | reasoning_steps: []}, []}
   end
 
   def update(:toggle_reasoning, state) do
     {%{state | show_reasoning: not state.show_reasoning}, []}
   end
 
-  # ============================================================================
-  # PubSub Message Handlers
-  # ============================================================================
+  def update(:toggle_tool_details, state) do
+    {%{state | show_tool_details: not state.show_tool_details}, []}
+  end
 
-  # Handles agent response from PubSub - adds assistant message to conversation history
-  def update({:agent_response, content}, state) do
-    message = %{
-      role: :assistant,
-      content: content,
+  # Tool call handling - add pending tool call to list
+  def update({:tool_call, tool_name, params, call_id}, state) do
+    tool_call_entry = %{
+      call_id: call_id,
+      tool_name: tool_name,
+      params: params,
+      result: nil,
       timestamp: DateTime.utc_now()
     }
 
-    # Reset scroll_offset to 0 for auto-scroll to latest message
+    queue = queue_message(state.message_queue, {:tool_call, tool_name, params, call_id})
+
     new_state = %{state |
-      messages: state.messages ++ [message],
-      agent_status: :idle,
-      scroll_offset: 0
+      tool_calls: state.tool_calls ++ [tool_call_entry],
+      message_queue: queue
     }
 
     {new_state, []}
   end
 
-  # Handles agent status change from PubSub - updates the agent_status indicator
-  def update({:agent_status, status}, state) when status in [:idle, :processing, :error] do
-    {%{state | agent_status: status}, []}
-  end
+  # Tool result handling - match result to pending call and update
+  def update({:tool_result, %Result{} = result}, state) do
+    updated_tool_calls =
+      Enum.map(state.tool_calls, fn entry ->
+        if entry.call_id == result.tool_call_id do
+          %{entry | result: result}
+        else
+          entry
+        end
+      end)
 
-  # Handles reasoning step update from PubSub - adds or updates reasoning steps for CoT display
-  def update({:reasoning_step, step}, state) do
-    # Add new step or update existing one based on step content
-    new_steps = update_reasoning_steps(state.reasoning_steps, step)
-    {%{state | reasoning_steps: new_steps}, []}
-  end
+    queue = queue_message(state.message_queue, {:tool_result, result})
 
-  # Handles configuration change from PubSub - updates config and re-determines status
-  def update({:config_changed, new_config}, state) do
-    config = %{
-      provider: Map.get(new_config, :provider) || Map.get(new_config, "provider"),
-      model: Map.get(new_config, :model) || Map.get(new_config, "model")
+    new_state = %{state |
+      tool_calls: updated_tool_calls,
+      message_queue: queue
     }
 
-    status = determine_status(config)
-
-    {%{state | config: config, agent_status: status}, []}
+    {new_state, []}
   end
 
+  # Catch-all for unhandled messages
   def update(_msg, state) do
     {state, []}
   end
 
   # ============================================================================
-  # Reasoning Step Helpers
+  # Submit Handlers (extracted from update/2 for code organization)
   # ============================================================================
 
-  defp update_reasoning_steps(steps, %{step: step_text, status: status}) do
-    # Look for existing step with same text
-    case Enum.find_index(steps, fn s -> s.step == step_text end) do
-      nil ->
-        # Add new step
-        steps ++ [%{step: step_text, status: status}]
+  # Handle slash commands
+  defp do_handle_command(text, state) do
+    case Commands.execute(text, state.config) do
+      {:ok, message, new_config} ->
+        system_msg = %{
+          role: :system,
+          content: message,
+          timestamp: DateTime.utc_now()
+        }
 
-      index ->
-        # Update existing step status
-        List.update_at(steps, index, fn s -> %{s | status: status} end)
+        # Merge new config with existing config
+        updated_config =
+          if map_size(new_config) > 0 do
+            %{
+              provider: new_config[:provider] || state.config.provider,
+              model: new_config[:model] || state.config.model
+            }
+          else
+            state.config
+          end
+
+        # Determine new status based on config
+        new_status = determine_status(updated_config)
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [system_msg],
+          config: updated_config,
+          agent_status: new_status
+        }
+
+        {new_state, []}
+
+      {:error, error_message} ->
+        error_msg = %{
+          role: :system,
+          content: error_message,
+          timestamp: DateTime.utc_now()
+        }
+
+        new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+        {new_state, []}
     end
   end
 
-  defp update_reasoning_steps(steps, step_text) when is_binary(step_text) do
-    # Simple text step - add as pending
-    steps ++ [%{step: step_text, status: :pending}]
+  # Handle chat message submission
+  defp do_handle_chat_submit(text, state) do
+    # Check if provider and model are configured
+    case {state.config.provider, state.config.model} do
+      {nil, _} ->
+        do_show_config_error(state)
+
+      {_, nil} ->
+        do_show_config_error(state)
+
+      {_provider, _model} ->
+        do_dispatch_to_agent(text, state)
+    end
+  end
+
+  defp do_show_config_error(state) do
+    error_msg = %{
+      role: :system,
+      content: "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select.",
+      timestamp: DateTime.utc_now()
+    }
+
+    new_state = %{state | input_buffer: "", messages: state.messages ++ [error_msg]}
+    {new_state, []}
+  end
+
+  defp do_dispatch_to_agent(text, state) do
+    # Add user message to conversation
+    user_msg = %{role: :user, content: text, timestamp: DateTime.utc_now()}
+
+    # Classify query for CoT (for future use)
+    _use_cot = QueryClassifier.should_use_cot?(text)
+
+    # Look up and dispatch to agent with streaming
+    case AgentSupervisor.lookup_agent(state.agent_name) do
+      {:ok, agent_pid} ->
+        # Dispatch async with streaming - agent will broadcast chunks via PubSub
+        LLMAgent.chat_stream(agent_pid, text)
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [user_msg],
+          agent_status: :processing,
+          scroll_offset: 0,
+          streaming_message: "",
+          is_streaming: true
+        }
+
+        {new_state, []}
+
+      {:error, :not_found} ->
+        error_msg = %{
+          role: :system,
+          content: "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})",
+          timestamp: DateTime.utc_now()
+        }
+
+        new_state = %{state |
+          input_buffer: "",
+          messages: state.messages ++ [user_msg, error_msg],
+          agent_status: :error
+        }
+
+        {new_state, []}
+    end
   end
 
   @doc """
   Renders the current state to a render tree.
 
-  Implements a multi-pane layout:
-  - Status bar at top (provider:model, status indicator, keyboard hints)
-  - Conversation area in the middle (message history)
-  - Optional reasoning panel (right sidebar or bottom drawer based on width)
-  - Input bar at bottom (prompt + input buffer)
+  Implements a three-pane layout:
+  - Status bar (top): Provider, model, agent status, keyboard hints
+  - Conversation area (middle): Message history with role indicators
+  - Input bar (bottom): Prompt indicator and current input buffer
   """
   @impl true
   def view(state) do
-    {width, _height} = state.window
-    show_panel = state.show_reasoning and not Enum.empty?(state.reasoning_steps)
+    case state.agent_status do
+      :unconfigured ->
+        # Show configuration screen when not configured
+        render_unconfigured_view(state)
 
-    if show_panel and width >= 100 do
-      # Wide terminal: reasoning panel as right sidebar
-      render_wide_layout(state)
-    else
-      # Narrow terminal or no panel: vertical layout
-      render_narrow_layout(state, show_panel)
+      _ ->
+        # Show main chat interface when configured
+        render_main_view(state)
     end
   end
 
-  defp render_wide_layout(state) do
-    # Right sidebar layout for wide terminals
-    stack(:vertical, [
-      stack(:horizontal, [
-        # Left side: status bar
+  defp render_main_view(state) do
+    {width, _height} = state.window
+
+    if state.show_reasoning do
+      # Show reasoning panel
+      if width >= 100 do
+        # Wide terminal: side-by-side layout
+        render_main_view_with_sidebar(state)
+      else
+        # Narrow terminal: stacked layout with compact reasoning
+        render_main_view_with_drawer(state)
+      end
+    else
+      # Standard layout without reasoning panel
+      stack(:vertical, [
         render_status_bar(state),
-        text(" | "),
-        # Right side: reasoning header
-        render_reasoning_header(state)
-      ]),
-      stack(:horizontal, [
-        # Left side: conversation
         render_conversation(state),
-        text(" "),
-        # Right side: reasoning steps
-        render_reasoning_steps(state)
+        render_input_bar(state)
+      ])
+    end
+  end
+
+  defp render_main_view_with_sidebar(state) do
+    # Side-by-side layout for wide terminals
+    stack(:vertical, [
+      render_status_bar(state),
+      stack(:horizontal, [
+        render_conversation(state),
+        render_reasoning(state)
       ]),
       render_input_bar(state)
     ])
   end
 
-  defp render_narrow_layout(state, show_panel) do
-    elements = [
+  defp render_main_view_with_drawer(state) do
+    # Stacked layout with reasoning drawer for narrow terminals
+    stack(:vertical, [
       render_status_bar(state),
-      render_conversation(state)
-    ]
+      render_conversation(state),
+      render_reasoning_compact(state),
+      render_input_bar(state)
+    ])
+  end
 
-    # Add reasoning panel as bottom drawer if enabled
-    elements =
-      if show_panel do
-        elements ++ [render_reasoning_panel(state)]
-      else
-        elements
-      end
-
-    elements = elements ++ [render_input_bar(state)]
-
-    stack(:vertical, elements)
+  defp render_unconfigured_view(state) do
+    stack(:vertical, [
+      render_status_bar(state),
+      text("", nil),
+      text("JidoCode - Agentic Coding Assistant", Style.new(fg: :cyan, attrs: [:bold])),
+      text("", nil),
+      render_config_info(state),
+      text("", nil),
+      text("Press Ctrl+C to quit", Style.new(fg: :bright_black))
+    ])
   end
 
   # ============================================================================
@@ -385,43 +681,18 @@ defmodule JidoCode.TUI do
   @doc """
   Runs the TUI application.
 
-  Starts the TermUI Runtime with a registered name, then starts the PubSub bridge
-  to forward agent events to the TUI component.
-
   This blocks the calling process until the TUI exits (e.g., user presses Ctrl+C).
   """
   @spec run() :: :ok
   def run do
-    # Start runtime with registered name so PubSubBridge can send messages to it
-    {:ok, runtime_pid} = TermUI.Runtime.start_link(
-      root: __MODULE__,
-      name: __MODULE__.Runtime
-    )
-
-    # Monitor runtime to know when it exits
-    ref = Process.monitor(runtime_pid)
-
-    # Start PubSub bridge to forward agent events to the TUI
-    {:ok, bridge_pid} = JidoCode.TUI.PubSubBridge.start_link(
-      runtime: __MODULE__.Runtime,
-      name: __MODULE__.PubSubBridge
-    )
-
-    # Block until runtime exits
-    receive do
-      {:DOWN, ^ref, :process, ^runtime_pid, _reason} ->
-        # Stop the bridge when runtime exits
-        if Process.alive?(bridge_pid) do
-          JidoCode.TUI.PubSubBridge.stop(bridge_pid)
-        end
-        :ok
-    end
+    TermUI.Runtime.run(root: __MODULE__)
   end
 
   # ============================================================================
   # Private Helpers
   # ============================================================================
 
+  @spec load_config() :: %{provider: String.t() | nil, model: String.t() | nil}
   defp load_config do
     {:ok, settings} = Settings.load()
 
@@ -432,6 +703,7 @@ defmodule JidoCode.TUI do
   end
 
   @doc false
+  @spec determine_status(%{provider: String.t() | nil, model: String.t() | nil}) :: Model.agent_status()
   def determine_status(config) do
     cond do
       is_nil(config.provider) -> :unconfigured
@@ -440,304 +712,481 @@ defmodule JidoCode.TUI do
     end
   end
 
+  @doc """
+  Queues a message with timestamp, limiting to @max_queue_size entries.
+
+  Used for debugging and preventing unbounded message accumulation during rapid updates.
+  """
+  @spec queue_message([Model.queued_message()], term()) :: [Model.queued_message()]
+  def queue_message(queue, msg) do
+    [{msg, DateTime.utc_now()} | queue]
+    |> Enum.take(@max_queue_size)
+  end
+
+  @doc """
+  Calculates the maximum scroll offset based on message count and available height.
+
+  Returns 0 if all messages fit on screen, otherwise returns the number of lines
+  that can be scrolled up (towards older messages).
+  """
+  @spec max_scroll_offset(Model.t()) :: non_neg_integer()
+  def max_scroll_offset(state) do
+    {width, height} = state.window
+    available_height = max(height - 2, 1)
+    # Calculate total lines with wrapping
+    total_lines = calculate_total_lines(state.messages, width)
+    max(total_lines - available_height, 0)
+  end
+
+  # Calculate total lines accounting for text wrapping
+  defp calculate_total_lines(messages, width) do
+    Enum.reduce(messages, 0, fn msg, acc ->
+      # Account for prefix length in wrapping
+      prefix_len = prefix_length(msg.role)
+      content_width = max(width - prefix_len, 20)
+      lines = wrap_text(msg.content, content_width)
+      acc + length(lines)
+    end)
+  end
+
+  defp prefix_length(:user), do: String.length("[00:00] You: ")
+  defp prefix_length(:assistant), do: String.length("[00:00] Assistant: ")
+  defp prefix_length(:system), do: String.length("[00:00] System: ")
+
+  @doc """
+  Wraps text to fit within the specified width.
+
+  Words are kept together when possible. Words longer than max_width are split.
+  Returns a list of lines.
+  """
+  @spec wrap_text(String.t(), pos_integer()) :: [String.t()]
+  def wrap_text(text, max_width) when max_width > 0 do
+    text
+    |> String.split(" ")
+    |> Enum.reduce({[], ""}, fn word, acc -> wrap_word(word, acc, max_width) end)
+    |> finalize_wrap()
+  end
+
+  def wrap_text(_text, _max_width), do: [""]
+
+  defp wrap_word(word, {lines, current_line}, max_width) do
+    new_line = if current_line == "", do: word, else: current_line <> " " <> word
+
+    cond do
+      String.length(new_line) <= max_width ->
+        {lines, new_line}
+
+      current_line == "" ->
+        # Word is longer than max_width, split it
+        {lines ++ [String.slice(word, 0, max_width)], String.slice(word, max_width..-1//1)}
+
+      true ->
+        {lines ++ [current_line], word}
+    end
+  end
+
+  defp finalize_wrap({lines, last}) do
+    result = if last == "", do: lines, else: lines ++ [last]
+
+    case result do
+      [] -> [""]
+      final_lines -> final_lines
+    end
+  end
+
+  @doc """
+  Formats a timestamp as HH:MM.
+  """
+  @spec format_timestamp(DateTime.t()) :: String.t()
+  def format_timestamp(datetime) do
+    hour = datetime.hour |> Integer.to_string() |> String.pad_leading(2, "0")
+    minute = datetime.minute |> Integer.to_string() |> String.pad_leading(2, "0")
+    "[#{hour}:#{minute}]"
+  end
+
   # ============================================================================
   # View Helpers - Status Bar
   # ============================================================================
 
   defp render_status_bar(state) do
-    # Build segments with individual styling
-    segments = [
-      render_config_segment(state.config),
-      text(" | ", Style.new(fg: :white, bg: :blue)),
-      render_status_segment(state.agent_status)
-    ]
+    # Build status bar components
+    config_text = format_config(state.config)
+    status_text = format_status(state.agent_status)
+    cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
+    reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
+    tools_hint = if state.show_tool_details, do: "Ctrl+T: Hide", else: "Ctrl+T: Tools"
+    hints = "#{reasoning_hint} | #{tools_hint} | Ctrl+M: Model | Ctrl+C: Quit"
 
-    # Add CoT indicator if active
-    segments =
-      case render_cot_segment(state.reasoning_steps) do
-        nil -> segments
-        cot -> segments ++ [text(" | ", Style.new(fg: :white, bg: :blue)), cot]
+    # Build the full status bar text
+    full_text = "#{config_text} | #{status_text}#{cot_indicator} | #{hints}"
+
+    # Use status-aware style based on the most important state
+    bar_style = build_status_bar_style(state)
+
+    text(full_text, bar_style)
+  end
+
+  defp build_status_bar_style(state) do
+    # Determine the primary color based on the most important state
+    fg_color =
+      cond do
+        state.agent_status == :error -> :red
+        state.agent_status == :unconfigured -> :red
+        state.config.provider == nil -> :red
+        state.config.model == nil -> :yellow
+        state.agent_status == :processing -> :yellow
+        has_active_reasoning?(state) -> :magenta
+        true -> :white
       end
 
-    # Add keyboard hints
-    segments = segments ++ [
-      text(" | ", Style.new(fg: :white, bg: :blue)),
-      render_hints_segment()
-    ]
-
-    stack(:horizontal, segments)
+    Style.new(fg: fg_color, bg: :blue)
   end
 
-  # Config segment with warning colors for unconfigured states
-  defp render_config_segment(%{provider: nil}) do
-    text("No provider configured", Style.new(fg: :red, bg: :blue))
+  defp has_active_reasoning?(state) do
+    state.reasoning_steps != [] and
+      Enum.any?(state.reasoning_steps, fn step ->
+        Map.get(step, :status) == :active
+      end)
   end
 
-  defp render_config_segment(%{model: nil, provider: p}) do
-    text("#{p} (no model)", Style.new(fg: :yellow, bg: :blue))
-  end
+  defp format_status(:idle), do: "Idle"
+  defp format_status(:processing), do: "Streaming..."
+  defp format_status(:error), do: "Error"
+  defp format_status(:unconfigured), do: "Not Configured"
 
-  defp render_config_segment(%{provider: p, model: m}) do
-    text("#{p}:#{m}", Style.new(fg: :white, bg: :blue))
-  end
+  @doc """
+  Returns the style for a given agent status.
+  """
+  def status_style(:idle), do: Style.new(fg: :green, bg: :blue)
+  def status_style(:processing), do: Style.new(fg: :yellow, bg: :blue)
+  def status_style(:error), do: Style.new(fg: :red, bg: :blue)
+  def status_style(:unconfigured), do: Style.new(fg: :red, bg: :blue, attrs: [:dim])
 
-  # Status segment with colored indicators
-  defp render_status_segment(status) do
-    {indicator, label, style} = status_indicator_style(status)
-    text("#{indicator} #{label}", style)
-  end
+  @doc """
+  Returns the style for the config display based on configuration state.
+  """
+  def config_style(%{provider: nil}), do: Style.new(fg: :red, bg: :blue)
+  def config_style(%{model: nil}), do: Style.new(fg: :yellow, bg: :blue)
+  def config_style(_), do: Style.new(fg: :white, bg: :blue)
 
-  # Returns indicator symbol, label, and style for each status
-  defp status_indicator_style(:idle) do
-    {"●", "Idle", Style.new(fg: :green, bg: :blue)}
-  end
-
-  defp status_indicator_style(:processing) do
-    {"●", "Processing", Style.new(fg: :yellow, bg: :blue)}
-  end
-
-  defp status_indicator_style(:error) do
-    {"●", "Error", Style.new(fg: :red, bg: :blue)}
-  end
-
-  defp status_indicator_style(:unconfigured) do
-    {"○", "Not Configured", Style.new(fg: :bright_black, bg: :blue)}
-  end
-
-  # CoT segment (returns nil if no active reasoning)
-  defp render_cot_segment([]), do: nil
-
-  defp render_cot_segment(steps) when is_list(steps) do
-    active_count = Enum.count(steps, fn s -> s.status == :active end)
-    complete_count = Enum.count(steps, fn s -> s.status == :complete end)
-    total = length(steps)
-
-    if active_count > 0 do
-      text("CoT: #{complete_count}/#{total}", Style.new(fg: :magenta, bg: :blue))
-    else
-      nil
-    end
-  end
-
-  # Keyboard hints segment
-  defp render_hints_segment do
-    text("Ctrl+M: Model | Ctrl+R: Reasoning | Ctrl+C: Quit", Style.new(fg: :bright_black, bg: :blue))
-  end
+  defp format_config(%{provider: nil}), do: "No provider"
+  defp format_config(%{model: nil, provider: p}), do: "#{p} (no model)"
+  defp format_config(%{provider: p, model: m}), do: "#{p}:#{m}"
 
   # ============================================================================
   # View Helpers - Conversation Area
   # ============================================================================
 
   defp render_conversation(state) do
-    if Enum.empty?(state.messages) do
-      render_empty_conversation(state)
+    {width, height} = state.window
+
+    # Reserve 2 lines for status bar and input bar
+    available_height = max(height - 2, 1)
+
+    has_content = state.messages != [] or state.tool_calls != [] or state.is_streaming
+
+    if has_content do
+      render_conversation_content(state, available_height, width)
     else
-      render_messages(state)
+      render_empty_conversation(available_height)
     end
   end
 
-  defp render_empty_conversation(state) do
-    case state.agent_status do
-      :unconfigured ->
-        stack(:vertical, [
-          text(""),
-          text("Configuration Required", Style.new(fg: :yellow, attrs: [:bold])),
-          text(""),
-          text("No provider or model configured."),
-          text("Create ~/.jido_code/settings.json with:"),
-          text(""),
-          text("  {", Style.new(fg: :bright_black)),
-          text(~s(    "provider": "anthropic",), Style.new(fg: :bright_black)),
-          text(~s(    "model": "claude-3-5-sonnet"), Style.new(fg: :bright_black)),
-          text("  }", Style.new(fg: :bright_black)),
-          text("")
-        ])
-
-      _ ->
-        stack(:vertical, [
-          text(""),
-          text("JidoCode - Agentic Coding Assistant", Style.new(fg: :cyan, attrs: [:bold])),
-          text(""),
-          text("Ready. Type a message and press Enter to send."),
-          text("")
-        ])
-    end
+  defp render_empty_conversation(_height) do
+    stack(:vertical, [
+      text("", nil),
+      text("No messages yet. Type a message and press Enter.", Style.new(fg: :bright_black))
+    ])
   end
 
-  # Optimized scroll offset handling using Enum.take/2 instead of double Enum.reverse/1
-  defp get_visible_messages(messages, 0), do: messages
-  defp get_visible_messages(messages, scroll_offset) do
-    keep_count = length(messages) - scroll_offset
-    if keep_count > 0, do: Enum.take(messages, keep_count), else: messages
-  end
+  defp render_conversation_content(state, available_height, width) do
+    # Build message lines with text wrapping
+    message_lines = Enum.flat_map(state.messages, &format_message(&1, width))
 
-  defp render_messages(state) do
-    {width, _height} = state.window
-    messages = state.messages
+    # Build tool call lines
+    tool_call_lines = Enum.flat_map(state.tool_calls, &format_tool_call_entry(&1, state.show_tool_details))
 
-    # Apply scroll offset - skip messages from the end
-    visible_messages = get_visible_messages(messages, state.scroll_offset)
-
-    message_nodes =
-      visible_messages
-      |> Enum.map(&render_message(&1, width))
-
-    # Add scroll indicator if not at bottom
-    scroll_indicator =
-      if state.scroll_offset > 0 do
-        [text("  ↓ #{state.scroll_offset} more message(s) below", Style.new(fg: :bright_black))]
+    # Build streaming message line if streaming
+    streaming_lines =
+      if state.is_streaming and state.streaming_message != nil do
+        format_streaming_message(state.streaming_message, width)
       else
         []
       end
 
-    stack(:vertical, [text("") | message_nodes] ++ scroll_indicator)
+    # Combine all lines (tool calls appear after messages, streaming at the end)
+    all_lines = message_lines ++ tool_call_lines ++ streaming_lines
+
+    total_lines = length(all_lines)
+
+    # Calculate which lines to show based on scroll offset
+    # scroll_offset of 0 = show latest, higher = show older
+    end_index = total_lines - state.scroll_offset
+    start_index = max(end_index - available_height, 0)
+
+    visible_lines =
+      all_lines
+      |> Enum.slice(start_index, available_height)
+
+    stack(:vertical, visible_lines)
   end
 
-  # Message role configuration: {label, style}
-  defp message_config(:user), do: {"You", Style.new(fg: :cyan)}
-  defp message_config(:assistant), do: {"Assistant", Style.new(fg: :white)}
-  defp message_config(:system), do: {"System", Style.new(fg: :bright_black)}
+  # Format streaming message with cursor indicator
+  defp format_streaming_message(content, width) do
+    # Use current time as timestamp for streaming
+    ts = format_timestamp(DateTime.utc_now())
+    prefix = "Assistant: "
+    cursor = "▌"
+    style = Style.new(fg: :white)
 
-  defp render_message(%{role: role, content: content, timestamp: timestamp}, width) do
-    {label, style} = message_config(role)
-    time_str = format_timestamp(timestamp)
-    prefix = "[#{time_str}] #{label}: "
-    wrapped_lines = wrap_message(prefix, content, width)
+    # Calculate content width accounting for prefix
+    prefix_len = String.length("#{ts} #{prefix}")
+    content_width = max(width - prefix_len, 20)
 
-    lines_as_nodes =
-      wrapped_lines
-      |> Enum.map(fn line -> text(line, style) end)
+    # Append cursor to content for display
+    content_with_cursor = content <> cursor
 
-    stack(:vertical, lines_as_nodes)
+    # Wrap content and format each line
+    lines = wrap_text(content_with_cursor, content_width)
+
+    lines
+    |> Enum.with_index()
+    |> Enum.map(fn {line, index} ->
+      if index == 0 do
+        text("#{ts} #{prefix}#{line}", style)
+      else
+        # Continuation lines: indent to align with content
+        padding = String.duplicate(" ", prefix_len)
+        text("#{padding}#{line}", style)
+      end
+    end)
   end
 
-  defp format_timestamp(datetime) do
-    Calendar.strftime(datetime, "%H:%M")
+  defp format_message(%{role: role, content: content, timestamp: timestamp}, width) do
+    ts = format_timestamp(timestamp)
+    prefix = role_prefix(role)
+    style = role_style(role)
+
+    # Calculate content width accounting for prefix
+    prefix_len = String.length("#{ts} #{prefix}")
+    content_width = max(width - prefix_len, 20)
+
+    # Wrap content and format each line
+    lines = wrap_text(content, content_width)
+
+    lines
+    |> Enum.with_index()
+    |> Enum.map(fn {line, index} ->
+      if index == 0 do
+        text("#{ts} #{prefix}#{line}", style)
+      else
+        # Continuation lines: indent to align with content
+        padding = String.duplicate(" ", prefix_len)
+        text("#{padding}#{line}", style)
+      end
+    end)
   end
 
-  # Wraps a message with a prefix, using continuation indent for wrapped lines
-  defp wrap_message(prefix, content, max_width) do
-    # First line includes prefix
-    first_line_width = max_width - String.length(prefix)
-    # Continuation lines are indented to align with content after prefix
-    indent = String.duplicate(" ", String.length(prefix))
-
-    if first_line_width <= 0 do
-      # Terminal too narrow, just show as-is
-      [prefix <> content]
-    else
-      wrap_text(content, first_line_width, max_width - String.length(indent))
-      |> Enum.with_index()
-      |> Enum.map(fn {line, index} ->
-        if index == 0 do
-          prefix <> line
-        else
-          indent <> line
-        end
-      end)
-    end
+  # Fallback for messages without timestamp (legacy format)
+  defp format_message(%{role: role, content: content}, width) do
+    format_message(%{role: role, content: content, timestamp: DateTime.utc_now()}, width)
   end
 
-  # Wraps text at word boundaries
-  @doc false
-  @spec wrap_text(String.t(), non_neg_integer(), non_neg_integer()) :: [String.t()]
-  def wrap_text(text, first_line_width, continuation_width) do
-    words = String.split(text, ~r/\s+/, trim: true)
+  defp role_prefix(:user), do: "You: "
+  defp role_prefix(:assistant), do: "Assistant: "
+  defp role_prefix(:system), do: "System: "
 
-    case words do
-      [] ->
-        [""]
-
-      [first | rest] ->
-        # Handle first line with potentially different width
-        {first_line, remaining_words} = build_line(first, rest, first_line_width)
-
-        # Handle remaining lines with continuation width
-        continuation_lines = wrap_remaining(remaining_words, continuation_width)
-
-        [first_line | continuation_lines]
-    end
-  end
-
-  defp build_line(current, [], _max_width), do: {current, []}
-
-  defp build_line(current, [next | rest], max_width) do
-    candidate = current <> " " <> next
-
-    if String.length(candidate) <= max_width do
-      build_line(candidate, rest, max_width)
-    else
-      {current, [next | rest]}
-    end
-  end
-
-  defp wrap_remaining([], _max_width), do: []
-
-  defp wrap_remaining([first | rest], max_width) do
-    {line, remaining} = build_line(first, rest, max_width)
-    [line | wrap_remaining(remaining, max_width)]
-  end
+  defp role_style(:user), do: Style.new(fg: :cyan)
+  defp role_style(:assistant), do: Style.new(fg: :white)
+  defp role_style(:system), do: Style.new(fg: :yellow)
 
   # ============================================================================
-  # View Helpers - Reasoning Panel
+  # View Helpers - Tool Calls
   # ============================================================================
 
-  # Header for the reasoning panel showing step count
-  defp render_reasoning_header(state) do
-    step_count = length(state.reasoning_steps)
-    text("Reasoning (#{step_count})", Style.new(fg: :magenta, attrs: [:bold]))
+  @doc """
+  Formats a tool call entry for display.
+
+  Returns a list of render nodes representing the tool call and its result.
+
+  ## Parameters
+
+  - `entry` - Tool call entry with call_id, tool_name, params, result, timestamp
+  - `show_details` - Whether to show full details (true) or condensed (false)
+  """
+  def format_tool_call_entry(entry, show_details) do
+    call_line = render_tool_call_line(entry)
+    result_lines = render_tool_result_lines(entry, show_details)
+
+    [call_line | result_lines]
   end
 
-  # Renders reasoning steps as a vertical list (for wide layout sidebar)
-  defp render_reasoning_steps(state) do
-    step_nodes =
-      state.reasoning_steps
-      |> Enum.map(&render_reasoning_step/1)
+  defp render_tool_call_line(entry) do
+    ts = format_timestamp(entry.timestamp)
+    formatted = Display.format_tool_call(entry.tool_name, entry.params, entry.call_id)
+    style = Style.new(fg: :bright_black)
 
-    stack(:vertical, step_nodes)
+    text("#{ts} #{formatted}", style)
   end
 
-  # Renders the full reasoning panel as a bottom drawer (for narrow layout)
-  defp render_reasoning_panel(state) do
-    step_count = length(state.reasoning_steps)
-    header = text("Reasoning (#{step_count})", Style.new(fg: :magenta, attrs: [:bold]))
-
-    # In narrow mode, render steps horizontally to save vertical space
-    step_texts =
-      state.reasoning_steps
-      |> Enum.map(&format_step_inline/1)
-      |> Enum.join(" │ ")
-
-    steps_line = text(step_texts)
-
-    stack(:vertical, [header, steps_line])
+  defp render_tool_result_lines(%{result: nil}, _show_details) do
+    # No result yet - tool is still executing
+    [text("       ⋯ executing...", Style.new(fg: :bright_black, attrs: [:dim]))]
   end
 
-  # Renders a single reasoning step with status indicator
-  defp render_reasoning_step(%{step: step_text, status: status}) do
-    {indicator, style} = step_indicator(status)
-    text("#{indicator} #{step_text}", style)
+  defp render_tool_result_lines(%{result: result}, show_details) do
+    {icon, style} = tool_result_style(result.status)
+    duration_text = "[#{result.duration_ms}ms]"
+
+    content_preview =
+      if show_details do
+        result.content
+      else
+        Display.truncate_content(result.content, 80)
+      end
+
+    # Format the result line
+    result_text = "       #{icon} #{result.tool_name} #{duration_text}: #{content_preview}"
+    [text(result_text, style)]
   end
 
-  # Formats a step inline for narrow layout (horizontal display)
-  defp format_step_inline(%{step: step_text, status: status}) do
-    {indicator, _style} = step_indicator(status)
-    "#{indicator} #{step_text}"
-  end
-
-  # Returns the status indicator symbol and style for a reasoning step
-  defp step_indicator(:pending), do: {"○", Style.new(fg: :bright_black)}
-  defp step_indicator(:active), do: {"●", Style.new(fg: :yellow, attrs: [:bold])}
-  defp step_indicator(:complete), do: {"✓", Style.new(fg: :green)}
+  defp tool_result_style(:ok), do: {"✓", Style.new(fg: :green)}
+  defp tool_result_style(:error), do: {"✗", Style.new(fg: :red)}
+  defp tool_result_style(:timeout), do: {"⏱", Style.new(fg: :yellow)}
 
   # ============================================================================
   # View Helpers - Input Bar
   # ============================================================================
 
   defp render_input_bar(state) do
-    prompt = text("> ", Style.new(fg: :green, attrs: [:bold]))
-    input = text(state.input_buffer)
+    cursor = "_"
+    prompt = ">"
 
-    stack(:horizontal, [prompt, input])
+    text("#{prompt} #{state.input_buffer}#{cursor}", Style.new(fg: :green))
+  end
+
+  # ============================================================================
+  # View Helpers - Reasoning Panel
+  # ============================================================================
+
+  @doc """
+  Renders the reasoning panel showing Chain-of-Thought steps.
+
+  Steps are displayed with status indicators:
+  - ○ pending (dim)
+  - ● active (yellow)
+  - ✓ complete (green)
+  """
+  def render_reasoning(state) do
+    case state.reasoning_steps do
+      [] ->
+        render_empty_reasoning()
+
+      steps ->
+        render_reasoning_steps(steps)
+    end
+  end
+
+  defp render_empty_reasoning do
+    stack(:vertical, [
+      text("Reasoning (Ctrl+R to hide)", Style.new(fg: :magenta, attrs: [:bold])),
+      text("─────────────────────────", Style.new(fg: :bright_black)),
+      text("No reasoning steps yet.", Style.new(fg: :bright_black))
+    ])
+  end
+
+  defp render_reasoning_steps(steps) do
+    header = [
+      text("Reasoning (Ctrl+R to hide)", Style.new(fg: :magenta, attrs: [:bold])),
+      text("─────────────────────────", Style.new(fg: :bright_black))
+    ]
+
+    step_lines = Enum.map(steps, &format_reasoning_step/1)
+
+    stack(:vertical, header ++ step_lines)
+  end
+
+  defp format_reasoning_step(%{step: step_text, status: status} = step) do
+    {indicator, style} = step_indicator(status)
+    confidence_text = format_confidence(step)
+
+    text("#{indicator} #{step_text}#{confidence_text}", style)
+  end
+
+  # Handle steps that may be maps with string keys
+  defp format_reasoning_step(step) when is_map(step) do
+    step_text = Map.get(step, :step) || Map.get(step, "step") || "Unknown step"
+    status = Map.get(step, :status) || Map.get(step, "status") || :pending
+    status_atom = normalize_status(status)
+
+    format_reasoning_step(%{step: step_text, status: status_atom, confidence: Map.get(step, :confidence)})
+  end
+
+  defp normalize_status(status) when is_atom(status), do: status
+  defp normalize_status("pending"), do: :pending
+  defp normalize_status("active"), do: :active
+  defp normalize_status("complete"), do: :complete
+  defp normalize_status(_), do: :pending
+
+  defp step_indicator(:pending), do: {"○", Style.new(fg: :bright_black)}
+  defp step_indicator(:active), do: {"●", Style.new(fg: :yellow, attrs: [:bold])}
+  defp step_indicator(:complete), do: {"✓", Style.new(fg: :green)}
+
+  defp format_confidence(%{confidence: confidence}) when is_number(confidence) do
+    " (confidence: #{Float.round(confidence, 2)})"
+  end
+
+  defp format_confidence(_), do: ""
+
+  @doc """
+  Renders reasoning steps as a compact single-line display for narrow terminals.
+  """
+  def render_reasoning_compact(state) do
+    case state.reasoning_steps do
+      [] ->
+        text("Reasoning: (none)", Style.new(fg: :bright_black))
+
+      steps ->
+        step_indicators =
+          Enum.map_join(steps, " │ ", fn step ->
+            status = Map.get(step, :status) || :pending
+            {indicator, _style} = step_indicator(status)
+            step_text = Map.get(step, :step) || "?"
+            # Truncate step text for compact display
+            short_text = String.slice(step_text, 0, 15)
+            "#{indicator} #{short_text}"
+          end)
+
+        text("Reasoning: #{step_indicators}", Style.new(fg: :magenta))
+    end
+  end
+
+  # ============================================================================
+  # View Helpers - Configuration Screen
+  # ============================================================================
+
+  defp render_config_info(state) do
+    case state.agent_status do
+      :unconfigured ->
+        stack(:vertical, [
+          text("Configuration Required", Style.new(fg: :yellow, attrs: [:bold])),
+          text("", nil),
+          text("No provider or model configured.", nil),
+          text("Create ~/.jido_code/settings.json with:", nil),
+          text("", nil),
+          text("  {", Style.new(fg: :bright_black)),
+          text(~s(    "provider": "anthropic",), Style.new(fg: :bright_black)),
+          text(~s(    "model": "claude-3-5-sonnet"), Style.new(fg: :bright_black)),
+          text("  }", Style.new(fg: :bright_black))
+        ])
+
+      _ ->
+        stack(:vertical, [
+          text("Ready", Style.new(fg: :green, attrs: [:bold])),
+          text("", nil),
+          text("Provider: #{state.config.provider || "none"}", nil),
+          text("Model: #{state.config.model || "none"}", nil)
+        ])
+    end
   end
 end

@@ -139,22 +139,32 @@ Create controlled shell execution tool.
 Display tool calls and results in the TUI for transparency.
 
 ### 3.4.1 Tool Call Display
-- [x] **Task 3.4.1 Complete** (PubSub infrastructure)
+- [x] **Task 3.4.1 Complete**
 
 Show tool invocations and results in the TUI conversation.
 
 - [x] 3.4.1.1 Broadcast `{:tool_call, tool_name, params, call_id}` via PubSub when tool is invoked
 - [x] 3.4.1.2 Broadcast `{:tool_result, result}` when tool completes (Result struct)
-- [ ] 3.4.1.3 TUI displays tool calls with distinct styling (e.g., dimmed, prefixed with "⚙") - Phase 4
-- [ ] 3.4.1.4 Display tool parameters in condensed format - Phase 4
-- [ ] 3.4.1.5 Display tool results with syntax highlighting for code/file contents - Phase 4
-- [ ] 3.4.1.6 Truncate long results with "Show more" indicator - Phase 4
-- [ ] 3.4.1.7 Handle tool errors with red error styling - Phase 4
-- [ ] 3.4.1.8 Add toggle keybinding (Ctrl+T) to show/hide tool call details - Phase 4
-- [ ] 3.4.1.9 Write TUI tool display tests (success: tool calls render correctly) - Phase 4
+- [x] 3.4.1.3 TUI displays tool calls with distinct styling (e.g., dimmed, prefixed with "⚙")
+- [x] 3.4.1.4 Display tool parameters in condensed format
+- [x] 3.4.1.5 Display tool results with syntax highlighting for code/file contents
+- [x] 3.4.1.6 Truncate long results with "Show more" indicator
+- [x] 3.4.1.7 Handle tool errors with red error styling
+- [x] 3.4.1.8 Add toggle keybinding (Ctrl+T) to show/hide tool call details
+- [x] 3.4.1.9 Write TUI tool display tests (success: tool calls render correctly)
 
-**Implemented in this task:**
+**Phase 1 - PubSub Infrastructure:**
 - Created `JidoCode.Tools.Display` module for formatting tool calls and results
 - Added PubSub broadcasting to Executor for tool_call and tool_result events
 - Session-specific topic routing via `:session_id` option
 - Display formatting with truncation, syntax detection, and status icons
+
+**Phase 2 - TUI Integration:**
+- Added `tool_calls` and `show_tool_details` fields to TUI Model
+- Implemented `{:tool_call, ...}` and `{:tool_result, ...}` message handling
+- Added Ctrl+T toggle for show/hide tool details
+- Created `format_tool_call_entry/2` for rendering tool calls in conversation
+- Status-based styling: ✓ green (success), ✗ red (error), ⏱ yellow (timeout)
+- Truncation with "[...]" when show_tool_details is false
+- Status bar shows "Ctrl+T: Tools" / "Ctrl+T: Hide" hint
+- 26 new tests (150 total TUI tests)

@@ -13,13 +13,13 @@ The TUI application follows TermUI's Elm Architecture with three core functions:
 
 Create the main TUI module implementing the TermUI.Elm behaviour.
 
-- [x] 4.1.1.1 Create `JidoCode.TUI` module with `@behaviour TermUI.Elm`
+- [x] 4.1.1.1 Create `JidoCode.TUI` module with `use TermUI.Elm`
 - [x] 4.1.1.2 Define `Model` struct with fields: input_buffer, messages, agent_status, config, reasoning_steps
 - [x] 4.1.1.3 Implement `init/1` returning initial Model with empty state
 - [x] 4.1.1.4 Load settings via `Settings.load/0` and populate config from saved provider/model
 - [x] 4.1.1.5 Subscribe to PubSub topic `"tui.events"` in init
-- [x] 4.1.1.6 Store window dimensions from init context (default {80, 24})
-- [x] 4.1.1.7 TUI started via `JidoCode.TUI.run/0` (not auto-started in supervisor)
+- [x] 4.1.1.6 Store window dimensions from init context
+- [x] 4.1.1.7 Configure TUI runtime in Application supervisor (documented, not auto-started)
 - [x] 4.1.1.8 Verify TUI starts and renders blank screen (success: terminal shows UI)
 
 ### 4.1.2 Event Handling
@@ -27,11 +27,11 @@ Create the main TUI module implementing the TermUI.Elm behaviour.
 
 Implement the event_to_msg callback and update function for user input and agent events.
 
-- [x] 4.1.2.1 Define message types: `:key_input`, `:submit`, `:quit`, `:resize`
+- [x] 4.1.2.1 Define message types: `:key_input`, `:submit`, `:agent_response`, `:status_update`, `:config_change`
 - [x] 4.1.2.2 Implement `event_to_msg/2` mapping keyboard events to messages
 - [x] 4.1.2.3 Handle Enter key → `:submit` message
-- [x] 4.1.2.4 Handle printable characters → `{:key_input, char}`
-- [x] 4.1.2.5 Handle Backspace → `{:key_input, :backspace}`
+- [x] 4.1.2.4 Handle printable characters → `:key_input` with character
+- [x] 4.1.2.5 Handle Backspace → `:key_input` with `:backspace`
 - [x] 4.1.2.6 Handle Ctrl+C → `:quit` message
 - [x] 4.1.2.7 Implement `update/2` for each message type updating Model
 - [x] 4.1.2.8 Write update tests verifying state transitions (success: input buffer updates correctly)
@@ -41,12 +41,12 @@ Implement the event_to_msg callback and update function for user input and agent
 
 Connect TUI to agent events via Phoenix PubSub for real-time updates.
 
-- [x] 4.1.3.1 Subscribe to `"tui.events"` via PubSubBridge (not in TUI init)
+- [x] 4.1.3.1 Subscribe to `"tui.events"` in TUI init
 - [x] 4.1.3.2 Handle `{:agent_response, content}` messages in update
 - [x] 4.1.3.3 Handle `{:agent_status, status}` for processing/idle indicators
 - [x] 4.1.3.4 Handle `{:reasoning_step, step}` for CoT progress display
 - [x] 4.1.3.5 Handle `{:config_changed, config}` for model switch notifications
-- [x] 4.1.3.6 Message forwarding via TermUI.Runtime.send_message/3
+- [x] 4.1.3.6 Implement message queueing for rapid updates
 - [x] 4.1.3.7 Write integration test with mock PubSub messages (success: UI updates on events)
 
 ## 4.2 View Rendering
@@ -111,33 +111,17 @@ Display current configuration and agent status in status bar. Handle unconfigure
 A new widget for term_ui (`../term_ui`) that displays a scrollable modal overlay for selecting from a list of items. Used for provider and model selection.
 
 ### 4.3.1 Pick-List Widget Implementation
-- [x] **Task 4.3.1 Complete**
+- [ ] **Task 4.3.1 Complete**
 
 Create the pick-list widget in the term_ui library.
 
-- [x] 4.3.1.1 Create `TermUI.Widget.PickList` module in `../term_ui`
-- [x] 4.3.1.2 Render as modal overlay centered on screen with border
-- [x] 4.3.1.3 Display scrollable list of items with current selection highlighted
-- [x] 4.3.1.4 Support keyboard navigation: Up/Down arrows, Page Up/Down, Home/End
-- [x] 4.3.1.5 Support type-ahead filtering: typing filters list to matching items
-- [x] 4.3.1.6 Enter key confirms selection and returns selected value
-- [x] 4.3.1.7 Escape key cancels and returns nil
-- [x] 4.3.1.8 Display item count and current position: "Item 5 of 50"
-- [x] 4.3.1.9 Handle empty list state gracefully
-- [x] 4.3.1.10 Write widget tests for navigation and selection (success: all interactions work)
-
-## 4.4 Code Review Fixes
-
-Post-implementation improvements based on Phase 4 review.
-
-### 4.4.1 Review Concerns Addressed
-- [x] **Task 4.4.1 Complete**
-
-Address concerns identified in `notes/reviews/phase-04-review.md`.
-
-- [x] 4.4.1.1 Consolidate message rendering duplication via `message_config/1` helper
-- [x] 4.4.1.2 Remove `@spec` from private functions (`load_config/0`, `determine_status/1`)
-- [x] 4.4.1.3 Add `@spec` to public function `wrap_text/3`
-- [x] 4.4.1.4 Optimize scroll offset with `Enum.take/2` instead of double `Enum.reverse/1`
-- [x] 4.4.1.5 Remove unused test helper `find_step_node/1`
-- [x] 4.4.1.6 Verify all 75 tests pass
+- [ ] 4.3.1.1 Create `TermUI.Widget.PickList` module in `../term_ui`
+- [ ] 4.3.1.2 Render as modal overlay centered on screen with border
+- [ ] 4.3.1.3 Display scrollable list of items with current selection highlighted
+- [ ] 4.3.1.4 Support keyboard navigation: Up/Down arrows, Page Up/Down, Home/End
+- [ ] 4.3.1.5 Support type-ahead filtering: typing filters list to matching items
+- [ ] 4.3.1.6 Enter key confirms selection and returns selected value
+- [ ] 4.3.1.7 Escape key cancels and returns nil
+- [ ] 4.3.1.8 Display item count and current position: "Item 5 of 50"
+- [ ] 4.3.1.9 Handle empty list state gracefully
+- [ ] 4.3.1.10 Write widget tests for navigation and selection (success: all interactions work)

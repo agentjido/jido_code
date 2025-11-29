@@ -6,12 +6,21 @@ defmodule JidoCode.Application do
 
   1. **Infrastructure** - PubSub, Registry for core communication
   2. **Agents** - Dynamic supervisor for LLM and tool agents
-  3. **TUI** - Terminal user interface (started last)
+  3. **TUI** - Terminal user interface (started last, optional)
 
   ## Supervision Strategy
 
   Uses `:one_for_one` at the top level to ensure independent failure handling.
   Agent crashes don't affect the TUI, and vice versa.
+
+  ## TUI Configuration
+
+  The TUI is not started by default during application startup. To run the TUI:
+
+      JidoCode.TUI.run()
+
+  This allows tests to run without TUI interference and gives control to the
+  main script for when to take over the terminal.
   """
 
   use Application
@@ -37,8 +46,8 @@ defmodule JidoCode.Application do
       # DynamicSupervisor for agent processes
       JidoCode.AgentSupervisor
 
-      # Future children will be added here:
-      # - JidoCode.TUI (Phase 4)
+      # Note: TUI is not started automatically.
+      # Call JidoCode.TUI.run() to start the TUI interactively.
     ]
 
     opts = [strategy: :one_for_one, name: JidoCode.Supervisor]

@@ -49,9 +49,16 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   def format_error(:eisdir, path), do: "Is a directory: #{path}"
   def format_error(:enotdir, path), do: "Not a directory: #{path}"
   def format_error(:enospc, _path), do: "No space left on device"
-  def format_error(:path_escapes_boundary, path), do: "Security error: path escapes project boundary: #{path}"
-  def format_error(:path_outside_boundary, path), do: "Security error: path is outside project: #{path}"
-  def format_error(:symlink_escapes_boundary, path), do: "Security error: symlink points outside project: #{path}"
+
+  def format_error(:path_escapes_boundary, path),
+    do: "Security error: path escapes project boundary: #{path}"
+
+  def format_error(:path_outside_boundary, path),
+    do: "Security error: path is outside project: #{path}"
+
+  def format_error(:symlink_escapes_boundary, path),
+    do: "Security error: symlink points outside project: #{path}"
+
   def format_error(reason, path) when is_atom(reason), do: "File error (#{reason}): #{path}"
   def format_error(reason, _path) when is_binary(reason), do: reason
   def format_error(reason, path), do: "Error (#{inspect(reason)}): #{path}"

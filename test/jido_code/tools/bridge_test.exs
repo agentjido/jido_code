@@ -277,7 +277,9 @@ defmodule JidoCode.Tools.BridgeTest do
     # SEC-1: Shell interpreter blocking tests
     test "blocks bash shell interpreter", %{tmp_dir: tmp_dir} do
       state = :luerl.init()
-      {result, _state} = Bridge.lua_shell(["bash", [{1, "-c"}, {2, "echo pwned"}]], state, tmp_dir)
+
+      {result, _state} =
+        Bridge.lua_shell(["bash", [{1, "-c"}, {2, "echo pwned"}]], state, tmp_dir)
 
       assert [nil, error] = result
       assert error =~ "Security error"
@@ -380,6 +382,7 @@ defmodule JidoCode.Tools.BridgeTest do
       {[result], _state} = Bridge.lua_shell(["mix", [{1, "--version"}]], state, tmp_dir)
 
       result_map = Map.new(result)
+
       # Should execute (even if mix isn't installed, it would be "command not found" not security error)
       assert is_integer(result_map["exit_code"])
     end

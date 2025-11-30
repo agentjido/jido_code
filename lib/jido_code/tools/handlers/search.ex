@@ -35,9 +35,16 @@ defmodule JidoCode.Tools.Handlers.Search do
   def format_error(:enoent, path), do: "Path not found: #{path}"
   def format_error(:eacces, path), do: "Permission denied: #{path}"
   def format_error(:enotdir, path), do: "Not a directory: #{path}"
-  def format_error(:path_escapes_boundary, path), do: "Security error: path escapes project boundary: #{path}"
-  def format_error(:path_outside_boundary, path), do: "Security error: path is outside project: #{path}"
-  def format_error(:symlink_escapes_boundary, path), do: "Security error: symlink points outside project: #{path}"
+
+  def format_error(:path_escapes_boundary, path),
+    do: "Security error: path escapes project boundary: #{path}"
+
+  def format_error(:path_outside_boundary, path),
+    do: "Security error: path is outside project: #{path}"
+
+  def format_error(:symlink_escapes_boundary, path),
+    do: "Security error: symlink points outside project: #{path}"
+
   def format_error({:invalid_regex, reason}, _path), do: "Invalid regex pattern: #{reason}"
   def format_error(reason, path) when is_atom(reason), do: "Error (#{reason}): #{path}"
   def format_error(reason, _path) when is_binary(reason), do: reason

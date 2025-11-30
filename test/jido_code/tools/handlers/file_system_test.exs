@@ -69,14 +69,20 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
   describe "WriteFile.execute/2" do
     test "writes file contents", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      assert {:ok, message} = WriteFile.execute(%{"path" => "output.txt", "content" => "Test content"}, context)
+
+      assert {:ok, message} =
+               WriteFile.execute(%{"path" => "output.txt", "content" => "Test content"}, context)
+
       assert message =~ "written successfully"
       assert File.read!(Path.join(tmp_dir, "output.txt")) == "Test content"
     end
 
     test "creates parent directories", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      assert {:ok, _} = WriteFile.execute(%{"path" => "a/b/c/file.txt", "content" => "Nested"}, context)
+
+      assert {:ok, _} =
+               WriteFile.execute(%{"path" => "a/b/c/file.txt", "content" => "Nested"}, context)
+
       assert File.read!(Path.join(tmp_dir, "a/b/c/file.txt")) == "Nested"
     end
 
@@ -85,13 +91,19 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       File.write!(file_path, "Old content")
 
       context = %{project_root: tmp_dir}
-      assert {:ok, _} = WriteFile.execute(%{"path" => "existing.txt", "content" => "New content"}, context)
+
+      assert {:ok, _} =
+               WriteFile.execute(%{"path" => "existing.txt", "content" => "New content"}, context)
+
       assert File.read!(file_path) == "New content"
     end
 
     test "returns error for path traversal attempt", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      assert {:error, error} = WriteFile.execute(%{"path" => "../evil.txt", "content" => "Bad"}, context)
+
+      assert {:error, error} =
+               WriteFile.execute(%{"path" => "../evil.txt", "content" => "Bad"}, context)
+
       assert error =~ "Security error"
     end
 
@@ -274,7 +286,10 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       File.write!(file_path, "delete me")
 
       context = %{project_root: tmp_dir}
-      assert {:ok, message} = DeleteFile.execute(%{"path" => "to_delete.txt", "confirm" => true}, context)
+
+      assert {:ok, message} =
+               DeleteFile.execute(%{"path" => "to_delete.txt", "confirm" => true}, context)
+
       assert message =~ "deleted successfully"
       refute File.exists?(file_path)
     end
@@ -284,7 +299,10 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       File.write!(file_path, "keep me")
 
       context = %{project_root: tmp_dir}
-      assert {:error, error} = DeleteFile.execute(%{"path" => "protected.txt", "confirm" => false}, context)
+
+      assert {:error, error} =
+               DeleteFile.execute(%{"path" => "protected.txt", "confirm" => false}, context)
+
       assert error =~ "requires confirm=true"
       assert File.exists?(file_path)
     end
@@ -299,13 +317,19 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
     test "returns error for non-existent file", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      assert {:error, error} = DeleteFile.execute(%{"path" => "missing.txt", "confirm" => true}, context)
+
+      assert {:error, error} =
+               DeleteFile.execute(%{"path" => "missing.txt", "confirm" => true}, context)
+
       assert error =~ "File not found"
     end
 
     test "returns error for path traversal", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      assert {:error, error} = DeleteFile.execute(%{"path" => "../../../etc/passwd", "confirm" => true}, context)
+
+      assert {:error, error} =
+               DeleteFile.execute(%{"path" => "../../../etc/passwd", "confirm" => true}, context)
+
       assert error =~ "Security error"
     end
   end

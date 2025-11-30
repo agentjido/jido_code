@@ -103,7 +103,7 @@ defmodule JidoCode.KnowledgeGraph.EntityTest do
     end
 
     test "URL-encodes special characters" do
-      entity = Entity.new(:function, :"+", module: Kernel, arity: 2)
+      entity = Entity.new(:function, :+, module: Kernel, arity: 2)
       iri = Entity.to_iri(entity)
 
       # The + should be URL-encoded

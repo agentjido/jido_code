@@ -64,7 +64,9 @@ defmodule JidoCode.Tools.Handlers.SearchTest do
       File.write!(Path.join(tmp_dir, "lib/sub/nested.ex"), "# MARKER")
 
       context = %{project_root: tmp_dir}
-      {:ok, json} = Grep.execute(%{"pattern" => "MARKER", "path" => "lib", "recursive" => false}, context)
+
+      {:ok, json} =
+        Grep.execute(%{"pattern" => "MARKER", "path" => "lib", "recursive" => false}, context)
 
       results = Jason.decode!(json)
       assert length(results) == 1
@@ -77,7 +79,9 @@ defmodule JidoCode.Tools.Handlers.SearchTest do
       File.write!(Path.join(tmp_dir, "many.txt"), content)
 
       context = %{project_root: tmp_dir}
-      {:ok, json} = Grep.execute(%{"pattern" => "match", "path" => "", "max_results" => 10}, context)
+
+      {:ok, json} =
+        Grep.execute(%{"pattern" => "match", "path" => "", "max_results" => 10}, context)
 
       results = Jason.decode!(json)
       assert length(results) == 10
@@ -231,7 +235,10 @@ defmodule JidoCode.Tools.Handlers.SearchTest do
 
     test "returns error for path traversal", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      {:error, error} = FindFiles.execute(%{"pattern" => "*.ex", "path" => "../../../etc"}, context)
+
+      {:error, error} =
+        FindFiles.execute(%{"pattern" => "*.ex", "path" => "../../../etc"}, context)
+
       assert error =~ "Security error"
     end
 

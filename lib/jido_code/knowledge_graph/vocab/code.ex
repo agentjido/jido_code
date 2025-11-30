@@ -50,7 +50,7 @@ defmodule JidoCode.KnowledgeGraph.Vocab do
 
   use RDF.Vocabulary.Namespace
 
-  defvocab Code,
+  defvocab(Code,
     base_iri: "https://jidocode.dev/vocab/code/",
     terms: [
       # Entity types
@@ -84,4 +84,5 @@ defmodule JidoCode.KnowledgeGraph.Vocab do
       :spec
     ],
     strict: false
+  )
 end

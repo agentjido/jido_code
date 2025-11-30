@@ -84,13 +84,15 @@ defmodule JidoCode.Tools.Definitions.Shell do
         %{
           name: "command",
           type: :string,
-          description: "Command to execute (must be in allowlist: mix, git, npm, ls, cat, grep, find, etc.)",
+          description:
+            "Command to execute (must be in allowlist: mix, git, npm, ls, cat, grep, find, etc.)",
           required: true
         },
         %{
           name: "args",
           type: :array,
-          description: "Command arguments as array (e.g., ['test', '--trace']). Path traversal (..) is blocked.",
+          description:
+            "Command arguments as array (e.g., ['test', '--trace']). Path traversal (..) is blocked.",
           required: false
         },
         %{

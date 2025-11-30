@@ -42,12 +42,17 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
       assert Shell.format_error(:eacces, "bar") == "Permission denied: bar"
       assert Shell.format_error(:enomem, "baz") == "Out of memory"
       assert Shell.format_error(:command_not_allowed, "evil") == "Command not allowed: evil"
-      assert Shell.format_error(:shell_interpreter_blocked, "bash") == "Shell interpreters are blocked: bash"
+
+      assert Shell.format_error(:shell_interpreter_blocked, "bash") ==
+               "Shell interpreters are blocked: bash"
     end
 
     test "formats path errors" do
-      assert Shell.format_error(:path_traversal_blocked, "../etc") == "Path traversal not allowed in argument: ../etc"
-      assert Shell.format_error(:absolute_path_blocked, "/etc") == "Absolute paths outside project not allowed: /etc"
+      assert Shell.format_error(:path_traversal_blocked, "../etc") ==
+               "Path traversal not allowed in argument: ../etc"
+
+      assert Shell.format_error(:absolute_path_blocked, "/etc") ==
+               "Absolute paths outside project not allowed: /etc"
     end
 
     test "formats generic errors" do
@@ -176,7 +181,9 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
 
     test "creates file in project directory", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      {:ok, json} = RunCommand.execute(%{"command" => "touch", "args" => ["newfile.txt"]}, context)
+
+      {:ok, json} =
+        RunCommand.execute(%{"command" => "touch", "args" => ["newfile.txt"]}, context)
 
       result = Jason.decode!(json)
       assert result["exit_code"] == 0
@@ -214,10 +221,14 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
     test "blocks shell interpreters", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
 
-      {:error, error} = RunCommand.execute(%{"command" => "bash", "args" => ["-c", "echo hi"]}, context)
+      {:error, error} =
+        RunCommand.execute(%{"command" => "bash", "args" => ["-c", "echo hi"]}, context)
+
       assert error =~ "Shell interpreters are blocked"
 
-      {:error, error} = RunCommand.execute(%{"command" => "sh", "args" => ["-c", "echo hi"]}, context)
+      {:error, error} =
+        RunCommand.execute(%{"command" => "sh", "args" => ["-c", "echo hi"]}, context)
+
       assert error =~ "Shell interpreters are blocked"
 
       {:error, error} = RunCommand.execute(%{"command" => "zsh"}, context)
@@ -250,17 +261,23 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
     test "blocks path traversal in arguments", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
 
-      {:error, error} = RunCommand.execute(%{"command" => "cat", "args" => ["../../../etc/passwd"]}, context)
+      {:error, error} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["../../../etc/passwd"]}, context)
+
       assert error =~ "Path traversal not allowed"
 
-      {:error, error} = RunCommand.execute(%{"command" => "ls", "args" => ["foo/../../../bar"]}, context)
+      {:error, error} =
+        RunCommand.execute(%{"command" => "ls", "args" => ["foo/../../../bar"]}, context)
+
       assert error =~ "Path traversal not allowed"
     end
 
     test "blocks absolute paths outside project", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
 
-      {:error, error} = RunCommand.execute(%{"command" => "cat", "args" => ["/etc/passwd"]}, context)
+      {:error, error} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["/etc/passwd"]}, context)
+
       assert error =~ "Absolute paths outside project not allowed"
 
       {:error, error} = RunCommand.execute(%{"command" => "ls", "args" => ["/home"]}, context)
@@ -284,7 +301,8 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
       File.write!(Path.join(tmp_dir, "subdir/file.txt"), "nested content")
       context = %{project_root: tmp_dir}
 
-      {:ok, json} = RunCommand.execute(%{"command" => "cat", "args" => ["subdir/file.txt"]}, context)
+      {:ok, json} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["subdir/file.txt"]}, context)
 
       result = Jason.decode!(json)
       assert result["exit_code"] == 0
@@ -313,7 +331,9 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
 
     test "does not truncate small output", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      {:ok, json} = RunCommand.execute(%{"command" => "echo", "args" => ["small output"]}, context)
+
+      {:ok, json} =
+        RunCommand.execute(%{"command" => "echo", "args" => ["small output"]}, context)
 
       result = Jason.decode!(json)
       assert result["exit_code"] == 0

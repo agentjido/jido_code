@@ -1,8 +1,8 @@
 defmodule JidoCode.KnowledgeGraph.StoreTest do
   use ExUnit.Case, async: true
 
-  alias JidoCode.KnowledgeGraph.Store
   alias JidoCode.KnowledgeGraph.Entity
+  alias JidoCode.KnowledgeGraph.Store
 
   describe "new/0" do
     test "creates an empty store" do

@@ -17,9 +17,9 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   import TermUI.Component.Helpers
 
+  alias JidoCode.Tools.Display
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
-  alias JidoCode.Tools.Display
   alias TermUI.Renderer.Style
 
   # ============================================================================
@@ -107,7 +107,10 @@ defmodule JidoCode.TUI.ViewHelpers do
     message_lines = Enum.flat_map(Enum.reverse(state.messages), &format_message(&1, width))
 
     # Tool calls are stored in reverse order (newest first), so reverse for display
-    tool_call_lines = Enum.flat_map(Enum.reverse(state.tool_calls), &format_tool_call_entry(&1, state.show_tool_details))
+    tool_call_lines =
+      state.tool_calls
+      |> Enum.reverse()
+      |> Enum.flat_map(&format_tool_call_entry(&1, state.show_tool_details))
 
     # Build streaming message line if streaming
     streaming_lines =
@@ -306,7 +309,11 @@ defmodule JidoCode.TUI.ViewHelpers do
     status = Map.get(step, :status) || Map.get(step, "status") || :pending
     status_atom = normalize_status(status)
 
-    format_reasoning_step(%{step: step_text, status: status_atom, confidence: Map.get(step, :confidence)})
+    format_reasoning_step(%{
+      step: step_text,
+      status: status_atom,
+      confidence: Map.get(step, :confidence)
+    })
   end
 
   defp normalize_status(status) when is_atom(status), do: status

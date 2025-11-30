@@ -27,7 +27,8 @@ defmodule JidoCode.Tools.ManagerTest do
 
     test "starts with custom project root" do
       # Start a test manager with custom project root
-      {:ok, pid} = Manager.start_link(name: :test_manager_custom_root, project_root: System.tmp_dir!())
+      {:ok, pid} =
+        Manager.start_link(name: :test_manager_custom_root, project_root: System.tmp_dir!())
 
       on_exit(fn ->
         if Process.alive?(pid), do: GenServer.stop(pid)

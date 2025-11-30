@@ -8,9 +8,10 @@ defmodule JidoCode.TUI.PubSubBridgeTest do
     test_pid = self()
 
     # Use a mock runtime that forwards messages to test process
-    mock_runtime = spawn_link(fn ->
-      receive_loop(test_pid)
-    end)
+    mock_runtime =
+      spawn_link(fn ->
+        receive_loop(test_pid)
+      end)
 
     {:ok, bridge} = PubSubBridge.start_link(runtime: mock_runtime)
 

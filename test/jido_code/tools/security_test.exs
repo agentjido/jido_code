@@ -42,22 +42,30 @@ defmodule JidoCode.Tools.SecurityTest do
 
   describe "validate_path/3 - relative paths" do
     test "accepts valid relative path" do
-      assert {:ok, resolved} = Security.validate_path("src/main.ex", @test_root, log_violations: false)
+      assert {:ok, resolved} =
+               Security.validate_path("src/main.ex", @test_root, log_violations: false)
+
       assert resolved == Path.join(@test_root, "src/main.ex")
     end
 
     test "accepts nested relative path" do
-      assert {:ok, resolved} = Security.validate_path("lib/nested/file.ex", @test_root, log_violations: false)
+      assert {:ok, resolved} =
+               Security.validate_path("lib/nested/file.ex", @test_root, log_violations: false)
+
       assert resolved == Path.join(@test_root, "lib/nested/file.ex")
     end
 
     test "accepts current directory reference" do
-      assert {:ok, resolved} = Security.validate_path("./src/main.ex", @test_root, log_violations: false)
+      assert {:ok, resolved} =
+               Security.validate_path("./src/main.ex", @test_root, log_violations: false)
+
       assert resolved == Path.join(@test_root, "src/main.ex")
     end
 
     test "accepts path with .. that stays within boundary" do
-      assert {:ok, resolved} = Security.validate_path("src/../file.txt", @test_root, log_violations: false)
+      assert {:ok, resolved} =
+               Security.validate_path("src/../file.txt", @test_root, log_violations: false)
+
       assert resolved == Path.join(@test_root, "file.txt")
     end
 
@@ -68,7 +76,9 @@ defmodule JidoCode.Tools.SecurityTest do
 
     test "rejects excessive .. sequences" do
       assert {:error, :path_escapes_boundary} =
-               Security.validate_path("../../../../../../../../etc/passwd", @test_root, log_violations: false)
+               Security.validate_path("../../../../../../../../etc/passwd", @test_root,
+                 log_violations: false
+               )
     end
 
     test "rejects hidden path traversal" do
@@ -84,7 +94,9 @@ defmodule JidoCode.Tools.SecurityTest do
     end
 
     test "accepts project root itself" do
-      assert {:ok, resolved} = Security.validate_path(@test_root, @test_root, log_violations: false)
+      assert {:ok, resolved} =
+               Security.validate_path(@test_root, @test_root, log_violations: false)
+
       assert resolved == @test_root
     end
 
@@ -95,6 +107,7 @@ defmodule JidoCode.Tools.SecurityTest do
 
     test "rejects absolute path to sibling directory" do
       sibling = Path.join(Path.dirname(@test_root), "other_project")
+
       assert {:error, :path_outside_boundary} =
                Security.validate_path(sibling, @test_root, log_violations: false)
     end
@@ -102,6 +115,7 @@ defmodule JidoCode.Tools.SecurityTest do
     test "rejects path that is prefix of project root" do
       # e.g., /tmp/security_test shouldn't match /tmp/security_test_other
       parent = Path.dirname(@test_root)
+
       assert {:error, :path_outside_boundary} =
                Security.validate_path(parent, @test_root, log_violations: false)
     end
@@ -147,21 +161,29 @@ defmodule JidoCode.Tools.SecurityTest do
     end
 
     test "handles non-existent path within boundary" do
-      assert {:ok, resolved} = Security.validate_path("nonexistent/path.ex", @test_root, log_violations: false)
+      assert {:ok, resolved} =
+               Security.validate_path("nonexistent/path.ex", @test_root, log_violations: false)
+
       assert resolved == Path.join(@test_root, "nonexistent/path.ex")
     end
 
     test "handles path with special characters" do
-      assert {:ok, resolved} = Security.validate_path("src/file with spaces.ex", @test_root, log_violations: false)
+      assert {:ok, resolved} =
+               Security.validate_path("src/file with spaces.ex", @test_root,
+                 log_violations: false
+               )
+
       assert resolved == Path.join(@test_root, "src/file with spaces.ex")
     end
 
     test "rejects nil path" do
-      assert {:error, :invalid_path} = Security.validate_path(nil, @test_root, log_violations: false)
+      assert {:error, :invalid_path} =
+               Security.validate_path(nil, @test_root, log_violations: false)
     end
 
     test "rejects non-string path" do
-      assert {:error, :invalid_path} = Security.validate_path(123, @test_root, log_violations: false)
+      assert {:error, :invalid_path} =
+               Security.validate_path(123, @test_root, log_violations: false)
     end
   end
 
@@ -258,7 +280,9 @@ defmodule JidoCode.Tools.SecurityTest do
     test "blocks null byte injection" do
       # Null bytes could be used to truncate paths in some systems
       # Elixir/Erlang handles this safely, but test anyway
-      result = Security.validate_path("file.txt\x00/../../etc/passwd", @test_root, log_violations: false)
+      result =
+        Security.validate_path("file.txt\x00/../../etc/passwd", @test_root, log_violations: false)
+
       # Should either be safe or error
       case result do
         {:ok, path} -> assert String.starts_with?(path, @test_root)
@@ -268,7 +292,9 @@ defmodule JidoCode.Tools.SecurityTest do
 
     test "blocks URL encoding attacks" do
       # %2e%2e = .. in URL encoding (not decoded by Path functions)
-      result = Security.validate_path("%2e%2e/%2e%2e/etc/passwd", @test_root, log_violations: false)
+      result =
+        Security.validate_path("%2e%2e/%2e%2e/etc/passwd", @test_root, log_violations: false)
+
       # Should be treated as literal filename, staying within boundary
       case result do
         {:ok, path} -> assert String.starts_with?(path, @test_root)
@@ -303,7 +329,9 @@ defmodule JidoCode.Tools.SecurityTest do
     end
 
     test "reads nested file within boundary" do
-      assert {:ok, content} = Security.atomic_read("src/main.ex", @test_root, log_violations: false)
+      assert {:ok, content} =
+               Security.atomic_read("src/main.ex", @test_root, log_violations: false)
+
       assert content =~ "defmodule Main"
     end
 
@@ -337,14 +365,20 @@ defmodule JidoCode.Tools.SecurityTest do
     @tag :tmp_dir
     test "writes file within boundary", %{tmp_dir: tmp_dir} do
       content = "test content #{:rand.uniform(1000)}"
-      assert :ok = Security.atomic_write("test_write.txt", content, tmp_dir, log_violations: false)
+
+      assert :ok =
+               Security.atomic_write("test_write.txt", content, tmp_dir, log_violations: false)
+
       assert File.read!(Path.join(tmp_dir, "test_write.txt")) == content
     end
 
     @tag :tmp_dir
     test "creates parent directories", %{tmp_dir: tmp_dir} do
       content = "nested content"
-      assert :ok = Security.atomic_write("a/b/c/nested.txt", content, tmp_dir, log_violations: false)
+
+      assert :ok =
+               Security.atomic_write("a/b/c/nested.txt", content, tmp_dir, log_violations: false)
+
       assert File.read!(Path.join(tmp_dir, "a/b/c/nested.txt")) == content
     end
 

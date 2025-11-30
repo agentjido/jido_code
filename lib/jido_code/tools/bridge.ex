@@ -189,10 +189,17 @@ defmodule JidoCode.Tools.Bridge do
 
       {[lua_array], state}
     else
-      {:error, :path_escapes_boundary} -> {[nil, format_security_error(:path_escapes_boundary, path)], state}
-      {:error, :path_outside_boundary} -> {[nil, format_security_error(:path_outside_boundary, path)], state}
-      {:error, :symlink_escapes_boundary} -> {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
-      {:error, reason} -> {[nil, format_file_error(reason, path)], state}
+      {:error, :path_escapes_boundary} ->
+        {[nil, format_security_error(:path_escapes_boundary, path)], state}
+
+      {:error, :path_outside_boundary} ->
+        {[nil, format_security_error(:path_outside_boundary, path)], state}
+
+      {:error, :symlink_escapes_boundary} ->
+        {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
+
+      {:error, reason} ->
+        {[nil, format_file_error(reason, path)], state}
     end
   end
 

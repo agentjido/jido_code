@@ -229,7 +229,11 @@ defmodule JidoCode.Tools.ExecutorTest do
     end
 
     test "handles string-keyed tool call" do
-      tool_call = %{"id" => "call_123", "name" => "read_file", "arguments" => %{"path" => "/test.txt"}}
+      tool_call = %{
+        "id" => "call_123",
+        "name" => "read_file",
+        "arguments" => %{"path" => "/test.txt"}
+      }
 
       assert {:ok, result} = Executor.execute(tool_call)
       assert result.status == :ok
@@ -252,7 +256,11 @@ defmodule JidoCode.Tools.ExecutorTest do
     end
 
     test "returns error result for unknown parameter" do
-      tool_call = %{id: "call_123", name: "read_file", arguments: %{"path" => "/test.txt", "unknown" => "param"}}
+      tool_call = %{
+        id: "call_123",
+        name: "read_file",
+        arguments: %{"path" => "/test.txt", "unknown" => "param"}
+      }
 
       assert {:ok, result} = Executor.execute(tool_call)
       assert result.status == :error
@@ -293,7 +301,9 @@ defmodule JidoCode.Tools.ExecutorTest do
 
       tool_call = %{id: "call_123", name: "read_file", arguments: %{"path" => "/test.txt"}}
 
-      assert {:ok, result} = Executor.execute(tool_call, executor: custom_executor, context: %{user: "test"})
+      assert {:ok, result} =
+               Executor.execute(tool_call, executor: custom_executor, context: %{user: "test"})
+
       assert result.content =~ "user"
     end
 

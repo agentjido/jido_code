@@ -155,6 +155,7 @@ defmodule JidoCode.IntegrationTest do
   describe "agent lifecycle (6.1.2.2)" do
     setup do
       System.put_env("ANTHROPIC_API_KEY", "test-key-for-integration")
+
       Application.put_env(:jido_code, :llm,
         provider: :anthropic,
         model: "claude-3-5-sonnet-20241022",
@@ -168,11 +169,12 @@ defmodule JidoCode.IntegrationTest do
     test "AgentSupervisor can start an agent" do
       agent_name = :"test_agent_#{:rand.uniform(100_000)}"
 
-      result = AgentSupervisor.start_agent(%{
-        name: agent_name,
-        module: LLMAgent,
-        args: [session_id: "integration-session"]
-      })
+      result =
+        AgentSupervisor.start_agent(%{
+          name: agent_name,
+          module: LLMAgent,
+          args: [session_id: "integration-session"]
+        })
 
       case result do
         {:ok, pid} ->
@@ -195,10 +197,10 @@ defmodule JidoCode.IntegrationTest do
       agent_name = :"lookup_test_#{:rand.uniform(100_000)}"
 
       case AgentSupervisor.start_agent(%{
-        name: agent_name,
-        module: LLMAgent,
-        args: []
-      }) do
+             name: agent_name,
+             module: LLMAgent,
+             args: []
+           }) do
         {:ok, started_pid} ->
           {:ok, found_pid} = AgentSupervisor.lookup_agent(agent_name)
           assert started_pid == found_pid
@@ -217,10 +219,10 @@ defmodule JidoCode.IntegrationTest do
       agent_name = :"stop_test_#{:rand.uniform(100_000)}"
 
       case AgentSupervisor.start_agent(%{
-        name: agent_name,
-        module: LLMAgent,
-        args: []
-      }) do
+             name: agent_name,
+             module: LLMAgent,
+             args: []
+           }) do
         {:ok, pid} ->
           assert Process.alive?(pid)
           :ok = AgentSupervisor.stop_agent(agent_name)
@@ -241,10 +243,10 @@ defmodule JidoCode.IntegrationTest do
       agent_name = :"stop_pid_test_#{:rand.uniform(100_000)}"
 
       case AgentSupervisor.start_agent(%{
-        name: agent_name,
-        module: LLMAgent,
-        args: []
-      }) do
+             name: agent_name,
+             module: LLMAgent,
+             args: []
+           }) do
         {:ok, pid} ->
           :ok = AgentSupervisor.stop_agent(pid)
           Process.sleep(100)
@@ -273,6 +275,7 @@ defmodule JidoCode.IntegrationTest do
   describe "message flow (6.1.2.3)" do
     setup do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
+
       Application.put_env(:jido_code, :llm,
         provider: :anthropic,
         model: "claude-3-5-sonnet-20241022"
@@ -304,10 +307,12 @@ defmodule JidoCode.IntegrationTest do
           case result do
             {:error, {:empty_message, _}} -> flunk("Should not reject valid message")
             {:error, {:message_too_long, _}} -> flunk("Should not reject short message")
-            _ -> :ok  # Any other result is acceptable
+            # Any other result is acceptable
+            _ -> :ok
           end
 
           GenServer.stop(pid, :normal, 1000)
+
         {:error, _} ->
           :ok
       end
@@ -325,6 +330,7 @@ defmodule JidoCode.IntegrationTest do
   describe "PubSub delivery (6.1.2.4)" do
     setup do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
+
       Application.put_env(:jido_code, :llm,
         provider: :anthropic,
         model: "claude-3-5-sonnet-20241022"
@@ -412,6 +418,7 @@ defmodule JidoCode.IntegrationTest do
       Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events.#{session_a}")
 
       ToolsRegistry.clear()
+
       {:ok, tool} =
         Tool.new(%{
           name: "isolation_test",
@@ -419,6 +426,7 @@ defmodule JidoCode.IntegrationTest do
           handler: __MODULE__.TestHandler,
           parameters: []
         })
+
       :ok = ToolsRegistry.register(tool)
 
       # Execute on session B
@@ -526,12 +534,15 @@ defmodule JidoCode.IntegrationTest do
       case LLMAgent.start_link() do
         {:ok, pid} ->
           config = LLMAgent.get_config(pid)
-          result = LLMAgent.configure(pid,
-            provider: config.provider,
-            model: config.model,
-            temperature: config.temperature,
-            max_tokens: config.max_tokens
-          )
+
+          result =
+            LLMAgent.configure(pid,
+              provider: config.provider,
+              model: config.model,
+              temperature: config.temperature,
+              max_tokens: config.max_tokens
+            )
+
           assert result == :ok
 
           GenServer.stop(pid, :normal, 1000)
@@ -638,7 +649,9 @@ defmodule JidoCode.IntegrationTest do
     end
 
     test "valid paths within project are allowed" do
-      {:ok, resolved} = Security.validate_path("lib/jido_code.ex", File.cwd!(), log_violations: false)
+      {:ok, resolved} =
+        Security.validate_path("lib/jido_code.ex", File.cwd!(), log_violations: false)
+
       assert String.starts_with?(resolved, File.cwd!())
     end
 
@@ -713,7 +726,8 @@ defmodule JidoCode.IntegrationTest do
     end
 
     test "invalid arguments return error result" do
-      tool_call = %{id: "invalid_1", name: "slow_test_tool", arguments: %{}}  # missing required
+      # missing required
+      tool_call = %{id: "invalid_1", name: "slow_test_tool", arguments: %{}}
       {:ok, result} = Executor.execute(tool_call)
 
       assert result.status == :error

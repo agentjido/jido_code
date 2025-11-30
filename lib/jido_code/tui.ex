@@ -433,11 +433,12 @@ defmodule JidoCode.TUI do
         # Determine new status based on config
         new_status = determine_status(updated_config)
 
-        new_state = %{state |
-          input_buffer: "",
-          messages: [system_msg | state.messages],
-          config: updated_config,
-          agent_status: new_status
+        new_state = %{
+          state
+          | input_buffer: "",
+            messages: [system_msg | state.messages],
+            config: updated_config,
+            agent_status: new_status
         }
 
         {new_state, []}
@@ -466,7 +467,10 @@ defmodule JidoCode.TUI do
   end
 
   defp do_show_config_error(state) do
-    error_msg = system_message("Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select.")
+    error_msg =
+      system_message(
+        "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select."
+      )
 
     new_state = %{state | input_buffer: "", messages: [error_msg | state.messages]}
     {new_state, []}
@@ -488,24 +492,29 @@ defmodule JidoCode.TUI do
         # Dispatch async with streaming - agent will broadcast chunks via PubSub
         LLMAgent.chat_stream(agent_pid, text)
 
-        updated_state = %{new_state |
-          input_buffer: "",
-          messages: [user_msg | new_state.messages],
-          agent_status: :processing,
-          scroll_offset: 0,
-          streaming_message: "",
-          is_streaming: true
+        updated_state = %{
+          new_state
+          | input_buffer: "",
+            messages: [user_msg | new_state.messages],
+            agent_status: :processing,
+            scroll_offset: 0,
+            streaming_message: "",
+            is_streaming: true
         }
 
         {updated_state, []}
 
       {:error, :not_found} ->
-        error_msg = system_message("LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})")
+        error_msg =
+          system_message(
+            "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})"
+          )
 
-        new_state = %{state |
-          input_buffer: "",
-          messages: [error_msg, user_msg | state.messages],
-          agent_status: :error
+        new_state = %{
+          state
+          | input_buffer: "",
+            messages: [error_msg, user_msg | state.messages],
+            agent_status: :error
         }
 
         {new_state, []}
@@ -640,7 +649,8 @@ defmodule JidoCode.TUI do
   end
 
   @doc false
-  @spec determine_status(%{provider: String.t() | nil, model: String.t() | nil}) :: Model.agent_status()
+  @spec determine_status(%{provider: String.t() | nil, model: String.t() | nil}) ::
+          Model.agent_status()
   def determine_status(config) do
     cond do
       is_nil(config.provider) -> :unconfigured

@@ -114,12 +114,12 @@ defmodule JidoCode.Tools.DisplayTest do
         tool_call_id: "call_123",
         tool_name: "slow_operation",
         status: :timeout,
-        content: "Tool execution timed out after 30000ms",
-        duration_ms: 30000
+        content: "Tool execution timed out after 30_000ms",
+        duration_ms: 30_000
       }
 
       formatted = Display.format_tool_result(result)
-      assert formatted == "⏱ slow_operation [30000ms]: Tool execution timed out after 30000ms"
+      assert formatted == "⏱ slow_operation [30000ms]: Tool execution timed out after 30_000ms"
     end
 
     test "truncates long content in result" do
@@ -194,7 +194,7 @@ defmodule JidoCode.Tools.DisplayTest do
     end
 
     test "detects JSON from content structure" do
-      assert Display.detect_syntax("{\"key\": \"value\"}", %{}) == :json
+      assert Display.detect_syntax(~s({"key": "value"}), %{}) == :json
       assert Display.detect_syntax("[1, 2, 3]", %{}) == :json
     end
 

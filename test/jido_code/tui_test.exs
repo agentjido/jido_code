@@ -415,11 +415,12 @@ defmodule JidoCode.TUITest do
       setup_api_key("anthropic")
 
       # Start a mock agent for this test
-      {:ok, _pid} = JidoCode.AgentSupervisor.start_agent(%{
-        name: :test_llm_agent,
-        module: JidoCode.Agents.LLMAgent,
-        args: [provider: :anthropic, model: "claude-3-5-haiku-latest"]
-      })
+      {:ok, _pid} =
+        JidoCode.AgentSupervisor.start_agent(%{
+          name: :test_llm_agent,
+          module: JidoCode.Agents.LLMAgent,
+          args: [provider: :anthropic, model: "claude-3-5-haiku-latest"]
+        })
 
       model = %Model{
         input_buffer: "hello",
@@ -503,7 +504,7 @@ defmodule JidoCode.TUITest do
       {new_model, _} = TUI.update({:llm_response, "Hello from LLM!"}, model)
 
       # State should remain unchanged - message goes to catch-all
-      assert length(new_model.messages) == 0
+      assert new_model.messages == []
       assert new_model.agent_status == :processing
     end
 
@@ -588,7 +589,8 @@ defmodule JidoCode.TUITest do
     test "handles config_change with atom keys" do
       model = %Model{config: %{provider: nil, model: nil}}
 
-      {new_model, _} = TUI.update({:config_change, %{provider: "anthropic", model: "claude"}}, model)
+      {new_model, _} =
+        TUI.update({:config_change, %{provider: "anthropic", model: "claude"}}, model)
 
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == "claude"
@@ -598,7 +600,8 @@ defmodule JidoCode.TUITest do
     test "handles config_change with string keys" do
       model = %Model{config: %{provider: nil, model: nil}}
 
-      {new_model, _} = TUI.update({:config_change, %{"provider" => "openai", "model" => "gpt-4"}}, model)
+      {new_model, _} =
+        TUI.update({:config_change, %{"provider" => "openai", "model" => "gpt-4"}}, model)
 
       assert new_model.config.provider == "openai"
       assert new_model.config.model == "gpt-4"
@@ -1099,9 +1102,10 @@ defmodule JidoCode.TUITest do
     test "scroll up increases scroll_offset" do
       model = %Model{
         scroll_offset: 0,
-        messages: Enum.map(1..50, fn i ->
-          %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
-        end),
+        messages:
+          Enum.map(1..50, fn i ->
+            %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
+          end),
         window: {80, 10}
       }
 
@@ -1143,6 +1147,7 @@ defmodule JidoCode.TUITest do
   describe "message display with timestamps" do
     test "messages include timestamp in view" do
       timestamp = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
+
       model = %Model{
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
@@ -1607,7 +1612,8 @@ defmodule JidoCode.TUITest do
     test "adds tool call entry to tool_calls list" do
       model = %Model{tool_calls: []}
 
-      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+      {new_model, _} =
+        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
 
       assert length(new_model.tool_calls) == 1
       entry = hd(new_model.tool_calls)
@@ -1626,9 +1632,11 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{tool_calls: [existing]}
 
-      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2"}, model)
+      {new_model, _} =
+        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2"}, model)
 
       # Tool calls are stored in reverse order (newest first)
       assert length(new_model.tool_calls) == 2
@@ -1639,10 +1647,13 @@ defmodule JidoCode.TUITest do
     test "adds tool_call to message queue" do
       model = %Model{tool_calls: [], message_queue: []}
 
-      {new_model, _} = TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+      {new_model, _} =
+        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
 
       assert length(new_model.message_queue) == 1
-      {{:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, _ts} = hd(new_model.message_queue)
+
+      {{:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, _ts} =
+        hd(new_model.message_queue)
     end
   end
 
@@ -1657,6 +1668,7 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{tool_calls: [pending]}
 
       result = Result.ok("call_123", "read_file", "file contents", 45)
@@ -1679,6 +1691,7 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       pending2 = %{
         call_id: "call_2",
         tool_name: "grep",
@@ -1686,6 +1699,7 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{tool_calls: [pending1, pending2]}
 
       result = Result.ok("call_1", "read_file", "content", 30)
@@ -1704,6 +1718,7 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{tool_calls: [pending]}
 
       result = Result.error("call_123", "read_file", "File not found", 12)
@@ -1723,9 +1738,10 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{tool_calls: [pending]}
 
-      result = Result.timeout("call_123", "slow_op", 30000)
+      result = Result.timeout("call_123", "slow_op", 30_000)
 
       {new_model, _} = TUI.update({:tool_result, result}, model)
 
@@ -1741,6 +1757,7 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{tool_calls: [pending], message_queue: []}
 
       result = Result.ok("call_123", "read_file", "content", 30)
@@ -1779,6 +1796,7 @@ defmodule JidoCode.TUITest do
 
     test "formats successful tool result" do
       result = Result.ok("call_123", "read_file", "file contents", 45)
+
       entry = %{
         call_id: "call_123",
         tool_name: "read_file",
@@ -1798,6 +1816,7 @@ defmodule JidoCode.TUITest do
 
     test "formats error tool result" do
       result = Result.error("call_123", "read_file", "File not found", 12)
+
       entry = %{
         call_id: "call_123",
         tool_name: "read_file",
@@ -1814,7 +1833,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "formats timeout tool result" do
-      result = Result.timeout("call_123", "slow_op", 30000)
+      result = Result.timeout("call_123", "slow_op", 30_000)
+
       entry = %{
         call_id: "call_123",
         tool_name: "slow_op",
@@ -1833,6 +1853,7 @@ defmodule JidoCode.TUITest do
     test "truncates long content when show_details is false" do
       long_content = String.duplicate("x", 200)
       result = Result.ok("call_123", "read_file", long_content, 45)
+
       entry = %{
         call_id: "call_123",
         tool_name: "read_file",
@@ -1850,6 +1871,7 @@ defmodule JidoCode.TUITest do
     test "shows full content when show_details is true" do
       long_content = String.duplicate("x", 200)
       result = Result.ok("call_123", "read_file", long_content, 45)
+
       entry = %{
         call_id: "call_123",
         tool_name: "read_file",
@@ -1898,6 +1920,7 @@ defmodule JidoCode.TUITest do
 
     test "conversation shows tool calls" do
       result = Result.ok("call_123", "read_file", "file contents", 45)
+
       tool_call = %{
         call_id: "call_123",
         tool_name: "read_file",
@@ -1905,6 +1928,7 @@ defmodule JidoCode.TUITest do
         result: result,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
@@ -1928,6 +1952,7 @@ defmodule JidoCode.TUITest do
         result: nil,
         timestamp: DateTime.utc_now()
       }
+
       model = %Model{
         agent_status: :idle,
         config: %{provider: "test", model: "test"},

@@ -69,10 +69,19 @@ defmodule JidoCode.Tools.Handlers.Shell do
   def format_error(:eacces, command), do: "Permission denied: #{command}"
   def format_error(:enomem, _command), do: "Out of memory"
   def format_error(:command_not_allowed, command), do: "Command not allowed: #{command}"
-  def format_error(:shell_interpreter_blocked, command), do: "Shell interpreters are blocked: #{command}"
-  def format_error(:path_traversal_blocked, arg), do: "Path traversal not allowed in argument: #{arg}"
-  def format_error(:absolute_path_blocked, arg), do: "Absolute paths outside project not allowed: #{arg}"
-  def format_error({kind, reason}, command), do: "Shell error executing #{command}: #{kind} - #{inspect(reason)}"
+
+  def format_error(:shell_interpreter_blocked, command),
+    do: "Shell interpreters are blocked: #{command}"
+
+  def format_error(:path_traversal_blocked, arg),
+    do: "Path traversal not allowed in argument: #{arg}"
+
+  def format_error(:absolute_path_blocked, arg),
+    do: "Absolute paths outside project not allowed: #{arg}"
+
+  def format_error({kind, reason}, command),
+    do: "Shell error executing #{command}: #{kind} - #{inspect(reason)}"
+
   def format_error(reason, command) when is_atom(reason), do: "Error (#{reason}): #{command}"
   def format_error(reason, _command) when is_binary(reason), do: reason
   def format_error(reason, command), do: "Error (#{inspect(reason)}): #{command}"
@@ -198,7 +207,8 @@ defmodule JidoCode.Tools.Handlers.Shell do
       end
     end
 
-    @spec execute_with_timeout(String.t(), [String.t()], String.t(), non_neg_integer()) :: {:ok, String.t()}
+    @spec execute_with_timeout(String.t(), [String.t()], String.t(), non_neg_integer()) ::
+            {:ok, String.t()}
     defp execute_with_timeout(command, args, project_root, timeout) do
       task =
         Task.async(fn ->
@@ -219,7 +229,8 @@ defmodule JidoCode.Tools.Handlers.Shell do
       end
     end
 
-    @spec run_command(String.t(), [String.t()], String.t()) :: {:ok, String.t()} | {:error, String.t()}
+    @spec run_command(String.t(), [String.t()], String.t()) ::
+            {:ok, String.t()} | {:error, String.t()}
     defp run_command(command, args, project_root) do
       # Use stderr_to_stdout to capture all output together
       # This is simpler and sufficient for LLM consumption

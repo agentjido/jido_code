@@ -118,7 +118,8 @@ defmodule JidoCode.Commands do
   end
 
   defp parse_and_execute("/model", _config) do
-    {:error, "Usage: /model <provider>:<model> or /model <model>\n\nExamples:\n  /model anthropic:claude-3-5-sonnet\n  /model gpt-4o"}
+    {:error,
+     "Usage: /model <provider>:<model> or /model <model>\n\nExamples:\n  /model anthropic:claude-3-5-sonnet\n  /model gpt-4o"}
   end
 
   defp parse_and_execute("/models " <> rest, _config) do
@@ -170,22 +171,21 @@ defmodule JidoCode.Commands do
   end
 
   defp execute_model_command(model_spec, config) do
-    cond do
-      # Format: provider:model
-      String.contains?(model_spec, ":") ->
-        [provider | rest] = String.split(model_spec, ":", parts: 2)
-        model = Enum.join(rest, ":")
-        set_provider_and_model(provider, model)
-
+    # Format: provider:model
+    if String.contains?(model_spec, ":") do
+      [provider | rest] = String.split(model_spec, ":", parts: 2)
+      model = Enum.join(rest, ":")
+      set_provider_and_model(provider, model)
+    else
       # Format: model only (requires provider to be set)
-      true ->
-        provider = config[:provider] || config["provider"]
+      provider = config[:provider] || config["provider"]
 
-        if provider do
-          set_model_for_provider(provider, model_spec)
-        else
-          {:error, "No provider set. Use /model <provider>:<model> or set provider first with /provider <name>"}
-        end
+      if provider do
+        set_model_for_provider(provider, model_spec)
+      else
+        {:error,
+         "No provider set. Use /model <provider>:<model> or set provider first with /provider <name>"}
+      end
     end
   end
 

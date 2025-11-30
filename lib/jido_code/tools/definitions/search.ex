@@ -65,7 +65,8 @@ defmodule JidoCode.Tools.Definitions.Search do
         %{
           name: "pattern",
           type: :string,
-          description: "Regex pattern to search for (e.g., 'def hello', 'TODO:', 'import.*React')",
+          description:
+            "Regex pattern to search for (e.g., 'def hello', 'TODO:', 'import.*React')",
           required: true
         },
         %{

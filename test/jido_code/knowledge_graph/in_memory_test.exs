@@ -1,8 +1,8 @@
 defmodule JidoCode.KnowledgeGraph.InMemoryTest do
   use ExUnit.Case, async: true
 
-  alias JidoCode.KnowledgeGraph.InMemory
   alias JidoCode.KnowledgeGraph.Entity
+  alias JidoCode.KnowledgeGraph.InMemory
 
   describe "new/0" do
     test "creates an empty directed graph" do

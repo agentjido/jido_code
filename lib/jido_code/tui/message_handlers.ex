@@ -15,9 +15,9 @@ defmodule JidoCode.TUI.MessageHandlers do
   - Tools: `{:tool_call, ...}`, `{:tool_result, ...}`
   """
 
+  alias JidoCode.Tools.Result
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
-  alias JidoCode.Tools.Result
 
   # Maximum number of messages to keep in the debug queue
   @max_queue_size 100
@@ -34,10 +34,11 @@ defmodule JidoCode.TUI.MessageHandlers do
     message = TUI.assistant_message(content)
     queue = queue_message(state.message_queue, {:agent_response, content})
 
-    new_state = %{state |
-      messages: [message | state.messages],
-      message_queue: queue,
-      agent_status: :idle
+    new_state = %{
+      state
+      | messages: [message | state.messages],
+        message_queue: queue,
+        agent_status: :idle
     }
 
     {new_state, []}
@@ -51,10 +52,11 @@ defmodule JidoCode.TUI.MessageHandlers do
     new_streaming_message = (state.streaming_message || "") <> chunk
     queue = queue_message(state.message_queue, {:stream_chunk, chunk})
 
-    new_state = %{state |
-      streaming_message: new_streaming_message,
-      is_streaming: true,
-      message_queue: queue
+    new_state = %{
+      state
+      | streaming_message: new_streaming_message,
+        is_streaming: true,
+        message_queue: queue
     }
 
     {new_state, []}
@@ -68,12 +70,13 @@ defmodule JidoCode.TUI.MessageHandlers do
     message = TUI.assistant_message(state.streaming_message || "")
     queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
 
-    new_state = %{state |
-      messages: [message | state.messages],
-      streaming_message: nil,
-      is_streaming: false,
-      agent_status: :idle,
-      message_queue: queue
+    new_state = %{
+      state
+      | messages: [message | state.messages],
+        streaming_message: nil,
+        is_streaming: false,
+        agent_status: :idle,
+        message_queue: queue
     }
 
     {new_state, []}
@@ -88,12 +91,13 @@ defmodule JidoCode.TUI.MessageHandlers do
     error_msg = TUI.system_message(error_content)
     queue = queue_message(state.message_queue, {:stream_error, reason})
 
-    new_state = %{state |
-      messages: [error_msg | state.messages],
-      streaming_message: nil,
-      is_streaming: false,
-      agent_status: :error,
-      message_queue: queue
+    new_state = %{
+      state
+      | messages: [error_msg | state.messages],
+        streaming_message: nil,
+        is_streaming: false,
+        agent_status: :error,
+        message_queue: queue
     }
 
     {new_state, []}
@@ -180,10 +184,7 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     queue = queue_message(state.message_queue, {:tool_call, tool_name, params, call_id})
 
-    new_state = %{state |
-      tool_calls: [tool_call_entry | state.tool_calls],
-      message_queue: queue
-    }
+    new_state = %{state | tool_calls: [tool_call_entry | state.tool_calls], message_queue: queue}
 
     {new_state, []}
   end
@@ -204,10 +205,7 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     queue = queue_message(state.message_queue, {:tool_result, result})
 
-    new_state = %{state |
-      tool_calls: updated_tool_calls,
-      message_queue: queue
-    }
+    new_state = %{state | tool_calls: updated_tool_calls, message_queue: queue}
 
     {new_state, []}
   end

@@ -32,11 +32,12 @@ defmodule Mix.Tasks.JidoCode do
     Mix.Task.run("app.start")
 
     # Start the LLM agent
-    {:ok, _pid} = JidoCode.AgentSupervisor.start_agent(%{
-      name: :llm_agent,
-      module: JidoCode.Agents.LLMAgent,
-      args: []
-    })
+    {:ok, _pid} =
+      JidoCode.AgentSupervisor.start_agent(%{
+        name: :llm_agent,
+        module: JidoCode.Agents.LLMAgent,
+        args: []
+      })
 
     # Run the TUI (blocks until quit)
     JidoCode.TUI.run()

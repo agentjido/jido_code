@@ -570,9 +570,10 @@ defmodule JidoCode.Agents.LLMAgent do
   # Wrapper that enforces timeout on stream operations
   defp do_chat_stream_with_timeout(config, message, topic, timeout) do
     # Use a Task to enforce timeout on the entire streaming operation
-    task = Task.async(fn ->
-      do_chat_stream(config, message, topic)
-    end)
+    task =
+      Task.async(fn ->
+        do_chat_stream(config, message, topic)
+      end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, _result} ->
@@ -607,19 +608,23 @@ defmodule JidoCode.Agents.LLMAgent do
 
   defp execute_stream(model, message, topic) do
     # Build prompt with system message and user message
-    prompt = Prompt.new(%{
-      messages: [
-        %{role: :system, content: @system_prompt, engine: :none},
-        %{role: :user, content: message, engine: :none}
-      ]
-    })
+    prompt =
+      Prompt.new(%{
+        messages: [
+          %{role: :system, content: @system_prompt, engine: :none},
+          %{role: :user, content: message, engine: :none}
+        ]
+      })
 
     # Execute streaming chat completion
-    case ChatCompletion.run(%{
-      model: model,
-      prompt: prompt,
-      stream: true
-    }, %{}) do
+    case ChatCompletion.run(
+           %{
+             model: model,
+             prompt: prompt,
+             stream: true
+           },
+           %{}
+         ) do
       {:ok, stream} ->
         process_stream(stream, topic)
 
@@ -643,6 +648,7 @@ defmodule JidoCode.Agents.LLMAgent do
             if content != "" do
               broadcast_stream_chunk(topic, content)
             end
+
             {:halt, acc <> content}
         end
       end)
@@ -665,6 +671,7 @@ defmodule JidoCode.Agents.LLMAgent do
 
   defp extract_chunk_content(%{delta: %{content: content}} = chunk) do
     finish_reason = Map.get(chunk, :finish_reason)
+
     if finish_reason do
       {:finish, content || ""}
     else

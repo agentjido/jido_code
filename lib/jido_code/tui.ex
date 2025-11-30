@@ -228,7 +228,8 @@ defmodule JidoCode.TUI do
     {:msg, {:key_input, :backspace}}
   end
 
-  def event_to_msg(%Event.Key{key: :c, modifiers: modifiers}, _state) do
+  # Ctrl+C to quit (parser sends key as string "c" with modifiers)
+  def event_to_msg(%Event.Key{key: "c", modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
       {:msg, :quit}
     else
@@ -236,7 +237,8 @@ defmodule JidoCode.TUI do
     end
   end
 
-  def event_to_msg(%Event.Key{key: :r, modifiers: modifiers}, _state) do
+  # Ctrl+R to toggle reasoning panel
+  def event_to_msg(%Event.Key{key: "r", modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
       {:msg, :toggle_reasoning}
     else
@@ -244,7 +246,8 @@ defmodule JidoCode.TUI do
     end
   end
 
-  def event_to_msg(%Event.Key{key: :t, modifiers: modifiers}, _state) do
+  # Ctrl+T to toggle tool details
+  def event_to_msg(%Event.Key{key: "t", modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
       {:msg, :toggle_tool_details}
     else
@@ -252,8 +255,9 @@ defmodule JidoCode.TUI do
     end
   end
 
-  def event_to_msg(%Event.Key{char: char}, _state) when is_binary(char) and char != "" do
-    {:msg, {:key_input, char}}
+  # Handle printable characters - parser sets key to the character string directly
+  def event_to_msg(%Event.Key{key: key}, _state) when is_binary(key) do
+    {:msg, {:key_input, key}}
   end
 
   def event_to_msg(%Event.Resize{width: width, height: height}, _state) do

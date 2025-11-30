@@ -157,14 +157,16 @@ defmodule JidoCode.TUITest do
 
     test "Ctrl+C returns {:msg, :quit}" do
       model = %Model{}
-      event = Event.key(:c, modifiers: [:ctrl])
+      # EscapeParser creates key as string with :ctrl modifier
+      event = Event.key("c", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :quit}
     end
 
     test "plain 'c' key returns {:msg, {:key_input, \"c\"}}" do
       model = %Model{}
-      event = Event.key(:c, char: "c")
+      # EscapeParser creates key as string for printable chars
+      event = Event.key("c")
 
       assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "c"}}
     end
@@ -172,11 +174,11 @@ defmodule JidoCode.TUITest do
     test "printable characters return {:msg, {:key_input, char}}" do
       model = %Model{}
 
-      # Test various printable characters
-      assert TUI.event_to_msg(Event.key(:a, char: "a"), model) == {:msg, {:key_input, "a"}}
-      assert TUI.event_to_msg(Event.key(:z, char: "Z"), model) == {:msg, {:key_input, "Z"}}
-      assert TUI.event_to_msg(Event.key(:space, char: " "), model) == {:msg, {:key_input, " "}}
-      assert TUI.event_to_msg(Event.key(:"1", char: "1"), model) == {:msg, {:key_input, "1"}}
+      # EscapeParser creates key as string for printable chars
+      assert TUI.event_to_msg(Event.key("a"), model) == {:msg, {:key_input, "a"}}
+      assert TUI.event_to_msg(Event.key("Z"), model) == {:msg, {:key_input, "Z"}}
+      assert TUI.event_to_msg(Event.key(" "), model) == {:msg, {:key_input, " "}}
+      assert TUI.event_to_msg(Event.key("1"), model) == {:msg, {:key_input, "1"}}
     end
 
     test "resize event returns {:msg, {:resize, width, height}}" do
@@ -1195,14 +1197,16 @@ defmodule JidoCode.TUITest do
   describe "toggle_reasoning" do
     test "Ctrl+R returns {:msg, :toggle_reasoning}" do
       model = %Model{}
-      event = Event.key(:r, modifiers: [:ctrl])
+      # EscapeParser creates key as string with :ctrl modifier
+      event = Event.key("r", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :toggle_reasoning}
     end
 
     test "plain 'r' key returns {:msg, {:key_input, \"r\"}}" do
       model = %Model{}
-      event = Event.key(:r, char: "r")
+      # EscapeParser creates key as string for printable chars
+      event = Event.key("r")
 
       assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "r"}}
     end
@@ -1584,14 +1588,16 @@ defmodule JidoCode.TUITest do
   describe "toggle_tool_details" do
     test "Ctrl+T returns {:msg, :toggle_tool_details}" do
       model = %Model{}
-      event = Event.key(:t, modifiers: [:ctrl])
+      # EscapeParser creates key as string with :ctrl modifier
+      event = Event.key("t", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :toggle_tool_details}
     end
 
     test "plain 't' key returns {:msg, {:key_input, \"t\"}}" do
       model = %Model{}
-      event = Event.key(:t, char: "t")
+      # EscapeParser creates key as string for printable chars
+      event = Event.key("t")
 
       assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "t"}}
     end

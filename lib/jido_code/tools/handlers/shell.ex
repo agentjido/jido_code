@@ -31,7 +31,7 @@ defmodule JidoCode.Tools.Handlers.Shell do
   - `:project_root` - Base directory for command execution
   """
 
-  alias JidoCode.Tools.Manager
+  alias JidoCode.Tools.HandlerHelpers
 
   # ============================================================================
   # Constants
@@ -61,8 +61,7 @@ defmodule JidoCode.Tools.Handlers.Shell do
 
   @doc false
   @spec get_project_root(map()) :: {:ok, String.t()} | {:error, String.t()}
-  def get_project_root(%{project_root: root}) when is_binary(root), do: {:ok, root}
-  def get_project_root(_context), do: Manager.project_root()
+  defdelegate get_project_root(context), to: HandlerHelpers
 
   @doc false
   @spec format_error(atom() | {atom(), term()} | String.t(), String.t()) :: String.t()

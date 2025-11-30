@@ -22,15 +22,14 @@ defmodule JidoCode.Tools.Handlers.Search do
   - `:project_root` - Base directory for operations
   """
 
-  alias JidoCode.Tools.{Manager, Security}
+  alias JidoCode.Tools.{HandlerHelpers, Security}
 
   # ============================================================================
   # Shared Helpers
   # ============================================================================
 
   @doc false
-  def get_project_root(%{project_root: root}) when is_binary(root), do: {:ok, root}
-  def get_project_root(_context), do: Manager.project_root()
+  defdelegate get_project_root(context), to: HandlerHelpers
 
   @doc false
   def format_error(:enoent, path), do: "Path not found: #{path}"

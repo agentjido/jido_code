@@ -34,15 +34,14 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   If project_root is not in context, it's fetched from the Manager.
   """
 
-  alias JidoCode.Tools.{Manager, Security}
+  alias JidoCode.Tools.{HandlerHelpers, Security}
 
   # ============================================================================
   # Shared Helpers
   # ============================================================================
 
   @doc false
-  def get_project_root(%{project_root: root}) when is_binary(root), do: {:ok, root}
-  def get_project_root(_context), do: Manager.project_root()
+  defdelegate get_project_root(context), to: HandlerHelpers
 
   @doc false
   def format_error(:enoent, path), do: "File not found: #{path}"

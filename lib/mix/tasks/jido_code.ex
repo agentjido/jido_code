@@ -31,15 +31,30 @@ defmodule Mix.Tasks.JidoCode do
     # Ensure the application is started
     Mix.Task.run("app.start")
 
-    # Start the LLM agent
-    {:ok, _pid} =
-      JidoCode.AgentSupervisor.start_agent(%{
-        name: :llm_agent,
-        module: JidoCode.Agents.LLMAgent,
-        args: []
-      })
+    # Try to start the LLM agent if configured
+    # If not configured, TUI will show configuration screen
+    maybe_start_agent()
 
     # Run the TUI (blocks until quit)
     JidoCode.TUI.run()
+  end
+
+  defp maybe_start_agent do
+    case JidoCode.AgentSupervisor.start_agent(%{
+           name: :llm_agent,
+           module: JidoCode.Agents.LLMAgent,
+           args: []
+         }) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, reason} ->
+        Mix.shell().info("""
+        Note: LLM agent not started - #{inspect(reason)}
+        Configure provider/model in the TUI using /provider and /model commands.
+        """)
+
+        :ok
+    end
   end
 end

@@ -49,6 +49,7 @@ defmodule JidoCode.TUI do
   alias JidoCode.TUI.ViewHelpers
   alias TermUI.Event
   alias TermUI.Renderer.Style
+  alias TermUI.Widgets.TextInput
 
   # ============================================================================
   # Message Types
@@ -122,7 +123,7 @@ defmodule JidoCode.TUI do
     @type queued_message :: {term(), DateTime.t()}
 
     @type t :: %__MODULE__{
-            input_buffer: String.t(),
+            text_input: map(),
             messages: [message()],
             agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
@@ -140,7 +141,7 @@ defmodule JidoCode.TUI do
           }
 
     @enforce_keys []
-    defstruct input_buffer: "",
+    defstruct text_input: nil,
               messages: [],
               agent_status: :unconfigured,
               config: %{provider: nil, model: nil},
@@ -183,9 +184,24 @@ defmodule JidoCode.TUI do
 
     # Get actual terminal dimensions (Terminal is started by Runtime before init)
     window = get_terminal_dimensions()
+    {width, _height} = window
+
+    # Initialize TextInput widget for chat input
+    # Note: We handle Enter explicitly in event_to_msg rather than using on_submit callback
+    # because the callback would capture the wrong process pid
+    text_input_props =
+      TextInput.new(
+        placeholder: "Type a message...",
+        width: max(width - 4, 20),
+        enter_submits: false
+      )
+
+    {:ok, text_input_state} = TextInput.init(text_input_props)
+    # Set focused by default
+    text_input_state = TextInput.set_focused(text_input_state, true)
 
     %Model{
-      input_buffer: "",
+      text_input: text_input_state,
       messages: [],
       agent_status: status,
       config: config,
@@ -214,62 +230,63 @@ defmodule JidoCode.TUI do
   Converts terminal events to TUI messages.
 
   Handles keyboard events:
-  - Enter → {:submit}
-  - Printable characters → {:key_input, char}
-  - Backspace → {:key_input, :backspace}
   - Ctrl+C → :quit
+  - Ctrl+R → :toggle_reasoning
+  - Ctrl+T → :toggle_tool_details
+  - Up/Down arrows → scroll messages
+  - Other key events → forwarded to TextInput widget
   """
   @impl true
-  def event_to_msg(%Event.Key{key: :enter}, _state) do
-    {:msg, {:submit}}
-  end
-
-  def event_to_msg(%Event.Key{key: :backspace}, _state) do
-    {:msg, {:key_input, :backspace}}
-  end
-
-  # Ctrl+C to quit (parser sends key as string "c" with modifiers)
-  def event_to_msg(%Event.Key{key: "c", modifiers: modifiers}, _state) do
+  # Ctrl+C to quit
+  def event_to_msg(%Event.Key{key: "c", modifiers: modifiers} = event, _state) do
     if :ctrl in modifiers do
       {:msg, :quit}
     else
-      {:msg, {:key_input, "c"}}
+      {:msg, {:input_event, event}}
     end
   end
 
   # Ctrl+R to toggle reasoning panel
-  def event_to_msg(%Event.Key{key: "r", modifiers: modifiers}, _state) do
+  def event_to_msg(%Event.Key{key: "r", modifiers: modifiers} = event, _state) do
     if :ctrl in modifiers do
       {:msg, :toggle_reasoning}
     else
-      {:msg, {:key_input, "r"}}
+      {:msg, {:input_event, event}}
     end
   end
 
   # Ctrl+T to toggle tool details
-  def event_to_msg(%Event.Key{key: "t", modifiers: modifiers}, _state) do
+  def event_to_msg(%Event.Key{key: "t", modifiers: modifiers} = event, _state) do
     if :ctrl in modifiers do
       {:msg, :toggle_tool_details}
     else
-      {:msg, {:key_input, "t"}}
+      {:msg, {:input_event, event}}
     end
   end
 
-  # Handle printable characters - parser sets key to the character string directly
-  def event_to_msg(%Event.Key{key: key}, _state) when is_binary(key) do
-    {:msg, {:key_input, key}}
+  # Enter key - submit current input
+  def event_to_msg(%Event.Key{key: :enter}, state) do
+    value = TextInput.get_value(state.text_input)
+    {:msg, {:input_submitted, value}}
   end
 
-  def event_to_msg(%Event.Resize{width: width, height: height}, _state) do
-    {:msg, {:resize, width, height}}
-  end
-
+  # Scroll navigation - up/down arrows scroll the message history
   def event_to_msg(%Event.Key{key: :up}, _state) do
     {:msg, {:scroll, :up}}
   end
 
   def event_to_msg(%Event.Key{key: :down}, _state) do
     {:msg, {:scroll, :down}}
+  end
+
+  # Resize events
+  def event_to_msg(%Event.Resize{width: width, height: height}, _state) do
+    {:msg, {:resize, width, height}}
+  end
+
+  # Forward all other key events to TextInput widget
+  def event_to_msg(%Event.Key{} = event, _state) do
+    {:msg, {:input_event, event}}
   end
 
   def event_to_msg(_event, _state) do
@@ -280,32 +297,23 @@ defmodule JidoCode.TUI do
   Updates state based on messages.
 
   Handles:
-  - `{:key_input, char}` - Append character to input buffer
-  - `{:key_input, :backspace}` - Remove last character from buffer
-  - `{:submit}` - Submit current input, clear buffer, add to messages
+  - `{:input_event, event}` - Forward keyboard events to TextInput widget
+  - `{:input_submitted, value}` - Handle submitted text from TextInput
   - `:quit` - Return quit command
   - `{:resize, width, height}` - Update window dimensions
-  - PubSub messages for agent events (to be fully implemented in 4.1.3)
+  - `{:scroll, :up/:down}` - Scroll message history
+  - PubSub messages for agent events
   """
   @impl true
-  def update({:key_input, char}, state) when is_binary(char) do
-    new_buffer = state.input_buffer <> char
-    {%{state | input_buffer: new_buffer}, []}
+  # Forward keyboard events to TextInput widget
+  def update({:input_event, event}, state) do
+    {:ok, new_text_input} = TextInput.handle_event(event, state.text_input)
+    {%{state | text_input: new_text_input}, []}
   end
 
-  def update({:key_input, :backspace}, state) do
-    new_buffer =
-      if String.length(state.input_buffer) > 0 do
-        String.slice(state.input_buffer, 0..-2//1)
-      else
-        ""
-      end
-
-    {%{state | input_buffer: new_buffer}, []}
-  end
-
-  def update({:submit}, state) do
-    text = String.trim(state.input_buffer)
+  # Handle submitted text from TextInput (via on_submit callback)
+  def update({:input_submitted, value}, state) do
+    text = String.trim(value)
 
     cond do
       # Empty input - do nothing
@@ -314,11 +322,15 @@ defmodule JidoCode.TUI do
 
       # Command input - starts with /
       String.starts_with?(text, "/") ->
-        do_handle_command(text, state)
+        # Clear input after command
+        new_text_input = TextInput.clear(state.text_input)
+        do_handle_command(text, %{state | text_input: new_text_input})
 
       # Chat input - requires configured provider/model
       true ->
-        do_handle_chat_submit(text, state)
+        # Clear input after submit
+        new_text_input = TextInput.clear(state.text_input)
+        do_handle_chat_submit(text, %{state | text_input: new_text_input})
     end
   end
 
@@ -327,7 +339,18 @@ defmodule JidoCode.TUI do
   end
 
   def update({:resize, width, height}, state) do
-    {%{state | window: {width, height}}, []}
+    # Update TextInput width on resize
+    {cur_width, _} = state.window
+    new_width = max(width - 4, 20)
+
+    new_text_input =
+      if width != cur_width do
+        %{state.text_input | width: new_width}
+      else
+        state.text_input
+      end
+
+    {%{state | window: {width, height}, text_input: new_text_input}, []}
   end
 
   # Scroll navigation
@@ -460,8 +483,7 @@ defmodule JidoCode.TUI do
 
         new_state = %{
           state
-          | input_buffer: "",
-            messages: [system_msg | state.messages],
+          | messages: [system_msg | state.messages],
             config: updated_config,
             agent_status: new_status
         }
@@ -471,7 +493,7 @@ defmodule JidoCode.TUI do
       {:error, error_message} ->
         error_msg = system_message(error_message)
 
-        new_state = %{state | input_buffer: "", messages: [error_msg | state.messages]}
+        new_state = %{state | messages: [error_msg | state.messages]}
         {new_state, []}
     end
   end
@@ -497,7 +519,7 @@ defmodule JidoCode.TUI do
         "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select."
       )
 
-    new_state = %{state | input_buffer: "", messages: [error_msg | state.messages]}
+    new_state = %{state | messages: [error_msg | state.messages]}
     {new_state, []}
   end
 
@@ -519,8 +541,7 @@ defmodule JidoCode.TUI do
 
         updated_state = %{
           new_state
-          | input_buffer: "",
-            messages: [user_msg | new_state.messages],
+          | messages: [user_msg | new_state.messages],
             agent_status: :processing,
             scroll_offset: 0,
             streaming_message: "",
@@ -537,8 +558,7 @@ defmodule JidoCode.TUI do
 
         new_state = %{
           state
-          | input_buffer: "",
-            messages: [error_msg, user_msg | state.messages],
+          | messages: [error_msg, user_msg | state.messages],
             agent_status: :error
         }
 

@@ -22,6 +22,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   alias JidoCode.TUI.Model
   alias TermUI.Renderer.Style
   alias TermUI.Theme
+  alias TermUI.Widgets.TextInput
 
   # Double-line box drawing characters
   @border_chars %{
@@ -375,21 +376,24 @@ defmodule JidoCode.TUI.ViewHelpers do
   # ============================================================================
 
   @doc """
-  Renders the input bar with prompt indicator and current input buffer.
-  Pads to fill the available width.
+  Renders the input bar using the TextInput widget.
+  Shows a prompt indicator followed by the input area.
   """
   @spec render_input_bar(Model.t()) :: TermUI.View.t()
   def render_input_bar(state) do
     {width, _height} = state.window
-    content_width = max(width - 2, 1)
+    content_width = max(width - 4, 20)
 
-    cursor = "_"
-    prompt = ">"
-    input_text = "#{prompt} #{state.input_buffer}#{cursor}"
-    padded_text = pad_or_truncate(input_text, content_width)
-    input_style = Style.new(fg: Theme.get_color(:secondary) || :green)
+    prompt_style = Style.new(fg: Theme.get_color(:secondary) || :green)
 
-    text(padded_text, input_style)
+    # Render TextInput widget
+    input_area = %{width: content_width, height: 1}
+    text_input_node = TextInput.render(state.text_input, input_area)
+
+    stack(:horizontal, [
+      text("> ", prompt_style),
+      text_input_node
+    ])
   end
 
   # ============================================================================

@@ -6,6 +6,7 @@ defmodule JidoCode.TUITest do
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
   alias TermUI.Event
+  alias TermUI.Widgets.TextInput
 
   # Helper to set up API key for tests
   defp setup_api_key(provider) do
@@ -50,11 +51,36 @@ defmodule JidoCode.TUITest do
     :ok
   end
 
+  # Helper to create a TextInput state with given value
+  # Cursor is positioned at the end of the text (simulating user having typed it)
+  defp create_text_input(value \\ "") do
+    props = TextInput.new(
+      value: value,
+      placeholder: "Type a message...",
+      width: 76,
+      enter_submits: true
+    )
+    {:ok, state} = TextInput.init(props)
+    state = TextInput.set_focused(state, true)
+
+    # Move cursor to end of text (simulating user having typed this text)
+    if value != "" do
+      %{state | cursor_col: String.length(value)}
+    else
+      state
+    end
+  end
+
+  # Helper to get text value from TextInput state
+  defp get_input_value(model) do
+    TextInput.get_value(model.text_input)
+  end
+
   describe "Model struct" do
     test "has correct default values" do
-      model = %Model{}
+      model = %Model{text_input: create_text_input()}
 
-      assert model.input_buffer == ""
+      assert get_input_value(model) == ""
       assert model.messages == []
       assert model.agent_status == :unconfigured
       assert model.config == %{provider: nil, model: nil}
@@ -64,7 +90,7 @@ defmodule JidoCode.TUITest do
 
     test "can be created with custom values" do
       model = %Model{
-        input_buffer: "test input",
+        text_input: create_text_input("test input"),
         messages: [%{role: :user, content: "hello", timestamp: DateTime.utc_now()}],
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
@@ -72,7 +98,7 @@ defmodule JidoCode.TUITest do
         window: {120, 40}
       }
 
-      assert model.input_buffer == "test input"
+      assert get_input_value(model) == "test input"
       assert length(model.messages) == 1
       assert model.agent_status == :idle
       assert model.config.provider == "anthropic"
@@ -107,9 +133,9 @@ defmodule JidoCode.TUITest do
       assert model.messages == []
     end
 
-    test "initializes with empty input buffer" do
+    test "initializes with empty text input" do
       model = TUI.init([])
-      assert model.input_buffer == ""
+      assert get_input_value(model) == ""
     end
 
     test "initializes with empty reasoning steps" do
@@ -141,55 +167,69 @@ defmodule JidoCode.TUITest do
   end
 
   describe "event_to_msg/2" do
-    test "Enter key returns {:msg, {:submit}}" do
-      model = %Model{}
-      event = Event.key(:enter)
-
-      assert TUI.event_to_msg(event, model) == {:msg, {:submit}}
-    end
-
-    test "Backspace returns {:msg, {:key_input, :backspace}}" do
-      model = %Model{}
-      event = Event.key(:backspace)
-
-      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, :backspace}}
-    end
-
     test "Ctrl+C returns {:msg, :quit}" do
-      model = %Model{}
-      # EscapeParser creates key as string with :ctrl modifier
+      model = %Model{text_input: create_text_input()}
       event = Event.key("c", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :quit}
     end
 
-    test "plain 'c' key returns {:msg, {:key_input, \"c\"}}" do
-      model = %Model{}
-      # EscapeParser creates key as string for printable chars
-      event = Event.key("c")
+    test "Ctrl+R returns {:msg, :toggle_reasoning}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("r", modifiers: [:ctrl])
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "c"}}
+      assert TUI.event_to_msg(event, model) == {:msg, :toggle_reasoning}
     end
 
-    test "printable characters return {:msg, {:key_input, char}}" do
-      model = %Model{}
+    test "Ctrl+T returns {:msg, :toggle_tool_details}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("t", modifiers: [:ctrl])
 
-      # EscapeParser creates key as string for printable chars
-      assert TUI.event_to_msg(Event.key("a"), model) == {:msg, {:key_input, "a"}}
-      assert TUI.event_to_msg(Event.key("Z"), model) == {:msg, {:key_input, "Z"}}
-      assert TUI.event_to_msg(Event.key(" "), model) == {:msg, {:key_input, " "}}
-      assert TUI.event_to_msg(Event.key("1"), model) == {:msg, {:key_input, "1"}}
+      assert TUI.event_to_msg(event, model) == {:msg, :toggle_tool_details}
+    end
+
+    test "up arrow returns {:msg, {:scroll, :up}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key(:up)
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :up}}
+    end
+
+    test "down arrow returns {:msg, {:scroll, :down}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key(:down)
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :down}}
     end
 
     test "resize event returns {:msg, {:resize, width, height}}" do
-      model = %Model{}
+      model = %Model{text_input: create_text_input()}
       event = Event.resize(120, 40)
 
       assert TUI.event_to_msg(event, model) == {:msg, {:resize, 120, 40}}
     end
 
+    test "Enter key returns {:msg, {:input_submitted, value}}" do
+      model = %Model{text_input: create_text_input("hello")}
+
+      enter_event = Event.key(:enter)
+      assert {:msg, {:input_submitted, "hello"}} = TUI.event_to_msg(enter_event, model)
+    end
+
+    test "key events are forwarded to TextInput as {:msg, {:input_event, event}}" do
+      model = %Model{text_input: create_text_input()}
+
+      # Backspace key
+      backspace_event = Event.key(:backspace)
+      assert {:msg, {:input_event, ^backspace_event}} = TUI.event_to_msg(backspace_event, model)
+
+      # Printable character (without ctrl modifier)
+      char_result = TUI.event_to_msg(Event.key("a", char: "a"), model)
+      assert {:msg, {:input_event, %Event.Key{key: "a"}}} = char_result
+    end
+
     test "returns :ignore for unhandled events" do
-      model = %Model{}
+      model = %Model{text_input: create_text_input()}
 
       # Mouse events
       assert TUI.event_to_msg(Event.mouse(:click, :left, 10, 10), model) == :ignore
@@ -197,98 +237,101 @@ defmodule JidoCode.TUITest do
       # Focus events
       assert TUI.event_to_msg(Event.focus(:gained), model) == :ignore
 
-      # Keys without char (function keys, etc.)
-      assert TUI.event_to_msg(Event.key(:f1), model) == :ignore
-
       # Unknown events
       assert TUI.event_to_msg(:some_event, model) == :ignore
       assert TUI.event_to_msg(nil, model) == :ignore
     end
   end
 
-  describe "update/2 - key input" do
-    test "appends character to input buffer" do
-      model = %Model{input_buffer: "hel"}
+  describe "update/2 - input events" do
+    test "forwards key events to TextInput widget" do
+      model = %Model{text_input: create_text_input("hel")}
 
-      {new_model, commands} = TUI.update({:key_input, "l"}, model)
+      # Simulate typing 'l' via input_event
+      event = Event.key("l", char: "l")
+      {new_model, commands} = TUI.update({:input_event, event}, model)
 
-      assert new_model.input_buffer == "hell"
+      assert get_input_value(new_model) == "hell"
       assert commands == []
     end
 
-    test "appends to empty input buffer" do
-      model = %Model{input_buffer: ""}
+    test "appends to empty text input" do
+      model = %Model{text_input: create_text_input("")}
 
-      {new_model, _} = TUI.update({:key_input, "a"}, model)
+      event = Event.key("a", char: "a")
+      {new_model, _} = TUI.update({:input_event, event}, model)
 
-      assert new_model.input_buffer == "a"
+      assert get_input_value(new_model) == "a"
     end
 
     test "handles multiple characters" do
-      model = %Model{input_buffer: ""}
+      model = %Model{text_input: create_text_input("")}
 
-      {model1, _} = TUI.update({:key_input, "h"}, model)
-      {model2, _} = TUI.update({:key_input, "i"}, model1)
+      {model1, _} = TUI.update({:input_event, Event.key("h", char: "h")}, model)
+      {model2, _} = TUI.update({:input_event, Event.key("i", char: "i")}, model1)
 
-      assert model2.input_buffer == "hi"
+      assert get_input_value(model2) == "hi"
     end
   end
 
-  describe "update/2 - backspace" do
-    test "removes last character from input buffer" do
-      model = %Model{input_buffer: "hello"}
+  describe "update/2 - backspace via input_event" do
+    test "removes last character from text input" do
+      model = %Model{text_input: create_text_input("hello")}
 
-      {new_model, commands} = TUI.update({:key_input, :backspace}, model)
+      event = Event.key(:backspace)
+      {new_model, commands} = TUI.update({:input_event, event}, model)
 
-      assert new_model.input_buffer == "hell"
+      assert get_input_value(new_model) == "hell"
       assert commands == []
     end
 
-    test "does nothing on empty buffer" do
-      model = %Model{input_buffer: ""}
+    test "does nothing on empty input" do
+      model = %Model{text_input: create_text_input("")}
 
-      {new_model, _} = TUI.update({:key_input, :backspace}, model)
+      event = Event.key(:backspace)
+      {new_model, _} = TUI.update({:input_event, event}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
     end
 
-    test "handles single character buffer" do
-      model = %Model{input_buffer: "a"}
+    test "handles single character input" do
+      model = %Model{text_input: create_text_input("a")}
 
-      {new_model, _} = TUI.update({:key_input, :backspace}, model)
+      event = Event.key(:backspace)
+      {new_model, _} = TUI.update({:input_event, event}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
     end
   end
 
-  describe "update/2 - submit" do
+  describe "update/2 - input_submitted" do
     test "does nothing with empty input" do
-      model = %Model{input_buffer: "", messages: []}
+      model = %Model{text_input: create_text_input(""), messages: []}
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, ""}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
       assert new_model.messages == []
     end
 
     test "does nothing with whitespace-only input" do
-      model = %Model{input_buffer: "   ", messages: []}
+      model = %Model{text_input: create_text_input("   "), messages: []}
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "   "}, model)
 
       assert new_model.messages == []
     end
 
     test "shows config error when provider is nil" do
       model = %Model{
-        input_buffer: "hello",
+        text_input: create_text_input("hello"),
         messages: [],
         config: %{provider: nil, model: "test"}
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "hello"}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :system
       assert hd(new_model.messages).content =~ "configure a model"
@@ -296,14 +339,14 @@ defmodule JidoCode.TUITest do
 
     test "shows config error when model is nil" do
       model = %Model{
-        input_buffer: "hello",
+        text_input: create_text_input("hello"),
         messages: [],
         config: %{provider: "test", model: nil}
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "hello"}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :system
       assert hd(new_model.messages).content =~ "configure a model"
@@ -311,14 +354,14 @@ defmodule JidoCode.TUITest do
 
     test "handles command input with / prefix" do
       model = %Model{
-        input_buffer: "/help",
+        text_input: create_text_input("/help"),
         messages: [],
         config: %{provider: "test", model: "test"}
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "/help"}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :system
       assert hd(new_model.messages).content =~ "Available commands"
@@ -326,14 +369,14 @@ defmodule JidoCode.TUITest do
 
     test "/config command shows current configuration" do
       model = %Model{
-        input_buffer: "/config",
+        text_input: create_text_input("/config"),
         messages: [],
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "/config"}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).content =~ "Provider: anthropic"
       assert hd(new_model.messages).content =~ "Model: claude-3-5-sonnet"
@@ -341,13 +384,13 @@ defmodule JidoCode.TUITest do
 
     test "/provider command updates config and status" do
       model = %Model{
-        input_buffer: "/provider anthropic",
+        text_input: create_text_input("/provider anthropic"),
         messages: [],
         config: %{provider: nil, model: nil},
         agent_status: :unconfigured
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "/provider anthropic"}, model)
 
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == nil
@@ -359,13 +402,13 @@ defmodule JidoCode.TUITest do
       setup_api_key("anthropic")
 
       model = %Model{
-        input_buffer: "/model anthropic:claude-3-5-sonnet",
+        text_input: create_text_input("/model anthropic:claude-3-5-sonnet"),
         messages: [],
         config: %{provider: nil, model: nil},
         agent_status: :unconfigured
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "/model anthropic:claude-3-5-sonnet"}, model)
 
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == "claude-3-5-sonnet"
@@ -377,12 +420,12 @@ defmodule JidoCode.TUITest do
 
     test "unknown command shows error" do
       model = %Model{
-        input_buffer: "/unknown_cmd",
+        text_input: create_text_input("/unknown_cmd"),
         messages: [],
         config: %{provider: "test", model: "test"}
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "/unknown_cmd"}, model)
 
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :system
@@ -391,15 +434,15 @@ defmodule JidoCode.TUITest do
 
     test "shows agent not found error when agent not started" do
       model = %Model{
-        input_buffer: "hello",
+        text_input: create_text_input("hello"),
         messages: [],
         config: %{provider: "test", model: "test"},
         agent_name: :nonexistent_agent
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "hello"}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
       # Should have user message and error message
       # Messages are stored in reverse order (newest first)
       assert length(new_model.messages) == 2
@@ -425,15 +468,15 @@ defmodule JidoCode.TUITest do
         })
 
       model = %Model{
-        input_buffer: "hello",
+        text_input: create_text_input("hello"),
         messages: [],
         config: %{provider: "anthropic", model: "claude-3-5-haiku-latest"},
         agent_name: :test_llm_agent
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "hello"}, model)
 
-      assert new_model.input_buffer == ""
+      assert get_input_value(new_model) == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :user
       assert hd(new_model.messages).content == "hello"
@@ -446,12 +489,12 @@ defmodule JidoCode.TUITest do
 
     test "trims whitespace from input before processing" do
       model = %Model{
-        input_buffer: "  /help  ",
+        text_input: create_text_input("  /help  "),
         messages: [],
         config: %{provider: "test", model: "test"}
       }
 
-      {new_model, _} = TUI.update({:submit}, model)
+      {new_model, _} = TUI.update({:input_submitted, "  /help  "}, model)
 
       # Command should be received without leading whitespace
       assert hd(new_model.messages).content =~ "/help"
@@ -460,7 +503,7 @@ defmodule JidoCode.TUITest do
 
   describe "update/2 - quit" do
     test "returns :quit command" do
-      model = %Model{}
+      model = %Model{text_input: create_text_input()}
 
       {_new_model, commands} = TUI.update(:quit, model)
 
@@ -470,7 +513,7 @@ defmodule JidoCode.TUITest do
 
   describe "update/2 - resize" do
     test "updates window dimensions" do
-      model = %Model{window: {80, 24}}
+      model = %Model{text_input: create_text_input(), window: {80, 24}}
 
       {new_model, commands} = TUI.update({:resize, 120, 40}, model)
 
@@ -481,7 +524,7 @@ defmodule JidoCode.TUITest do
 
   describe "update/2 - agent messages" do
     test "handles agent_response" do
-      model = %Model{messages: []}
+      model = %Model{text_input: create_text_input(), messages: []}
 
       {new_model, _} = TUI.update({:agent_response, "Hello!"}, model)
 
@@ -491,7 +534,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "agent_response sets status to idle" do
-      model = %Model{messages: [], agent_status: :processing}
+      model = %Model{text_input: create_text_input(), messages: [], agent_status: :processing}
 
       {new_model, _} = TUI.update({:agent_response, "Done!"}, model)
 
@@ -501,7 +544,7 @@ defmodule JidoCode.TUITest do
     test "unhandled messages are logged but do not change state" do
       # After message type normalization, :llm_response is no longer supported
       # It should go to the catch-all handler and not change state
-      model = %Model{messages: [], agent_status: :processing}
+      model = %Model{text_input: create_text_input(), messages: [], agent_status: :processing}
 
       {new_model, _} = TUI.update({:llm_response, "Hello from LLM!"}, model)
 
@@ -512,7 +555,7 @@ defmodule JidoCode.TUITest do
 
     # Streaming tests
     test "stream_chunk appends to streaming_message" do
-      model = %Model{streaming_message: "", is_streaming: true}
+      model = %Model{text_input: create_text_input(), streaming_message: "", is_streaming: true}
 
       {new_model, _} = TUI.update({:stream_chunk, "Hello "}, model)
 
@@ -527,7 +570,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "stream_chunk starts with nil streaming_message" do
-      model = %Model{streaming_message: nil, is_streaming: false}
+      model = %Model{text_input: create_text_input(), streaming_message: nil, is_streaming: false}
 
       {new_model, _} = TUI.update({:stream_chunk, "Hello"}, model)
 
@@ -536,7 +579,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "stream_end finalizes message and clears streaming state" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         messages: [],
         streaming_message: "Complete response",
         is_streaming: true,
@@ -554,7 +597,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "stream_error shows error message and clears streaming" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         messages: [],
         streaming_message: "Partial",
         is_streaming: true,
@@ -573,7 +616,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles status_update" do
-      model = %Model{agent_status: :idle}
+      model = %Model{text_input: create_text_input(), agent_status: :idle}
 
       {new_model, _} = TUI.update({:status_update, :processing}, model)
 
@@ -581,7 +624,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles agent_status as alias for status_update" do
-      model = %Model{agent_status: :idle}
+      model = %Model{text_input: create_text_input(), agent_status: :idle}
 
       {new_model, _} = TUI.update({:agent_status, :processing}, model)
 
@@ -589,7 +632,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles config_change with atom keys" do
-      model = %Model{config: %{provider: nil, model: nil}}
+      model = %Model{text_input: create_text_input(), config: %{provider: nil, model: nil}}
 
       {new_model, _} =
         TUI.update({:config_change, %{provider: "anthropic", model: "claude"}}, model)
@@ -600,7 +643,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles config_change with string keys" do
-      model = %Model{config: %{provider: nil, model: nil}}
+      model = %Model{text_input: create_text_input(), config: %{provider: nil, model: nil}}
 
       {new_model, _} =
         TUI.update({:config_change, %{"provider" => "openai", "model" => "gpt-4"}}, model)
@@ -610,7 +653,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles config_changed as alias for config_change" do
-      model = %Model{config: %{provider: nil, model: nil}}
+      model = %Model{text_input: create_text_input(), config: %{provider: nil, model: nil}}
 
       {new_model, _} = TUI.update({:config_changed, %{provider: "openai", model: "gpt-4"}}, model)
 
@@ -620,7 +663,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles reasoning_step" do
-      model = %Model{reasoning_steps: []}
+      model = %Model{text_input: create_text_input(), reasoning_steps: []}
       step = %{step: "Thinking...", status: :active}
 
       {new_model, _} = TUI.update({:reasoning_step, step}, model)
@@ -630,7 +673,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles clear_reasoning_steps" do
-      model = %Model{reasoning_steps: [%{step: "Step 1", status: :complete}]}
+      model = %Model{text_input: create_text_input(), reasoning_steps: [%{step: "Step 1", status: :complete}]}
 
       {new_model, _} = TUI.update(:clear_reasoning_steps, model)
 
@@ -640,7 +683,7 @@ defmodule JidoCode.TUITest do
 
   describe "message queueing" do
     test "agent_response adds to message queue" do
-      model = %Model{message_queue: []}
+      model = %Model{text_input: create_text_input(), message_queue: []}
 
       {new_model, _} = TUI.update({:agent_response, "Hello!"}, model)
 
@@ -649,7 +692,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "status_update adds to message queue" do
-      model = %Model{message_queue: []}
+      model = %Model{text_input: create_text_input(), message_queue: []}
 
       {new_model, _} = TUI.update({:status_update, :processing}, model)
 
@@ -658,7 +701,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "config_change adds to message queue" do
-      model = %Model{message_queue: []}
+      model = %Model{text_input: create_text_input(), message_queue: []}
 
       {new_model, _} = TUI.update({:config_change, %{provider: "test"}}, model)
 
@@ -666,7 +709,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "reasoning_step adds to message queue" do
-      model = %Model{message_queue: []}
+      model = %Model{text_input: create_text_input(), message_queue: []}
       step = %{step: "Thinking", status: :active}
 
       {new_model, _} = TUI.update({:reasoning_step, step}, model)
@@ -681,7 +724,7 @@ defmodule JidoCode.TUITest do
           {{:test_message, i}, DateTime.utc_now()}
         end)
 
-      model = %Model{message_queue: large_queue}
+      model = %Model{text_input: create_text_input(), message_queue: large_queue}
 
       # Add one more message
       {new_model, _} = TUI.update({:agent_response, "New message"}, model)
@@ -781,7 +824,7 @@ defmodule JidoCode.TUITest do
 
   describe "update/2 - unknown messages" do
     test "returns state unchanged for unknown messages" do
-      model = %Model{input_buffer: "test"}
+      model = %Model{text_input: create_text_input("test")}
 
       {new_model, commands} = TUI.update(:unknown_message, model)
 
@@ -793,6 +836,7 @@ defmodule JidoCode.TUITest do
   describe "view/1" do
     test "returns a render tree" do
       model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
       }
@@ -804,7 +848,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders unconfigured status message" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :unconfigured,
         config: %{provider: nil, model: nil}
       }
@@ -818,7 +862,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders configured status" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
       }
@@ -831,10 +875,10 @@ defmodule JidoCode.TUITest do
 
     test "main view has border structure when configured" do
       model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        messages: [],
-        input_buffer: ""
+        messages: []
       }
 
       view = TUI.view(model)
@@ -849,6 +893,7 @@ defmodule JidoCode.TUITest do
 
     test "status bar shows provider and model" do
       model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "openai", model: "gpt-4"}
       }
@@ -860,7 +905,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows keyboard hints" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"}
       }
@@ -872,7 +917,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "conversation shows empty message when no messages" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: []
@@ -885,7 +930,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "conversation shows user messages with You: prefix" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [
@@ -901,7 +946,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "conversation shows assistant messages with Assistant: prefix" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [
@@ -916,26 +961,24 @@ defmodule JidoCode.TUITest do
       assert view_text =~ "Hi! How can I help?"
     end
 
-    test "input bar shows current buffer" do
+    test "input bar shows current text" do
       model = %Model{
+        text_input: create_text_input("typing something"),
         agent_status: :idle,
-        config: %{provider: "test", model: "test"},
-        input_buffer: "typing something"
+        config: %{provider: "test", model: "test"}
       }
 
       view = TUI.view(model)
       view_text = inspect(view)
 
       assert view_text =~ "typing something"
-      # Should show cursor indicator
-      assert view_text =~ "_"
     end
 
     test "input bar shows prompt indicator" do
       model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
-        config: %{provider: "test", model: "test"},
-        input_buffer: ""
+        config: %{provider: "test", model: "test"}
       }
 
       view = TUI.view(model)
@@ -946,7 +989,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows processing status" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :processing,
         config: %{provider: "test", model: "test"}
       }
@@ -959,7 +1002,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows error status" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :error,
         config: %{provider: "test", model: "test"}
       }
@@ -1059,12 +1102,12 @@ defmodule JidoCode.TUITest do
 
   describe "max_scroll_offset/1" do
     test "returns 0 when no messages" do
-      model = %Model{messages: [], window: {80, 24}}
+      model = %Model{text_input: create_text_input(), messages: [], window: {80, 24}}
       assert TUI.max_scroll_offset(model) == 0
     end
 
     test "returns 0 when messages fit in view" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         messages: [
           %{role: :user, content: "hello", timestamp: DateTime.utc_now()}
         ],
@@ -1081,7 +1124,7 @@ defmodule JidoCode.TUITest do
           %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
         end)
 
-      model = %Model{messages: messages, window: {80, 10}}
+      model = %Model{text_input: create_text_input(), messages: messages, window: {80, 10}}
 
       # With 50 messages and height 10 (8 available after status/input)
       # max_offset should be positive
@@ -1105,7 +1148,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "scroll up increases scroll_offset" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         scroll_offset: 0,
         messages:
           Enum.map(1..50, fn i ->
@@ -1119,7 +1162,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "scroll down decreases scroll_offset" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         scroll_offset: 5,
         messages: [],
         window: {80, 24}
@@ -1137,7 +1180,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "scroll up does not exceed max_scroll_offset" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         scroll_offset: 0,
         messages: [%{role: :user, content: "short", timestamp: DateTime.utc_now()}],
         window: {80, 24}
@@ -1153,7 +1196,7 @@ defmodule JidoCode.TUITest do
     test "messages include timestamp in view" do
       timestamp = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
 
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [
@@ -1196,23 +1239,21 @@ defmodule JidoCode.TUITest do
 
   describe "toggle_reasoning" do
     test "Ctrl+R returns {:msg, :toggle_reasoning}" do
-      model = %Model{}
-      # EscapeParser creates key as string with :ctrl modifier
+      model = %Model{text_input: create_text_input()}
       event = Event.key("r", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :toggle_reasoning}
     end
 
-    test "plain 'r' key returns {:msg, {:key_input, \"r\"}}" do
-      model = %Model{}
-      # EscapeParser creates key as string for printable chars
-      event = Event.key("r")
+    test "plain 'r' key is forwarded to TextInput" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("r", char: "r")
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "r"}}
+      assert {:msg, {:input_event, %Event.Key{key: "r"}}} = TUI.event_to_msg(event, model)
     end
 
     test "toggle_reasoning flips show_reasoning from false to true" do
-      model = %Model{show_reasoning: false}
+      model = %Model{text_input: create_text_input(), show_reasoning: false}
 
       {new_model, commands} = TUI.update(:toggle_reasoning, model)
 
@@ -1221,7 +1262,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "toggle_reasoning flips show_reasoning from true to false" do
-      model = %Model{show_reasoning: true}
+      model = %Model{text_input: create_text_input(), show_reasoning: true}
 
       {new_model, commands} = TUI.update(:toggle_reasoning, model)
 
@@ -1232,7 +1273,7 @@ defmodule JidoCode.TUITest do
 
   describe "render_reasoning/1" do
     test "renders empty state when no reasoning steps" do
-      model = %Model{reasoning_steps: []}
+      model = %Model{text_input: create_text_input(), reasoning_steps: []}
 
       view = TUI.render_reasoning(model)
       view_text = inspect(view)
@@ -1242,7 +1283,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders pending step with circle indicator" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         reasoning_steps: [%{step: "Understanding query", status: :pending}]
       }
 
@@ -1254,7 +1295,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders active step with filled circle indicator" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         reasoning_steps: [%{step: "Analyzing code", status: :active}]
       }
 
@@ -1266,7 +1307,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders complete step with checkmark indicator" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         reasoning_steps: [%{step: "Found solution", status: :complete}]
       }
 
@@ -1278,7 +1319,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders multiple steps with different statuses" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         reasoning_steps: [
           %{step: "Step 1", status: :complete},
           %{step: "Step 2", status: :active},
@@ -1298,7 +1339,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders confidence score when present" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         reasoning_steps: [%{step: "Validated", status: :complete, confidence: 0.92}]
       }
 
@@ -1311,7 +1352,7 @@ defmodule JidoCode.TUITest do
 
   describe "render_reasoning_compact/1" do
     test "renders compact format for empty steps" do
-      model = %Model{reasoning_steps: []}
+      model = %Model{text_input: create_text_input(), reasoning_steps: []}
 
       view = TUI.render_reasoning_compact(model)
       view_text = inspect(view)
@@ -1321,7 +1362,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders compact format with multiple steps" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         reasoning_steps: [
           %{step: "Step 1", status: :complete},
           %{step: "Step 2", status: :active}
@@ -1339,7 +1380,7 @@ defmodule JidoCode.TUITest do
 
   describe "reasoning panel in view" do
     test "status bar shows Ctrl+R: Reasoning when panel is hidden" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: false
@@ -1352,7 +1393,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows Ctrl+R: Hide when panel is visible" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: true
@@ -1365,7 +1406,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "view includes reasoning panel when show_reasoning is true (wide terminal)" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: true,
@@ -1381,7 +1422,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "view uses compact reasoning in narrow terminal" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: true,
@@ -1397,7 +1438,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "view does not include reasoning panel when show_reasoning is false" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: false,
@@ -1460,7 +1501,7 @@ defmodule JidoCode.TUITest do
 
   describe "help bar keyboard hints" do
     test "help bar includes Ctrl+M: Model hint" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"}
       }
@@ -1472,7 +1513,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "help bar includes Ctrl+C: Quit hint" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         # Use wider window to fit all help bar hints
@@ -1488,7 +1529,7 @@ defmodule JidoCode.TUITest do
 
   describe "CoT indicator in status bar" do
     test "shows [CoT] when reasoning steps have active step" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :processing,
         config: %{provider: "test", model: "test"},
         reasoning_steps: [%{step: "Thinking", status: :active}]
@@ -1501,7 +1542,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "does not show [CoT] when no reasoning steps" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         reasoning_steps: []
@@ -1514,7 +1555,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "does not show [CoT] when only pending/complete steps" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         reasoning_steps: [
@@ -1532,7 +1573,7 @@ defmodule JidoCode.TUITest do
 
   describe "status bar color priority" do
     test "error state takes priority over other states" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :error,
         config: %{provider: "test", model: "test"},
         reasoning_steps: [%{step: "Active", status: :active}]
@@ -1546,7 +1587,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "unconfigured state shows appropriate warning" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :unconfigured,
         config: %{provider: nil, model: nil}
       }
@@ -1587,23 +1628,21 @@ defmodule JidoCode.TUITest do
 
   describe "toggle_tool_details" do
     test "Ctrl+T returns {:msg, :toggle_tool_details}" do
-      model = %Model{}
-      # EscapeParser creates key as string with :ctrl modifier
+      model = %Model{text_input: create_text_input()}
       event = Event.key("t", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :toggle_tool_details}
     end
 
-    test "plain 't' key returns {:msg, {:key_input, \"t\"}}" do
-      model = %Model{}
-      # EscapeParser creates key as string for printable chars
-      event = Event.key("t")
+    test "plain 't' key is forwarded to TextInput" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("t", char: "t")
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "t"}}
+      assert {:msg, {:input_event, %Event.Key{key: "t"}}} = TUI.event_to_msg(event, model)
     end
 
     test "toggle_tool_details flips show_tool_details from false to true" do
-      model = %Model{show_tool_details: false}
+      model = %Model{text_input: create_text_input(), show_tool_details: false}
 
       {new_model, commands} = TUI.update(:toggle_tool_details, model)
 
@@ -1612,7 +1651,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "toggle_tool_details flips show_tool_details from true to false" do
-      model = %Model{show_tool_details: true}
+      model = %Model{text_input: create_text_input(), show_tool_details: true}
 
       {new_model, commands} = TUI.update(:toggle_tool_details, model)
 
@@ -1623,7 +1662,7 @@ defmodule JidoCode.TUITest do
 
   describe "update/2 - tool_call message" do
     test "adds tool call entry to tool_calls list" do
-      model = %Model{tool_calls: []}
+      model = %Model{text_input: create_text_input(), tool_calls: []}
 
       {new_model, _} =
         TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
@@ -1646,7 +1685,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{tool_calls: [existing]}
+      model = %Model{text_input: create_text_input(), tool_calls: [existing]}
 
       {new_model, _} =
         TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2"}, model)
@@ -1658,7 +1697,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "adds tool_call to message queue" do
-      model = %Model{tool_calls: [], message_queue: []}
+      model = %Model{text_input: create_text_input(), tool_calls: [], message_queue: []}
 
       {new_model, _} =
         TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
@@ -1682,7 +1721,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{tool_calls: [pending]}
+      model = %Model{text_input: create_text_input(), tool_calls: [pending]}
 
       result = Result.ok("call_123", "read_file", "file contents", 45)
 
@@ -1713,7 +1752,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{tool_calls: [pending1, pending2]}
+      model = %Model{text_input: create_text_input(), tool_calls: [pending1, pending2]}
 
       result = Result.ok("call_1", "read_file", "content", 30)
 
@@ -1732,7 +1771,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{tool_calls: [pending]}
+      model = %Model{text_input: create_text_input(), tool_calls: [pending]}
 
       result = Result.error("call_123", "read_file", "File not found", 12)
 
@@ -1752,7 +1791,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{tool_calls: [pending]}
+      model = %Model{text_input: create_text_input(), tool_calls: [pending]}
 
       result = Result.timeout("call_123", "slow_op", 30_000)
 
@@ -1771,7 +1810,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{tool_calls: [pending], message_queue: []}
+      model = %Model{text_input: create_text_input(), tool_calls: [pending], message_queue: []}
 
       result = Result.ok("call_123", "read_file", "content", 30)
 
@@ -1902,7 +1941,7 @@ defmodule JidoCode.TUITest do
 
   describe "status bar tool hints" do
     test "status bar shows Ctrl+T: Tools when show_tool_details is false" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_tool_details: false
@@ -1915,7 +1954,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows Ctrl+T: Hide when show_tool_details is true" do
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_tool_details: true
@@ -1942,7 +1981,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [],
@@ -1966,7 +2005,7 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{
+      model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [],

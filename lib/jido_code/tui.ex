@@ -221,51 +221,51 @@ defmodule JidoCode.TUI do
   """
   @impl true
   def event_to_msg(%Event.Key{key: :enter}, _state) do
-    {:submit}
+    {:msg, {:submit}}
   end
 
   def event_to_msg(%Event.Key{key: :backspace}, _state) do
-    {:key_input, :backspace}
+    {:msg, {:key_input, :backspace}}
   end
 
   def event_to_msg(%Event.Key{key: :c, modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
-      :quit
+      {:msg, :quit}
     else
-      {:key_input, "c"}
+      {:msg, {:key_input, "c"}}
     end
   end
 
   def event_to_msg(%Event.Key{key: :r, modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
-      :toggle_reasoning
+      {:msg, :toggle_reasoning}
     else
-      {:key_input, "r"}
+      {:msg, {:key_input, "r"}}
     end
   end
 
   def event_to_msg(%Event.Key{key: :t, modifiers: modifiers}, _state) do
     if :ctrl in modifiers do
-      :toggle_tool_details
+      {:msg, :toggle_tool_details}
     else
-      {:key_input, "t"}
+      {:msg, {:key_input, "t"}}
     end
   end
 
   def event_to_msg(%Event.Key{char: char}, _state) when is_binary(char) and char != "" do
-    {:key_input, char}
+    {:msg, {:key_input, char}}
   end
 
   def event_to_msg(%Event.Resize{width: width, height: height}, _state) do
-    {:resize, width, height}
+    {:msg, {:resize, width, height}}
   end
 
   def event_to_msg(%Event.Key{key: :up}, _state) do
-    {:scroll, :up}
+    {:msg, {:scroll, :up}}
   end
 
   def event_to_msg(%Event.Key{key: :down}, _state) do
-    {:scroll, :down}
+    {:msg, {:scroll, :down}}
   end
 
   def event_to_msg(_event, _state) do

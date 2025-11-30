@@ -141,49 +141,49 @@ defmodule JidoCode.TUITest do
   end
 
   describe "event_to_msg/2" do
-    test "Enter key returns {:submit}" do
+    test "Enter key returns {:msg, {:submit}}" do
       model = %Model{}
       event = Event.key(:enter)
 
-      assert TUI.event_to_msg(event, model) == {:submit}
+      assert TUI.event_to_msg(event, model) == {:msg, {:submit}}
     end
 
-    test "Backspace returns {:key_input, :backspace}" do
+    test "Backspace returns {:msg, {:key_input, :backspace}}" do
       model = %Model{}
       event = Event.key(:backspace)
 
-      assert TUI.event_to_msg(event, model) == {:key_input, :backspace}
+      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, :backspace}}
     end
 
-    test "Ctrl+C returns :quit" do
+    test "Ctrl+C returns {:msg, :quit}" do
       model = %Model{}
       event = Event.key(:c, modifiers: [:ctrl])
 
-      assert TUI.event_to_msg(event, model) == :quit
+      assert TUI.event_to_msg(event, model) == {:msg, :quit}
     end
 
-    test "plain 'c' key returns {:key_input, \"c\"}" do
+    test "plain 'c' key returns {:msg, {:key_input, \"c\"}}" do
       model = %Model{}
       event = Event.key(:c, char: "c")
 
-      assert TUI.event_to_msg(event, model) == {:key_input, "c"}
+      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "c"}}
     end
 
-    test "printable characters return {:key_input, char}" do
+    test "printable characters return {:msg, {:key_input, char}}" do
       model = %Model{}
 
       # Test various printable characters
-      assert TUI.event_to_msg(Event.key(:a, char: "a"), model) == {:key_input, "a"}
-      assert TUI.event_to_msg(Event.key(:z, char: "Z"), model) == {:key_input, "Z"}
-      assert TUI.event_to_msg(Event.key(:space, char: " "), model) == {:key_input, " "}
-      assert TUI.event_to_msg(Event.key(:"1", char: "1"), model) == {:key_input, "1"}
+      assert TUI.event_to_msg(Event.key(:a, char: "a"), model) == {:msg, {:key_input, "a"}}
+      assert TUI.event_to_msg(Event.key(:z, char: "Z"), model) == {:msg, {:key_input, "Z"}}
+      assert TUI.event_to_msg(Event.key(:space, char: " "), model) == {:msg, {:key_input, " "}}
+      assert TUI.event_to_msg(Event.key(:"1", char: "1"), model) == {:msg, {:key_input, "1"}}
     end
 
-    test "resize event returns {:resize, width, height}" do
+    test "resize event returns {:msg, {:resize, width, height}}" do
       model = %Model{}
       event = Event.resize(120, 40)
 
-      assert TUI.event_to_msg(event, model) == {:resize, 120, 40}
+      assert TUI.event_to_msg(event, model) == {:msg, {:resize, 120, 40}}
     end
 
     test "returns :ignore for unhandled events" do
@@ -1088,18 +1088,18 @@ defmodule JidoCode.TUITest do
   end
 
   describe "scroll navigation" do
-    test "up arrow returns {:scroll, :up}" do
+    test "up arrow returns {:msg, {:scroll, :up}}" do
       model = %Model{}
       event = Event.key(:up)
 
-      assert TUI.event_to_msg(event, model) == {:scroll, :up}
+      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :up}}
     end
 
-    test "down arrow returns {:scroll, :down}" do
+    test "down arrow returns {:msg, {:scroll, :down}}" do
       model = %Model{}
       event = Event.key(:down)
 
-      assert TUI.event_to_msg(event, model) == {:scroll, :down}
+      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :down}}
     end
 
     test "scroll up increases scroll_offset" do
@@ -1193,18 +1193,18 @@ defmodule JidoCode.TUITest do
   end
 
   describe "toggle_reasoning" do
-    test "Ctrl+R returns :toggle_reasoning" do
+    test "Ctrl+R returns {:msg, :toggle_reasoning}" do
       model = %Model{}
       event = Event.key(:r, modifiers: [:ctrl])
 
-      assert TUI.event_to_msg(event, model) == :toggle_reasoning
+      assert TUI.event_to_msg(event, model) == {:msg, :toggle_reasoning}
     end
 
-    test "plain 'r' key returns {:key_input, \"r\"}" do
+    test "plain 'r' key returns {:msg, {:key_input, \"r\"}}" do
       model = %Model{}
       event = Event.key(:r, char: "r")
 
-      assert TUI.event_to_msg(event, model) == {:key_input, "r"}
+      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "r"}}
     end
 
     test "toggle_reasoning flips show_reasoning from false to true" do
@@ -1582,18 +1582,18 @@ defmodule JidoCode.TUITest do
   end
 
   describe "toggle_tool_details" do
-    test "Ctrl+T returns :toggle_tool_details" do
+    test "Ctrl+T returns {:msg, :toggle_tool_details}" do
       model = %Model{}
       event = Event.key(:t, modifiers: [:ctrl])
 
-      assert TUI.event_to_msg(event, model) == :toggle_tool_details
+      assert TUI.event_to_msg(event, model) == {:msg, :toggle_tool_details}
     end
 
-    test "plain 't' key returns {:key_input, \"t\"}" do
+    test "plain 't' key returns {:msg, {:key_input, \"t\"}}" do
       model = %Model{}
       event = Event.key(:t, char: "t")
 
-      assert TUI.event_to_msg(event, model) == {:key_input, "t"}
+      assert TUI.event_to_msg(event, model) == {:msg, {:key_input, "t"}}
     end
 
     test "toggle_tool_details flips show_tool_details from false to true" do

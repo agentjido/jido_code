@@ -22,6 +22,65 @@ defmodule JidoCode.TUI.ViewHelpers do
   alias JidoCode.TUI.Model
   alias TermUI.Renderer.Style
 
+  # Double-line box drawing characters
+  @border_chars %{
+    top_left: "╔",
+    top_right: "╗",
+    bottom_left: "╚",
+    bottom_right: "╝",
+    horizontal: "═",
+    vertical: "║"
+  }
+
+  # ============================================================================
+  # Border / Frame
+  # ============================================================================
+
+  @doc """
+  Wraps content in a double-line border that fills the window.
+
+  The border adapts to the window size and the content is rendered inside.
+  """
+  @spec render_with_border(Model.t(), TermUI.View.t()) :: TermUI.View.t()
+  def render_with_border(state, content) do
+    {width, height} = state.window
+    border_style = Style.new(fg: :blue)
+
+    # Build the border lines
+    top_border = render_top_border(width, border_style)
+    bottom_border = render_bottom_border(width, border_style)
+
+    # Side borders will be added to each content line
+    # For now, wrap content in a vertical stack with borders
+    stack(:vertical, [
+      top_border,
+      render_bordered_content(content, width, height - 2, border_style),
+      bottom_border
+    ])
+  end
+
+  defp render_top_border(width, style) do
+    inner_width = max(width - 2, 0)
+    line = @border_chars.top_left <> String.duplicate(@border_chars.horizontal, inner_width) <> @border_chars.top_right
+    text(line, style)
+  end
+
+  defp render_bottom_border(width, style) do
+    inner_width = max(width - 2, 0)
+    line = @border_chars.bottom_left <> String.duplicate(@border_chars.horizontal, inner_width) <> @border_chars.bottom_right
+    text(line, style)
+  end
+
+  defp render_bordered_content(content, _width, _height, border_style) do
+    # Wrap content with side borders
+    # The content is rendered between vertical border characters
+    stack(:horizontal, [
+      text(@border_chars.vertical, border_style),
+      content,
+      text(@border_chars.vertical, border_style)
+    ])
+  end
+
   # ============================================================================
   # Status Bar
   # ============================================================================

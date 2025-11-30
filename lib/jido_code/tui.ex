@@ -567,26 +567,29 @@ defmodule JidoCode.TUI do
   defp render_main_view(state) do
     {width, _height} = state.window
 
-    if state.show_reasoning do
-      # Show reasoning panel
-      if width >= 100 do
-        # Wide terminal: side-by-side layout
-        render_main_view_with_sidebar(state)
+    content =
+      if state.show_reasoning do
+        # Show reasoning panel
+        if width >= 100 do
+          # Wide terminal: side-by-side layout
+          render_main_content_with_sidebar(state)
+        else
+          # Narrow terminal: stacked layout with compact reasoning
+          render_main_content_with_drawer(state)
+        end
       else
-        # Narrow terminal: stacked layout with compact reasoning
-        render_main_view_with_drawer(state)
+        # Standard layout without reasoning panel
+        stack(:vertical, [
+          ViewHelpers.render_status_bar(state),
+          ViewHelpers.render_conversation(state),
+          ViewHelpers.render_input_bar(state)
+        ])
       end
-    else
-      # Standard layout without reasoning panel
-      stack(:vertical, [
-        ViewHelpers.render_status_bar(state),
-        ViewHelpers.render_conversation(state),
-        ViewHelpers.render_input_bar(state)
-      ])
-    end
+
+    ViewHelpers.render_with_border(state, content)
   end
 
-  defp render_main_view_with_sidebar(state) do
+  defp render_main_content_with_sidebar(state) do
     # Side-by-side layout for wide terminals
     stack(:vertical, [
       ViewHelpers.render_status_bar(state),
@@ -598,7 +601,7 @@ defmodule JidoCode.TUI do
     ])
   end
 
-  defp render_main_view_with_drawer(state) do
+  defp render_main_content_with_drawer(state) do
     # Stacked layout with reasoning drawer for narrow terminals
     stack(:vertical, [
       ViewHelpers.render_status_bar(state),
@@ -609,15 +612,18 @@ defmodule JidoCode.TUI do
   end
 
   defp render_unconfigured_view(state) do
-    stack(:vertical, [
-      ViewHelpers.render_status_bar(state),
-      text("", nil),
-      text("JidoCode - Agentic Coding Assistant", Style.new(fg: :cyan, attrs: [:bold])),
-      text("", nil),
-      ViewHelpers.render_config_info(state),
-      text("", nil),
-      text("Press Ctrl+C to quit", Style.new(fg: :bright_black))
-    ])
+    content =
+      stack(:vertical, [
+        ViewHelpers.render_status_bar(state),
+        text("", nil),
+        text("JidoCode - Agentic Coding Assistant", Style.new(fg: :cyan, attrs: [:bold])),
+        text("", nil),
+        ViewHelpers.render_config_info(state),
+        text("", nil),
+        text("Press Ctrl+C to quit", Style.new(fg: :bright_black))
+      ])
+
+    ViewHelpers.render_with_border(state, content)
   end
 
   # ============================================================================

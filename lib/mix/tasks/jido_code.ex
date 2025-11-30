@@ -31,6 +31,9 @@ defmodule Mix.Tasks.JidoCode do
     # Ensure the application is started
     Mix.Task.run("app.start")
 
+    # Ensure Jido discovery cache is initialized before TUI starts
+    Jido.Discovery.init()
+
     # Try to start the LLM agent if configured
     # If not configured, TUI will show configuration screen
     maybe_start_agent()

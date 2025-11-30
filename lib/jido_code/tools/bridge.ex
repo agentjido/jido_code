@@ -15,7 +15,7 @@ defmodule JidoCode.Tools.Bridge do
   - `jido.file_exists(path)` - Check if path exists
 
   Shell operations:
-  - `jido.shell(command, args)` - Execute shell command
+  - `jido.shell(command, args)` - Execute shell command (validated against allowlist)
 
   ## Usage in Lua
 
@@ -31,7 +31,7 @@ defmodule JidoCode.Tools.Bridge do
       -- Check existence
       if jido.file_exists("config.json") then ... end
 
-      -- Run shell command
+      -- Run shell command (only allowed commands)
       local result = jido.shell("mix", {"test"})
       -- result = {exit_code = 0, stdout = "...", stderr = "..."}
 
@@ -39,8 +39,15 @@ defmodule JidoCode.Tools.Bridge do
 
   Bridge functions return `{nil, error_message}` on failure, allowing
   Lua scripts to handle errors gracefully.
+
+  ## Security
+
+  Shell commands are validated against the same allowlist used by the
+  `run_command` tool. Shell interpreters (bash, sh, zsh, etc.) are blocked.
+  Path arguments are validated to prevent traversal attacks.
   """
 
+  alias JidoCode.Tools.Handlers.Shell
   alias JidoCode.Tools.Security
 
   require Logger
@@ -76,14 +83,22 @@ defmodule JidoCode.Tools.Bridge do
   end
 
   defp do_read_file(path, state, project_root) do
-    with {:ok, safe_path} <- Security.validate_path(path, project_root),
-         {:ok, content} <- File.read(safe_path) do
-      {[content], state}
-    else
-      {:error, :path_escapes_boundary} -> {[nil, format_security_error(:path_escapes_boundary, path)], state}
-      {:error, :path_outside_boundary} -> {[nil, format_security_error(:path_outside_boundary, path)], state}
-      {:error, :symlink_escapes_boundary} -> {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
-      {:error, reason} -> {[nil, format_file_error(reason, path)], state}
+    # SEC-2 Fix: Use atomic_read to mitigate TOCTOU race conditions
+    case Security.atomic_read(path, project_root) do
+      {:ok, content} ->
+        {[content], state}
+
+      {:error, :path_escapes_boundary} ->
+        {[nil, format_security_error(:path_escapes_boundary, path)], state}
+
+      {:error, :path_outside_boundary} ->
+        {[nil, format_security_error(:path_outside_boundary, path)], state}
+
+      {:error, :symlink_escapes_boundary} ->
+        {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
+
+      {:error, reason} ->
+        {[nil, format_file_error(reason, path)], state}
     end
   end
 
@@ -115,15 +130,22 @@ defmodule JidoCode.Tools.Bridge do
   end
 
   defp do_write_file(path, content, state, project_root) do
-    with {:ok, safe_path} <- Security.validate_path(path, project_root),
-         :ok <- safe_path |> Path.dirname() |> File.mkdir_p(),
-         :ok <- File.write(safe_path, content) do
-      {[true], state}
-    else
-      {:error, :path_escapes_boundary} -> {[nil, format_security_error(:path_escapes_boundary, path)], state}
-      {:error, :path_outside_boundary} -> {[nil, format_security_error(:path_outside_boundary, path)], state}
-      {:error, :symlink_escapes_boundary} -> {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
-      {:error, reason} -> {[nil, format_file_error(reason, path)], state}
+    # SEC-2 Fix: Use atomic_write to mitigate TOCTOU race conditions
+    case Security.atomic_write(path, content, project_root) do
+      :ok ->
+        {[true], state}
+
+      {:error, :path_escapes_boundary} ->
+        {[nil, format_security_error(:path_escapes_boundary, path)], state}
+
+      {:error, :path_outside_boundary} ->
+        {[nil, format_security_error(:path_outside_boundary, path)], state}
+
+      {:error, :symlink_escapes_boundary} ->
+        {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
+
+      {:error, reason} ->
+        {[nil, format_file_error(reason, path)], state}
     end
   end
 
@@ -240,36 +262,96 @@ defmodule JidoCode.Tools.Bridge do
   def lua_shell(args, state, project_root) do
     case parse_shell_args(args) do
       {:ok, command, cmd_args, opts} ->
-        _timeout = Keyword.get(opts, :timeout, @default_shell_timeout)
+        # SEC-1 Fix: Validate command against allowlist (same as RunCommand handler)
+        case Shell.validate_command(command) do
+          {:ok, _} ->
+            # SEC-3 Fix: Validate arguments for path traversal attacks
+            case validate_shell_args(cmd_args, project_root) do
+              :ok ->
+                execute_validated_shell(command, cmd_args, opts, project_root, state)
 
-        try do
-          {output, exit_code} =
-            System.cmd(command, cmd_args,
-              cd: project_root,
-              stderr_to_stdout: false,
-              into: "",
-              env: []
-            )
+              {:error, reason} ->
+                {[nil, format_shell_security_error(reason)], state}
+            end
 
-          # Return as list of tuples - luerl will convert inline to Lua table
-          result = [
-            {"exit_code", exit_code},
-            {"stdout", output},
-            {"stderr", ""}
-          ]
+          {:error, :shell_interpreter_blocked} ->
+            {[nil, "Security error: shell interpreters are blocked (#{command})"], state}
 
-          {[result], state}
-        catch
-          :error, :enoent ->
-            {[nil, "Command not found: #{command}"], state}
-
-          kind, reason ->
-            {[nil, "Shell error: #{kind} - #{inspect(reason)}"], state}
+          {:error, :command_not_allowed} ->
+            {[nil, "Security error: command not in allowlist (#{command})"], state}
         end
 
       {:error, message} ->
         {[nil, message], state}
     end
+  end
+
+  defp execute_validated_shell(command, cmd_args, opts, project_root, state) do
+    _timeout = Keyword.get(opts, :timeout, @default_shell_timeout)
+
+    try do
+      {output, exit_code} =
+        System.cmd(command, cmd_args,
+          cd: project_root,
+          stderr_to_stdout: false,
+          into: "",
+          env: []
+        )
+
+      # Return as list of tuples - luerl will convert inline to Lua table
+      result = [
+        {"exit_code", exit_code},
+        {"stdout", output},
+        {"stderr", ""}
+      ]
+
+      {[result], state}
+    catch
+      :error, :enoent ->
+        {[nil, "Command not found: #{command}"], state}
+
+      kind, reason ->
+        {[nil, "Shell error: #{kind} - #{inspect(reason)}"], state}
+    end
+  end
+
+  # SEC-3 Fix: Validate shell arguments for path traversal
+  @safe_system_paths ~w(/dev/null /dev/zero /dev/urandom /dev/random /dev/stdin /dev/stdout /dev/stderr)
+
+  defp validate_shell_args(args, project_root) do
+    Enum.reduce_while(args, :ok, fn arg, :ok ->
+      case validate_shell_arg(arg, project_root) do
+        :ok -> {:cont, :ok}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp validate_shell_arg(arg, project_root) do
+    cond do
+      # Block path traversal patterns
+      String.contains?(arg, "..") ->
+        {:error, {:path_traversal, arg}}
+
+      # Allow safe system paths
+      String.starts_with?(arg, "/") and arg in @safe_system_paths ->
+        :ok
+
+      # Block absolute paths outside project
+      String.starts_with?(arg, "/") and not String.starts_with?(arg, project_root) ->
+        {:error, {:absolute_path_outside_project, arg}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp format_shell_security_error({:path_traversal, arg}) do
+    "Security error: path traversal not allowed in argument: #{arg}"
+  end
+
+  defp format_shell_security_error({:absolute_path_outside_project, arg}) do
+    "Security error: absolute paths outside project not allowed: #{arg}"
   end
 
   # ============================================================================

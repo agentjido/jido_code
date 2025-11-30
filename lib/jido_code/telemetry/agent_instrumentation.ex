@@ -69,12 +69,26 @@ defmodule JidoCode.Telemetry.AgentInstrumentation do
   Initializes the restart tracking ETS table.
 
   This is called automatically when the application starts, but can be called
-  manually in tests.
+  manually in tests. The function is idempotent and thread-safe - it can be
+  called multiple times without error.
+
+  ## ARCH-3 Fix
+
+  The table is created during application startup to prevent race conditions.
+  If called concurrently, only one call will create the table; others will
+  silently succeed.
   """
   @spec setup() :: :ok
   def setup do
-    if :ets.whereis(@ets_table) == :undefined do
-      :ets.new(@ets_table, [:named_table, :public, :set])
+    # ARCH-3 Fix: Use try/catch to handle concurrent table creation attempts
+    # :ets.new/2 will raise ArgumentError if table already exists with :named_table
+    try do
+      if :ets.whereis(@ets_table) == :undefined do
+        :ets.new(@ets_table, [:named_table, :public, :set])
+      end
+    catch
+      # Table was created by another process between whereis check and new
+      :error, :badarg -> :ok
     end
 
     :ok

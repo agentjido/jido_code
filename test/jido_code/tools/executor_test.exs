@@ -455,16 +455,18 @@ defmodule JidoCode.Tools.ExecutorTest do
       assert_receive {:tool_result, _result}, 1000
     end
 
-    test "does not broadcast to global topic when session_id provided" do
+    test "broadcasts to BOTH global and session topic when session_id provided (ARCH-2 fix)" do
+      # ARCH-2 Fix: Now broadcasts to both topics so PubSubBridge receives messages
       session_id = "isolated_session"
-      # Subscribe to global topic (should not receive)
+      # Subscribe to global topic (should now receive due to ARCH-2 fix)
       Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
 
       tool_call = %{id: "call_isolated", name: "read_file", arguments: %{"path" => "/test.txt"}}
       {:ok, _result} = Executor.execute(tool_call, session_id: session_id)
 
-      # Should NOT receive events on global topic
-      refute_receive {:tool_call, _, _, "call_isolated"}, 100
+      # ARCH-2: Should NOW receive events on global topic (for PubSubBridge)
+      assert_receive {:tool_call, _, _, "call_isolated"}, 100
+      assert_receive {:tool_result, _}, 100
     end
 
     test "broadcasts error result for non-existent tool" do

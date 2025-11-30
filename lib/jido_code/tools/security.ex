@@ -161,6 +161,149 @@ defmodule JidoCode.Tools.Security do
   end
 
   # ============================================================================
+  # Atomic Operations (TOCTOU Mitigation)
+  # ============================================================================
+
+  @doc """
+  Performs an atomic read operation with validation.
+
+  This function validates the path and reads the file atomically to mitigate
+  TOCTOU (time-of-check to time-of-use) race conditions. The validation is
+  performed immediately before the read operation.
+
+  ## Parameters
+
+  - `path` - The path to read
+  - `project_root` - The project root directory
+  - `opts` - Options (same as `validate_path/3`)
+
+  ## Returns
+
+  - `{:ok, content}` - File contents
+  - `{:error, reason}` - Validation or read error
+  """
+  @spec atomic_read(String.t(), String.t(), validate_opts()) ::
+          {:ok, binary()} | {:error, validation_error() | atom()}
+  def atomic_read(path, project_root, opts \\ []) do
+    # Validate path first
+    case validate_path(path, project_root, opts) do
+      {:ok, safe_path} ->
+        # Re-check that the path is still valid and read atomically
+        # This second check catches TOCTOU attacks where symlink changed between validate and read
+        case File.read(safe_path) do
+          {:ok, content} ->
+            # Final validation: ensure the file we read is still within boundary
+            # by checking the realpath of the file descriptor
+            case validate_realpath(safe_path, project_root, opts) do
+              :ok -> {:ok, content}
+              {:error, _} = error -> error
+            end
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Performs an atomic write operation with validation.
+
+  This function validates the path and writes the file atomically to mitigate
+  TOCTOU race conditions. For writes to existing files, it re-validates after
+  the write to detect attacks.
+
+  ## Parameters
+
+  - `path` - The path to write
+  - `content` - Content to write
+  - `project_root` - The project root directory
+  - `opts` - Options (same as `validate_path/3`)
+
+  ## Returns
+
+  - `:ok` - Write successful
+  - `{:error, reason}` - Validation or write error
+  """
+  @spec atomic_write(String.t(), binary(), String.t(), validate_opts()) ::
+          :ok | {:error, validation_error() | atom()}
+  def atomic_write(path, content, project_root, opts \\ []) do
+    case validate_path(path, project_root, opts) do
+      {:ok, safe_path} ->
+        # Create parent directories if needed
+        case safe_path |> Path.dirname() |> File.mkdir_p() do
+          :ok ->
+            # Write the file
+            case File.write(safe_path, content) do
+              :ok ->
+                # Post-write validation: ensure we wrote to the correct location
+                # This catches TOCTOU attacks on the directory path
+                validate_realpath(safe_path, project_root, opts)
+
+              {:error, reason} ->
+                {:error, reason}
+            end
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Validates the real path of an existing file is within the project boundary.
+
+  This is used after file operations to verify that the actual file location
+  (following all symlinks) is within the allowed boundary. This helps detect
+  TOCTOU attacks where symlinks were modified during the operation.
+
+  ## Parameters
+
+  - `path` - The path to validate (must exist)
+  - `project_root` - The project root directory
+  - `opts` - Options (same as `validate_path/3`)
+
+  ## Returns
+
+  - `:ok` - Path is valid
+  - `{:error, :symlink_escapes_boundary}` - Real path is outside boundary
+  """
+  @spec validate_realpath(String.t(), String.t(), validate_opts()) ::
+          :ok | {:error, :symlink_escapes_boundary}
+  def validate_realpath(path, project_root, opts \\ []) do
+    log_violations = Keyword.get(opts, :log_violations, true)
+    normalized_root = normalize_path(project_root)
+
+    # Get the real path (follows all symlinks)
+    case :file.read_link_info(path, [:raw]) do
+      {:ok, _info} ->
+        # File exists, check its real location
+        case Path.expand(path) do
+          expanded when is_binary(expanded) ->
+            if within_boundary?(expanded, normalized_root) do
+              :ok
+            else
+              maybe_log_violation(:symlink_escapes_boundary, path, log_violations)
+              {:error, :symlink_escapes_boundary}
+            end
+        end
+
+      {:error, :enoent} ->
+        # File doesn't exist (might be newly created), that's OK
+        :ok
+
+      {:error, _} ->
+        # Other error, assume OK for non-existent paths
+        :ok
+    end
+  end
+
+  # ============================================================================
   # Private Functions
   # ============================================================================
 

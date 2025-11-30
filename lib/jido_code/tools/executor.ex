@@ -434,11 +434,17 @@ defmodule JidoCode.Tools.Executor do
   ## Events
 
   Broadcasts `{:tool_call, tool_name, params, call_id}` to the topic.
+
+  ## ARCH-2 Fix
+
+  When a session_id is provided, broadcasts to BOTH the session-specific topic
+  AND the global topic to ensure messages reach both session-specific and global
+  subscribers (like PubSubBridge).
   """
   @spec broadcast_tool_call(String.t() | nil, String.t(), map(), String.t()) :: :ok
   def broadcast_tool_call(session_id, tool_name, params, call_id) do
-    topic = pubsub_topic(session_id)
-    Phoenix.PubSub.broadcast(JidoCode.PubSub, topic, {:tool_call, tool_name, params, call_id})
+    message = {:tool_call, tool_name, params, call_id}
+    broadcast_to_topics(session_id, message)
   end
 
   @doc """
@@ -452,11 +458,29 @@ defmodule JidoCode.Tools.Executor do
   ## Events
 
   Broadcasts `{:tool_result, result}` to the topic.
+
+  ## ARCH-2 Fix
+
+  When a session_id is provided, broadcasts to BOTH the session-specific topic
+  AND the global topic to ensure messages reach all subscribers.
   """
   @spec broadcast_tool_result(String.t() | nil, Result.t()) :: :ok
   def broadcast_tool_result(session_id, result) do
-    topic = pubsub_topic(session_id)
-    Phoenix.PubSub.broadcast(JidoCode.PubSub, topic, {:tool_result, result})
+    message = {:tool_result, result}
+    broadcast_to_topics(session_id, message)
+  end
+
+  # ARCH-2 Fix: Broadcast to both session-specific and global topics
+  defp broadcast_to_topics(nil, message) do
+    # No session ID - just broadcast to global topic
+    Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events", message)
+  end
+
+  defp broadcast_to_topics(session_id, message) when is_binary(session_id) do
+    # Session ID provided - broadcast to both session-specific AND global topics
+    # This ensures PubSubBridge (global subscriber) receives the message
+    Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.#{session_id}", message)
+    Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events", message)
   end
 
   @doc """

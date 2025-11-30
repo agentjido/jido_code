@@ -27,6 +27,10 @@ defmodule JidoCode.Application do
 
   @impl true
   def start(_type, _args) do
+    # ARCH-3 Fix: Initialize ETS tables during application startup
+    # This prevents race conditions from on-demand table creation
+    initialize_ets_tables()
+
     children = [
       # Settings cache (must start before anything that might use Settings)
       JidoCode.Settings.Cache,
@@ -43,6 +47,10 @@ defmodule JidoCode.Application do
       # Lua sandbox for tool execution
       JidoCode.Tools.Manager,
 
+      # ARCH-1 Fix: Task.Supervisor for monitored async tasks
+      # Used by LLMAgent for chat operations to prevent silent failures
+      {Task.Supervisor, name: JidoCode.TaskSupervisor},
+
       # DynamicSupervisor for agent processes
       JidoCode.AgentSupervisor
 
@@ -52,5 +60,13 @@ defmodule JidoCode.Application do
 
     opts = [strategy: :one_for_one, name: JidoCode.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  # ARCH-3 Fix: Initialize all ETS tables during application startup
+  # This prevents race conditions from concurrent on-demand table creation
+  defp initialize_ets_tables do
+    # Initialize agent instrumentation ETS table
+    # This table tracks agent restart counts and start times for telemetry
+    JidoCode.Telemetry.AgentInstrumentation.setup()
   end
 end

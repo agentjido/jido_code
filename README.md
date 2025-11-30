@@ -37,7 +37,7 @@ export ANTHROPIC_API_KEY="your-api-key"
 export OPENAI_API_KEY="your-api-key"
 ```
 
-4. Configure the LLM provider (optional - defaults to Anthropic):
+4. Configure the LLM provider (required):
 ```bash
 export JIDO_CODE_PROVIDER="anthropic"
 export JIDO_CODE_MODEL="claude-3-5-sonnet-20241022"
@@ -63,8 +63,8 @@ Type your message and press Enter. Use `/help` for available commands.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `JIDO_CODE_PROVIDER` | LLM provider name | `anthropic` |
-| `JIDO_CODE_MODEL` | Model identifier | `claude-3-5-sonnet-20241022` |
+| `JIDO_CODE_PROVIDER` | LLM provider name (required) | - |
+| `JIDO_CODE_MODEL` | Model identifier (required) | - |
 | `ANTHROPIC_API_KEY` | Anthropic API key | - |
 | `OPENAI_API_KEY` | OpenAI API key | - |
 

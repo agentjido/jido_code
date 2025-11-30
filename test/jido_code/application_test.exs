@@ -41,8 +41,9 @@ defmodule JidoCode.ApplicationTest do
       # Verify all expected children are present
       children = Supervisor.which_children(JidoCode.Supervisor)
 
-      # Should have 6 children: Settings.Cache, PubSub, AgentRegistry, Tools.Registry, Tools.Manager, AgentSupervisor
-      assert length(children) == 6
+      # Should have 7 children: Settings.Cache, PubSub, AgentRegistry, Tools.Registry,
+      # Tools.Manager, TaskSupervisor (ARCH-1 fix), AgentSupervisor
+      assert length(children) == 7
 
       # Extract child ids
       child_ids = Enum.map(children, fn {id, _pid, _type, _modules} -> id end)
@@ -54,6 +55,8 @@ defmodule JidoCode.ApplicationTest do
       assert JidoCode.AgentRegistry in child_ids
       # Tools.Registry for LLM function calling
       assert JidoCode.Tools.Registry in child_ids
+      # TaskSupervisor for monitored async tasks (ARCH-1 fix)
+      assert JidoCode.TaskSupervisor in child_ids
       # Tools.Manager for Lua sandbox
       assert JidoCode.Tools.Manager in child_ids
       assert JidoCode.AgentSupervisor in child_ids

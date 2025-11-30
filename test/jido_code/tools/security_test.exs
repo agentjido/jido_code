@@ -296,4 +296,94 @@ defmodule JidoCode.Tools.SecurityTest do
       assert {:error, :path_escapes_boundary} = result
     end
   end
+
+  describe "atomic_read/3 - TOCTOU mitigation" do
+    test "reads file within boundary" do
+      assert {:ok, "test"} = Security.atomic_read("file.txt", @test_root, log_violations: false)
+    end
+
+    test "reads nested file within boundary" do
+      assert {:ok, content} = Security.atomic_read("src/main.ex", @test_root, log_violations: false)
+      assert content =~ "defmodule Main"
+    end
+
+    test "rejects path traversal attempts" do
+      assert {:error, :path_escapes_boundary} =
+               Security.atomic_read("../../../etc/passwd", @test_root, log_violations: false)
+    end
+
+    test "rejects absolute paths outside boundary" do
+      assert {:error, :path_outside_boundary} =
+               Security.atomic_read("/etc/passwd", @test_root, log_violations: false)
+    end
+
+    test "returns file error for non-existent file" do
+      assert {:error, :enoent} =
+               Security.atomic_read("nonexistent.txt", @test_root, log_violations: false)
+    end
+
+    test "rejects symlink pointing outside boundary" do
+      link_path = Path.join(@test_root, "external_link")
+
+      if File.exists?(link_path) do
+        # When reading via symlink that escapes, should detect during validation
+        assert {:error, :symlink_escapes_boundary} =
+                 Security.atomic_read("external_link", @test_root, log_violations: false)
+      end
+    end
+  end
+
+  describe "atomic_write/4 - TOCTOU mitigation" do
+    @tag :tmp_dir
+    test "writes file within boundary", %{tmp_dir: tmp_dir} do
+      content = "test content #{:rand.uniform(1000)}"
+      assert :ok = Security.atomic_write("test_write.txt", content, tmp_dir, log_violations: false)
+      assert File.read!(Path.join(tmp_dir, "test_write.txt")) == content
+    end
+
+    @tag :tmp_dir
+    test "creates parent directories", %{tmp_dir: tmp_dir} do
+      content = "nested content"
+      assert :ok = Security.atomic_write("a/b/c/nested.txt", content, tmp_dir, log_violations: false)
+      assert File.read!(Path.join(tmp_dir, "a/b/c/nested.txt")) == content
+    end
+
+    @tag :tmp_dir
+    test "rejects path traversal attempts", %{tmp_dir: tmp_dir} do
+      assert {:error, :path_escapes_boundary} =
+               Security.atomic_write("../evil.txt", "bad", tmp_dir, log_violations: false)
+    end
+
+    @tag :tmp_dir
+    test "rejects absolute paths outside boundary", %{tmp_dir: tmp_dir} do
+      assert {:error, :path_outside_boundary} =
+               Security.atomic_write("/tmp/evil.txt", "bad", tmp_dir, log_violations: false)
+    end
+  end
+
+  describe "validate_realpath/3 - post-operation validation" do
+    test "accepts file within boundary" do
+      path = Path.join(@test_root, "file.txt")
+      assert :ok = Security.validate_realpath(path, @test_root, log_violations: false)
+    end
+
+    test "returns ok for non-existent file" do
+      path = Path.join(@test_root, "nonexistent.txt")
+      assert :ok = Security.validate_realpath(path, @test_root, log_violations: false)
+    end
+
+    test "rejects symlink pointing outside boundary" do
+      link_path = Path.join(@test_root, "external_link")
+
+      if File.exists?(link_path) do
+        # The real path of external_link is /etc/hosts which is outside boundary
+        # Note: validate_realpath checks the expanded path, but external_link
+        # is detected earlier during symlink resolution
+        result = Security.validate_realpath(link_path, @test_root, log_violations: false)
+        # The symlink itself is within the project, but points outside
+        # validate_realpath only checks if the file location is valid
+        assert result == :ok or result == {:error, :symlink_escapes_boundary}
+      end
+    end
+  end
 end

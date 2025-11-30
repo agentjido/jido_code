@@ -221,7 +221,7 @@ defmodule JidoCode.Tools.BridgeTest do
   end
 
   describe "lua_shell/3" do
-    test "executes simple command", %{tmp_dir: tmp_dir} do
+    test "executes simple allowed command", %{tmp_dir: tmp_dir} do
       state = :luerl.init()
       {[result], _state} = Bridge.lua_shell(["echo", [{1, "hello"}]], state, tmp_dir)
 
@@ -266,12 +266,138 @@ defmodule JidoCode.Tools.BridgeTest do
       assert error =~ "requires a command"
     end
 
-    test "returns error for non-existent command", %{tmp_dir: tmp_dir} do
+    test "returns error for command not in allowlist", %{tmp_dir: tmp_dir} do
       state = :luerl.init()
       {result, _state} = Bridge.lua_shell(["nonexistent_command_xyz"], state, tmp_dir)
 
       assert [nil, error] = result
-      assert error =~ "Command not found"
+      assert error =~ "Security error" or error =~ "command not in allowlist"
+    end
+
+    # SEC-1: Shell interpreter blocking tests
+    test "blocks bash shell interpreter", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_shell(["bash", [{1, "-c"}, {2, "echo pwned"}]], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+      assert error =~ "shell interpreters are blocked"
+    end
+
+    test "blocks sh shell interpreter", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_shell(["sh", [{1, "-c"}, {2, "rm -rf /"}]], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+      assert error =~ "shell interpreters are blocked"
+    end
+
+    test "blocks zsh shell interpreter", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_shell(["zsh"], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+      assert error =~ "shell interpreters are blocked"
+    end
+
+    test "blocks fish shell interpreter", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_shell(["fish"], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+      assert error =~ "shell interpreters are blocked"
+    end
+
+    # SEC-3: Path traversal blocking tests
+    test "blocks path traversal in arguments", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_shell(["cat", [{1, "../../../etc/passwd"}]], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+      assert error =~ "path traversal"
+    end
+
+    test "blocks absolute paths outside project", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_shell(["cat", [{1, "/etc/passwd"}]], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+      assert error =~ "absolute paths outside project"
+    end
+
+    test "allows safe system paths like /dev/null", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_shell(["cat", [{1, "/dev/null"}]], state, tmp_dir)
+
+      result_map = Map.new(result)
+      assert result_map["exit_code"] == 0
+    end
+
+    test "allows absolute paths within project", %{tmp_dir: tmp_dir} do
+      # Create a file in the project directory
+      test_file = Path.join(tmp_dir, "test.txt")
+      File.write!(test_file, "Hello")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_shell(["cat", [{1, test_file}]], state, tmp_dir)
+
+      result_map = Map.new(result)
+      assert result_map["exit_code"] == 0
+      assert String.trim(result_map["stdout"]) == "Hello"
+    end
+
+    test "allows relative paths within project", %{tmp_dir: tmp_dir} do
+      # Create a file in the project directory
+      File.write!(Path.join(tmp_dir, "safe.txt"), "Safe content")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_shell(["cat", [{1, "safe.txt"}]], state, tmp_dir)
+
+      result_map = Map.new(result)
+      assert result_map["exit_code"] == 0
+      assert String.trim(result_map["stdout"]) == "Safe content"
+    end
+
+    test "blocks multiple path traversal patterns", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      # Try hidden traversal with multiple levels
+      {result, _state} = Bridge.lua_shell(["ls", [{1, "foo/../../bar"}]], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+      assert error =~ "path traversal"
+    end
+
+    # Test that allowed commands work
+    test "allows mix command", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      # mix --version should work
+      {[result], _state} = Bridge.lua_shell(["mix", [{1, "--version"}]], state, tmp_dir)
+
+      result_map = Map.new(result)
+      # Should execute (even if mix isn't installed, it would be "command not found" not security error)
+      assert is_integer(result_map["exit_code"])
+    end
+
+    test "allows git command", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_shell(["git", [{1, "--version"}]], state, tmp_dir)
+
+      result_map = Map.new(result)
+      assert result_map["exit_code"] == 0
+    end
+
+    test "allows ls command", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_shell(["ls"], state, tmp_dir)
+
+      result_map = Map.new(result)
+      assert result_map["exit_code"] == 0
     end
   end
 

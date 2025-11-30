@@ -364,11 +364,12 @@ defmodule JidoCode.Agents.LLMAgent do
 
   @impl true
   def handle_call({:chat, message}, from, state) do
-    # Async pattern: offload LLM call to Task to avoid blocking GenServer
+    # ARCH-1 Fix: Use Task.Supervisor for monitored async tasks
+    # This prevents silent failures and hanging callers
     ai_pid = state.ai_pid
     topic = state.topic
 
-    Task.start(fn ->
+    Task.Supervisor.start_child(JidoCode.TaskSupervisor, fn ->
       result = do_chat(ai_pid, message)
 
       # Broadcast to session-specific PubSub topic for TUI
@@ -419,8 +420,8 @@ defmodule JidoCode.Agents.LLMAgent do
     topic = state.topic
     config = state.config
 
-    # Spawn a monitored task with timeout handling
-    Task.start(fn ->
+    # ARCH-1 Fix: Use Task.Supervisor for monitored async streaming
+    Task.Supervisor.start_child(JidoCode.TaskSupervisor, fn ->
       try do
         do_chat_stream_with_timeout(config, message, topic, timeout)
       catch
@@ -547,8 +548,11 @@ defmodule JidoCode.Agents.LLMAgent do
     Phoenix.PubSub.broadcast(@pubsub, topic, {:agent_response, response})
   end
 
-  defp broadcast_config_change(topic, old_config, new_config) do
-    Phoenix.PubSub.broadcast(@pubsub, topic, {:config_changed, old_config, new_config})
+  # CQ-2 Fix: Standardize config_changed to 2-tuple format
+  # Previously used 3-tuple {:config_changed, old_config, new_config}
+  # Now uses 2-tuple {:config_changed, new_config} for consistency with commands.ex
+  defp broadcast_config_change(topic, _old_config, new_config) do
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:config_changed, new_config})
   end
 
   defp broadcast_stream_chunk(topic, chunk) do

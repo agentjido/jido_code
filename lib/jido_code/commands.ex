@@ -57,6 +57,8 @@ defmodule JidoCode.Commands do
     /models                  - List models for current provider
     /models <provider>       - List models for a specific provider
     /providers               - List available providers
+    /theme                   - List available themes
+    /theme <name>            - Switch to a theme (dark, light, high_contrast)
   """
 
   @doc """
@@ -139,6 +141,15 @@ defmodule JidoCode.Commands do
 
   defp parse_and_execute("/providers" <> _, _config) do
     execute_providers_command()
+  end
+
+  defp parse_and_execute("/theme " <> rest, _config) do
+    theme_name = String.trim(rest)
+    execute_theme_command(theme_name)
+  end
+
+  defp parse_and_execute("/theme", _config) do
+    execute_theme_list_command()
   end
 
   defp parse_and_execute("/" <> command, _config) do
@@ -257,6 +268,51 @@ defmodule JidoCode.Commands do
       {:ok, "Available providers:\n  #{provider_list}#{suffix}", %{}}
     end
   end
+
+  defp execute_theme_list_command do
+    themes = TermUI.Theme.list_builtin()
+    current = TermUI.Theme.get_theme()
+    current_name = current.name
+
+    theme_list =
+      themes
+      |> Enum.map(fn name ->
+        if name == current_name, do: "#{name} (current)", else: "#{name}"
+      end)
+      |> Enum.join("\n  ")
+
+    {:ok, "Available themes:\n  #{theme_list}", %{}}
+  end
+
+  defp execute_theme_command(theme_name) do
+    # Convert string to atom safely (only for known themes)
+    theme_atom = string_to_theme_atom(theme_name)
+
+    if theme_atom do
+      case TermUI.Theme.set_theme(theme_atom) do
+        :ok ->
+          # Save to settings for persistence
+          Settings.set(:local, "theme", theme_name)
+          {:ok, "Theme set to #{theme_name}", %{}}
+
+        {:error, :not_found} ->
+          available = TermUI.Theme.list_builtin() |> Enum.join(", ")
+          {:error, "Unknown theme: #{theme_name}\n\nAvailable themes: #{available}"}
+
+        {:error, reason} ->
+          {:error, "Failed to set theme: #{inspect(reason)}"}
+      end
+    else
+      available = TermUI.Theme.list_builtin() |> Enum.join(", ")
+      {:error, "Unknown theme: #{theme_name}\n\nAvailable themes: #{available}"}
+    end
+  end
+
+  # Safe string to theme atom conversion (only allow known themes)
+  defp string_to_theme_atom("dark"), do: :dark
+  defp string_to_theme_atom("light"), do: :light
+  defp string_to_theme_atom("high_contrast"), do: :high_contrast
+  defp string_to_theme_atom(_), do: nil
 
   # ============================================================================
   # Validation

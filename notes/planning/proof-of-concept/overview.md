@@ -27,6 +27,7 @@ The proof-of-concept establishes three core architectural layers: the TUI Presen
 - [Phase 4: TUI Application with Elm Architecture](phase-04.md)
 - [Phase 5: Integration and Message Flow](phase-05.md)
 - [Phase 6: Testing and Documentation](phase-06.md)
+- [Phase 7: Theming and Styling](phase-07.md)
 
 ## Success Criteria
 

@@ -797,8 +797,8 @@ defmodule JidoCode.TUITest do
 
       view = TUI.view(model)
 
-      # View should return a RenderNode with type :stack
-      assert %TermUI.Component.RenderNode{type: :stack, direction: :vertical} = view
+      # View should return a RenderNode with type :box (border wrapper)
+      assert %TermUI.Component.RenderNode{type: :box} = view
     end
 
     test "renders unconfigured status message" do
@@ -827,7 +827,7 @@ defmodule JidoCode.TUITest do
       assert view_text =~ "anthropic" or view_text =~ "Idle"
     end
 
-    test "main view has three-pane layout when configured" do
+    test "main view has border structure when configured" do
       model = %Model{
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
@@ -837,9 +837,12 @@ defmodule JidoCode.TUITest do
 
       view = TUI.view(model)
 
-      # Main view should have 3 children: status bar, conversation, input bar
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = view
-      assert length(children) == 3
+      # Main view is wrapped in a border box
+      # The box contains a stack with: top border, middle (with content), bottom border
+      assert %TermUI.Component.RenderNode{type: :box, children: [inner_stack]} = view
+      assert %TermUI.Component.RenderNode{type: :stack, children: border_children} = inner_stack
+      # Border children: top border, middle row (with content), bottom border
+      assert length(border_children) == 3
     end
 
     test "status bar shows provider and model" do
@@ -1399,9 +1402,11 @@ defmodule JidoCode.TUITest do
 
       view = TUI.view(model)
 
-      # Main view should have 3 children when reasoning is hidden
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = view
-      assert length(children) == 3
+      # Main view is wrapped in a border box
+      # The box contains a stack with: top border, middle row, bottom border
+      assert %TermUI.Component.RenderNode{type: :box, children: [inner_stack]} = view
+      assert %TermUI.Component.RenderNode{type: :stack, children: border_children} = inner_stack
+      assert length(border_children) == 3
     end
   end
 
@@ -1449,8 +1454,8 @@ defmodule JidoCode.TUITest do
     end
   end
 
-  describe "status bar keyboard hints" do
-    test "status bar includes Ctrl+M: Model hint" do
+  describe "help bar keyboard hints" do
+    test "help bar includes Ctrl+M: Model hint" do
       model = %Model{
         agent_status: :idle,
         config: %{provider: "test", model: "test"}
@@ -1462,10 +1467,12 @@ defmodule JidoCode.TUITest do
       assert view_text =~ "Ctrl+M: Model"
     end
 
-    test "status bar includes Ctrl+C: Quit hint" do
+    test "help bar includes Ctrl+C: Quit hint" do
       model = %Model{
         agent_status: :idle,
-        config: %{provider: "test", model: "test"}
+        config: %{provider: "test", model: "test"},
+        # Use wider window to fit all help bar hints
+        window: {120, 24}
       }
 
       view = TUI.view(model)

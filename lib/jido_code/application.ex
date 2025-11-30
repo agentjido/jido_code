@@ -25,6 +25,8 @@ defmodule JidoCode.Application do
 
   use Application
 
+  alias JidoCode.Settings
+
   @impl true
   def start(_type, _args) do
     # ARCH-3 Fix: Initialize ETS tables during application startup
@@ -34,6 +36,9 @@ defmodule JidoCode.Application do
     children = [
       # Settings cache (must start before anything that might use Settings)
       JidoCode.Settings.Cache,
+
+      # Theme server for TUI styling (load from settings or default to dark)
+      {TermUI.Theme, theme: load_theme_from_settings()},
 
       # PubSub for agent-TUI communication
       {Phoenix.PubSub, name: JidoCode.PubSub},
@@ -69,4 +74,27 @@ defmodule JidoCode.Application do
     # This table tracks agent restart counts and start times for telemetry
     JidoCode.Telemetry.AgentInstrumentation.setup()
   end
+
+  # Load theme from settings, defaulting to :dark if not set
+  defp load_theme_from_settings do
+    # Settings.Cache must be started before this is called
+    # However, at this point it hasn't started yet, so we read directly from file
+    case Settings.read_file(Settings.local_path()) do
+      {:ok, settings} ->
+        get_theme_atom(Map.get(settings, "theme"))
+
+      {:error, _} ->
+        # Try global settings
+        case Settings.read_file(Settings.global_path()) do
+          {:ok, settings} -> get_theme_atom(Map.get(settings, "theme"))
+          {:error, _} -> :dark
+        end
+    end
+  end
+
+  defp get_theme_atom(nil), do: :dark
+  defp get_theme_atom("dark"), do: :dark
+  defp get_theme_atom("light"), do: :light
+  defp get_theme_atom("high_contrast"), do: :high_contrast
+  defp get_theme_atom(_), do: :dark
 end

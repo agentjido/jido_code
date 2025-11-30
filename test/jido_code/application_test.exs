@@ -41,15 +41,17 @@ defmodule JidoCode.ApplicationTest do
       # Verify all expected children are present
       children = Supervisor.which_children(JidoCode.Supervisor)
 
-      # Should have 7 children: Settings.Cache, PubSub, AgentRegistry, Tools.Registry,
-      # Tools.Manager, TaskSupervisor (ARCH-1 fix), AgentSupervisor
-      assert length(children) == 7
+      # Should have 8 children: Settings.Cache, TermUI.Theme, PubSub, AgentRegistry,
+      # Tools.Registry, Tools.Manager, TaskSupervisor (ARCH-1 fix), AgentSupervisor
+      assert length(children) == 8
 
       # Extract child ids
       child_ids = Enum.map(children, fn {id, _pid, _type, _modules} -> id end)
 
       # Settings.Cache starts first
       assert JidoCode.Settings.Cache in child_ids
+      # Theme server for TUI styling
+      assert TermUI.Theme in child_ids
       # PubSub registers as Phoenix.PubSub.Supervisor internally
       assert Phoenix.PubSub.Supervisor in child_ids
       assert JidoCode.AgentRegistry in child_ids

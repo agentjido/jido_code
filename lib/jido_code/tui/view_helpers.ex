@@ -21,6 +21,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
   alias TermUI.Renderer.Style
+  alias TermUI.Theme
 
   # Double-line box drawing characters
   @border_chars %{
@@ -44,19 +45,31 @@ defmodule JidoCode.TUI.ViewHelpers do
   @spec render_with_border(Model.t(), TermUI.View.t()) :: TermUI.View.t()
   def render_with_border(state, content) do
     {width, height} = state.window
-    border_style = Style.new(fg: :blue)
+    border_style = theme_to_renderer_style(Theme.get_component_style(:border, :focused)) ||
+                   Style.new(fg: :blue)
+
+    # Content area is inside the border (width - 2 for side borders, height - 2 for top/bottom)
+    content_height = max(height - 2, 1)
+    content_width = max(width - 2, 1)
 
     # Build the border lines
     top_border = render_top_border(width, border_style)
     bottom_border = render_bottom_border(width, border_style)
 
-    # Side borders will be added to each content line
-    # For now, wrap content in a vertical stack with borders
-    stack(:vertical, [
-      top_border,
-      render_bordered_content(content, width, height - 2, border_style),
-      bottom_border
-    ])
+    # Create middle section with side borders and content
+    middle_rows = render_middle_rows(content, content_width, content_height, border_style)
+
+    # Use a box with explicit dimensions to fill the terminal
+    box([
+      stack(:vertical, [top_border | middle_rows] ++ [bottom_border])
+    ], width: width, height: height)
+  end
+
+  # Convert TermUI.Style to TermUI.Renderer.Style
+  # Theme returns TermUI.Style structs but the renderer expects TermUI.Renderer.Style
+  defp theme_to_renderer_style(nil), do: nil
+  defp theme_to_renderer_style(%TermUI.Style{fg: fg, bg: bg, attrs: attrs}) do
+    Style.new(fg: fg, bg: bg, attrs: MapSet.to_list(attrs))
   end
 
   defp render_top_border(width, style) do
@@ -71,14 +84,17 @@ defmodule JidoCode.TUI.ViewHelpers do
     text(line, style)
   end
 
-  defp render_bordered_content(content, _width, _height, border_style) do
-    # Wrap content with side borders
-    # The content is rendered between vertical border characters
-    stack(:horizontal, [
-      text(@border_chars.vertical, border_style),
-      content,
-      text(@border_chars.vertical, border_style)
-    ])
+  # Renders all middle rows (between top and bottom border)
+  # Each row has: left border | content/padding | right border
+  defp render_middle_rows(content, content_width, content_height, border_style) do
+    left_border = text(@border_chars.vertical, border_style)
+    right_border = text(@border_chars.vertical, border_style)
+
+    # Create a box for the content area with fixed dimensions
+    content_box = box([content], width: content_width, height: content_height)
+
+    # Single row containing left border, content box, and right border
+    [stack(:horizontal, [left_border, content_box, right_border])]
   end
 
   # ============================================================================
@@ -86,36 +102,69 @@ defmodule JidoCode.TUI.ViewHelpers do
   # ============================================================================
 
   @doc """
-  Renders the status bar with config, status, CoT indicator, and keyboard hints.
+  Renders the top status bar with provider/model info and agent status.
+  Pads or truncates to fit the available width (window width - 2 for borders).
   """
   @spec render_status_bar(Model.t()) :: TermUI.View.t()
   def render_status_bar(state) do
+    {width, _height} = state.window
+    content_width = max(width - 2, 1)
+
     config_text = format_config(state.config)
     status_text = format_status(state.agent_status)
     cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
+
+    full_text = "#{config_text} | #{status_text}#{cot_indicator}"
+    # Pad or truncate to fill the content width exactly
+    padded_text = pad_or_truncate(full_text, content_width)
+    bar_style = build_status_bar_style(state)
+
+    text(padded_text, bar_style)
+  end
+
+  @doc """
+  Renders the bottom help bar with keyboard shortcuts.
+  Pads or truncates to fit the available width (window width - 2 for borders).
+  """
+  @spec render_help_bar(Model.t()) :: TermUI.View.t()
+  def render_help_bar(state) do
+    {width, _height} = state.window
+    content_width = max(width - 2, 1)
+
     reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
     tools_hint = if state.show_tool_details, do: "Ctrl+T: Hide", else: "Ctrl+T: Tools"
     hints = "#{reasoning_hint} | #{tools_hint} | Ctrl+M: Model | Ctrl+C: Quit"
 
-    full_text = "#{config_text} | #{status_text}#{cot_indicator} | #{hints}"
-    bar_style = build_status_bar_style(state)
+    padded_text = pad_or_truncate(hints, content_width)
+    bar_style = Style.new(fg: Theme.get_color(:foreground) || :white, bg: Theme.get_color(:primary) || :blue)
 
-    text(full_text, bar_style)
+    text(padded_text, bar_style)
+  end
+
+  # Pad with spaces or truncate text to exact width
+  defp pad_or_truncate(text, width) do
+    len = String.length(text)
+    cond do
+      len == width -> text
+      len < width -> text <> String.duplicate(" ", width - len)
+      true -> String.slice(text, 0, width)
+    end
   end
 
   defp build_status_bar_style(state) do
     fg_color =
       cond do
-        state.agent_status == :error -> :red
-        state.agent_status == :unconfigured -> :red
-        state.config.provider == nil -> :red
-        state.config.model == nil -> :yellow
-        state.agent_status == :processing -> :yellow
-        has_active_reasoning?(state) -> :magenta
-        true -> :white
+        state.agent_status == :error -> Theme.get_semantic(:error) || :red
+        state.agent_status == :unconfigured -> Theme.get_semantic(:error) || :red
+        state.config.provider == nil -> Theme.get_semantic(:error) || :red
+        state.config.model == nil -> Theme.get_semantic(:warning) || :yellow
+        state.agent_status == :processing -> Theme.get_semantic(:warning) || :yellow
+        has_active_reasoning?(state) -> Theme.get_color(:accent) || :magenta
+        true -> Theme.get_color(:foreground) || :white
       end
 
-    Style.new(fg: fg_color, bg: :blue)
+    bg_color = Theme.get_color(:primary) || :blue
+    Style.new(fg: fg_color, bg: bg_color)
   end
 
   defp has_active_reasoning?(state) do
@@ -140,28 +189,51 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders the conversation area with messages, tool calls, and streaming content.
+  Fills the available height between status bar and input/help bars.
   """
   @spec render_conversation(Model.t()) :: TermUI.View.t()
   def render_conversation(state) do
     {width, height} = state.window
-    available_height = max(height - 2, 1)
+    # Available height: total height - 2 (borders) - 1 (status bar) - 1 (input bar) - 1 (help bar)
+    available_height = max(height - 5, 1)
+    content_width = max(width - 2, 1)
     has_content = state.messages != [] or state.tool_calls != [] or state.is_streaming
 
-    if has_content do
-      render_conversation_content(state, available_height, width)
+    lines = if has_content do
+      render_conversation_lines(state, available_height, content_width)
     else
-      render_empty_conversation()
+      render_empty_conversation_lines(content_width)
+    end
+
+    # Pad with empty lines to fill the available height
+    padded_lines = pad_lines_to_height(lines, available_height, content_width)
+
+    stack(:vertical, padded_lines)
+  end
+
+  defp render_empty_conversation_lines(content_width) do
+    muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)
+
+    [
+      text(pad_or_truncate("", content_width), nil),
+      text(pad_or_truncate("No messages yet. Type a message and press Enter.", content_width), muted_style)
+    ]
+  end
+
+  # Pad lines list with empty lines to fill the target height
+  defp pad_lines_to_height(lines, target_height, content_width) do
+    current_count = length(lines)
+    if current_count >= target_height do
+      Enum.take(lines, target_height)
+    else
+      padding_count = target_height - current_count
+      padding = for _ <- 1..padding_count, do: text(pad_or_truncate("", content_width), nil)
+      lines ++ padding
     end
   end
 
-  defp render_empty_conversation do
-    stack(:vertical, [
-      text("", nil),
-      text("No messages yet. Type a message and press Enter.", Style.new(fg: :bright_black))
-    ])
-  end
-
-  defp render_conversation_content(state, available_height, width) do
+  # Returns a list of render nodes (lines) for the conversation content
+  defp render_conversation_lines(state, available_height, width) do
     # Messages are stored in reverse order (newest first), so reverse for display
     message_lines = Enum.flat_map(Enum.reverse(state.messages), &format_message(&1, width))
 
@@ -187,18 +259,15 @@ defmodule JidoCode.TUI.ViewHelpers do
     end_index = total_lines - state.scroll_offset
     start_index = max(end_index - available_height, 0)
 
-    visible_lines =
-      all_lines
-      |> Enum.slice(start_index, available_height)
-
-    stack(:vertical, visible_lines)
+    all_lines
+    |> Enum.slice(start_index, available_height)
   end
 
   defp format_streaming_message(content, width) do
     ts = TUI.format_timestamp(DateTime.utc_now())
     prefix = "Assistant: "
     cursor = "▌"
-    style = Style.new(fg: :white)
+    style = Style.new(fg: Theme.get_color(:foreground) || :white)
 
     prefix_len = String.length("#{ts} #{prefix}")
     content_width = max(width - prefix_len, 20)
@@ -248,9 +317,9 @@ defmodule JidoCode.TUI.ViewHelpers do
   defp role_prefix(:assistant), do: "Assistant: "
   defp role_prefix(:system), do: "System: "
 
-  defp role_style(:user), do: Style.new(fg: :cyan)
-  defp role_style(:assistant), do: Style.new(fg: :white)
-  defp role_style(:system), do: Style.new(fg: :yellow)
+  defp role_style(:user), do: Style.new(fg: Theme.get_semantic(:info) || :cyan)
+  defp role_style(:assistant), do: Style.new(fg: Theme.get_color(:foreground) || :white)
+  defp role_style(:system), do: Style.new(fg: Theme.get_semantic(:warning) || :yellow)
 
   # ============================================================================
   # Tool Calls
@@ -272,13 +341,14 @@ defmodule JidoCode.TUI.ViewHelpers do
   defp render_tool_call_line(entry) do
     ts = TUI.format_timestamp(entry.timestamp)
     formatted = Display.format_tool_call(entry.tool_name, entry.params, entry.call_id)
-    style = Style.new(fg: :bright_black)
+    style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)
 
     text("#{ts} #{formatted}", style)
   end
 
   defp render_tool_result_lines(%{result: nil}, _show_details) do
-    [text("       ⋯ executing...", Style.new(fg: :bright_black, attrs: [:dim]))]
+    muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black, attrs: [:dim])
+    [text("       ⋯ executing...", muted_style)]
   end
 
   defp render_tool_result_lines(%{result: result}, show_details) do
@@ -296,9 +366,9 @@ defmodule JidoCode.TUI.ViewHelpers do
     [text(result_text, style)]
   end
 
-  defp tool_result_style(:ok), do: {"✓", Style.new(fg: :green)}
-  defp tool_result_style(:error), do: {"✗", Style.new(fg: :red)}
-  defp tool_result_style(:timeout), do: {"⏱", Style.new(fg: :yellow)}
+  defp tool_result_style(:ok), do: {"✓", Style.new(fg: Theme.get_semantic(:success) || :green)}
+  defp tool_result_style(:error), do: {"✗", Style.new(fg: Theme.get_semantic(:error) || :red)}
+  defp tool_result_style(:timeout), do: {"⏱", Style.new(fg: Theme.get_semantic(:warning) || :yellow)}
 
   # ============================================================================
   # Input Bar
@@ -306,13 +376,20 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders the input bar with prompt indicator and current input buffer.
+  Pads to fill the available width.
   """
   @spec render_input_bar(Model.t()) :: TermUI.View.t()
   def render_input_bar(state) do
+    {width, _height} = state.window
+    content_width = max(width - 2, 1)
+
     cursor = "_"
     prompt = ">"
+    input_text = "#{prompt} #{state.input_buffer}#{cursor}"
+    padded_text = pad_or_truncate(input_text, content_width)
+    input_style = Style.new(fg: Theme.get_color(:secondary) || :green)
 
-    text("#{prompt} #{state.input_buffer}#{cursor}", Style.new(fg: :green))
+    text(padded_text, input_style)
   end
 
   # ============================================================================
@@ -336,17 +413,23 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   defp render_empty_reasoning do
+    accent_style = Style.new(fg: Theme.get_color(:accent) || :magenta, attrs: [:bold])
+    muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)
+
     stack(:vertical, [
-      text("Reasoning (Ctrl+R to hide)", Style.new(fg: :magenta, attrs: [:bold])),
-      text("─────────────────────────", Style.new(fg: :bright_black)),
-      text("No reasoning steps yet.", Style.new(fg: :bright_black))
+      text("Reasoning (Ctrl+R to hide)", accent_style),
+      text("─────────────────────────", muted_style),
+      text("No reasoning steps yet.", muted_style)
     ])
   end
 
   defp render_reasoning_steps(steps) do
+    accent_style = Style.new(fg: Theme.get_color(:accent) || :magenta, attrs: [:bold])
+    muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)
+
     header = [
-      text("Reasoning (Ctrl+R to hide)", Style.new(fg: :magenta, attrs: [:bold])),
-      text("─────────────────────────", Style.new(fg: :bright_black))
+      text("Reasoning (Ctrl+R to hide)", accent_style),
+      text("─────────────────────────", muted_style)
     ]
 
     # Steps are stored in reverse order (newest first), so reverse for display
@@ -381,9 +464,9 @@ defmodule JidoCode.TUI.ViewHelpers do
   defp normalize_status("complete"), do: :complete
   defp normalize_status(_), do: :pending
 
-  defp step_indicator(:pending), do: {"○", Style.new(fg: :bright_black)}
-  defp step_indicator(:active), do: {"●", Style.new(fg: :yellow, attrs: [:bold])}
-  defp step_indicator(:complete), do: {"✓", Style.new(fg: :green)}
+  defp step_indicator(:pending), do: {"○", Style.new(fg: Theme.get_semantic(:muted) || :bright_black)}
+  defp step_indicator(:active), do: {"●", Style.new(fg: Theme.get_semantic(:warning) || :yellow, attrs: [:bold])}
+  defp step_indicator(:complete), do: {"✓", Style.new(fg: Theme.get_semantic(:success) || :green)}
 
   defp format_confidence(%{confidence: confidence}) when is_number(confidence) do
     " (confidence: #{Float.round(confidence, 2)})"
@@ -398,7 +481,8 @@ defmodule JidoCode.TUI.ViewHelpers do
   def render_reasoning_compact(state) do
     case state.reasoning_steps do
       [] ->
-        text("Reasoning: (none)", Style.new(fg: :bright_black))
+        muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)
+        text("Reasoning: (none)", muted_style)
 
       steps ->
         # Steps are stored in reverse order (newest first), so reverse for display
@@ -411,7 +495,8 @@ defmodule JidoCode.TUI.ViewHelpers do
             "#{indicator} #{short_text}"
           end)
 
-        text("Reasoning: #{step_indicators}", Style.new(fg: :magenta))
+        accent_style = Style.new(fg: Theme.get_color(:accent) || :magenta)
+        text("Reasoning: #{step_indicators}", accent_style)
     end
   end
 
@@ -426,21 +511,26 @@ defmodule JidoCode.TUI.ViewHelpers do
   def render_config_info(state) do
     case state.agent_status do
       :unconfigured ->
+        warning_style = Style.new(fg: Theme.get_semantic(:warning) || :yellow, attrs: [:bold])
+        muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)
+
         stack(:vertical, [
-          text("Configuration Required", Style.new(fg: :yellow, attrs: [:bold])),
+          text("Configuration Required", warning_style),
           text("", nil),
           text("No provider or model configured.", nil),
           text("Create ~/.jido_code/settings.json with:", nil),
           text("", nil),
-          text("  {", Style.new(fg: :bright_black)),
-          text(~s(    "provider": "anthropic",), Style.new(fg: :bright_black)),
-          text(~s(    "model": "claude-3-5-sonnet"), Style.new(fg: :bright_black)),
-          text("  }", Style.new(fg: :bright_black))
+          text("  {", muted_style),
+          text(~s(    "provider": "anthropic",), muted_style),
+          text(~s(    "model": "claude-3-5-sonnet"), muted_style),
+          text("  }", muted_style)
         ])
 
       _ ->
+        success_style = Style.new(fg: Theme.get_semantic(:success) || :green, attrs: [:bold])
+
         stack(:vertical, [
-          text("Ready", Style.new(fg: :green, attrs: [:bold])),
+          text("Ready", success_style),
           text("", nil),
           text("Provider: #{state.config.provider || "none"}", nil),
           text("Model: #{state.config.model || "none"}", nil)

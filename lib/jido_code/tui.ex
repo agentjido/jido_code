@@ -164,19 +164,25 @@ defmodule JidoCode.TUI do
   @doc """
   Initializes the TUI state.
 
-  Loads settings from disk, subscribes to PubSub events, and determines
-  initial agent status based on configuration.
+  Loads settings from disk, subscribes to PubSub events and theme changes,
+  and determines initial agent status based on configuration.
   """
   @impl true
   def init(_opts) do
     # Subscribe to TUI events using centralized topic
     Phoenix.PubSub.subscribe(JidoCode.PubSub, PubSubTopics.tui_events())
 
+    # Subscribe to theme changes for live updates
+    TermUI.Theme.subscribe()
+
     # Load configuration from settings
     config = load_config()
 
     # Determine initial status based on config
     status = determine_status(config)
+
+    # Get actual terminal dimensions (Terminal is started by Runtime before init)
+    window = get_terminal_dimensions()
 
     %Model{
       input_buffer: "",
@@ -186,7 +192,7 @@ defmodule JidoCode.TUI do
       reasoning_steps: [],
       tool_calls: [],
       show_tool_details: false,
-      window: {80, 24},
+      window: window,
       message_queue: [],
       scroll_offset: 0,
       show_reasoning: false,
@@ -194,6 +200,14 @@ defmodule JidoCode.TUI do
       streaming_message: nil,
       is_streaming: false
     }
+  end
+
+  # Get terminal dimensions, falling back to defaults if unavailable
+  defp get_terminal_dimensions do
+    case TermUI.size() do
+      {:ok, {rows, cols}} -> {cols, rows}
+      {:error, _} -> {80, 24}
+    end
   end
 
   @doc """
@@ -374,6 +388,13 @@ defmodule JidoCode.TUI do
   # Tool result handling - match result to pending call and update
   def update({:tool_result, %Result{} = result}, state),
     do: MessageHandlers.handle_tool_result(result, state)
+
+  # Theme change handling - triggers re-render with new theme colors
+  def update({:theme_changed, _theme}, state) do
+    # The theme is stored in TermUI.Theme's ETS table, accessed by ViewHelpers
+    # We just need to trigger a re-render by returning the same state
+    {state, []}
+  end
 
   # Catch-all for unhandled messages
   def update(msg, state) do
@@ -582,7 +603,8 @@ defmodule JidoCode.TUI do
         stack(:vertical, [
           ViewHelpers.render_status_bar(state),
           ViewHelpers.render_conversation(state),
-          ViewHelpers.render_input_bar(state)
+          ViewHelpers.render_input_bar(state),
+          ViewHelpers.render_help_bar(state)
         ])
       end
 
@@ -597,7 +619,8 @@ defmodule JidoCode.TUI do
         ViewHelpers.render_conversation(state),
         ViewHelpers.render_reasoning(state)
       ]),
-      ViewHelpers.render_input_bar(state)
+      ViewHelpers.render_input_bar(state),
+      ViewHelpers.render_help_bar(state)
     ])
   end
 
@@ -607,7 +630,8 @@ defmodule JidoCode.TUI do
       ViewHelpers.render_status_bar(state),
       ViewHelpers.render_conversation(state),
       ViewHelpers.render_reasoning_compact(state),
-      ViewHelpers.render_input_bar(state)
+      ViewHelpers.render_input_bar(state),
+      ViewHelpers.render_help_bar(state)
     ])
   end
 

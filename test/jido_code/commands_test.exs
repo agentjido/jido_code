@@ -1,5 +1,6 @@
 defmodule JidoCode.CommandsTest do
-  use ExUnit.Case, async: true
+  # Not async because theme tests depend on shared TermUI.Theme server state
+  use ExUnit.Case, async: false
 
   alias Jido.AI.Keyring
   alias JidoCode.Commands
@@ -203,6 +204,80 @@ defmodule JidoCode.CommandsTest do
       {:error, message} = Commands.execute("hello", config)
 
       assert message =~ "Not a command"
+    end
+  end
+
+  describe "/theme command" do
+    test "/theme lists available themes" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, new_config} = Commands.execute("/theme", config)
+
+      assert message =~ "Available themes"
+      assert message =~ "dark"
+      assert message =~ "light"
+      assert message =~ "high_contrast"
+      assert new_config == %{}
+    end
+
+    test "/theme shows current theme" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, _} = Commands.execute("/theme", config)
+
+      assert message =~ "(current)"
+    end
+
+    test "/theme dark switches to dark theme" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, new_config} = Commands.execute("/theme dark", config)
+
+      assert message =~ "Theme set to dark"
+      assert new_config == %{}
+    end
+
+    test "/theme light switches to light theme" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, new_config} = Commands.execute("/theme light", config)
+
+      assert message =~ "Theme set to light"
+      assert new_config == %{}
+
+      # Reset to dark for other tests
+      Commands.execute("/theme dark", config)
+    end
+
+    test "/theme high_contrast switches to high contrast theme" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, new_config} = Commands.execute("/theme high_contrast", config)
+
+      assert message =~ "Theme set to high_contrast"
+      assert new_config == %{}
+
+      # Reset to dark for other tests
+      Commands.execute("/theme dark", config)
+    end
+
+    test "/theme with invalid name returns error" do
+      config = %{provider: nil, model: nil}
+
+      {:error, message} = Commands.execute("/theme invalid_theme", config)
+
+      assert message =~ "Unknown theme"
+      assert message =~ "dark"
+      assert message =~ "light"
+      assert message =~ "high_contrast"
+    end
+
+    test "/help includes theme command" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, _} = Commands.execute("/help", config)
+
+      assert message =~ "/theme"
     end
   end
 

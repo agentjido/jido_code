@@ -78,7 +78,8 @@ defmodule JidoCode.Settings do
     "provider" => :string,
     "model" => :string,
     "providers" => :list_of_strings,
-    "models" => :map_of_string_lists
+    "models" => :map_of_string_lists,
+    "theme" => :string
   }
 
   @typedoc """

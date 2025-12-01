@@ -49,7 +49,9 @@ defmodule JidoCode.TUI do
   alias JidoCode.TUI.ViewHelpers
   alias TermUI.Event
   alias TermUI.Renderer.Style
+  alias TermUI.Widgets.Dialog
   alias TermUI.Widgets.TextInput
+  alias TermUI.Widgets.Viewport
 
   # ============================================================================
   # Message Types
@@ -138,7 +140,8 @@ defmodule JidoCode.TUI do
             streaming_message: String.t() | nil,
             is_streaming: boolean(),
             session_topic: String.t() | nil,
-            shell_output: {String.t(), String.t(), non_neg_integer()} | nil
+            shell_dialog: map() | nil,
+            shell_viewport: map() | nil
           }
 
     @enforce_keys []
@@ -157,7 +160,8 @@ defmodule JidoCode.TUI do
               streaming_message: nil,
               is_streaming: false,
               session_topic: nil,
-              shell_output: nil
+              shell_dialog: nil,
+              shell_viewport: nil
   end
 
   # ============================================================================
@@ -307,41 +311,28 @@ defmodule JidoCode.TUI do
   - PubSub messages for agent events
   """
   @impl true
-  # Handle shell output modal - intercept all input when modal is open
-  def update({:input_event, event}, %{shell_output: {_cmd, _output, scroll}} = state)
-      when not is_nil(state.shell_output) do
-    case event do
-      # Close modal on Enter, Escape, or 'q'
-      {:key, :enter} ->
-        {%{state | shell_output: nil}, []}
+  # Handle shell dialog - intercept all input when dialog is open
+  def update({:input_event, event}, %{shell_dialog: dialog} = state)
+      when not is_nil(dialog) do
+    # Convert to TermUI.Event format
+    term_event = convert_to_term_event(event)
 
-      {:key, :escape} ->
-        {%{state | shell_output: nil}, []}
+    case event do
+      # Close on Enter, Escape, or 'q'
+      {:key, key} when key in [:enter, :escape] ->
+        {%{state | shell_dialog: nil, shell_viewport: nil}, []}
 
       {:key, "q"} ->
-        {%{state | shell_output: nil}, []}
+        {%{state | shell_dialog: nil, shell_viewport: nil}, []}
 
-      # Scroll up
-      {:key, :up} ->
-        new_scroll = max(0, scroll - 1)
-        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
-
-      {:key, :page_up} ->
-        new_scroll = max(0, scroll - 10)
-        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
-
-      # Scroll down
-      {:key, :down} ->
-        {_cmd, output, _} = state.shell_output
-        max_scroll = max(0, length(String.split(output, "\n")) - 10)
-        new_scroll = min(max_scroll, scroll + 1)
-        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
-
-      {:key, :page_down} ->
-        {_cmd, output, _} = state.shell_output
-        max_scroll = max(0, length(String.split(output, "\n")) - 10)
-        new_scroll = min(max_scroll, scroll + 10)
-        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
+      # Forward scroll events to viewport
+      {:key, key} when key in [:up, :down, :page_up, :page_down, :home, :end] ->
+        case Viewport.handle_event(term_event, state.shell_viewport) do
+          {:ok, new_viewport} ->
+            {%{state | shell_viewport: new_viewport}, []}
+          _ ->
+            {state, []}
+        end
 
       _ ->
         {state, []}
@@ -472,6 +463,12 @@ defmodule JidoCode.TUI do
     {state, []}
   end
 
+  # Convert internal event format to TermUI.Event
+  defp convert_to_term_event({:key, key}) do
+    %Event.Key{key: key, modifiers: []}
+  end
+  defp convert_to_term_event(_), do: nil
+
   # ============================================================================
   # Message Builder Helpers
   # ============================================================================
@@ -534,8 +531,33 @@ defmodule JidoCode.TUI do
         {new_state, []}
 
       {:shell_output, command, output} ->
-        # Show shell output in modal dialog
-        new_state = %{state | shell_output: {command, output, 0}}
+        # Show shell output in modal dialog using widgets
+        {width, height} = state.window
+        lines = String.split(output, "\n")
+        content_height = length(lines)
+
+        # Create viewport for scrollable content
+        viewport_content = stack(:vertical, Enum.map(lines, &text(&1, nil)))
+        viewport_props = Viewport.new(
+          content: viewport_content,
+          content_height: content_height,
+          width: max(width - 8, 20),
+          height: max(height - 10, 5),
+          scroll_bars: :vertical
+        )
+        {:ok, viewport_state} = Viewport.init(viewport_props)
+
+        # Create dialog
+        dialog_props = Dialog.new(
+          title: "Shell: #{command}",
+          content: empty(),  # Content will be rendered from viewport
+          buttons: [%{id: :ok, label: "OK", default: true}],
+          width: max(width - 4, 30),
+          closeable: true
+        )
+        {:ok, dialog_state} = Dialog.init(dialog_props)
+
+        new_state = %{state | shell_dialog: dialog_state, shell_viewport: viewport_state}
         {new_state, []}
 
       {:error, error_message} ->
@@ -646,9 +668,9 @@ defmodule JidoCode.TUI do
   """
   @impl true
   def view(state) do
-    # Render shell output modal if present
-    if state.shell_output do
-      render_shell_output_modal(state)
+    # Render shell dialog if present
+    if state.shell_dialog do
+      render_shell_dialog(state)
     else
       case state.agent_status do
         :unconfigured ->
@@ -727,61 +749,23 @@ defmodule JidoCode.TUI do
     ViewHelpers.render_with_border(state, content)
   end
 
-  defp render_shell_output_modal(state) do
+  defp render_shell_dialog(state) do
     {width, height} = state.window
-    {command, output, scroll} = state.shell_output
 
-    # Calculate modal dimensions (accounting for 2-space padding on each side + border)
-    padding = 2
-    modal_width = max(width - (padding * 2) - 2, 20)
-    modal_height = max(height - (padding * 2) - 2, 10)
+    # Render the viewport content
+    viewport_view = Viewport.render(state.shell_viewport, %{width: width - 8, height: height - 10})
 
-    # Split output into lines and apply scroll
-    lines = String.split(output, "\n")
-    total_lines = length(lines)
-    # Reserve 3 lines for header, separator, and footer
-    visible_lines = max(1, modal_height - 3)
-
-    displayed_lines =
-      lines
-      |> Enum.drop(scroll)
-      |> Enum.take(visible_lines)
-      |> Enum.map(fn line ->
-        # Truncate long lines
-        if String.length(line) > modal_width - 2 do
-          String.slice(line, 0, modal_width - 5) <> "..."
-        else
-          line
-        end
-      end)
-
-    # Build scroll indicator
-    scroll_info =
-      if total_lines > visible_lines do
-        " (#{scroll + 1}-#{min(scroll + visible_lines, total_lines)}/#{total_lines})"
-      else
-        ""
-      end
-
-    # Header
-    header_text = "Shell: #{command}#{scroll_info}"
-    header = text(header_text, Style.new(fg: :cyan, attrs: [:bold]))
-
-    # Output lines
-    output_elements =
-      displayed_lines
-      |> Enum.map(fn line -> text(line, Style.new(fg: :white)) end)
-
-    # Pad with empty lines if needed
-    padding_count = max(0, visible_lines - length(displayed_lines))
-    padding_lines = List.duplicate(text("", nil), padding_count)
-
-    # Footer with instructions
+    # Build dialog content with title, viewport, and footer
+    title = text(state.shell_dialog.title, Style.new(fg: :cyan, attrs: [:bold]))
     footer = text("[Enter/Esc/q] Close  [↑↓/PgUp/PgDn] Scroll", Style.new(fg: :bright_black))
 
-    # Build modal content
-    content =
-      stack(:vertical, [header] ++ output_elements ++ padding_lines ++ [footer])
+    content = stack(:vertical, [
+      title,
+      text("", nil),
+      viewport_view,
+      text("", nil),
+      footer
+    ])
 
     ViewHelpers.render_modal_with_border(state, content)
   end

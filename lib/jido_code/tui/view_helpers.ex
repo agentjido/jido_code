@@ -34,6 +34,15 @@ defmodule JidoCode.TUI.ViewHelpers do
     vertical: "║"
   }
 
+  @modal_border_chars %{
+    top_left: "┌",
+    top_right: "┐",
+    bottom_left: "└",
+    bottom_right: "┘",
+    horizontal: "─",
+    vertical: "│"
+  }
+
   # ============================================================================
   # Border / Frame
   # ============================================================================
@@ -64,6 +73,73 @@ defmodule JidoCode.TUI.ViewHelpers do
     box([
       stack(:vertical, [top_border | middle_rows] ++ [bottom_border])
     ], width: width, height: height)
+  end
+
+  @doc """
+  Renders content in a modal dialog with single-line border and padding.
+  Uses a lighter color than the main TUI border.
+  """
+  @spec render_modal_with_border(Model.t(), TermUI.View.t()) :: TermUI.View.t()
+  def render_modal_with_border(state, content) do
+    {width, height} = state.window
+    padding = 2
+    border_style = Style.new(fg: :bright_black)
+
+    # Modal is inset by padding on all sides
+    modal_width = max(width - (padding * 2), 10)
+    modal_height = max(height - (padding * 2), 5)
+
+    # Content area is inside the modal border
+    content_height = max(modal_height - 2, 1)
+    content_width = max(modal_width - 2, 1)
+
+    # Build the modal border lines
+    top_border = render_modal_top_border(modal_width, border_style)
+    bottom_border = render_modal_bottom_border(modal_width, border_style)
+
+    # Create middle section with side borders and content
+    middle_rows = render_modal_middle_rows(content, content_width, content_height, border_style)
+
+    # Build the modal box
+    modal_box = stack(:vertical, [top_border | middle_rows] ++ [bottom_border])
+
+    # Create padding rows (empty lines above and below the modal)
+    padding_row = text(String.duplicate(" ", width), nil)
+    top_padding = List.duplicate(padding_row, padding)
+    bottom_padding = List.duplicate(padding_row, padding)
+
+    # Wrap modal with horizontal padding using spaces
+    left_pad = text(String.duplicate(" ", padding), nil)
+    right_pad = text(String.duplicate(" ", padding), nil)
+    padded_modal = stack(:horizontal, [left_pad, modal_box, right_pad])
+
+    # Stack everything vertically
+    box([
+      stack(:vertical, top_padding ++ [padded_modal] ++ bottom_padding)
+    ], width: width, height: height)
+  end
+
+  defp render_modal_top_border(width, style) do
+    inner_width = max(width - 2, 0)
+    line = @modal_border_chars.top_left <> String.duplicate(@modal_border_chars.horizontal, inner_width) <> @modal_border_chars.top_right
+    text(line, style)
+  end
+
+  defp render_modal_bottom_border(width, style) do
+    inner_width = max(width - 2, 0)
+    line = @modal_border_chars.bottom_left <> String.duplicate(@modal_border_chars.horizontal, inner_width) <> @modal_border_chars.bottom_right
+    text(line, style)
+  end
+
+  defp render_modal_middle_rows(content, content_width, content_height, border_style) do
+    left_border = text(@modal_border_chars.vertical, border_style)
+    right_border = text(@modal_border_chars.vertical, border_style)
+
+    # Create a box for the content area with fixed dimensions
+    content_box = box([content], width: content_width, height: content_height)
+
+    # Single row containing left border, content box, and right border
+    [stack(:horizontal, [left_border, content_box, right_border])]
   end
 
   # Convert TermUI.Style to TermUI.Renderer.Style

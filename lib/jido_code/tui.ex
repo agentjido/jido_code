@@ -731,14 +731,16 @@ defmodule JidoCode.TUI do
     {width, height} = state.window
     {command, output, scroll} = state.shell_output
 
-    # Calculate modal dimensions
-    modal_width = min(width - 4, 100)
-    modal_height = height - 6
+    # Calculate modal dimensions (accounting for 2-space padding on each side + border)
+    padding = 2
+    modal_width = max(width - (padding * 2) - 2, 20)
+    modal_height = max(height - (padding * 2) - 2, 10)
 
     # Split output into lines and apply scroll
     lines = String.split(output, "\n")
     total_lines = length(lines)
-    visible_lines = max(1, modal_height - 4)
+    # Reserve 3 lines for header, separator, and footer
+    visible_lines = max(1, modal_height - 3)
 
     displayed_lines =
       lines
@@ -746,8 +748,8 @@ defmodule JidoCode.TUI do
       |> Enum.take(visible_lines)
       |> Enum.map(fn line ->
         # Truncate long lines
-        if String.length(line) > modal_width - 4 do
-          String.slice(line, 0, modal_width - 7) <> "..."
+        if String.length(line) > modal_width - 2 do
+          String.slice(line, 0, modal_width - 5) <> "..."
         else
           line
         end
@@ -772,22 +774,16 @@ defmodule JidoCode.TUI do
 
     # Pad with empty lines if needed
     padding_count = max(0, visible_lines - length(displayed_lines))
-    padding = List.duplicate(text("", nil), padding_count)
+    padding_lines = List.duplicate(text("", nil), padding_count)
 
     # Footer with instructions
     footer = text("[Enter/Esc/q] Close  [↑↓/PgUp/PgDn] Scroll", Style.new(fg: :bright_black))
 
     # Build modal content
     content =
-      stack(:vertical, [
-        header,
-        text(String.duplicate("─", modal_width - 2), Style.new(fg: :bright_black))
-      ] ++ output_elements ++ padding ++ [
-        text(String.duplicate("─", modal_width - 2), Style.new(fg: :bright_black)),
-        footer
-      ])
+      stack(:vertical, [header] ++ output_elements ++ padding_lines ++ [footer])
 
-    ViewHelpers.render_with_border(state, content)
+    ViewHelpers.render_modal_with_border(state, content)
   end
 
   # ============================================================================

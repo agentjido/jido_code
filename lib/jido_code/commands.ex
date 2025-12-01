@@ -60,7 +60,7 @@ defmodule JidoCode.Commands do
     /providers               - List available providers
     /theme                   - List available themes
     /theme <name>            - Switch to a theme (dark, light, high_contrast)
-    /sandbox                 - Test the Luerl sandbox security
+    /sandbox-test            - Test the Luerl sandbox security (dev/test only)
   """
 
   @doc """
@@ -154,8 +154,12 @@ defmodule JidoCode.Commands do
     execute_theme_list_command()
   end
 
-  defp parse_and_execute("/sandbox" <> _, _config) do
-    execute_sandbox_test()
+  defp parse_and_execute("/sandbox-test" <> _, _config) do
+    if Mix.env() in [:dev, :test] do
+      execute_sandbox_test()
+    else
+      {:error, "Command /sandbox-test is only available in dev and test environments"}
+    end
   end
 
   defp parse_and_execute("/" <> command, _config) do

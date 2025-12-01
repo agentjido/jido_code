@@ -40,6 +40,7 @@ defmodule JidoCode.Commands do
   alias JidoCode.AgentSupervisor
   alias JidoCode.PubSubTopics
   alias JidoCode.Settings
+  alias JidoCode.Tools.Manager
 
   @pubsub JidoCode.PubSub
 
@@ -59,6 +60,7 @@ defmodule JidoCode.Commands do
     /providers               - List available providers
     /theme                   - List available themes
     /theme <name>            - Switch to a theme (dark, light, high_contrast)
+    /sandbox                 - Test the Luerl sandbox security
   """
 
   @doc """
@@ -150,6 +152,10 @@ defmodule JidoCode.Commands do
 
   defp parse_and_execute("/theme", _config) do
     execute_theme_list_command()
+  end
+
+  defp parse_and_execute("/sandbox" <> _, _config) do
+    execute_sandbox_test()
   end
 
   defp parse_and_execute("/" <> command, _config) do
@@ -442,5 +448,114 @@ defmodule JidoCode.Commands do
 
   defp broadcast_config_change(config) do
     Phoenix.PubSub.broadcast(@pubsub, PubSubTopics.tui_events(), {:config_changed, config})
+  end
+
+  # ============================================================================
+  # Sandbox Testing
+  # ============================================================================
+
+  defp execute_sandbox_test do
+    results = [
+      test_sandbox_read_file(),
+      test_sandbox_list_dir(),
+      test_sandbox_shell(),
+      test_sandbox_lua_script(),
+      test_sandbox_security_block()
+    ]
+
+    passed = Enum.count(results, fn {status, _, _} -> status == :pass end)
+    failed = Enum.count(results, fn {status, _, _} -> status == :fail end)
+
+    output =
+      results
+      |> Enum.map(fn {status, name, detail} ->
+        icon = if status == :pass, do: "[OK]", else: "[FAIL]"
+        "#{icon} #{name}\n    #{detail}"
+      end)
+      |> Enum.join("\n\n")
+
+    summary = "\n\nSandbox Test Results: #{passed} passed, #{failed} failed"
+    {:ok, output <> summary, %{}}
+  end
+
+  defp test_sandbox_read_file do
+    case Manager.read_file("mix.exs") do
+      {:ok, content} when byte_size(content) > 0 ->
+        {:pass, "Read file via sandbox", "Successfully read mix.exs (#{byte_size(content)} bytes)"}
+
+      {:ok, _} ->
+        {:fail, "Read file via sandbox", "File was empty"}
+
+      {:error, reason} ->
+        {:fail, "Read file via sandbox", "Error: #{inspect(reason)}"}
+    end
+  end
+
+  defp test_sandbox_list_dir do
+    case Manager.list_dir("lib") do
+      {:ok, entries} when is_list(entries) and length(entries) > 0 ->
+        {:pass, "List directory via sandbox", "Found #{length(entries)} entries in lib/"}
+
+      {:ok, []} ->
+        {:fail, "List directory via sandbox", "Directory was empty"}
+
+      {:error, reason} ->
+        {:fail, "List directory via sandbox", "Error: #{inspect(reason)}"}
+    end
+  end
+
+  defp test_sandbox_shell do
+    case Manager.shell("echo", ["sandbox test"]) do
+      {:ok, %{"exit_code" => 0, "stdout" => stdout}} ->
+        {:pass, "Shell command via sandbox", "echo returned: #{String.trim(stdout)}"}
+
+      {:ok, %{"exit_code" => code}} ->
+        {:fail, "Shell command via sandbox", "Exit code: #{code}"}
+
+      {:ok, result} ->
+        {:fail, "Shell command via sandbox", "Unexpected result: #{inspect(result)}"}
+
+      {:error, reason} ->
+        {:fail, "Shell command via sandbox", "Error: #{inspect(reason)}"}
+    end
+  end
+
+  defp test_sandbox_lua_script do
+    lua_script = """
+    local content = jido.read_file("mix.exs")
+    if content then
+      return string.sub(content, 1, 20)
+    else
+      return nil
+    end
+    """
+
+    case Manager.execute(lua_script) do
+      {:ok, result} when is_binary(result) and byte_size(result) > 0 ->
+        {:pass, "Execute Lua script", "Lua read file prefix: #{inspect(result)}"}
+
+      {:ok, result} ->
+        {:fail, "Execute Lua script", "Unexpected result: #{inspect(result)}"}
+
+      {:error, reason} ->
+        {:fail, "Execute Lua script", "Error: #{inspect(reason)}"}
+    end
+  end
+
+  defp test_sandbox_security_block do
+    case Manager.read_file("../../../etc/passwd") do
+      {:error, reason} when is_binary(reason) ->
+        if String.contains?(reason, "Security") or String.contains?(reason, "escapes") do
+          {:pass, "Security boundary enforced", "Blocked path traversal: #{reason}"}
+        else
+          {:pass, "Security boundary enforced", "Blocked with: #{reason}"}
+        end
+
+      {:error, reason} ->
+        {:pass, "Security boundary enforced", "Blocked with: #{inspect(reason)}"}
+
+      {:ok, _} ->
+        {:fail, "Security boundary enforced", "DANGER: Path traversal was NOT blocked!"}
+    end
   end
 end

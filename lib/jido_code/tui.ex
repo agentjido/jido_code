@@ -322,8 +322,8 @@ defmodule JidoCode.TUI do
 
       # Command input - starts with /
       String.starts_with?(text, "/") ->
-        # Clear input after command
-        new_text_input = TextInput.clear(state.text_input)
+        # Clear input after command and ensure it stays focused
+        new_text_input = state.text_input |> TextInput.clear() |> TextInput.set_focused(true)
         do_handle_command(text, %{state | text_input: new_text_input})
 
       # Chat input - requires configured provider/model

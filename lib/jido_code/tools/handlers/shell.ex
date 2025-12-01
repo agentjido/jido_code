@@ -5,13 +5,14 @@ defmodule JidoCode.Tools.Handlers.Shell do
   This module contains the RunCommand handler for executing shell commands in a
   controlled environment with security validation, timeout enforcement, and output capture.
 
+  All shell operations go through the Lua sandbox via Manager API.
+
   ## Security Considerations
 
   - **Command allowlist**: Only pre-approved commands can be executed
   - **Shell interpreter blocking**: bash, sh, zsh, etc. are blocked to prevent bypass
   - **Path argument validation**: Arguments containing path traversal are blocked
-  - **Directory containment**: Commands run in project directory (enforced via cd: option)
-  - **Empty environment**: Prevents leaking sensitive environment variables
+  - **Directory containment**: Commands run in project directory (enforced via sandbox)
   - **Timeout enforcement**: Prevents hanging commands
   - **Output truncation**: Prevents memory exhaustion from large outputs
 
@@ -31,7 +32,7 @@ defmodule JidoCode.Tools.Handlers.Shell do
   - `:project_root` - Base directory for command execution
   """
 
-  alias JidoCode.Tools.HandlerHelpers
+  alias JidoCode.Tools.{HandlerHelpers, Manager}
 
   # ============================================================================
   # Constants
@@ -119,9 +120,12 @@ defmodule JidoCode.Tools.Handlers.Shell do
 
     Executes shell commands in the project directory with security validation,
     timeout enforcement, and output size limits.
+
+    All shell operations go through the Lua sandbox via Manager API.
     """
 
     alias JidoCode.Tools.Handlers.Shell
+    alias JidoCode.Tools.Manager
 
     @default_timeout 25_000
     @max_output_size 1_048_576
@@ -149,19 +153,17 @@ defmodule JidoCode.Tools.Handlers.Shell do
     - Output is truncated at 1MB to prevent memory exhaustion
     """
     @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
-    def execute(%{"command" => command} = args, context) when is_binary(command) do
+    def execute(%{"command" => command} = args, _context) when is_binary(command) do
+      # Note: Command validation is also done in Bridge.lua_shell, but we
+      # validate here as well for early failure and clear error messages
       with {:ok, _valid_command} <- Shell.validate_command(command),
-           {:ok, project_root} <- Shell.get_project_root(context),
            raw_args <- Map.get(args, "args", []),
-           {:ok, cmd_args} <- validate_and_parse_args(raw_args, project_root) do
-        timeout = Map.get(args, "timeout", @default_timeout)
-        execute_with_timeout(command, cmd_args, project_root, timeout)
+           cmd_args <- parse_args(raw_args) do
+        _timeout = Map.get(args, "timeout", @default_timeout)
+        run_command_via_sandbox(command, cmd_args)
       else
         {:error, reason} when is_atom(reason) ->
           {:error, Shell.format_error(reason, command)}
-
-        {:error, {:arg_error, reason, arg}} ->
-          {:error, Shell.format_error(reason, arg)}
 
         {:error, reason} ->
           {:error, Shell.format_error(reason, command)}
@@ -172,104 +174,42 @@ defmodule JidoCode.Tools.Handlers.Shell do
       {:error, "run_command requires a command argument"}
     end
 
-    @spec validate_and_parse_args(term(), String.t()) ::
-            {:ok, [String.t()]} | {:error, {:arg_error, atom(), String.t()}}
-    defp validate_and_parse_args(args, project_root) when is_list(args) do
-      Enum.reduce_while(args, {:ok, []}, fn arg, {:ok, acc} ->
-        arg_str = to_string(arg)
-
-        case validate_arg(arg_str, project_root) do
-          :ok -> {:cont, {:ok, acc ++ [arg_str]}}
-          {:error, reason} -> {:halt, {:error, {:arg_error, reason, arg_str}}}
-        end
-      end)
+    defp parse_args(args) when is_list(args) do
+      Enum.map(args, &to_string/1)
     end
 
-    defp validate_and_parse_args(_args, _project_root), do: {:ok, []}
+    defp parse_args(_args), do: []
 
-    # System paths that are safe to access
-    @safe_system_paths ~w(/dev/null /dev/zero /dev/urandom /dev/random /dev/stdin /dev/stdout /dev/stderr)
+    defp run_command_via_sandbox(command, args) do
+      case Manager.shell(command, args) do
+        {:ok, result} when is_map(result) ->
+          # Truncate output if needed
+          stdout = Map.get(result, "stdout", "") |> maybe_truncate()
 
-    @spec validate_arg(String.t(), String.t()) :: :ok | {:error, atom()}
-    defp validate_arg(arg, project_root) do
-      cond do
-        String.contains?(arg, "..") ->
-          {:error, :path_traversal_blocked}
+          formatted = %{
+            exit_code: Map.get(result, "exit_code", 0),
+            stdout: stdout,
+            stderr: Map.get(result, "stderr", "")
+          }
 
-        String.starts_with?(arg, "/") and arg in @safe_system_paths ->
-          :ok
+          {:ok, Jason.encode!(formatted)}
 
-        String.starts_with?(arg, "/") and not String.starts_with?(arg, project_root) ->
-          {:error, :absolute_path_blocked}
-
-        true ->
-          :ok
-      end
-    end
-
-    @spec execute_with_timeout(String.t(), [String.t()], String.t(), non_neg_integer()) ::
-            {:ok, String.t()}
-    defp execute_with_timeout(command, args, project_root, timeout) do
-      task =
-        Task.async(fn ->
-          run_command(command, args, project_root)
-        end)
-
-      case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
         {:ok, result} ->
-          result
+          # Handle other result formats
+          {:ok, Jason.encode!(%{exit_code: 0, stdout: inspect(result), stderr: ""})}
 
-        nil ->
-          {:ok,
-           Jason.encode!(%{
-             exit_code: -1,
-             stdout: "",
-             stderr: "Command timed out after #{timeout}ms"
-           })}
+        {:error, reason} ->
+          {:error, reason}
       end
-    end
-
-    @spec run_command(String.t(), [String.t()], String.t()) ::
-            {:ok, String.t()} | {:error, String.t()}
-    defp run_command(command, args, project_root) do
-      # Use stderr_to_stdout to capture all output together
-      # This is simpler and sufficient for LLM consumption
-      {output, exit_code} =
-        System.cmd(command, args,
-          cd: project_root,
-          stderr_to_stdout: true,
-          env: []
-        )
-
-      truncated_output = maybe_truncate(output)
-
-      result = %{
-        exit_code: exit_code,
-        stdout: truncated_output,
-        stderr: ""
-      }
-
-      {:ok, Jason.encode!(result)}
-    catch
-      :error, :enoent ->
-        {:error, Shell.format_error(:enoent, command)}
-
-      :error, :eacces ->
-        {:error, Shell.format_error(:eacces, command)}
-
-      :error, :enomem ->
-        {:error, Shell.format_error(:enomem, command)}
-
-      kind, reason ->
-        {:error, Shell.format_error({kind, reason}, command)}
     end
 
     @spec maybe_truncate(String.t()) :: String.t()
-    defp maybe_truncate(output) when byte_size(output) > @max_output_size do
+    defp maybe_truncate(output) when is_binary(output) and byte_size(output) > @max_output_size do
       truncated = binary_part(output, 0, @max_output_size)
       truncated <> "\n\n[Output truncated at 1MB]"
     end
 
-    defp maybe_truncate(output), do: output
+    defp maybe_truncate(output) when is_binary(output), do: output
+    defp maybe_truncate(_), do: ""
   end
 end

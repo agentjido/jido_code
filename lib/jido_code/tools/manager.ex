@@ -19,6 +19,20 @@ defmodule JidoCode.Tools.Manager do
       # Get project root
       {:ok, path} = JidoCode.Tools.Manager.project_root()
 
+  ## Sandboxed File Operations
+
+  All file and shell operations should go through the Manager API to ensure
+  they are executed within the Lua sandbox with proper security validation:
+
+      # Read a file through the sandbox
+      {:ok, content} = JidoCode.Tools.Manager.read_file("src/main.ex")
+
+      # Write a file through the sandbox
+      :ok = JidoCode.Tools.Manager.write_file("output.txt", "Hello")
+
+      # Execute a shell command through the sandbox
+      {:ok, result} = JidoCode.Tools.Manager.shell("mix", ["test"])
+
   ## Sandbox Restrictions
 
   The following Lua functions are removed from the sandbox:
@@ -40,7 +54,7 @@ defmodule JidoCode.Tools.Manager do
 
   use GenServer
 
-  alias JidoCode.Tools.Security
+  alias JidoCode.Tools.{Bridge, Security}
 
   require Logger
 
@@ -170,6 +184,202 @@ defmodule JidoCode.Tools.Manager do
   end
 
   # ============================================================================
+  # Sandboxed File/Shell Operations API
+  # ============================================================================
+
+  @doc """
+  Reads a file through the Lua sandbox.
+
+  The path is validated against the project boundary before reading.
+
+  ## Parameters
+
+  - `path` - Path to the file (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, content}` - File contents as string
+  - `{:error, reason}` - Error message
+  """
+  @spec read_file(String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def read_file(path) do
+    GenServer.call(__MODULE__, {:sandbox_read_file, path})
+  end
+
+  @doc """
+  Writes content to a file through the Lua sandbox.
+
+  The path is validated against the project boundary before writing.
+
+  ## Parameters
+
+  - `path` - Path to the file (relative or absolute)
+  - `content` - Content to write
+
+  ## Returns
+
+  - `:ok` - File written successfully
+  - `{:error, reason}` - Error message
+  """
+  @spec write_file(String.t(), String.t()) :: :ok | {:error, String.t()}
+  def write_file(path, content) do
+    GenServer.call(__MODULE__, {:sandbox_write_file, path, content})
+  end
+
+  @doc """
+  Lists directory contents through the Lua sandbox.
+
+  The path is validated against the project boundary before listing.
+
+  ## Parameters
+
+  - `path` - Path to the directory (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, entries}` - List of directory entry names
+  - `{:error, reason}` - Error message
+  """
+  @spec list_dir(String.t()) :: {:ok, [String.t()]} | {:error, String.t()}
+  def list_dir(path) do
+    GenServer.call(__MODULE__, {:sandbox_list_dir, path})
+  end
+
+  @doc """
+  Gets file stats through the Lua sandbox.
+
+  The path is validated against the project boundary before stat.
+
+  ## Parameters
+
+  - `path` - Path to the file (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, stat}` - File.Stat struct
+  - `{:error, reason}` - Error message
+  """
+  @spec file_stat(String.t()) :: {:ok, File.Stat.t()} | {:error, String.t()}
+  def file_stat(path) do
+    GenServer.call(__MODULE__, {:sandbox_file_stat, path})
+  end
+
+  @doc """
+  Checks if a path exists through the Lua sandbox.
+
+  The path is validated against the project boundary.
+
+  ## Parameters
+
+  - `path` - Path to check (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, exists}` - Boolean indicating existence
+  - `{:error, reason}` - Error message (security violation)
+  """
+  @spec file_exists?(String.t()) :: {:ok, boolean()} | {:error, String.t()}
+  def file_exists?(path) do
+    GenServer.call(__MODULE__, {:sandbox_file_exists, path})
+  end
+
+  @doc """
+  Checks if a path is a regular file through the Lua sandbox.
+
+  The path is validated against the project boundary.
+
+  ## Parameters
+
+  - `path` - Path to check (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, is_file}` - Boolean indicating if path is a regular file
+  - `{:error, reason}` - Error message (security violation)
+  """
+  @spec is_file?(String.t()) :: {:ok, boolean()} | {:error, String.t()}
+  def is_file?(path) do
+    GenServer.call(__MODULE__, {:sandbox_is_file, path})
+  end
+
+  @doc """
+  Checks if a path is a directory through the Lua sandbox.
+
+  The path is validated against the project boundary.
+
+  ## Parameters
+
+  - `path` - Path to check (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, is_dir}` - Boolean indicating if path is a directory
+  - `{:error, reason}` - Error message (security violation)
+  """
+  @spec is_dir?(String.t()) :: {:ok, boolean()} | {:error, String.t()}
+  def is_dir?(path) do
+    GenServer.call(__MODULE__, {:sandbox_is_dir, path})
+  end
+
+  @doc """
+  Deletes a file through the Lua sandbox.
+
+  The path is validated against the project boundary before deletion.
+
+  ## Parameters
+
+  - `path` - Path to the file (relative or absolute)
+
+  ## Returns
+
+  - `:ok` - File deleted successfully
+  - `{:error, reason}` - Error message
+  """
+  @spec delete_file(String.t()) :: :ok | {:error, String.t()}
+  def delete_file(path) do
+    GenServer.call(__MODULE__, {:sandbox_delete_file, path})
+  end
+
+  @doc """
+  Creates a directory (and parents) through the Lua sandbox.
+
+  The path is validated against the project boundary before creation.
+
+  ## Parameters
+
+  - `path` - Path to the directory (relative or absolute)
+
+  ## Returns
+
+  - `:ok` - Directory created successfully
+  - `{:error, reason}` - Error message
+  """
+  @spec mkdir_p(String.t()) :: :ok | {:error, String.t()}
+  def mkdir_p(path) do
+    GenServer.call(__MODULE__, {:sandbox_mkdir_p, path})
+  end
+
+  @doc """
+  Executes a shell command through the Lua sandbox.
+
+  The command is validated against the allowlist before execution.
+
+  ## Parameters
+
+  - `command` - Command to execute (must be in allowlist)
+  - `args` - List of command arguments
+
+  ## Returns
+
+  - `{:ok, result}` - Map with exit_code, stdout, stderr
+  - `{:error, reason}` - Error message
+  """
+  @spec shell(String.t(), [String.t()]) :: {:ok, map()} | {:error, String.t()}
+  def shell(command, args) do
+    GenServer.call(__MODULE__, {:sandbox_shell, command, args}, @default_timeout + 5_000)
+  end
+
+  # ============================================================================
   # GenServer Callbacks
   # ============================================================================
 
@@ -179,10 +389,11 @@ defmodule JidoCode.Tools.Manager do
 
     Logger.info("Starting Tools.Manager with project_root: #{project_root}")
 
-    # Initialize Lua state and apply sandbox restrictions
+    # Initialize Lua state, apply sandbox restrictions, and register bridge functions
     lua_state =
       :luerl.init()
       |> apply_sandbox_restrictions()
+      |> Bridge.register(project_root)
 
     {:ok, %{lua_state: lua_state, project_root: project_root}}
   end
@@ -204,9 +415,193 @@ defmodule JidoCode.Tools.Manager do
     {:reply, result, state}
   end
 
+  # Sandbox file operations - call Bridge functions through Lua state
+  @impl true
+  def handle_call({:sandbox_read_file, path}, _from, state) do
+    result = call_bridge_function(state.lua_state, "read_file", [path])
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:sandbox_write_file, path, content}, _from, state) do
+    result = call_bridge_function(state.lua_state, "write_file", [path, content])
+
+    case result do
+      {:ok, true} -> {:reply, :ok, state}
+      {:ok, _} -> {:reply, :ok, state}
+      error -> {:reply, error, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:sandbox_list_dir, path}, _from, state) do
+    result = call_bridge_function(state.lua_state, "list_dir", [path])
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:sandbox_file_stat, path}, _from, state) do
+    case call_bridge_function(state.lua_state, "file_stat", [path]) do
+      {:ok, stat_map} when is_map(stat_map) ->
+        # Convert the map to a File.Stat-like struct with mtime
+        stat = %File.Stat{
+          size: Map.get(stat_map, "size", 0),
+          type: String.to_atom(Map.get(stat_map, "type", "regular")),
+          access: String.to_atom(Map.get(stat_map, "access", "read")),
+          mtime: parse_mtime(Map.get(stat_map, "mtime"))
+        }
+
+        {:reply, {:ok, stat}, state}
+
+      {:ok, other} ->
+        {:reply, {:ok, other}, state}
+
+      error ->
+        {:reply, error, state}
+    end
+  end
+
+  # Parse ISO 8601 datetime string to erlang datetime tuple
+  defp parse_mtime(nil), do: {{1970, 1, 1}, {0, 0, 0}}
+  defp parse_mtime(""), do: {{1970, 1, 1}, {0, 0, 0}}
+
+  defp parse_mtime(mtime_str) when is_binary(mtime_str) do
+    case Regex.run(~r/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/, mtime_str) do
+      [_, year, month, day, hour, minute, second] ->
+        {{String.to_integer(year), String.to_integer(month), String.to_integer(day)},
+         {String.to_integer(hour), String.to_integer(minute), String.to_integer(second)}}
+
+      _ ->
+        {{1970, 1, 1}, {0, 0, 0}}
+    end
+  end
+
+  defp parse_mtime(_), do: {{1970, 1, 1}, {0, 0, 0}}
+
+  @impl true
+  def handle_call({:sandbox_file_exists, path}, _from, state) do
+    result = call_bridge_function(state.lua_state, "file_exists", [path])
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:sandbox_is_file, path}, _from, state) do
+    result = call_bridge_function(state.lua_state, "is_file", [path])
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:sandbox_is_dir, path}, _from, state) do
+    result = call_bridge_function(state.lua_state, "is_dir", [path])
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:sandbox_delete_file, path}, _from, state) do
+    result = call_bridge_function(state.lua_state, "delete_file", [path])
+
+    case result do
+      {:ok, true} -> {:reply, :ok, state}
+      {:ok, _} -> {:reply, :ok, state}
+      error -> {:reply, error, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:sandbox_mkdir_p, path}, _from, state) do
+    result = call_bridge_function(state.lua_state, "mkdir_p", [path])
+
+    case result do
+      {:ok, true} -> {:reply, :ok, state}
+      {:ok, _} -> {:reply, :ok, state}
+      error -> {:reply, error, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:sandbox_shell, command, args}, _from, state) do
+    # Convert args to Lua array format
+    lua_args = Enum.with_index(args, 1) |> Enum.map(fn {arg, idx} -> {idx, arg} end)
+    result = call_bridge_function(state.lua_state, "shell", [command, lua_args])
+    {:reply, result, state}
+  end
+
   # ============================================================================
   # Private Functions
   # ============================================================================
+
+  defp call_bridge_function(lua_state, func_name, args) do
+    # Build Lua call: jido.func_name(args...)
+    args_str =
+      args
+      |> Enum.map(&lua_encode_arg/1)
+      |> Enum.join(", ")
+
+    script = "return jido.#{func_name}(#{args_str})"
+
+    case :luerl.do(script, lua_state) do
+      {:ok, [nil, error_msg], _state} when is_binary(error_msg) ->
+        {:error, error_msg}
+
+      {:ok, [result], _state} ->
+        {:ok, decode_lua_result(result, lua_state)}
+
+      {:ok, [], _state} ->
+        {:ok, nil}
+
+      {:error, reason, _state} ->
+        {:error, format_error(reason)}
+    end
+  rescue
+    e ->
+      {:error, Exception.message(e)}
+  catch
+    kind, reason ->
+      {:error, "#{kind}: #{inspect(reason)}"}
+  end
+
+  defp lua_encode_arg(arg) when is_binary(arg) do
+    # Escape special characters in string
+    escaped =
+      arg
+      |> String.replace("\\", "\\\\")
+      |> String.replace("\"", "\\\"")
+      |> String.replace("\n", "\\n")
+      |> String.replace("\r", "\\r")
+      |> String.replace("\t", "\\t")
+
+    "\"#{escaped}\""
+  end
+
+  defp lua_encode_arg(arg) when is_integer(arg), do: Integer.to_string(arg)
+  defp lua_encode_arg(arg) when is_float(arg), do: Float.to_string(arg)
+  defp lua_encode_arg(true), do: "true"
+  defp lua_encode_arg(false), do: "false"
+  defp lua_encode_arg(nil), do: "nil"
+
+  defp lua_encode_arg(arg) when is_list(arg) do
+    # Encode as Lua table
+    items =
+      arg
+      |> Enum.map(fn
+        {k, v} when is_integer(k) -> "[#{k}] = #{lua_encode_arg(v)}"
+        {k, v} -> "[\"#{k}\"] = #{lua_encode_arg(v)}"
+      end)
+      |> Enum.join(", ")
+
+    "{#{items}}"
+  end
+
+  defp decode_lua_result({:tref, _} = tref, lua_state) do
+    decoded = :luerl.decode(tref, lua_state)
+    decode_lua_table(decoded, lua_state)
+  end
+
+  defp decode_lua_result(list, lua_state) when is_list(list) do
+    decode_lua_table(list, lua_state)
+  end
+
+  defp decode_lua_result(value, _lua_state), do: value
 
   defp apply_sandbox_restrictions(lua_state) do
     Enum.reduce(@restricted_functions, lua_state, fn path, state ->
@@ -330,8 +725,9 @@ defmodule JidoCode.Tools.Manager do
   defp array_table?(table) when is_list(table) do
     keys = Enum.map(table, fn {k, _v} -> k end)
 
+    # Empty list is considered an array
     if Enum.empty?(keys) do
-      false
+      true
     else
       num_keys = length(keys)
       expected = Enum.to_list(1..num_keys)

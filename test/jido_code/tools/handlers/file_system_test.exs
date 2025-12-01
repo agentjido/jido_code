@@ -1,9 +1,11 @@
 defmodule JidoCode.Tools.Handlers.FileSystemTest do
-  use ExUnit.Case, async: true
+  # async: false because we're modifying the shared Manager state
+  use ExUnit.Case, async: false
 
   alias JidoCode.Tools.Handlers.FileSystem.{
     CreateDirectory,
     DeleteFile,
+    EditFile,
     FileInfo,
     ListDirectory,
     ReadFile,
@@ -11,6 +13,12 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
   }
 
   @moduletag :tmp_dir
+
+  # Set up Manager with tmp_dir as project root for sandboxed operations
+  setup %{tmp_dir: tmp_dir} do
+    JidoCode.TestHelpers.ManagerIsolation.set_project_root(tmp_dir)
+    :ok
+  end
 
   # ============================================================================
   # ReadFile Tests
@@ -111,6 +119,180 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       context = %{project_root: tmp_dir}
       assert {:error, error} = WriteFile.execute(%{"path" => "file.txt"}, context)
       assert error =~ "requires path and content"
+    end
+  end
+
+  # ============================================================================
+  # EditFile Tests
+  # ============================================================================
+
+  describe "EditFile.execute/2" do
+    test "replaces single occurrence", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "edit_test.txt")
+      File.write!(file_path, "Hello, World!")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{"path" => "edit_test.txt", "old_string" => "World", "new_string" => "Elixir"},
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      assert File.read!(file_path) == "Hello, Elixir!"
+    end
+
+    test "replaces all occurrences with replace_all", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "multi.txt")
+      File.write!(file_path, "foo bar foo baz foo")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "multi.txt",
+                   "old_string" => "foo",
+                   "new_string" => "qux",
+                   "replace_all" => true
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 3 occurrence"
+      assert File.read!(file_path) == "qux bar qux baz qux"
+    end
+
+    test "replaces multiline strings", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "multiline.ex")
+
+      File.write!(file_path, """
+      defmodule Test do
+        def hello do
+          :world
+        end
+      end
+      """)
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "multiline.ex",
+                   "old_string" => "def hello do\n    :world\n  end",
+                   "new_string" => "def hello do\n    :elixir\n  end"
+                 },
+                 context
+               )
+
+      content = File.read!(file_path)
+      assert content =~ ":elixir"
+      refute content =~ ":world"
+    end
+
+    test "returns error when string not found", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "notfound.txt")
+      File.write!(file_path, "Hello, World!")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} =
+               EditFile.execute(
+                 %{"path" => "notfound.txt", "old_string" => "missing", "new_string" => "found"},
+                 context
+               )
+
+      assert error =~ "String not found"
+    end
+
+    test "returns error for ambiguous match without replace_all", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "ambiguous.txt")
+      File.write!(file_path, "foo foo foo")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} =
+               EditFile.execute(
+                 %{"path" => "ambiguous.txt", "old_string" => "foo", "new_string" => "bar"},
+                 context
+               )
+
+      assert error =~ "Found 3 occurrences"
+      assert error =~ "replace_all: true"
+      # File should remain unchanged
+      assert File.read!(file_path) == "foo foo foo"
+    end
+
+    test "returns error for non-existent file", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} =
+               EditFile.execute(
+                 %{"path" => "missing.txt", "old_string" => "foo", "new_string" => "bar"},
+                 context
+               )
+
+      assert error =~ "File not found"
+    end
+
+    test "returns error for path traversal attempt", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} =
+               EditFile.execute(
+                 %{"path" => "../../../etc/passwd", "old_string" => "root", "new_string" => "hacked"},
+                 context
+               )
+
+      assert error =~ "Security error"
+    end
+
+    test "returns error for missing arguments", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} = EditFile.execute(%{"path" => "file.txt"}, context)
+      assert error =~ "requires path, old_string, and new_string"
+
+      assert {:error, error} =
+               EditFile.execute(%{"path" => "file.txt", "old_string" => "foo"}, context)
+
+      assert error =~ "requires path, old_string, and new_string"
+    end
+
+    test "handles empty replacement string", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "delete_word.txt")
+      File.write!(file_path, "Hello, beautiful World!")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{"path" => "delete_word.txt", "old_string" => "beautiful ", "new_string" => ""},
+                 context
+               )
+
+      assert File.read!(file_path) == "Hello, World!"
+    end
+
+    test "handles special regex characters in old_string", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "special.txt")
+      File.write!(file_path, "function(arg1, arg2)")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "special.txt",
+                   "old_string" => "function(arg1, arg2)",
+                   "new_string" => "func(a, b)"
+                 },
+                 context
+               )
+
+      assert File.read!(file_path) == "func(a, b)"
     end
   end
 

@@ -9,6 +9,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
 
   - `read_file` - Read file contents
   - `write_file` - Write/overwrite file
+  - `edit_file` - Edit file with string replacement
   - `list_directory` - List directory contents
   - `file_info` - Get file metadata
   - `create_directory` - Create directory
@@ -41,6 +42,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
     [
       read_file(),
       write_file(),
+      edit_file(),
       list_directory(),
       file_info(),
       create_directory(),
@@ -103,6 +105,57 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
           type: :string,
           description: "Content to write to the file",
           required: true
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the edit_file tool definition.
+
+  Performs exact string replacement within files. Unlike write_file which
+  overwrites the entire file, edit_file allows targeted modifications.
+
+  ## Parameters
+
+  - `path` (required, string) - Path to the file relative to project root
+  - `old_string` (required, string) - Exact string to find and replace
+  - `new_string` (required, string) - Replacement string
+  - `replace_all` (optional, boolean) - Replace all occurrences (default: false)
+  """
+  @spec edit_file() :: Tool.t()
+  def edit_file do
+    Tool.new!(%{
+      name: "edit_file",
+      description:
+        "Edit a file by replacing an exact string with a new string. " <>
+          "By default requires the old_string to appear exactly once (for safety). " <>
+          "Use replace_all=true to replace all occurrences.",
+      handler: Handlers.EditFile,
+      parameters: [
+        %{
+          name: "path",
+          type: :string,
+          description: "Path to the file to edit (relative to project root)",
+          required: true
+        },
+        %{
+          name: "old_string",
+          type: :string,
+          description: "Exact string to find and replace",
+          required: true
+        },
+        %{
+          name: "new_string",
+          type: :string,
+          description: "Replacement string",
+          required: true
+        },
+        %{
+          name: "replace_all",
+          type: :boolean,
+          description: "Replace all occurrences instead of requiring exactly one match (default: false)",
+          required: false
         }
       ]
     })

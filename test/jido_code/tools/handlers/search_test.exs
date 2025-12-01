@@ -1,9 +1,16 @@
 defmodule JidoCode.Tools.Handlers.SearchTest do
-  use ExUnit.Case, async: true
+  # async: false because we're modifying the shared Manager state
+  use ExUnit.Case, async: false
 
   alias JidoCode.Tools.Handlers.Search.{FindFiles, Grep}
 
   @moduletag :tmp_dir
+
+  # Set up Manager with tmp_dir as project root for sandboxed operations
+  setup %{tmp_dir: tmp_dir} do
+    JidoCode.TestHelpers.ManagerIsolation.set_project_root(tmp_dir)
+    :ok
+  end
 
   # ============================================================================
   # Grep Tests

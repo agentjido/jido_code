@@ -13,6 +13,11 @@ defmodule JidoCode.Tools.Bridge do
   - `jido.write_file(path, content)` - Write content to file
   - `jido.list_dir(path)` - List directory contents
   - `jido.file_exists(path)` - Check if path exists
+  - `jido.file_stat(path)` - Get file metadata (size, type, access)
+  - `jido.is_file(path)` - Check if path is a regular file
+  - `jido.is_dir(path)` - Check if path is a directory
+  - `jido.delete_file(path)` - Delete a file
+  - `jido.mkdir_p(path)` - Create directory (and parents)
 
   Shell operations:
   - `jido.shell(command, args)` - Execute shell command (validated against allowlist)
@@ -234,6 +239,186 @@ defmodule JidoCode.Tools.Bridge do
     end
   end
 
+  @doc """
+  Gets file stats. Called from Lua as `jido.file_stat(path)`.
+
+  ## Parameters
+
+  - `args` - Lua arguments: `[path]`
+  - `state` - Lua state
+  - `project_root` - Project root for path validation
+
+  ## Returns
+
+  - `{[stat_table], state}` on success (stat as Lua table with size, type, etc.)
+  - `{[nil, error], state}` on failure
+  """
+  def lua_file_stat(args, state, project_root) do
+    case args do
+      [path] when is_binary(path) ->
+        with {:ok, safe_path} <- Security.validate_path(path, project_root),
+             {:ok, stat} <- File.stat(safe_path) do
+          # Convert stat to Lua table format
+          # Format mtime as ISO 8601 string
+          mtime_str = format_datetime(stat.mtime)
+
+          stat_table = [
+            {"size", stat.size},
+            {"type", Atom.to_string(stat.type)},
+            {"access", Atom.to_string(stat.access)},
+            {"mtime", mtime_str}
+          ]
+
+          {[stat_table], state}
+        else
+          {:error, reason} when reason in [:path_escapes_boundary, :path_outside_boundary, :symlink_escapes_boundary] ->
+            {[nil, format_security_error(reason, path)], state}
+
+          {:error, reason} ->
+            {[nil, format_file_error(reason, path)], state}
+        end
+
+      _ ->
+        {[nil, "file_stat requires a path argument"], state}
+    end
+  end
+
+  defp format_datetime({{year, month, day}, {hour, minute, second}}) do
+    # Format as ISO 8601
+    :io_lib.format("~4..0B-~2..0B-~2..0BT~2..0B:~2..0B:~2..0B", [year, month, day, hour, minute, second])
+    |> IO.iodata_to_binary()
+  end
+
+  defp format_datetime(_), do: ""
+
+  @doc """
+  Checks if a path is a regular file. Called from Lua as `jido.is_file(path)`.
+
+  ## Parameters
+
+  - `args` - Lua arguments: `[path]`
+  - `state` - Lua state
+  - `project_root` - Project root for path validation
+
+  ## Returns
+
+  - `{[true], state}` if path is a regular file
+  - `{[false], state}` if path is not a regular file (or doesn't exist)
+  - `{[nil, error], state}` on security violation
+  """
+  def lua_is_file(args, state, project_root) do
+    case args do
+      [path] when is_binary(path) ->
+        case Security.validate_path(path, project_root) do
+          {:ok, safe_path} ->
+            {[File.regular?(safe_path)], state}
+
+          {:error, reason} ->
+            {[nil, format_security_error(reason, path)], state}
+        end
+
+      _ ->
+        {[nil, "is_file requires a path argument"], state}
+    end
+  end
+
+  @doc """
+  Checks if a path is a directory. Called from Lua as `jido.is_dir(path)`.
+
+  ## Parameters
+
+  - `args` - Lua arguments: `[path]`
+  - `state` - Lua state
+  - `project_root` - Project root for path validation
+
+  ## Returns
+
+  - `{[true], state}` if path is a directory
+  - `{[false], state}` if path is not a directory (or doesn't exist)
+  - `{[nil, error], state}` on security violation
+  """
+  def lua_is_dir(args, state, project_root) do
+    case args do
+      [path] when is_binary(path) ->
+        case Security.validate_path(path, project_root) do
+          {:ok, safe_path} ->
+            {[File.dir?(safe_path)], state}
+
+          {:error, reason} ->
+            {[nil, format_security_error(reason, path)], state}
+        end
+
+      _ ->
+        {[nil, "is_dir requires a path argument"], state}
+    end
+  end
+
+  @doc """
+  Deletes a file. Called from Lua as `jido.delete_file(path)`.
+
+  ## Parameters
+
+  - `args` - Lua arguments: `[path]`
+  - `state` - Lua state
+  - `project_root` - Project root for path validation
+
+  ## Returns
+
+  - `{[true], state}` on success
+  - `{[nil, error], state}` on failure
+  """
+  def lua_delete_file(args, state, project_root) do
+    case args do
+      [path] when is_binary(path) ->
+        with {:ok, safe_path} <- Security.validate_path(path, project_root),
+             :ok <- File.rm(safe_path) do
+          {[true], state}
+        else
+          {:error, reason} when reason in [:path_escapes_boundary, :path_outside_boundary, :symlink_escapes_boundary] ->
+            {[nil, format_security_error(reason, path)], state}
+
+          {:error, reason} ->
+            {[nil, format_file_error(reason, path)], state}
+        end
+
+      _ ->
+        {[nil, "delete_file requires a path argument"], state}
+    end
+  end
+
+  @doc """
+  Creates a directory (and parents). Called from Lua as `jido.mkdir_p(path)`.
+
+  ## Parameters
+
+  - `args` - Lua arguments: `[path]`
+  - `state` - Lua state
+  - `project_root` - Project root for path validation
+
+  ## Returns
+
+  - `{[true], state}` on success
+  - `{[nil, error], state}` on failure
+  """
+  def lua_mkdir_p(args, state, project_root) do
+    case args do
+      [path] when is_binary(path) ->
+        with {:ok, safe_path} <- Security.validate_path(path, project_root),
+             :ok <- File.mkdir_p(safe_path) do
+          {[true], state}
+        else
+          {:error, reason} when reason in [:path_escapes_boundary, :path_outside_boundary, :symlink_escapes_boundary] ->
+            {[nil, format_security_error(reason, path)], state}
+
+          {:error, reason} ->
+            {[nil, format_file_error(reason, path)], state}
+        end
+
+      _ ->
+        {[nil, "mkdir_p requires a path argument"], state}
+    end
+  end
+
   # ============================================================================
   # Shell Operations
   # ============================================================================
@@ -267,7 +452,10 @@ defmodule JidoCode.Tools.Bridge do
       local result = jido.shell("mix", {"compile"}, {timeout = 120000})
   """
   def lua_shell(args, state, project_root) do
-    case parse_shell_args(args) do
+    # Decode any table references in args before parsing
+    decoded_args = decode_shell_args(args, state)
+
+    case parse_shell_args(decoded_args) do
       {:ok, command, cmd_args, opts} ->
         # SEC-1 Fix: Validate command against allowlist (same as RunCommand handler)
         case Shell.validate_command(command) do
@@ -390,6 +578,11 @@ defmodule JidoCode.Tools.Bridge do
     |> register_function("write_file", &lua_write_file/3, project_root)
     |> register_function("list_dir", &lua_list_dir/3, project_root)
     |> register_function("file_exists", &lua_file_exists/3, project_root)
+    |> register_function("file_stat", &lua_file_stat/3, project_root)
+    |> register_function("is_file", &lua_is_file/3, project_root)
+    |> register_function("is_dir", &lua_is_dir/3, project_root)
+    |> register_function("delete_file", &lua_delete_file/3, project_root)
+    |> register_function("mkdir_p", &lua_mkdir_p/3, project_root)
     |> register_function("shell", &lua_shell/3, project_root)
   end
 
@@ -408,27 +601,38 @@ defmodule JidoCode.Tools.Bridge do
     state
   end
 
+  # Decode table references (tref) in shell args
+  defp decode_shell_args(args, state) do
+    Enum.map(args, fn
+      {:tref, _} = tref ->
+        # Decode Lua table reference
+        :luerl.decode(tref, state)
+
+      other ->
+        other
+    end)
+  end
+
   defp parse_shell_args([command]) when is_binary(command) do
     {:ok, command, [], []}
   end
 
   defp parse_shell_args([command, args_table]) when is_binary(command) and is_list(args_table) do
     # Convert Lua array to list of strings
-    cmd_args =
-      args_table
-      |> Enum.sort_by(fn {idx, _} -> idx end)
-      |> Enum.map(fn {_, val} -> to_string(val) end)
-
+    cmd_args = decode_args_table(args_table)
     {:ok, command, cmd_args, []}
+  end
+
+  # Handle Lua table reference (tref) for args
+  defp parse_shell_args([command, {:tref, _}]) when is_binary(command) do
+    # Table reference needs to be decoded - but we don't have access to lua state here
+    # This case shouldn't happen if we pre-decode in lua_shell
+    {:error, "shell args must be pre-decoded (got tref)"}
   end
 
   defp parse_shell_args([command, args_table, opts_table])
        when is_binary(command) and is_list(args_table) and is_list(opts_table) do
-    cmd_args =
-      args_table
-      |> Enum.sort_by(fn {idx, _} -> idx end)
-      |> Enum.map(fn {_, val} -> to_string(val) end)
-
+    cmd_args = decode_args_table(args_table)
     opts = parse_shell_opts(opts_table)
     {:ok, command, cmd_args, opts}
   end
@@ -436,6 +640,14 @@ defmodule JidoCode.Tools.Bridge do
   defp parse_shell_args(_) do
     {:error, "shell requires a command string and optional args array"}
   end
+
+  defp decode_args_table(args_table) when is_list(args_table) do
+    args_table
+    |> Enum.sort_by(fn {idx, _} -> idx end)
+    |> Enum.map(fn {_, val} -> to_string(val) end)
+  end
+
+  defp decode_args_table(_), do: []
 
   defp parse_shell_opts(opts_table) do
     Enum.reduce(opts_table, [], fn

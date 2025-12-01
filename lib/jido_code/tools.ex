@@ -48,6 +48,51 @@ defmodule JidoCode.Tools do
   """
 
   alias JidoCode.Tools.{Param, Registry, Tool}
+  alias JidoCode.Tools.Definitions
+
+  @doc """
+  Registers all built-in tools with the Registry.
+
+  This is a convenience function to register all available tools at once.
+  Includes: file system, search, shell, livebook, web, todo, and task tools.
+
+  ## Returns
+
+  - `:ok` if all tools registered successfully
+  - `{:error, failed}` with list of tools that failed to register
+
+  ## Examples
+
+      :ok = JidoCode.Tools.register_all()
+  """
+  @spec register_all() :: :ok | {:error, [{String.t(), term()}]}
+  def register_all do
+    tools =
+      Definitions.FileSystem.all() ++
+        Definitions.Search.all() ++
+        Definitions.Shell.all() ++
+        Definitions.Livebook.all() ++
+        Definitions.Web.all() ++
+        Definitions.Todo.all() ++
+        Definitions.Task.all()
+
+    results =
+      Enum.map(tools, fn tool ->
+        case Registry.register(tool) do
+          :ok -> {:ok, tool.name}
+          {:error, :already_registered} -> {:ok, tool.name}
+          {:error, reason} -> {:error, {tool.name, reason}}
+        end
+      end)
+
+    failed = Enum.filter(results, &match?({:error, _}, &1))
+
+    if Enum.empty?(failed) do
+      :ok
+    else
+      {:error, Enum.map(failed, fn {:error, info} -> info end)}
+    end
+  end
 
   @doc """
   Creates a new tool parameter.

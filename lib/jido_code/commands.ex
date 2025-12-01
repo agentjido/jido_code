@@ -61,6 +61,7 @@ defmodule JidoCode.Commands do
     /theme                   - List available themes
     /theme <name>            - Switch to a theme (dark, light, high_contrast)
     /sandbox-test            - Test the Luerl sandbox security (dev/test only)
+    /shell <command> [args]  - Run a shell command (e.g., /shell ls -la)
   """
 
   @doc """
@@ -160,6 +161,14 @@ defmodule JidoCode.Commands do
     else
       {:error, "Command /sandbox-test is only available in dev and test environments"}
     end
+  end
+
+  defp parse_and_execute("/shell " <> rest, _config) do
+    execute_shell_command(String.trim(rest))
+  end
+
+  defp parse_and_execute("/shell", _config) do
+    {:error, "Usage: /shell <command> [args]\n\nExamples:\n  /shell ls -la\n  /shell mix test\n  /shell git status"}
   end
 
   defp parse_and_execute("/" <> command, _config) do
@@ -452,6 +461,53 @@ defmodule JidoCode.Commands do
 
   defp broadcast_config_change(config) do
     Phoenix.PubSub.broadcast(@pubsub, PubSubTopics.tui_events(), {:config_changed, config})
+  end
+
+  # ============================================================================
+  # Shell Command Execution
+  # ============================================================================
+
+  defp execute_shell_command(command_line) do
+    case parse_shell_command(command_line) do
+      {command, args} ->
+        case Manager.shell(command, args) do
+          {:ok, %{"exit_code" => 0, "stdout" => stdout, "stderr" => stderr}} ->
+            output = format_shell_output(stdout, stderr)
+            {:ok, output, %{}}
+
+          {:ok, %{"exit_code" => code, "stdout" => stdout, "stderr" => stderr}} ->
+            output = format_shell_output(stdout, stderr)
+            {:ok, "#{output}\n[Exit code: #{code}]", %{}}
+
+          {:error, reason} when is_binary(reason) ->
+            {:error, reason}
+
+          {:error, reason} ->
+            {:error, "Shell error: #{inspect(reason)}"}
+        end
+
+      :error ->
+        {:error, "Invalid command format"}
+    end
+  end
+
+  defp parse_shell_command(command_line) do
+    case String.split(command_line, ~r/\s+/, parts: :infinity) do
+      [command | args] when command != "" -> {command, args}
+      _ -> :error
+    end
+  end
+
+  defp format_shell_output(stdout, stderr) do
+    stdout = String.trim(stdout)
+    stderr = String.trim(stderr)
+
+    cond do
+      stdout != "" and stderr != "" -> "#{stdout}\n\n[stderr]\n#{stderr}"
+      stdout != "" -> stdout
+      stderr != "" -> "[stderr]\n#{stderr}"
+      true -> "(no output)"
+    end
   end
 
   # ============================================================================

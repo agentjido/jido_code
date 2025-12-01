@@ -827,11 +827,18 @@ defmodule JidoCode.Settings do
     if provider_atom do
       # Use ReqLLM registry via Registry
       # This returns ReqLLM.Model structs with full metadata
-      case Registry.list_models(provider_atom) do
-        {:ok, models} when is_list(models) ->
-          extract_model_names(models)
+      # Wrap in try/rescue to handle ETS table not existing
+      try do
+        case Registry.list_models(provider_atom) do
+          {:ok, models} when is_list(models) ->
+            extract_model_names(models)
 
-        _ ->
+          _ ->
+            []
+        end
+      rescue
+        ArgumentError ->
+          # ETS table doesn't exist - registry not initialized
           []
       end
     else

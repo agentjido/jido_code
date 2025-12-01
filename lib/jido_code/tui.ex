@@ -38,6 +38,7 @@ defmodule JidoCode.TUI do
 
   require Logger
 
+  alias Jido.AI.Keyring
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.AgentSupervisor
   alias JidoCode.Commands
@@ -49,7 +50,7 @@ defmodule JidoCode.TUI do
   alias JidoCode.TUI.ViewHelpers
   alias TermUI.Event
   alias TermUI.Renderer.Style
-  alias TermUI.Widgets.Dialog
+  alias TermUI.Widget.PickList
   alias TermUI.Widgets.TextInput
   alias TermUI.Widgets.Viewport
 
@@ -141,7 +142,8 @@ defmodule JidoCode.TUI do
             is_streaming: boolean(),
             session_topic: String.t() | nil,
             shell_dialog: map() | nil,
-            shell_viewport: map() | nil
+            shell_viewport: map() | nil,
+            pick_list: map() | nil
           }
 
     @enforce_keys []
@@ -161,7 +163,8 @@ defmodule JidoCode.TUI do
               is_streaming: false,
               session_topic: nil,
               shell_dialog: nil,
-              shell_viewport: nil
+              shell_viewport: nil,
+              pick_list: nil
   end
 
   # ============================================================================
@@ -270,19 +273,48 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Enter key - submit current input
-  def event_to_msg(%Event.Key{key: :enter}, state) do
-    value = TextInput.get_value(state.text_input)
-    {:msg, {:input_submitted, value}}
+  # Enter key - forward to modal if open, otherwise submit current input
+  def event_to_msg(%Event.Key{key: :enter} = event, state) do
+    cond do
+      state.pick_list -> {:msg, {:pick_list_event, event}}
+      state.shell_dialog -> {:msg, {:input_event, event}}
+      true ->
+        value = TextInput.get_value(state.text_input)
+        {:msg, {:input_submitted, value}}
+    end
   end
 
-  # Scroll navigation - up/down arrows scroll the message history
-  def event_to_msg(%Event.Key{key: :up}, _state) do
-    {:msg, {:scroll, :up}}
+  # Escape key - forward to modal if open
+  def event_to_msg(%Event.Key{key: :escape} = event, state) do
+    cond do
+      state.pick_list -> {:msg, {:pick_list_event, event}}
+      state.shell_dialog -> {:msg, {:input_event, event}}
+      true -> {:msg, {:input_event, event}}
+    end
   end
 
-  def event_to_msg(%Event.Key{key: :down}, _state) do
-    {:msg, {:scroll, :down}}
+  # Scroll navigation - if modal open, forward to modal; otherwise scroll messages
+  def event_to_msg(%Event.Key{key: key} = event, state)
+      when key in [:up, :down, :page_up, :page_down, :home, :end] do
+    cond do
+      state.pick_list -> {:msg, {:pick_list_event, event}}
+      state.shell_dialog -> {:msg, {:input_event, event}}
+      true ->
+        case key do
+          :up -> {:msg, {:scroll, :up}}
+          :down -> {:msg, {:scroll, :down}}
+          _ -> {:msg, {:input_event, event}}
+        end
+    end
+  end
+
+  # Backspace - forward to pick_list if open (for filter), otherwise to text input
+  def event_to_msg(%Event.Key{key: :backspace} = event, state) do
+    if state.pick_list do
+      {:msg, {:pick_list_event, event}}
+    else
+      {:msg, {:input_event, event}}
+    end
   end
 
   # Resize events
@@ -290,9 +322,13 @@ defmodule JidoCode.TUI do
     {:msg, {:resize, width, height}}
   end
 
-  # Forward all other key events to TextInput widget
-  def event_to_msg(%Event.Key{} = event, _state) do
-    {:msg, {:input_event, event}}
+  # Forward all other key events - to pick_list if open, otherwise to TextInput widget
+  def event_to_msg(%Event.Key{} = event, state) do
+    if state.pick_list do
+      {:msg, {:pick_list_event, event}}
+    else
+      {:msg, {:input_event, event}}
+    end
   end
 
   def event_to_msg(_event, _state) do
@@ -312,27 +348,40 @@ defmodule JidoCode.TUI do
   """
   @impl true
   # Handle shell dialog - intercept all input when dialog is open
-  def update({:input_event, event}, %{shell_dialog: dialog} = state)
+  def update({:input_event, %Event.Key{} = event}, %{shell_dialog: dialog} = state)
       when not is_nil(dialog) do
-    # Convert to TermUI.Event format
-    term_event = convert_to_term_event(event)
-
     case event do
       # Close on Enter, Escape, or 'q'
-      {:key, key} when key in [:enter, :escape] ->
+      %Event.Key{key: key} when key in [:enter, :escape] ->
         {%{state | shell_dialog: nil, shell_viewport: nil}, []}
 
-      {:key, "q"} ->
+      %Event.Key{key: "q"} ->
         {%{state | shell_dialog: nil, shell_viewport: nil}, []}
 
       # Forward scroll events to viewport
-      {:key, key} when key in [:up, :down, :page_up, :page_down, :home, :end] ->
-        case Viewport.handle_event(term_event, state.shell_viewport) do
+      %Event.Key{key: key} when key in [:up, :down, :page_up, :page_down, :home, :end] ->
+        case Viewport.handle_event(event, state.shell_viewport) do
           {:ok, new_viewport} ->
             {%{state | shell_viewport: new_viewport}, []}
           _ ->
             {state, []}
         end
+
+      _ ->
+        {state, []}
+    end
+  end
+
+  # Handle pick_list events - intercept all input when pick list is open
+  def update({:pick_list_event, %Event.Key{} = event}, %{pick_list: pick_list} = state)
+      when not is_nil(pick_list) do
+    case PickList.handle_event(event, pick_list) do
+      {:ok, new_pick_list} ->
+        {%{state | pick_list: new_pick_list}, []}
+
+      {:ok, new_pick_list, actions} ->
+        # Handle actions from PickList (select, cancel)
+        handle_pick_list_actions(state, new_pick_list, actions)
 
       _ ->
         {state, []}
@@ -463,12 +512,6 @@ defmodule JidoCode.TUI do
     {state, []}
   end
 
-  # Convert internal event format to TermUI.Event
-  defp convert_to_term_event({:key, key}) do
-    %Event.Key{key: key, modifiers: []}
-  end
-  defp convert_to_term_event(_), do: nil
-
   # ============================================================================
   # Message Builder Helpers
   # ============================================================================
@@ -501,6 +544,69 @@ defmodule JidoCode.TUI do
   # Update Helpers
   # ============================================================================
 
+  # Handle actions returned from PickList widget
+  defp handle_pick_list_actions(state, _new_pick_list, actions) do
+    pick_list_type = state.pick_list.props[:pick_list_type]
+    provider = state.pick_list.props[:provider]
+
+    Enum.reduce(actions, {%{state | pick_list: nil}, []}, fn action, {acc_state, acc_cmds} ->
+      case action do
+        {:send, _pid, {:select, selected}} ->
+          handle_pick_list_selection(acc_state, acc_cmds, pick_list_type, provider, selected)
+
+        {:send, _pid, :cancel} ->
+          # Selection was cancelled
+          {acc_state, acc_cmds}
+
+        _ ->
+          {acc_state, acc_cmds}
+      end
+    end)
+  end
+
+  defp handle_pick_list_selection(state, cmds, :provider, _provider, selected_provider) do
+    # Provider was selected - set it via Commands
+    result = Commands.execute("/provider #{selected_provider}", state.config)
+    apply_command_result(state, cmds, result)
+  end
+
+  defp handle_pick_list_selection(state, cmds, :model, provider, model) do
+    # Model was selected - set it via Commands
+    result = Commands.execute("/model #{provider}:#{model}", state.config)
+    apply_command_result(state, cmds, result)
+  end
+
+  defp handle_pick_list_selection(state, cmds, _, _, _) do
+    {state, cmds}
+  end
+
+  defp apply_command_result(state, cmds, result) do
+    case result do
+      {:ok, message, new_config} ->
+        system_msg = system_message(message)
+        updated_config = %{
+          provider: new_config[:provider] || state.config.provider,
+          model: new_config[:model] || state.config.model
+        }
+        new_status = determine_status(updated_config)
+        new_state = %{
+          state
+          | messages: [system_msg | state.messages],
+            config: updated_config,
+            agent_status: new_status
+        }
+        {new_state, cmds}
+
+      {:error, error_message} ->
+        error_msg = system_message(error_message)
+        new_state = %{state | messages: [error_msg | state.messages]}
+        {new_state, cmds}
+
+      _ ->
+        {state, cmds}
+    end
+  end
+
   # Handle command input (starts with /)
   defp do_handle_command(text, state) do
     case Commands.execute(text, state.config) do
@@ -530,32 +636,58 @@ defmodule JidoCode.TUI do
 
         {new_state, []}
 
+      {:pick_list, type_or_provider, items, title} ->
+        # Show interactive picker using PickList widget
+        # type_or_provider is :provider for provider selection, or a provider name string for model selection
+        {width, height} = state.window
+
+        {pick_list_type, provider} =
+          if type_or_provider == :provider do
+            {:provider, nil}
+          else
+            {:model, type_or_provider}
+          end
+
+        pick_list_props = %{
+          items: items,
+          title: title,
+          width: min(60, width - 4),
+          height: min(20, height - 4),
+          pick_list_type: pick_list_type,
+          provider: provider
+        }
+        {:ok, pick_list_state} = PickList.init(pick_list_props)
+
+        new_state = %{state | pick_list: pick_list_state}
+        {new_state, []}
+
       {:shell_output, command, output} ->
         # Show shell output in modal dialog using widgets
         {width, height} = state.window
         lines = String.split(output, "\n")
         content_height = length(lines)
 
+        # Calculate modal dimensions - 70% of window, capped at reasonable sizes
+        modal_width = min(div(width * 70, 100), 100) |> max(40)
+        modal_height = min(div(height * 70, 100), 30) |> max(10)
+
+        # Viewport dimensions account for border (2), title (1), blank (1), footer (1), blank (1)
+        viewport_width = modal_width - 4
+        viewport_height = modal_height - 6
+
         # Create viewport for scrollable content
         viewport_content = stack(:vertical, Enum.map(lines, &text(&1, nil)))
         viewport_props = Viewport.new(
           content: viewport_content,
           content_height: content_height,
-          width: max(width - 8, 20),
-          height: max(height - 10, 5),
+          width: viewport_width,
+          height: viewport_height,
           scroll_bars: :vertical
         )
         {:ok, viewport_state} = Viewport.init(viewport_props)
 
-        # Create dialog
-        dialog_props = Dialog.new(
-          title: "Shell: #{command}",
-          content: empty(),  # Content will be rendered from viewport
-          buttons: [%{id: :ok, label: "OK", default: true}],
-          width: max(width - 4, 30),
-          closeable: true
-        )
-        {:ok, dialog_state} = Dialog.init(dialog_props)
+        # Create dialog state (we use a simple map, not the full Dialog widget)
+        dialog_state = %{title: "Shell: #{command}"}
 
         new_state = %{state | shell_dialog: dialog_state, shell_viewport: viewport_state}
         {new_state, []}
@@ -668,19 +800,19 @@ defmodule JidoCode.TUI do
   """
   @impl true
   def view(state) do
-    # Render shell dialog if present
-    if state.shell_dialog do
-      render_shell_dialog(state)
-    else
-      case state.agent_status do
-        :unconfigured ->
-          # Show configuration screen when not configured
-          render_unconfigured_view(state)
+    # Always show main view - status bar displays "No provider" / "No model" when unconfigured
+    main_view = render_main_view(state)
 
-        _ ->
-          # Show main chat interface when configured
-          render_main_view(state)
-      end
+    # Overlay modals if present (pick_list takes priority over shell_dialog)
+    cond do
+      state.pick_list ->
+        overlay_pick_list(state, main_view)
+
+      state.shell_dialog ->
+        overlay_shell_dialog(state, main_view)
+
+      true ->
+        main_view
     end
   end
 
@@ -699,10 +831,14 @@ defmodule JidoCode.TUI do
         end
       else
         # Standard layout without reasoning panel
+        # Layout: status bar | separator | main UI | separator | text input | separator | key controls
         stack(:vertical, [
           ViewHelpers.render_status_bar(state),
+          ViewHelpers.render_separator(state),
           ViewHelpers.render_conversation(state),
+          ViewHelpers.render_separator(state),
           ViewHelpers.render_input_bar(state),
+          ViewHelpers.render_separator(state),
           ViewHelpers.render_help_bar(state)
         ])
       end
@@ -714,11 +850,14 @@ defmodule JidoCode.TUI do
     # Side-by-side layout for wide terminals
     stack(:vertical, [
       ViewHelpers.render_status_bar(state),
+      ViewHelpers.render_separator(state),
       stack(:horizontal, [
         ViewHelpers.render_conversation(state),
         ViewHelpers.render_reasoning(state)
       ]),
+      ViewHelpers.render_separator(state),
       ViewHelpers.render_input_bar(state),
+      ViewHelpers.render_separator(state),
       ViewHelpers.render_help_bar(state)
     ])
   end
@@ -727,39 +866,35 @@ defmodule JidoCode.TUI do
     # Stacked layout with reasoning drawer for narrow terminals
     stack(:vertical, [
       ViewHelpers.render_status_bar(state),
+      ViewHelpers.render_separator(state),
       ViewHelpers.render_conversation(state),
       ViewHelpers.render_reasoning_compact(state),
+      ViewHelpers.render_separator(state),
       ViewHelpers.render_input_bar(state),
+      ViewHelpers.render_separator(state),
       ViewHelpers.render_help_bar(state)
     ])
   end
 
-  defp render_unconfigured_view(state) do
-    content =
-      stack(:vertical, [
-        ViewHelpers.render_status_bar(state),
-        text("", nil),
-        text("JidoCode - Agentic Coding Assistant", Style.new(fg: :cyan, attrs: [:bold])),
-        text("", nil),
-        ViewHelpers.render_config_info(state),
-        text("", nil),
-        text("Press Ctrl+C to quit", Style.new(fg: :bright_black))
-      ])
-
-    ViewHelpers.render_with_border(state, content)
-  end
-
-  defp render_shell_dialog(state) do
+  defp overlay_shell_dialog(state, main_view) do
     {width, height} = state.window
 
+    # Calculate modal dimensions - 70% of window, capped at reasonable sizes
+    modal_width = min(div(width * 70, 100), 100) |> max(40)
+    modal_height = min(div(height * 70, 100), 30) |> max(10)
+
+    # Viewport dimensions account for border (2), title (1), blank (1), footer (1), blank (1)
+    viewport_width = modal_width - 4
+    viewport_height = modal_height - 6
+
     # Render the viewport content
-    viewport_view = Viewport.render(state.shell_viewport, %{width: width - 8, height: height - 10})
+    viewport_view = Viewport.render(state.shell_viewport, %{width: viewport_width, height: viewport_height})
 
     # Build dialog content with title, viewport, and footer
     title = text(state.shell_dialog.title, Style.new(fg: :cyan, attrs: [:bold]))
     footer = text("[Enter/Esc/q] Close  [↑↓/PgUp/PgDn] Scroll", Style.new(fg: :bright_black))
 
-    content = stack(:vertical, [
+    dialog_content = stack(:vertical, [
       title,
       text("", nil),
       viewport_view,
@@ -767,7 +902,49 @@ defmodule JidoCode.TUI do
       footer
     ])
 
-    ViewHelpers.render_modal_with_border(state, content)
+    # Build the dialog box with border
+    dialog_box = ViewHelpers.render_dialog_box(dialog_content, modal_width, modal_height)
+
+    # Calculate position to center the dialog
+    dialog_x = div(width - modal_width, 2)
+    dialog_y = div(height - modal_height, 2)
+
+    # Return list of nodes - main view renders first, then overlay renders on top at absolute position
+    [
+      main_view,
+      %{
+        type: :overlay,
+        content: dialog_box,
+        x: dialog_x,
+        y: dialog_y,
+        z: 100,
+        width: modal_width,
+        height: modal_height,
+        bg: Style.new(bg: :black)
+      }
+    ]
+  end
+
+  defp overlay_pick_list(state, main_view) do
+    {width, height} = state.window
+
+    # PickList.render returns a RenderNode with cells at absolute positions
+    # We need to pass an area that represents the full window
+    area = %{width: width, height: height}
+    pick_list_view = PickList.render(state.pick_list, area)
+
+    # Wrap in overlay at position 0,0 so the absolute cell positions work correctly
+    # The PickList cells already contain their absolute screen coordinates
+    [
+      main_view,
+      %{
+        type: :overlay,
+        content: pick_list_view,
+        x: 0,
+        y: 0,
+        z: 100
+      }
+    ]
   end
 
   # ============================================================================
@@ -792,10 +969,51 @@ defmodule JidoCode.TUI do
   defp load_config do
     {:ok, settings} = Settings.load()
 
-    %{
-      provider: Map.get(settings, "provider"),
-      model: Map.get(settings, "model")
-    }
+    provider = Map.get(settings, "provider")
+    model = Map.get(settings, "model")
+
+    # Only use provider/model if the API key is available
+    if provider && has_api_key?(provider) do
+      %{provider: provider, model: model}
+    else
+      %{provider: nil, model: nil}
+    end
+  end
+
+  # Check if API key is available for the provider
+  defp has_api_key?(provider) do
+    key_name = provider_to_key_name(provider)
+
+    case Keyring.get(key_name) do
+      nil -> false
+      "" -> false
+      _key -> true
+    end
+  end
+
+  # Known provider to API key name mapping
+  @provider_keys %{
+    "openai" => :openai_api_key,
+    "anthropic" => :anthropic_api_key,
+    "openrouter" => :openrouter_api_key,
+    "azure" => :azure_api_key,
+    "google" => :google_api_key,
+    "gemini" => :google_api_key,
+    "cohere" => :cohere_api_key,
+    "mistral" => :mistral_api_key,
+    "groq" => :groq_api_key,
+    "together" => :together_api_key,
+    "fireworks" => :fireworks_api_key,
+    "deepseek" => :deepseek_api_key,
+    "perplexity" => :perplexity_api_key,
+    "xai" => :xai_api_key,
+    "ollama" => :ollama_api_key,
+    "cerebras" => :cerebras_api_key,
+    "sambanova" => :sambanova_api_key
+  }
+
+  defp provider_to_key_name(provider) do
+    Map.get(@provider_keys, provider, :unknown_provider_api_key)
   end
 
   @doc false

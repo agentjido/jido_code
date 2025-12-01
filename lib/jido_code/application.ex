@@ -37,6 +37,9 @@ defmodule JidoCode.Application do
       # Settings cache (must start before anything that might use Settings)
       JidoCode.Settings.Cache,
 
+      # Model registry cache for Jido.AI (must start before model listings)
+      Jido.AI.Model.Registry.Cache,
+
       # Theme server for TUI styling (load from settings or default to dark)
       {TermUI.Theme, theme: load_theme_from_settings()},
 

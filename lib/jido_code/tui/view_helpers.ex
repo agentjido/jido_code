@@ -55,8 +55,8 @@ defmodule JidoCode.TUI.ViewHelpers do
   @spec render_with_border(Model.t(), TermUI.View.t()) :: TermUI.View.t()
   def render_with_border(state, content) do
     {width, height} = state.window
-    border_style = theme_to_renderer_style(Theme.get_component_style(:border, :focused)) ||
-                   Style.new(fg: :blue)
+    # Use same color as separators for consistent appearance
+    border_style = Style.new(fg: Theme.get_color(:secondary) || :bright_black)
 
     # Content area is inside the border (width - 2 for side borders, height - 2 for top/bottom)
     content_height = max(height - 2, 1)
@@ -78,16 +78,22 @@ defmodule JidoCode.TUI.ViewHelpers do
   @doc """
   Renders content in a modal dialog with single-line border and padding.
   Uses a lighter color than the main TUI border.
+
+  Options:
+  - `:modal_width` - Width of the modal (default: 60% of window width, max 80)
+  - `:modal_height` - Height of the modal (default: 60% of window height, max 20)
   """
-  @spec render_modal_with_border(Model.t(), TermUI.View.t()) :: TermUI.View.t()
-  def render_modal_with_border(state, content) do
+  @spec render_modal_with_border(Model.t(), TermUI.View.t(), keyword()) :: TermUI.View.t()
+  def render_modal_with_border(state, content, opts \\ []) do
     {width, height} = state.window
-    padding = 2
     border_style = Style.new(fg: :bright_black)
 
-    # Modal is inset by padding on all sides
-    modal_width = max(width - (padding * 2), 10)
-    modal_height = max(height - (padding * 2), 5)
+    # Calculate modal dimensions - centered dialog, not full screen
+    default_modal_width = min(div(width * 60, 100), 80)
+    default_modal_height = min(div(height * 60, 100), 20)
+
+    modal_width = Keyword.get(opts, :modal_width, default_modal_width) |> max(20)
+    modal_height = Keyword.get(opts, :modal_height, default_modal_height) |> max(8)
 
     # Content area is inside the modal border
     content_height = max(modal_height - 2, 1)
@@ -103,20 +109,47 @@ defmodule JidoCode.TUI.ViewHelpers do
     # Build the modal box
     modal_box = stack(:vertical, [top_border | middle_rows] ++ [bottom_border])
 
+    # Calculate padding to center the modal
+    h_padding = div(width - modal_width, 2)
+    v_padding = div(height - modal_height, 2)
+
     # Create padding rows (empty lines above and below the modal)
     padding_row = text(String.duplicate(" ", width), nil)
-    top_padding = List.duplicate(padding_row, padding)
-    bottom_padding = List.duplicate(padding_row, padding)
+    top_padding = List.duplicate(padding_row, v_padding)
+    bottom_padding = List.duplicate(padding_row, max(height - modal_height - v_padding, 0))
 
     # Wrap modal with horizontal padding using spaces
-    left_pad = text(String.duplicate(" ", padding), nil)
-    right_pad = text(String.duplicate(" ", padding), nil)
+    left_pad = text(String.duplicate(" ", h_padding), nil)
+    right_pad = text(String.duplicate(" ", max(width - modal_width - h_padding, 0)), nil)
     padded_modal = stack(:horizontal, [left_pad, modal_box, right_pad])
 
     # Stack everything vertically
     box([
       stack(:vertical, top_padding ++ [padded_modal] ++ bottom_padding)
     ], width: width, height: height)
+  end
+
+  @doc """
+  Renders a dialog box with single-line border at the specified dimensions.
+  Used for overlay dialogs that are positioned separately.
+  """
+  @spec render_dialog_box(TermUI.View.t(), pos_integer(), pos_integer()) :: TermUI.View.t()
+  def render_dialog_box(content, width, height) do
+    border_style = Style.new(fg: :bright_black)
+
+    # Content area is inside the border
+    content_height = max(height - 2, 1)
+    content_width = max(width - 2, 1)
+
+    # Build the border lines
+    top_border = render_modal_top_border(width, border_style)
+    bottom_border = render_modal_bottom_border(width, border_style)
+
+    # Create middle section with side borders and content
+    middle_rows = render_modal_middle_rows(content, content_width, content_height, border_style)
+
+    # Build the dialog box
+    stack(:vertical, [top_border | middle_rows] ++ [bottom_border])
   end
 
   defp render_modal_top_border(width, style) do
@@ -175,6 +208,26 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   # ============================================================================
+  # Separator
+  # ============================================================================
+
+  @doc """
+  Renders a horizontal separator line using single-line box characters.
+  Connects to the outer double-line border.
+  """
+  @spec render_separator(Model.t()) :: TermUI.View.t()
+  def render_separator(state) do
+    {width, _height} = state.window
+    content_width = max(width - 2, 1)
+
+    separator_style = Style.new(fg: Theme.get_color(:secondary) || :bright_black)
+
+    # Use single-line horizontal character for the separator
+    separator_line = String.duplicate("─", content_width)
+    text(separator_line, separator_style)
+  end
+
+  # ============================================================================
   # Status Bar
   # ============================================================================
 
@@ -213,7 +266,7 @@ defmodule JidoCode.TUI.ViewHelpers do
     hints = "#{reasoning_hint} | #{tools_hint} | Ctrl+M: Model | Ctrl+C: Quit"
 
     padded_text = pad_or_truncate(hints, content_width)
-    bar_style = Style.new(fg: Theme.get_color(:foreground) || :white, bg: Theme.get_color(:primary) || :blue)
+    bar_style = Style.new(fg: Theme.get_color(:foreground) || :white, bg: :black)
 
     text(padded_text, bar_style)
   end
@@ -240,8 +293,7 @@ defmodule JidoCode.TUI.ViewHelpers do
         true -> Theme.get_color(:foreground) || :white
       end
 
-    bg_color = Theme.get_color(:primary) || :blue
-    Style.new(fg: fg_color, bg: bg_color)
+    Style.new(fg: fg_color, bg: :black)
   end
 
   defp has_active_reasoning?(state) do
@@ -271,8 +323,8 @@ defmodule JidoCode.TUI.ViewHelpers do
   @spec render_conversation(Model.t()) :: TermUI.View.t()
   def render_conversation(state) do
     {width, height} = state.window
-    # Available height: total height - 2 (borders) - 1 (status bar) - 1 (input bar) - 1 (help bar)
-    available_height = max(height - 5, 1)
+    # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
+    available_height = max(height - 8, 1)
     content_width = max(width - 2, 1)
     has_content = state.messages != [] or state.tool_calls != [] or state.is_streaming
 

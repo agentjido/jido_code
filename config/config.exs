@@ -12,5 +12,11 @@ config :logger, :console,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id, :agent]
 
+# Suppress noisy debug messages from jido_ai registry adapter
+config :logger,
+  compile_time_purge_matching: [
+    [module: Jido.AI.Model.Registry.Adapter, level_lower_than: :info]
+  ]
+
 # Import environment specific config
 import_config "#{config_env()}.exs"

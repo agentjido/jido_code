@@ -186,17 +186,14 @@ defmodule JidoCode.Commands do
   # ============================================================================
 
   defp execute_provider_command(provider) do
-    case validate_provider(provider) do
-      :ok ->
-        # Save to settings
-        Settings.set(:local, "provider", provider)
-        Settings.set(:local, "model", nil)
+    with :ok <- validate_provider(provider),
+         :ok <- validate_api_key(provider) do
+      # Save to settings
+      Settings.set(:local, "provider", provider)
+      Settings.set(:local, "model", nil)
 
-        new_config = %{provider: provider, model: nil}
-        {:ok, "Provider set to #{provider}. Use /models to see available models.", new_config}
-
-      {:error, reason} ->
-        {:error, reason}
+      new_config = %{provider: provider, model: nil}
+      {:ok, "Provider set to #{provider}. Use /models to see available models.", new_config}
     end
   end
 
@@ -264,10 +261,8 @@ defmodule JidoCode.Commands do
         if models == [] do
           {:ok, "No models found for provider: #{provider}", %{}}
         else
-          model_list = models |> Enum.take(20) |> Enum.join("\n  ")
-          count = length(models)
-          suffix = if count > 20, do: "\n  ... and #{count - 20} more", else: ""
-          {:ok, "Models for #{provider}:\n  #{model_list}#{suffix}", %{}}
+          # Return pick_list tuple to show interactive model picker
+          {:pick_list, provider, models, "Select Model (#{provider})"}
         end
 
       {:error, reason} ->
@@ -281,10 +276,9 @@ defmodule JidoCode.Commands do
     if providers == [] do
       {:ok, "No providers available", %{}}
     else
-      provider_list = providers |> Enum.take(20) |> Enum.join("\n  ")
-      count = length(providers)
-      suffix = if count > 20, do: "\n  ... and #{count - 20} more", else: ""
-      {:ok, "Available providers:\n  #{provider_list}#{suffix}", %{}}
+      # Return pick_list tuple to show interactive provider picker
+      # Use :provider as the type to distinguish from model selection
+      {:pick_list, :provider, providers, "Select Provider"}
     end
   end
 

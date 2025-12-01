@@ -137,7 +137,8 @@ defmodule JidoCode.TUI do
             agent_name: atom(),
             streaming_message: String.t() | nil,
             is_streaming: boolean(),
-            session_topic: String.t() | nil
+            session_topic: String.t() | nil,
+            shell_output: {String.t(), String.t(), non_neg_integer()} | nil
           }
 
     @enforce_keys []
@@ -155,7 +156,8 @@ defmodule JidoCode.TUI do
               agent_name: :llm_agent,
               streaming_message: nil,
               is_streaming: false,
-              session_topic: nil
+              session_topic: nil,
+              shell_output: nil
   end
 
   # ============================================================================
@@ -305,6 +307,47 @@ defmodule JidoCode.TUI do
   - PubSub messages for agent events
   """
   @impl true
+  # Handle shell output modal - intercept all input when modal is open
+  def update({:input_event, event}, %{shell_output: {_cmd, _output, scroll}} = state)
+      when not is_nil(state.shell_output) do
+    case event do
+      # Close modal on Enter, Escape, or 'q'
+      {:key, :enter} ->
+        {%{state | shell_output: nil}, []}
+
+      {:key, :escape} ->
+        {%{state | shell_output: nil}, []}
+
+      {:key, "q"} ->
+        {%{state | shell_output: nil}, []}
+
+      # Scroll up
+      {:key, :up} ->
+        new_scroll = max(0, scroll - 1)
+        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
+
+      {:key, :page_up} ->
+        new_scroll = max(0, scroll - 10)
+        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
+
+      # Scroll down
+      {:key, :down} ->
+        {_cmd, output, _} = state.shell_output
+        max_scroll = max(0, length(String.split(output, "\n")) - 10)
+        new_scroll = min(max_scroll, scroll + 1)
+        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
+
+      {:key, :page_down} ->
+        {_cmd, output, _} = state.shell_output
+        max_scroll = max(0, length(String.split(output, "\n")) - 10)
+        new_scroll = min(max_scroll, scroll + 10)
+        {%{state | shell_output: put_elem(state.shell_output, 2, new_scroll)}, []}
+
+      _ ->
+        {state, []}
+    end
+  end
+
   # Forward keyboard events to TextInput widget
   def update({:input_event, event}, state) do
     {:ok, new_text_input} = TextInput.handle_event(event, state.text_input)
@@ -490,6 +533,11 @@ defmodule JidoCode.TUI do
 
         {new_state, []}
 
+      {:shell_output, command, output} ->
+        # Show shell output in modal dialog
+        new_state = %{state | shell_output: {command, output, 0}}
+        {new_state, []}
+
       {:error, error_message} ->
         error_msg = system_message(error_message)
 
@@ -598,14 +646,19 @@ defmodule JidoCode.TUI do
   """
   @impl true
   def view(state) do
-    case state.agent_status do
-      :unconfigured ->
-        # Show configuration screen when not configured
-        render_unconfigured_view(state)
+    # Render shell output modal if present
+    if state.shell_output do
+      render_shell_output_modal(state)
+    else
+      case state.agent_status do
+        :unconfigured ->
+          # Show configuration screen when not configured
+          render_unconfigured_view(state)
 
-      _ ->
-        # Show main chat interface when configured
-        render_main_view(state)
+        _ ->
+          # Show main chat interface when configured
+          render_main_view(state)
+      end
     end
   end
 
@@ -669,6 +722,69 @@ defmodule JidoCode.TUI do
         ViewHelpers.render_config_info(state),
         text("", nil),
         text("Press Ctrl+C to quit", Style.new(fg: :bright_black))
+      ])
+
+    ViewHelpers.render_with_border(state, content)
+  end
+
+  defp render_shell_output_modal(state) do
+    {width, height} = state.window
+    {command, output, scroll} = state.shell_output
+
+    # Calculate modal dimensions
+    modal_width = min(width - 4, 100)
+    modal_height = height - 6
+
+    # Split output into lines and apply scroll
+    lines = String.split(output, "\n")
+    total_lines = length(lines)
+    visible_lines = max(1, modal_height - 4)
+
+    displayed_lines =
+      lines
+      |> Enum.drop(scroll)
+      |> Enum.take(visible_lines)
+      |> Enum.map(fn line ->
+        # Truncate long lines
+        if String.length(line) > modal_width - 4 do
+          String.slice(line, 0, modal_width - 7) <> "..."
+        else
+          line
+        end
+      end)
+
+    # Build scroll indicator
+    scroll_info =
+      if total_lines > visible_lines do
+        " (#{scroll + 1}-#{min(scroll + visible_lines, total_lines)}/#{total_lines})"
+      else
+        ""
+      end
+
+    # Header
+    header_text = "Shell: #{command}#{scroll_info}"
+    header = text(header_text, Style.new(fg: :cyan, attrs: [:bold]))
+
+    # Output lines
+    output_elements =
+      displayed_lines
+      |> Enum.map(fn line -> text(line, Style.new(fg: :white)) end)
+
+    # Pad with empty lines if needed
+    padding_count = max(0, visible_lines - length(displayed_lines))
+    padding = List.duplicate(text("", nil), padding_count)
+
+    # Footer with instructions
+    footer = text("[Enter/Esc/q] Close  [↑↓/PgUp/PgDn] Scroll", Style.new(fg: :bright_black))
+
+    # Build modal content
+    content =
+      stack(:vertical, [
+        header,
+        text(String.duplicate("─", modal_width - 2), Style.new(fg: :bright_black))
+      ] ++ output_elements ++ padding ++ [
+        text(String.duplicate("─", modal_width - 2), Style.new(fg: :bright_black)),
+        footer
       ])
 
     ViewHelpers.render_with_border(state, content)

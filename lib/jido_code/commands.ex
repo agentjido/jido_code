@@ -473,11 +473,11 @@ defmodule JidoCode.Commands do
         case Manager.shell(command, args) do
           {:ok, %{"exit_code" => 0, "stdout" => stdout, "stderr" => stderr}} ->
             output = format_shell_output(stdout, stderr)
-            {:ok, output, %{}}
+            {:shell_output, command_line, output}
 
           {:ok, %{"exit_code" => code, "stdout" => stdout, "stderr" => stderr}} ->
             output = format_shell_output(stdout, stderr)
-            {:ok, "#{output}\n[Exit code: #{code}]", %{}}
+            {:shell_output, command_line, "#{output}\n\n[Exit code: #{code}]"}
 
           {:error, reason} when is_binary(reason) ->
             {:error, reason}

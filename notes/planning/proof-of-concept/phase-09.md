@@ -1,0 +1,683 @@
+# Phase 9: ConversationView Widget
+
+A purpose-built widget for displaying scrollable chat conversations with message-aware rendering, role-based styling, mouse-interactive scrollbar, and collapsible long messages. This widget replaces the current stack-based conversation rendering in the TUI with a proper stateful component following TermUI widget patterns.
+
+**Note:** This widget will be created in `lib/jido_code/tui/widgets/` as it is specific to JidoCode's conversation display needs. It follows the `TermUI.StatefulComponent` behavior pattern used by LogViewer, Viewport, and other TermUI widgets.
+
+---
+
+## 9.1 Widget Foundation
+
+Establish the core widget structure following TermUI's StatefulComponent patterns. This section creates the basic skeleton with props, state initialization, and the behavior implementation.
+
+### 9.1.1 Module Structure and Props
+- [x] **Task 9.1.1** ✅ COMPLETED
+
+Create the ConversationView module with props definition and type specifications.
+
+- [x] 9.1.1.1 Create `lib/jido_code/tui/widgets/conversation_view.ex` with module doc
+- [x] 9.1.1.2 Add `use TermUI.StatefulComponent` and required imports/aliases
+- [x] 9.1.1.3 Define `@type message()` for message structure:
+  ```elixir
+  @type message :: %{
+    id: String.t(),
+    role: :user | :assistant | :system,
+    content: String.t(),
+    timestamp: DateTime.t()
+  }
+  ```
+- [x] 9.1.1.4 Define `@type state()` for internal widget state
+- [x] 9.1.1.5 Implement `new/1` function with opts:
+  - `messages: [message()]` - initial messages (default: [])
+  - `max_collapsed_lines: pos_integer()` - lines before truncation (default: 15)
+  - `show_timestamps: boolean()` - show [HH:MM] prefix (default: true)
+  - `scrollbar_width: pos_integer()` - scrollbar column width (default: 2)
+  - `indent: pos_integer()` - content indent spaces (default: 2)
+  - `role_styles: map()` - per-role styling configuration
+  - `on_copy: function() | nil` - clipboard callback
+- [x] 9.1.1.6 Write unit tests for `new/1` with various option combinations
+
+### 9.1.2 State Initialization
+- [x] **Task 9.1.2** ✅ COMPLETED
+
+Implement the init callback to transform props into internal state.
+
+- [x] 9.1.2.1 Implement `init/1` callback returning `{:ok, state}`
+- [x] 9.1.2.2 Initialize core state fields:
+  ```elixir
+  %{
+    messages: [],              # All messages in display order
+    scroll_offset: 0,          # Lines scrolled from top
+    viewport_height: 20,       # Current visible lines
+    viewport_width: 80,        # For text wrapping
+    expanded: MapSet.new(),    # IDs of expanded messages
+    total_lines: 0,            # Cached total content height
+    cursor_message_idx: 0,     # Currently focused message
+    # Mouse scrollbar state
+    dragging: false,
+    drag_start_y: nil,
+    drag_start_offset: nil,
+    # Streaming support
+    streaming_id: nil,
+    # Config (from props)
+    max_collapsed_lines: 15,
+    show_timestamps: true,
+    scrollbar_width: 2,
+    indent: 2,
+    role_styles: %{...},
+    on_copy: nil
+  }
+  ```
+- [x] 9.1.2.3 Calculate initial `total_lines` from messages
+- [x] 9.1.2.4 Write unit tests for `init/1` with empty and populated message lists
+
+### 9.1.3 Public API Functions
+- [x] **Task 9.1.3** ✅ COMPLETED
+
+Implement public functions for message management and state access.
+
+- [x] 9.1.3.1 Implement `add_message/2` - append message, recalculate total_lines
+- [x] 9.1.3.2 Implement `set_messages/2` - replace all messages, reset scroll state
+- [x] 9.1.3.3 Implement `clear/1` - remove all messages, reset state
+- [x] 9.1.3.4 Implement `append_to_message/3` - append content to message by ID (streaming)
+- [x] 9.1.3.5 Implement `toggle_expand/2` - toggle expanded state for message ID
+- [x] 9.1.3.6 Implement `expand_all/1` and `collapse_all/1` - bulk expansion control
+- [x] 9.1.3.7 Implement `scroll_to/2` with atoms `:top`, `:bottom`, or `{:message, id}`
+- [x] 9.1.3.8 Implement `scroll_by/2` - relative scroll by delta lines
+- [x] 9.1.3.9 Implement `get_selected_text/1` - return focused message content for copy
+- [x] 9.1.3.10 Write unit tests for each public API function
+
+**Unit Tests for Section 9.1:** ✅ ALL PASSING (64 tests)
+- [x] Test `new/1` returns valid props map with defaults
+- [x] Test `new/1` with custom options overrides defaults
+- [x] Test `init/1` creates valid state from props
+- [x] Test `init/1` calculates correct total_lines for messages
+- [x] Test `add_message/2` appends and updates total_lines
+- [x] Test `set_messages/2` replaces messages and resets scroll
+- [x] Test `clear/1` empties messages and resets state
+- [x] Test `append_to_message/3` modifies correct message content
+- [x] Test `toggle_expand/2` adds/removes from expanded set
+- [x] Test `scroll_to/2` with :top, :bottom, {:message, id}
+- [x] Test `scroll_by/2` respects bounds (0 to max_scroll)
+
+---
+
+## 9.2 Message Rendering
+
+Implement the core rendering logic for individual messages and the overall conversation view. Messages are rendered as distinct blocks with role headers, wrapped content, and optional truncation.
+
+### 9.2.1 Message Block Layout
+- [ ] **Task 9.2.1**
+
+Define the visual structure for rendering individual message blocks.
+
+- [ ] 9.2.1.1 Create `render_message/4` private function (state, message, idx, width)
+- [ ] 9.2.1.2 Render message header: `[HH:MM] Role:` with role-specific styling
+- [ ] 9.2.1.3 Wrap message content to `(width - scrollbar_width - indent)` characters
+- [ ] 9.2.1.4 Apply indent (2 spaces) to content lines
+- [ ] 9.2.1.5 Apply role-based foreground color to content
+- [ ] 9.2.1.6 Add blank line separator after each message
+- [ ] 9.2.1.7 Return list of render nodes for the message block
+- [ ] 9.2.1.8 Write unit tests for message block structure
+
+### 9.2.2 Text Wrapping
+- [ ] **Task 9.2.2**
+
+Implement text wrapping logic that respects word boundaries.
+
+- [ ] 9.2.2.1 Create `wrap_text/2` function (text, max_width)
+- [ ] 9.2.2.2 Handle explicit newlines in content (preserve line breaks)
+- [ ] 9.2.2.3 Wrap at word boundaries when possible
+- [ ] 9.2.2.4 Force-break very long words that exceed max_width
+- [ ] 9.2.2.5 Handle empty strings and whitespace-only content
+- [ ] 9.2.2.6 Write unit tests for wrapping edge cases
+
+### 9.2.3 Message Truncation
+- [ ] **Task 9.2.3**
+
+Implement collapsible long messages with expand/collapse functionality.
+
+- [ ] 9.2.3.1 Calculate wrapped line count for message content
+- [ ] 9.2.3.2 If line count > max_collapsed_lines and message not in expanded set:
+  - Show first (max_collapsed_lines - 1) lines
+  - Add truncation indicator: `┄┄┄ N more lines ┄┄┄`
+- [ ] 9.2.3.3 Style truncation indicator with muted color
+- [ ] 9.2.3.4 Track truncation state in render for expand hint display
+- [ ] 9.2.3.5 Return `{rendered_lines, actual_lines, :truncated | :full}` tuple
+- [ ] 9.2.3.6 Write unit tests for truncation at various thresholds
+
+### 9.2.4 Role Styling
+- [ ] **Task 9.2.4**
+
+Implement role-based visual differentiation.
+
+- [ ] 9.2.4.1 Define default role styles:
+  ```elixir
+  %{
+    user: %{name: "You", color: :green},
+    assistant: %{name: "Assistant", color: :cyan},
+    system: %{name: "System", color: :yellow}
+  }
+  ```
+- [ ] 9.2.4.2 Create `role_style/2` function to get style for role
+- [ ] 9.2.4.3 Create `role_name/2` function to get display name for role
+- [ ] 9.2.4.4 Apply header styling (bold role name)
+- [ ] 9.2.4.5 Apply content styling (role color, normal weight)
+- [ ] 9.2.4.6 Support custom role_styles override from props
+- [ ] 9.2.4.7 Write unit tests for role styling
+
+**Unit Tests for Section 9.2:**
+- Test `render_message/4` produces correct node structure
+- Test message header includes timestamp when show_timestamps: true
+- Test message header excludes timestamp when show_timestamps: false
+- Test content lines are indented correctly
+- Test `wrap_text/2` respects max_width
+- Test `wrap_text/2` preserves explicit newlines
+- Test `wrap_text/2` breaks long words
+- Test truncation activates at max_collapsed_lines + 1
+- Test truncation indicator shows correct line count
+- Test expanded messages show full content
+- Test role styles apply correct colors
+- Test custom role_styles override defaults
+
+---
+
+## 9.3 Viewport and Scrolling
+
+Implement the scrollable viewport with virtual rendering (only render visible lines) and scroll position management.
+
+### 9.3.1 Viewport Calculation
+- [ ] **Task 9.3.1**
+
+Calculate visible content range based on scroll offset and viewport height.
+
+- [ ] 9.3.1.1 Create `calculate_visible_range/1` function
+- [ ] 9.3.1.2 Track cumulative line count per message for fast lookup
+- [ ] 9.3.1.3 Determine first visible message based on scroll_offset
+- [ ] 9.3.1.4 Determine last visible message based on viewport_height
+- [ ] 9.3.1.5 Handle partial message visibility at top/bottom edges
+- [ ] 9.3.1.6 Return `{start_msg_idx, start_line_offset, end_msg_idx, end_line_offset}`
+- [ ] 9.3.1.7 Write unit tests for viewport calculation
+
+### 9.3.2 Virtual Rendering
+- [ ] **Task 9.3.2**
+
+Implement the main render callback with virtual scrolling.
+
+- [ ] 9.3.2.1 Implement `render/2` callback receiving state and area
+- [ ] 9.3.2.2 Update viewport dimensions from area on each render
+- [ ] 9.3.2.3 Calculate visible message range
+- [ ] 9.3.2.4 Render only visible messages (with partial clipping at edges)
+- [ ] 9.3.2.5 Combine message renders into vertical stack
+- [ ] 9.3.2.6 Add scrollbar to right side (horizontal stack with content)
+- [ ] 9.3.2.7 Pad with empty lines if content < viewport height
+- [ ] 9.3.2.8 Write unit tests for render output structure
+
+### 9.3.3 Scroll Position Management
+- [ ] **Task 9.3.3**
+
+Implement scroll offset updates with bounds checking.
+
+- [ ] 9.3.3.1 Create `max_scroll_offset/1` function: `max(0, total_lines - viewport_height)`
+- [ ] 9.3.3.2 Create `clamp_scroll/1` to ensure offset in valid range
+- [ ] 9.3.3.3 Implement scroll adjustment when messages added (auto-scroll if at bottom)
+- [ ] 9.3.3.4 Implement scroll adjustment when messages removed
+- [ ] 9.3.3.5 Implement scroll adjustment when message expanded/collapsed
+- [ ] 9.3.3.6 Preserve relative scroll position on viewport resize
+- [ ] 9.3.3.7 Write unit tests for scroll bounds and auto-scroll behavior
+
+### 9.3.4 Scrollbar Rendering
+- [ ] **Task 9.3.4**
+
+Render visual scrollbar with thumb position indicator.
+
+- [ ] 9.3.4.1 Create `render_scrollbar/2` function (state, height)
+- [ ] 9.3.4.2 Calculate thumb size: `max(1, round(height * viewport_height / total_lines))`
+- [ ] 9.3.4.3 Calculate thumb position: `round((height - thumb_size) * scroll_fraction)`
+- [ ] 9.3.4.4 Render track using `░` character (or configurable)
+- [ ] 9.3.4.5 Render thumb using `█` character (or configurable)
+- [ ] 9.3.4.6 Add top arrow `▲` and bottom arrow `▼` indicators
+- [ ] 9.3.4.7 Style scrollbar with muted colors
+- [ ] 9.3.4.8 Write unit tests for scrollbar calculations
+
+**Unit Tests for Section 9.3:**
+- Test `calculate_visible_range/1` with various scroll offsets
+- Test visible range handles empty message list
+- Test visible range handles single message
+- Test `render/2` returns valid render node tree
+- Test render updates viewport dimensions from area
+- Test render only includes visible messages
+- Test `max_scroll_offset/1` calculation
+- Test `clamp_scroll/1` enforces bounds
+- Test auto-scroll when at bottom and message added
+- Test no auto-scroll when scrolled up and message added
+- Test scrollbar thumb size scales with content
+- Test scrollbar thumb position reflects scroll offset
+
+---
+
+## 9.4 Keyboard Event Handling
+
+Implement keyboard navigation for scrolling, message expansion, and copy functionality.
+
+### 9.4.1 Scroll Navigation
+- [ ] **Task 9.4.1**
+
+Handle keyboard events for scrolling the viewport.
+
+- [ ] 9.4.1.1 Implement `handle_event/2` callback
+- [ ] 9.4.1.2 Handle `:up` key - scroll up 1 line
+- [ ] 9.4.1.3 Handle `:down` key - scroll down 1 line
+- [ ] 9.4.1.4 Handle `:page_up` key - scroll up viewport_height lines
+- [ ] 9.4.1.5 Handle `:page_down` key - scroll down viewport_height lines
+- [ ] 9.4.1.6 Handle `:home` key - scroll to top (offset = 0)
+- [ ] 9.4.1.7 Handle `:end` key - scroll to bottom (offset = max)
+- [ ] 9.4.1.8 Return `{:ok, new_state}` after scroll updates
+- [ ] 9.4.1.9 Write unit tests for each navigation key
+
+### 9.4.2 Message Focus Navigation
+- [ ] **Task 9.4.2**
+
+Track focused message for expansion and copy operations.
+
+- [ ] 9.4.2.1 Track `cursor_message_idx` in state
+- [ ] 9.4.2.2 Handle `Ctrl+Up` - move focus to previous message
+- [ ] 9.4.2.3 Handle `Ctrl+Down` - move focus to next message
+- [ ] 9.4.2.4 Ensure focused message is visible (adjust scroll if needed)
+- [ ] 9.4.2.5 Highlight focused message with subtle background or indicator
+- [ ] 9.4.2.6 Write unit tests for message focus navigation
+
+### 9.4.3 Expand/Collapse Handling
+- [ ] **Task 9.4.3**
+
+Handle keyboard events for expanding and collapsing messages.
+
+- [ ] 9.4.3.1 Handle `Space` key - toggle expand on focused message
+- [ ] 9.4.3.2 Handle `e` key - expand all truncated messages
+- [ ] 9.4.3.3 Handle `c` key - collapse all expanded messages
+- [ ] 9.4.3.4 Recalculate `total_lines` after expansion changes
+- [ ] 9.4.3.5 Adjust scroll offset to keep focused message visible
+- [ ] 9.4.3.6 Write unit tests for expand/collapse behavior
+
+### 9.4.4 Copy Functionality
+- [ ] **Task 9.4.4**
+
+Handle copy key to invoke clipboard callback.
+
+- [ ] 9.4.4.1 Handle `y` key - copy focused message content
+- [ ] 9.4.4.2 Call `on_copy` callback with message content if configured
+- [ ] 9.4.4.3 Flash visual feedback on copy (optional: brief highlight)
+- [ ] 9.4.4.4 Handle missing `on_copy` gracefully (no-op)
+- [ ] 9.4.4.5 Write unit tests for copy triggering
+
+### 9.4.5 Catch-All Handler
+- [ ] **Task 9.4.5**
+
+Handle unrecognized events gracefully.
+
+- [ ] 9.4.5.1 Implement catch-all `handle_event/2` clause
+- [ ] 9.4.5.2 Return `{:ok, state}` unchanged for unhandled events
+- [ ] 9.4.5.3 Write unit test for unhandled event passthrough
+
+**Unit Tests for Section 9.4:**
+- Test `:up` decreases scroll_offset by 1
+- Test `:down` increases scroll_offset by 1
+- Test `:page_up` decreases scroll_offset by viewport_height
+- Test `:page_down` increases scroll_offset by viewport_height
+- Test `:home` sets scroll_offset to 0
+- Test `:end` sets scroll_offset to max
+- Test scroll respects bounds (no negative, no exceeding max)
+- Test `Ctrl+Up` moves cursor_message_idx up
+- Test `Ctrl+Down` moves cursor_message_idx down
+- Test focus navigation adjusts scroll to keep message visible
+- Test `Space` toggles expansion of focused message
+- Test `e` expands all messages
+- Test `c` collapses all messages
+- Test expansion recalculates total_lines
+- Test `y` calls on_copy with message content
+- Test `y` no-op when on_copy is nil
+- Test unhandled events return unchanged state
+
+---
+
+## 9.5 Mouse Event Handling
+
+Implement mouse interactions for scrollbar dragging, click-to-scroll, and wheel scrolling.
+
+### 9.5.1 Mouse Wheel Scrolling
+- [ ] **Task 9.5.1**
+
+Handle mouse wheel events for smooth scrolling.
+
+- [ ] 9.5.1.1 Handle `%Event.Mouse{action: :scroll_up}` - scroll up 3 lines
+- [ ] 9.5.1.2 Handle `%Event.Mouse{action: :scroll_down}` - scroll down 3 lines
+- [ ] 9.5.1.3 Make scroll amount configurable (default: 3 lines)
+- [ ] 9.5.1.4 Apply scroll bounds checking
+- [ ] 9.5.1.5 Write unit tests for wheel scrolling
+
+### 9.5.2 Scrollbar Click Handling
+- [ ] **Task 9.5.2**
+
+Handle clicks on scrollbar for page-based scrolling.
+
+- [ ] 9.5.2.1 Detect click within scrollbar column (x >= width - scrollbar_width)
+- [ ] 9.5.2.2 Calculate thumb position and size
+- [ ] 9.5.2.3 Click above thumb - page up
+- [ ] 9.5.2.4 Click below thumb - page down
+- [ ] 9.5.2.5 Click on top arrow (y = 0) - scroll up 1 line
+- [ ] 9.5.2.6 Click on bottom arrow (y = height - 1) - scroll down 1 line
+- [ ] 9.5.2.7 Write unit tests for click regions
+
+### 9.5.3 Scrollbar Drag Handling
+- [ ] **Task 9.5.3**
+
+Implement drag-to-scroll on the scrollbar thumb.
+
+- [ ] 9.5.3.1 Handle `%Event.Mouse{action: :click}` on thumb - start drag
+- [ ] 9.5.3.2 Set `dragging: true`, record `drag_start_y` and `drag_start_offset`
+- [ ] 9.5.3.3 Handle `%Event.Mouse{action: :drag}` - calculate new offset proportionally
+- [ ] 9.5.3.4 Handle `%Event.Mouse{action: :release}` - end drag, set `dragging: false`
+- [ ] 9.5.3.5 Calculate scroll offset: `start_offset + (delta_y / track_height) * max_scroll`
+- [ ] 9.5.3.6 Clamp calculated offset to valid range
+- [ ] 9.5.3.7 Write unit tests for drag state transitions
+
+### 9.5.4 Content Click Handling
+- [ ] **Task 9.5.4**
+
+Handle clicks on message content for focus and expansion.
+
+- [ ] 9.5.4.1 Detect click within content area (x < width - scrollbar_width)
+- [ ] 9.5.4.2 Calculate which message was clicked based on y and scroll_offset
+- [ ] 9.5.4.3 Set `cursor_message_idx` to clicked message
+- [ ] 9.5.4.4 Detect click on truncation indicator - toggle expand
+- [ ] 9.5.4.5 Double-click on message - copy to clipboard (optional)
+- [ ] 9.5.4.6 Write unit tests for content click handling
+
+**Unit Tests for Section 9.5:**
+- Test wheel scroll_up decreases offset by 3
+- Test wheel scroll_down increases offset by 3
+- Test wheel scroll respects bounds
+- Test click above thumb triggers page up
+- Test click below thumb triggers page down
+- Test click on top arrow scrolls up 1
+- Test click on bottom arrow scrolls down 1
+- Test click on thumb starts drag state
+- Test drag updates scroll offset proportionally
+- Test release ends drag state
+- Test drag respects scroll bounds
+- Test content click sets cursor_message_idx
+- Test click on truncation indicator toggles expand
+
+---
+
+## 9.6 Streaming Support
+
+Implement real-time message updates for streaming LLM responses.
+
+### 9.6.1 Streaming State Management
+- [ ] **Task 9.6.1**
+
+Track streaming state for partial message updates.
+
+- [ ] 9.6.1.1 Track `streaming_id` in state (message currently being streamed)
+- [ ] 9.6.1.2 Implement `start_streaming/2` - set streaming_id, add placeholder message
+- [ ] 9.6.1.3 Implement `end_streaming/1` - clear streaming_id
+- [ ] 9.6.1.4 Track `was_at_bottom` to determine auto-scroll behavior
+- [ ] 9.6.1.5 Write unit tests for streaming state transitions
+
+### 9.6.2 Chunk Appending
+- [ ] **Task 9.6.2**
+
+Efficiently append streaming chunks to the active message.
+
+- [ ] 9.6.2.1 Implement `append_chunk/2` function (state, chunk)
+- [ ] 9.6.2.2 Find message by streaming_id
+- [ ] 9.6.2.3 Append chunk to message content
+- [ ] 9.6.2.4 Recalculate line count for modified message only (incremental)
+- [ ] 9.6.2.5 Update total_lines incrementally
+- [ ] 9.6.2.6 Auto-scroll if was_at_bottom is true
+- [ ] 9.6.2.7 Write unit tests for chunk appending
+
+### 9.6.3 Streaming Visual Indicator
+- [ ] **Task 9.6.3**
+
+Show visual indicator during active streaming.
+
+- [ ] 9.6.3.1 Add cursor indicator `▌` to end of streaming message content
+- [ ] 9.6.3.2 Style streaming message differently (optional: pulsing or italic)
+- [ ] 9.6.3.3 Remove cursor indicator when streaming ends
+- [ ] 9.6.3.4 Write unit tests for streaming indicator presence
+
+**Unit Tests for Section 9.6:**
+- Test `start_streaming/2` sets streaming_id
+- Test `start_streaming/2` adds placeholder message
+- Test `end_streaming/1` clears streaming_id
+- Test `append_chunk/2` appends to correct message
+- Test `append_chunk/2` updates total_lines
+- Test auto-scroll during streaming when at bottom
+- Test no auto-scroll during streaming when scrolled up
+- Test streaming cursor indicator appears during streaming
+- Test streaming cursor indicator removed after end
+
+---
+
+## 9.7 TUI Integration
+
+Integrate the ConversationView widget into the JidoCode TUI, replacing the current stack-based conversation rendering.
+
+### 9.7.1 Model Integration
+- [ ] **Task 9.7.1**
+
+Add ConversationView state to the TUI Model.
+
+- [ ] 9.7.1.1 Add `conversation_view: map() | nil` to Model struct type
+- [ ] 9.7.1.2 Add `conversation_view: nil` to Model defstruct defaults
+- [ ] 9.7.1.3 Import/alias ConversationView in TUI module
+- [ ] 9.7.1.4 Initialize ConversationView in `init/1` with props from Model
+- [ ] 9.7.1.5 Pass initial messages (empty) and dimensions
+- [ ] 9.7.1.6 Write integration tests for model initialization
+
+### 9.7.2 Event Routing
+- [ ] **Task 9.7.2**
+
+Route appropriate events to ConversationView.
+
+- [ ] 9.7.2.1 Update `event_to_msg/2` to check for ConversationView priority
+- [ ] 9.7.2.2 Route scroll keys (up/down/page_up/page_down/home/end) to conversation
+- [ ] 9.7.2.3 Route mouse events to conversation when in content area
+- [ ] 9.7.2.4 Add `{:conversation_event, event}` message type
+- [ ] 9.7.2.5 Implement `update/2` handler for `{:conversation_event, event}`
+- [ ] 9.7.2.6 Delegate to `ConversationView.handle_event/2`
+- [ ] 9.7.2.7 Write integration tests for event routing
+
+### 9.7.3 View Rendering Integration
+- [ ] **Task 9.7.3**
+
+Replace render_conversation with ConversationView rendering.
+
+- [ ] 9.7.3.1 Update `render_main_view/1` to use ConversationView
+- [ ] 9.7.3.2 Calculate content area dimensions (width, available_height)
+- [ ] 9.7.3.3 Call `ConversationView.render(state.conversation_view, area)`
+- [ ] 9.7.3.4 Remove or deprecate `ViewHelpers.render_conversation/1`
+- [ ] 9.7.3.5 Handle nil conversation_view with fallback (optional)
+- [ ] 9.7.3.6 Write integration tests for view rendering
+
+### 9.7.4 Message Handler Integration
+- [ ] **Task 9.7.4**
+
+Update MessageHandlers to sync messages with ConversationView.
+
+- [ ] 9.7.4.1 Update `handle_agent_response/2` to call `ConversationView.add_message/2`
+- [ ] 9.7.4.2 Update `handle_stream_chunk/2` to call `ConversationView.append_chunk/2`
+- [ ] 9.7.4.3 Update `handle_stream_end/2` to call `ConversationView.end_streaming/1`
+- [ ] 9.7.4.4 Update `handle_stream_error/2` to add error message to ConversationView
+- [ ] 9.7.4.5 Update command handlers to add system messages to ConversationView
+- [ ] 9.7.4.6 Write integration tests for message sync
+
+### 9.7.5 Resize Handling
+- [ ] **Task 9.7.5**
+
+Handle terminal resize events for ConversationView.
+
+- [ ] 9.7.5.1 Update `update({:resize, width, height}, state)` handler
+- [ ] 9.7.5.2 Recalculate content area dimensions
+- [ ] 9.7.5.3 Update ConversationView viewport dimensions
+- [ ] 9.7.5.4 Preserve scroll position relative to content
+- [ ] 9.7.5.5 Write integration tests for resize handling
+
+**Unit Tests for Section 9.7:**
+- Test ConversationView initialized in TUI.init/1
+- Test conversation_view state in Model after init
+- Test scroll keys routed to conversation_event
+- Test mouse events in content area routed to conversation
+- Test update handler delegates to ConversationView.handle_event
+- Test render uses ConversationView.render
+- Test message handlers sync messages to ConversationView
+- Test streaming chunks synced to ConversationView
+- Test resize updates ConversationView dimensions
+
+---
+
+## 9.8 Clipboard Integration
+
+Implement system clipboard integration for copy functionality.
+
+### 9.8.1 Clipboard Detection
+- [ ] **Task 9.8.1**
+
+Detect available clipboard command based on platform.
+
+- [ ] 9.8.1.1 Create `lib/jido_code/tui/clipboard.ex` module
+- [ ] 9.8.1.2 Implement `detect_clipboard_command/0`
+- [ ] 9.8.1.3 Check for `pbcopy` (macOS)
+- [ ] 9.8.1.4 Check for `xclip` (Linux X11)
+- [ ] 9.8.1.5 Check for `xsel` (Linux X11 alternative)
+- [ ] 9.8.1.6 Check for `clip.exe` (WSL/Windows)
+- [ ] 9.8.1.7 Return `nil` if no clipboard available
+- [ ] 9.8.1.8 Write unit tests for clipboard detection
+
+### 9.8.2 Copy Implementation
+- [ ] **Task 9.8.2**
+
+Implement cross-platform copy to clipboard.
+
+- [ ] 9.8.2.1 Implement `copy_to_clipboard/1` function
+- [ ] 9.8.2.2 Use detected clipboard command
+- [ ] 9.8.2.3 Pipe text content to clipboard command via stdin
+- [ ] 9.8.2.4 Handle command execution errors gracefully
+- [ ] 9.8.2.5 Log warning if no clipboard available
+- [ ] 9.8.2.6 Return `:ok` or `{:error, reason}`
+- [ ] 9.8.2.7 Write unit tests (mocked command execution)
+
+### 9.8.3 ConversationView Callback
+- [ ] **Task 9.8.3**
+
+Wire clipboard to ConversationView on_copy callback.
+
+- [ ] 9.8.3.1 Pass `on_copy: &Clipboard.copy_to_clipboard/1` in ConversationView init
+- [ ] 9.8.3.2 Ensure callback receives message content string
+- [ ] 9.8.3.3 Write integration test for copy flow
+
+**Unit Tests for Section 9.8:**
+- Test `detect_clipboard_command/0` finds available command
+- Test `detect_clipboard_command/0` returns nil when none available
+- Test `copy_to_clipboard/1` executes clipboard command
+- Test `copy_to_clipboard/1` handles command failure
+- Test `copy_to_clipboard/1` logs warning when unavailable
+- Test on_copy callback receives correct message content
+
+---
+
+## Success Criteria
+
+1. **Widget Structure**: ConversationView follows TermUI.StatefulComponent pattern with new/1, init/1, handle_event/2, render/2
+2. **Message Rendering**: Messages display with role headers, timestamps, proper indentation, and role-based colors
+3. **Text Wrapping**: Long lines wrap at word boundaries within viewport width
+4. **Truncation**: Messages exceeding max_collapsed_lines show truncation indicator with expand option
+5. **Keyboard Scrolling**: Up/Down/PageUp/PageDown/Home/End navigate the conversation
+6. **Mouse Scrolling**: Wheel scroll and scrollbar drag work correctly
+7. **Scrollbar Visual**: Scrollbar shows thumb position proportional to scroll offset
+8. **Streaming Support**: Real-time message updates during LLM streaming with auto-scroll
+9. **Copy Functionality**: 'y' key copies focused message to system clipboard
+10. **TUI Integration**: ConversationView replaces stack-based rendering seamlessly
+11. **Resize Handling**: Widget adapts to terminal resize maintaining scroll position
+12. **Test Coverage**: Minimum 80% code coverage for new widget code
+
+---
+
+## Integration Test Suite
+
+Comprehensive integration tests validating end-to-end functionality:
+
+### Conversation Display Flow
+- [ ] Test empty conversation shows placeholder or empty state
+- [ ] Test single message displays with correct formatting
+- [ ] Test multiple messages display in correct order
+- [ ] Test user/assistant/system messages have distinct styling
+- [ ] Test long conversation scrolls correctly
+
+### Scrolling Integration
+- [ ] Test keyboard scroll updates view correctly
+- [ ] Test mouse wheel scroll updates view correctly
+- [ ] Test scrollbar drag updates view correctly
+- [ ] Test scroll bounds enforced at top and bottom
+- [ ] Test auto-scroll when new message at bottom
+
+### Message Truncation Integration
+- [ ] Test long message shows truncation indicator
+- [ ] Test Space key expands truncated message
+- [ ] Test expanded message shows full content
+- [ ] Test scroll adjusts after expansion
+
+### Streaming Integration
+- [ ] Test streaming message appears immediately
+- [ ] Test streaming chunks append correctly
+- [ ] Test streaming cursor indicator visible
+- [ ] Test auto-scroll during streaming
+- [ ] Test message finalizes on stream end
+
+### Clipboard Integration
+- [ ] Test 'y' key triggers copy callback
+- [ ] Test copied content matches focused message
+- [ ] Test copy works with multiline messages
+
+### Resize Integration
+- [ ] Test widget adapts to terminal width change
+- [ ] Test widget adapts to terminal height change
+- [ ] Test scroll position preserved on resize
+- [ ] Test text rewrapping on width change
+
+### TUI Lifecycle Integration
+- [ ] Test ConversationView initializes with TUI
+- [ ] Test messages sync between TUI Model and ConversationView
+- [ ] Test event routing prioritizes modals over conversation
+- [ ] Test conversation renders in correct TUI layout position
+
+---
+
+## Critical Files
+
+**New Files:**
+- `lib/jido_code/tui/widgets/conversation_view.ex` - Main widget module
+- `lib/jido_code/tui/clipboard.ex` - Clipboard integration
+- `test/jido_code/tui/widgets/conversation_view_test.exs` - Widget unit tests
+- `test/jido_code/tui/clipboard_test.exs` - Clipboard unit tests
+
+**Modified Files:**
+- `lib/jido_code/tui.ex` - Model struct, init, event routing, view rendering
+- `lib/jido_code/tui/view_helpers.ex` - Remove/deprecate render_conversation
+- `lib/jido_code/tui/message_handlers.ex` - Sync messages to ConversationView
+- `test/jido_code/tui_test.exs` - Update integration tests
+
+---
+
+## Implementation Order
+
+1. **Section 9.1** - Widget Foundation (props, state, public API)
+2. **Section 9.2** - Message Rendering (blocks, wrapping, truncation)
+3. **Section 9.3** - Viewport and Scrolling (virtual render, scrollbar)
+4. **Section 9.4** - Keyboard Event Handling
+5. **Section 9.5** - Mouse Event Handling
+6. **Section 9.6** - Streaming Support
+7. **Section 9.8** - Clipboard Integration
+8. **Section 9.7** - TUI Integration (last, depends on all above)

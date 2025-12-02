@@ -22,7 +22,6 @@ defmodule JidoCode.TUI.ViewHelpers do
   alias JidoCode.TUI.Model
   alias TermUI.Renderer.Style
   alias TermUI.Theme
-  alias TermUI.Widgets.LogViewer
   alias TermUI.Widgets.TextInput
 
   # Double-line box drawing characters
@@ -204,12 +203,8 @@ defmodule JidoCode.TUI.ViewHelpers do
     # Create a box for the content area with fixed dimensions
     content_box = box([content], width: content_width, height: content_height)
 
-    # Wrap content with borders on left and right
-    # Use box to ensure borders extend full height
-    left_border_box = box([left_border], width: 1, height: content_height)
-    right_border_box = box([right_border], width: 1, height: content_height)
-
-    [stack(:horizontal, [left_border_box, content_box, right_border_box])]
+    # Single row containing left border, content box, and right border
+    [stack(:horizontal, [left_border, content_box, right_border])]
   end
 
   # ============================================================================
@@ -218,15 +213,17 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders a horizontal separator line using single-line box characters.
+  Connects to the outer double-line border.
   """
   @spec render_separator(Model.t()) :: TermUI.View.t()
   def render_separator(state) do
     {width, _height} = state.window
+    content_width = max(width - 2, 1)
 
     separator_style = Style.new(fg: Theme.get_color(:secondary) || :bright_black)
 
     # Use single-line horizontal character for the separator
-    separator_line = String.duplicate("─", width)
+    separator_line = String.duplicate("─", content_width)
     text(separator_line, separator_style)
   end
 
@@ -236,19 +233,20 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders the top status bar with provider/model info and agent status.
-  Pads or truncates to fit the full window width.
+  Pads or truncates to fit the available width (window width - 2 for borders).
   """
   @spec render_status_bar(Model.t()) :: TermUI.View.t()
   def render_status_bar(state) do
     {width, _height} = state.window
+    content_width = max(width - 2, 1)
 
     config_text = format_config(state.config)
     status_text = format_status(state.agent_status)
     cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
 
     full_text = "#{config_text} | #{status_text}#{cot_indicator}"
-    # Pad or truncate to fill the width exactly
-    padded_text = pad_or_truncate(full_text, width)
+    # Pad or truncate to fill the content width exactly
+    padded_text = pad_or_truncate(full_text, content_width)
     bar_style = build_status_bar_style(state)
 
     text(padded_text, bar_style)
@@ -256,17 +254,18 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders the bottom help bar with keyboard shortcuts.
-  Pads or truncates to fit the full window width.
+  Pads or truncates to fit the available width (window width - 2 for borders).
   """
   @spec render_help_bar(Model.t()) :: TermUI.View.t()
   def render_help_bar(state) do
     {width, _height} = state.window
+    content_width = max(width - 2, 1)
 
     reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
     tools_hint = if state.show_tool_details, do: "Ctrl+T: Hide", else: "Ctrl+T: Tools"
     hints = "#{reasoning_hint} | #{tools_hint} | Ctrl+M: Model | Ctrl+C: Quit"
 
-    padded_text = pad_or_truncate(hints, width)
+    padded_text = pad_or_truncate(hints, content_width)
     bar_style = Style.new(fg: Theme.get_color(:foreground) || :white, bg: :black)
 
     text(padded_text, bar_style)
@@ -310,7 +309,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   defp format_status(:unconfigured), do: "Not Configured"
 
   defp format_config(%{provider: nil}), do: "No provider"
-  defp format_config(%{model: nil}), do: "No model"
+  defp format_config(%{model: nil, provider: p}), do: "#{p} (no model)"
   defp format_config(%{provider: p, model: m}), do: "#{p}:#{m}"
 
   # ============================================================================
@@ -319,27 +318,14 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders the conversation area with messages, tool calls, and streaming content.
-  Uses LogViewer widget for scrolling, selection, and copy support.
   Fills the available height between status bar and input/help bars.
   """
   @spec render_conversation(Model.t()) :: TermUI.View.t()
   def render_conversation(state) do
     {width, height} = state.window
-    # Available height: total height - 1 (status bar) - 4 (separators) - 1 (input bar) - 1 (help bar)
-    available_height = max(height - 7, 1)
-
-    if state.conversation_viewer do
-      # Use LogViewer widget for rendering
-      area = %{width: width, height: available_height}
-      LogViewer.render(state.conversation_viewer, area)
-    else
-      # Fallback to legacy rendering if LogViewer not initialized
-      render_conversation_legacy(state, available_height, width)
-    end
-  end
-
-  # Legacy rendering for backward compatibility
-  defp render_conversation_legacy(state, available_height, content_width) do
+    # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
+    available_height = max(height - 8, 1)
+    content_width = max(width - 2, 1)
     has_content = state.messages != [] or state.tool_calls != [] or state.is_streaming
 
     lines = if has_content do
@@ -524,8 +510,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   @spec render_input_bar(Model.t()) :: TermUI.View.t()
   def render_input_bar(state) do
     {width, _height} = state.window
-    # Full width minus prompt "> "
-    content_width = max(width - 2, 20)
+    content_width = max(width - 4, 20)
 
     prompt_style = Style.new(fg: Theme.get_color(:secondary) || :green)
 

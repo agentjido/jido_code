@@ -6,6 +6,7 @@ defmodule JidoCode.TUITest do
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
   alias TermUI.Event
+  alias TermUI.Widgets.LogViewer
   alias TermUI.Widgets.TextInput
 
   # Helper to set up API key for tests
@@ -74,6 +75,49 @@ defmodule JidoCode.TUITest do
   # Helper to get text value from TextInput state
   defp get_input_value(model) do
     TextInput.get_value(model.text_input)
+  end
+
+  # Helper to create a LogViewer conversation viewer with given messages
+  defp create_conversation_viewer(messages \\ []) do
+    props = LogViewer.new(
+      lines: [],
+      tail_mode: true,
+      wrap_lines: true,
+      show_line_numbers: false,
+      show_timestamps: false,
+      show_levels: false,
+      highlight_levels: false
+    )
+    {:ok, viewer} = LogViewer.init(props)
+
+    # Add messages to the viewer
+    Enum.reduce(messages, viewer, fn msg, acc ->
+      lines = message_to_viewer_lines(msg)
+      LogViewer.add_lines(acc, lines)
+    end)
+  end
+
+  # Convert a message to formatted lines for LogViewer (mirrors TUI.message_to_viewer_lines)
+  defp message_to_viewer_lines(message) do
+    timestamp = TUI.format_timestamp(message.timestamp)
+    source = case message.role do
+      :user -> "You"
+      :assistant -> "Assistant"
+      :system -> "System"
+      _ -> "Unknown"
+    end
+    prefix = "#{timestamp} #{source}: "
+
+    message.content
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.map(fn {line, idx} ->
+      if idx == 0 do
+        prefix <> line
+      else
+        String.duplicate(" ", String.length(prefix)) <> line
+      end
+    end)
   end
 
   describe "Model struct" do
@@ -188,18 +232,18 @@ defmodule JidoCode.TUITest do
       assert TUI.event_to_msg(event, model) == {:msg, :toggle_tool_details}
     end
 
-    test "up arrow returns {:msg, {:scroll, :up}}" do
+    test "up arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{text_input: create_text_input()}
       event = Event.key(:up)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :up}}
+      assert {:msg, {:conversation_event, ^event}} = TUI.event_to_msg(event, model)
     end
 
-    test "down arrow returns {:msg, {:scroll, :down}}" do
+    test "down arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{text_input: create_text_input()}
       event = Event.key(:down)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :down}}
+      assert {:msg, {:conversation_event, ^event}} = TUI.event_to_msg(event, model)
     end
 
     test "resize event returns {:msg, {:resize, width, height}}" do
@@ -383,6 +427,9 @@ defmodule JidoCode.TUITest do
     end
 
     test "/provider command updates config and status" do
+      # Set up API key for anthropic provider
+      setup_api_key("anthropic")
+
       model = %Model{
         text_input: create_text_input("/provider anthropic"),
         messages: [],
@@ -396,6 +443,8 @@ defmodule JidoCode.TUITest do
       assert new_model.config.model == nil
       # Still unconfigured because model is nil
       assert new_model.agent_status == :unconfigured
+
+      cleanup_api_key("anthropic")
     end
 
     test "/model provider:model command updates config and status" do
@@ -856,7 +905,7 @@ defmodule JidoCode.TUITest do
       view = TUI.view(model)
 
       # Convert view tree to string for inspection
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Not Configured" or view_text =~ "unconfigured"
     end
@@ -868,7 +917,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "anthropic" or view_text =~ "Idle"
     end
@@ -878,17 +927,18 @@ defmodule JidoCode.TUITest do
         text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
-        messages: []
+        messages: [],
+        conversation_viewer: create_conversation_viewer([])
       }
 
       view = TUI.view(model)
 
-      # Main view is wrapped in a border box
-      # The box contains a stack with: top border, middle (with content), bottom border
+      # Main view is wrapped in a box without border
+      # The box contains a stack with: separator, status bar, separator, conversation, separator, input bar, separator, help bar
       assert %TermUI.Component.RenderNode{type: :box, children: [inner_stack]} = view
-      assert %TermUI.Component.RenderNode{type: :stack, children: border_children} = inner_stack
-      # Border children: top border, middle row (with content), bottom border
-      assert length(border_children) == 3
+      assert %TermUI.Component.RenderNode{type: :stack, children: content_children} = inner_stack
+      # Content children: 4 separators + status bar + conversation + input bar + help bar = 8 elements
+      assert length(content_children) == 8
     end
 
     test "status bar shows provider and model" do
@@ -899,7 +949,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "openai:gpt-4"
     end
@@ -911,51 +961,59 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Ctrl+C"
     end
 
     test "conversation shows empty message when no messages" do
+      # With LogViewer, the empty state shows the LogViewer status bar with "Line 1/0"
+      # or falls back to legacy "No messages yet" text
       model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
-        messages: []
+        messages: [],
+        conversation_viewer: create_conversation_viewer([])
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
-      assert view_text =~ "No messages yet"
+      # LogViewer shows "Line 1/0" status bar when empty, or legacy shows "No messages yet"
+      assert view_text =~ "Line 1/0" or view_text =~ "No messages yet"
     end
 
     test "conversation shows user messages with You: prefix" do
+      messages = [
+        %{role: :user, content: "Hello there", timestamp: DateTime.utc_now()}
+      ]
       model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
-        messages: [
-          %{role: :user, content: "Hello there", timestamp: DateTime.utc_now()}
-        ]
+        messages: messages,
+        conversation_viewer: create_conversation_viewer(messages)
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "You:"
       assert view_text =~ "Hello there"
     end
 
     test "conversation shows assistant messages with Assistant: prefix" do
+      messages = [
+        %{role: :assistant, content: "Hi! How can I help?", timestamp: DateTime.utc_now()}
+      ]
       model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
-        messages: [
-          %{role: :assistant, content: "Hi! How can I help?", timestamp: DateTime.utc_now()}
-        ]
+        messages: messages,
+        conversation_viewer: create_conversation_viewer(messages)
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Assistant:"
       assert view_text =~ "Hi! How can I help?"
@@ -969,7 +1027,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "typing something"
     end
@@ -982,7 +1040,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       # Should show > prompt
       assert view_text =~ ">"
@@ -995,7 +1053,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       # Status changed to "Streaming..." for better UX during streaming responses
       assert view_text =~ "Streaming"
@@ -1008,7 +1066,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Error"
     end
@@ -1133,18 +1191,18 @@ defmodule JidoCode.TUITest do
   end
 
   describe "scroll navigation" do
-    test "up arrow returns {:msg, {:scroll, :up}}" do
+    test "up arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{}
       event = Event.key(:up)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :up}}
+      assert {:msg, {:conversation_event, ^event}} = TUI.event_to_msg(event, model)
     end
 
-    test "down arrow returns {:msg, {:scroll, :down}}" do
+    test "down arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{}
       event = Event.key(:down)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :down}}
+      assert {:msg, {:conversation_event, ^event}} = TUI.event_to_msg(event, model)
     end
 
     test "scroll up increases scroll_offset" do
@@ -1196,16 +1254,18 @@ defmodule JidoCode.TUITest do
     test "messages include timestamp in view" do
       timestamp = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
 
+      messages = [
+        %{role: :user, content: "Hello", timestamp: timestamp}
+      ]
       model = %Model{text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
-        messages: [
-          %{role: :user, content: "Hello", timestamp: timestamp}
-        ]
+        messages: messages,
+        conversation_viewer: create_conversation_viewer(messages)
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "[14:32]"
       assert view_text =~ "You:"
@@ -1276,7 +1336,7 @@ defmodule JidoCode.TUITest do
       model = %Model{text_input: create_text_input(), reasoning_steps: []}
 
       view = TUI.render_reasoning(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Reasoning"
       assert view_text =~ "No reasoning steps"
@@ -1288,7 +1348,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.render_reasoning(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "○"
       assert view_text =~ "Understanding query"
@@ -1300,7 +1360,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.render_reasoning(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "●"
       assert view_text =~ "Analyzing code"
@@ -1312,7 +1372,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.render_reasoning(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "✓"
       assert view_text =~ "Found solution"
@@ -1328,7 +1388,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.render_reasoning(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "✓"
       assert view_text =~ "●"
@@ -1344,7 +1404,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.render_reasoning(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "confidence: 0.92"
     end
@@ -1355,7 +1415,7 @@ defmodule JidoCode.TUITest do
       model = %Model{text_input: create_text_input(), reasoning_steps: []}
 
       view = TUI.render_reasoning_compact(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Reasoning"
       assert view_text =~ "none"
@@ -1370,7 +1430,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.render_reasoning_compact(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "✓"
       assert view_text =~ "●"
@@ -1387,7 +1447,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Ctrl+R: Reasoning"
     end
@@ -1400,7 +1460,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Ctrl+R: Hide"
     end
@@ -1415,7 +1475,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Reasoning"
       assert view_text =~ "Test step"
@@ -1431,7 +1491,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       # Compact view uses │ separator
       assert view_text =~ "Reasoning"
@@ -1442,16 +1502,17 @@ defmodule JidoCode.TUITest do
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: false,
-        reasoning_steps: [%{step: "Hidden step", status: :active}]
+        reasoning_steps: [%{step: "Hidden step", status: :active}],
+        conversation_viewer: create_conversation_viewer([])
       }
 
       view = TUI.view(model)
 
-      # Main view is wrapped in a border box
-      # The box contains a stack with: top border, middle row, bottom border
+      # Main view is wrapped in a box without border
+      # The box contains a stack with: 4 separators + status bar + conversation + input bar + help bar = 8 elements
       assert %TermUI.Component.RenderNode{type: :box, children: [inner_stack]} = view
-      assert %TermUI.Component.RenderNode{type: :stack, children: border_children} = inner_stack
-      assert length(border_children) == 3
+      assert %TermUI.Component.RenderNode{type: :stack, children: content_children} = inner_stack
+      assert length(content_children) == 8
     end
   end
 
@@ -1507,7 +1568,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Ctrl+M: Model"
     end
@@ -1521,7 +1582,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Ctrl+C: Quit"
     end
@@ -1536,7 +1597,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "[CoT]"
     end
@@ -1549,7 +1610,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       refute view_text =~ "[CoT]"
     end
@@ -1565,7 +1626,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       refute view_text =~ "[CoT]"
     end
@@ -1580,7 +1641,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       # Error should show red in the view
       assert view_text =~ "Error"
@@ -1593,7 +1654,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "No provider"
       assert view_text =~ "Not Configured"
@@ -1948,7 +2009,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Ctrl+T: Tools"
     end
@@ -1961,7 +2022,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "Ctrl+T: Hide"
     end
@@ -1989,7 +2050,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       assert view_text =~ "⚙"
       assert view_text =~ "read_file"
@@ -2013,7 +2074,7 @@ defmodule JidoCode.TUITest do
       }
 
       view = TUI.view(model)
-      view_text = inspect(view)
+      view_text = inspect(view, limit: :infinity)
 
       # Should NOT show "No messages yet" when there are tool calls
       refute view_text =~ "No messages yet"

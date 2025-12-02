@@ -51,6 +51,7 @@ defmodule JidoCode.TUI do
   alias TermUI.Event
   alias TermUI.Renderer.Style
   alias TermUI.Widget.PickList
+  alias TermUI.Widgets.LogViewer
   alias TermUI.Widgets.TextInput
   alias TermUI.Widgets.Viewport
 
@@ -143,7 +144,8 @@ defmodule JidoCode.TUI do
             session_topic: String.t() | nil,
             shell_dialog: map() | nil,
             shell_viewport: map() | nil,
-            pick_list: map() | nil
+            pick_list: map() | nil,
+            conversation_viewer: map() | nil
           }
 
     @enforce_keys []
@@ -164,7 +166,8 @@ defmodule JidoCode.TUI do
               session_topic: nil,
               shell_dialog: nil,
               shell_viewport: nil,
-              pick_list: nil
+              pick_list: nil,
+              conversation_viewer: nil
   end
 
   # ============================================================================
@@ -209,6 +212,22 @@ defmodule JidoCode.TUI do
     # Set focused by default
     text_input_state = TextInput.set_focused(text_input_state, true)
 
+    # Initialize LogViewer for conversation area
+    conversation_viewer_props =
+      LogViewer.new(
+        lines: [],
+        tail_mode: true,
+        wrap_lines: true,
+        show_line_numbers: false,
+        show_timestamps: false,
+        show_levels: false,
+        highlight_levels: false,
+        parser: &message_line_parser/1,
+        on_copy: &copy_to_clipboard/1
+      )
+
+    {:ok, conversation_viewer_state} = LogViewer.init(conversation_viewer_props)
+
     %Model{
       text_input: text_input_state,
       messages: [],
@@ -223,7 +242,8 @@ defmodule JidoCode.TUI do
       show_reasoning: false,
       agent_name: :llm_agent,
       streaming_message: nil,
-      is_streaming: false
+      is_streaming: false,
+      conversation_viewer: conversation_viewer_state
     }
   end
 
@@ -293,18 +313,37 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Scroll navigation - if modal open, forward to modal; otherwise scroll messages
+  # Scroll navigation - if modal open, forward to modal; otherwise forward to LogViewer
   def event_to_msg(%Event.Key{key: key} = event, state)
       when key in [:up, :down, :page_up, :page_down, :home, :end] do
     cond do
       state.pick_list -> {:msg, {:pick_list_event, event}}
       state.shell_dialog -> {:msg, {:input_event, event}}
-      true ->
-        case key do
-          :up -> {:msg, {:scroll, :up}}
-          :down -> {:msg, {:scroll, :down}}
-          _ -> {:msg, {:input_event, event}}
-        end
+      true -> {:msg, {:conversation_event, event}}
+    end
+  end
+
+  # Space key - for selection in LogViewer when not in modals
+  def event_to_msg(%Event.Key{char: " "} = event, state) do
+    cond do
+      state.pick_list -> {:msg, {:pick_list_event, event}}
+      state.shell_dialog -> {:msg, {:input_event, event}}
+      state.text_input && TextInput.get_value(state.text_input) != "" ->
+        # If text input has content, send space to input
+        {:msg, {:input_event, event}}
+      true -> {:msg, {:conversation_event, event}}
+    end
+  end
+
+  # Copy key 'y' - for copying in LogViewer
+  def event_to_msg(%Event.Key{char: "y"} = event, state) do
+    cond do
+      state.pick_list -> {:msg, {:pick_list_event, event}}
+      state.shell_dialog -> {:msg, {:input_event, event}}
+      # If there's a selection in LogViewer, handle copy
+      state.conversation_viewer && state.conversation_viewer.selection_start != nil ->
+        {:msg, {:conversation_event, event}}
+      true -> {:msg, {:input_event, event}}
     end
   end
 
@@ -436,7 +475,7 @@ defmodule JidoCode.TUI do
     {%{state | window: {width, height}, text_input: new_text_input}, []}
   end
 
-  # Scroll navigation
+  # Scroll navigation - legacy fallback for old scroll messages
   def update({:scroll, :up}, state) do
     # Scroll up (towards older messages) - increase offset
     max_offset = max_scroll_offset(state)
@@ -448,6 +487,26 @@ defmodule JidoCode.TUI do
     # Scroll down (towards newer messages) - decrease offset
     new_offset = max(state.scroll_offset - 1, 0)
     {%{state | scroll_offset: new_offset}, []}
+  end
+
+  # Conversation events - forward to LogViewer widget
+  def update({:conversation_event, %Event.Key{} = event}, state) do
+    if state.conversation_viewer do
+      case LogViewer.handle_event(event, state.conversation_viewer) do
+        {:ok, new_viewer} ->
+          {%{state | conversation_viewer: new_viewer}, []}
+
+        _ ->
+          {state, []}
+      end
+    else
+      # Fallback to legacy scroll if LogViewer not available
+      case event.key do
+        :up -> update({:scroll, :up}, state)
+        :down -> update({:scroll, :down}, state)
+        _ -> {state, []}
+      end
+    end
   end
 
   # PubSub message handlers - delegated to MessageHandlers module
@@ -589,17 +648,26 @@ defmodule JidoCode.TUI do
           model: new_config[:model] || state.config.model
         }
         new_status = determine_status(updated_config)
+
+        # Add system message to LogViewer
+        conversation_viewer = add_message_to_viewer(state.conversation_viewer, system_msg)
+
         new_state = %{
           state
           | messages: [system_msg | state.messages],
             config: updated_config,
-            agent_status: new_status
+            agent_status: new_status,
+            conversation_viewer: conversation_viewer
         }
         {new_state, cmds}
 
       {:error, error_message} ->
         error_msg = system_message(error_message)
-        new_state = %{state | messages: [error_msg | state.messages]}
+
+        # Add error message to LogViewer
+        conversation_viewer = add_message_to_viewer(state.conversation_viewer, error_msg)
+
+        new_state = %{state | messages: [error_msg | state.messages], conversation_viewer: conversation_viewer}
         {new_state, cmds}
 
       _ ->
@@ -627,11 +695,15 @@ defmodule JidoCode.TUI do
         # Determine new status based on config
         new_status = determine_status(updated_config)
 
+        # Add system message to LogViewer
+        conversation_viewer = add_message_to_viewer(state.conversation_viewer, system_msg)
+
         new_state = %{
           state
           | messages: [system_msg | state.messages],
             config: updated_config,
-            agent_status: new_status
+            agent_status: new_status,
+            conversation_viewer: conversation_viewer
         }
 
         {new_state, []}
@@ -695,7 +767,10 @@ defmodule JidoCode.TUI do
       {:error, error_message} ->
         error_msg = system_message(error_message)
 
-        new_state = %{state | messages: [error_msg | state.messages]}
+        # Add error message to LogViewer
+        conversation_viewer = add_message_to_viewer(state.conversation_viewer, error_msg)
+
+        new_state = %{state | messages: [error_msg | state.messages], conversation_viewer: conversation_viewer}
         {new_state, []}
     end
   end
@@ -721,7 +796,10 @@ defmodule JidoCode.TUI do
         "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select."
       )
 
-    new_state = %{state | messages: [error_msg | state.messages]}
+    # Add error message to LogViewer
+    conversation_viewer = add_message_to_viewer(state.conversation_viewer, error_msg)
+
+    new_state = %{state | messages: [error_msg | state.messages], conversation_viewer: conversation_viewer}
     {new_state, []}
   end
 
@@ -741,13 +819,17 @@ defmodule JidoCode.TUI do
         # Dispatch async with streaming - agent will broadcast chunks via PubSub
         LLMAgent.chat_stream(agent_pid, text)
 
+        # Add user message to LogViewer
+        conversation_viewer = add_message_to_viewer(new_state.conversation_viewer, user_msg)
+
         updated_state = %{
           new_state
           | messages: [user_msg | new_state.messages],
             agent_status: :processing,
             scroll_offset: 0,
             streaming_message: "",
-            is_streaming: true
+            is_streaming: true,
+            conversation_viewer: conversation_viewer
         }
 
         {updated_state, []}
@@ -758,10 +840,17 @@ defmodule JidoCode.TUI do
             "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})"
           )
 
+        # Add both messages to LogViewer
+        conversation_viewer =
+          state.conversation_viewer
+          |> add_message_to_viewer(user_msg)
+          |> add_message_to_viewer(error_msg)
+
         new_state = %{
           state
           | messages: [error_msg, user_msg | state.messages],
-            agent_status: :error
+            agent_status: :error,
+            conversation_viewer: conversation_viewer
         }
 
         {new_state, []}
@@ -817,7 +906,7 @@ defmodule JidoCode.TUI do
   end
 
   defp render_main_view(state) do
-    {width, _height} = state.window
+    {width, height} = state.window
 
     content =
       if state.show_reasoning do
@@ -831,8 +920,9 @@ defmodule JidoCode.TUI do
         end
       else
         # Standard layout without reasoning panel
-        # Layout: status bar | separator | main UI | separator | text input | separator | key controls
+        # Layout: separator | status bar | separator | main UI | separator | text input | separator | key controls
         stack(:vertical, [
+          ViewHelpers.render_separator(state),
           ViewHelpers.render_status_bar(state),
           ViewHelpers.render_separator(state),
           ViewHelpers.render_conversation(state),
@@ -843,7 +933,8 @@ defmodule JidoCode.TUI do
         ])
       end
 
-    ViewHelpers.render_with_border(state, content)
+    # Use box to fill the terminal without border
+    box([content], width: width, height: height)
   end
 
   defp render_main_content_with_sidebar(state) do
@@ -1107,6 +1198,166 @@ defmodule JidoCode.TUI do
       [] -> [""]
       final_lines -> final_lines
     end
+  end
+
+  # ============================================================================
+  # LogViewer Message Parsing
+  # ============================================================================
+
+  @doc """
+  Parses a chat message line for LogViewer.
+
+  Maps message roles to log levels:
+  - :user → :info (green)
+  - :assistant → :notice (blue)
+  - :system → :warning (yellow)
+  """
+  @spec message_line_parser(String.t()) :: LogViewer.log_entry()
+  def message_line_parser(line) do
+    %{
+      timestamp: nil,
+      level: nil,
+      source: nil,
+      message: line,
+      raw: line
+    }
+  end
+
+  # Add a message to the LogViewer state
+  # Converts the message to formatted lines and adds them to the viewer
+  @spec add_message_to_viewer(map() | nil, Model.message()) :: map() | nil
+  defp add_message_to_viewer(nil, _message), do: nil
+
+  defp add_message_to_viewer(viewer_state, message) do
+    lines = message_to_viewer_lines(message)
+    LogViewer.add_lines(viewer_state, lines)
+  end
+
+  # Convert a message to formatted lines for LogViewer
+  defp message_to_viewer_lines(message) do
+    timestamp = format_timestamp(message.timestamp)
+    source = role_to_source(message.role)
+    prefix = "#{timestamp} #{source}: "
+
+    # Split multiline content and format with proper indentation
+    message.content
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.map(fn {line, idx} ->
+      if idx == 0 do
+        prefix <> line
+      else
+        String.duplicate(" ", String.length(prefix)) <> line
+      end
+    end)
+  end
+
+  # ============================================================================
+  # Clipboard Integration
+  # ============================================================================
+
+  @doc """
+  Copies text to the system clipboard.
+
+  Attempts to use xclip (Linux), pbcopy (macOS), or falls back to logging.
+  """
+  @spec copy_to_clipboard(String.t()) :: :ok
+  def copy_to_clipboard(text) do
+    # Try different clipboard commands based on OS
+    clipboard_command = detect_clipboard_command()
+
+    case clipboard_command do
+      nil ->
+        Logger.warning("No clipboard command available. Text not copied.")
+        :ok
+
+      cmd ->
+        case System.cmd(cmd, [], input: text, stderr_to_stdout: true) do
+          {_, 0} ->
+            Logger.debug("Copied #{String.length(text)} characters to clipboard")
+            :ok
+
+          {error, _} ->
+            Logger.warning("Failed to copy to clipboard: #{error}")
+            :ok
+        end
+    end
+  end
+
+  # Detect available clipboard command
+  defp detect_clipboard_command do
+    cond do
+      # macOS
+      System.find_executable("pbcopy") -> "pbcopy"
+      # Linux with xclip
+      System.find_executable("xclip") -> "xclip"
+      # Linux with xsel
+      System.find_executable("xsel") -> "xsel"
+      # WSL or Windows
+      System.find_executable("clip.exe") -> "clip.exe"
+      # No clipboard available
+      true -> nil
+    end
+  end
+
+  @doc """
+  Converts a chat message to LogViewer log entry format.
+  """
+  @spec message_to_log_entry(Model.message(), non_neg_integer()) :: LogViewer.log_entry()
+  def message_to_log_entry(message, id) do
+    %{
+      id: id,
+      timestamp: message.timestamp,
+      level: role_to_level(message.role),
+      source: role_to_source(message.role),
+      message: message.content,
+      raw: format_message_line(message)
+    }
+  end
+
+  defp role_to_level(:user), do: :info
+  defp role_to_level(:assistant), do: :notice
+  defp role_to_level(:system), do: :warning
+  defp role_to_level(_), do: :info
+
+  defp role_to_source(:user), do: "You"
+  defp role_to_source(:assistant), do: "Assistant"
+  defp role_to_source(:system), do: "System"
+  defp role_to_source(_), do: "Unknown"
+
+  defp format_message_line(message) do
+    timestamp = format_timestamp(message.timestamp)
+    source = role_to_source(message.role)
+    "#{timestamp} #{source}: #{message.content}"
+  end
+
+  @doc """
+  Converts all messages to LogViewer lines format.
+  Messages are stored in reverse order (newest first), so we reverse them for display.
+  """
+  @spec messages_to_log_lines([Model.message()]) :: [String.t()]
+  def messages_to_log_lines(messages) do
+    messages
+    |> Enum.reverse()
+    |> Enum.flat_map(&message_to_lines/1)
+  end
+
+  # Convert a single message to display lines (handles multiline content)
+  defp message_to_lines(message) do
+    timestamp = format_timestamp(message.timestamp)
+    source = role_to_source(message.role)
+    prefix = "#{timestamp} #{source}: "
+
+    message.content
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.map(fn {line, idx} ->
+      if idx == 0 do
+        prefix <> line
+      else
+        String.duplicate(" ", String.length(prefix)) <> line
+      end
+    end)
   end
 
   @doc """

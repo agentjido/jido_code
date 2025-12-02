@@ -18,6 +18,7 @@ defmodule JidoCode.TUI.MessageHandlers do
   alias JidoCode.Tools.Result
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
+  alias TermUI.Widgets.LogViewer
 
   # Maximum number of messages to keep in the debug queue
   @max_queue_size 100
@@ -34,11 +35,15 @@ defmodule JidoCode.TUI.MessageHandlers do
     message = TUI.assistant_message(content)
     queue = queue_message(state.message_queue, {:agent_response, content})
 
+    # Update LogViewer with the new message
+    conversation_viewer = add_message_to_viewer(state.conversation_viewer, message)
+
     new_state = %{
       state
       | messages: [message | state.messages],
         message_queue: queue,
-        agent_status: :idle
+        agent_status: :idle,
+        conversation_viewer: conversation_viewer
     }
 
     {new_state, []}
@@ -70,13 +75,17 @@ defmodule JidoCode.TUI.MessageHandlers do
     message = TUI.assistant_message(state.streaming_message || "")
     queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
 
+    # Update LogViewer with the completed message
+    conversation_viewer = add_message_to_viewer(state.conversation_viewer, message)
+
     new_state = %{
       state
       | messages: [message | state.messages],
         streaming_message: nil,
         is_streaming: false,
         agent_status: :idle,
-        message_queue: queue
+        message_queue: queue,
+        conversation_viewer: conversation_viewer
     }
 
     {new_state, []}
@@ -91,13 +100,17 @@ defmodule JidoCode.TUI.MessageHandlers do
     error_msg = TUI.system_message(error_content)
     queue = queue_message(state.message_queue, {:stream_error, reason})
 
+    # Update LogViewer with the error message
+    conversation_viewer = add_message_to_viewer(state.conversation_viewer, error_msg)
+
     new_state = %{
       state
       | messages: [error_msg | state.messages],
         streaming_message: nil,
         is_streaming: false,
         agent_status: :error,
-        message_queue: queue
+        message_queue: queue,
+        conversation_viewer: conversation_viewer
     }
 
     {new_state, []}
@@ -227,4 +240,42 @@ defmodule JidoCode.TUI.MessageHandlers do
     [{msg, DateTime.utc_now()} | queue]
     |> Enum.take(@max_queue_size)
   end
+
+  # ============================================================================
+  # LogViewer Helpers
+  # ============================================================================
+
+  # Add a message to the LogViewer state
+  # Converts the message to formatted lines and adds them to the viewer
+  @spec add_message_to_viewer(map() | nil, Model.message()) :: map() | nil
+  defp add_message_to_viewer(nil, _message), do: nil
+
+  defp add_message_to_viewer(viewer_state, message) do
+    lines = message_to_viewer_lines(message)
+    LogViewer.add_lines(viewer_state, lines)
+  end
+
+  # Convert a message to formatted lines for LogViewer
+  defp message_to_viewer_lines(message) do
+    timestamp = TUI.format_timestamp(message.timestamp)
+    source = role_to_source(message.role)
+    prefix = "#{timestamp} #{source}: "
+
+    # Split multiline content and format with proper indentation
+    message.content
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.map(fn {line, idx} ->
+      if idx == 0 do
+        prefix <> line
+      else
+        String.duplicate(" ", String.length(prefix)) <> line
+      end
+    end)
+  end
+
+  defp role_to_source(:user), do: "You"
+  defp role_to_source(:assistant), do: "Assistant"
+  defp role_to_source(:system), do: "System"
+  defp role_to_source(_), do: "Unknown"
 end

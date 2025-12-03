@@ -415,49 +415,49 @@ Handle clicks on message content for focus.
 Implement real-time message updates for streaming LLM responses.
 
 ### 9.6.1 Streaming State Management
-- [ ] **Task 9.6.1**
+- [x] **Task 9.6.1** ✅ COMPLETED
 
 Track streaming state for partial message updates.
 
-- [ ] 9.6.1.1 Track `streaming_id` in state (message currently being streamed)
-- [ ] 9.6.1.2 Implement `start_streaming/2` - set streaming_id, add placeholder message
-- [ ] 9.6.1.3 Implement `end_streaming/1` - clear streaming_id
-- [ ] 9.6.1.4 Track `was_at_bottom` to determine auto-scroll behavior
-- [ ] 9.6.1.5 Write unit tests for streaming state transitions
+- [x] 9.6.1.1 Track `streaming_id` in state (message currently being streamed)
+- [x] 9.6.1.2 Implement `start_streaming/2` - set streaming_id, add placeholder message
+- [x] 9.6.1.3 Implement `end_streaming/1` - clear streaming_id
+- [x] 9.6.1.4 Track `was_at_bottom` to determine auto-scroll behavior
+- [x] 9.6.1.5 Write unit tests for streaming state transitions
 
 ### 9.6.2 Chunk Appending
-- [ ] **Task 9.6.2**
+- [x] **Task 9.6.2** ✅ COMPLETED
 
 Efficiently append streaming chunks to the active message.
 
-- [ ] 9.6.2.1 Implement `append_chunk/2` function (state, chunk)
-- [ ] 9.6.2.2 Find message by streaming_id
-- [ ] 9.6.2.3 Append chunk to message content
-- [ ] 9.6.2.4 Recalculate line count for modified message only (incremental)
-- [ ] 9.6.2.5 Update total_lines incrementally
-- [ ] 9.6.2.6 Auto-scroll if was_at_bottom is true
-- [ ] 9.6.2.7 Write unit tests for chunk appending
+- [x] 9.6.2.1 Implement `append_chunk/2` function (state, chunk)
+- [x] 9.6.2.2 Find message by streaming_id
+- [x] 9.6.2.3 Append chunk to message content
+- [x] 9.6.2.4 Recalculate line count for modified message only (incremental)
+- [x] 9.6.2.5 Update total_lines incrementally
+- [x] 9.6.2.6 Auto-scroll if was_at_bottom is true
+- [x] 9.6.2.7 Write unit tests for chunk appending
 
 ### 9.6.3 Streaming Visual Indicator
-- [ ] **Task 9.6.3**
+- [x] **Task 9.6.3** ✅ COMPLETED
 
 Show visual indicator during active streaming.
 
-- [ ] 9.6.3.1 Add cursor indicator `▌` to end of streaming message content
-- [ ] 9.6.3.2 Style streaming message differently (optional: pulsing or italic)
-- [ ] 9.6.3.3 Remove cursor indicator when streaming ends
-- [ ] 9.6.3.4 Write unit tests for streaming indicator presence
+- [x] 9.6.3.1 Add cursor indicator `▌` to end of streaming message content
+- [x] 9.6.3.2 Style streaming message differently (optional: pulsing or italic - skipped, cursor is sufficient)
+- [x] 9.6.3.3 Remove cursor indicator when streaming ends
+- [x] 9.6.3.4 Write unit tests for streaming indicator presence
 
-**Unit Tests for Section 9.6:**
-- Test `start_streaming/2` sets streaming_id
-- Test `start_streaming/2` adds placeholder message
-- Test `end_streaming/1` clears streaming_id
-- Test `append_chunk/2` appends to correct message
-- Test `append_chunk/2` updates total_lines
-- Test auto-scroll during streaming when at bottom
-- Test no auto-scroll during streaming when scrolled up
-- Test streaming cursor indicator appears during streaming
-- Test streaming cursor indicator removed after end
+**Unit Tests for Section 9.6:** ✅ ALL PASSING (9 tests total, 173 total in file)
+- [x] Test `start_streaming/2` sets streaming_id
+- [x] Test `start_streaming/2` adds placeholder message
+- [x] Test `end_streaming/1` clears streaming_id
+- [x] Test `append_chunk/2` appends to correct message
+- [x] Test `append_chunk/2` updates total_lines
+- [x] Test auto-scroll during streaming when at bottom
+- [x] Test no auto-scroll during streaming when scrolled up
+- [x] Test streaming cursor indicator appears during streaming
+- [x] Test streaming cursor indicator removed after end
 
 ---
 

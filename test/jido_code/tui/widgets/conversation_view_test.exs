@@ -708,6 +708,63 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       msg = hd(state.messages)
       assert msg.content == "Test"
     end
+
+    test "updates total_lines as content grows" do
+      state = init_state()
+      {state, _id} = ConversationView.start_streaming(state, :assistant)
+
+      initial_lines = state.total_lines
+
+      # Add enough content to increase line count
+      long_content = String.duplicate("x", 200)
+      state = ConversationView.append_chunk(state, long_content)
+
+      assert state.total_lines > initial_lines
+    end
+
+    test "auto-scrolls when was_at_bottom is true" do
+      state = init_state()
+      state = %{state | viewport_height: 5}
+
+      # Start streaming - should capture was_at_bottom as true
+      {state, _id} = ConversationView.start_streaming(state, :assistant)
+      assert state.was_at_bottom == true
+      assert ConversationView.at_bottom?(state)
+
+      # Append chunk
+      state = ConversationView.append_chunk(state, "Some content")
+
+      # Should still be at bottom
+      assert ConversationView.at_bottom?(state)
+    end
+
+    test "does not auto-scroll when was_at_bottom is false" do
+      # Create many messages to have scrollable content
+      messages = Enum.map(1..10, fn i ->
+        make_message("#{i}", :user, "Message #{i}")
+      end)
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5}
+
+      # Scroll to top so we're not at bottom
+      state = ConversationView.scroll_to(state, :top)
+      refute ConversationView.at_bottom?(state)
+      original_offset = state.scroll_offset
+
+      # Manually set streaming state with was_at_bottom false
+      new_msg = make_message("streaming", :assistant, "")
+      state = %{state |
+        messages: state.messages ++ [new_msg],
+        streaming_id: "streaming",
+        was_at_bottom: false
+      }
+
+      # Append chunk
+      state = ConversationView.append_chunk(state, "Some content that grows")
+
+      # Should NOT have auto-scrolled
+      assert state.scroll_offset == original_offset
+    end
   end
 
   # ============================================================================
@@ -1081,6 +1138,26 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       end)
 
       assert cursor_node != nil
+    end
+
+    test "streaming cursor removed after end_streaming" do
+      state = init_state()
+      {state, _id} = ConversationView.start_streaming(state, :assistant)
+      state = ConversationView.append_chunk(state, "Hello")
+
+      # End streaming
+      state = ConversationView.end_streaming(state)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+      all_nodes = flatten_nodes(result)
+
+      # Should NOT find streaming cursor
+      cursor_node = Enum.find(all_nodes, fn node ->
+        String.contains?(node.content || "", "▌")
+      end)
+
+      assert cursor_node == nil
     end
 
     test "renders scrollbar" do

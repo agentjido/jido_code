@@ -46,6 +46,7 @@ defmodule JidoCode.TUI do
   alias JidoCode.Reasoning.QueryClassifier
   alias JidoCode.Settings
   alias JidoCode.Tools.Result
+  alias JidoCode.TUI.Clipboard
   alias JidoCode.TUI.MessageHandlers
   alias JidoCode.TUI.ViewHelpers
   alias JidoCode.TUI.Widgets.ConversationView
@@ -222,7 +223,8 @@ defmodule JidoCode.TUI do
       ConversationView.new(
         messages: [],
         viewport_width: conversation_width,
-        viewport_height: conversation_height
+        viewport_height: conversation_height,
+        on_copy: &Clipboard.copy_to_clipboard/1
       )
 
     conversation_view_state = ConversationView.init(conversation_view_props)

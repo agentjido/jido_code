@@ -543,48 +543,55 @@ Handle terminal resize events for ConversationView.
 Implement system clipboard integration for copy functionality.
 
 ### 9.8.1 Clipboard Detection
-- [ ] **Task 9.8.1**
+- [x] **Task 9.8.1** ✅ COMPLETED
 
 Detect available clipboard command based on platform.
 
-- [ ] 9.8.1.1 Create `lib/jido_code/tui/clipboard.ex` module
-- [ ] 9.8.1.2 Implement `detect_clipboard_command/0`
-- [ ] 9.8.1.3 Check for `pbcopy` (macOS)
-- [ ] 9.8.1.4 Check for `xclip` (Linux X11)
-- [ ] 9.8.1.5 Check for `xsel` (Linux X11 alternative)
-- [ ] 9.8.1.6 Check for `clip.exe` (WSL/Windows)
-- [ ] 9.8.1.7 Return `nil` if no clipboard available
-- [ ] 9.8.1.8 Write unit tests for clipboard detection
+- [x] 9.8.1.1 Create `lib/jido_code/tui/clipboard.ex` module
+- [x] 9.8.1.2 Implement `detect_clipboard_command/0`
+- [x] 9.8.1.3 Check for `pbcopy` (macOS)
+- [x] 9.8.1.4 Check for `xclip` (Linux X11)
+- [x] 9.8.1.5 Check for `xsel` (Linux X11 alternative)
+- [x] 9.8.1.6 Check for `wl-copy` (Linux Wayland)
+- [x] 9.8.1.7 Check for `clip.exe` (WSL/Windows)
+- [x] 9.8.1.8 Return `nil` if no clipboard available
+- [x] 9.8.1.9 Write unit tests for clipboard detection
 
 ### 9.8.2 Copy Implementation
-- [ ] **Task 9.8.2**
+- [x] **Task 9.8.2** ✅ COMPLETED
 
 Implement cross-platform copy to clipboard.
 
-- [ ] 9.8.2.1 Implement `copy_to_clipboard/1` function
-- [ ] 9.8.2.2 Use detected clipboard command
-- [ ] 9.8.2.3 Pipe text content to clipboard command via stdin
-- [ ] 9.8.2.4 Handle command execution errors gracefully
-- [ ] 9.8.2.5 Log warning if no clipboard available
-- [ ] 9.8.2.6 Return `:ok` or `{:error, reason}`
-- [ ] 9.8.2.7 Write unit tests (mocked command execution)
+- [x] 9.8.2.1 Implement `copy_to_clipboard/1` function
+- [x] 9.8.2.2 Use detected clipboard command
+- [x] 9.8.2.3 Pipe text content to clipboard command via stdin
+- [x] 9.8.2.4 Handle command execution errors gracefully
+- [x] 9.8.2.5 Log warning if no clipboard available
+- [x] 9.8.2.6 Return `:ok` or `{:error, reason}`
+- [x] 9.8.2.7 Write unit tests (mocked command execution)
 
 ### 9.8.3 ConversationView Callback
-- [ ] **Task 9.8.3**
+- [x] **Task 9.8.3** ✅ COMPLETED
 
 Wire clipboard to ConversationView on_copy callback.
 
-- [ ] 9.8.3.1 Pass `on_copy: &Clipboard.copy_to_clipboard/1` in ConversationView init
-- [ ] 9.8.3.2 Ensure callback receives message content string
-- [ ] 9.8.3.3 Write integration test for copy flow
+- [x] 9.8.3.1 Pass `on_copy: &Clipboard.copy_to_clipboard/1` in ConversationView init
+- [x] 9.8.3.2 Ensure callback receives message content string
+- [x] 9.8.3.3 Write integration test for copy flow
 
-**Unit Tests for Section 9.8:**
-- Test `detect_clipboard_command/0` finds available command
-- Test `detect_clipboard_command/0` returns nil when none available
-- Test `copy_to_clipboard/1` executes clipboard command
-- Test `copy_to_clipboard/1` handles command failure
-- Test `copy_to_clipboard/1` logs warning when unavailable
-- Test on_copy callback receives correct message content
+**Unit Tests for Section 9.8:** ✅ ALL PASSING (14 tests)
+- [x] Test `detect_clipboard_command/0` finds available command
+- [x] Test `detect_clipboard_command/0` returns nil when none available
+- [x] Test `detect_clipboard_command/0` caches the detected command
+- [x] Test `available?/0` returns boolean
+- [x] Test `copy_to_clipboard/1` executes clipboard command
+- [x] Test `copy_to_clipboard/1` handles command failure
+- [x] Test `copy_to_clipboard/1` logs warning when unavailable
+- [x] Test `copy_to_clipboard/1` handles empty string
+- [x] Test `copy_to_clipboard/1` handles multiline text
+- [x] Test `copy_to_clipboard/1` handles unicode text
+- [x] Test `clear_cache/0` clears the cached command
+- [x] Test on_copy callback wired in ConversationView init
 
 ---
 

@@ -52,13 +52,16 @@ JidoCode is an **Agentic Coding Assistant TUI** built in Elixir. It provides an 
 |--------|---------|
 | `JidoCode.TUI` | Terminal UI with Elm Architecture pattern |
 | `JidoCode.Agents.LLMAgent` | AI agent with streaming and CoT reasoning |
+| `JidoCode.Agents.TaskAgent` | Sub-agent for isolated task execution |
 | `JidoCode.Config` | LLM provider configuration with validation |
 | `JidoCode.Settings` | Two-level JSON settings (global/local merge) |
 | `JidoCode.Commands` | Slash command parsing (/help, /model, etc.) |
 | `JidoCode.Tools.Registry` | Tool registration and lookup (ETS-backed) |
 | `JidoCode.Tools.Executor` | Tool call parsing and execution with timeout |
 | `JidoCode.Tools.Security` | Path validation and boundary enforcement |
+| `JidoCode.Tools.Security.Web` | URL validation and domain allowlist for web tools |
 | `JidoCode.Tools.Manager` | Lua sandbox for secure script execution |
+| `JidoCode.Livebook.*` | Parser, Serializer, Notebook/Cell structs for .livemd files |
 | `JidoCode.Reasoning.*` | QueryClassifier, Formatter, ChainOfThought |
 
 ## Configuration
@@ -88,7 +91,7 @@ config :jido_code, :llm,
 ### Settings Files
 
 - **Global**: `~/.jido_code/settings.json`
-- **Local**: `./jido_code/settings.json` (project-specific, overrides global)
+- **Local**: `./.jido_code/settings.json` (project-specific, overrides global)
 
 ```json
 {
@@ -113,8 +116,14 @@ config :jido_code, :llm,
 {:rdf, "~> 2.0"}
 {:libgraph, "~> 0.16"}
 
+# Web Tools
+{:floki, "~> 0.36"}  # HTML parsing for web_fetch
+
 # Security
 {:luerl, "~> 1.2"}  # Lua sandbox
+
+# Test Only
+{:bypass, "~> 2.1", only: :test}  # HTTP mocking
 ```
 
 ## Local Development Dependencies
@@ -147,8 +156,8 @@ mix dialyzer
 
 - `test/jido_code/` - Unit tests for all modules
 - `test/jido_code/integration_test.exs` - End-to-end flow tests
-- Test coverage: 80%+ (currently ~80.23%)
-- Total tests: 998 (44 integration tests)
+- Test coverage: 80%+ target
+- Total tests: 1145+ (44 integration tests)
 
 ## Security Model
 
@@ -159,6 +168,8 @@ The tool system enforces security through multiple layers:
 3. **Shell Blocking** - Shell interpreters (bash, sh) are blocked
 4. **Lua Sandbox** - Restricted Lua environment (no os.execute, io.popen)
 5. **Symlink Following** - Symlinks validated to prevent escape
+6. **Web Domain Allowlist** - web_fetch restricted to: hexdocs.pm, elixir-lang.org, erlang.org, github.com, hex.pm
+7. **URL Scheme Blocking** - file://, javascript://, data:// schemes blocked
 
 ## PubSub Topics
 
@@ -167,12 +178,19 @@ The tool system enforces security through multiple layers:
 "tui.events"                    # Global tool execution events
 "tui.events.#{session_id}"      # Session-specific events
 
+# Task Agent Events
+"task.#{task_id}"               # Task-specific progress updates
+
 # Message Types
 {:stream_chunk, content}        # Streaming response chunk
 {:stream_end, full_content}     # Stream complete
 {:tool_call, name, args, id}    # Tool execution started
 {:tool_result, %Result{}}       # Tool execution complete
 {:config_changed, old, new}     # Configuration updated
+{:todo_update, todos}           # Task list updated
+{:task_started, task_id}        # Sub-task started
+{:task_completed, task_id, result}  # Sub-task finished
+{:task_failed, task_id, reason}     # Sub-task failed
 ```
 
 ## Code Patterns
@@ -215,6 +233,28 @@ def update({:stream_chunk, content}, model) do
   %{model | streaming_message: (model.streaming_message || "") <> content}
 end
 ```
+
+## Available Tools
+
+All tools can be registered at once via `JidoCode.Tools.register_all/0`.
+
+| Tool | Handler | Purpose |
+|------|---------|---------|
+| `read_file` | `Handlers.FileSystem.ReadFile` | Read file contents |
+| `write_file` | `Handlers.FileSystem.WriteFile` | Write/create files |
+| `edit_file` | `Handlers.FileSystem.EditFile` | Targeted string replacement in files |
+| `list_directory` | `Handlers.FileSystem.ListDirectory` | List directory contents |
+| `file_info` | `Handlers.FileSystem.FileInfo` | Get file metadata |
+| `create_directory` | `Handlers.FileSystem.CreateDirectory` | Create directories |
+| `delete_file` | `Handlers.FileSystem.DeleteFile` | Delete files |
+| `grep` | `Handlers.Search.Grep` | Search file contents with regex |
+| `find_files` | `Handlers.Search.FindFiles` | Find files by pattern |
+| `run_command` | `Handlers.Shell.RunCommand` | Execute allowlisted shell commands |
+| `livebook_edit` | `Handlers.Livebook.EditCell` | Edit Elixir Livebook (.livemd) cells |
+| `web_fetch` | `Handlers.Web.Fetch` | Fetch and parse web content |
+| `web_search` | `Handlers.Web.Search` | Search the web via DuckDuckGo |
+| `todo_write` | `Handlers.Todo` | Manage task tracking list |
+| `spawn_task` | `Handlers.Task` | Spawn sub-agents for complex tasks |
 
 ## Research Documents
 

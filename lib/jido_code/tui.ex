@@ -1104,7 +1104,12 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Local providers that don't require API keys
+  @local_providers ["lmstudio", "llama", "ollama"]
+
   # Check if API key is available for the provider
+  defp has_api_key?(provider) when provider in @local_providers, do: true
+
   defp has_api_key?(provider) do
     key_name = provider_to_key_name(provider)
 
@@ -1133,7 +1138,10 @@ defmodule JidoCode.TUI do
     "xai" => :xai_api_key,
     "ollama" => :ollama_api_key,
     "cerebras" => :cerebras_api_key,
-    "sambanova" => :sambanova_api_key
+    "sambanova" => :sambanova_api_key,
+    # Local providers (no API key required)
+    "lmstudio" => :lmstudio_api_key,
+    "llama" => :llama_api_key
   }
 
   defp provider_to_key_name(provider) do

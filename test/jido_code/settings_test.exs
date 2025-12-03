@@ -25,12 +25,12 @@ defmodule JidoCode.SettingsTest do
     test "local_dir returns path in current directory" do
       path = Settings.local_dir()
       assert String.starts_with?(path, File.cwd!())
-      assert String.ends_with?(path, "jido_code")
+      assert String.ends_with?(path, ".jido_code")
     end
 
     test "local_path returns settings.json in local dir" do
       path = Settings.local_path()
-      assert String.ends_with?(path, "jido_code/settings.json")
+      assert String.ends_with?(path, ".jido_code/settings.json")
     end
   end
 
@@ -325,9 +325,9 @@ defmodule JidoCode.SettingsTest do
     @describetag :tmp_dir
 
     test "merges global and local with local precedence", %{tmp_dir: tmp_dir} do
-      # Create mock settings in temp dir
-      global_dir = Path.join(tmp_dir, ".jido_code")
-      local_dir = Path.join(tmp_dir, "jido_code")
+      # Create mock settings in separate temp directories
+      global_dir = Path.join(tmp_dir, "global/.jido_code")
+      local_dir = Path.join(tmp_dir, "local/.jido_code")
       File.mkdir_p!(global_dir)
       File.mkdir_p!(local_dir)
 

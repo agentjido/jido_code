@@ -368,6 +368,14 @@ defmodule JidoCode.Commands do
     :ok
   end
 
+  # Local providers that don't require API keys
+  @local_providers ["lmstudio", "llama", "ollama"]
+
+  defp validate_api_key(provider) when provider in @local_providers do
+    # Local providers don't require API keys
+    :ok
+  end
+
   defp validate_api_key(provider) do
     key_name = provider_to_key_name(provider)
 
@@ -404,7 +412,10 @@ defmodule JidoCode.Commands do
     "xai" => :xai_api_key,
     "ollama" => :ollama_api_key,
     "cerebras" => :cerebras_api_key,
-    "sambanova" => :sambanova_api_key
+    "sambanova" => :sambanova_api_key,
+    # Local providers (no API key required)
+    "lmstudio" => :lmstudio_api_key,
+    "llama" => :llama_api_key
   }
 
   # Map provider names to their keyring key names

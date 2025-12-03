@@ -59,12 +59,24 @@ defmodule JidoCode.CommandsTest do
     end
 
     test "/provider with valid provider sets provider and clears model" do
+      setup_api_key("anthropic")
       config = %{provider: "openai", model: "gpt-4o"}
 
       {:ok, message, new_config} = Commands.execute("/provider anthropic", config)
 
       assert message =~ "Provider set to anthropic"
       assert new_config == %{provider: "anthropic", model: nil}
+      cleanup_api_key("anthropic")
+    end
+
+    test "/provider with local provider works without API key" do
+      # Local providers (lmstudio, llama, ollama) don't require API keys
+      config = %{provider: "openai", model: "gpt-4o"}
+
+      {:ok, message, new_config} = Commands.execute("/provider lmstudio", config)
+
+      assert message =~ "Provider set to lmstudio"
+      assert new_config == %{provider: "lmstudio", model: nil}
     end
 
     test "/provider without argument shows usage" do
@@ -139,8 +151,14 @@ defmodule JidoCode.CommandsTest do
       result = Commands.execute("/models", config)
 
       case result do
+        {:pick_list, provider, models, title} ->
+          # Now returns pick_list for interactive selection
+          assert provider == "anthropic"
+          assert is_list(models)
+          assert title =~ "anthropic"
+
         {:ok, message, _} ->
-          assert message =~ "Models for anthropic" or message =~ "No models found"
+          assert message =~ "No models found"
 
         {:error, _} ->
           # Registry might not be available in test
@@ -162,8 +180,14 @@ defmodule JidoCode.CommandsTest do
       result = Commands.execute("/models anthropic", config)
 
       case result do
+        {:pick_list, provider, models, title} ->
+          # Now returns pick_list for interactive selection
+          assert provider == "anthropic"
+          assert is_list(models)
+          assert title =~ "anthropic"
+
         {:ok, message, _} ->
-          assert message =~ "anthropic" or message =~ "No models found"
+          assert message =~ "No models found"
 
         {:error, message} ->
           # Unknown provider is also valid
@@ -174,11 +198,20 @@ defmodule JidoCode.CommandsTest do
     test "/providers lists available providers" do
       config = %{provider: nil, model: nil}
 
-      {:ok, message, new_config} = Commands.execute("/providers", config)
+      result = Commands.execute("/providers", config)
 
-      # Should have providers from registry
-      assert message =~ "providers" or message =~ "No providers"
-      assert new_config == %{}
+      case result do
+        {:pick_list, :provider, providers, title} ->
+          # Now returns pick_list for interactive selection
+          assert is_list(providers)
+          assert length(providers) > 0
+          assert title =~ "Provider"
+
+        {:ok, message, new_config} ->
+          # Should have providers from registry or no providers
+          assert message =~ "providers" or message =~ "No providers"
+          assert new_config == %{}
+      end
     end
 
     test "unknown command returns error" do

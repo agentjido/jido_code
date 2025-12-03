@@ -255,6 +255,40 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
     end
   end
 
+  # ============================================================================
+  # Mouse Event Handling (Section 9.5)
+  # ============================================================================
+
+  # Mouse Wheel Scrolling
+
+  def handle_event(%TermUI.Event.Mouse{action: :scroll_up}, state) do
+    {:ok, scroll_by(state, -state.scroll_lines)}
+  end
+
+  def handle_event(%TermUI.Event.Mouse{action: :scroll_down}, state) do
+    {:ok, scroll_by(state, state.scroll_lines)}
+  end
+
+  # Scrollbar Click Handling
+
+  def handle_event(%TermUI.Event.Mouse{action: :click, x: x, y: y}, state) do
+    handle_mouse_click(state, x, y)
+  end
+
+  def handle_event(%TermUI.Event.Mouse{action: :press, x: x, y: y}, state) do
+    handle_mouse_press(state, x, y)
+  end
+
+  # Scrollbar Drag Handling
+
+  def handle_event(%TermUI.Event.Mouse{action: :drag, y: y}, state) when state.dragging do
+    handle_mouse_drag(state, y)
+  end
+
+  def handle_event(%TermUI.Event.Mouse{action: :release}, state) when state.dragging do
+    {:ok, %{state | dragging: false, drag_start_y: nil, drag_start_offset: nil}}
+  end
+
   # Catch-all handler for unrecognized events
 
   def handle_event(_event, state) do
@@ -879,6 +913,115 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   defp clamp_scroll(offset, state) do
     max_offset = max_scroll_offset(state)
     max(0, min(offset, max_offset))
+  end
+
+  # ============================================================================
+  # Mouse Event Helpers
+  # ============================================================================
+
+  defp handle_mouse_click(state, x, y) do
+    content_width = state.viewport_width - state.scrollbar_width
+
+    if x >= content_width do
+      # Click on scrollbar
+      handle_scrollbar_click(state, y)
+    else
+      # Click on content - set focus to clicked message
+      handle_content_click(state, x, y)
+    end
+  end
+
+  defp handle_mouse_press(state, x, y) do
+    content_width = state.viewport_width - state.scrollbar_width
+
+    if x >= content_width do
+      # Press on scrollbar - check if on thumb to start drag
+      handle_scrollbar_press(state, y)
+    else
+      # Press on content is handled same as click
+      handle_content_click(state, x, y)
+    end
+  end
+
+  defp handle_scrollbar_click(state, y) do
+    # Calculate thumb position
+    {thumb_size, thumb_pos} = calculate_scrollbar_metrics(state, state.viewport_height)
+
+    cond do
+      # Click above thumb - page up
+      y < thumb_pos ->
+        {:ok, scroll_by(state, -state.viewport_height)}
+
+      # Click below thumb - page down
+      y >= thumb_pos + thumb_size ->
+        {:ok, scroll_by(state, state.viewport_height)}
+
+      # Click on thumb - no action on simple click (drag handled by press)
+      true ->
+        {:ok, state}
+    end
+  end
+
+  defp handle_scrollbar_press(state, y) do
+    # Calculate thumb position
+    {thumb_size, thumb_pos} = calculate_scrollbar_metrics(state, state.viewport_height)
+
+    if y >= thumb_pos and y < thumb_pos + thumb_size do
+      # Press on thumb - start drag
+      {:ok, %{state | dragging: true, drag_start_y: y, drag_start_offset: state.scroll_offset}}
+    else
+      # Press above/below thumb - same as click
+      handle_scrollbar_click(state, y)
+    end
+  end
+
+  defp handle_mouse_drag(state, y) do
+    # Calculate proportional scroll based on drag distance
+    track_height = state.viewport_height
+    max_offset = max_scroll_offset(state)
+
+    if track_height > 0 and max_offset > 0 do
+      delta_y = y - state.drag_start_y
+      # Each pixel of drag corresponds to max_offset / track_height scroll
+      offset_change = round(delta_y * max_offset / track_height)
+      new_offset = clamp_scroll(state.drag_start_offset + offset_change, state)
+      {:ok, %{state | scroll_offset: new_offset}}
+    else
+      {:ok, state}
+    end
+  end
+
+  defp handle_content_click(state, _x, y) do
+    # Calculate which message was clicked based on y position and scroll offset
+    if Enum.empty?(state.messages) do
+      {:ok, state}
+    else
+      # Get absolute line position (viewport y + scroll offset)
+      absolute_line = y + state.scroll_offset
+
+      # Find which message contains this line
+      line_info = get_message_line_info(state)
+      message_idx = find_message_index_at_line(line_info, absolute_line)
+
+      # Clamp to valid range
+      message_idx = max(0, min(message_idx, length(state.messages) - 1))
+
+      {:ok, %{state | cursor_message_idx: message_idx}}
+    end
+  end
+
+  defp find_message_index_at_line(line_info, target_line) do
+    line_info
+    |> Enum.with_index()
+    |> Enum.reduce_while(0, fn {{start_line, line_count}, idx}, _acc ->
+      end_line = start_line + line_count
+
+      if target_line < end_line do
+        {:halt, idx}
+      else
+        {:cont, idx}
+      end
+    end)
   end
 
   defp generate_id do

@@ -1858,4 +1858,228 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert msg == nil
     end
   end
+
+  # ============================================================================
+  # Section 9.5: Mouse Event Handling Tests
+  # ============================================================================
+
+  describe "handle_event/2 - mouse wheel scrolling" do
+    test "scroll_up decreases scroll_offset by scroll_lines" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages, scroll_lines: 3)
+      state = %{state | viewport_height: 5, scroll_offset: 15}
+
+      event = %TermUI.Event.Mouse{action: :scroll_up, x: 0, y: 0}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 12
+    end
+
+    test "scroll_down increases scroll_offset by scroll_lines" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages, scroll_lines: 3)
+      state = %{state | viewport_height: 5, scroll_offset: 5}
+
+      event = %TermUI.Event.Mouse{action: :scroll_down, x: 0, y: 0}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 8
+    end
+
+    test "wheel scroll respects lower bound" do
+      messages = [make_message("1", :user, "Test")]
+      state = init_state(messages: messages, scroll_lines: 3)
+      state = %{state | scroll_offset: 1}
+
+      event = %TermUI.Event.Mouse{action: :scroll_up, x: 0, y: 0}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 0
+    end
+
+    test "wheel scroll respects upper bound" do
+      messages = Enum.map(1..10, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages, scroll_lines: 3)
+      state = %{state | viewport_height: 5}
+      max_offset = ConversationView.max_scroll_offset(state)
+      state = %{state | scroll_offset: max_offset - 1}
+
+      event = %TermUI.Event.Mouse{action: :scroll_down, x: 0, y: 0}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == max_offset
+    end
+
+    test "scroll_lines is configurable" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages, scroll_lines: 5)
+      state = %{state | viewport_height: 5, scroll_offset: 20}
+
+      event = %TermUI.Event.Mouse{action: :scroll_up, x: 0, y: 0}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 15
+    end
+  end
+
+  describe "handle_event/2 - scrollbar click handling" do
+    test "click above thumb triggers page up" do
+      messages = Enum.map(1..30, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 10, viewport_width: 82, scroll_offset: 50}
+
+      # Click above thumb (y = 0) on scrollbar (x >= content_width)
+      # Thumb is somewhere in the middle, so y=0 is always above it
+      event = %TermUI.Event.Mouse{action: :click, x: 80, y: 0, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # Should have scrolled up by viewport_height
+      assert new_state.scroll_offset < 50
+    end
+
+    test "click below thumb triggers page down" do
+      messages = Enum.map(1..30, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 10, viewport_width: 82, scroll_offset: 10}
+
+      # Click at bottom of scrollbar
+      event = %TermUI.Event.Mouse{action: :click, x: 80, y: 9, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # Should have scrolled down
+      assert new_state.scroll_offset > 10
+    end
+  end
+
+  describe "handle_event/2 - scrollbar drag handling" do
+    test "press on thumb starts drag state" do
+      messages = Enum.map(1..30, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 10, viewport_width: 82, scroll_offset: 20}
+
+      # Calculate thumb position
+      {_thumb_size, thumb_pos} = ConversationView.calculate_scrollbar_metrics(state, 10)
+
+      # Press on thumb
+      event = %TermUI.Event.Mouse{action: :press, x: 80, y: thumb_pos, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.dragging == true
+      assert new_state.drag_start_y == thumb_pos
+      assert new_state.drag_start_offset == 20
+    end
+
+    test "drag updates scroll offset proportionally" do
+      messages = Enum.map(1..30, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 10, viewport_width: 82, scroll_offset: 20}
+
+      # Start drag
+      state = %{state | dragging: true, drag_start_y: 2, drag_start_offset: 20}
+
+      # Drag down 3 pixels
+      event = %TermUI.Event.Mouse{action: :drag, x: 80, y: 5, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # Scroll offset should have increased
+      assert new_state.scroll_offset > 20
+    end
+
+    test "release ends drag state" do
+      state = init_state()
+      state = %{state | dragging: true, drag_start_y: 5, drag_start_offset: 10}
+
+      event = %TermUI.Event.Mouse{action: :release, x: 80, y: 8, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.dragging == false
+      assert new_state.drag_start_y == nil
+      assert new_state.drag_start_offset == nil
+    end
+
+    test "drag respects scroll bounds" do
+      messages = Enum.map(1..10, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5}
+      max_offset = ConversationView.max_scroll_offset(state)
+
+      # Start drag near bottom
+      state = %{state | dragging: true, drag_start_y: 0, drag_start_offset: max_offset}
+
+      # Try to drag way down
+      event = %TermUI.Event.Mouse{action: :drag, x: 80, y: 100, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # Should be clamped to max
+      assert new_state.scroll_offset == max_offset
+    end
+  end
+
+  describe "handle_event/2 - content click handling" do
+    test "content click sets cursor_message_idx" do
+      messages = [
+        make_message("1", :user, "First"),
+        make_message("2", :assistant, "Second"),
+        make_message("3", :user, "Third")
+      ]
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 20, viewport_width: 82}
+
+      # Get line info to calculate click position for second message
+      line_info = ConversationView.get_message_line_info(state)
+      {second_msg_start, _} = Enum.at(line_info, 1)
+
+      # Click on content area (x < content_width) at second message's line
+      event = %TermUI.Event.Mouse{action: :click, x: 10, y: second_msg_start, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.cursor_message_idx == 1
+    end
+
+    test "content click with scroll offset" do
+      messages = Enum.map(1..10, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, viewport_width: 82, scroll_offset: 10}
+
+      # Click at y=2 with scroll_offset=10 means absolute line 12
+      event = %TermUI.Event.Mouse{action: :click, x: 10, y: 2, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # cursor should be set to the message at that line
+      assert new_state.cursor_message_idx >= 0
+      assert new_state.cursor_message_idx < 10
+    end
+
+    test "content click on empty messages is no-op" do
+      state = init_state()
+      state = %{state | viewport_width: 82}
+
+      event = %TermUI.Event.Mouse{action: :click, x: 10, y: 5, button: :left}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.cursor_message_idx == 0
+    end
+  end
+
+  describe "mouse event catch-all" do
+    test "drag without dragging state is ignored" do
+      state = init_state()
+      # dragging is false by default
+
+      event = %TermUI.Event.Mouse{action: :drag, x: 80, y: 5}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state == state
+    end
+
+    test "release without dragging state is ignored" do
+      state = init_state()
+      # dragging is false by default
+
+      event = %TermUI.Event.Mouse{action: :release, x: 80, y: 5}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state == state
+    end
+  end
 end

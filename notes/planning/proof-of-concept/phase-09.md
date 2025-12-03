@@ -261,82 +261,82 @@ Render visual scrollbar with thumb position indicator.
 Implement keyboard navigation for scrolling, message expansion, and copy functionality.
 
 ### 9.4.1 Scroll Navigation
-- [ ] **Task 9.4.1**
+- [x] **Task 9.4.1** ✅ COMPLETED
 
 Handle keyboard events for scrolling the viewport.
 
-- [ ] 9.4.1.1 Implement `handle_event/2` callback
-- [ ] 9.4.1.2 Handle `:up` key - scroll up 1 line
-- [ ] 9.4.1.3 Handle `:down` key - scroll down 1 line
-- [ ] 9.4.1.4 Handle `:page_up` key - scroll up viewport_height lines
-- [ ] 9.4.1.5 Handle `:page_down` key - scroll down viewport_height lines
-- [ ] 9.4.1.6 Handle `:home` key - scroll to top (offset = 0)
-- [ ] 9.4.1.7 Handle `:end` key - scroll to bottom (offset = max)
-- [ ] 9.4.1.8 Return `{:ok, new_state}` after scroll updates
-- [ ] 9.4.1.9 Write unit tests for each navigation key
+- [x] 9.4.1.1 Implement `handle_event/2` callback
+- [x] 9.4.1.2 Handle `:up` key - scroll up 1 line
+- [x] 9.4.1.3 Handle `:down` key - scroll down 1 line
+- [x] 9.4.1.4 Handle `:page_up` key - scroll up viewport_height lines
+- [x] 9.4.1.5 Handle `:page_down` key - scroll down viewport_height lines
+- [x] 9.4.1.6 Handle `:home` key - scroll to top (offset = 0)
+- [x] 9.4.1.7 Handle `:end` key - scroll to bottom (offset = max)
+- [x] 9.4.1.8 Return `{:ok, new_state}` after scroll updates
+- [x] 9.4.1.9 Write unit tests for each navigation key
 
 ### 9.4.2 Message Focus Navigation
-- [ ] **Task 9.4.2**
+- [x] **Task 9.4.2** ✅ COMPLETED
 
 Track focused message for expansion and copy operations.
 
-- [ ] 9.4.2.1 Track `cursor_message_idx` in state
-- [ ] 9.4.2.2 Handle `Ctrl+Up` - move focus to previous message
-- [ ] 9.4.2.3 Handle `Ctrl+Down` - move focus to next message
-- [ ] 9.4.2.4 Ensure focused message is visible (adjust scroll if needed)
-- [ ] 9.4.2.5 Highlight focused message with subtle background or indicator
-- [ ] 9.4.2.6 Write unit tests for message focus navigation
+- [x] 9.4.2.1 Track `cursor_message_idx` in state (already from 9.1)
+- [x] 9.4.2.2 Handle `Ctrl+Up` - move focus to previous message
+- [x] 9.4.2.3 Handle `Ctrl+Down` - move focus to next message
+- [x] 9.4.2.4 Ensure focused message is visible (adjust scroll if needed)
+- [x] 9.4.2.5 Highlight focused message with subtle background or indicator (already in render)
+- [x] 9.4.2.6 Write unit tests for message focus navigation
 
 ### 9.4.3 Expand/Collapse Handling
-- [ ] **Task 9.4.3**
+- [x] **Task 9.4.3** ✅ COMPLETED
 
 Handle keyboard events for expanding and collapsing messages.
 
-- [ ] 9.4.3.1 Handle `Space` key - toggle expand on focused message
-- [ ] 9.4.3.2 Handle `e` key - expand all truncated messages
-- [ ] 9.4.3.3 Handle `c` key - collapse all expanded messages
-- [ ] 9.4.3.4 Recalculate `total_lines` after expansion changes
-- [ ] 9.4.3.5 Adjust scroll offset to keep focused message visible
-- [ ] 9.4.3.6 Write unit tests for expand/collapse behavior
+- [x] 9.4.3.1 Handle `Space` key - toggle expand on focused message
+- [x] 9.4.3.2 Handle `e` key - expand all truncated messages
+- [x] 9.4.3.3 Handle `c` key - collapse all expanded messages
+- [x] 9.4.3.4 Recalculate `total_lines` after expansion changes
+- [x] 9.4.3.5 Adjust scroll offset to keep focused message visible
+- [x] 9.4.3.6 Write unit tests for expand/collapse behavior
 
 ### 9.4.4 Copy Functionality
-- [ ] **Task 9.4.4**
+- [x] **Task 9.4.4** ✅ COMPLETED
 
 Handle copy key to invoke clipboard callback.
 
-- [ ] 9.4.4.1 Handle `y` key - copy focused message content
-- [ ] 9.4.4.2 Call `on_copy` callback with message content if configured
-- [ ] 9.4.4.3 Flash visual feedback on copy (optional: brief highlight)
-- [ ] 9.4.4.4 Handle missing `on_copy` gracefully (no-op)
-- [ ] 9.4.4.5 Write unit tests for copy triggering
+- [x] 9.4.4.1 Handle `y` key - copy focused message content
+- [x] 9.4.4.2 Call `on_copy` callback with message content if configured
+- [x] 9.4.4.3 Flash visual feedback on copy (optional: skipped for simplicity)
+- [x] 9.4.4.4 Handle missing `on_copy` gracefully (no-op)
+- [x] 9.4.4.5 Write unit tests for copy triggering
 
 ### 9.4.5 Catch-All Handler
-- [ ] **Task 9.4.5**
+- [x] **Task 9.4.5** ✅ COMPLETED
 
 Handle unrecognized events gracefully.
 
-- [ ] 9.4.5.1 Implement catch-all `handle_event/2` clause
-- [ ] 9.4.5.2 Return `{:ok, state}` unchanged for unhandled events
-- [ ] 9.4.5.3 Write unit test for unhandled event passthrough
+- [x] 9.4.5.1 Implement catch-all `handle_event/2` clause
+- [x] 9.4.5.2 Return `{:ok, state}` unchanged for unhandled events
+- [x] 9.4.5.3 Write unit test for unhandled event passthrough
 
-**Unit Tests for Section 9.4:**
-- Test `:up` decreases scroll_offset by 1
-- Test `:down` increases scroll_offset by 1
-- Test `:page_up` decreases scroll_offset by viewport_height
-- Test `:page_down` increases scroll_offset by viewport_height
-- Test `:home` sets scroll_offset to 0
-- Test `:end` sets scroll_offset to max
-- Test scroll respects bounds (no negative, no exceeding max)
-- Test `Ctrl+Up` moves cursor_message_idx up
-- Test `Ctrl+Down` moves cursor_message_idx down
-- Test focus navigation adjusts scroll to keep message visible
-- Test `Space` toggles expansion of focused message
-- Test `e` expands all messages
-- Test `c` collapses all messages
-- Test expansion recalculates total_lines
-- Test `y` calls on_copy with message content
-- Test `y` no-op when on_copy is nil
-- Test unhandled events return unchanged state
+**Unit Tests for Section 9.4:** ✅ ALL PASSING (30 new tests, 153 total)
+- [x] Test `:up` decreases scroll_offset by 1
+- [x] Test `:down` increases scroll_offset by 1
+- [x] Test `:page_up` decreases scroll_offset by viewport_height
+- [x] Test `:page_down` increases scroll_offset by viewport_height
+- [x] Test `:home` sets scroll_offset to 0
+- [x] Test `:end` sets scroll_offset to max
+- [x] Test scroll respects bounds (no negative, no exceeding max)
+- [x] Test `Ctrl+Up` moves cursor_message_idx up
+- [x] Test `Ctrl+Down` moves cursor_message_idx down
+- [x] Test focus navigation adjusts scroll to keep message visible
+- [x] Test `Space` toggles expansion of focused message
+- [x] Test `e` expands all messages
+- [x] Test `c` collapses all messages
+- [x] Test expansion recalculates total_lines
+- [x] Test `y` calls on_copy with message content
+- [x] Test `y` no-op when on_copy is nil
+- [x] Test unhandled events return unchanged state
 
 ---
 

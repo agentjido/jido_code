@@ -1448,4 +1448,414 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert state.scroll_offset < expanded_offset
     end
   end
+
+  # ============================================================================
+  # Section 9.4: Keyboard Event Handling Tests
+  # ============================================================================
+
+  describe "handle_event/2 - scroll navigation" do
+    test ":up key decreases scroll_offset by 1" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 10}
+
+      event = %TermUI.Event.Key{key: :up, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 9
+    end
+
+    test ":down key increases scroll_offset by 1" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 5}
+
+      event = %TermUI.Event.Key{key: :down, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 6
+    end
+
+    test ":page_up decreases scroll_offset by viewport_height" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 20}
+
+      event = %TermUI.Event.Key{key: :page_up, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 15
+    end
+
+    test ":page_down increases scroll_offset by viewport_height" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 0}
+
+      event = %TermUI.Event.Key{key: :page_down, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 5
+    end
+
+    test ":home sets scroll_offset to 0" do
+      messages = Enum.map(1..10, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 20}
+
+      event = %TermUI.Event.Key{key: :home, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 0
+    end
+
+    test ":end sets scroll_offset to max" do
+      messages = Enum.map(1..10, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 0}
+
+      event = %TermUI.Event.Key{key: :end, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == ConversationView.max_scroll_offset(new_state)
+    end
+
+    test "scroll respects lower bound (no negative)" do
+      state = init_state(messages: [make_message("1", :user, "Test")])
+      state = %{state | scroll_offset: 0}
+
+      event = %TermUI.Event.Key{key: :up, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == 0
+    end
+
+    test "scroll respects upper bound" do
+      messages = Enum.map(1..10, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5}
+      max_offset = ConversationView.max_scroll_offset(state)
+      state = %{state | scroll_offset: max_offset}
+
+      event = %TermUI.Event.Key{key: :down, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.scroll_offset == max_offset
+    end
+  end
+
+  describe "handle_event/2 - message focus navigation" do
+    test "Ctrl+Up moves cursor_message_idx up" do
+      messages = [
+        make_message("1", :user, "First"),
+        make_message("2", :assistant, "Second"),
+        make_message("3", :user, "Third")
+      ]
+      state = init_state(messages: messages)
+      state = %{state | cursor_message_idx: 2}
+
+      event = %TermUI.Event.Key{key: :up, modifiers: [:ctrl]}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.cursor_message_idx == 1
+    end
+
+    test "Ctrl+Down moves cursor_message_idx down" do
+      messages = [
+        make_message("1", :user, "First"),
+        make_message("2", :assistant, "Second"),
+        make_message("3", :user, "Third")
+      ]
+      state = init_state(messages: messages)
+      state = %{state | cursor_message_idx: 0}
+
+      event = %TermUI.Event.Key{key: :down, modifiers: [:ctrl]}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.cursor_message_idx == 1
+    end
+
+    test "focus navigation clamps to first message" do
+      messages = [make_message("1", :user, "First")]
+      state = init_state(messages: messages)
+      state = %{state | cursor_message_idx: 0}
+
+      event = %TermUI.Event.Key{key: :up, modifiers: [:ctrl]}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.cursor_message_idx == 0
+    end
+
+    test "focus navigation clamps to last message" do
+      messages = [
+        make_message("1", :user, "First"),
+        make_message("2", :assistant, "Second")
+      ]
+      state = init_state(messages: messages)
+      state = %{state | cursor_message_idx: 1}
+
+      event = %TermUI.Event.Key{key: :down, modifiers: [:ctrl]}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state.cursor_message_idx == 1
+    end
+
+    test "focus navigation adjusts scroll to keep message visible" do
+      # Create many messages
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, cursor_message_idx: 0, scroll_offset: 0}
+
+      # Move focus down several times
+      event = %TermUI.Event.Key{key: :down, modifiers: [:ctrl]}
+
+      state =
+        Enum.reduce(1..10, state, fn _, acc ->
+          {:ok, new_state} = ConversationView.handle_event(event, acc)
+          new_state
+        end)
+
+      # Focus should be at message 10 and it should be visible
+      assert state.cursor_message_idx == 10
+      # Scroll should have adjusted to keep the message visible
+      visible_range = ConversationView.calculate_visible_range(state)
+      assert state.cursor_message_idx >= visible_range.start_msg_idx
+      assert state.cursor_message_idx <= visible_range.end_msg_idx
+    end
+  end
+
+  describe "handle_event/2 - expand/collapse" do
+    test "Space toggles expansion of focused message" do
+      long_content = String.duplicate("Line\n", 30)
+      messages = [make_message("1", :user, long_content)]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+      state = %{state | cursor_message_idx: 0}
+
+      # Initially collapsed
+      refute ConversationView.expanded?(state, "1")
+
+      # Press space to expand
+      event = %TermUI.Event.Key{key: :space, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert ConversationView.expanded?(new_state, "1")
+
+      # Press space again to collapse
+      {:ok, collapsed_state} = ConversationView.handle_event(event, new_state)
+
+      refute ConversationView.expanded?(collapsed_state, "1")
+    end
+
+    test "e key expands all messages" do
+      messages = [
+        make_message("1", :user, String.duplicate("Line\n", 20)),
+        make_message("2", :assistant, String.duplicate("Line\n", 20))
+      ]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+
+      event = %TermUI.Event.Key{key: nil, char: "e", modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert ConversationView.expanded?(new_state, "1")
+      assert ConversationView.expanded?(new_state, "2")
+    end
+
+    test "c key collapses all messages" do
+      messages = [
+        make_message("1", :user, String.duplicate("Line\n", 20)),
+        make_message("2", :assistant, String.duplicate("Line\n", 20))
+      ]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+      state = ConversationView.expand_all(state)
+
+      # Both expanded
+      assert ConversationView.expanded?(state, "1")
+      assert ConversationView.expanded?(state, "2")
+
+      # Press c to collapse all
+      event = %TermUI.Event.Key{key: nil, char: "c", modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      refute ConversationView.expanded?(new_state, "1")
+      refute ConversationView.expanded?(new_state, "2")
+    end
+
+    test "expansion recalculates total_lines" do
+      long_content = String.duplicate("Line\n", 30)
+      messages = [make_message("1", :user, long_content)]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+
+      collapsed_lines = state.total_lines
+
+      # Expand via space key
+      event = %TermUI.Event.Key{key: :space, modifiers: []}
+      {:ok, expanded_state} = ConversationView.handle_event(event, state)
+
+      # Expanded should have more lines
+      assert expanded_state.total_lines > collapsed_lines
+    end
+  end
+
+  describe "handle_event/2 - copy functionality" do
+    test "y key calls on_copy with message content" do
+      # Track copy callback invocations
+      test_pid = self()
+
+      callback = fn content ->
+        send(test_pid, {:copied, content})
+        :ok
+      end
+
+      messages = [make_message("1", :user, "Hello World")]
+      state = init_state(messages: messages, on_copy: callback)
+      state = %{state | cursor_message_idx: 0}
+
+      event = %TermUI.Event.Key{key: nil, char: "y", modifiers: []}
+      {:ok, _new_state} = ConversationView.handle_event(event, state)
+
+      assert_receive {:copied, "Hello World"}
+    end
+
+    test "y key is no-op when on_copy is nil" do
+      messages = [make_message("1", :user, "Hello")]
+      state = init_state(messages: messages)
+      # on_copy is nil by default
+
+      event = %TermUI.Event.Key{key: nil, char: "y", modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # State unchanged
+      assert new_state == state
+    end
+  end
+
+  describe "handle_event/2 - catch-all" do
+    test "unhandled events return unchanged state" do
+      state = init_state()
+
+      # Some random event
+      event = %TermUI.Event.Key{key: :f1, modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state == state
+    end
+
+    test "character keys not handled return unchanged state" do
+      state = init_state()
+
+      event = %TermUI.Event.Key{key: nil, char: "x", modifiers: []}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      assert new_state == state
+    end
+  end
+
+  describe "move_focus/2" do
+    test "moves focus down" do
+      messages = [
+        make_message("1", :user, "First"),
+        make_message("2", :assistant, "Second")
+      ]
+      state = init_state(messages: messages)
+
+      new_state = ConversationView.move_focus(state, 1)
+
+      assert new_state.cursor_message_idx == 1
+    end
+
+    test "moves focus up" do
+      messages = [
+        make_message("1", :user, "First"),
+        make_message("2", :assistant, "Second")
+      ]
+      state = init_state(messages: messages)
+      state = %{state | cursor_message_idx: 1}
+
+      new_state = ConversationView.move_focus(state, -1)
+
+      assert new_state.cursor_message_idx == 0
+    end
+
+    test "clamps to valid range" do
+      messages = [make_message("1", :user, "Only message")]
+      state = init_state(messages: messages)
+
+      # Try to move past end
+      new_state = ConversationView.move_focus(state, 10)
+      assert new_state.cursor_message_idx == 0
+
+      # Try to move before start
+      new_state = ConversationView.move_focus(state, -10)
+      assert new_state.cursor_message_idx == 0
+    end
+
+    test "no-op for empty messages" do
+      state = init_state()
+
+      new_state = ConversationView.move_focus(state, 1)
+
+      assert new_state.cursor_message_idx == 0
+    end
+  end
+
+  describe "ensure_message_visible/2" do
+    test "scrolls up when message is above visible area" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 30}
+
+      # Message 0 is at line 0, which is above visible area (scroll 30)
+      new_state = ConversationView.ensure_message_visible(state, 0)
+
+      # Should scroll up to show message 0
+      assert new_state.scroll_offset < 30
+    end
+
+    test "scrolls down when message is below visible area" do
+      messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 0}
+
+      # Message 15 is below visible area (scroll 0, viewport 5)
+      new_state = ConversationView.ensure_message_visible(state, 15)
+
+      # Should scroll down
+      assert new_state.scroll_offset > 0
+    end
+
+    test "no change when message is already visible" do
+      messages = Enum.map(1..10, &make_message("#{&1}", :user, "Message #{&1}"))
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 20, scroll_offset: 0}
+
+      original_offset = state.scroll_offset
+      new_state = ConversationView.ensure_message_visible(state, 0)
+
+      assert new_state.scroll_offset == original_offset
+    end
+  end
+
+  describe "get_focused_message/1" do
+    test "returns focused message" do
+      messages = [
+        make_message("1", :user, "First"),
+        make_message("2", :assistant, "Second")
+      ]
+      state = init_state(messages: messages)
+      state = %{state | cursor_message_idx: 1}
+
+      msg = ConversationView.get_focused_message(state)
+
+      assert msg.id == "2"
+      assert msg.content == "Second"
+    end
+
+    test "returns nil for empty messages" do
+      state = init_state()
+
+      msg = ConversationView.get_focused_message(state)
+
+      assert msg == nil
+    end
+  end
 end

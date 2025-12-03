@@ -167,9 +167,97 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
     {:ok, state}
   end
 
+  # ============================================================================
+  # Keyboard Event Handling (Section 9.4)
+  # ============================================================================
+
+  # Scroll Navigation
+
   @impl true
+  def handle_event(%TermUI.Event.Key{key: :up, modifiers: []}, state) do
+    {:ok, scroll_by(state, -1)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :down, modifiers: []}, state) do
+    {:ok, scroll_by(state, 1)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :page_up}, state) do
+    {:ok, scroll_by(state, -state.viewport_height)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :page_down}, state) do
+    {:ok, scroll_by(state, state.viewport_height)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :home}, state) do
+    {:ok, scroll_to(state, :top)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :end}, state) do
+    {:ok, scroll_to(state, :bottom)}
+  end
+
+  # Message Focus Navigation (Ctrl+Up/Down)
+
+  def handle_event(%TermUI.Event.Key{key: :up, modifiers: [:ctrl]}, state) do
+    {:ok, move_focus(state, -1)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :up, modifiers: [:ctrl | _]}, state) do
+    {:ok, move_focus(state, -1)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :down, modifiers: [:ctrl]}, state) do
+    {:ok, move_focus(state, 1)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :down, modifiers: [:ctrl | _]}, state) do
+    {:ok, move_focus(state, 1)}
+  end
+
+  # Expand/Collapse Handling
+
+  def handle_event(%TermUI.Event.Key{key: :space}, state) do
+    # Toggle expand on focused message
+    case Enum.at(state.messages, state.cursor_message_idx) do
+      nil ->
+        {:ok, state}
+
+      msg ->
+        new_state = toggle_expand(state, msg.id)
+        # Adjust scroll to keep focused message visible
+        {:ok, ensure_message_visible(new_state, state.cursor_message_idx)}
+    end
+  end
+
+  def handle_event(%TermUI.Event.Key{char: "e"}, state) do
+    new_state = expand_all(state)
+    {:ok, ensure_message_visible(new_state, state.cursor_message_idx)}
+  end
+
+  def handle_event(%TermUI.Event.Key{char: "c"}, state) do
+    new_state = collapse_all(state)
+    {:ok, ensure_message_visible(new_state, state.cursor_message_idx)}
+  end
+
+  # Copy Functionality
+
+  def handle_event(%TermUI.Event.Key{char: "y"}, state) do
+    case state.on_copy do
+      nil ->
+        {:ok, state}
+
+      callback when is_function(callback, 1) ->
+        content = get_selected_text(state)
+        callback.(content)
+        {:ok, state}
+    end
+  end
+
+  # Catch-all handler for unrecognized events
+
   def handle_event(_event, state) do
-    # Event handling will be implemented in Section 9.4/9.5
     {:ok, state}
   end
 
@@ -580,6 +668,71 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   @spec message_count(state()) :: non_neg_integer()
   def message_count(state) do
     length(state.messages)
+  end
+
+  # ============================================================================
+  # Public API - Focus Navigation
+  # ============================================================================
+
+  @doc """
+  Moves the message focus by delta positions.
+
+  Positive delta moves down, negative moves up. Clamps to valid range.
+  Ensures the focused message is visible after moving.
+  """
+  @spec move_focus(state(), integer()) :: state()
+  def move_focus(state, delta) do
+    message_count = length(state.messages)
+
+    if message_count == 0 do
+      state
+    else
+      new_idx = state.cursor_message_idx + delta
+      clamped_idx = max(0, min(new_idx, message_count - 1))
+      state = %{state | cursor_message_idx: clamped_idx}
+      ensure_message_visible(state, clamped_idx)
+    end
+  end
+
+  @doc """
+  Ensures a message at the given index is visible in the viewport.
+
+  Adjusts scroll offset if the message is above or below the visible area.
+  """
+  @spec ensure_message_visible(state(), non_neg_integer()) :: state()
+  def ensure_message_visible(state, message_idx) do
+    if Enum.empty?(state.messages) or message_idx >= length(state.messages) do
+      state
+    else
+      # Calculate cumulative lines to find the message's position
+      line_info = get_message_line_info(state)
+      {msg_start_line, msg_line_count} = Enum.at(line_info, message_idx, {0, 0})
+      msg_end_line = msg_start_line + msg_line_count
+
+      # Check if message is above visible area
+      cond do
+        msg_start_line < state.scroll_offset ->
+          # Scroll up to show message at top
+          %{state | scroll_offset: msg_start_line}
+
+        msg_end_line > state.scroll_offset + state.viewport_height ->
+          # Scroll down to show message at bottom
+          new_offset = max(0, msg_end_line - state.viewport_height)
+          %{state | scroll_offset: new_offset}
+
+        true ->
+          # Message is already visible
+          state
+      end
+    end
+  end
+
+  @doc """
+  Returns the currently focused message, or nil if none.
+  """
+  @spec get_focused_message(state()) :: message() | nil
+  def get_focused_message(state) do
+    Enum.at(state.messages, state.cursor_message_idx)
   end
 
   # ============================================================================

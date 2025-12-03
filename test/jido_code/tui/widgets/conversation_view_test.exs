@@ -752,4 +752,311 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert ConversationView.message_count(state) == 2
     end
   end
+
+  # ============================================================================
+  # Section 9.2: Rendering Tests
+  # ============================================================================
+
+  describe "wrap_text/2" do
+    test "returns empty string list for empty input" do
+      assert ConversationView.wrap_text("", 80) == [""]
+    end
+
+    test "returns original text when it fits" do
+      assert ConversationView.wrap_text("Hello world", 80) == ["Hello world"]
+    end
+
+    test "wraps at word boundary" do
+      result = ConversationView.wrap_text("Hello world", 8)
+      assert result == ["Hello", "world"]
+    end
+
+    test "wraps multiple words correctly" do
+      result = ConversationView.wrap_text("one two three four five", 10)
+      assert result == ["one two", "three four", "five"]
+    end
+
+    test "preserves explicit newlines" do
+      result = ConversationView.wrap_text("Line one\nLine two\nLine three", 80)
+      assert result == ["Line one", "Line two", "Line three"]
+    end
+
+    test "wraps and preserves newlines together" do
+      result = ConversationView.wrap_text("Hello world\nFoo bar baz", 8)
+      assert result == ["Hello", "world", "Foo bar", "baz"]
+    end
+
+    test "breaks long words that exceed max_width" do
+      result = ConversationView.wrap_text("abcdefghij", 5)
+      assert result == ["abcde", "fghij"]
+    end
+
+    test "breaks very long words into multiple chunks" do
+      result = ConversationView.wrap_text("abcdefghijklmno", 5)
+      assert result == ["abcde", "fghij", "klmno"]
+    end
+
+    test "handles mixed normal and long words" do
+      result = ConversationView.wrap_text("hi abcdefghij bye", 5)
+      assert result == ["hi", "abcde", "fghij", "bye"]
+    end
+
+    test "handles whitespace-only content" do
+      result = ConversationView.wrap_text("   ", 80)
+      assert result == [""]
+    end
+
+    test "handles empty lines in content" do
+      result = ConversationView.wrap_text("Hello\n\nWorld", 80)
+      assert result == ["Hello", "", "World"]
+    end
+
+    test "returns original for zero or negative width" do
+      assert ConversationView.wrap_text("Hello", 0) == ["Hello"]
+      assert ConversationView.wrap_text("Hello", -5) == ["Hello"]
+    end
+  end
+
+  describe "truncate_content/4" do
+    test "returns all lines when under max" do
+      lines = ["one", "two", "three"]
+      {result, truncated?} = ConversationView.truncate_content(lines, 5, MapSet.new(), "id")
+      assert result == lines
+      assert truncated? == false
+    end
+
+    test "returns all lines when equal to max" do
+      lines = ["one", "two", "three"]
+      {result, truncated?} = ConversationView.truncate_content(lines, 3, MapSet.new(), "id")
+      assert result == lines
+      assert truncated? == false
+    end
+
+    test "truncates when exceeding max" do
+      lines = ["one", "two", "three", "four", "five"]
+      {result, truncated?} = ConversationView.truncate_content(lines, 3, MapSet.new(), "id")
+      # Shows max - 1 lines (reserving space for indicator)
+      assert result == ["one", "two"]
+      assert truncated? == true
+    end
+
+    test "does not truncate when message is expanded" do
+      lines = ["one", "two", "three", "four", "five"]
+      expanded = MapSet.new(["my-id"])
+      {result, truncated?} = ConversationView.truncate_content(lines, 3, expanded, "my-id")
+      assert result == lines
+      assert truncated? == false
+    end
+
+    test "truncates other messages even when some are expanded" do
+      lines = ["one", "two", "three", "four", "five"]
+      expanded = MapSet.new(["other-id"])
+      {result, truncated?} = ConversationView.truncate_content(lines, 3, expanded, "my-id")
+      assert result == ["one", "two"]
+      assert truncated? == true
+    end
+  end
+
+  describe "get_role_style/2" do
+    test "returns default style for user role" do
+      state = init_state()
+      style = ConversationView.get_role_style(state, :user)
+      assert style.name == "You"
+      assert style.color == :green
+    end
+
+    test "returns default style for assistant role" do
+      state = init_state()
+      style = ConversationView.get_role_style(state, :assistant)
+      assert style.name == "Assistant"
+      assert style.color == :cyan
+    end
+
+    test "returns default style for system role" do
+      state = init_state()
+      style = ConversationView.get_role_style(state, :system)
+      assert style.name == "System"
+      assert style.color == :yellow
+    end
+
+    test "returns custom style when configured" do
+      custom_styles = %{
+        user: %{name: "Me", color: :blue}
+      }
+      state = init_state(role_styles: custom_styles)
+      style = ConversationView.get_role_style(state, :user)
+      assert style.name == "Me"
+      assert style.color == :blue
+    end
+
+    test "falls back to string name for unknown role" do
+      state = init_state()
+      style = ConversationView.get_role_style(state, :unknown)
+      assert style.name == "unknown"
+      assert style.color == :white
+    end
+  end
+
+  describe "get_role_name/2" do
+    test "returns display name for role" do
+      state = init_state()
+      assert ConversationView.get_role_name(state, :user) == "You"
+      assert ConversationView.get_role_name(state, :assistant) == "Assistant"
+      assert ConversationView.get_role_name(state, :system) == "System"
+    end
+  end
+
+  describe "render/2" do
+    test "returns placeholder for empty messages" do
+      state = init_state()
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      # Should return a text node with placeholder message
+      assert %TermUI.Component.RenderNode{type: :text} = result
+      assert result.content == "No messages yet"
+    end
+
+    test "renders messages as vertical stack" do
+      messages = [make_message("1", :user, "Hello")]
+      state = init_state(messages: messages)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      # Should return a stack with message content
+      assert %TermUI.Component.RenderNode{type: :stack} = result
+      assert result.direction == :vertical
+    end
+
+    test "renders message header with timestamp" do
+      timestamp = ~U[2024-01-15 10:30:00Z]
+      messages = [%{id: "1", role: :user, content: "Hello", timestamp: timestamp}]
+      state = init_state(messages: messages, show_timestamps: true)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      # Find header node (first child of stack)
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      header = List.first(children)
+      assert %TermUI.Component.RenderNode{type: :text, content: content} = header
+      assert content =~ "[10:30]"
+      assert content =~ "You:"
+    end
+
+    test "renders message header without timestamp when disabled" do
+      timestamp = ~U[2024-01-15 10:30:00Z]
+      messages = [%{id: "1", role: :user, content: "Hello", timestamp: timestamp}]
+      state = init_state(messages: messages, show_timestamps: false)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      header = List.first(children)
+      assert %TermUI.Component.RenderNode{type: :text, content: content} = header
+      refute content =~ "["
+      assert content == "You:"
+    end
+
+    test "renders content with indent" do
+      messages = [make_message("1", :user, "Hello")]
+      state = init_state(messages: messages, indent: 2)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      # Second child should be content line
+      content_node = Enum.at(children, 1)
+      assert %TermUI.Component.RenderNode{type: :text, content: content} = content_node
+      assert String.starts_with?(content, "  ")  # 2 space indent
+    end
+
+    test "renders truncation indicator for long messages" do
+      # Create a message with many lines
+      long_content = Enum.map(1..20, fn i -> "Line #{i}" end) |> Enum.join("\n")
+      messages = [make_message("1", :user, long_content)]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+
+      # Find truncation indicator
+      indicator = Enum.find(children, fn node ->
+        node.type == :text and String.contains?(node.content || "", "more lines")
+      end)
+
+      assert indicator != nil
+      assert indicator.content =~ "┄┄┄"
+      assert indicator.content =~ "more lines"
+    end
+
+    test "does not render truncation indicator for expanded messages" do
+      long_content = Enum.map(1..20, fn i -> "Line #{i}" end) |> Enum.join("\n")
+      messages = [make_message("1", :user, long_content)]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+      state = ConversationView.toggle_expand(state, "1")
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+
+      # Should not have truncation indicator
+      indicator = Enum.find(children, fn node ->
+        node.type == :text and String.contains?(node.content || "", "more lines")
+      end)
+
+      assert indicator == nil
+    end
+
+    test "renders multiple messages" do
+      messages = [
+        make_message("1", :user, "Hello"),
+        make_message("2", :assistant, "Hi there!")
+      ]
+      state = init_state(messages: messages)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+
+      # Should have nodes for both messages
+      # Each message has: header + content lines + separator
+      headers = Enum.filter(children, fn node ->
+        node.type == :text and String.contains?(node.content || "", ":")
+      end)
+
+      # Should have at least 2 headers (one for each message)
+      user_header = Enum.find(headers, &String.contains?(&1.content, "You:"))
+      assistant_header = Enum.find(headers, &String.contains?(&1.content, "Assistant:"))
+
+      assert user_header != nil
+      assert assistant_header != nil
+    end
+
+    test "renders streaming cursor for streaming message" do
+      state = init_state()
+      {state, _id} = ConversationView.start_streaming(state, :assistant)
+      state = ConversationView.append_chunk(state, "Hello")
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+
+      # Find content node with streaming cursor
+      cursor_node = Enum.find(children, fn node ->
+        node.type == :text and String.contains?(node.content || "", "▌")
+      end)
+
+      assert cursor_node != nil
+    end
+  end
 end

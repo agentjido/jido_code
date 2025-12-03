@@ -107,51 +107,51 @@ Implement public functions for message management and state access.
 Implement the core rendering logic for individual messages and the overall conversation view. Messages are rendered as distinct blocks with role headers, wrapped content, and optional truncation.
 
 ### 9.2.1 Message Block Layout
-- [ ] **Task 9.2.1**
+- [x] **Task 9.2.1** ✅ COMPLETED
 
 Define the visual structure for rendering individual message blocks.
 
-- [ ] 9.2.1.1 Create `render_message/4` private function (state, message, idx, width)
-- [ ] 9.2.1.2 Render message header: `[HH:MM] Role:` with role-specific styling
-- [ ] 9.2.1.3 Wrap message content to `(width - scrollbar_width - indent)` characters
-- [ ] 9.2.1.4 Apply indent (2 spaces) to content lines
-- [ ] 9.2.1.5 Apply role-based foreground color to content
-- [ ] 9.2.1.6 Add blank line separator after each message
-- [ ] 9.2.1.7 Return list of render nodes for the message block
-- [ ] 9.2.1.8 Write unit tests for message block structure
+- [x] 9.2.1.1 Create `render_message/4` private function (state, message, idx, width)
+- [x] 9.2.1.2 Render message header: `[HH:MM] Role:` with role-specific styling
+- [x] 9.2.1.3 Wrap message content to `(width - scrollbar_width - indent)` characters
+- [x] 9.2.1.4 Apply indent (2 spaces) to content lines
+- [x] 9.2.1.5 Apply role-based foreground color to content
+- [x] 9.2.1.6 Add blank line separator after each message
+- [x] 9.2.1.7 Return list of render nodes for the message block
+- [x] 9.2.1.8 Write unit tests for message block structure
 
 ### 9.2.2 Text Wrapping
-- [ ] **Task 9.2.2**
+- [x] **Task 9.2.2** ✅ COMPLETED
 
 Implement text wrapping logic that respects word boundaries.
 
-- [ ] 9.2.2.1 Create `wrap_text/2` function (text, max_width)
-- [ ] 9.2.2.2 Handle explicit newlines in content (preserve line breaks)
-- [ ] 9.2.2.3 Wrap at word boundaries when possible
-- [ ] 9.2.2.4 Force-break very long words that exceed max_width
-- [ ] 9.2.2.5 Handle empty strings and whitespace-only content
-- [ ] 9.2.2.6 Write unit tests for wrapping edge cases
+- [x] 9.2.2.1 Create `wrap_text/2` function (text, max_width)
+- [x] 9.2.2.2 Handle explicit newlines in content (preserve line breaks)
+- [x] 9.2.2.3 Wrap at word boundaries when possible
+- [x] 9.2.2.4 Force-break very long words that exceed max_width
+- [x] 9.2.2.5 Handle empty strings and whitespace-only content
+- [x] 9.2.2.6 Write unit tests for wrapping edge cases
 
 ### 9.2.3 Message Truncation
-- [ ] **Task 9.2.3**
+- [x] **Task 9.2.3** ✅ COMPLETED
 
 Implement collapsible long messages with expand/collapse functionality.
 
-- [ ] 9.2.3.1 Calculate wrapped line count for message content
-- [ ] 9.2.3.2 If line count > max_collapsed_lines and message not in expanded set:
+- [x] 9.2.3.1 Calculate wrapped line count for message content
+- [x] 9.2.3.2 If line count > max_collapsed_lines and message not in expanded set:
   - Show first (max_collapsed_lines - 1) lines
   - Add truncation indicator: `┄┄┄ N more lines ┄┄┄`
-- [ ] 9.2.3.3 Style truncation indicator with muted color
-- [ ] 9.2.3.4 Track truncation state in render for expand hint display
-- [ ] 9.2.3.5 Return `{rendered_lines, actual_lines, :truncated | :full}` tuple
-- [ ] 9.2.3.6 Write unit tests for truncation at various thresholds
+- [x] 9.2.3.3 Style truncation indicator with muted color
+- [x] 9.2.3.4 Track truncation state in render for expand hint display
+- [x] 9.2.3.5 Return `{rendered_lines, actual_lines, :truncated | :full}` tuple
+- [x] 9.2.3.6 Write unit tests for truncation at various thresholds
 
 ### 9.2.4 Role Styling
-- [ ] **Task 9.2.4**
+- [x] **Task 9.2.4** ✅ COMPLETED
 
 Implement role-based visual differentiation.
 
-- [ ] 9.2.4.1 Define default role styles:
+- [x] 9.2.4.1 Define default role styles:
   ```elixir
   %{
     user: %{name: "You", color: :green},
@@ -159,26 +159,26 @@ Implement role-based visual differentiation.
     system: %{name: "System", color: :yellow}
   }
   ```
-- [ ] 9.2.4.2 Create `role_style/2` function to get style for role
-- [ ] 9.2.4.3 Create `role_name/2` function to get display name for role
-- [ ] 9.2.4.4 Apply header styling (bold role name)
-- [ ] 9.2.4.5 Apply content styling (role color, normal weight)
-- [ ] 9.2.4.6 Support custom role_styles override from props
-- [ ] 9.2.4.7 Write unit tests for role styling
+- [x] 9.2.4.2 Create `role_style/2` function to get style for role
+- [x] 9.2.4.3 Create `role_name/2` function to get display name for role
+- [x] 9.2.4.4 Apply header styling (bold role name)
+- [x] 9.2.4.5 Apply content styling (role color, normal weight)
+- [x] 9.2.4.6 Support custom role_styles override from props
+- [x] 9.2.4.7 Write unit tests for role styling
 
-**Unit Tests for Section 9.2:**
-- Test `render_message/4` produces correct node structure
-- Test message header includes timestamp when show_timestamps: true
-- Test message header excludes timestamp when show_timestamps: false
-- Test content lines are indented correctly
-- Test `wrap_text/2` respects max_width
-- Test `wrap_text/2` preserves explicit newlines
-- Test `wrap_text/2` breaks long words
-- Test truncation activates at max_collapsed_lines + 1
-- Test truncation indicator shows correct line count
-- Test expanded messages show full content
-- Test role styles apply correct colors
-- Test custom role_styles override defaults
+**Unit Tests for Section 9.2:** ✅ ALL PASSING (32 new tests, 96 total)
+- [x] Test `render_message/4` produces correct node structure
+- [x] Test message header includes timestamp when show_timestamps: true
+- [x] Test message header excludes timestamp when show_timestamps: false
+- [x] Test content lines are indented correctly
+- [x] Test `wrap_text/2` respects max_width
+- [x] Test `wrap_text/2` preserves explicit newlines
+- [x] Test `wrap_text/2` breaks long words
+- [x] Test truncation activates at max_collapsed_lines + 1
+- [x] Test truncation indicator shows correct line count
+- [x] Test expanded messages show full content
+- [x] Test role styles apply correct colors
+- [x] Test custom role_styles override defaults
 
 ---
 

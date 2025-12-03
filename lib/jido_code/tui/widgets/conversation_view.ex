@@ -175,15 +175,30 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
 
   @impl true
   def render(state, area) do
-    # Rendering will be implemented in Section 9.2/9.3
-    # For now, return a simple placeholder
-    _state = %{
+    # Update viewport dimensions from area
+    state = %{
       state
       | viewport_height: area.height,
         viewport_width: area.width
     }
 
-    text("ConversationView placeholder", nil)
+    # Calculate content width (excluding scrollbar)
+    content_width = max(10, area.width - state.scrollbar_width)
+
+    # Render all messages
+    message_nodes =
+      state.messages
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {msg, idx} ->
+        render_message(state, msg, idx, content_width)
+      end)
+
+    # If no messages, show placeholder
+    if Enum.empty?(message_nodes) do
+      text("No messages yet", Style.new(fg: :white, attrs: [:dim]))
+    else
+      stack(:vertical, message_nodes)
+    end
   end
 
   # ============================================================================
@@ -550,7 +565,7 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
 
   defp count_wrapped_lines("", _width), do: 1
 
-  defp count_wrapped_lines(text, width) when width <= 0, do: 1
+  defp count_wrapped_lines(_text, width) when width <= 0, do: 1
 
   defp count_wrapped_lines(text, width) do
     text
@@ -573,5 +588,227 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
 
   defp generate_id do
     :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+  end
+
+  # ============================================================================
+  # Rendering Helpers
+  # ============================================================================
+
+  @doc false
+  defp render_message(state, message, idx, width) do
+    is_focused = idx == state.cursor_message_idx
+    is_streaming = message.id == state.streaming_id
+    role_style = get_role_style(state, message.role)
+
+    # Build header
+    header = render_message_header(state, message, role_style, is_focused)
+
+    # Calculate content width (accounting for indent)
+    content_width = max(1, width - state.indent)
+
+    # Wrap and potentially truncate content
+    wrapped_lines = wrap_text(message.content, content_width)
+    {display_lines, truncated?} =
+      truncate_content(wrapped_lines, state.max_collapsed_lines, state.expanded, message.id)
+
+    # Add streaming cursor if this is the streaming message
+    display_lines =
+      if is_streaming and length(display_lines) > 0 do
+        last_idx = length(display_lines) - 1
+        List.update_at(display_lines, last_idx, &(&1 <> "▌"))
+      else
+        display_lines
+      end
+
+    # Render content lines with indent and role color
+    indent_str = String.duplicate(" ", state.indent)
+    content_style = Style.new(fg: role_style.color)
+
+    content_nodes =
+      Enum.map(display_lines, fn line ->
+        text(indent_str <> line, content_style)
+      end)
+
+    # Add truncation indicator if truncated
+    content_nodes =
+      if truncated? do
+        hidden_count = length(wrapped_lines) - (state.max_collapsed_lines - 1)
+        indicator = "#{indent_str}┄┄┄ #{hidden_count} more lines ┄┄┄"
+        indicator_style = Style.new(fg: :white, attrs: [:dim])
+        content_nodes ++ [text(indicator, indicator_style)]
+      else
+        content_nodes
+      end
+
+    # Add separator (blank line)
+    separator = text("", nil)
+
+    [header] ++ content_nodes ++ [separator]
+  end
+
+  defp render_message_header(state, message, role_style, is_focused) do
+    # Build timestamp prefix if enabled
+    timestamp_str =
+      if state.show_timestamps do
+        time = Calendar.strftime(message.timestamp, "%H:%M")
+        "[#{time}] "
+      else
+        ""
+      end
+
+    # Role name with styling
+    role_name = role_style.name
+
+    # Build header text
+    header_text = "#{timestamp_str}#{role_name}:"
+
+    # Apply styling - bold for role, with background highlight if focused
+    header_style =
+      if is_focused do
+        Style.new(fg: role_style.color, attrs: [:bold], bg: :black)
+      else
+        Style.new(fg: role_style.color, attrs: [:bold])
+      end
+
+    text(header_text, header_style)
+  end
+
+  # ============================================================================
+  # Text Wrapping
+  # ============================================================================
+
+  @doc """
+  Wraps text to fit within a maximum width, respecting word boundaries.
+
+  - Preserves explicit newlines in the content
+  - Wraps at word boundaries when possible
+  - Force-breaks words that exceed max_width
+  - Returns a list of wrapped lines
+  """
+  @spec wrap_text(String.t(), pos_integer()) :: [String.t()]
+  def wrap_text("", _max_width), do: [""]
+  def wrap_text(text, max_width) when max_width <= 0, do: [text]
+
+  def wrap_text(text, max_width) do
+    text
+    |> String.split("\n")
+    |> Enum.flat_map(&wrap_line(&1, max_width))
+  end
+
+  defp wrap_line("", _max_width), do: [""]
+
+  defp wrap_line(line, max_width) do
+    words = String.split(line, ~r/\s+/, trim: false)
+
+    # Handle whitespace-only lines
+    if Enum.all?(words, &(&1 == "")) do
+      [""]
+    else
+      wrap_words(words, max_width, [], "")
+    end
+  end
+
+  defp wrap_words([], _max_width, lines, current) do
+    Enum.reverse([current | lines])
+  end
+
+  defp wrap_words([word | rest], max_width, lines, current) do
+    word_len = String.length(word)
+    current_len = String.length(current)
+
+    cond do
+      # Empty word (from consecutive spaces) - skip
+      word == "" ->
+        wrap_words(rest, max_width, lines, current)
+
+      # Word fits on current line
+      current == "" ->
+        # First word on line - handle long words
+        if word_len > max_width do
+          # Break long word
+          {broken_lines, remainder} = break_long_word(word, max_width)
+          wrap_words(rest, max_width, Enum.reverse(broken_lines) ++ lines, remainder)
+        else
+          wrap_words(rest, max_width, lines, word)
+        end
+
+      current_len + 1 + word_len <= max_width ->
+        # Word fits with space
+        wrap_words(rest, max_width, lines, current <> " " <> word)
+
+      true ->
+        # Word doesn't fit - start new line
+        if word_len > max_width do
+          # Break long word
+          {broken_lines, remainder} = break_long_word(word, max_width)
+          wrap_words(rest, max_width, Enum.reverse(broken_lines) ++ [current | lines], remainder)
+        else
+          wrap_words(rest, max_width, [current | lines], word)
+        end
+    end
+  end
+
+  defp break_long_word(word, max_width) do
+    chunks =
+      word
+      |> String.graphemes()
+      |> Enum.chunk_every(max_width)
+      |> Enum.map(&Enum.join/1)
+
+    case chunks do
+      [] -> {[], ""}
+      [single] -> {[], single}
+      _ ->
+        {init, [last]} = Enum.split(chunks, -1)
+        {init, last}
+    end
+  end
+
+  # ============================================================================
+  # Content Truncation
+  # ============================================================================
+
+  @doc """
+  Truncates content if it exceeds max_collapsed_lines.
+
+  Returns `{display_lines, truncated?}` where:
+  - `display_lines` is the list of lines to display
+  - `truncated?` is true if content was truncated
+  """
+  @spec truncate_content([String.t()], pos_integer(), MapSet.t(), String.t()) ::
+          {[String.t()], boolean()}
+  def truncate_content(lines, max_lines, expanded, message_id) do
+    line_count = length(lines)
+    is_expanded = MapSet.member?(expanded, message_id)
+
+    if is_expanded or line_count <= max_lines do
+      {lines, false}
+    else
+      # Show max_lines - 1 lines (reserving 1 for truncation indicator)
+      display_count = max(1, max_lines - 1)
+      {Enum.take(lines, display_count), true}
+    end
+  end
+
+  # ============================================================================
+  # Role Styling
+  # ============================================================================
+
+  @doc """
+  Gets the style configuration for a role.
+
+  Returns the role style from state.role_styles, falling back to defaults.
+  """
+  @spec get_role_style(state(), role()) :: role_style()
+  def get_role_style(state, role) do
+    Map.get(state.role_styles, role, %{name: to_string(role), color: :white})
+  end
+
+  @doc """
+  Gets the display name for a role.
+  """
+  @spec get_role_name(state(), role()) :: String.t()
+  def get_role_name(state, role) do
+    get_role_style(state, role).name
   end
 end

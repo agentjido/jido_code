@@ -102,7 +102,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - Returns error if old_string is not found
     - Returns error if old_string appears multiple times and replace_all is false
     """
-    def execute(%{"path" => path, "old_string" => old_string, "new_string" => new_string} = args, _context)
+    def execute(
+          %{"path" => path, "old_string" => old_string, "new_string" => new_string} = args,
+          _context
+        )
         when is_binary(path) and is_binary(old_string) and is_binary(new_string) do
       replace_all = Map.get(args, "replace_all", false)
 
@@ -115,7 +118,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           {:error, "String not found in file: #{path}"}
 
         {:error, :ambiguous_match, count} ->
-          {:error, "Found #{count} occurrences of the string in #{path}. Use replace_all: true to replace all, or provide a more specific string."}
+          {:error,
+           "Found #{count} occurrences of the string in #{path}. Use replace_all: true to replace all, or provide a more specific string."}
 
         {:error, reason} ->
           {:error, FileSystem.format_error(reason, path)}
@@ -223,7 +227,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       # Create parent directories first
       dir_path = Path.dirname(path)
 
-      with :ok <- (if dir_path != ".", do: Manager.mkdir_p(dir_path), else: :ok),
+      with :ok <- if(dir_path != ".", do: Manager.mkdir_p(dir_path), else: :ok),
            :ok <- Manager.write_file(path, content) do
         {:ok, "File written successfully: #{path}"}
       else
@@ -390,7 +394,14 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     end
 
     defp format_mtime({{year, month, day}, {hour, minute, second}}) do
-      :io_lib.format("~4..0B-~2..0B-~2..0BT~2..0B:~2..0B:~2..0B", [year, month, day, hour, minute, second])
+      :io_lib.format("~4..0B-~2..0B-~2..0BT~2..0B:~2..0B:~2..0B", [
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second
+      ])
       |> IO.iodata_to_binary()
     end
 

@@ -54,12 +54,14 @@ defmodule JidoCode.TUITest do
   # Helper to create a TextInput state with given value
   # Cursor is positioned at the end of the text (simulating user having typed it)
   defp create_text_input(value \\ "") do
-    props = TextInput.new(
-      value: value,
-      placeholder: "Type a message...",
-      width: 76,
-      enter_submits: true
-    )
+    props =
+      TextInput.new(
+        value: value,
+        placeholder: "Type a message...",
+        width: 76,
+        enter_submits: true
+      )
+
     {:ok, state} = TextInput.init(props)
     state = TextInput.set_focused(state, true)
 
@@ -579,7 +581,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "stream_end finalizes message and clears streaming state" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         messages: [],
         streaming_message: "Complete response",
         is_streaming: true,
@@ -597,7 +600,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "stream_error shows error message and clears streaming" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         messages: [],
         streaming_message: "Partial",
         is_streaming: true,
@@ -673,7 +677,10 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles clear_reasoning_steps" do
-      model = %Model{text_input: create_text_input(), reasoning_steps: [%{step: "Step 1", status: :complete}]}
+      model = %Model{
+        text_input: create_text_input(),
+        reasoning_steps: [%{step: "Step 1", status: :complete}]
+      }
 
       {new_model, _} = TUI.update(:clear_reasoning_steps, model)
 
@@ -848,7 +855,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders unconfigured status message" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :unconfigured,
         config: %{provider: nil, model: nil}
       }
@@ -862,7 +870,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders configured status" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
       }
@@ -905,7 +914,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows keyboard hints" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"}
       }
@@ -917,7 +927,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "conversation shows empty message when no messages" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: []
@@ -930,7 +941,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "conversation shows user messages with You: prefix" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [
@@ -946,7 +958,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "conversation shows assistant messages with Assistant: prefix" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [
@@ -989,7 +1002,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows processing status" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :processing,
         config: %{provider: "test", model: "test"}
       }
@@ -1002,7 +1016,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows error status" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :error,
         config: %{provider: "test", model: "test"}
       }
@@ -1107,7 +1122,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "returns 0 when messages fit in view" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         messages: [
           %{role: :user, content: "hello", timestamp: DateTime.utc_now()}
         ],
@@ -1151,10 +1167,14 @@ defmodule JidoCode.TUITest do
 
     test "conversation_event delegates to ConversationView.handle_event" do
       # Create a ConversationView with scrollable content
-      cv_messages = Enum.map(1..50, fn i ->
-        %{id: "#{i}", role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
-      end)
-      cv_props = ConversationView.new(messages: cv_messages, viewport_width: 80, viewport_height: 10)
+      cv_messages =
+        Enum.map(1..50, fn i ->
+          %{id: "#{i}", role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
+        end)
+
+      cv_props =
+        ConversationView.new(messages: cv_messages, viewport_width: 80, viewport_height: 10)
+
       {:ok, cv_state} = ConversationView.init(cv_props)
 
       model = %Model{
@@ -1200,7 +1220,8 @@ defmodule JidoCode.TUITest do
     test "messages include timestamp in view" do
       timestamp = DateTime.new!(~D[2024-01-15], ~T[14:32:45], "Etc/UTC")
 
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [
@@ -1287,7 +1308,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders pending step with circle indicator" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         reasoning_steps: [%{step: "Understanding query", status: :pending}]
       }
 
@@ -1299,7 +1321,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders active step with filled circle indicator" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         reasoning_steps: [%{step: "Analyzing code", status: :active}]
       }
 
@@ -1311,7 +1334,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders complete step with checkmark indicator" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         reasoning_steps: [%{step: "Found solution", status: :complete}]
       }
 
@@ -1323,7 +1347,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders multiple steps with different statuses" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         reasoning_steps: [
           %{step: "Step 1", status: :complete},
           %{step: "Step 2", status: :active},
@@ -1343,7 +1368,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders confidence score when present" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         reasoning_steps: [%{step: "Validated", status: :complete, confidence: 0.92}]
       }
 
@@ -1366,7 +1392,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "renders compact format with multiple steps" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         reasoning_steps: [
           %{step: "Step 1", status: :complete},
           %{step: "Step 2", status: :active}
@@ -1384,7 +1411,8 @@ defmodule JidoCode.TUITest do
 
   describe "reasoning panel in view" do
     test "status bar shows Ctrl+R: Reasoning when panel is hidden" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: false
@@ -1397,7 +1425,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows Ctrl+R: Hide when panel is visible" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: true
@@ -1410,7 +1439,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "view includes reasoning panel when show_reasoning is true (wide terminal)" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: true,
@@ -1426,7 +1456,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "view uses compact reasoning in narrow terminal" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: true,
@@ -1442,7 +1473,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "view does not include reasoning panel when show_reasoning is false" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_reasoning: false,
@@ -1505,7 +1537,8 @@ defmodule JidoCode.TUITest do
 
   describe "help bar keyboard hints" do
     test "help bar includes Ctrl+M: Model hint" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"}
       }
@@ -1517,7 +1550,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "help bar includes Ctrl+C: Quit hint" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         # Use wider window to fit all help bar hints
@@ -1533,7 +1567,8 @@ defmodule JidoCode.TUITest do
 
   describe "CoT indicator in status bar" do
     test "shows [CoT] when reasoning steps have active step" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :processing,
         config: %{provider: "test", model: "test"},
         reasoning_steps: [%{step: "Thinking", status: :active}]
@@ -1546,7 +1581,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "does not show [CoT] when no reasoning steps" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         reasoning_steps: []
@@ -1559,7 +1595,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "does not show [CoT] when only pending/complete steps" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         reasoning_steps: [
@@ -1577,7 +1614,8 @@ defmodule JidoCode.TUITest do
 
   describe "status bar color priority" do
     test "error state takes priority over other states" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :error,
         config: %{provider: "test", model: "test"},
         reasoning_steps: [%{step: "Active", status: :active}]
@@ -1591,7 +1629,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "unconfigured state shows appropriate warning" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :unconfigured,
         config: %{provider: nil, model: nil}
       }
@@ -1945,7 +1984,8 @@ defmodule JidoCode.TUITest do
 
   describe "status bar tool hints" do
     test "status bar shows Ctrl+T: Tools when show_tool_details is false" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_tool_details: false
@@ -1958,7 +1998,8 @@ defmodule JidoCode.TUITest do
     end
 
     test "status bar shows Ctrl+T: Hide when show_tool_details is true" do
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         show_tool_details: true
@@ -1985,7 +2026,8 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [],
@@ -2009,7 +2051,8 @@ defmodule JidoCode.TUITest do
         timestamp: DateTime.utc_now()
       }
 
-      model = %Model{text_input: create_text_input(),
+      model = %Model{
+        text_input: create_text_input(),
         agent_status: :idle,
         config: %{provider: "test", model: "test"},
         messages: [],

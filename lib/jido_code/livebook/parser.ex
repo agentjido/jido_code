@@ -24,7 +24,6 @@ defmodule JidoCode.Livebook.Parser do
   @code_fence_regex ~r/^```(\w+)\s*$/m
   @code_fence_end_regex ~r/^```\s*$/m
   @livebook_metadata_regex ~r/<!--\s*livebook:(\{[^}]+\})\s*-->/
-  @section_header_regex ~r/^(\#{1,6})\s+(.+)$/m
 
   @doc """
   Parses a .livemd string into a `%Notebook{}` struct.

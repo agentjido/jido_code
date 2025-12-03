@@ -297,8 +297,12 @@ defmodule JidoCode.TUI do
   # Enter key - forward to modal if open, otherwise submit current input
   def event_to_msg(%Event.Key{key: :enter} = event, state) do
     cond do
-      state.pick_list -> {:msg, {:pick_list_event, event}}
-      state.shell_dialog -> {:msg, {:input_event, event}}
+      state.pick_list ->
+        {:msg, {:pick_list_event, event}}
+
+      state.shell_dialog ->
+        {:msg, {:input_event, event}}
+
       true ->
         value = TextInput.get_value(state.text_input)
         {:msg, {:input_submitted, value}}
@@ -388,6 +392,7 @@ defmodule JidoCode.TUI do
         case Viewport.handle_event(event, state.shell_viewport) do
           {:ok, new_viewport} ->
             {%{state | shell_viewport: new_viewport}, []}
+
           _ ->
             {state, []}
         end
@@ -464,12 +469,21 @@ defmodule JidoCode.TUI do
 
     new_conversation_view =
       if state.conversation_view do
-        ConversationView.set_viewport_size(state.conversation_view, conversation_width, conversation_height)
+        ConversationView.set_viewport_size(
+          state.conversation_view,
+          conversation_width,
+          conversation_height
+        )
       else
         state.conversation_view
       end
 
-    {%{state | window: {width, height}, text_input: new_text_input, conversation_view: new_conversation_view}, []}
+    {%{
+       state
+       | window: {width, height},
+         text_input: new_text_input,
+         conversation_view: new_conversation_view
+     }, []}
   end
 
   # ConversationView event handling - delegate keyboard and mouse events
@@ -627,17 +641,21 @@ defmodule JidoCode.TUI do
     case result do
       {:ok, message, new_config} ->
         system_msg = system_message(message)
+
         updated_config = %{
           provider: new_config[:provider] || state.config.provider,
           model: new_config[:model] || state.config.model
         }
+
         new_status = determine_status(updated_config)
+
         new_state = %{
           state
           | messages: [system_msg | state.messages],
             config: updated_config,
             agent_status: new_status
         }
+
         {new_state, cmds}
 
       {:error, error_message} ->
@@ -713,6 +731,7 @@ defmodule JidoCode.TUI do
           pick_list_type: pick_list_type,
           provider: provider
         }
+
         {:ok, pick_list_state} = PickList.init(pick_list_props)
 
         new_state = %{state | pick_list: pick_list_state}
@@ -734,13 +753,16 @@ defmodule JidoCode.TUI do
 
         # Create viewport for scrollable content
         viewport_content = stack(:vertical, Enum.map(lines, &text(&1, nil)))
-        viewport_props = Viewport.new(
-          content: viewport_content,
-          content_height: content_height,
-          width: viewport_width,
-          height: viewport_height,
-          scroll_bars: :vertical
-        )
+
+        viewport_props =
+          Viewport.new(
+            content: viewport_content,
+            content_height: content_height,
+            width: viewport_width,
+            height: viewport_height,
+            scroll_bars: :vertical
+          )
+
         {:ok, viewport_state} = Viewport.init(viewport_props)
 
         # Create dialog state (we use a simple map, not the full Dialog widget)
@@ -765,7 +787,12 @@ defmodule JidoCode.TUI do
             state.conversation_view
           end
 
-        new_state = %{state | messages: [error_msg | state.messages], conversation_view: new_conversation_view}
+        new_state = %{
+          state
+          | messages: [error_msg | state.messages],
+            conversation_view: new_conversation_view
+        }
+
         {new_state, []}
     end
   end
@@ -786,7 +813,9 @@ defmodule JidoCode.TUI do
   end
 
   defp do_show_config_error(state) do
-    error_content = "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select."
+    error_content =
+      "Please configure a model first. Use /model <provider>:<model> or Ctrl+M to select."
+
     error_msg = system_message(error_content)
 
     # Sync error message to ConversationView
@@ -802,7 +831,12 @@ defmodule JidoCode.TUI do
         state.conversation_view
       end
 
-    new_state = %{state | messages: [error_msg | state.messages], conversation_view: new_conversation_view}
+    new_state = %{
+      state
+      | messages: [error_msg | state.messages],
+        conversation_view: new_conversation_view
+    }
+
     {new_state, []}
   end
 
@@ -989,6 +1023,7 @@ defmodule JidoCode.TUI do
   defp render_conversation_area(state) do
     if state.conversation_view do
       {width, height} = state.window
+
       # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
       available_height = max(height - 8, 1)
       content_width = max(width - 2, 1)
@@ -1012,19 +1047,21 @@ defmodule JidoCode.TUI do
     viewport_height = modal_height - 6
 
     # Render the viewport content
-    viewport_view = Viewport.render(state.shell_viewport, %{width: viewport_width, height: viewport_height})
+    viewport_view =
+      Viewport.render(state.shell_viewport, %{width: viewport_width, height: viewport_height})
 
     # Build dialog content with title, viewport, and footer
     title = text(state.shell_dialog.title, Style.new(fg: :cyan, attrs: [:bold]))
     footer = text("[Enter/Esc/q] Close  [↑↓/PgUp/PgDn] Scroll", Style.new(fg: :bright_black))
 
-    dialog_content = stack(:vertical, [
-      title,
-      text("", nil),
-      viewport_view,
-      text("", nil),
-      footer
-    ])
+    dialog_content =
+      stack(:vertical, [
+        title,
+        text("", nil),
+        viewport_view,
+        text("", nil),
+        footer
+      ])
 
     # Build the dialog box with border
     dialog_box = ViewHelpers.render_dialog_box(dialog_content, modal_width, modal_height)

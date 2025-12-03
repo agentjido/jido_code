@@ -124,6 +124,7 @@ defmodule JidoCode.TUI.MessageHandlers do
     new_conversation_view =
       if state.conversation_view do
         cv = ConversationView.end_streaming(state.conversation_view)
+
         ConversationView.add_message(cv, %{
           id: generate_message_id(),
           role: :system,

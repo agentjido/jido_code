@@ -271,7 +271,12 @@ defmodule JidoCode.Tools.Bridge do
 
           {[stat_table], state}
         else
-          {:error, reason} when reason in [:path_escapes_boundary, :path_outside_boundary, :symlink_escapes_boundary] ->
+          {:error, reason}
+          when reason in [
+                 :path_escapes_boundary,
+                 :path_outside_boundary,
+                 :symlink_escapes_boundary
+               ] ->
             {[nil, format_security_error(reason, path)], state}
 
           {:error, reason} ->
@@ -285,7 +290,14 @@ defmodule JidoCode.Tools.Bridge do
 
   defp format_datetime({{year, month, day}, {hour, minute, second}}) do
     # Format as ISO 8601
-    :io_lib.format("~4..0B-~2..0B-~2..0BT~2..0B:~2..0B:~2..0B", [year, month, day, hour, minute, second])
+    :io_lib.format("~4..0B-~2..0B-~2..0BT~2..0B:~2..0B:~2..0B", [
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second
+    ])
     |> IO.iodata_to_binary()
   end
 
@@ -374,7 +386,12 @@ defmodule JidoCode.Tools.Bridge do
              :ok <- File.rm(safe_path) do
           {[true], state}
         else
-          {:error, reason} when reason in [:path_escapes_boundary, :path_outside_boundary, :symlink_escapes_boundary] ->
+          {:error, reason}
+          when reason in [
+                 :path_escapes_boundary,
+                 :path_outside_boundary,
+                 :symlink_escapes_boundary
+               ] ->
             {[nil, format_security_error(reason, path)], state}
 
           {:error, reason} ->
@@ -407,7 +424,12 @@ defmodule JidoCode.Tools.Bridge do
              :ok <- File.mkdir_p(safe_path) do
           {[true], state}
         else
-          {:error, reason} when reason in [:path_escapes_boundary, :path_outside_boundary, :symlink_escapes_boundary] ->
+          {:error, reason}
+          when reason in [
+                 :path_escapes_boundary,
+                 :path_outside_boundary,
+                 :symlink_escapes_boundary
+               ] ->
             {[nil, format_security_error(reason, path)], state}
 
           {:error, reason} ->

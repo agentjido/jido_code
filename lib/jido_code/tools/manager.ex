@@ -461,23 +461,6 @@ defmodule JidoCode.Tools.Manager do
     end
   end
 
-  # Parse ISO 8601 datetime string to erlang datetime tuple
-  defp parse_mtime(nil), do: {{1970, 1, 1}, {0, 0, 0}}
-  defp parse_mtime(""), do: {{1970, 1, 1}, {0, 0, 0}}
-
-  defp parse_mtime(mtime_str) when is_binary(mtime_str) do
-    case Regex.run(~r/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/, mtime_str) do
-      [_, year, month, day, hour, minute, second] ->
-        {{String.to_integer(year), String.to_integer(month), String.to_integer(day)},
-         {String.to_integer(hour), String.to_integer(minute), String.to_integer(second)}}
-
-      _ ->
-        {{1970, 1, 1}, {0, 0, 0}}
-    end
-  end
-
-  defp parse_mtime(_), do: {{1970, 1, 1}, {0, 0, 0}}
-
   @impl true
   def handle_call({:sandbox_file_exists, path}, _from, state) do
     result = call_bridge_function(state.lua_state, "file_exists", [path])
@@ -529,6 +512,23 @@ defmodule JidoCode.Tools.Manager do
   # ============================================================================
   # Private Functions
   # ============================================================================
+
+  # Parse ISO 8601 datetime string to erlang datetime tuple
+  defp parse_mtime(nil), do: {{1970, 1, 1}, {0, 0, 0}}
+  defp parse_mtime(""), do: {{1970, 1, 1}, {0, 0, 0}}
+
+  defp parse_mtime(mtime_str) when is_binary(mtime_str) do
+    case Regex.run(~r/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/, mtime_str) do
+      [_, year, month, day, hour, minute, second] ->
+        {{String.to_integer(year), String.to_integer(month), String.to_integer(day)},
+         {String.to_integer(hour), String.to_integer(minute), String.to_integer(second)}}
+
+      _ ->
+        {{1970, 1, 1}, {0, 0, 0}}
+    end
+  end
+
+  defp parse_mtime(_), do: {{1970, 1, 1}, {0, 0, 0}}
 
   defp call_bridge_function(lua_state, func_name, args) do
     # Build Lua call: jido.func_name(args...)

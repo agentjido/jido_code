@@ -101,10 +101,16 @@ defmodule JidoCode.Tools.Handlers.Search do
       end
     end
 
+    def execute(_args, _context) do
+      {:error, "grep requires pattern and path arguments"}
+    end
+
     # Validate the path is accessible (catches security violations)
     defp validate_search_path(path) do
       case Manager.is_dir?(path) do
-        {:ok, _} -> :ok
+        {:ok, _} ->
+          :ok
+
         {:error, reason} when is_binary(reason) ->
           # Check if it's a security error
           if String.contains?(reason, "Security error") do
@@ -117,7 +123,9 @@ defmodule JidoCode.Tools.Handlers.Search do
         _ ->
           # Not a directory, check if it's a file
           case Manager.is_file?(path) do
-            {:ok, _} -> :ok
+            {:ok, _} ->
+              :ok
+
             {:error, reason} when is_binary(reason) ->
               if String.contains?(reason, "Security error") do
                 {:error, reason}
@@ -125,13 +133,10 @@ defmodule JidoCode.Tools.Handlers.Search do
                 :ok
               end
 
-            _ -> :ok
+            _ ->
+              :ok
           end
       end
-    end
-
-    def execute(_args, _context) do
-      {:error, "grep requires pattern and path arguments"}
     end
 
     defp compile_pattern(pattern) do

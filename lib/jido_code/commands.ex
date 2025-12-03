@@ -168,7 +168,8 @@ defmodule JidoCode.Commands do
   end
 
   defp parse_and_execute("/shell", _config) do
-    {:error, "Usage: /shell <command> [args]\n\nExamples:\n  /shell ls -la\n  /shell mix test\n  /shell git status"}
+    {:error,
+     "Usage: /shell <command> [args]\n\nExamples:\n  /shell ls -la\n  /shell mix test\n  /shell git status"}
   end
 
   defp parse_and_execute("/" <> command, _config) do
@@ -288,11 +289,9 @@ defmodule JidoCode.Commands do
     current_name = current.name
 
     theme_list =
-      themes
-      |> Enum.map(fn name ->
+      Enum.map_join(themes, "\n  ", fn name ->
         if name == current_name, do: "#{name} (current)", else: "#{name}"
       end)
-      |> Enum.join("\n  ")
 
     {:ok, "Available themes:\n  #{theme_list}", %{}}
   end
@@ -532,12 +531,10 @@ defmodule JidoCode.Commands do
     failed = Enum.count(results, fn {status, _, _} -> status == :fail end)
 
     output =
-      results
-      |> Enum.map(fn {status, name, detail} ->
+      Enum.map_join(results, "\n\n", fn {status, name, detail} ->
         icon = if status == :pass, do: "[OK]", else: "[FAIL]"
         "#{icon} #{name}\n    #{detail}"
       end)
-      |> Enum.join("\n\n")
 
     summary = "\n\nSandbox Test Results: #{passed} passed, #{failed} failed"
     {:ok, output <> summary, %{}}
@@ -546,7 +543,8 @@ defmodule JidoCode.Commands do
   defp test_sandbox_read_file do
     case Manager.read_file("mix.exs") do
       {:ok, content} when byte_size(content) > 0 ->
-        {:pass, "Read file via sandbox", "Successfully read mix.exs (#{byte_size(content)} bytes)"}
+        {:pass, "Read file via sandbox",
+         "Successfully read mix.exs (#{byte_size(content)} bytes)"}
 
       {:ok, _} ->
         {:fail, "Read file via sandbox", "File was empty"}

@@ -242,7 +242,11 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       assert {:error, error} =
                EditFile.execute(
-                 %{"path" => "../../../etc/passwd", "old_string" => "root", "new_string" => "hacked"},
+                 %{
+                   "path" => "../../../etc/passwd",
+                   "old_string" => "root",
+                   "new_string" => "hacked"
+                 },
                  context
                )
 

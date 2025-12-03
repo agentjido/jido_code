@@ -98,7 +98,10 @@ defmodule JidoCode.Tools.Handlers.Livebook do
     end
 
     # Handle delete mode (new_source not required)
-    def execute(%{"notebook_path" => path, "cell_index" => cell_index, "edit_mode" => "delete"}, _context)
+    def execute(
+          %{"notebook_path" => path, "cell_index" => cell_index, "edit_mode" => "delete"},
+          _context
+        )
         when is_binary(path) and is_integer(cell_index) do
       with {:ok, content} <- Manager.read_file(path),
            {:ok, notebook} <- Parser.parse(content),

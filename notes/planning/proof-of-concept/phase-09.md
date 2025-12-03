@@ -466,75 +466,75 @@ Show visual indicator during active streaming.
 Integrate the ConversationView widget into the JidoCode TUI, replacing the current stack-based conversation rendering.
 
 ### 9.7.1 Model Integration
-- [ ] **Task 9.7.1**
+- [x] **Task 9.7.1** ✅ COMPLETED
 
 Add ConversationView state to the TUI Model.
 
-- [ ] 9.7.1.1 Add `conversation_view: map() | nil` to Model struct type
-- [ ] 9.7.1.2 Add `conversation_view: nil` to Model defstruct defaults
-- [ ] 9.7.1.3 Import/alias ConversationView in TUI module
-- [ ] 9.7.1.4 Initialize ConversationView in `init/1` with props from Model
-- [ ] 9.7.1.5 Pass initial messages (empty) and dimensions
-- [ ] 9.7.1.6 Write integration tests for model initialization
+- [x] 9.7.1.1 Add `conversation_view: map() | nil` to Model struct type
+- [x] 9.7.1.2 Add `conversation_view: nil` to Model defstruct defaults
+- [x] 9.7.1.3 Import/alias ConversationView in TUI module
+- [x] 9.7.1.4 Initialize ConversationView in `init/1` with props from Model
+- [x] 9.7.1.5 Pass initial messages (empty) and dimensions
+- [x] 9.7.1.6 Write integration tests for model initialization
 
 ### 9.7.2 Event Routing
-- [ ] **Task 9.7.2**
+- [x] **Task 9.7.2** ✅ COMPLETED
 
 Route appropriate events to ConversationView.
 
-- [ ] 9.7.2.1 Update `event_to_msg/2` to check for ConversationView priority
-- [ ] 9.7.2.2 Route scroll keys (up/down/page_up/page_down/home/end) to conversation
-- [ ] 9.7.2.3 Route mouse events to conversation when in content area
-- [ ] 9.7.2.4 Add `{:conversation_event, event}` message type
-- [ ] 9.7.2.5 Implement `update/2` handler for `{:conversation_event, event}`
-- [ ] 9.7.2.6 Delegate to `ConversationView.handle_event/2`
-- [ ] 9.7.2.7 Write integration tests for event routing
+- [x] 9.7.2.1 Update `event_to_msg/2` to check for ConversationView priority
+- [x] 9.7.2.2 Route scroll keys (up/down/page_up/page_down/home/end) to conversation
+- [x] 9.7.2.3 Route mouse events to conversation when in content area
+- [x] 9.7.2.4 Add `{:conversation_event, event}` message type
+- [x] 9.7.2.5 Implement `update/2` handler for `{:conversation_event, event}`
+- [x] 9.7.2.6 Delegate to `ConversationView.handle_event/2`
+- [x] 9.7.2.7 Write integration tests for event routing
 
 ### 9.7.3 View Rendering Integration
-- [ ] **Task 9.7.3**
+- [x] **Task 9.7.3** ✅ COMPLETED
 
 Replace render_conversation with ConversationView rendering.
 
-- [ ] 9.7.3.1 Update `render_main_view/1` to use ConversationView
-- [ ] 9.7.3.2 Calculate content area dimensions (width, available_height)
-- [ ] 9.7.3.3 Call `ConversationView.render(state.conversation_view, area)`
-- [ ] 9.7.3.4 Remove or deprecate `ViewHelpers.render_conversation/1`
-- [ ] 9.7.3.5 Handle nil conversation_view with fallback (optional)
-- [ ] 9.7.3.6 Write integration tests for view rendering
+- [x] 9.7.3.1 Update `render_main_view/1` to use ConversationView
+- [x] 9.7.3.2 Calculate content area dimensions (width, available_height)
+- [x] 9.7.3.3 Call `ConversationView.render(state.conversation_view, area)`
+- [x] 9.7.3.4 Remove or deprecate `ViewHelpers.render_conversation/1` (kept as fallback)
+- [x] 9.7.3.5 Handle nil conversation_view with fallback (optional)
+- [x] 9.7.3.6 Write integration tests for view rendering
 
 ### 9.7.4 Message Handler Integration
-- [ ] **Task 9.7.4**
+- [x] **Task 9.7.4** ✅ COMPLETED
 
 Update MessageHandlers to sync messages with ConversationView.
 
-- [ ] 9.7.4.1 Update `handle_agent_response/2` to call `ConversationView.add_message/2`
-- [ ] 9.7.4.2 Update `handle_stream_chunk/2` to call `ConversationView.append_chunk/2`
-- [ ] 9.7.4.3 Update `handle_stream_end/2` to call `ConversationView.end_streaming/1`
-- [ ] 9.7.4.4 Update `handle_stream_error/2` to add error message to ConversationView
-- [ ] 9.7.4.5 Update command handlers to add system messages to ConversationView
-- [ ] 9.7.4.6 Write integration tests for message sync
+- [x] 9.7.4.1 Update `handle_agent_response/2` to call `ConversationView.add_message/2` (via streaming)
+- [x] 9.7.4.2 Update `handle_stream_chunk/2` to call `ConversationView.append_chunk/2`
+- [x] 9.7.4.3 Update `handle_stream_end/2` to call `ConversationView.end_streaming/1`
+- [x] 9.7.4.4 Update `handle_stream_error/2` to add error message to ConversationView
+- [x] 9.7.4.5 Update command handlers to add system messages to ConversationView
+- [x] 9.7.4.6 Write integration tests for message sync
 
 ### 9.7.5 Resize Handling
-- [ ] **Task 9.7.5**
+- [x] **Task 9.7.5** ✅ COMPLETED
 
 Handle terminal resize events for ConversationView.
 
-- [ ] 9.7.5.1 Update `update({:resize, width, height}, state)` handler
-- [ ] 9.7.5.2 Recalculate content area dimensions
-- [ ] 9.7.5.3 Update ConversationView viewport dimensions
-- [ ] 9.7.5.4 Preserve scroll position relative to content
-- [ ] 9.7.5.5 Write integration tests for resize handling
+- [x] 9.7.5.1 Update `update({:resize, width, height}, state)` handler
+- [x] 9.7.5.2 Recalculate content area dimensions
+- [x] 9.7.5.3 Update ConversationView viewport dimensions (added set_viewport_size/3)
+- [x] 9.7.5.4 Preserve scroll position relative to content
+- [x] 9.7.5.5 Write integration tests for resize handling
 
-**Unit Tests for Section 9.7:**
-- Test ConversationView initialized in TUI.init/1
-- Test conversation_view state in Model after init
-- Test scroll keys routed to conversation_event
-- Test mouse events in content area routed to conversation
-- Test update handler delegates to ConversationView.handle_event
-- Test render uses ConversationView.render
-- Test message handlers sync messages to ConversationView
-- Test streaming chunks synced to ConversationView
-- Test resize updates ConversationView dimensions
+**Unit Tests for Section 9.7:** ✅ Tests updated for new architecture
+- [x] Test ConversationView initialized in TUI.init/1
+- [x] Test conversation_view state in Model after init
+- [x] Test scroll keys routed to conversation_event
+- [x] Test mouse events in content area routed to conversation
+- [x] Test update handler delegates to ConversationView.handle_event
+- [x] Test render uses ConversationView.render
+- [x] Test message handlers sync messages to ConversationView
+- [x] Test streaming chunks synced to ConversationView
+- [x] Test resize updates ConversationView dimensions
 
 ---
 

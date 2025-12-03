@@ -445,6 +445,36 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   end
 
   @doc """
+  Updates the viewport dimensions.
+
+  Recalculates total lines and adjusts scroll position to ensure
+  it remains valid with the new dimensions.
+  """
+  @spec set_viewport_size(state(), pos_integer(), pos_integer()) :: state()
+  def set_viewport_size(state, width, height) do
+    # Recalculate total lines with new width (affects text wrapping)
+    new_total_lines =
+      calculate_total_lines(
+        state.messages,
+        state.max_collapsed_lines,
+        state.expanded,
+        width
+      )
+
+    # Clamp scroll offset to valid range with new dimensions
+    max_offset = max(0, new_total_lines - height)
+    new_offset = min(state.scroll_offset, max_offset)
+
+    %{
+      state
+      | viewport_width: width,
+        viewport_height: height,
+        total_lines: new_total_lines,
+        scroll_offset: new_offset
+    }
+  end
+
+  @doc """
   Appends content to an existing message by ID.
 
   Used for streaming responses where content arrives incrementally.

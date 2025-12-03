@@ -18,6 +18,7 @@ defmodule JidoCode.TUI.MessageHandlers do
   alias JidoCode.Tools.Result
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
+  alias JidoCode.TUI.Widgets.ConversationView
 
   # Maximum number of messages to keep in the debug queue
   @max_queue_size 100
@@ -52,11 +53,30 @@ defmodule JidoCode.TUI.MessageHandlers do
     new_streaming_message = (state.streaming_message || "") <> chunk
     queue = queue_message(state.message_queue, {:stream_chunk, chunk})
 
+    # Sync with ConversationView if available
+    new_conversation_view =
+      if state.conversation_view do
+        # Start streaming if this is the first chunk
+        cv_state =
+          if state.streaming_message == nil or state.streaming_message == "" do
+            {cv, _id} = ConversationView.start_streaming(state.conversation_view, :assistant)
+            cv
+          else
+            state.conversation_view
+          end
+
+        # Append the chunk
+        ConversationView.append_chunk(cv_state, chunk)
+      else
+        state.conversation_view
+      end
+
     new_state = %{
       state
       | streaming_message: new_streaming_message,
         is_streaming: true,
-        message_queue: queue
+        message_queue: queue,
+        conversation_view: new_conversation_view
     }
 
     {new_state, []}
@@ -70,13 +90,22 @@ defmodule JidoCode.TUI.MessageHandlers do
     message = TUI.assistant_message(state.streaming_message || "")
     queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
 
+    # Sync with ConversationView if available
+    new_conversation_view =
+      if state.conversation_view do
+        ConversationView.end_streaming(state.conversation_view)
+      else
+        state.conversation_view
+      end
+
     new_state = %{
       state
       | messages: [message | state.messages],
         streaming_message: nil,
         is_streaming: false,
         agent_status: :idle,
-        message_queue: queue
+        message_queue: queue,
+        conversation_view: new_conversation_view
     }
 
     {new_state, []}
@@ -91,13 +120,28 @@ defmodule JidoCode.TUI.MessageHandlers do
     error_msg = TUI.system_message(error_content)
     queue = queue_message(state.message_queue, {:stream_error, reason})
 
+    # Sync with ConversationView if available - end streaming and add error message
+    new_conversation_view =
+      if state.conversation_view do
+        cv = ConversationView.end_streaming(state.conversation_view)
+        ConversationView.add_message(cv, %{
+          id: generate_message_id(),
+          role: :system,
+          content: error_content,
+          timestamp: DateTime.utc_now()
+        })
+      else
+        state.conversation_view
+      end
+
     new_state = %{
       state
       | messages: [error_msg | state.messages],
         streaming_message: nil,
         is_streaming: false,
         agent_status: :error,
-        message_queue: queue
+        message_queue: queue,
+        conversation_view: new_conversation_view
     }
 
     {new_state, []}
@@ -226,5 +270,10 @@ defmodule JidoCode.TUI.MessageHandlers do
   defp queue_message(queue, msg) do
     [{msg, DateTime.utc_now()} | queue]
     |> Enum.take(@max_queue_size)
+  end
+
+  @spec generate_message_id() :: String.t()
+  defp generate_message_id do
+    :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
   end
 end

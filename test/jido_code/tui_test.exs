@@ -188,18 +188,18 @@ defmodule JidoCode.TUITest do
       assert TUI.event_to_msg(event, model) == {:msg, :toggle_tool_details}
     end
 
-    test "up arrow returns {:msg, {:scroll, :up}}" do
+    test "up arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{text_input: create_text_input()}
       event = Event.key(:up)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :up}}
+      assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
     end
 
-    test "down arrow returns {:msg, {:scroll, :down}}" do
+    test "down arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{text_input: create_text_input()}
       event = Event.key(:down)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :down}}
+      assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
     end
 
     test "resize event returns {:msg, {:resize, width, height}}" do
@@ -1133,62 +1133,66 @@ defmodule JidoCode.TUITest do
   end
 
   describe "scroll navigation" do
-    test "up arrow returns {:msg, {:scroll, :up}}" do
+    alias JidoCode.TUI.Widgets.ConversationView
+
+    test "up arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{}
       event = Event.key(:up)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :up}}
+      assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
     end
 
-    test "down arrow returns {:msg, {:scroll, :down}}" do
+    test "down arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{}
       event = Event.key(:down)
 
-      assert TUI.event_to_msg(event, model) == {:msg, {:scroll, :down}}
+      assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
     end
 
-    test "scroll up increases scroll_offset" do
-      model = %Model{text_input: create_text_input(),
-        scroll_offset: 0,
-        messages:
-          Enum.map(1..50, fn i ->
-            %{role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
-          end),
-        window: {80, 10}
-      }
+    test "conversation_event delegates to ConversationView.handle_event" do
+      # Create a ConversationView with scrollable content
+      cv_messages = Enum.map(1..50, fn i ->
+        %{id: "#{i}", role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
+      end)
+      cv_props = ConversationView.new(messages: cv_messages, viewport_width: 80, viewport_height: 10)
+      cv_state = ConversationView.init(cv_props)
 
-      {new_model, _} = TUI.update({:scroll, :up}, model)
-      assert new_model.scroll_offset == 1
-    end
-
-    test "scroll down decreases scroll_offset" do
-      model = %Model{text_input: create_text_input(),
-        scroll_offset: 5,
-        messages: [],
+      model = %Model{
+        text_input: create_text_input(),
+        conversation_view: cv_state,
         window: {80, 24}
       }
 
-      {new_model, _} = TUI.update({:scroll, :down}, model)
-      assert new_model.scroll_offset == 4
+      # Down arrow should trigger scroll in ConversationView
+      event = Event.key(:down)
+      {new_model, _} = TUI.update({:conversation_event, event}, model)
+
+      # ConversationView should have scrolled
+      assert new_model.conversation_view != nil
+      assert new_model.conversation_view.scroll_offset == 1
     end
 
-    test "scroll down does not go below 0" do
-      model = %Model{scroll_offset: 0, messages: [], window: {80, 24}}
-
-      {new_model, _} = TUI.update({:scroll, :down}, model)
-      assert new_model.scroll_offset == 0
-    end
-
-    test "scroll up does not exceed max_scroll_offset" do
-      model = %Model{text_input: create_text_input(),
-        scroll_offset: 0,
-        messages: [%{role: :user, content: "short", timestamp: DateTime.utc_now()}],
+    test "conversation_event ignored when conversation_view is nil" do
+      model = %Model{
+        text_input: create_text_input(),
+        conversation_view: nil,
         window: {80, 24}
       }
 
-      # With only 1 message and large window, max_offset is 0
-      {new_model, _} = TUI.update({:scroll, :up}, model)
-      assert new_model.scroll_offset == 0
+      event = Event.key(:down)
+      {new_model, _} = TUI.update({:conversation_event, event}, model)
+
+      # Should be unchanged
+      assert new_model.conversation_view == nil
+    end
+
+    test "scroll keys route to conversation_event" do
+      model = %Model{text_input: create_text_input()}
+
+      for key <- [:up, :down, :page_up, :page_down, :home, :end] do
+        event = Event.key(key)
+        assert {:msg, {:conversation_event, ^event}} = TUI.event_to_msg(event, model)
+      end
     end
   end
 

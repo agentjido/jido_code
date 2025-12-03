@@ -22,6 +22,20 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
     state
   end
 
+  # Helper to extract content stack from render result
+  # The render now returns a horizontal stack: [content_stack, scrollbar]
+  defp get_content_stack(%TermUI.Component.RenderNode{type: :stack, direction: :horizontal, children: [content | _]}) do
+    content
+  end
+  defp get_content_stack(result), do: result
+
+  # Helper to flatten nested stacks into a list of text nodes
+  defp flatten_nodes(%TermUI.Component.RenderNode{type: :stack, children: children}) do
+    Enum.flat_map(children, &flatten_nodes/1)
+  end
+  defp flatten_nodes(%TermUI.Component.RenderNode{type: :text} = node), do: [node]
+  defp flatten_nodes(_), do: []
+
   # ============================================================================
   # new/1 Tests
   # ============================================================================
@@ -918,16 +932,28 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert result.content == "No messages yet"
     end
 
-    test "renders messages as vertical stack" do
+    test "renders messages with scrollbar in horizontal stack" do
       messages = [make_message("1", :user, "Hello")]
       state = init_state(messages: messages)
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
 
-      # Should return a stack with message content
-      assert %TermUI.Component.RenderNode{type: :stack} = result
-      assert result.direction == :vertical
+      # Should return a horizontal stack: [content, scrollbar]
+      assert %TermUI.Component.RenderNode{type: :stack, direction: :horizontal} = result
+      assert length(result.children) == 2
+    end
+
+    test "renders message content as vertical stack" do
+      messages = [make_message("1", :user, "Hello")]
+      state = init_state(messages: messages)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+      content_stack = get_content_stack(result)
+
+      # Content should be a vertical stack
+      assert %TermUI.Component.RenderNode{type: :stack, direction: :vertical} = content_stack
     end
 
     test "renders message header with timestamp" do
@@ -937,9 +963,10 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
+      content_stack = get_content_stack(result)
 
-      # Find header node (first child of stack)
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      # Find header node (first child of content stack)
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = content_stack
       header = List.first(children)
       assert %TermUI.Component.RenderNode{type: :text, content: content} = header
       assert content =~ "[10:30]"
@@ -953,8 +980,9 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
+      content_stack = get_content_stack(result)
 
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = content_stack
       header = List.first(children)
       assert %TermUI.Component.RenderNode{type: :text, content: content} = header
       refute content =~ "["
@@ -967,8 +995,9 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
+      content_stack = get_content_stack(result)
 
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = content_stack
       # Second child should be content line
       content_node = Enum.at(children, 1)
       assert %TermUI.Component.RenderNode{type: :text, content: content} = content_node
@@ -983,12 +1012,11 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
-
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      all_nodes = flatten_nodes(result)
 
       # Find truncation indicator
-      indicator = Enum.find(children, fn node ->
-        node.type == :text and String.contains?(node.content || "", "more lines")
+      indicator = Enum.find(all_nodes, fn node ->
+        String.contains?(node.content || "", "more lines")
       end)
 
       assert indicator != nil
@@ -1004,12 +1032,11 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
-
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      all_nodes = flatten_nodes(result)
 
       # Should not have truncation indicator
-      indicator = Enum.find(children, fn node ->
-        node.type == :text and String.contains?(node.content || "", "more lines")
+      indicator = Enum.find(all_nodes, fn node ->
+        String.contains?(node.content || "", "more lines")
       end)
 
       assert indicator == nil
@@ -1024,13 +1051,11 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
+      all_nodes = flatten_nodes(result)
 
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
-
-      # Should have nodes for both messages
-      # Each message has: header + content lines + separator
-      headers = Enum.filter(children, fn node ->
-        node.type == :text and String.contains?(node.content || "", ":")
+      # Find headers
+      headers = Enum.filter(all_nodes, fn node ->
+        String.contains?(node.content || "", ":")
       end)
 
       # Should have at least 2 headers (one for each message)
@@ -1048,15 +1073,379 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
-
-      assert %TermUI.Component.RenderNode{type: :stack, children: children} = result
+      all_nodes = flatten_nodes(result)
 
       # Find content node with streaming cursor
-      cursor_node = Enum.find(children, fn node ->
-        node.type == :text and String.contains?(node.content || "", "▌")
+      cursor_node = Enum.find(all_nodes, fn node ->
+        String.contains?(node.content || "", "▌")
       end)
 
       assert cursor_node != nil
+    end
+
+    test "renders scrollbar" do
+      messages = [make_message("1", :user, "Hello")]
+      state = init_state(messages: messages)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+
+      # Second child should be the scrollbar
+      assert %TermUI.Component.RenderNode{type: :stack, children: [_content, scrollbar]} = result
+      assert %TermUI.Component.RenderNode{type: :stack, direction: :vertical} = scrollbar
+    end
+  end
+
+  # ============================================================================
+  # Section 9.3: Viewport and Scrolling Tests
+  # ============================================================================
+
+  describe "calculate_visible_range/1" do
+    test "returns empty range for empty message list" do
+      state = init_state()
+
+      range = ConversationView.calculate_visible_range(state)
+
+      assert range.start_msg_idx == 0
+      assert range.start_line_offset == 0
+      assert range.end_msg_idx == 0
+      assert range.end_line_offset == 0
+    end
+
+    test "returns full range when content fits in viewport" do
+      messages = [
+        make_message("1", :user, "Hello"),
+        make_message("2", :assistant, "Hi")
+      ]
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 20}  # Content is ~6 lines
+
+      range = ConversationView.calculate_visible_range(state)
+
+      assert range.start_msg_idx == 0
+      assert range.start_line_offset == 0
+      assert range.end_msg_idx == 1
+    end
+
+    test "calculates visible range with scroll offset" do
+      # Create many messages so content exceeds viewport
+      messages = Enum.map(1..10, fn i ->
+        make_message("#{i}", :user, "Message #{i}")
+      end)
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5, scroll_offset: 6}
+
+      range = ConversationView.calculate_visible_range(state)
+
+      # First message should be after scroll offset
+      assert range.start_msg_idx >= 1
+    end
+
+    test "handles single message" do
+      messages = [make_message("1", :user, "Hello")]
+      state = init_state(messages: messages)
+
+      range = ConversationView.calculate_visible_range(state)
+
+      assert range.start_msg_idx == 0
+      assert range.end_msg_idx == 0
+    end
+
+    test "handles partial message visibility at edges" do
+      # Create messages that span multiple lines
+      long_content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
+      messages = [
+        make_message("1", :user, long_content),
+        make_message("2", :user, long_content)
+      ]
+      state = init_state(messages: messages)
+      # Scroll so first message is partially visible
+      state = %{state | viewport_height: 5, scroll_offset: 3}
+
+      range = ConversationView.calculate_visible_range(state)
+
+      # Should have a non-zero start_line_offset
+      assert range.start_line_offset > 0 or range.start_msg_idx > 0
+    end
+  end
+
+  describe "get_message_line_info/1" do
+    test "returns empty list for empty messages" do
+      state = init_state()
+
+      info = ConversationView.get_message_line_info(state)
+
+      assert info == []
+    end
+
+    test "returns line info for each message" do
+      messages = [
+        make_message("1", :user, "Hello"),
+        make_message("2", :assistant, "World")
+      ]
+      state = init_state(messages: messages)
+
+      info = ConversationView.get_message_line_info(state)
+
+      assert length(info) == 2
+      # First message starts at line 0
+      assert {0, _} = Enum.at(info, 0)
+      # Second message starts after first
+      {start, _} = Enum.at(info, 1)
+      assert start > 0
+    end
+
+    test "accumulates line counts correctly" do
+      messages = [
+        make_message("1", :user, "Short"),
+        make_message("2", :user, "Also short")
+      ]
+      state = init_state(messages: messages)
+
+      info = ConversationView.get_message_line_info(state)
+
+      {start1, lines1} = Enum.at(info, 0)
+      {start2, _lines2} = Enum.at(info, 1)
+
+      # Second message should start at first message's start + lines
+      assert start2 == start1 + lines1
+    end
+  end
+
+  describe "render_scrollbar/2" do
+    test "renders full thumb when content fits in viewport" do
+      state = init_state(messages: [make_message("1", :user, "Hi")])
+      state = %{state | viewport_height: 20, total_lines: 5}
+
+      scrollbar = ConversationView.render_scrollbar(state, 10)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = scrollbar
+      # All children should be thumb (█)
+      assert Enum.all?(children, fn node ->
+        node.content == "█"
+      end)
+    end
+
+    test "renders proportional thumb for long content" do
+      # Create state with more content than viewport
+      state = init_state()
+      state = %{state | viewport_height: 10, total_lines: 50}
+
+      scrollbar = ConversationView.render_scrollbar(state, 10)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: children} = scrollbar
+      # Should have mix of track and thumb
+      thumb_count = Enum.count(children, &(&1.content == "█"))
+      track_count = Enum.count(children, &(&1.content == "░"))
+
+      assert thumb_count > 0
+      assert track_count > 0
+      assert thumb_count < length(children)
+    end
+
+    test "thumb position reflects scroll offset" do
+      state = init_state()
+      state = %{state | viewport_height: 10, total_lines: 50, scroll_offset: 0}
+
+      scrollbar_top = ConversationView.render_scrollbar(state, 10)
+
+      state = %{state | scroll_offset: 40}  # Near bottom
+      scrollbar_bottom = ConversationView.render_scrollbar(state, 10)
+
+      # Extract thumb positions
+      top_children = scrollbar_top.children
+      bottom_children = scrollbar_bottom.children
+
+      # Find first thumb position in each
+      top_thumb_pos = Enum.find_index(top_children, &(&1.content == "█"))
+      bottom_thumb_pos = Enum.find_index(bottom_children, &(&1.content == "█"))
+
+      # Thumb should be lower (higher index) when scrolled down
+      assert bottom_thumb_pos > top_thumb_pos
+    end
+  end
+
+  describe "calculate_scrollbar_metrics/2" do
+    test "returns full height when content fits" do
+      state = init_state()
+      state = %{state | viewport_height: 20, total_lines: 10}
+
+      {thumb_size, thumb_pos} = ConversationView.calculate_scrollbar_metrics(state, 10)
+
+      assert thumb_size == 10
+      assert thumb_pos == 0
+    end
+
+    test "thumb size proportional to viewport/total ratio" do
+      state = init_state()
+      state = %{state | viewport_height: 10, total_lines: 50}
+
+      {thumb_size, _} = ConversationView.calculate_scrollbar_metrics(state, 10)
+
+      # Thumb should be about 20% of height (10/50 ratio)
+      assert thumb_size == 2
+    end
+
+    test "thumb size is at least 1" do
+      state = init_state()
+      state = %{state | viewport_height: 5, total_lines: 500}
+
+      {thumb_size, _} = ConversationView.calculate_scrollbar_metrics(state, 10)
+
+      assert thumb_size >= 1
+    end
+
+    test "thumb position at top when scroll_offset is 0" do
+      state = init_state()
+      state = %{state | viewport_height: 10, total_lines: 50, scroll_offset: 0}
+
+      {_, thumb_pos} = ConversationView.calculate_scrollbar_metrics(state, 10)
+
+      assert thumb_pos == 0
+    end
+
+    test "thumb position at bottom when at max scroll" do
+      state = init_state()
+      max_offset = 40  # total_lines - viewport_height = 50 - 10
+      state = %{state | viewport_height: 10, total_lines: 50, scroll_offset: max_offset}
+
+      {thumb_size, thumb_pos} = ConversationView.calculate_scrollbar_metrics(state, 10)
+
+      # Thumb should be at the bottom
+      assert thumb_pos + thumb_size == 10
+    end
+  end
+
+  describe "virtual rendering" do
+    test "only renders visible messages" do
+      # Create many messages
+      messages = Enum.map(1..20, fn i ->
+        make_message("#{i}", :user, "Message #{i}")
+      end)
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 10, scroll_offset: 0}
+      area = %{x: 0, y: 0, width: 80, height: 10}
+
+      result = ConversationView.render(state, area)
+      all_nodes = flatten_nodes(result)
+
+      # Should have limited number of nodes (not all 20 messages)
+      headers = Enum.filter(all_nodes, &String.contains?(&1.content || "", "You:"))
+
+      # With 10 line viewport and ~3 lines per message, we should see ~3-4 messages
+      assert length(headers) <= 10
+    end
+
+    test "pads content when shorter than viewport" do
+      messages = [make_message("1", :user, "Short")]
+      state = init_state(messages: messages)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+      content_stack = get_content_stack(result)
+
+      # Content stack should have viewport_height children
+      assert length(content_stack.children) == 24
+    end
+
+    test "updates viewport dimensions from area" do
+      messages = [make_message("1", :user, "Hello")]
+      state = init_state(messages: messages)
+      area = %{x: 0, y: 0, width: 120, height: 30}
+
+      # The render function updates state internally
+      # We verify by checking the scrollbar height
+      result = ConversationView.render(state, area)
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: [_, scrollbar]} = result
+      assert length(scrollbar.children) == 30
+    end
+  end
+
+  describe "scroll position management" do
+    test "max_scroll_offset returns 0 when content fits" do
+      state = init_state()
+      state = %{state | viewport_height: 20, total_lines: 10}
+
+      assert ConversationView.max_scroll_offset(state) == 0
+    end
+
+    test "max_scroll_offset returns difference when content exceeds viewport" do
+      state = init_state()
+      state = %{state | viewport_height: 10, total_lines: 30}
+
+      assert ConversationView.max_scroll_offset(state) == 20
+    end
+
+    test "scroll_by clamps to valid range" do
+      messages = Enum.map(1..10, fn i ->
+        make_message("#{i}", :user, "Message #{i}")
+      end)
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5}
+
+      # Scroll past maximum
+      state = ConversationView.scroll_by(state, 1000)
+      max_offset = ConversationView.max_scroll_offset(state)
+
+      assert state.scroll_offset == max_offset
+
+      # Scroll before minimum
+      state = ConversationView.scroll_by(state, -2000)
+
+      assert state.scroll_offset == 0
+    end
+
+    test "add_message auto-scrolls when at bottom" do
+      state = init_state()
+      # Verify we start at bottom
+      assert ConversationView.at_bottom?(state)
+
+      # Add message
+      state = ConversationView.add_message(state, make_message("1", :user, "Hello"))
+
+      # Should still be at bottom
+      assert ConversationView.at_bottom?(state)
+    end
+
+    test "add_message does not auto-scroll when scrolled up" do
+      # Create initial messages to have scrollable content
+      messages = Enum.map(1..10, fn i ->
+        make_message("#{i}", :user, "Message #{i}")
+      end)
+      state = init_state(messages: messages)
+      state = %{state | viewport_height: 5}
+
+      # Scroll up (not at bottom)
+      state = ConversationView.scroll_to(state, :top)
+      refute ConversationView.at_bottom?(state)
+      original_offset = state.scroll_offset
+
+      # Add message
+      state = ConversationView.add_message(state, make_message("new", :user, "New message"))
+
+      # Should maintain scroll position (not auto-scroll)
+      assert state.scroll_offset == original_offset
+    end
+
+    test "collapse_all clamps scroll offset" do
+      # Create long content that will have many lines when expanded
+      long_content = String.duplicate("Line\n", 50)
+      messages = [make_message("1", :user, long_content)]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+      state = %{state | viewport_height: 10}
+
+      # Expand and scroll down
+      state = ConversationView.expand_all(state)
+      state = ConversationView.scroll_to(state, :bottom)
+      expanded_offset = state.scroll_offset
+
+      # Collapse - should clamp scroll
+      state = ConversationView.collapse_all(state)
+
+      # Offset should be reduced
+      assert state.scroll_offset <= ConversationView.max_scroll_offset(state)
+      assert state.scroll_offset < expanded_offset
     end
   end
 end

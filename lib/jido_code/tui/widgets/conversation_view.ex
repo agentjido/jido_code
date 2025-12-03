@@ -185,19 +185,64 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
     # Calculate content width (excluding scrollbar)
     content_width = max(10, area.width - state.scrollbar_width)
 
-    # Render all messages
-    message_nodes =
-      state.messages
-      |> Enum.with_index()
-      |> Enum.flat_map(fn {msg, idx} ->
-        render_message(state, msg, idx, content_width)
-      end)
-
     # If no messages, show placeholder
-    if Enum.empty?(message_nodes) do
+    if Enum.empty?(state.messages) do
       text("No messages yet", Style.new(fg: :white, attrs: [:dim]))
     else
-      stack(:vertical, message_nodes)
+      # Calculate visible range for virtual rendering
+      visible_range = calculate_visible_range(state)
+
+      # Render only visible messages
+      visible_messages =
+        state.messages
+        |> Enum.with_index()
+        |> Enum.filter(fn {_msg, idx} ->
+          idx >= visible_range.start_msg_idx and idx <= visible_range.end_msg_idx
+        end)
+
+      # Render message nodes with clipping
+      message_nodes =
+        visible_messages
+        |> Enum.flat_map(fn {msg, idx} ->
+          nodes = render_message(state, msg, idx, content_width)
+
+          # Apply clipping for first/last visible messages
+          cond do
+            idx == visible_range.start_msg_idx and visible_range.start_line_offset > 0 ->
+              # Skip lines from start of first message
+              Enum.drop(nodes, visible_range.start_line_offset)
+
+            idx == visible_range.end_msg_idx and
+                idx == visible_range.start_msg_idx and
+                visible_range.start_line_offset > 0 ->
+              # Both start and end are same message - handle both clips
+              nodes
+              |> Enum.drop(visible_range.start_line_offset)
+              |> Enum.take(state.viewport_height)
+
+            true ->
+              nodes
+          end
+        end)
+        |> Enum.take(state.viewport_height)
+
+      # Pad with empty lines if content < viewport height
+      padding_count = max(0, state.viewport_height - length(message_nodes))
+
+      padded_nodes =
+        if padding_count > 0 do
+          padding = for _ <- 1..padding_count, do: text("", nil)
+          message_nodes ++ padding
+        else
+          message_nodes
+        end
+
+      # Render scrollbar
+      scrollbar = render_scrollbar(state, area.height)
+
+      # Combine content and scrollbar in horizontal stack
+      content_stack = stack(:vertical, padded_nodes)
+      stack(:horizontal, [content_stack, scrollbar])
     end
   end
 
@@ -538,6 +583,103 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   end
 
   # ============================================================================
+  # Public API - Viewport Calculation
+  # ============================================================================
+
+  @typedoc """
+  Visible range information for virtual rendering.
+
+  - `start_msg_idx` - Index of first visible message
+  - `start_line_offset` - Lines to skip from start of first message
+  - `end_msg_idx` - Index of last visible message
+  - `end_line_offset` - Lines to show from last message
+  """
+  @type visible_range :: %{
+          start_msg_idx: non_neg_integer(),
+          start_line_offset: non_neg_integer(),
+          end_msg_idx: non_neg_integer(),
+          end_line_offset: non_neg_integer()
+        }
+
+  @doc """
+  Calculates the visible range of messages based on scroll offset and viewport height.
+
+  Returns a map with:
+  - `start_msg_idx` - Index of first visible message
+  - `start_line_offset` - Lines to skip from start of first message
+  - `end_msg_idx` - Index of last visible message
+  - `end_line_offset` - Lines to show from last message
+
+  For empty message lists, returns a range covering index 0.
+  """
+  @spec calculate_visible_range(state()) :: visible_range()
+  def calculate_visible_range(state) do
+    if Enum.empty?(state.messages) do
+      %{start_msg_idx: 0, start_line_offset: 0, end_msg_idx: 0, end_line_offset: 0}
+    else
+      # Build cumulative line counts for each message
+      {cumulative, _} =
+        state.messages
+        |> Enum.with_index()
+        |> Enum.map_reduce(0, fn {msg, _idx}, acc ->
+          lines = message_line_count(msg, state.max_collapsed_lines, state.expanded, state.viewport_width)
+          {{acc, lines}, acc + lines}
+        end)
+
+      # Find first visible message
+      {start_msg_idx, start_line_offset} = find_message_at_line(cumulative, state.scroll_offset)
+
+      # Find last visible message
+      end_line = state.scroll_offset + state.viewport_height
+      {end_msg_idx, end_line_offset} = find_message_at_line(cumulative, end_line)
+
+      # Clamp end_msg_idx to valid range
+      last_idx = length(state.messages) - 1
+      end_msg_idx = min(end_msg_idx, last_idx)
+
+      %{
+        start_msg_idx: start_msg_idx,
+        start_line_offset: start_line_offset,
+        end_msg_idx: end_msg_idx,
+        end_line_offset: end_line_offset
+      }
+    end
+  end
+
+  @doc """
+  Returns the cumulative line counts for each message.
+
+  Each entry is `{start_line, line_count}` for that message.
+  """
+  @spec get_message_line_info(state()) :: [{non_neg_integer(), non_neg_integer()}]
+  def get_message_line_info(state) do
+    {cumulative, _} =
+      state.messages
+      |> Enum.map_reduce(0, fn msg, acc ->
+        lines = message_line_count(msg, state.max_collapsed_lines, state.expanded, state.viewport_width)
+        {{acc, lines}, acc + lines}
+      end)
+
+    cumulative
+  end
+
+  # Find which message contains a given line number
+  defp find_message_at_line(cumulative, target_line) do
+    cumulative
+    |> Enum.with_index()
+    |> Enum.reduce_while({0, 0}, fn {{start_line, line_count}, idx}, _acc ->
+      end_line = start_line + line_count
+
+      if target_line < end_line do
+        {:halt, {idx, target_line - start_line}}
+      else
+        # Default to last message if we pass all
+        {:cont, {idx, line_count}}
+      end
+    end)
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 
@@ -810,5 +952,68 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   @spec get_role_name(state(), role()) :: String.t()
   def get_role_name(state, role) do
     get_role_style(state, role).name
+  end
+
+  # ============================================================================
+  # Scrollbar Rendering
+  # ============================================================================
+
+  @doc """
+  Renders the scrollbar for the given viewport height.
+
+  Returns a list of render nodes representing the scrollbar column.
+  The scrollbar shows:
+  - Track using `░` character
+  - Thumb using `█` character
+  - Position proportional to scroll offset
+  """
+  @spec render_scrollbar(state(), pos_integer()) :: TermUI.Component.RenderNode.t()
+  def render_scrollbar(state, height) do
+    scrollbar_style = Style.new(fg: :white, attrs: [:dim])
+    thumb_style = Style.new(fg: :white)
+
+    if state.total_lines <= state.viewport_height do
+      # No scrolling needed - show full track as thumb
+      lines = for _ <- 1..height, do: text("█", thumb_style)
+      stack(:vertical, lines)
+    else
+      # Calculate thumb size and position
+      {thumb_size, thumb_pos} = calculate_scrollbar_metrics(state, height)
+
+      # Build scrollbar lines
+      lines =
+        for y <- 0..(height - 1) do
+          if y >= thumb_pos and y < thumb_pos + thumb_size do
+            text("█", thumb_style)
+          else
+            text("░", scrollbar_style)
+          end
+        end
+
+      stack(:vertical, lines)
+    end
+  end
+
+  @doc """
+  Calculates scrollbar thumb size and position.
+
+  Returns `{thumb_size, thumb_position}` where both are in lines.
+  """
+  @spec calculate_scrollbar_metrics(state(), pos_integer()) ::
+          {pos_integer(), non_neg_integer()}
+  def calculate_scrollbar_metrics(state, height) do
+    if state.total_lines <= state.viewport_height do
+      {height, 0}
+    else
+      # Thumb size proportional to viewport / total content
+      thumb_size = max(1, round(height * state.viewport_height / state.total_lines))
+
+      # Thumb position proportional to scroll offset
+      max_offset = max_scroll_offset(state)
+      scroll_fraction = if max_offset > 0, do: state.scroll_offset / max_offset, else: 0.0
+      thumb_pos = round((height - thumb_size) * scroll_fraction)
+
+      {thumb_size, thumb_pos}
+    end
   end
 end

@@ -46,7 +46,22 @@ Implement session creation with automatic naming from project folder.
   - `project_path` (required) - absolute path to project directory
   - `name` (optional) - display name, defaults to folder name
   - `config` (optional) - LLM config, defaults to global settings
-- [ ] 1.1.2.2 Generate unique `id` using UUID (`:crypto.strong_rand_bytes/1` or `:erlang.unique_integer`)
+- [ ] 1.1.2.2 Generate unique `id` using UUID v4:
+  ```elixir
+  defp generate_id do
+    <<u0::48, _::4, u1::12, _::2, u2::62>> = :crypto.strong_rand_bytes(16)
+    <<u0::48, 4::4, u1::12, 2::2, u2::62>>
+    |> Base.encode16(case: :lower)
+    |> then(fn hex ->
+      <<a::binary-8, b::binary-4, c::binary-4, d::binary-4, e::binary-12>> = hex
+      "#{a}-#{b}-#{c}-#{d}-#{e}"
+    end)
+  end
+  ```
+  This generates RFC 4122 compliant UUID v4 (random) that is:
+  - Globally unique across all nodes and restarts
+  - 128-bit random with version/variant bits set correctly
+  - Formatted as standard UUID string (8-4-4-4-12)
 - [ ] 1.1.2.3 Extract folder name from `project_path` for default `name`: `Path.basename(project_path)`
 - [ ] 1.1.2.4 Set `created_at` and `updated_at` to current UTC time
 - [ ] 1.1.2.5 Load default config from `JidoCode.Settings.load()` if not provided

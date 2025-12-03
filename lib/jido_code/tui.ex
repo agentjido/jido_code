@@ -227,7 +227,7 @@ defmodule JidoCode.TUI do
         on_copy: &Clipboard.copy_to_clipboard/1
       )
 
-    conversation_view_state = ConversationView.init(conversation_view_props)
+    {:ok, conversation_view_state} = ConversationView.init(conversation_view_props)
 
     %Model{
       text_input: text_input_state,

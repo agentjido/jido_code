@@ -1155,7 +1155,7 @@ defmodule JidoCode.TUITest do
         %{id: "#{i}", role: :user, content: "Message #{i}", timestamp: DateTime.utc_now()}
       end)
       cv_props = ConversationView.new(messages: cv_messages, viewport_width: 80, viewport_height: 10)
-      cv_state = ConversationView.init(cv_props)
+      {:ok, cv_state} = ConversationView.init(cv_props)
 
       model = %Model{
         text_input: create_text_input(),

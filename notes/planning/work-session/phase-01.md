@@ -167,17 +167,17 @@ Implement session lookup functions.
 - [x] 1.2.3.6 Write unit tests for lookup operations (16 tests passing)
 
 ### 1.2.4 Session Listing
-- [ ] **Task 1.2.4**
+- [x] **Task 1.2.4** ✅ COMPLETE
 
 Implement functions for listing sessions.
 
-- [ ] 1.2.4.1 Implement `list_all/0` returning list of all sessions
-- [ ] 1.2.4.2 Use `:ets.tab2list/1` and extract sessions
-- [ ] 1.2.4.3 Implement `count/0` returning current session count
-- [ ] 1.2.4.4 Use `:ets.info(@table, :size)` for efficient count
-- [ ] 1.2.4.5 Implement `list_ids/0` returning list of session IDs
-- [ ] 1.2.4.6 Sort by `created_at` for consistent ordering
-- [ ] 1.2.4.7 Write unit tests for listing operations
+- [x] 1.2.4.1 Implement `list_all/0` returning list of all sessions
+- [x] 1.2.4.2 Use `:ets.tab2list/1` and extract sessions
+- [x] 1.2.4.3 Implement `count/0` returning current session count (done in Task 1.2.2)
+- [x] 1.2.4.4 Use `:ets.info(@table, :size)` for efficient count (done in Task 1.2.2)
+- [x] 1.2.4.5 Implement `list_ids/0` returning list of session IDs
+- [x] 1.2.4.6 Sort by `created_at` for consistent ordering
+- [x] 1.2.4.7 Write unit tests for listing operations (10 tests passing)
 
 ### 1.2.5 Session Removal
 - [ ] **Task 1.2.5**

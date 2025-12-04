@@ -302,7 +302,7 @@ defmodule JidoCode.SessionRegistry do
   end
 
   # ============================================================================
-  # Session Listing (Task 1.2.4 - stub for now)
+  # Session Listing (Task 1.2.4)
   # ============================================================================
 
   @doc """
@@ -317,8 +317,14 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec list_all() :: [Session.t()]
   def list_all do
-    # TODO: Implement in Task 1.2.4
-    []
+    if table_exists?() do
+      @table
+      |> :ets.tab2list()
+      |> Enum.map(fn {_id, session} -> session end)
+      |> Enum.sort_by(& &1.created_at, DateTime)
+    else
+      []
+    end
   end
 
   @doc """
@@ -351,8 +357,8 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec list_ids() :: [String.t()]
   def list_ids do
-    # TODO: Implement in Task 1.2.4
-    []
+    list_all()
+    |> Enum.map(& &1.id)
   end
 
   # ============================================================================

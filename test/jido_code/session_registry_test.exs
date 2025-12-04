@@ -478,4 +478,176 @@ defmodule JidoCode.SessionRegistryTest do
       assert {:error, :not_found} = SessionRegistry.lookup_by_name("my-project ")
     end
   end
+
+  describe "list_all/0" do
+    test "returns empty list when table does not exist" do
+      assert SessionRegistry.list_all() == []
+    end
+
+    test "returns empty list when table is empty" do
+      SessionRegistry.create_table()
+      assert SessionRegistry.list_all() == []
+    end
+
+    test "returns all registered sessions" do
+      SessionRegistry.create_table()
+
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      session3 = create_test_session(project_path: "/tmp/project3")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      sessions = SessionRegistry.list_all()
+      assert length(sessions) == 3
+
+      ids = Enum.map(sessions, & &1.id)
+      assert session1.id in ids
+      assert session2.id in ids
+      assert session3.id in ids
+    end
+
+    test "returns sessions sorted by created_at (oldest first)" do
+      SessionRegistry.create_table()
+
+      now = DateTime.utc_now()
+      earlier = DateTime.add(now, -60, :second)
+      later = DateTime.add(now, 60, :second)
+
+      session1 = %Session{
+        id: Session.generate_id(),
+        name: "project1",
+        project_path: "/tmp/project1",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: later,
+        updated_at: later
+      }
+
+      session2 = %Session{
+        id: Session.generate_id(),
+        name: "project2",
+        project_path: "/tmp/project2",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: earlier,
+        updated_at: earlier
+      }
+
+      session3 = %Session{
+        id: Session.generate_id(),
+        name: "project3",
+        project_path: "/tmp/project3",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: now,
+        updated_at: now
+      }
+
+      # Register in random order
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      sessions = SessionRegistry.list_all()
+
+      # Should be sorted: session2 (earliest), session3 (now), session1 (later)
+      assert Enum.at(sessions, 0).id == session2.id
+      assert Enum.at(sessions, 1).id == session3.id
+      assert Enum.at(sessions, 2).id == session1.id
+    end
+
+    test "returns complete session structs" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      [returned] = SessionRegistry.list_all()
+      assert returned == session
+    end
+  end
+
+  describe "list_ids/0" do
+    test "returns empty list when table does not exist" do
+      assert SessionRegistry.list_ids() == []
+    end
+
+    test "returns empty list when table is empty" do
+      SessionRegistry.create_table()
+      assert SessionRegistry.list_ids() == []
+    end
+
+    test "returns all session IDs" do
+      SessionRegistry.create_table()
+
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      session3 = create_test_session(project_path: "/tmp/project3")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      ids = SessionRegistry.list_ids()
+      assert length(ids) == 3
+      assert session1.id in ids
+      assert session2.id in ids
+      assert session3.id in ids
+    end
+
+    test "returns IDs sorted by created_at (oldest first)" do
+      SessionRegistry.create_table()
+
+      now = DateTime.utc_now()
+      earlier = DateTime.add(now, -60, :second)
+      later = DateTime.add(now, 60, :second)
+
+      session1 = %Session{
+        id: "id-later",
+        name: "project1",
+        project_path: "/tmp/project1",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: later,
+        updated_at: later
+      }
+
+      session2 = %Session{
+        id: "id-earlier",
+        name: "project2",
+        project_path: "/tmp/project2",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: earlier,
+        updated_at: earlier
+      }
+
+      session3 = %Session{
+        id: "id-now",
+        name: "project3",
+        project_path: "/tmp/project3",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: now,
+        updated_at: now
+      }
+
+      # Register in random order
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      ids = SessionRegistry.list_ids()
+
+      # Should be sorted: earlier, now, later
+      assert ids == ["id-earlier", "id-now", "id-later"]
+    end
+
+    test "returns only strings" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      ids = SessionRegistry.list_ids()
+      assert Enum.all?(ids, &is_binary/1)
+    end
+  end
 end

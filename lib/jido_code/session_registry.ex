@@ -115,11 +115,16 @@ defmodule JidoCode.SessionRegistry do
   def max_sessions, do: @max_sessions
 
   # ============================================================================
-  # Session Registration (Task 1.2.2 - stub for now)
+  # Session Registration (Task 1.2.2)
   # ============================================================================
 
   @doc """
   Registers a session in the registry.
+
+  Performs three validations before registration:
+  1. Session count limit (max 10)
+  2. Duplicate session ID detection
+  3. Duplicate project path detection
 
   ## Parameters
 
@@ -140,9 +145,47 @@ defmodule JidoCode.SessionRegistry do
       "some-uuid"
   """
   @spec register(Session.t()) :: {:ok, Session.t()} | {:error, error_reason()}
-  def register(%Session{} = _session) do
-    # TODO: Implement in Task 1.2.2
-    {:error, :not_implemented}
+  def register(%Session{} = session) do
+    cond do
+      count() >= @max_sessions ->
+        {:error, :session_limit_reached}
+
+      session_exists?(session.id) ->
+        {:error, :session_exists}
+
+      path_in_use?(session.project_path) ->
+        {:error, :project_already_open}
+
+      true ->
+        :ets.insert(@table, {session.id, session})
+        {:ok, session}
+    end
+  end
+
+  # Checks if a session with the given ID exists in the registry
+  @spec session_exists?(String.t()) :: boolean()
+  defp session_exists?(session_id) do
+    case :ets.lookup(@table, session_id) do
+      [{^session_id, _session}] -> true
+      [] -> false
+    end
+  end
+
+  # Checks if a session with the given project_path exists in the registry
+  @spec path_in_use?(String.t()) :: boolean()
+  defp path_in_use?(project_path) do
+    # Use match_object to find sessions with matching project_path
+    # Pattern: {_id, %Session{project_path: path}} where path matches
+    match_spec = [{
+      {:_, %Session{project_path: :"$1", id: :_, name: :_, config: :_, created_at: :_, updated_at: :_}},
+      [{:==, :"$1", project_path}],
+      [true]
+    }]
+
+    case :ets.select(@table, match_spec) do
+      [true | _] -> true
+      [] -> false
+    end
   end
 
   # ============================================================================
@@ -246,6 +289,8 @@ defmodule JidoCode.SessionRegistry do
   @doc """
   Returns the number of registered sessions.
 
+  Uses `:ets.info/2` for efficient counting without iterating.
+
   ## Examples
 
       iex> SessionRegistry.count()
@@ -253,8 +298,10 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec count() :: non_neg_integer()
   def count do
-    # TODO: Implement in Task 1.2.4
-    0
+    case :ets.info(@table, :size) do
+      :undefined -> 0
+      size -> size
+    end
   end
 
   @doc """

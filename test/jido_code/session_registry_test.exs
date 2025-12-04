@@ -281,4 +281,201 @@ defmodule JidoCode.SessionRegistryTest do
       assert {:error, :session_exists} = SessionRegistry.register(session2)
     end
   end
+
+  describe "lookup/1" do
+    setup do
+      SessionRegistry.create_table()
+      :ok
+    end
+
+    test "finds registered session by ID" do
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:ok, found} = SessionRegistry.lookup(session.id)
+      assert found.id == session.id
+      assert found.name == session.name
+      assert found.project_path == session.project_path
+    end
+
+    test "returns the complete session struct" do
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      {:ok, found} = SessionRegistry.lookup(session.id)
+      assert found == session
+    end
+
+    test "returns error for unknown ID" do
+      assert {:error, :not_found} = SessionRegistry.lookup("nonexistent-id")
+    end
+
+    test "returns error for unknown ID when table has sessions" do
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:error, :not_found} = SessionRegistry.lookup("different-id")
+    end
+
+    test "finds correct session among multiple sessions" do
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      session3 = create_test_session(project_path: "/tmp/project3")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      {:ok, found} = SessionRegistry.lookup(session2.id)
+      assert found.id == session2.id
+      assert found.project_path == "/tmp/project2"
+    end
+  end
+
+  describe "lookup_by_path/1" do
+    setup do
+      SessionRegistry.create_table()
+      :ok
+    end
+
+    test "finds session by project path" do
+      session = create_test_session(project_path: "/tmp/my-project")
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:ok, found} = SessionRegistry.lookup_by_path("/tmp/my-project")
+      assert found.project_path == "/tmp/my-project"
+      assert found.id == session.id
+    end
+
+    test "returns error for unknown path" do
+      assert {:error, :not_found} = SessionRegistry.lookup_by_path("/tmp/nonexistent")
+    end
+
+    test "returns error for unknown path when table has sessions" do
+      session = create_test_session(project_path: "/tmp/existing")
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:error, :not_found} = SessionRegistry.lookup_by_path("/tmp/different")
+    end
+
+    test "finds correct session among multiple sessions" do
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      session3 = create_test_session(project_path: "/tmp/project3")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      {:ok, found} = SessionRegistry.lookup_by_path("/tmp/project2")
+      assert found.project_path == "/tmp/project2"
+      assert found.id == session2.id
+    end
+
+    test "path lookup is exact match" do
+      session = create_test_session(project_path: "/tmp/project")
+      {:ok, _} = SessionRegistry.register(session)
+
+      # Similar but not exact paths should not match
+      assert {:error, :not_found} = SessionRegistry.lookup_by_path("/tmp/project/")
+      assert {:error, :not_found} = SessionRegistry.lookup_by_path("/tmp/project/subdir")
+      assert {:error, :not_found} = SessionRegistry.lookup_by_path("/tmp/proj")
+    end
+  end
+
+  describe "lookup_by_name/1" do
+    setup do
+      SessionRegistry.create_table()
+      :ok
+    end
+
+    test "finds session by name" do
+      session = create_test_session(name: "my-project", project_path: "/tmp/my-project")
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:ok, found} = SessionRegistry.lookup_by_name("my-project")
+      assert found.name == "my-project"
+      assert found.id == session.id
+    end
+
+    test "returns error for unknown name" do
+      assert {:error, :not_found} = SessionRegistry.lookup_by_name("nonexistent")
+    end
+
+    test "returns error for unknown name when table has sessions" do
+      session = create_test_session(name: "existing", project_path: "/tmp/existing")
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:error, :not_found} = SessionRegistry.lookup_by_name("different")
+    end
+
+    test "returns first session when multiple have same name (oldest first)" do
+      # Create sessions with same name but different paths
+      # Use explicit timestamps to control ordering
+      now = DateTime.utc_now()
+      earlier = DateTime.add(now, -60, :second)
+      later = DateTime.add(now, 60, :second)
+
+      session1 = %Session{
+        id: Session.generate_id(),
+        name: "same-name",
+        project_path: "/tmp/project1",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: later,
+        updated_at: later
+      }
+
+      session2 = %Session{
+        id: Session.generate_id(),
+        name: "same-name",
+        project_path: "/tmp/project2",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: earlier,
+        updated_at: earlier
+      }
+
+      session3 = %Session{
+        id: Session.generate_id(),
+        name: "same-name",
+        project_path: "/tmp/project3",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: now,
+        updated_at: now
+      }
+
+      # Register in random order
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      # Should return the oldest (session2)
+      {:ok, found} = SessionRegistry.lookup_by_name("same-name")
+      assert found.id == session2.id
+      assert found.project_path == "/tmp/project2"
+    end
+
+    test "finds correct session among multiple with different names" do
+      session1 = create_test_session(name: "project-a", project_path: "/tmp/project-a")
+      session2 = create_test_session(name: "project-b", project_path: "/tmp/project-b")
+      session3 = create_test_session(name: "project-c", project_path: "/tmp/project-c")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      {:ok, found} = SessionRegistry.lookup_by_name("project-b")
+      assert found.name == "project-b"
+      assert found.id == session2.id
+    end
+
+    test "name lookup is exact match" do
+      session = create_test_session(name: "my-project", project_path: "/tmp/project")
+      {:ok, _} = SessionRegistry.register(session)
+
+      # Similar but not exact names should not match
+      assert {:error, :not_found} = SessionRegistry.lookup_by_name("my-proj")
+      assert {:error, :not_found} = SessionRegistry.lookup_by_name("My-Project")
+      assert {:error, :not_found} = SessionRegistry.lookup_by_name("my-project ")
+    end
+  end
 end

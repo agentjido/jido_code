@@ -149,22 +149,22 @@ Implement session registration with limit enforcement.
 - [x] 1.2.2.10 Write unit tests for registration scenarios (15 tests passing)
 
 ### 1.2.3 Session Lookup
-- [ ] **Task 1.2.3**
+- [x] **Task 1.2.3** ✅ COMPLETE
 
 Implement session lookup functions.
 
-- [ ] 1.2.3.1 Implement `lookup/1` by session ID:
+- [x] 1.2.3.1 Implement `lookup/1` by session ID:
   ```elixir
   case :ets.lookup(@table, session_id) do
     [{^session_id, session}] -> {:ok, session}
     [] -> {:error, :not_found}
   end
   ```
-- [ ] 1.2.3.2 Implement `lookup_by_path/1` by project_path
-- [ ] 1.2.3.3 Use `:ets.match_object/2` for path lookup
-- [ ] 1.2.3.4 Implement `lookup_by_name/1` by session name
-- [ ] 1.2.3.5 Handle multiple matches for name lookup (return first or error)
-- [ ] 1.2.3.6 Write unit tests for lookup operations
+- [x] 1.2.3.2 Implement `lookup_by_path/1` by project_path
+- [x] 1.2.3.3 Use `:ets.select/2` with match spec for path lookup
+- [x] 1.2.3.4 Implement `lookup_by_name/1` by session name
+- [x] 1.2.3.5 Handle multiple matches for name lookup (return oldest by created_at)
+- [x] 1.2.3.6 Write unit tests for lookup operations (16 tests passing)
 
 ### 1.2.4 Session Listing
 - [ ] **Task 1.2.4**

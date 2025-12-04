@@ -189,11 +189,13 @@ defmodule JidoCode.SessionRegistry do
   end
 
   # ============================================================================
-  # Session Lookup (Task 1.2.3 - stub for now)
+  # Session Lookup (Task 1.2.3)
   # ============================================================================
 
   @doc """
   Looks up a session by ID.
+
+  Uses direct ETS key lookup for O(1) performance.
 
   ## Parameters
 
@@ -211,13 +213,18 @@ defmodule JidoCode.SessionRegistry do
       "my-project"
   """
   @spec lookup(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
-  def lookup(_session_id) do
-    # TODO: Implement in Task 1.2.3
-    {:error, :not_implemented}
+  def lookup(session_id) do
+    case :ets.lookup(@table, session_id) do
+      [{^session_id, session}] -> {:ok, session}
+      [] -> {:error, :not_found}
+    end
   end
 
   @doc """
   Looks up a session by project path.
+
+  Since project paths are unique (enforced by `register/1`), this will
+  return at most one session.
 
   ## Parameters
 
@@ -235,15 +242,25 @@ defmodule JidoCode.SessionRegistry do
       "project"
   """
   @spec lookup_by_path(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
-  def lookup_by_path(_project_path) do
-    # TODO: Implement in Task 1.2.3
-    {:error, :not_implemented}
+  def lookup_by_path(project_path) do
+    # Match spec to find session with matching project_path
+    match_spec = [{
+      {:_, %Session{project_path: :"$1", id: :_, name: :_, config: :_, created_at: :_, updated_at: :_}},
+      [{:==, :"$1", project_path}],
+      [:"$_"]
+    }]
+
+    case :ets.select(@table, match_spec) do
+      [{_id, session} | _] -> {:ok, session}
+      [] -> {:error, :not_found}
+    end
   end
 
   @doc """
   Looks up a session by name.
 
-  Note: Names are not unique, so this returns the first matching session.
+  Note: Names are not unique, so this returns the first matching session
+  sorted by `created_at` (oldest first) for consistent results.
 
   ## Parameters
 
@@ -261,9 +278,27 @@ defmodule JidoCode.SessionRegistry do
       "/home/user/my-project"
   """
   @spec lookup_by_name(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
-  def lookup_by_name(_name) do
-    # TODO: Implement in Task 1.2.3
-    {:error, :not_implemented}
+  def lookup_by_name(name) do
+    # Match spec to find sessions with matching name
+    match_spec = [{
+      {:_, %Session{name: :"$1", id: :_, project_path: :_, config: :_, created_at: :_, updated_at: :_}},
+      [{:==, :"$1", name}],
+      [:"$_"]
+    }]
+
+    case :ets.select(@table, match_spec) do
+      [] ->
+        {:error, :not_found}
+
+      matches ->
+        # Sort by created_at and return first (oldest)
+        {_id, session} =
+          matches
+          |> Enum.sort_by(fn {_id, s} -> s.created_at end, DateTime)
+          |> List.first()
+
+        {:ok, session}
+    end
   end
 
   # ============================================================================

@@ -376,6 +376,35 @@ defmodule JidoCode.SessionRegistry do
     |> Enum.map(& &1.id)
   end
 
+  @doc """
+  Returns the ID of the default (first) session.
+
+  The default session is the oldest session in the registry (first by created_at).
+  This is typically the session created automatically on application startup.
+
+  ## Returns
+
+  - `{:ok, session_id}` - The default session ID
+  - `{:error, :no_sessions}` - No sessions registered
+
+  ## Examples
+
+      iex> {:ok, session_id} = SessionRegistry.get_default_session_id()
+      iex> is_binary(session_id)
+      true
+
+      iex> SessionRegistry.clear()
+      iex> SessionRegistry.get_default_session_id()
+      {:error, :no_sessions}
+  """
+  @spec get_default_session_id() :: {:ok, String.t()} | {:error, :no_sessions}
+  def get_default_session_id do
+    case list_ids() do
+      [first | _] -> {:ok, first}
+      [] -> {:error, :no_sessions}
+    end
+  end
+
   # ============================================================================
   # Session Removal (Task 1.2.5 - stub for now)
   # ============================================================================

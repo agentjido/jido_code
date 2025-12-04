@@ -412,14 +412,14 @@ Auto-create default session for CWD on application start.
 - [x] 1.5.2.8 Write integration tests for default session
 
 ### 1.5.3 Session ID Access
-- [ ] **Task 1.5.3**
+- [x] **Task 1.5.3 Complete**
 
 Provide easy access to default/active session ID.
 
-- [ ] 1.5.3.1 Implement `get_default_session_id/0` returning first session ID
-- [ ] 1.5.3.2 Use `SessionRegistry.list_ids/0` and take first
-- [ ] 1.5.3.3 Handle empty registry case
-- [ ] 1.5.3.4 Write unit tests for default session access
+- [x] 1.5.3.1 Implement `get_default_session_id/0` returning first session ID
+- [x] 1.5.3.2 Use `SessionRegistry.list_ids/0` and take first
+- [x] 1.5.3.3 Handle empty registry case
+- [x] 1.5.3.4 Write unit tests for default session access
 
 **Unit Tests for Section 1.5:**
 - Test application starts with SessionRegistry table

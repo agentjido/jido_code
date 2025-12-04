@@ -705,6 +705,96 @@ defmodule JidoCode.SessionRegistryTest do
   end
 
   # ============================================================================
+  # get_default_session_id/0 Tests
+  # ============================================================================
+
+  describe "get_default_session_id/0" do
+    test "returns error when table does not exist" do
+      assert {:error, :no_sessions} = SessionRegistry.get_default_session_id()
+    end
+
+    test "returns error when table is empty" do
+      SessionRegistry.create_table()
+      assert {:error, :no_sessions} = SessionRegistry.get_default_session_id()
+    end
+
+    test "returns first session ID when one session exists" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:ok, session.id} == SessionRegistry.get_default_session_id()
+    end
+
+    test "returns oldest session ID when multiple sessions exist" do
+      SessionRegistry.create_table()
+
+      now = DateTime.utc_now()
+      earlier = DateTime.add(now, -60, :second)
+      later = DateTime.add(now, 60, :second)
+
+      session1 = %Session{
+        id: "id-later",
+        name: "project1",
+        project_path: "/tmp/project1",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: later,
+        updated_at: later
+      }
+
+      session2 = %Session{
+        id: "id-earlier",
+        name: "project2",
+        project_path: "/tmp/project2",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: earlier,
+        updated_at: earlier
+      }
+
+      session3 = %Session{
+        id: "id-now",
+        name: "project3",
+        project_path: "/tmp/project3",
+        config: %{provider: "anthropic", model: "claude", temperature: 0.7, max_tokens: 4096},
+        created_at: now,
+        updated_at: now
+      }
+
+      # Register in random order
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      # Should return the oldest (session2 - id-earlier)
+      assert {:ok, "id-earlier"} = SessionRegistry.get_default_session_id()
+    end
+
+    test "returns string ID" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      {:ok, id} = SessionRegistry.get_default_session_id()
+      assert is_binary(id)
+    end
+
+    test "returns error after clear" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert {:ok, _} = SessionRegistry.get_default_session_id()
+
+      SessionRegistry.clear()
+
+      assert {:error, :no_sessions} = SessionRegistry.get_default_session_id()
+    end
+  end
+
+  # ============================================================================
   # unregister/1 Tests
   # ============================================================================
 

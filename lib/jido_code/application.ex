@@ -76,6 +76,10 @@ defmodule JidoCode.Application do
     # Initialize agent instrumentation ETS table
     # This table tracks agent restart counts and start times for telemetry
     JidoCode.Telemetry.AgentInstrumentation.setup()
+
+    # Initialize session registry ETS table
+    # This table tracks active sessions for the work-session feature
+    JidoCode.SessionRegistry.create_table()
   end
 
   # Load theme from settings, defaulting to :dark if not set

@@ -105,11 +105,64 @@ defmodule JidoCode.SessionRegistryTest do
       info = :ets.info(JidoCode.SessionRegistry)
       assert Keyword.get(info, :read_concurrency) == true
     end
+
+    test "creates table with write_concurrency enabled" do
+      SessionRegistry.create_table()
+
+      info = :ets.info(JidoCode.SessionRegistry)
+      assert Keyword.get(info, :write_concurrency) == true
+    end
   end
 
   describe "max_sessions/0" do
-    test "returns 10" do
+    test "returns default of 10" do
       assert SessionRegistry.max_sessions() == 10
+    end
+
+    test "returns configured value when set" do
+      # Store original value
+      original = Application.get_env(:jido_code, :max_sessions)
+
+      try do
+        Application.put_env(:jido_code, :max_sessions, 25)
+        assert SessionRegistry.max_sessions() == 25
+      after
+        # Restore original value
+        if original do
+          Application.put_env(:jido_code, :max_sessions, original)
+        else
+          Application.delete_env(:jido_code, :max_sessions)
+        end
+      end
+    end
+
+    test "register/1 respects configured max_sessions" do
+      SessionRegistry.create_table()
+
+      # Store original value
+      original = Application.get_env(:jido_code, :max_sessions)
+
+      try do
+        # Set limit to 2
+        Application.put_env(:jido_code, :max_sessions, 2)
+
+        session1 = create_test_session(project_path: "/tmp/project1")
+        session2 = create_test_session(project_path: "/tmp/project2")
+        session3 = create_test_session(project_path: "/tmp/project3")
+
+        assert {:ok, _} = SessionRegistry.register(session1)
+        assert {:ok, _} = SessionRegistry.register(session2)
+        assert {:error, :session_limit_reached} = SessionRegistry.register(session3)
+
+        assert SessionRegistry.count() == 2
+      after
+        # Restore original value
+        if original do
+          Application.put_env(:jido_code, :max_sessions, original)
+        else
+          Application.delete_env(:jido_code, :max_sessions)
+        end
+      end
     end
   end
 

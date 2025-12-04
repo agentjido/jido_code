@@ -30,13 +30,13 @@ defmodule JidoCode.SessionRegistry do
 
   ## Session Limit
 
-  The registry enforces a maximum of 10 concurrent sessions. This limit is
-  configurable via the `@max_sessions` module attribute.
+  The registry enforces a maximum number of concurrent sessions (default: 10).
+  This limit is configurable via `Application.put_env(:jido_code, :max_sessions, n)`.
   """
 
   alias JidoCode.Session
 
-  @max_sessions 10
+  @default_max_sessions 10
   @table __MODULE__
 
   @typedoc "Error reasons for registry operations"
@@ -58,6 +58,7 @@ defmodule JidoCode.SessionRegistry do
   - `:public` - any process can read/write
   - `:set` - unique keys (session IDs)
   - `read_concurrency: true` - optimized for concurrent reads
+  - `write_concurrency: true` - optimized for concurrent writes
 
   Returns `:ok` if the table was created or already exists.
 
@@ -75,7 +76,14 @@ defmodule JidoCode.SessionRegistry do
     if table_exists?() do
       :ok
     else
-      :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
+      :ets.new(@table, [
+        :named_table,
+        :public,
+        :set,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
+
       :ok
     end
   end
@@ -106,13 +114,21 @@ defmodule JidoCode.SessionRegistry do
   @doc """
   Returns the maximum number of allowed concurrent sessions.
 
+  The limit is configurable via Application config:
+
+      Application.put_env(:jido_code, :max_sessions, 20)
+
+  Defaults to #{@default_max_sessions} if not configured.
+
   ## Examples
 
       iex> JidoCode.SessionRegistry.max_sessions()
       10
   """
   @spec max_sessions() :: pos_integer()
-  def max_sessions, do: @max_sessions
+  def max_sessions do
+    Application.get_env(:jido_code, :max_sessions, @default_max_sessions)
+  end
 
   # ============================================================================
   # Session Registration (Task 1.2.2)
@@ -147,7 +163,7 @@ defmodule JidoCode.SessionRegistry do
   @spec register(Session.t()) :: {:ok, Session.t()} | {:error, error_reason()}
   def register(%Session{} = session) do
     cond do
-      count() >= @max_sessions ->
+      count() >= max_sessions() ->
         {:error, :session_limit_reached}
 
       session_exists?(session.id) ->
@@ -163,29 +179,38 @@ defmodule JidoCode.SessionRegistry do
   end
 
   # Checks if a session with the given ID exists in the registry
+  # Implemented via lookup/1 to reduce code duplication
   @spec session_exists?(String.t()) :: boolean()
   defp session_exists?(session_id) do
-    case :ets.lookup(@table, session_id) do
-      [{^session_id, _session}] -> true
-      [] -> false
-    end
+    match?({:ok, _}, lookup(session_id))
   end
 
   # Checks if a session with the given project_path exists in the registry
   @spec path_in_use?(String.t()) :: boolean()
   defp path_in_use?(project_path) do
-    # Use match_object to find sessions with matching project_path
-    # Pattern: {_id, %Session{project_path: path}} where path matches
-    match_spec = [{
-      {:_, %Session{project_path: :"$1", id: :_, name: :_, config: :_, created_at: :_, updated_at: :_}},
-      [{:==, :"$1", project_path}],
-      [true]
-    }]
+    match_spec = build_match_spec(:project_path, project_path, true)
 
     case :ets.select(@table, match_spec) do
       [true | _] -> true
       [] -> false
     end
+  end
+
+  # Builds an ETS match spec for querying sessions by field value.
+  # Uses map pattern instead of struct pattern for maintainability -
+  # adding/removing Session fields won't require updating match specs.
+  #
+  # Parameters:
+  #   - field: The session field to match on (:project_path, :name, etc.)
+  #   - value: The value to match against
+  #   - return_type: What to return - true for boolean check, :"$_" for full tuple
+  @spec build_match_spec(atom(), term(), true | :"$_") :: :ets.match_spec()
+  defp build_match_spec(field, value, return_type) do
+    [{
+      {:_, %{field => :"$1"}},
+      [{:==, :"$1", value}],
+      [return_type]
+    }]
   end
 
   # ============================================================================
@@ -243,12 +268,7 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec lookup_by_path(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
   def lookup_by_path(project_path) do
-    # Match spec to find session with matching project_path
-    match_spec = [{
-      {:_, %Session{project_path: :"$1", id: :_, name: :_, config: :_, created_at: :_, updated_at: :_}},
-      [{:==, :"$1", project_path}],
-      [:"$_"]
-    }]
+    match_spec = build_match_spec(:project_path, project_path, :"$_")
 
     case :ets.select(@table, match_spec) do
       [{_id, session} | _] -> {:ok, session}
@@ -279,12 +299,7 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec lookup_by_name(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
   def lookup_by_name(name) do
-    # Match spec to find sessions with matching name
-    match_spec = [{
-      {:_, %Session{name: :"$1", id: :_, project_path: :_, config: :_, created_at: :_, updated_at: :_}},
-      [{:==, :"$1", name}],
-      [:"$_"]
-    }]
+    match_spec = build_match_spec(:name, name, :"$_")
 
     case :ets.select(@table, match_spec) do
       [] ->

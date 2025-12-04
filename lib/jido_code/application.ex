@@ -34,6 +34,7 @@ defmodule JidoCode.Application do
 
   require Logger
 
+  alias JidoCode.Session
   alias JidoCode.Settings
   alias JidoCode.SessionSupervisor
 
@@ -86,7 +87,15 @@ defmodule JidoCode.Application do
 
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->
-        create_default_session()
+        case create_default_session() do
+          {:ok, session} ->
+            # Store default session ID for get_default_session_id/0 to use
+            Application.put_env(:jido_code, :default_session_id, session.id)
+
+          {:error, _} ->
+            :ok
+        end
+
         {:ok, pid}
 
       error ->
@@ -94,25 +103,34 @@ defmodule JidoCode.Application do
     end
   end
 
-  # Create a default session for the current working directory
-  # Called after supervision tree is started
+  # Create a default session for the current working directory.
+  # Called after supervision tree is started.
+  # C1 fix: Handle File.cwd() errors gracefully instead of crashing.
+  # C4 fix: Let Session.new/1 handle default name instead of calculating redundantly.
+  @spec create_default_session() :: {:ok, Session.t()} | {:error, atom()}
   defp create_default_session do
-    cwd = File.cwd!()
-    name = Path.basename(cwd)
+    case File.cwd() do
+      {:ok, cwd} ->
+        # Session.new/1 defaults name to Path.basename(project_path), so no need to pass it
+        case SessionSupervisor.create_session(project_path: cwd) do
+          {:ok, session} ->
+            Logger.info("Created default session '#{session.name}' for #{session.project_path}")
+            {:ok, session}
 
-    case SessionSupervisor.create_session(project_path: cwd, name: name) do
-      {:ok, session} ->
-        Logger.info("Created default session '#{session.name}' for #{session.project_path}")
-        {:ok, session}
+          {:error, reason} ->
+            Logger.warning("Failed to create default session: #{inspect(reason)}")
+            {:error, reason}
+        end
 
       {:error, reason} ->
-        Logger.warning("Failed to create default session: #{inspect(reason)}")
-        {:error, reason}
+        Logger.warning("Could not determine current directory: #{inspect(reason)}")
+        {:error, :cwd_unavailable}
     end
   end
 
-  # ARCH-3 Fix: Initialize all ETS tables during application startup
-  # This prevents race conditions from concurrent on-demand table creation
+  # ARCH-3 Fix: Initialize all ETS tables during application startup.
+  # This prevents race conditions from concurrent on-demand table creation.
+  @spec initialize_ets_tables() :: :ok
   defp initialize_ets_tables do
     # Initialize agent instrumentation ETS table
     # This table tracks agent restart counts and start times for telemetry
@@ -121,25 +139,24 @@ defmodule JidoCode.Application do
     # Initialize session registry ETS table
     # This table tracks active sessions for the work-session feature
     JidoCode.SessionRegistry.create_table()
+
+    :ok
   end
 
-  # Load theme from settings, defaulting to :dark if not set
+  # Load theme from settings, defaulting to :dark if not set.
+  # S4 fix: Refactored with `with` for cleaner control flow.
+  # Note: Settings.Cache hasn't started yet, so we read directly from file.
+  @spec load_theme_from_settings() :: :dark | :light | :high_contrast
   defp load_theme_from_settings do
-    # Settings.Cache must be started before this is called
-    # However, at this point it hasn't started yet, so we read directly from file
-    case Settings.read_file(Settings.local_path()) do
-      {:ok, settings} ->
-        get_theme_atom(Map.get(settings, "theme"))
-
-      {:error, _} ->
-        # Try global settings
-        case Settings.read_file(Settings.global_path()) do
-          {:ok, settings} -> get_theme_atom(Map.get(settings, "theme"))
-          {:error, _} -> :dark
-        end
+    with {:error, _} <- Settings.read_file(Settings.local_path()),
+         {:error, _} <- Settings.read_file(Settings.global_path()) do
+      :dark
+    else
+      {:ok, settings} -> get_theme_atom(Map.get(settings, "theme"))
     end
   end
 
+  @spec get_theme_atom(String.t() | nil) :: :dark | :light | :high_contrast
   defp get_theme_atom(nil), do: :dark
   defp get_theme_atom("dark"), do: :dark
   defp get_theme_atom("light"), do: :light

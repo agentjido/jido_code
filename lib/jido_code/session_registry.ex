@@ -162,6 +162,10 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec register(Session.t()) :: {:ok, Session.t()} | {:error, error_reason()}
   def register(%Session{} = session) do
+    unless table_exists?() do
+      create_table()
+    end
+
     cond do
       count() >= max_sessions() ->
         {:error, :session_limit_reached}
@@ -178,21 +182,42 @@ defmodule JidoCode.SessionRegistry do
     end
   end
 
-  # Checks if a session with the given ID exists in the registry
-  # Implemented via lookup/1 to reduce code duplication
+  @doc """
+  Checks if a session with the given ID exists in the registry.
+
+  S2 fix: Uses `:ets.member/2` for O(1) existence check instead of full lookup.
+
+  ## Parameters
+
+  - `session_id` - The session's unique ID
+
+  ## Returns
+
+  - `true` - Session exists
+  - `false` - Session does not exist or table doesn't exist
+
+  ## Examples
+
+      iex> SessionRegistry.session_exists?("session-id")
+      false
+  """
   @spec session_exists?(String.t()) :: boolean()
-  defp session_exists?(session_id) do
-    match?({:ok, _}, lookup(session_id))
+  def session_exists?(session_id) do
+    table_exists?() and :ets.member(@table, session_id)
   end
 
   # Checks if a session with the given project_path exists in the registry
   @spec path_in_use?(String.t()) :: boolean()
   defp path_in_use?(project_path) do
-    match_spec = build_match_spec(:project_path, project_path, true)
+    if table_exists?() do
+      match_spec = build_match_spec(:project_path, project_path, true)
 
-    case :ets.select(@table, match_spec) do
-      [true | _] -> true
-      [] -> false
+      case :ets.select(@table, match_spec) do
+        [true | _] -> true
+        [] -> false
+      end
+    else
+      false
     end
   end
 
@@ -239,9 +264,13 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec lookup(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
   def lookup(session_id) do
-    case :ets.lookup(@table, session_id) do
-      [{^session_id, session}] -> {:ok, session}
-      [] -> {:error, :not_found}
+    if table_exists?() do
+      case :ets.lookup(@table, session_id) do
+        [{^session_id, session}] -> {:ok, session}
+        [] -> {:error, :not_found}
+      end
+    else
+      {:error, :not_found}
     end
   end
 
@@ -268,11 +297,15 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec lookup_by_path(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
   def lookup_by_path(project_path) do
-    match_spec = build_match_spec(:project_path, project_path, :"$_")
+    if table_exists?() do
+      match_spec = build_match_spec(:project_path, project_path, :"$_")
 
-    case :ets.select(@table, match_spec) do
-      [{_id, session} | _] -> {:ok, session}
-      [] -> {:error, :not_found}
+      case :ets.select(@table, match_spec) do
+        [{_id, session} | _] -> {:ok, session}
+        [] -> {:error, :not_found}
+      end
+    else
+      {:error, :not_found}
     end
   end
 
@@ -299,20 +332,24 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec lookup_by_name(String.t()) :: {:ok, Session.t()} | {:error, :not_found}
   def lookup_by_name(name) do
-    match_spec = build_match_spec(:name, name, :"$_")
+    if table_exists?() do
+      match_spec = build_match_spec(:name, name, :"$_")
 
-    case :ets.select(@table, match_spec) do
-      [] ->
-        {:error, :not_found}
+      case :ets.select(@table, match_spec) do
+        [] ->
+          {:error, :not_found}
 
-      matches ->
-        # Sort by created_at and return first (oldest)
-        {_id, session} =
-          matches
-          |> Enum.sort_by(fn {_id, s} -> s.created_at end, DateTime)
-          |> List.first()
+        matches ->
+          # Sort by created_at and return first (oldest)
+          {_id, session} =
+            matches
+            |> Enum.sort_by(fn {_id, s} -> s.created_at end, DateTime)
+            |> List.first()
 
-        {:ok, session}
+          {:ok, session}
+      end
+    else
+      {:error, :not_found}
     end
   end
 
@@ -377,10 +414,11 @@ defmodule JidoCode.SessionRegistry do
   end
 
   @doc """
-  Returns the ID of the default (first) session.
+  Returns the ID of the default session.
 
-  The default session is the oldest session in the registry (first by created_at).
-  This is typically the session created automatically on application startup.
+  First checks for an explicitly set default session ID (stored during application
+  startup). If that session no longer exists, falls back to the oldest session
+  by `created_at` timestamp.
 
   ## Returns
 
@@ -399,9 +437,32 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec get_default_session_id() :: {:ok, String.t()} | {:error, :no_sessions}
   def get_default_session_id do
-    case list_ids() do
-      [first | _] -> {:ok, first}
-      [] -> {:error, :no_sessions}
+    case Application.get_env(:jido_code, :default_session_id) do
+      nil ->
+        get_oldest_session_id()
+
+      id ->
+        # Verify session still exists
+        if session_exists?(id) do
+          {:ok, id}
+        else
+          get_oldest_session_id()
+        end
+    end
+  end
+
+  # Returns the oldest session ID by created_at timestamp (C3 optimization)
+  @spec get_oldest_session_id() :: {:ok, String.t()} | {:error, :no_sessions}
+  defp get_oldest_session_id do
+    if table_exists?() do
+      case @table
+           |> :ets.tab2list()
+           |> Enum.min_by(fn {_id, session} -> session.created_at end, DateTime, fn -> nil end) do
+        nil -> {:error, :no_sessions}
+        {id, _session} -> {:ok, id}
+      end
+    else
+      {:error, :no_sessions}
     end
   end
 
@@ -425,7 +486,10 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec unregister(String.t()) :: :ok
   def unregister(session_id) do
-    :ets.delete(@table, session_id)
+    if table_exists?() do
+      :ets.delete(@table, session_id)
+    end
+
     :ok
   end
 
@@ -473,7 +537,7 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec update(Session.t()) :: {:ok, Session.t()} | {:error, :not_found}
   def update(%Session{} = session) do
-    if session_exists?(session.id) do
+    if table_exists?() and session_exists?(session.id) do
       :ets.insert(@table, {session.id, session})
       {:ok, session}
     else

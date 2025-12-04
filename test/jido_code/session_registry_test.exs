@@ -650,4 +650,158 @@ defmodule JidoCode.SessionRegistryTest do
       assert Enum.all?(ids, &is_binary/1)
     end
   end
+
+  # ============================================================================
+  # unregister/1 Tests
+  # ============================================================================
+
+  describe "unregister/1" do
+    test "removes session from registry" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, session} = SessionRegistry.register(session)
+
+      assert SessionRegistry.count() == 1
+
+      result = SessionRegistry.unregister(session.id)
+
+      assert result == :ok
+      assert SessionRegistry.count() == 0
+      assert SessionRegistry.lookup(session.id) == {:error, :not_found}
+    end
+
+    test "returns :ok even if session did not exist" do
+      SessionRegistry.create_table()
+
+      result = SessionRegistry.unregister("non-existent-id")
+
+      assert result == :ok
+    end
+
+    test "returns :ok for previously registered then unregistered session" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, session} = SessionRegistry.register(session)
+      SessionRegistry.unregister(session.id)
+
+      # Unregister again - should still return :ok
+      result = SessionRegistry.unregister(session.id)
+
+      assert result == :ok
+    end
+
+    test "decrements count after removal" do
+      SessionRegistry.create_table()
+
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      {:ok, session1} = SessionRegistry.register(session1)
+      {:ok, _session2} = SessionRegistry.register(session2)
+
+      assert SessionRegistry.count() == 2
+
+      SessionRegistry.unregister(session1.id)
+
+      assert SessionRegistry.count() == 1
+    end
+
+    test "only removes the specified session" do
+      SessionRegistry.create_table()
+
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      {:ok, session1} = SessionRegistry.register(session1)
+      {:ok, session2} = SessionRegistry.register(session2)
+
+      SessionRegistry.unregister(session1.id)
+
+      assert SessionRegistry.lookup(session1.id) == {:error, :not_found}
+      assert {:ok, ^session2} = SessionRegistry.lookup(session2.id)
+    end
+
+    test "allows re-registration after unregister" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, session} = SessionRegistry.register(session)
+      SessionRegistry.unregister(session.id)
+
+      # Should be able to register a new session with same project path
+      new_session = create_test_session()
+      result = SessionRegistry.register(new_session)
+
+      assert {:ok, _} = result
+    end
+  end
+
+  # ============================================================================
+  # clear/0 Tests
+  # ============================================================================
+
+  describe "clear/0" do
+    test "removes all sessions from registry" do
+      SessionRegistry.create_table()
+
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      session3 = create_test_session(project_path: "/tmp/project3")
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+      {:ok, _} = SessionRegistry.register(session3)
+
+      assert SessionRegistry.count() == 3
+
+      result = SessionRegistry.clear()
+
+      assert result == :ok
+      assert SessionRegistry.count() == 0
+      assert SessionRegistry.list_all() == []
+    end
+
+    test "returns :ok when table is empty" do
+      SessionRegistry.create_table()
+
+      result = SessionRegistry.clear()
+
+      assert result == :ok
+    end
+
+    test "returns :ok when table does not exist" do
+      # Don't create the table
+      result = SessionRegistry.clear()
+
+      assert result == :ok
+    end
+
+    test "is idempotent - can be called multiple times" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, _} = SessionRegistry.register(session)
+
+      assert SessionRegistry.clear() == :ok
+      assert SessionRegistry.clear() == :ok
+      assert SessionRegistry.clear() == :ok
+
+      assert SessionRegistry.count() == 0
+    end
+
+    test "allows new registrations after clear" do
+      SessionRegistry.create_table()
+
+      session1 = create_test_session(project_path: "/tmp/project1")
+      {:ok, _} = SessionRegistry.register(session1)
+
+      SessionRegistry.clear()
+
+      # Should be able to register new sessions
+      session2 = create_test_session(project_path: "/tmp/project2")
+      result = SessionRegistry.register(session2)
+
+      assert {:ok, _} = result
+      assert SessionRegistry.count() == 1
+    end
+  end
 end

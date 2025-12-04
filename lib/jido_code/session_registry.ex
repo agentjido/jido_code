@@ -380,8 +380,8 @@ defmodule JidoCode.SessionRegistry do
       :ok
   """
   @spec unregister(String.t()) :: :ok
-  def unregister(_session_id) do
-    # TODO: Implement in Task 1.2.5
+  def unregister(session_id) do
+    :ets.delete(@table, session_id)
     :ok
   end
 
@@ -397,7 +397,10 @@ defmodule JidoCode.SessionRegistry do
   """
   @spec clear() :: :ok
   def clear do
-    # TODO: Implement in Task 1.2.5
+    if table_exists?() do
+      :ets.delete_all_objects(@table)
+    end
+
     :ok
   end
 

@@ -180,15 +180,15 @@ Implement functions for listing sessions.
 - [x] 1.2.4.7 Write unit tests for listing operations (10 tests passing)
 
 ### 1.2.5 Session Removal
-- [ ] **Task 1.2.5**
+- [x] **Task 1.2.5** ✅ COMPLETE
 
 Implement session unregistration.
 
-- [ ] 1.2.5.1 Implement `unregister/1` by session ID
-- [ ] 1.2.5.2 Use `:ets.delete/2` for removal
-- [ ] 1.2.5.3 Return `:ok` regardless of whether session existed
-- [ ] 1.2.5.4 Implement `clear/0` to remove all sessions (for testing)
-- [ ] 1.2.5.5 Write unit tests for removal operations
+- [x] 1.2.5.1 Implement `unregister/1` by session ID
+- [x] 1.2.5.2 Use `:ets.delete/2` for removal
+- [x] 1.2.5.3 Return `:ok` regardless of whether session existed
+- [x] 1.2.5.4 Implement `clear/0` to remove all sessions (for testing)
+- [x] 1.2.5.5 Write unit tests for removal operations (11 tests passing)
 
 ### 1.2.6 Session Updates in Registry
 - [ ] **Task 1.2.6**

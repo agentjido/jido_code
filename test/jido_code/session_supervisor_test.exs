@@ -289,8 +289,12 @@ defmodule JidoCode.SessionSupervisorTest do
 
       :ok = SessionSupervisor.stop_session(session.id)
 
-      # Wait for process to terminate using monitor instead of sleep
+      # Wait for process to terminate and Registry entry to be cleaned up
       assert :ok = SessionTestHelpers.wait_for_process_death(pid)
+      assert :ok = SessionTestHelpers.wait_for_registry_cleanup(
+        JidoCode.SessionProcessRegistry,
+        {:session, session.id}
+      )
       assert [] = Registry.lookup(JidoCode.SessionProcessRegistry, {:session, session.id})
     end
 
@@ -360,9 +364,16 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "returns error after session is stopped", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, _pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+      {:ok, pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       :ok = SessionSupervisor.stop_session(session.id)
+
+      # Wait for Registry cleanup
+      assert :ok = SessionTestHelpers.wait_for_process_death(pid)
+      assert :ok = SessionTestHelpers.wait_for_registry_cleanup(
+        JidoCode.SessionProcessRegistry,
+        {:session, session.id}
+      )
 
       assert {:error, :not_found} = SessionSupervisor.find_session_pid(session.id)
     end

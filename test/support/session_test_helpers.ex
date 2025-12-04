@@ -126,4 +126,47 @@ defmodule JidoCode.Test.SessionTestHelpers do
         :timeout
     end
   end
+
+  @doc """
+  Waits for a Registry entry to be removed.
+
+  Polls the Registry until the key is no longer present or timeout is reached.
+  This is useful when testing process cleanup, as Registry entries may persist
+  briefly after process termination.
+
+  ## Parameters
+
+  - `registry` - The Registry module name
+  - `key` - The Registry key to check
+  - `timeout` - Maximum time to wait in milliseconds (default: 100)
+
+  ## Returns
+
+  - `:ok` - Entry was removed
+  - `:timeout` - Entry still exists after timeout
+
+  ## Examples
+
+      :ok = wait_for_registry_cleanup(MyRegistry, {:session, session_id})
+  """
+  @spec wait_for_registry_cleanup(atom(), term(), non_neg_integer()) :: :ok | :timeout
+  def wait_for_registry_cleanup(registry, key, timeout \\ 100) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    poll_registry(registry, key, deadline)
+  end
+
+  defp poll_registry(registry, key, deadline) do
+    case Registry.lookup(registry, key) do
+      [] ->
+        :ok
+
+      _ ->
+        if System.monotonic_time(:millisecond) < deadline do
+          Process.sleep(5)
+          poll_registry(registry, key, deadline)
+        else
+          :timeout
+        end
+    end
+  end
 end

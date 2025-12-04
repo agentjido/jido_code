@@ -318,26 +318,26 @@ Implement convenience function for creating and starting sessions.
 Create the per-session supervisor that manages session-specific processes.
 
 ### 1.4.1 Session.Supervisor Module
-- [ ] **Task 1.4.1**
+- [x] **Task 1.4.1** ✅ COMPLETE
 
 Create the per-session supervisor module.
 
-- [ ] 1.4.1.1 Create `lib/jido_code/session/supervisor.ex` with module documentation
-- [ ] 1.4.1.2 Add `use Supervisor`
-- [ ] 1.4.1.3 Implement `start_link/1` with session option:
+- [x] 1.4.1.1 Create `lib/jido_code/session/supervisor.ex` with module documentation
+- [x] 1.4.1.2 Add `use Supervisor`
+- [x] 1.4.1.3 Implement `start_link/1` with session option:
   ```elixir
   def start_link(opts) do
     session = Keyword.fetch!(opts, :session)
     Supervisor.start_link(__MODULE__, session, name: via(session.id))
   end
   ```
-- [ ] 1.4.1.4 Implement `via/1` helper for Registry naming:
+- [x] 1.4.1.4 Implement `via/1` helper for Registry naming (uses SessionProcessRegistry):
   ```elixir
   defp via(session_id) do
-    {:via, Registry, {JidoCode.Registry, {:session, session_id}}}
+    {:via, Registry, {JidoCode.SessionProcessRegistry, {:session, session_id}}}
   end
   ```
-- [ ] 1.4.1.5 Write unit tests for supervisor naming
+- [x] 1.4.1.5 Write unit tests for supervisor naming (14 tests)
 
 ### 1.4.2 Child Specification
 - [ ] **Task 1.4.2**

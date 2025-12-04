@@ -239,4 +239,253 @@ defmodule JidoCode.SessionTest do
       assert String.length(id) == 36
     end
   end
+
+  describe "Session.validate/1" do
+    setup do
+      # Create a temporary directory for testing
+      tmp_dir = Path.join(System.tmp_dir!(), "session_validate_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn ->
+        File.rm_rf!(tmp_dir)
+      end)
+
+      # Create a valid session for testing
+      now = DateTime.utc_now()
+
+      valid_session = %Session{
+        id: Session.generate_id(),
+        name: "test-project",
+        project_path: tmp_dir,
+        config: %{
+          provider: "anthropic",
+          model: "claude-3-5-sonnet-20241022",
+          temperature: 0.7,
+          max_tokens: 4096
+        },
+        created_at: now,
+        updated_at: now
+      }
+
+      %{tmp_dir: tmp_dir, valid_session: valid_session}
+    end
+
+    test "returns {:ok, session} for valid session", %{valid_session: session} do
+      assert {:ok, ^session} = Session.validate(session)
+    end
+
+    test "validates session created with new/1", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      assert {:ok, ^session} = Session.validate(session)
+    end
+
+    # ID validation tests
+    test "returns error for empty id", %{valid_session: session} do
+      session = %{session | id: ""}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_id in reasons
+    end
+
+    test "returns error for nil id", %{valid_session: session} do
+      session = %{session | id: nil}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_id in reasons
+    end
+
+    # Name validation tests
+    test "returns error for empty name", %{valid_session: session} do
+      session = %{session | name: ""}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_name in reasons
+    end
+
+    test "returns error for nil name", %{valid_session: session} do
+      session = %{session | name: nil}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_name in reasons
+    end
+
+    test "returns error for name too long (> 50 chars)", %{valid_session: session} do
+      long_name = String.duplicate("a", 51)
+      session = %{session | name: long_name}
+      assert {:error, reasons} = Session.validate(session)
+      assert :name_too_long in reasons
+    end
+
+    test "accepts name with exactly 50 chars", %{valid_session: session} do
+      name_50 = String.duplicate("a", 50)
+      session = %{session | name: name_50}
+      assert {:ok, _} = Session.validate(session)
+    end
+
+    # Project path validation tests
+    test "returns error for non-absolute path", %{valid_session: session} do
+      session = %{session | project_path: "relative/path"}
+      assert {:error, reasons} = Session.validate(session)
+      assert :path_not_absolute in reasons
+    end
+
+    test "returns error for non-existent path", %{valid_session: session} do
+      session = %{session | project_path: "/nonexistent/path/12345"}
+      assert {:error, reasons} = Session.validate(session)
+      assert :path_not_found in reasons
+    end
+
+    test "returns error for file path (not directory)", %{valid_session: session, tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "test_file.txt")
+      File.write!(file_path, "test content")
+      session = %{session | project_path: file_path}
+      assert {:error, reasons} = Session.validate(session)
+      assert :path_not_directory in reasons
+    end
+
+    test "returns error for nil project_path", %{valid_session: session} do
+      session = %{session | project_path: nil}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_project_path in reasons
+    end
+
+    # Config validation tests
+    test "returns error for nil config", %{valid_session: session} do
+      session = %{session | config: nil}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_config in reasons
+    end
+
+    test "returns error for empty provider", %{valid_session: session} do
+      session = %{session | config: %{session.config | provider: ""}}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_provider in reasons
+    end
+
+    test "returns error for nil provider", %{valid_session: session} do
+      config = Map.delete(session.config, :provider)
+      session = %{session | config: config}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_provider in reasons
+    end
+
+    test "returns error for empty model", %{valid_session: session} do
+      session = %{session | config: %{session.config | model: ""}}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_model in reasons
+    end
+
+    test "returns error for nil model", %{valid_session: session} do
+      config = Map.delete(session.config, :model)
+      session = %{session | config: config}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_model in reasons
+    end
+
+    test "returns error for temperature below 0.0", %{valid_session: session} do
+      session = %{session | config: %{session.config | temperature: -0.1}}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_temperature in reasons
+    end
+
+    test "returns error for temperature above 2.0", %{valid_session: session} do
+      session = %{session | config: %{session.config | temperature: 2.1}}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_temperature in reasons
+    end
+
+    test "accepts integer temperature within range", %{valid_session: session} do
+      session = %{session | config: %{session.config | temperature: 1}}
+      assert {:ok, _} = Session.validate(session)
+    end
+
+    test "accepts temperature at boundary values", %{valid_session: session} do
+      session_0 = %{session | config: %{session.config | temperature: 0.0}}
+      session_2 = %{session | config: %{session.config | temperature: 2.0}}
+
+      assert {:ok, _} = Session.validate(session_0)
+      assert {:ok, _} = Session.validate(session_2)
+    end
+
+    test "returns error for nil temperature", %{valid_session: session} do
+      config = Map.delete(session.config, :temperature)
+      session = %{session | config: config}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_temperature in reasons
+    end
+
+    test "returns error for zero max_tokens", %{valid_session: session} do
+      session = %{session | config: %{session.config | max_tokens: 0}}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_max_tokens in reasons
+    end
+
+    test "returns error for negative max_tokens", %{valid_session: session} do
+      session = %{session | config: %{session.config | max_tokens: -100}}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_max_tokens in reasons
+    end
+
+    test "returns error for nil max_tokens", %{valid_session: session} do
+      config = Map.delete(session.config, :max_tokens)
+      session = %{session | config: config}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_max_tokens in reasons
+    end
+
+    # Config with string keys (for JSON compatibility)
+    test "accepts config with string keys", %{valid_session: session, tmp_dir: tmp_dir} do
+      string_config = %{
+        "provider" => "anthropic",
+        "model" => "claude-3-5-sonnet-20241022",
+        "temperature" => 0.7,
+        "max_tokens" => 4096
+      }
+
+      session = %{session | project_path: tmp_dir, config: string_config}
+      assert {:ok, _} = Session.validate(session)
+    end
+
+    # Timestamp validation tests
+    test "returns error for nil created_at", %{valid_session: session} do
+      session = %{session | created_at: nil}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_created_at in reasons
+    end
+
+    test "returns error for nil updated_at", %{valid_session: session} do
+      session = %{session | updated_at: nil}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_updated_at in reasons
+    end
+
+    test "returns error for non-DateTime created_at", %{valid_session: session} do
+      session = %{session | created_at: "2024-01-01"}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_created_at in reasons
+    end
+
+    test "returns error for non-DateTime updated_at", %{valid_session: session} do
+      session = %{session | updated_at: ~N[2024-01-01 00:00:00]}
+      assert {:error, reasons} = Session.validate(session)
+      assert :invalid_updated_at in reasons
+    end
+
+    # Multiple errors test
+    test "returns all errors when multiple fields are invalid", %{valid_session: session} do
+      session = %{session | id: "", name: nil, project_path: "relative", config: nil}
+      assert {:error, reasons} = Session.validate(session)
+
+      assert :invalid_id in reasons
+      assert :invalid_name in reasons
+      assert :path_not_absolute in reasons
+      assert :invalid_config in reasons
+    end
+
+    test "errors are returned in consistent order", %{valid_session: session} do
+      session = %{session | id: "", name: ""}
+      {:error, reasons1} = Session.validate(session)
+
+      session = %{session | id: "", name: ""}
+      {:error, reasons2} = Session.validate(session)
+
+      assert reasons1 == reasons2
+    end
+  end
 end

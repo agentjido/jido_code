@@ -205,4 +205,129 @@ defmodule JidoCode.Session do
     <<a::binary-8, b::binary-4, c::binary-4, d::binary-4, e::binary-12>> = hex
     "#{a}-#{b}-#{c}-#{d}-#{e}"
   end
+
+  # Maximum allowed length for session name
+  @max_name_length 50
+
+  @doc """
+  Validates a session struct, checking all fields for correctness.
+
+  Returns `{:ok, session}` if all validations pass, or `{:error, reasons}`
+  with a list of all validation failures.
+
+  ## Validation Rules
+
+  - `id` - Must be a non-empty string
+  - `name` - Must be a non-empty string, max #{@max_name_length} characters
+  - `project_path` - Must be an absolute path to an existing directory
+  - `config.provider` - Must be a non-empty string
+  - `config.model` - Must be a non-empty string
+  - `config.temperature` - Must be a float between 0.0 and 2.0
+  - `config.max_tokens` - Must be a positive integer
+  - `created_at` - Must be a DateTime
+  - `updated_at` - Must be a DateTime
+
+  ## Examples
+
+      iex> {:ok, session} = JidoCode.Session.new(project_path: "/tmp")
+      iex> JidoCode.Session.validate(session)
+      {:ok, session}
+
+      iex> session = %JidoCode.Session{id: "", name: "test"}
+      iex> {:error, reasons} = JidoCode.Session.validate(session)
+      iex> :invalid_id in reasons
+      true
+  """
+  @spec validate(t()) :: {:ok, t()} | {:error, [atom()]}
+  def validate(%__MODULE__{} = session) do
+    errors =
+      []
+      |> validate_id(session.id)
+      |> validate_name(session.name)
+      |> validate_session_project_path(session.project_path)
+      |> validate_config(session.config)
+      |> validate_timestamps(session.created_at, session.updated_at)
+
+    case errors do
+      [] -> {:ok, session}
+      errors -> {:error, Enum.reverse(errors)}
+    end
+  end
+
+  # Validate id is a non-empty string
+  defp validate_id(errors, id) when is_binary(id) and byte_size(id) > 0, do: errors
+  defp validate_id(errors, _), do: [:invalid_id | errors]
+
+  # Validate name is a non-empty string with max length
+  defp validate_name(errors, name) when is_binary(name) and byte_size(name) > 0 do
+    if String.length(name) <= @max_name_length do
+      errors
+    else
+      [:name_too_long | errors]
+    end
+  end
+
+  defp validate_name(errors, _), do: [:invalid_name | errors]
+
+  # Validate project_path is absolute and exists as directory
+  defp validate_session_project_path(errors, path) when is_binary(path) do
+    cond do
+      not String.starts_with?(path, "/") ->
+        [:path_not_absolute | errors]
+
+      not File.exists?(path) ->
+        [:path_not_found | errors]
+
+      not File.dir?(path) ->
+        [:path_not_directory | errors]
+
+      true ->
+        errors
+    end
+  end
+
+  defp validate_session_project_path(errors, _), do: [:invalid_project_path | errors]
+
+  # Validate config map
+  defp validate_config(errors, config) when is_map(config) do
+    errors
+    |> validate_provider(config[:provider] || config["provider"])
+    |> validate_model(config[:model] || config["model"])
+    |> validate_temperature(config[:temperature] || config["temperature"])
+    |> validate_max_tokens(config[:max_tokens] || config["max_tokens"])
+  end
+
+  defp validate_config(errors, _), do: [:invalid_config | errors]
+
+  # Validate provider is non-empty string
+  defp validate_provider(errors, provider) when is_binary(provider) and byte_size(provider) > 0,
+    do: errors
+
+  defp validate_provider(errors, _), do: [:invalid_provider | errors]
+
+  # Validate model is non-empty string
+  defp validate_model(errors, model) when is_binary(model) and byte_size(model) > 0, do: errors
+  defp validate_model(errors, _), do: [:invalid_model | errors]
+
+  # Validate temperature is float between 0.0 and 2.0
+  defp validate_temperature(errors, temp) when is_float(temp) and temp >= 0.0 and temp <= 2.0,
+    do: errors
+
+  defp validate_temperature(errors, temp) when is_integer(temp) and temp >= 0 and temp <= 2,
+    do: errors
+
+  defp validate_temperature(errors, _), do: [:invalid_temperature | errors]
+
+  # Validate max_tokens is positive integer
+  defp validate_max_tokens(errors, tokens) when is_integer(tokens) and tokens > 0, do: errors
+  defp validate_max_tokens(errors, _), do: [:invalid_max_tokens | errors]
+
+  # Validate timestamps are DateTime structs
+  defp validate_timestamps(errors, %DateTime{}, %DateTime{}), do: errors
+
+  defp validate_timestamps(errors, created_at, updated_at) do
+    errors
+    |> then(fn e -> if match?(%DateTime{}, created_at), do: e, else: [:invalid_created_at | e] end)
+    |> then(fn e -> if match?(%DateTime{}, updated_at), do: e, else: [:invalid_updated_at | e] end)
+  end
 end

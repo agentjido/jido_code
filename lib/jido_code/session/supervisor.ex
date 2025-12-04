@@ -104,13 +104,19 @@ defmodule JidoCode.Session.Supervisor do
   @doc false
   @impl true
   def init(%Session{} = session) do
-    # Children will be added in Task 1.4.2:
-    # - {JidoCode.Session.Manager, session: session}
-    # - {JidoCode.Session.State, session: session}
-    children = []
-
-    # Store session in process dictionary for child access
-    Process.put(:session, session)
+    # Session children - both register in SessionProcessRegistry for lookup
+    # Manager: handles session coordination and lifecycle
+    # State: manages conversation history, tool context, settings
+    #
+    # Strategy: :one_for_all because children are tightly coupled:
+    # - Manager depends on State for session data
+    # - State depends on Manager for coordination
+    # - If either crashes, both should restart to ensure consistency
+    children = [
+      {JidoCode.Session.Manager, session: session},
+      {JidoCode.Session.State, session: session}
+      # Note: LLMAgent will be added in Phase 3 after tool integration
+    ]
 
     Supervisor.init(children, strategy: :one_for_all)
   end

@@ -118,23 +118,65 @@ defmodule JidoCode.Session.SupervisorTest do
       # Check supervisor info
       info = Supervisor.count_children(pid)
       assert is_map(info)
-      # No children yet (added in Task 1.4.2)
-      assert info.active == 0
-      assert info.specs == 0
+      # Now has 2 children: Manager and State
+      assert info.active == 2
+      assert info.specs == 2
+      assert info.workers == 2
 
       # Cleanup
       Supervisor.stop(pid)
     end
 
-    test "starts with no children (children added in Task 1.4.2)", %{tmp_dir: tmp_dir} do
+    test "starts Manager and State children", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
 
       {:ok, pid} = SessionSupervisor.start_link(session: session)
 
-      assert Supervisor.which_children(pid) == []
+      children = Supervisor.which_children(pid)
+      assert length(children) == 2
+
+      # Check child IDs
+      child_ids = Enum.map(children, fn {id, _, _, _} -> id end)
+      assert {:session_manager, session.id} in child_ids
+      assert {:session_state, session.id} in child_ids
 
       # Cleanup
       Supervisor.stop(pid)
+    end
+
+    test "children are registered in SessionProcessRegistry", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, _pid} = SessionSupervisor.start_link(session: session)
+
+      # Manager should be findable
+      assert [{manager_pid, _}] = Registry.lookup(@registry, {:manager, session.id})
+      assert is_pid(manager_pid)
+      assert Process.alive?(manager_pid)
+
+      # State should be findable
+      assert [{state_pid, _}] = Registry.lookup(@registry, {:state, session.id})
+      assert is_pid(state_pid)
+      assert Process.alive?(state_pid)
+
+      # They should be different processes
+      assert manager_pid != state_pid
+    end
+
+    test "children have access to session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, _pid} = SessionSupervisor.start_link(session: session)
+
+      # Get Manager and verify it has session
+      [{manager_pid, _}] = Registry.lookup(@registry, {:manager, session.id})
+      assert {:ok, manager_session} = JidoCode.Session.Manager.get_session(manager_pid)
+      assert manager_session.id == session.id
+
+      # Get State and verify it has session
+      [{state_pid, _}] = Registry.lookup(@registry, {:state, session.id})
+      assert {:ok, state_session} = JidoCode.Session.State.get_session(state_pid)
+      assert state_session.id == session.id
     end
   end
 

@@ -340,11 +340,11 @@ Create the per-session supervisor module.
 - [x] 1.4.1.5 Write unit tests for supervisor naming (14 tests)
 
 ### 1.4.2 Child Specification
-- [ ] **Task 1.4.2**
+- [x] **Task 1.4.2** ✅ COMPLETE
 
 Define the child processes for each session.
 
-- [ ] 1.4.2.1 Implement `init/1` with child specs:
+- [x] 1.4.2.1 Implement `init/1` with child specs:
   ```elixir
   def init(session) do
     children = [
@@ -355,9 +355,9 @@ Define the child processes for each session.
     Supervisor.init(children, strategy: :one_for_all)
   end
   ```
-- [ ] 1.4.2.2 Use `:one_for_all` strategy (all children restart together)
-- [ ] 1.4.2.3 Document why :one_for_all is appropriate (tight coupling)
-- [ ] 1.4.2.4 Write unit tests for child startup
+- [x] 1.4.2.2 Use `:one_for_all` strategy (all children restart together)
+- [x] 1.4.2.3 Document why :one_for_all is appropriate (tight coupling)
+- [x] 1.4.2.4 Write unit tests for child startup (28 tests for session/* modules)
 
 ### 1.4.3 Session Process Access
 - [ ] **Task 1.4.3**

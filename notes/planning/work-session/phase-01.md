@@ -245,21 +245,21 @@ Create the main SessionSupervisor as a DynamicSupervisor.
 - [x] 1.3.1.5 Write unit tests for supervisor startup (9 tests passing)
 
 ### 1.3.2 Session Process Management
-- [ ] **Task 1.3.2**
+- [x] **Task 1.3.2** ✅ COMPLETE
 
 Implement functions for starting and stopping session processes.
 
-- [ ] 1.3.2.1 Implement `start_session/1` accepting Session struct:
+- [x] 1.3.2.1 Implement `start_session/1` accepting Session struct:
   ```elixir
   def start_session(session) do
     spec = {JidoCode.Session.Supervisor, session: session}
     DynamicSupervisor.start_child(__MODULE__, spec)
   end
   ```
-- [ ] 1.3.2.2 Register session in SessionRegistry before starting processes
-- [ ] 1.3.2.3 Return `{:ok, pid}` with per-session supervisor pid
-- [ ] 1.3.2.4 Return `{:error, reason}` if session limit reached or duplicate
-- [ ] 1.3.2.5 Implement `stop_session/1` by session ID:
+- [x] 1.3.2.2 Register session in SessionRegistry before starting processes
+- [x] 1.3.2.3 Return `{:ok, pid}` with per-session supervisor pid
+- [x] 1.3.2.4 Return `{:error, reason}` if session limit reached or duplicate
+- [x] 1.3.2.5 Implement `stop_session/1` by session ID:
   ```elixir
   def stop_session(session_id) do
     case find_session_pid(session_id) do
@@ -269,8 +269,8 @@ Implement functions for starting and stopping session processes.
     end
   end
   ```
-- [ ] 1.3.2.6 Unregister session from SessionRegistry after stopping
-- [ ] 1.3.2.7 Write unit tests for session lifecycle
+- [x] 1.3.2.6 Unregister session from SessionRegistry after stopping
+- [x] 1.3.2.7 Write unit tests for session lifecycle (13 new tests, 22 total)
 
 ### 1.3.3 Session Process Lookup
 - [ ] **Task 1.3.3**

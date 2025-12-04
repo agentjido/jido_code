@@ -191,16 +191,16 @@ Implement session unregistration.
 - [x] 1.2.5.5 Write unit tests for removal operations (11 tests passing)
 
 ### 1.2.6 Session Updates in Registry
-- [ ] **Task 1.2.6**
+- [x] **Task 1.2.6** ✅ COMPLETE
 
 Implement updating session data in the registry.
 
-- [ ] 1.2.6.1 Implement `update/1` accepting updated Session struct
-- [ ] 1.2.6.2 Verify session exists before updating
-- [ ] 1.2.6.3 Return `{:error, :not_found}` if session doesn't exist
-- [ ] 1.2.6.4 Use `:ets.insert/2` to replace existing entry
-- [ ] 1.2.6.5 Return `{:ok, session}` on success
-- [ ] 1.2.6.6 Write unit tests for update operations
+- [x] 1.2.6.1 Implement `update/1` accepting updated Session struct
+- [x] 1.2.6.2 Verify session exists before updating
+- [x] 1.2.6.3 Return `{:error, :not_found}` if session doesn't exist
+- [x] 1.2.6.4 Use `:ets.insert/2` to replace existing entry
+- [x] 1.2.6.5 Return `{:ok, session}` on success
+- [x] 1.2.6.6 Write unit tests for update operations (7 tests passing)
 
 **Unit Tests for Section 1.2:**
 - Test `create_table/0` creates ETS table

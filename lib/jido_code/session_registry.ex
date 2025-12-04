@@ -405,7 +405,7 @@ defmodule JidoCode.SessionRegistry do
   end
 
   # ============================================================================
-  # Session Updates (Task 1.2.6 - stub for now)
+  # Session Updates (Task 1.2.6)
   # ============================================================================
 
   @doc """
@@ -428,8 +428,12 @@ defmodule JidoCode.SessionRegistry do
       iex> {:ok, _} = SessionRegistry.update(updated)
   """
   @spec update(Session.t()) :: {:ok, Session.t()} | {:error, :not_found}
-  def update(%Session{} = _session) do
-    # TODO: Implement in Task 1.2.6
-    {:error, :not_implemented}
+  def update(%Session{} = session) do
+    if session_exists?(session.id) do
+      :ets.insert(@table, {session.id, session})
+      {:ok, session}
+    else
+      {:error, :not_found}
+    end
   end
 end

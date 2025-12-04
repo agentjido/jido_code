@@ -804,4 +804,114 @@ defmodule JidoCode.SessionRegistryTest do
       assert SessionRegistry.count() == 1
     end
   end
+
+  # ============================================================================
+  # update/1 Tests
+  # ============================================================================
+
+  describe "update/1" do
+    test "updates existing session successfully" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, session} = SessionRegistry.register(session)
+
+      # Simulate a rename by creating updated session
+      updated_session = %{session | name: "new-name", updated_at: DateTime.utc_now()}
+
+      result = SessionRegistry.update(updated_session)
+
+      assert {:ok, ^updated_session} = result
+    end
+
+    test "returns error for non-existent session" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      # Don't register it
+
+      result = SessionRegistry.update(session)
+
+      assert result == {:error, :not_found}
+    end
+
+    test "updated session can be retrieved via lookup" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, session} = SessionRegistry.register(session)
+
+      updated_session = %{session | name: "updated-name"}
+      {:ok, _} = SessionRegistry.update(updated_session)
+
+      {:ok, retrieved} = SessionRegistry.lookup(session.id)
+
+      assert retrieved.name == "updated-name"
+    end
+
+    test "update preserves other sessions" do
+      SessionRegistry.create_table()
+
+      session1 = create_test_session(project_path: "/tmp/project1")
+      session2 = create_test_session(project_path: "/tmp/project2")
+      {:ok, session1} = SessionRegistry.register(session1)
+      {:ok, session2} = SessionRegistry.register(session2)
+
+      updated_session1 = %{session1 | name: "updated-name"}
+      {:ok, _} = SessionRegistry.update(updated_session1)
+
+      # session2 should be unchanged
+      {:ok, retrieved2} = SessionRegistry.lookup(session2.id)
+      assert retrieved2 == session2
+
+      # Count should still be 2
+      assert SessionRegistry.count() == 2
+    end
+
+    test "update with changed config" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, session} = SessionRegistry.register(session)
+
+      new_config = %{session.config | temperature: 0.9, max_tokens: 8000}
+      updated_session = %{session | config: new_config, updated_at: DateTime.utc_now()}
+      {:ok, _} = SessionRegistry.update(updated_session)
+
+      {:ok, retrieved} = SessionRegistry.lookup(session.id)
+
+      assert retrieved.config.temperature == 0.9
+      assert retrieved.config.max_tokens == 8000
+    end
+
+    test "returns error when table has sessions but ID not found" do
+      SessionRegistry.create_table()
+
+      # Register one session
+      session1 = create_test_session(project_path: "/tmp/project1")
+      {:ok, _} = SessionRegistry.register(session1)
+
+      # Try to update a different session that was never registered
+      session2 = create_test_session(project_path: "/tmp/project2")
+
+      result = SessionRegistry.update(session2)
+
+      assert result == {:error, :not_found}
+    end
+
+    test "can update immediately after registration" do
+      SessionRegistry.create_table()
+
+      session = create_test_session()
+      {:ok, session} = SessionRegistry.register(session)
+
+      # Immediately update
+      updated = %{session | name: "immediate-update"}
+      result = SessionRegistry.update(updated)
+
+      assert {:ok, _} = result
+      {:ok, retrieved} = SessionRegistry.lookup(session.id)
+      assert retrieved.name == "immediate-update"
+    end
+  end
 end

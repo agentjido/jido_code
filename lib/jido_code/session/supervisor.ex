@@ -121,6 +121,99 @@ defmodule JidoCode.Session.Supervisor do
     Supervisor.init(children, strategy: :one_for_all)
   end
 
+  # ============================================================================
+  # Session Process Access (Task 1.4.3)
+  # ============================================================================
+
+  @doc """
+  Gets the Manager pid for a session.
+
+  Uses Registry lookup with `{:manager, session_id}` key for O(1) performance.
+
+  ## Parameters
+
+  - `session_id` - The session's unique ID
+
+  ## Returns
+
+  - `{:ok, pid}` - Manager found
+  - `{:error, :not_found}` - No Manager for this session
+
+  ## Examples
+
+      iex> {:ok, pid} = Session.Supervisor.get_manager(session.id)
+      iex> is_pid(pid)
+      true
+
+      iex> Session.Supervisor.get_manager("unknown")
+      {:error, :not_found}
+  """
+  @spec get_manager(String.t()) :: {:ok, pid()} | {:error, :not_found}
+  def get_manager(session_id) do
+    case Registry.lookup(@registry, {:manager, session_id}) do
+      [{pid, _}] -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Gets the State pid for a session.
+
+  Uses Registry lookup with `{:state, session_id}` key for O(1) performance.
+
+  ## Parameters
+
+  - `session_id` - The session's unique ID
+
+  ## Returns
+
+  - `{:ok, pid}` - State found
+  - `{:error, :not_found}` - No State for this session
+
+  ## Examples
+
+      iex> {:ok, pid} = Session.Supervisor.get_state(session.id)
+      iex> is_pid(pid)
+      true
+
+      iex> Session.Supervisor.get_state("unknown")
+      {:error, :not_found}
+  """
+  @spec get_state(String.t()) :: {:ok, pid()} | {:error, :not_found}
+  def get_state(session_id) do
+    case Registry.lookup(@registry, {:state, session_id}) do
+      [{pid, _}] -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Gets the LLMAgent pid for a session.
+
+  **Note**: This is a stub that returns `{:error, :not_implemented}`.
+  LLMAgent will be added as a session child in Phase 3 after tool integration.
+
+  ## Parameters
+
+  - `session_id` - The session's unique ID
+
+  ## Returns
+
+  - `{:ok, pid}` - Agent found (Phase 3)
+  - `{:error, :not_found}` - No Agent for this session
+  - `{:error, :not_implemented}` - Agent not yet implemented
+
+  ## Examples
+
+      iex> Session.Supervisor.get_agent(session.id)
+      {:error, :not_implemented}
+  """
+  @spec get_agent(String.t()) :: {:ok, pid()} | {:error, :not_found | :not_implemented}
+  def get_agent(_session_id) do
+    # LLMAgent will be added in Phase 3 after tool integration
+    {:error, :not_implemented}
+  end
+
   # Private helpers
 
   @doc false

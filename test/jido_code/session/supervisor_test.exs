@@ -259,4 +259,114 @@ defmodule JidoCode.Session.SupervisorTest do
       assert JidoCode.SessionSupervisor.session_running?(session.id) == true
     end
   end
+
+  # ============================================================================
+  # Session Process Access Tests (Task 1.4.3)
+  # ============================================================================
+
+  describe "get_manager/1" do
+    test "returns Manager pid for running session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
+
+      assert {:ok, pid} = SessionSupervisor.get_manager(session.id)
+      assert is_pid(pid)
+      assert Process.alive?(pid)
+    end
+
+    test "returns same pid as direct Registry lookup", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
+
+      {:ok, pid} = SessionSupervisor.get_manager(session.id)
+      [{registry_pid, _}] = Registry.lookup(@registry, {:manager, session.id})
+
+      assert pid == registry_pid
+    end
+
+    test "returns error for unknown session" do
+      assert {:error, :not_found} = SessionSupervisor.get_manager("unknown-session-id")
+    end
+
+    test "returns error after session stopped", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
+
+      assert {:ok, _pid} = SessionSupervisor.get_manager(session.id)
+
+      Supervisor.stop(sup_pid)
+
+      # Wait for cleanup
+      ref = Process.monitor(sup_pid)
+      assert_receive {:DOWN, ^ref, :process, ^sup_pid, _}, 100
+
+      assert {:error, :not_found} = SessionSupervisor.get_manager(session.id)
+    end
+  end
+
+  describe "get_state/1" do
+    test "returns State pid for running session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
+
+      assert {:ok, pid} = SessionSupervisor.get_state(session.id)
+      assert is_pid(pid)
+      assert Process.alive?(pid)
+    end
+
+    test "returns same pid as direct Registry lookup", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
+
+      {:ok, pid} = SessionSupervisor.get_state(session.id)
+      [{registry_pid, _}] = Registry.lookup(@registry, {:state, session.id})
+
+      assert pid == registry_pid
+    end
+
+    test "returns error for unknown session" do
+      assert {:error, :not_found} = SessionSupervisor.get_state("unknown-session-id")
+    end
+
+    test "returns error after session stopped", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
+
+      assert {:ok, _pid} = SessionSupervisor.get_state(session.id)
+
+      Supervisor.stop(sup_pid)
+
+      # Wait for cleanup
+      ref = Process.monitor(sup_pid)
+      assert_receive {:DOWN, ^ref, :process, ^sup_pid, _}, 100
+
+      assert {:error, :not_found} = SessionSupervisor.get_state(session.id)
+    end
+  end
+
+  describe "get_agent/1" do
+    test "returns :not_implemented (stub for Phase 3)", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
+
+      assert {:error, :not_implemented} = SessionSupervisor.get_agent(session.id)
+    end
+
+    test "returns :not_implemented for unknown session too" do
+      # Even unknown sessions return :not_implemented since the feature isn't built
+      assert {:error, :not_implemented} = SessionSupervisor.get_agent("unknown-session-id")
+    end
+  end
+
+  describe "get_manager/1 and get_state/1 return different pids" do
+    test "Manager and State are different processes", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
+
+      {:ok, manager_pid} = SessionSupervisor.get_manager(session.id)
+      {:ok, state_pid} = SessionSupervisor.get_state(session.id)
+
+      assert manager_pid != state_pid
+    end
+  end
 end

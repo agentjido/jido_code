@@ -391,4 +391,245 @@ defmodule JidoCode.SessionSupervisorTest do
       assert SessionRegistry.count() == 0
     end
   end
+
+  # ============================================================================
+  # Session Process Lookup Tests (Task 1.3.3)
+  # ============================================================================
+
+  describe "find_session_pid/1" do
+    setup do
+      # Stop SessionSupervisor if already running
+      if pid = Process.whereis(SessionSupervisor) do
+        Supervisor.stop(pid)
+      end
+
+      # Start SessionProcessRegistry for via tuples
+      if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+        GenServer.stop(pid)
+      end
+
+      {:ok, _} = Registry.start_link(keys: :unique, name: JidoCode.SessionProcessRegistry)
+
+      # Start SessionSupervisor
+      {:ok, sup_pid} = SessionSupervisor.start_link([])
+
+      # Ensure SessionRegistry table exists and is empty
+      SessionRegistry.create_table()
+      SessionRegistry.clear()
+
+      # Create a temp directory for sessions
+      tmp_dir = Path.join(System.tmp_dir!(), "session_find_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn ->
+        SessionRegistry.clear()
+        File.rm_rf!(tmp_dir)
+
+        if Process.alive?(sup_pid) do
+          try do
+            Supervisor.stop(sup_pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+
+        if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+          try do
+            GenServer.stop(pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+      end)
+
+      {:ok, sup_pid: sup_pid, tmp_dir: tmp_dir}
+    end
+
+    test "finds registered session pid", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, expected_pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      assert {:ok, pid} = SessionSupervisor.find_session_pid(session.id)
+      assert pid == expected_pid
+    end
+
+    test "returns error for unknown session" do
+      assert {:error, :not_found} = SessionSupervisor.find_session_pid("unknown-session-id")
+    end
+
+    test "returns error after session is stopped", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      :ok = SessionSupervisor.stop_session(session.id)
+
+      assert {:error, :not_found} = SessionSupervisor.find_session_pid(session.id)
+    end
+  end
+
+  describe "list_session_pids/0" do
+    setup do
+      # Stop SessionSupervisor if already running
+      if pid = Process.whereis(SessionSupervisor) do
+        Supervisor.stop(pid)
+      end
+
+      # Start SessionProcessRegistry for via tuples
+      if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+        GenServer.stop(pid)
+      end
+
+      {:ok, _} = Registry.start_link(keys: :unique, name: JidoCode.SessionProcessRegistry)
+
+      # Start SessionSupervisor
+      {:ok, sup_pid} = SessionSupervisor.start_link([])
+
+      # Ensure SessionRegistry table exists and is empty
+      SessionRegistry.create_table()
+      SessionRegistry.clear()
+
+      # Create a temp directory for sessions
+      tmp_dir = Path.join(System.tmp_dir!(), "session_list_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn ->
+        SessionRegistry.clear()
+        File.rm_rf!(tmp_dir)
+
+        if Process.alive?(sup_pid) do
+          try do
+            Supervisor.stop(sup_pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+
+        if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+          try do
+            GenServer.stop(pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+      end)
+
+      {:ok, sup_pid: sup_pid, tmp_dir: tmp_dir}
+    end
+
+    test "returns empty list when no sessions running" do
+      assert SessionSupervisor.list_session_pids() == []
+    end
+
+    test "returns pids for running sessions", %{tmp_dir: tmp_dir} do
+      dir1 = Path.join(tmp_dir, "proj1")
+      dir2 = Path.join(tmp_dir, "proj2")
+      File.mkdir_p!(dir1)
+      File.mkdir_p!(dir2)
+
+      {:ok, s1} = Session.new(project_path: dir1)
+      {:ok, s2} = Session.new(project_path: dir2)
+
+      {:ok, pid1} = SessionSupervisor.start_session(s1, supervisor_module: SessionSupervisorStub)
+      {:ok, pid2} = SessionSupervisor.start_session(s2, supervisor_module: SessionSupervisorStub)
+
+      pids = SessionSupervisor.list_session_pids()
+
+      assert length(pids) == 2
+      assert pid1 in pids
+      assert pid2 in pids
+    end
+
+    test "reflects stopped sessions", %{tmp_dir: tmp_dir} do
+      dir1 = Path.join(tmp_dir, "proj1")
+      dir2 = Path.join(tmp_dir, "proj2")
+      File.mkdir_p!(dir1)
+      File.mkdir_p!(dir2)
+
+      {:ok, s1} = Session.new(project_path: dir1)
+      {:ok, s2} = Session.new(project_path: dir2)
+
+      {:ok, _pid1} = SessionSupervisor.start_session(s1, supervisor_module: SessionSupervisorStub)
+      {:ok, pid2} = SessionSupervisor.start_session(s2, supervisor_module: SessionSupervisorStub)
+
+      assert length(SessionSupervisor.list_session_pids()) == 2
+
+      :ok = SessionSupervisor.stop_session(s1.id)
+
+      pids = SessionSupervisor.list_session_pids()
+      assert length(pids) == 1
+      assert pid2 in pids
+    end
+  end
+
+  describe "session_running?/1" do
+    setup do
+      # Stop SessionSupervisor if already running
+      if pid = Process.whereis(SessionSupervisor) do
+        Supervisor.stop(pid)
+      end
+
+      # Start SessionProcessRegistry for via tuples
+      if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+        GenServer.stop(pid)
+      end
+
+      {:ok, _} = Registry.start_link(keys: :unique, name: JidoCode.SessionProcessRegistry)
+
+      # Start SessionSupervisor
+      {:ok, sup_pid} = SessionSupervisor.start_link([])
+
+      # Ensure SessionRegistry table exists and is empty
+      SessionRegistry.create_table()
+      SessionRegistry.clear()
+
+      # Create a temp directory for sessions
+      tmp_dir = Path.join(System.tmp_dir!(), "session_running_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn ->
+        SessionRegistry.clear()
+        File.rm_rf!(tmp_dir)
+
+        if Process.alive?(sup_pid) do
+          try do
+            Supervisor.stop(sup_pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+
+        if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+          try do
+            GenServer.stop(pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+      end)
+
+      {:ok, sup_pid: sup_pid, tmp_dir: tmp_dir}
+    end
+
+    test "returns true for running session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      assert SessionSupervisor.session_running?(session.id) == true
+    end
+
+    test "returns false for unknown session" do
+      assert SessionSupervisor.session_running?("unknown-session-id") == false
+    end
+
+    test "returns false after session is stopped", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      assert SessionSupervisor.session_running?(session.id) == true
+
+      :ok = SessionSupervisor.stop_session(session.id)
+
+      assert SessionSupervisor.session_running?(session.id) == false
+    end
+  end
 end

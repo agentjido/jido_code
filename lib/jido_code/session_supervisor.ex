@@ -163,17 +163,96 @@ defmodule JidoCode.SessionSupervisor do
   end
 
   # ============================================================================
-  # Private Helpers
+  # Session Process Lookup (Task 1.3.3)
   # ============================================================================
 
-  # Finds the pid of a session's supervisor by session ID.
-  # Uses Registry lookup with {:session, session_id} key.
-  # This will become public in Task 1.3.3.
+  @doc """
+  Finds the pid of a session's supervisor by session ID.
+
+  Uses Registry lookup with `{:session, session_id}` key for O(1) performance.
+
+  ## Parameters
+
+  - `session_id` - The session's unique ID
+
+  ## Returns
+
+  - `{:ok, pid}` - Session supervisor found
+  - `{:error, :not_found}` - No session with this ID exists
+
+  ## Examples
+
+      iex> {:ok, pid} = SessionSupervisor.find_session_pid("session-id")
+      iex> is_pid(pid)
+      true
+
+      iex> SessionSupervisor.find_session_pid("unknown")
+      {:error, :not_found}
+  """
   @spec find_session_pid(String.t()) :: {:ok, pid()} | {:error, :not_found}
-  defp find_session_pid(session_id) do
+  def find_session_pid(session_id) do
     case Registry.lookup(@registry, {:session, session_id}) do
       [{pid, _}] -> {:ok, pid}
       [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Returns a list of all running session supervisor pids.
+
+  Uses `DynamicSupervisor.which_children/1` to enumerate all child processes.
+
+  ## Returns
+
+  A list of pids for all running session supervisors. Returns an empty list
+  if no sessions are running.
+
+  ## Examples
+
+      iex> SessionSupervisor.list_session_pids()
+      []
+
+      iex> {:ok, _} = SessionSupervisor.start_session(session)
+      iex> pids = SessionSupervisor.list_session_pids()
+      iex> length(pids)
+      1
+  """
+  @spec list_session_pids() :: [pid()]
+  def list_session_pids do
+    __MODULE__
+    |> DynamicSupervisor.which_children()
+    |> Enum.map(fn {_, pid, _, _} -> pid end)
+    |> Enum.filter(&is_pid/1)
+  end
+
+  @doc """
+  Checks if a session's processes are running.
+
+  Combines Registry lookup with process liveness check.
+
+  ## Parameters
+
+  - `session_id` - The session's unique ID
+
+  ## Returns
+
+  - `true` - Session supervisor is registered and alive
+  - `false` - Session not found or process is dead
+
+  ## Examples
+
+      iex> {:ok, _} = SessionSupervisor.start_session(session)
+      iex> SessionSupervisor.session_running?(session.id)
+      true
+
+      iex> SessionSupervisor.session_running?("unknown")
+      false
+  """
+  @spec session_running?(String.t()) :: boolean()
+  def session_running?(session_id) do
+    case find_session_pid(session_id) do
+      {:ok, pid} -> Process.alive?(pid)
+      {:error, :not_found} -> false
     end
   end
 end

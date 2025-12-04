@@ -273,15 +273,15 @@ Implement functions for starting and stopping session processes.
 - [x] 1.3.2.7 Write unit tests for session lifecycle (13 new tests, 22 total)
 
 ### 1.3.3 Session Process Lookup
-- [ ] **Task 1.3.3**
+- [x] **Task 1.3.3** ✅ COMPLETE
 
 Implement functions for finding session processes.
 
-- [ ] 1.3.3.1 Implement `find_session_pid/1` by session ID
-- [ ] 1.3.3.2 Use Registry lookup: `{:via, Registry, {JidoCode.Registry, {:session, id}}}`
-- [ ] 1.3.3.3 Implement `list_session_pids/0` returning all session supervisor pids
-- [ ] 1.3.3.4 Implement `session_running?/1` checking if session processes are alive
-- [ ] 1.3.3.5 Write unit tests for process lookup
+- [x] 1.3.3.1 Implement `find_session_pid/1` by session ID
+- [x] 1.3.3.2 Use Registry lookup: `{:via, Registry, {JidoCode.SessionProcessRegistry, {:session, id}}}`
+- [x] 1.3.3.3 Implement `list_session_pids/0` returning all session supervisor pids
+- [x] 1.3.3.4 Implement `session_running?/1` checking if session processes are alive
+- [x] 1.3.3.5 Write unit tests for process lookup (9 new tests, 31 total)
 
 ### 1.3.4 Session Creation Convenience
 - [ ] **Task 1.3.4**

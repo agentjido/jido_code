@@ -149,6 +149,12 @@ defmodule JidoCode.SessionSupervisor do
   - `:ok` - Session stopped successfully
   - `{:error, :not_found}` - No session with this ID exists
 
+  ## Note on Registry Cleanup
+
+  The session is unregistered from SessionRegistry synchronously, but the
+  SessionProcessRegistry entry persists until the process fully terminates.
+  Use `session_running?/1` if you need to verify the process is alive.
+
   ## Examples
 
       iex> :ok = SessionSupervisor.stop_session("session-id")
@@ -219,10 +225,9 @@ defmodule JidoCode.SessionSupervisor do
   """
   @spec list_session_pids() :: [pid()]
   def list_session_pids do
-    __MODULE__
-    |> DynamicSupervisor.which_children()
-    |> Enum.map(fn {_, pid, _, _} -> pid end)
-    |> Enum.filter(&is_pid/1)
+    for {_id, pid, _type, _modules} <- DynamicSupervisor.which_children(__MODULE__),
+        is_pid(pid),
+        do: pid
   end
 
   @doc """

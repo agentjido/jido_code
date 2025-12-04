@@ -1,0 +1,129 @@
+defmodule JidoCode.Test.SessionTestHelpers do
+  @moduledoc """
+  Shared test setup helpers for session-related tests.
+
+  Extracts common setup code to reduce duplication across test files.
+  """
+
+  alias JidoCode.SessionRegistry
+  alias JidoCode.SessionSupervisor
+
+  @doc """
+  Sets up the session supervisor test environment.
+
+  Starts SessionProcessRegistry, SessionSupervisor, creates SessionRegistry table,
+  and creates a temporary directory for test projects.
+
+  Returns a map with:
+  - `:sup_pid` - The SessionSupervisor pid
+  - `:tmp_dir` - Path to temporary directory for test files
+
+  ## Usage
+
+      setup do
+        JidoCode.Test.SessionTestHelpers.setup_session_supervisor()
+      end
+
+  Or with a custom suffix for the temp directory:
+
+      setup do
+        JidoCode.Test.SessionTestHelpers.setup_session_supervisor("my_test")
+      end
+  """
+  @spec setup_session_supervisor(String.t()) :: {:ok, map()}
+  def setup_session_supervisor(suffix \\ "test") do
+    # Stop SessionSupervisor if already running
+    if pid = Process.whereis(SessionSupervisor) do
+      Supervisor.stop(pid)
+    end
+
+    # Start SessionProcessRegistry for via tuples
+    if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+      GenServer.stop(pid)
+    end
+
+    {:ok, _} = Registry.start_link(keys: :unique, name: JidoCode.SessionProcessRegistry)
+
+    # Start SessionSupervisor
+    {:ok, sup_pid} = SessionSupervisor.start_link([])
+
+    # Ensure SessionRegistry table exists and is empty
+    SessionRegistry.create_table()
+    SessionRegistry.clear()
+
+    # Create a temp directory for sessions
+    tmp_dir = Path.join(System.tmp_dir!(), "session_#{suffix}_#{:rand.uniform(100_000)}")
+    File.mkdir_p!(tmp_dir)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      cleanup_session_supervisor(sup_pid, tmp_dir)
+    end)
+
+    {:ok, %{sup_pid: sup_pid, tmp_dir: tmp_dir}}
+  end
+
+  @doc """
+  Cleans up session supervisor test resources.
+
+  Called automatically via on_exit when using setup_session_supervisor/1,
+  but can be called manually if needed.
+  """
+  @spec cleanup_session_supervisor(pid(), String.t()) :: :ok
+  def cleanup_session_supervisor(sup_pid, tmp_dir) do
+    SessionRegistry.clear()
+    File.rm_rf!(tmp_dir)
+
+    if Process.alive?(sup_pid) do
+      try do
+        Supervisor.stop(sup_pid)
+      catch
+        :exit, _ -> :ok
+      end
+    end
+
+    if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+      try do
+        GenServer.stop(pid)
+      catch
+        :exit, _ -> :ok
+      end
+    end
+
+    :ok
+  end
+
+  @doc """
+  Waits for a process to terminate using process monitoring.
+
+  This is preferred over `:timer.sleep/1` as it's deterministic and
+  doesn't cause flaky tests on slow CI systems.
+
+  ## Parameters
+
+  - `pid` - The process to wait for
+  - `timeout` - Maximum time to wait in milliseconds (default: 100)
+
+  ## Returns
+
+  - `:ok` - Process terminated
+  - `:timeout` - Process didn't terminate within timeout
+
+  ## Examples
+
+      {:ok, pid} = start_some_process()
+      Process.exit(pid, :normal)
+      :ok = wait_for_process_death(pid)
+  """
+  @spec wait_for_process_death(pid(), non_neg_integer()) :: :ok | :timeout
+  def wait_for_process_death(pid, timeout \\ 100) do
+    ref = Process.monitor(pid)
+
+    receive do
+      {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+    after
+      timeout ->
+        Process.demonitor(ref, [:flush])
+        :timeout
+    end
+  end
+end

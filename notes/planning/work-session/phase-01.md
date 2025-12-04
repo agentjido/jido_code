@@ -38,15 +38,15 @@ Create the main Session module with struct definition and type specifications.
 - [x] 1.1.1.5 Write tests for struct and types (10 tests passing)
 
 ### 1.1.2 Session Creation
-- [ ] **Task 1.1.2**
+- [x] **Task 1.1.2** ✅ COMPLETE
 
 Implement session creation with automatic naming from project folder.
 
-- [ ] 1.1.2.1 Implement `new/1` accepting keyword options:
+- [x] 1.1.2.1 Implement `new/1` accepting keyword options:
   - `project_path` (required) - absolute path to project directory
   - `name` (optional) - display name, defaults to folder name
   - `config` (optional) - LLM config, defaults to global settings
-- [ ] 1.1.2.2 Generate unique `id` using UUID v4:
+- [x] 1.1.2.2 Generate unique `id` using UUID v4:
   ```elixir
   defp generate_id do
     <<u0::48, _::4, u1::12, _::2, u2::62>> = :crypto.strong_rand_bytes(16)
@@ -62,12 +62,12 @@ Implement session creation with automatic naming from project folder.
   - Globally unique across all nodes and restarts
   - 128-bit random with version/variant bits set correctly
   - Formatted as standard UUID string (8-4-4-4-12)
-- [ ] 1.1.2.3 Extract folder name from `project_path` for default `name`: `Path.basename(project_path)`
-- [ ] 1.1.2.4 Set `created_at` and `updated_at` to current UTC time
-- [ ] 1.1.2.5 Load default config from `JidoCode.Settings.load()` if not provided
-- [ ] 1.1.2.6 Validate `project_path` exists and is a directory
-- [ ] 1.1.2.7 Return `{:ok, session}` or `{:error, reason}`
-- [ ] 1.1.2.8 Write unit tests for session creation with various inputs
+- [x] 1.1.2.3 Extract folder name from `project_path` for default `name`: `Path.basename(project_path)`
+- [x] 1.1.2.4 Set `created_at` and `updated_at` to current UTC time
+- [x] 1.1.2.5 Load default config from `JidoCode.Settings.load()` if not provided
+- [x] 1.1.2.6 Validate `project_path` exists and is a directory
+- [x] 1.1.2.7 Return `{:ok, session}` or `{:error, reason}`
+- [x] 1.1.2.8 Write unit tests for session creation (16 tests: 11 for new/1, 5 for generate_id/0)
 
 ### 1.1.3 Session Validation
 - [ ] **Task 1.1.3**

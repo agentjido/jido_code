@@ -398,18 +398,18 @@ Update application.ex to include session infrastructure.
 - [ ] 1.5.1.4 Write integration test for supervision tree startup
 
 ### 1.5.2 Default Session Creation
-- [ ] **Task 1.5.2**
+- [x] **Task 1.5.2 Complete**
 
 Auto-create default session for CWD on application start.
 
-- [ ] 1.5.2.1 Implement `create_default_session/0` in Application module
-- [ ] 1.5.2.2 Use `File.cwd!/0` to get current working directory
-- [ ] 1.5.2.3 Create session with CWD path and folder name
-- [ ] 1.5.2.4 Call `SessionSupervisor.create_session/1`
-- [ ] 1.5.2.5 Log session creation with name and path
-- [ ] 1.5.2.6 Handle errors gracefully (log warning, continue startup)
-- [ ] 1.5.2.7 Call from `start/2` after children are started
-- [ ] 1.5.2.8 Write integration tests for default session
+- [x] 1.5.2.1 Implement `create_default_session/0` in Application module
+- [x] 1.5.2.2 Use `File.cwd!/0` to get current working directory
+- [x] 1.5.2.3 Create session with CWD path and folder name
+- [x] 1.5.2.4 Call `SessionSupervisor.create_session/1`
+- [x] 1.5.2.5 Log session creation with name and path
+- [x] 1.5.2.6 Handle errors gracefully (log warning, continue startup)
+- [x] 1.5.2.7 Call from `start/2` after children are started
+- [x] 1.5.2.8 Write integration tests for default session
 
 ### 1.5.3 Session ID Access
 - [ ] **Task 1.5.3**

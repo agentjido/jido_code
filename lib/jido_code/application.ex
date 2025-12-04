@@ -13,6 +13,13 @@ defmodule JidoCode.Application do
   Uses `:one_for_one` at the top level to ensure independent failure handling.
   Agent crashes don't affect the TUI, and vice versa.
 
+  ## Default Session
+
+  On startup, a default session is automatically created for the current working
+  directory. This allows users to immediately start working without manually
+  creating a session. If session creation fails, the application continues
+  to start normally with a warning logged.
+
   ## TUI Configuration
 
   The TUI is not started by default during application startup. To run the TUI:
@@ -25,7 +32,10 @@ defmodule JidoCode.Application do
 
   use Application
 
+  require Logger
+
   alias JidoCode.Settings
+  alias JidoCode.SessionSupervisor
 
   @impl true
   def start(_type, _args) do
@@ -73,7 +83,32 @@ defmodule JidoCode.Application do
     ]
 
     opts = [strategy: :one_for_one, name: JidoCode.Supervisor]
-    Supervisor.start_link(children, opts)
+
+    case Supervisor.start_link(children, opts) do
+      {:ok, pid} ->
+        create_default_session()
+        {:ok, pid}
+
+      error ->
+        error
+    end
+  end
+
+  # Create a default session for the current working directory
+  # Called after supervision tree is started
+  defp create_default_session do
+    cwd = File.cwd!()
+    name = Path.basename(cwd)
+
+    case SessionSupervisor.create_session(project_path: cwd, name: name) do
+      {:ok, session} ->
+        Logger.info("Created default session '#{session.name}' for #{session.project_path}")
+        {:ok, session}
+
+      {:error, reason} ->
+        Logger.warning("Failed to create default session: #{inspect(reason)}")
+        {:error, reason}
+    end
   end
 
   # ARCH-3 Fix: Initialize all ETS tables during application startup

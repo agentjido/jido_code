@@ -43,9 +43,16 @@ defmodule JidoCode.Test.SessionTestHelpers do
   """
   @spec setup_session_registry(String.t()) :: {:ok, map()}
   def setup_session_registry(suffix \\ "test") do
-    # Stop existing registry if running
+    # Stop existing registry if running and wait for termination
     if pid = Process.whereis(@registry) do
+      ref = Process.monitor(pid)
       GenServer.stop(pid)
+
+      receive do
+        {:DOWN, ^ref, :process, ^pid, _} -> :ok
+      after
+        100 -> Process.demonitor(ref, [:flush])
+      end
     end
 
     {:ok, _} = Registry.start_link(keys: :unique, name: @registry)
@@ -109,14 +116,28 @@ defmodule JidoCode.Test.SessionTestHelpers do
   """
   @spec setup_session_supervisor(String.t()) :: {:ok, map()}
   def setup_session_supervisor(suffix \\ "test") do
-    # Stop SessionSupervisor if already running
+    # Stop SessionSupervisor if already running and wait for termination
     if pid = Process.whereis(SessionSupervisor) do
+      ref = Process.monitor(pid)
       Supervisor.stop(pid)
+
+      receive do
+        {:DOWN, ^ref, :process, ^pid, _} -> :ok
+      after
+        100 -> Process.demonitor(ref, [:flush])
+      end
     end
 
-    # Start SessionProcessRegistry for via tuples
+    # Start SessionProcessRegistry for via tuples and wait for any existing to terminate
     if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+      ref = Process.monitor(pid)
       GenServer.stop(pid)
+
+      receive do
+        {:DOWN, ^ref, :process, ^pid, _} -> :ok
+      after
+        100 -> Process.demonitor(ref, [:flush])
+      end
     end
 
     {:ok, _} = Registry.start_link(keys: :unique, name: JidoCode.SessionProcessRegistry)

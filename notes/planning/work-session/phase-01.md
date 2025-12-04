@@ -118,19 +118,19 @@ Implement functions for updating session fields.
 Create an ETS-backed registry to track active sessions with enforcement of the 10-session limit.
 
 ### 1.2.1 Registry Module Structure
-- [ ] **Task 1.2.1**
+- [x] **Task 1.2.1** ✅ COMPLETE
 
 Create the SessionRegistry module with ETS table management.
 
-- [ ] 1.2.1.1 Create `lib/jido_code/session_registry.ex` with module documentation
-- [ ] 1.2.1.2 Define `@max_sessions 10` module attribute
-- [ ] 1.2.1.3 Define `@table __MODULE__` for ETS table name
-- [ ] 1.2.1.4 Implement `create_table/0` creating named ETS table:
+- [x] 1.2.1.1 Create `lib/jido_code/session_registry.ex` with module documentation
+- [x] 1.2.1.2 Define `@max_sessions 10` module attribute
+- [x] 1.2.1.3 Define `@table __MODULE__` for ETS table name
+- [x] 1.2.1.4 Implement `create_table/0` creating named ETS table:
   ```elixir
   :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
   ```
-- [ ] 1.2.1.5 Implement `table_exists?/0` for checking table status
-- [ ] 1.2.1.6 Write unit tests for table creation
+- [x] 1.2.1.5 Implement `table_exists?/0` for checking table status
+- [x] 1.2.1.6 Write unit tests for table creation (12 tests passing)
 
 ### 1.2.2 Session Registration
 - [ ] **Task 1.2.2**

@@ -255,4 +255,64 @@ defmodule JidoCode.SessionSupervisor do
       {:error, :not_found} -> false
     end
   end
+
+  # ============================================================================
+  # Session Creation Convenience (Task 1.3.4)
+  # ============================================================================
+
+  @doc """
+  Creates and starts a new session in one step.
+
+  Convenience function that combines `Session.new/1` and `start_session/1`.
+  This is the recommended way to create sessions as it handles both creation
+  and startup in a single call.
+
+  ## Parameters
+
+  - `opts` - Keyword options passed to `Session.new/1`:
+    - `:project_path` (required) - Absolute path to the project directory
+    - `:name` (optional) - Display name, defaults to folder name
+    - `:config` (optional) - LLM config, defaults to global settings
+    - `:supervisor_module` (optional) - Module for per-session supervisor
+      (default: `JidoCode.Session.Supervisor`, used for testing)
+
+  ## Returns
+
+  - `{:ok, session}` - Session created and started successfully
+  - `{:error, reason}` - Creation or startup failed
+
+  ## Error Reasons
+
+  From `Session.new/1`:
+  - `{:error, :path_not_found}` - Project path doesn't exist
+  - `{:error, :path_not_directory}` - Path exists but is not a directory
+
+  From `start_session/1`:
+  - `{:error, :session_limit_reached}` - Maximum sessions already registered
+  - `{:error, :session_exists}` - Session with this ID already exists
+  - `{:error, :project_already_open}` - Session for this project path exists
+
+  ## Examples
+
+      iex> {:ok, session} = SessionSupervisor.create_session(project_path: "/tmp/project")
+      iex> session.name
+      "project"
+
+      iex> {:ok, session} = SessionSupervisor.create_session(
+      ...>   project_path: "/tmp/project",
+      ...>   name: "my-project"
+      ...> )
+      iex> session.name
+      "my-project"
+  """
+  @spec create_session(keyword()) :: {:ok, Session.t()} | {:error, term()}
+  def create_session(opts) do
+    supervisor_module = Keyword.get(opts, :supervisor_module, JidoCode.Session.Supervisor)
+    session_opts = Keyword.delete(opts, :supervisor_module)
+
+    with {:ok, session} <- Session.new(session_opts),
+         {:ok, _pid} <- start_session(session, supervisor_module: supervisor_module) do
+      {:ok, session}
+    end
+  end
 end

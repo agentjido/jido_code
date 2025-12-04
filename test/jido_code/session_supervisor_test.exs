@@ -632,4 +632,177 @@ defmodule JidoCode.SessionSupervisorTest do
       assert SessionSupervisor.session_running?(session.id) == false
     end
   end
+
+  # ============================================================================
+  # Session Creation Convenience Tests (Task 1.3.4)
+  # ============================================================================
+
+  describe "create_session/1" do
+    setup do
+      # Stop SessionSupervisor if already running
+      if pid = Process.whereis(SessionSupervisor) do
+        Supervisor.stop(pid)
+      end
+
+      # Start SessionProcessRegistry for via tuples
+      if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+        GenServer.stop(pid)
+      end
+
+      {:ok, _} = Registry.start_link(keys: :unique, name: JidoCode.SessionProcessRegistry)
+
+      # Start SessionSupervisor
+      {:ok, sup_pid} = SessionSupervisor.start_link([])
+
+      # Ensure SessionRegistry table exists and is empty
+      SessionRegistry.create_table()
+      SessionRegistry.clear()
+
+      # Create a temp directory for sessions
+      tmp_dir = Path.join(System.tmp_dir!(), "session_create_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn ->
+        SessionRegistry.clear()
+        File.rm_rf!(tmp_dir)
+
+        if Process.alive?(sup_pid) do
+          try do
+            Supervisor.stop(sup_pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+
+        if pid = Process.whereis(JidoCode.SessionProcessRegistry) do
+          try do
+            GenServer.stop(pid)
+          catch
+            :exit, _ -> :ok
+          end
+        end
+      end)
+
+      {:ok, sup_pid: sup_pid, tmp_dir: tmp_dir}
+    end
+
+    test "creates and starts a session", %{tmp_dir: tmp_dir} do
+      assert {:ok, session} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        supervisor_module: SessionSupervisorStub
+      )
+
+      assert %Session{} = session
+      assert session.project_path == tmp_dir
+    end
+
+    test "returns session struct (not pid)", %{tmp_dir: tmp_dir} do
+      {:ok, result} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        supervisor_module: SessionSupervisorStub
+      )
+
+      assert %Session{} = result
+      refute is_pid(result)
+    end
+
+    test "registers session in SessionRegistry", %{tmp_dir: tmp_dir} do
+      {:ok, session} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        supervisor_module: SessionSupervisorStub
+      )
+
+      assert {:ok, registered} = SessionRegistry.lookup(session.id)
+      assert registered.id == session.id
+    end
+
+    test "session is running after creation", %{tmp_dir: tmp_dir} do
+      {:ok, session} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        supervisor_module: SessionSupervisorStub
+      )
+
+      assert SessionSupervisor.session_running?(session.id)
+    end
+
+    test "uses folder name as default session name", %{tmp_dir: tmp_dir} do
+      {:ok, session} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        supervisor_module: SessionSupervisorStub
+      )
+
+      assert session.name == Path.basename(tmp_dir)
+    end
+
+    test "accepts custom name option", %{tmp_dir: tmp_dir} do
+      {:ok, session} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        name: "my-custom-name",
+        supervisor_module: SessionSupervisorStub
+      )
+
+      assert session.name == "my-custom-name"
+    end
+
+    test "fails for non-existent path" do
+      assert {:error, :path_not_found} = SessionSupervisor.create_session(
+        project_path: "/nonexistent/path/that/does/not/exist",
+        supervisor_module: SessionSupervisorStub
+      )
+    end
+
+    test "fails for file path (not directory)", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "a_file.txt")
+      File.write!(file_path, "content")
+
+      assert {:error, :path_not_directory} = SessionSupervisor.create_session(
+        project_path: file_path,
+        supervisor_module: SessionSupervisorStub
+      )
+    end
+
+    test "fails with :session_limit_reached when limit exceeded", %{tmp_dir: tmp_dir} do
+      # Set low limit for testing
+      original = Application.get_env(:jido_code, :max_sessions)
+      Application.put_env(:jido_code, :max_sessions, 2)
+
+      on_exit(fn ->
+        if original do
+          Application.put_env(:jido_code, :max_sessions, original)
+        else
+          Application.delete_env(:jido_code, :max_sessions)
+        end
+      end)
+
+      # Create 2 sessions to hit limit
+      dir1 = Path.join(tmp_dir, "proj1")
+      dir2 = Path.join(tmp_dir, "proj2")
+      dir3 = Path.join(tmp_dir, "proj3")
+      File.mkdir_p!(dir1)
+      File.mkdir_p!(dir2)
+      File.mkdir_p!(dir3)
+
+      {:ok, _} = SessionSupervisor.create_session(project_path: dir1, supervisor_module: SessionSupervisorStub)
+      {:ok, _} = SessionSupervisor.create_session(project_path: dir2, supervisor_module: SessionSupervisorStub)
+
+      # Third should fail
+      assert {:error, :session_limit_reached} = SessionSupervisor.create_session(
+        project_path: dir3,
+        supervisor_module: SessionSupervisorStub
+      )
+    end
+
+    test "fails with :project_already_open for duplicate path", %{tmp_dir: tmp_dir} do
+      {:ok, _} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        supervisor_module: SessionSupervisorStub
+      )
+
+      # Same path again should fail
+      assert {:error, :project_already_open} = SessionSupervisor.create_session(
+        project_path: tmp_dir,
+        supervisor_module: SessionSupervisorStub
+      )
+    end
+  end
 end

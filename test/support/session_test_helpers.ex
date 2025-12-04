@@ -3,10 +3,87 @@ defmodule JidoCode.Test.SessionTestHelpers do
   Shared test setup helpers for session-related tests.
 
   Extracts common setup code to reduce duplication across test files.
+
+  ## Available Setup Functions
+
+  - `setup_session_registry/1` - Lightweight setup for unit tests (Registry + tmp_dir)
+  - `setup_session_supervisor/1` - Full setup with SessionSupervisor for integration tests
   """
 
   alias JidoCode.SessionRegistry
   alias JidoCode.SessionSupervisor
+
+  @registry JidoCode.SessionProcessRegistry
+
+  # ============================================================================
+  # Lightweight Setup (for unit tests)
+  # ============================================================================
+
+  @doc """
+  Sets up the session registry test environment for unit tests.
+
+  This is a lightweight setup that only starts the SessionProcessRegistry
+  and creates a temporary directory. Use this for testing individual
+  session modules (Manager, State, Session.Supervisor) in isolation.
+
+  Returns a map with:
+  - `:tmp_dir` - Path to temporary directory for test files
+
+  ## Usage
+
+      setup do
+        JidoCode.Test.SessionTestHelpers.setup_session_registry()
+      end
+
+  Or with a custom suffix:
+
+      setup do
+        JidoCode.Test.SessionTestHelpers.setup_session_registry("manager_test")
+      end
+  """
+  @spec setup_session_registry(String.t()) :: {:ok, map()}
+  def setup_session_registry(suffix \\ "test") do
+    # Stop existing registry if running
+    if pid = Process.whereis(@registry) do
+      GenServer.stop(pid)
+    end
+
+    {:ok, _} = Registry.start_link(keys: :unique, name: @registry)
+
+    # Create a temp directory for sessions
+    tmp_dir = Path.join(System.tmp_dir!(), "session_#{suffix}_#{:rand.uniform(100_000)}")
+    File.mkdir_p!(tmp_dir)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      cleanup_session_registry(tmp_dir)
+    end)
+
+    {:ok, %{tmp_dir: tmp_dir}}
+  end
+
+  @doc """
+  Cleans up session registry test resources.
+
+  Called automatically via on_exit when using setup_session_registry/1.
+  """
+  @spec cleanup_session_registry(String.t()) :: :ok
+  def cleanup_session_registry(tmp_dir) do
+    File.rm_rf!(tmp_dir)
+
+    if pid = Process.whereis(@registry) do
+      try do
+        GenServer.stop(pid)
+      catch
+        :exit, _ -> :ok
+      end
+    end
+
+    :ok
+  end
+
+  # ============================================================================
+  # Full Setup (for integration tests)
+  # ============================================================================
 
   @doc """
   Sets up the session supervisor test environment.

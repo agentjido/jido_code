@@ -49,6 +49,9 @@ defmodule JidoCode.Application do
       # Registry for agent lookup
       {Registry, keys: :unique, name: JidoCode.AgentRegistry},
 
+      # Registry for session process lookup (Session.Supervisor, Manager, State)
+      {Registry, keys: :unique, name: JidoCode.SessionProcessRegistry},
+
       # Tool registry for LLM function calling
       JidoCode.Tools.Registry,
 
@@ -60,7 +63,10 @@ defmodule JidoCode.Application do
       {Task.Supervisor, name: JidoCode.TaskSupervisor},
 
       # DynamicSupervisor for agent processes
-      JidoCode.AgentSupervisor
+      JidoCode.AgentSupervisor,
+
+      # DynamicSupervisor for session processes (per-session supervisors)
+      JidoCode.SessionSupervisor
 
       # Note: TUI is not started automatically.
       # Call JidoCode.TUI.run() to start the TUI interactively.

@@ -149,11 +149,8 @@ defmodule JidoCode.Session.Supervisor do
       {:error, :not_found}
   """
   @spec get_manager(String.t()) :: {:ok, pid()} | {:error, :not_found}
-  def get_manager(session_id) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> {:ok, pid}
-      [] -> {:error, :not_found}
-    end
+  def get_manager(session_id) when is_binary(session_id) do
+    lookup_process(:manager, session_id)
   end
 
   @doc """
@@ -180,11 +177,8 @@ defmodule JidoCode.Session.Supervisor do
       {:error, :not_found}
   """
   @spec get_state(String.t()) :: {:ok, pid()} | {:error, :not_found}
-  def get_state(session_id) do
-    case Registry.lookup(@registry, {:state, session_id}) do
-      [{pid, _}] -> {:ok, pid}
-      [] -> {:error, :not_found}
-    end
+  def get_state(session_id) when is_binary(session_id) do
+    lookup_process(:state, session_id)
   end
 
   @doc """
@@ -209,14 +203,26 @@ defmodule JidoCode.Session.Supervisor do
       {:error, :not_implemented}
   """
   @spec get_agent(String.t()) :: {:ok, pid()} | {:error, :not_found | :not_implemented}
-  def get_agent(_session_id) do
+  def get_agent(session_id) when is_binary(session_id) do
     # LLMAgent will be added in Phase 3 after tool integration
     {:error, :not_implemented}
   end
 
-  # Private helpers
+  # ============================================================================
+  # Private Helpers
+  # ============================================================================
 
-  @doc false
+  # Looks up a session process by type and session ID in the Registry.
+  # Returns {:ok, pid} if found, {:error, :not_found} otherwise.
+  @spec lookup_process(atom(), String.t()) :: {:ok, pid()} | {:error, :not_found}
+  defp lookup_process(process_type, session_id)
+       when process_type in [:manager, :state, :agent] do
+    case Registry.lookup(@registry, {process_type, session_id}) do
+      [{pid, _}] -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
+  end
+
   defp via(session_id) do
     {:via, Registry, {@registry, {:session, session_id}}}
   end

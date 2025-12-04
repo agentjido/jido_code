@@ -1,36 +1,15 @@
 defmodule JidoCode.Session.SupervisorTest do
   use ExUnit.Case, async: false
 
+  import JidoCode.Test.SessionTestHelpers
+
   alias JidoCode.Session
   alias JidoCode.Session.Supervisor, as: SessionSupervisor
 
   @registry JidoCode.SessionProcessRegistry
 
   setup do
-    # Start SessionProcessRegistry for via tuples
-    if pid = Process.whereis(@registry) do
-      GenServer.stop(pid)
-    end
-
-    {:ok, _} = Registry.start_link(keys: :unique, name: @registry)
-
-    # Create a temp directory for sessions
-    tmp_dir = Path.join(System.tmp_dir!(), "session_sup_test_#{:rand.uniform(100_000)}")
-    File.mkdir_p!(tmp_dir)
-
-    on_exit(fn ->
-      File.rm_rf!(tmp_dir)
-
-      if pid = Process.whereis(@registry) do
-        try do
-          GenServer.stop(pid)
-        catch
-          :exit, _ -> :ok
-        end
-      end
-    end)
-
-    {:ok, tmp_dir: tmp_dir}
+    setup_session_registry("session_sup_test")
   end
 
   describe "start_link/1" do
@@ -367,6 +346,126 @@ defmodule JidoCode.Session.SupervisorTest do
       {:ok, state_pid} = SessionSupervisor.get_state(session.id)
 
       assert manager_pid != state_pid
+    end
+  end
+
+  # ============================================================================
+  # Crash Recovery Tests (:one_for_all strategy)
+  # ============================================================================
+
+  describe ":one_for_all crash recovery" do
+    test "Manager crash restarts State due to :one_for_all", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
+
+      # Get initial pids
+      {:ok, manager_pid} = SessionSupervisor.get_manager(session.id)
+      {:ok, state_pid} = SessionSupervisor.get_state(session.id)
+
+      # Kill Manager process
+      Process.exit(manager_pid, :kill)
+
+      # Wait for restart (supervisor will restart children)
+      Process.sleep(50)
+
+      # Both should have new pids (due to :one_for_all)
+      {:ok, new_manager_pid} = SessionSupervisor.get_manager(session.id)
+      {:ok, new_state_pid} = SessionSupervisor.get_state(session.id)
+
+      # Manager restarted
+      assert new_manager_pid != manager_pid
+      # State also restarted due to :one_for_all
+      assert new_state_pid != state_pid
+
+      # Both are alive
+      assert Process.alive?(new_manager_pid)
+      assert Process.alive?(new_state_pid)
+
+      # Cleanup
+      Supervisor.stop(sup_pid)
+    end
+
+    test "State crash restarts Manager due to :one_for_all", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
+
+      # Get initial pids
+      {:ok, manager_pid} = SessionSupervisor.get_manager(session.id)
+      {:ok, state_pid} = SessionSupervisor.get_state(session.id)
+
+      # Kill State process
+      Process.exit(state_pid, :kill)
+
+      # Wait for restart
+      Process.sleep(50)
+
+      # Both should have new pids (due to :one_for_all)
+      {:ok, new_manager_pid} = SessionSupervisor.get_manager(session.id)
+      {:ok, new_state_pid} = SessionSupervisor.get_state(session.id)
+
+      # State restarted
+      assert new_state_pid != state_pid
+      # Manager also restarted due to :one_for_all
+      assert new_manager_pid != manager_pid
+
+      # Both are alive
+      assert Process.alive?(new_manager_pid)
+      assert Process.alive?(new_state_pid)
+
+      # Cleanup
+      Supervisor.stop(sup_pid)
+    end
+
+    test "Registry entries remain consistent after crash restart", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
+
+      # Kill Manager to trigger restart
+      {:ok, manager_pid} = SessionSupervisor.get_manager(session.id)
+      Process.exit(manager_pid, :kill)
+
+      # Wait for restart
+      Process.sleep(50)
+
+      # Registry lookups should return the new pids
+      {:ok, new_manager_pid} = SessionSupervisor.get_manager(session.id)
+      {:ok, new_state_pid} = SessionSupervisor.get_state(session.id)
+
+      # Direct Registry lookup should match helper function results
+      [{registry_manager, _}] = Registry.lookup(@registry, {:manager, session.id})
+      [{registry_state, _}] = Registry.lookup(@registry, {:state, session.id})
+
+      assert new_manager_pid == registry_manager
+      assert new_state_pid == registry_state
+
+      # Cleanup
+      Supervisor.stop(sup_pid)
+    end
+
+    test "children still have session after restart", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
+
+      # Kill Manager to trigger restart
+      {:ok, manager_pid} = SessionSupervisor.get_manager(session.id)
+      Process.exit(manager_pid, :kill)
+
+      # Wait for restart
+      Process.sleep(50)
+
+      # Get new pids
+      {:ok, new_manager_pid} = SessionSupervisor.get_manager(session.id)
+      {:ok, new_state_pid} = SessionSupervisor.get_state(session.id)
+
+      # Both should still have the session
+      assert {:ok, manager_session} = JidoCode.Session.Manager.get_session(new_manager_pid)
+      assert {:ok, state_session} = JidoCode.Session.State.get_session(new_state_pid)
+
+      assert manager_session.id == session.id
+      assert state_session.id == session.id
+
+      # Cleanup
+      Supervisor.stop(sup_pid)
     end
   end
 end

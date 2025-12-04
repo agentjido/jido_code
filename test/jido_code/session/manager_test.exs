@@ -1,36 +1,15 @@
 defmodule JidoCode.Session.ManagerTest do
   use ExUnit.Case, async: false
 
+  import JidoCode.Test.SessionTestHelpers
+
   alias JidoCode.Session
   alias JidoCode.Session.Manager
 
   @registry JidoCode.SessionProcessRegistry
 
   setup do
-    # Start SessionProcessRegistry for via tuples
-    if pid = Process.whereis(@registry) do
-      GenServer.stop(pid)
-    end
-
-    {:ok, _} = Registry.start_link(keys: :unique, name: @registry)
-
-    # Create a temp directory for sessions
-    tmp_dir = Path.join(System.tmp_dir!(), "manager_test_#{:rand.uniform(100_000)}")
-    File.mkdir_p!(tmp_dir)
-
-    on_exit(fn ->
-      File.rm_rf!(tmp_dir)
-
-      if pid = Process.whereis(@registry) do
-        try do
-          GenServer.stop(pid)
-        catch
-          :exit, _ -> :ok
-        end
-      end
-    end)
-
-    {:ok, tmp_dir: tmp_dir}
+    setup_session_registry("manager_test")
   end
 
   describe "start_link/1" do

@@ -198,6 +198,59 @@ defmodule JidoCode.SessionTest do
 
       assert session1.id != session2.id
     end
+
+    # B1: Path traversal security tests
+    test "returns error for path with traversal sequences", %{tmp_dir: tmp_dir} do
+      traversal_path = Path.join(tmp_dir, "../etc")
+      assert {:error, :path_traversal_detected} = Session.new(project_path: traversal_path)
+    end
+
+    test "returns error for path with multiple traversal sequences" do
+      assert {:error, :path_traversal_detected} =
+               Session.new(project_path: "/tmp/../../etc/passwd")
+    end
+
+    test "returns error for path with embedded traversal" do
+      assert {:error, :path_traversal_detected} =
+               Session.new(project_path: "/home/user/../../../etc")
+    end
+
+    # S4: Path length validation
+    test "returns error for path exceeding max length" do
+      # Create a path longer than 4096 bytes
+      long_segment = String.duplicate("a", 500)
+      long_path = "/" <> Enum.join(List.duplicate(long_segment, 10), "/")
+      assert {:error, :path_too_long} = Session.new(project_path: long_path)
+    end
+
+    # B2: Symlink security tests
+    test "accepts valid symlink pointing to existing directory", %{tmp_dir: tmp_dir} do
+      target_dir = Path.join(tmp_dir, "real_dir")
+      symlink_path = Path.join(tmp_dir, "link_to_real")
+      File.mkdir_p!(target_dir)
+      File.ln_s!(target_dir, symlink_path)
+
+      # Should work - symlink points to valid directory
+      assert {:ok, session} = Session.new(project_path: symlink_path)
+      assert session.project_path == Path.expand(symlink_path)
+    end
+
+    test "returns error for symlink pointing to non-existent target", %{tmp_dir: tmp_dir} do
+      symlink_path = Path.join(tmp_dir, "broken_link")
+      # Create symlink to non-existent target
+      File.ln_s!("/nonexistent/target/12345", symlink_path)
+
+      assert {:error, :path_not_found} = Session.new(project_path: symlink_path)
+    end
+
+    test "returns error for symlink pointing to a file", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "target_file.txt")
+      symlink_path = Path.join(tmp_dir, "link_to_file")
+      File.write!(file_path, "content")
+      File.ln_s!(file_path, symlink_path)
+
+      assert {:error, :path_not_directory} = Session.new(project_path: symlink_path)
+    end
   end
 
   describe "Session.generate_id/0" do
@@ -546,31 +599,64 @@ defmodule JidoCode.SessionTest do
     end
 
     test "returns error for invalid provider", %{session: session} do
-      assert {:error, :invalid_provider} = Session.update_config(session, %{provider: ""})
+      assert {:error, reasons} = Session.update_config(session, %{provider: ""})
+      assert :invalid_provider in reasons
     end
 
     test "returns error for invalid model", %{session: session} do
-      assert {:error, :invalid_model} = Session.update_config(session, %{model: ""})
+      assert {:error, reasons} = Session.update_config(session, %{model: ""})
+      assert :invalid_model in reasons
     end
 
     test "returns error for temperature below range", %{session: session} do
-      assert {:error, :invalid_temperature} = Session.update_config(session, %{temperature: -0.1})
+      assert {:error, reasons} = Session.update_config(session, %{temperature: -0.1})
+      assert :invalid_temperature in reasons
     end
 
     test "returns error for temperature above range", %{session: session} do
-      assert {:error, :invalid_temperature} = Session.update_config(session, %{temperature: 2.1})
+      assert {:error, reasons} = Session.update_config(session, %{temperature: 2.1})
+      assert :invalid_temperature in reasons
     end
 
     test "returns error for zero max_tokens", %{session: session} do
-      assert {:error, :invalid_max_tokens} = Session.update_config(session, %{max_tokens: 0})
+      assert {:error, reasons} = Session.update_config(session, %{max_tokens: 0})
+      assert :invalid_max_tokens in reasons
     end
 
     test "returns error for negative max_tokens", %{session: session} do
-      assert {:error, :invalid_max_tokens} = Session.update_config(session, %{max_tokens: -100})
+      assert {:error, reasons} = Session.update_config(session, %{max_tokens: -100})
+      assert :invalid_max_tokens in reasons
     end
 
     test "returns error for non-map config", %{session: session} do
-      assert {:error, :invalid_config} = Session.update_config(session, "not a map")
+      assert {:error, reasons} = Session.update_config(session, "not a map")
+      assert :invalid_config in reasons
+    end
+
+    # C1: Test accumulating errors (consistent with validate/1)
+    test "returns all errors when multiple config values are invalid", %{session: session} do
+      assert {:error, reasons} = Session.update_config(session, %{
+        provider: "",
+        model: "",
+        temperature: -1,
+        max_tokens: 0
+      })
+
+      assert :invalid_provider in reasons
+      assert :invalid_model in reasons
+      assert :invalid_temperature in reasons
+      assert :invalid_max_tokens in reasons
+    end
+
+    # C2: Test that falsy values (0, 0.0) are properly handled
+    test "accepts temperature of 0 (not treated as falsy)", %{session: session} do
+      {:ok, updated} = Session.update_config(session, %{temperature: 0})
+      assert updated.config.temperature == 0
+    end
+
+    test "accepts temperature of 0.0 (not treated as falsy)", %{session: session} do
+      {:ok, updated} = Session.update_config(session, %{temperature: 0.0})
+      assert updated.config.temperature == 0.0
     end
 
     test "accepts integer temperature within range", %{session: session} do

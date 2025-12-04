@@ -38,18 +38,20 @@ defmodule JidoCode.Session do
   - `updated_at` - UTC timestamp of last modification
   """
 
+  require Logger
+
   @typedoc """
   LLM configuration for a session.
 
   - `provider` - Provider name (e.g., "anthropic", "openai", "ollama")
   - `model` - Model identifier (e.g., "claude-3-5-sonnet-20241022")
-  - `temperature` - Sampling temperature (0.0 to 2.0)
+  - `temperature` - Sampling temperature (0.0 to 2.0), accepts float or integer
   - `max_tokens` - Maximum tokens in response
   """
   @type config :: %{
           provider: String.t(),
           model: String.t(),
-          temperature: float(),
+          temperature: float() | integer(),
           max_tokens: pos_integer()
         }
 
@@ -82,6 +84,15 @@ defmodule JidoCode.Session do
     max_tokens: 4096
   }
 
+  # Maximum allowed length for session name
+  @max_name_length 50
+
+  # Maximum allowed path length (Linux PATH_MAX)
+  @max_path_length 4096
+
+  # Config keys we support (for normalization)
+  @config_keys [:provider, :model, :temperature, :max_tokens]
+
   @doc """
   Creates a new session with the given options.
 
@@ -97,6 +108,9 @@ defmodule JidoCode.Session do
   - `{:error, :missing_project_path}` - project_path option not provided
   - `{:error, :path_not_found}` - project_path does not exist
   - `{:error, :path_not_directory}` - project_path is not a directory
+  - `{:error, :path_traversal_detected}` - path contains traversal sequences
+  - `{:error, :path_too_long}` - path exceeds maximum length
+  - `{:error, :symlink_escape}` - symlink target escapes allowed boundary
 
   ## Examples
 
@@ -117,14 +131,17 @@ defmodule JidoCode.Session do
   @spec new(keyword()) :: {:ok, t()} | {:error, atom()}
   def new(opts) when is_list(opts) do
     with {:ok, project_path} <- fetch_project_path(opts),
+         :ok <- validate_path_length(project_path),
+         :ok <- validate_path_safe(project_path),
          :ok <- validate_path_exists(project_path),
-         :ok <- validate_path_is_directory(project_path) do
+         :ok <- validate_path_is_directory(project_path),
+         :ok <- validate_symlink_safe(project_path) do
       now = DateTime.utc_now()
 
       session = %__MODULE__{
         id: generate_id(),
         name: opts[:name] || Path.basename(project_path),
-        project_path: project_path,
+        project_path: Path.expand(project_path),
         config: opts[:config] || load_default_config(),
         created_at: now,
         updated_at: now
@@ -140,6 +157,33 @@ defmodule JidoCode.Session do
       {:ok, path} when is_binary(path) -> {:ok, path}
       {:ok, _} -> {:error, :invalid_project_path}
       :error -> {:error, :missing_project_path}
+    end
+  end
+
+  # Validate path length (S4)
+  defp validate_path_length(path) do
+    if byte_size(path) <= @max_path_length do
+      :ok
+    else
+      {:error, :path_too_long}
+    end
+  end
+
+  # Validate path doesn't contain traversal sequences (B1)
+  defp validate_path_safe(path) do
+    expanded = Path.expand(path)
+
+    cond do
+      # Check for .. in the original path
+      String.contains?(path, "..") ->
+        {:error, :path_traversal_detected}
+
+      # Must be absolute after expansion
+      not String.starts_with?(expanded, "/") ->
+        {:error, :path_not_absolute}
+
+      true ->
+        :ok
     end
   end
 
@@ -161,19 +205,59 @@ defmodule JidoCode.Session do
     end
   end
 
+  # Validate symlinks don't escape to unexpected locations (B2)
+  defp validate_symlink_safe(path) do
+    case File.read_link(path) do
+      {:ok, target} ->
+        # Path is a symlink, validate the target
+        resolved_target =
+          if String.starts_with?(target, "/") do
+            target
+          else
+            Path.join(Path.dirname(path), target) |> Path.expand()
+          end
+
+        # Ensure symlink target exists and is a directory
+        cond do
+          not File.exists?(resolved_target) ->
+            {:error, :path_not_found}
+
+          not File.dir?(resolved_target) ->
+            {:error, :path_not_directory}
+
+          # Check target doesn't contain traversal (belt and suspenders)
+          String.contains?(resolved_target, "..") ->
+            {:error, :symlink_escape}
+
+          true ->
+            :ok
+        end
+
+      {:error, :einval} ->
+        # Not a symlink, that's fine
+        :ok
+
+      {:error, _} ->
+        # Other error reading link, path might not exist
+        :ok
+    end
+  end
+
   # Load default config from Settings or use fallback defaults
+  # Settings.load/0 always returns {:ok, settings} but may return empty map if no settings file
   defp load_default_config do
-    settings =
-      case JidoCode.Settings.load() do
-        {:ok, s} -> s
-        _ -> %{}
-      end
+    {:ok, settings} = JidoCode.Settings.load()
+
+    # Log if settings appear to be empty/default (C4 - inform user of fallback)
+    if map_size(settings) == 0 do
+      Logger.debug("No settings file found, using default configuration")
+    end
 
     %{
-      provider: settings["provider"] || @default_config.provider,
-      model: settings["model"] || @default_config.model,
-      temperature: settings["temperature"] || @default_config.temperature,
-      max_tokens: settings["max_tokens"] || @default_config.max_tokens
+      provider: Map.get(settings, "provider", @default_config.provider),
+      model: Map.get(settings, "model", @default_config.model),
+      temperature: Map.get(settings, "temperature", @default_config.temperature),
+      max_tokens: Map.get(settings, "max_tokens", @default_config.max_tokens)
     }
   end
 
@@ -206,9 +290,6 @@ defmodule JidoCode.Session do
     "#{a}-#{b}-#{c}-#{d}-#{e}"
   end
 
-  # Maximum allowed length for session name
-  @max_name_length 50
-
   @doc """
   Validates a session struct, checking all fields for correctness.
 
@@ -222,7 +303,7 @@ defmodule JidoCode.Session do
   - `project_path` - Must be an absolute path to an existing directory
   - `config.provider` - Must be a non-empty string
   - `config.model` - Must be a non-empty string
-  - `config.temperature` - Must be a float between 0.0 and 2.0
+  - `config.temperature` - Must be a float or integer between 0 and 2
   - `config.max_tokens` - Must be a positive integer
   - `created_at` - Must be a DateTime
   - `updated_at` - Must be a DateTime
@@ -244,9 +325,10 @@ defmodule JidoCode.Session do
       []
       |> validate_id(session.id)
       |> validate_name(session.name)
-      |> validate_session_project_path(session.project_path)
+      |> validate_project_path(session.project_path)
       |> validate_config(session.config)
-      |> validate_timestamps(session.created_at, session.updated_at)
+      |> validate_created_at(session.created_at)
+      |> validate_updated_at(session.updated_at)
 
     case errors do
       [] -> {:ok, session}
@@ -254,23 +336,34 @@ defmodule JidoCode.Session do
     end
   end
 
-  # Validate id is a non-empty string
-  defp validate_id(errors, id) when is_binary(id) and byte_size(id) > 0, do: errors
-  defp validate_id(errors, _), do: [:invalid_id | errors]
+  # Boolean predicates for validation (C3 - single source of truth)
+  defp valid_id?(id), do: is_binary(id) and byte_size(id) > 0
+  defp valid_name?(name), do: is_binary(name) and byte_size(name) > 0
+  defp valid_name_length?(name), do: String.length(name) <= @max_name_length
+  defp valid_provider?(p), do: is_binary(p) and byte_size(p) > 0
+  defp valid_model?(m), do: is_binary(m) and byte_size(m) > 0
 
-  # Validate name is a non-empty string with max length
-  defp validate_name(errors, name) when is_binary(name) and byte_size(name) > 0 do
-    if String.length(name) <= @max_name_length do
-      errors
-    else
-      [:name_too_long | errors]
+  defp valid_temperature?(t) do
+    (is_float(t) and t >= 0.0 and t <= 2.0) or (is_integer(t) and t >= 0 and t <= 2)
+  end
+
+  defp valid_max_tokens?(t), do: is_integer(t) and t > 0
+
+  # Accumulating validators using boolean predicates (C3)
+  defp validate_id(errors, id) do
+    if valid_id?(id), do: errors, else: [:invalid_id | errors]
+  end
+
+  defp validate_name(errors, name) do
+    cond do
+      not valid_name?(name) -> [:invalid_name | errors]
+      not valid_name_length?(name) -> [:name_too_long | errors]
+      true -> errors
     end
   end
 
-  defp validate_name(errors, _), do: [:invalid_name | errors]
-
-  # Validate project_path is absolute and exists as directory
-  defp validate_session_project_path(errors, path) when is_binary(path) do
+  # Renamed from validate_session_project_path for consistency
+  defp validate_project_path(errors, path) when is_binary(path) do
     cond do
       not String.starts_with?(path, "/") ->
         [:path_not_absolute | errors]
@@ -286,50 +379,43 @@ defmodule JidoCode.Session do
     end
   end
 
-  defp validate_session_project_path(errors, _), do: [:invalid_project_path | errors]
+  defp validate_project_path(errors, _), do: [:invalid_project_path | errors]
 
-  # Validate config map
+  # Validate config map using boolean predicates
   defp validate_config(errors, config) when is_map(config) do
+    normalized = normalize_config_keys(config)
+
     errors
-    |> validate_provider(config[:provider] || config["provider"])
-    |> validate_model(config[:model] || config["model"])
-    |> validate_temperature(config[:temperature] || config["temperature"])
-    |> validate_max_tokens(config[:max_tokens] || config["max_tokens"])
+    |> validate_config_provider(normalized[:provider])
+    |> validate_config_model(normalized[:model])
+    |> validate_config_temperature(normalized[:temperature])
+    |> validate_config_max_tokens(normalized[:max_tokens])
   end
 
   defp validate_config(errors, _), do: [:invalid_config | errors]
 
-  # Validate provider is non-empty string
-  defp validate_provider(errors, provider) when is_binary(provider) and byte_size(provider) > 0,
-    do: errors
-
-  defp validate_provider(errors, _), do: [:invalid_provider | errors]
-
-  # Validate model is non-empty string
-  defp validate_model(errors, model) when is_binary(model) and byte_size(model) > 0, do: errors
-  defp validate_model(errors, _), do: [:invalid_model | errors]
-
-  # Validate temperature is float between 0.0 and 2.0
-  defp validate_temperature(errors, temp) when is_float(temp) and temp >= 0.0 and temp <= 2.0,
-    do: errors
-
-  defp validate_temperature(errors, temp) when is_integer(temp) and temp >= 0 and temp <= 2,
-    do: errors
-
-  defp validate_temperature(errors, _), do: [:invalid_temperature | errors]
-
-  # Validate max_tokens is positive integer
-  defp validate_max_tokens(errors, tokens) when is_integer(tokens) and tokens > 0, do: errors
-  defp validate_max_tokens(errors, _), do: [:invalid_max_tokens | errors]
-
-  # Validate timestamps are DateTime structs
-  defp validate_timestamps(errors, %DateTime{}, %DateTime{}), do: errors
-
-  defp validate_timestamps(errors, created_at, updated_at) do
-    errors
-    |> then(fn e -> if match?(%DateTime{}, created_at), do: e, else: [:invalid_created_at | e] end)
-    |> then(fn e -> if match?(%DateTime{}, updated_at), do: e, else: [:invalid_updated_at | e] end)
+  defp validate_config_provider(errors, provider) do
+    if valid_provider?(provider), do: errors, else: [:invalid_provider | errors]
   end
+
+  defp validate_config_model(errors, model) do
+    if valid_model?(model), do: errors, else: [:invalid_model | errors]
+  end
+
+  defp validate_config_temperature(errors, temp) do
+    if valid_temperature?(temp), do: errors, else: [:invalid_temperature | errors]
+  end
+
+  defp validate_config_max_tokens(errors, tokens) do
+    if valid_max_tokens?(tokens), do: errors, else: [:invalid_max_tokens | errors]
+  end
+
+  # Dedicated timestamp validators (S3 - replace then/2 chains)
+  defp validate_created_at(errors, %DateTime{}), do: errors
+  defp validate_created_at(errors, _), do: [:invalid_created_at | errors]
+
+  defp validate_updated_at(errors, %DateTime{}), do: errors
+  defp validate_updated_at(errors, _), do: [:invalid_updated_at | errors]
 
   @doc """
   Updates the LLM configuration for a session.
@@ -346,11 +432,7 @@ defmodule JidoCode.Session do
   ## Returns
 
   - `{:ok, updated_session}` - Successfully updated session
-  - `{:error, :invalid_config}` - new_config is not a map
-  - `{:error, :invalid_provider}` - provider is empty or not a string
-  - `{:error, :invalid_model}` - model is empty or not a string
-  - `{:error, :invalid_temperature}` - temperature not in range 0.0-2.0
-  - `{:error, :invalid_max_tokens}` - max_tokens not a positive integer
+  - `{:error, [reasons]}` - List of validation errors (consistent with validate/1)
 
   ## Examples
 
@@ -364,47 +446,64 @@ defmodule JidoCode.Session do
       iex> {updated.config.provider, updated.config.model}
       {"openai", "gpt-4"}
   """
-  @spec update_config(t(), map()) :: {:ok, t()} | {:error, atom()}
+  @spec update_config(t(), map()) :: {:ok, t()} | {:error, [atom()]}
   def update_config(%__MODULE__{} = session, new_config) when is_map(new_config) do
     merged_config = merge_config(session.config, new_config)
 
-    case validate_config_only(merged_config) do
-      :ok ->
-        updated_session = %{session | config: merged_config, updated_at: DateTime.utc_now()}
-        {:ok, updated_session}
+    # C1: Use accumulating validation pattern (consistent with validate/1)
+    errors =
+      []
+      |> validate_config_provider(merged_config[:provider])
+      |> validate_config_model(merged_config[:model])
+      |> validate_config_temperature(merged_config[:temperature])
+      |> validate_config_max_tokens(merged_config[:max_tokens])
 
-      {:error, reason} ->
-        {:error, reason}
+    case errors do
+      [] ->
+        {:ok, touch(session, %{config: merged_config})}
+
+      errors ->
+        {:error, Enum.reverse(errors)}
     end
   end
 
-  def update_config(%__MODULE__{}, _), do: {:error, :invalid_config}
+  def update_config(%__MODULE__{}, _), do: {:error, [:invalid_config]}
 
-  # Merge new config values with existing config, supporting both atom and string keys
-  defp merge_config(existing, new_config) do
-    %{
-      provider: new_config[:provider] || new_config["provider"] || existing[:provider] || existing["provider"],
-      model: new_config[:model] || new_config["model"] || existing[:model] || existing["model"],
-      temperature: new_config[:temperature] || new_config["temperature"] || existing[:temperature] || existing["temperature"],
-      max_tokens: new_config[:max_tokens] || new_config["max_tokens"] || existing[:max_tokens] || existing["max_tokens"]
-    }
+  # Normalize config keys to atoms (S2)
+  defp normalize_config_keys(config) do
+    Enum.reduce(@config_keys, %{}, fn key, acc ->
+      string_key = Atom.to_string(key)
+      value = get_config_value(config, key, string_key)
+      Map.put(acc, key, value)
+    end)
   end
 
-  # Validate config and return first error (not accumulating like validate/1)
-  defp validate_config_only(config) do
+  # Get config value checking both atom and string keys (C2 - fix || operator issue)
+  defp get_config_value(config, atom_key, string_key) do
     cond do
-      not valid_provider?(config[:provider]) -> {:error, :invalid_provider}
-      not valid_model?(config[:model]) -> {:error, :invalid_model}
-      not valid_temperature?(config[:temperature]) -> {:error, :invalid_temperature}
-      not valid_max_tokens?(config[:max_tokens]) -> {:error, :invalid_max_tokens}
-      true -> :ok
+      Map.has_key?(config, atom_key) -> Map.get(config, atom_key)
+      Map.has_key?(config, string_key) -> Map.get(config, string_key)
+      true -> nil
     end
   end
 
-  defp valid_provider?(p), do: is_binary(p) and byte_size(p) > 0
-  defp valid_model?(m), do: is_binary(m) and byte_size(m) > 0
-  defp valid_temperature?(t), do: (is_float(t) and t >= 0.0 and t <= 2.0) or (is_integer(t) and t >= 0 and t <= 2)
-  defp valid_max_tokens?(t), do: is_integer(t) and t > 0
+  # Merge new config values with existing config (C2 - proper handling of falsy values)
+  defp merge_config(existing, new_config) do
+    existing_normalized = normalize_config_keys(existing)
+    new_normalized = normalize_config_keys(new_config)
+
+    # Merge, preferring new values when key is present (even if value is falsy)
+    Enum.reduce(@config_keys, %{}, fn key, acc ->
+      value =
+        if Map.has_key?(new_config, key) or Map.has_key?(new_config, Atom.to_string(key)) do
+          new_normalized[key]
+        else
+          existing_normalized[key]
+        end
+
+      Map.put(acc, key, value)
+    end)
+  end
 
   @doc """
   Renames a session.
@@ -437,17 +536,23 @@ defmodule JidoCode.Session do
   @spec rename(t(), String.t()) :: {:ok, t()} | {:error, atom()}
   def rename(%__MODULE__{} = session, new_name) when is_binary(new_name) do
     cond do
-      byte_size(new_name) == 0 ->
+      not valid_name?(new_name) ->
         {:error, :invalid_name}
 
-      String.length(new_name) > @max_name_length ->
+      not valid_name_length?(new_name) ->
         {:error, :name_too_long}
 
       true ->
-        updated_session = %{session | name: new_name, updated_at: DateTime.utc_now()}
-        {:ok, updated_session}
+        {:ok, touch(session, %{name: new_name})}
     end
   end
 
   def rename(%__MODULE__{}, _), do: {:error, :invalid_name}
+
+  # Helper to update session fields and touch updated_at timestamp (S1)
+  defp touch(session, changes) do
+    session
+    |> Map.merge(changes)
+    |> Map.put(:updated_at, DateTime.utc_now())
+  end
 end

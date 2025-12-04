@@ -330,4 +330,124 @@ defmodule JidoCode.Session do
     |> then(fn e -> if match?(%DateTime{}, created_at), do: e, else: [:invalid_created_at | e] end)
     |> then(fn e -> if match?(%DateTime{}, updated_at), do: e, else: [:invalid_updated_at | e] end)
   end
+
+  @doc """
+  Updates the LLM configuration for a session.
+
+  Merges the new config values with the existing config, allowing partial updates.
+  Only known config keys (provider, model, temperature, max_tokens) are merged.
+  The `updated_at` timestamp is set to the current UTC time.
+
+  ## Parameters
+
+  - `session` - The session to update
+  - `new_config` - A map with config values to merge (atom or string keys)
+
+  ## Returns
+
+  - `{:ok, updated_session}` - Successfully updated session
+  - `{:error, :invalid_config}` - new_config is not a map
+  - `{:error, :invalid_provider}` - provider is empty or not a string
+  - `{:error, :invalid_model}` - model is empty or not a string
+  - `{:error, :invalid_temperature}` - temperature not in range 0.0-2.0
+  - `{:error, :invalid_max_tokens}` - max_tokens not a positive integer
+
+  ## Examples
+
+      iex> {:ok, session} = JidoCode.Session.new(project_path: "/tmp")
+      iex> {:ok, updated} = JidoCode.Session.update_config(session, %{temperature: 0.5})
+      iex> updated.config.temperature
+      0.5
+
+      iex> {:ok, session} = JidoCode.Session.new(project_path: "/tmp")
+      iex> {:ok, updated} = JidoCode.Session.update_config(session, %{provider: "openai", model: "gpt-4"})
+      iex> {updated.config.provider, updated.config.model}
+      {"openai", "gpt-4"}
+  """
+  @spec update_config(t(), map()) :: {:ok, t()} | {:error, atom()}
+  def update_config(%__MODULE__{} = session, new_config) when is_map(new_config) do
+    merged_config = merge_config(session.config, new_config)
+
+    case validate_config_only(merged_config) do
+      :ok ->
+        updated_session = %{session | config: merged_config, updated_at: DateTime.utc_now()}
+        {:ok, updated_session}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def update_config(%__MODULE__{}, _), do: {:error, :invalid_config}
+
+  # Merge new config values with existing config, supporting both atom and string keys
+  defp merge_config(existing, new_config) do
+    %{
+      provider: new_config[:provider] || new_config["provider"] || existing[:provider] || existing["provider"],
+      model: new_config[:model] || new_config["model"] || existing[:model] || existing["model"],
+      temperature: new_config[:temperature] || new_config["temperature"] || existing[:temperature] || existing["temperature"],
+      max_tokens: new_config[:max_tokens] || new_config["max_tokens"] || existing[:max_tokens] || existing["max_tokens"]
+    }
+  end
+
+  # Validate config and return first error (not accumulating like validate/1)
+  defp validate_config_only(config) do
+    cond do
+      not valid_provider?(config[:provider]) -> {:error, :invalid_provider}
+      not valid_model?(config[:model]) -> {:error, :invalid_model}
+      not valid_temperature?(config[:temperature]) -> {:error, :invalid_temperature}
+      not valid_max_tokens?(config[:max_tokens]) -> {:error, :invalid_max_tokens}
+      true -> :ok
+    end
+  end
+
+  defp valid_provider?(p), do: is_binary(p) and byte_size(p) > 0
+  defp valid_model?(m), do: is_binary(m) and byte_size(m) > 0
+  defp valid_temperature?(t), do: (is_float(t) and t >= 0.0 and t <= 2.0) or (is_integer(t) and t >= 0 and t <= 2)
+  defp valid_max_tokens?(t), do: is_integer(t) and t > 0
+
+  @doc """
+  Renames a session.
+
+  Updates the session name after validating the new name meets requirements.
+  The `updated_at` timestamp is set to the current UTC time.
+
+  ## Parameters
+
+  - `session` - The session to rename
+  - `new_name` - The new name for the session
+
+  ## Returns
+
+  - `{:ok, updated_session}` - Successfully renamed session
+  - `{:error, :invalid_name}` - new_name is empty or not a string
+  - `{:error, :name_too_long}` - new_name exceeds #{@max_name_length} characters
+
+  ## Examples
+
+      iex> {:ok, session} = JidoCode.Session.new(project_path: "/tmp")
+      iex> {:ok, renamed} = JidoCode.Session.rename(session, "My Project")
+      iex> renamed.name
+      "My Project"
+
+      iex> {:ok, session} = JidoCode.Session.new(project_path: "/tmp")
+      iex> JidoCode.Session.rename(session, "")
+      {:error, :invalid_name}
+  """
+  @spec rename(t(), String.t()) :: {:ok, t()} | {:error, atom()}
+  def rename(%__MODULE__{} = session, new_name) when is_binary(new_name) do
+    cond do
+      byte_size(new_name) == 0 ->
+        {:error, :invalid_name}
+
+      String.length(new_name) > @max_name_length ->
+        {:error, :name_too_long}
+
+      true ->
+        updated_session = %{session | name: new_name, updated_at: DateTime.utc_now()}
+        {:ok, updated_session}
+    end
+  end
+
+  def rename(%__MODULE__{}, _), do: {:error, :invalid_name}
 end

@@ -488,4 +488,194 @@ defmodule JidoCode.SessionTest do
       assert reasons1 == reasons2
     end
   end
+
+  describe "Session.update_config/2" do
+    setup do
+      tmp_dir = Path.join(System.tmp_dir!(), "session_update_config_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn ->
+        File.rm_rf!(tmp_dir)
+      end)
+
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      %{tmp_dir: tmp_dir, session: session}
+    end
+
+    test "merges new config with existing config", %{session: session} do
+      original_provider = session.config.provider
+      {:ok, updated} = Session.update_config(session, %{temperature: 0.5})
+
+      assert updated.config.temperature == 0.5
+      assert updated.config.provider == original_provider
+    end
+
+    test "updates updated_at timestamp", %{session: session} do
+      original_updated_at = session.updated_at
+      Process.sleep(1)
+      {:ok, updated} = Session.update_config(session, %{temperature: 0.5})
+
+      assert DateTime.compare(updated.updated_at, original_updated_at) == :gt
+    end
+
+    test "preserves created_at timestamp", %{session: session} do
+      {:ok, updated} = Session.update_config(session, %{temperature: 0.5})
+
+      assert updated.created_at == session.created_at
+    end
+
+    test "can update multiple config values at once", %{session: session} do
+      {:ok, updated} = Session.update_config(session, %{
+        provider: "openai",
+        model: "gpt-4",
+        temperature: 1.0,
+        max_tokens: 8192
+      })
+
+      assert updated.config.provider == "openai"
+      assert updated.config.model == "gpt-4"
+      assert updated.config.temperature == 1.0
+      assert updated.config.max_tokens == 8192
+    end
+
+    test "accepts string keys in new config", %{session: session} do
+      {:ok, updated} = Session.update_config(session, %{"temperature" => 0.3})
+
+      assert updated.config.temperature == 0.3
+    end
+
+    test "returns error for invalid provider", %{session: session} do
+      assert {:error, :invalid_provider} = Session.update_config(session, %{provider: ""})
+    end
+
+    test "returns error for invalid model", %{session: session} do
+      assert {:error, :invalid_model} = Session.update_config(session, %{model: ""})
+    end
+
+    test "returns error for temperature below range", %{session: session} do
+      assert {:error, :invalid_temperature} = Session.update_config(session, %{temperature: -0.1})
+    end
+
+    test "returns error for temperature above range", %{session: session} do
+      assert {:error, :invalid_temperature} = Session.update_config(session, %{temperature: 2.1})
+    end
+
+    test "returns error for zero max_tokens", %{session: session} do
+      assert {:error, :invalid_max_tokens} = Session.update_config(session, %{max_tokens: 0})
+    end
+
+    test "returns error for negative max_tokens", %{session: session} do
+      assert {:error, :invalid_max_tokens} = Session.update_config(session, %{max_tokens: -100})
+    end
+
+    test "returns error for non-map config", %{session: session} do
+      assert {:error, :invalid_config} = Session.update_config(session, "not a map")
+    end
+
+    test "accepts integer temperature within range", %{session: session} do
+      {:ok, updated} = Session.update_config(session, %{temperature: 1})
+
+      assert updated.config.temperature == 1
+    end
+
+    test "accepts temperature at boundary values", %{session: session} do
+      {:ok, updated_0} = Session.update_config(session, %{temperature: 0.0})
+      {:ok, updated_2} = Session.update_config(session, %{temperature: 2.0})
+
+      assert updated_0.config.temperature == 0.0
+      assert updated_2.config.temperature == 2.0
+    end
+
+    test "empty config map is valid (no changes)", %{session: session} do
+      {:ok, updated} = Session.update_config(session, %{})
+
+      assert updated.config == session.config
+    end
+  end
+
+  describe "Session.rename/2" do
+    setup do
+      tmp_dir = Path.join(System.tmp_dir!(), "session_rename_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn ->
+        File.rm_rf!(tmp_dir)
+      end)
+
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      %{tmp_dir: tmp_dir, session: session}
+    end
+
+    test "changes session name", %{session: session} do
+      {:ok, renamed} = Session.rename(session, "New Name")
+
+      assert renamed.name == "New Name"
+    end
+
+    test "updates updated_at timestamp", %{session: session} do
+      original_updated_at = session.updated_at
+      Process.sleep(1)
+      {:ok, renamed} = Session.rename(session, "New Name")
+
+      assert DateTime.compare(renamed.updated_at, original_updated_at) == :gt
+    end
+
+    test "preserves created_at timestamp", %{session: session} do
+      {:ok, renamed} = Session.rename(session, "New Name")
+
+      assert renamed.created_at == session.created_at
+    end
+
+    test "preserves other fields", %{session: session} do
+      {:ok, renamed} = Session.rename(session, "New Name")
+
+      assert renamed.id == session.id
+      assert renamed.project_path == session.project_path
+      assert renamed.config == session.config
+    end
+
+    test "returns error for empty name", %{session: session} do
+      assert {:error, :invalid_name} = Session.rename(session, "")
+    end
+
+    test "returns error for nil name", %{session: session} do
+      assert {:error, :invalid_name} = Session.rename(session, nil)
+    end
+
+    test "returns error for non-string name", %{session: session} do
+      assert {:error, :invalid_name} = Session.rename(session, 123)
+    end
+
+    test "returns error for name too long (> 50 chars)", %{session: session} do
+      long_name = String.duplicate("a", 51)
+      assert {:error, :name_too_long} = Session.rename(session, long_name)
+    end
+
+    test "accepts name with exactly 50 chars", %{session: session} do
+      name_50 = String.duplicate("a", 50)
+      {:ok, renamed} = Session.rename(session, name_50)
+
+      assert renamed.name == name_50
+    end
+
+    test "accepts single character name", %{session: session} do
+      {:ok, renamed} = Session.rename(session, "X")
+
+      assert renamed.name == "X"
+    end
+
+    test "accepts name with spaces", %{session: session} do
+      {:ok, renamed} = Session.rename(session, "My Project Name")
+
+      assert renamed.name == "My Project Name"
+    end
+
+    test "accepts name with special characters", %{session: session} do
+      {:ok, renamed} = Session.rename(session, "project-v2.0_beta")
+
+      assert renamed.name == "project-v2.0_beta"
+    end
+  end
 end

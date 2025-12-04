@@ -86,17 +86,17 @@ Implement validation functions for session fields.
 - [x] 1.1.3.10 Write unit tests for each validation rule (32 tests for validate/1)
 
 ### 1.1.4 Session Updates
-- [ ] **Task 1.1.4**
+- [x] **Task 1.1.4** ✅ COMPLETE
 
 Implement functions for updating session fields.
 
-- [ ] 1.1.4.1 Implement `update_config/2` accepting session and config map
-- [ ] 1.1.4.2 Merge new config with existing config
-- [ ] 1.1.4.3 Update `updated_at` timestamp on any change
-- [ ] 1.1.4.4 Implement `rename/2` accepting session and new name
-- [ ] 1.1.4.5 Validate new name before applying
-- [ ] 1.1.4.6 Return `{:ok, updated_session}` or `{:error, reason}`
-- [ ] 1.1.4.7 Write unit tests for update operations
+- [x] 1.1.4.1 Implement `update_config/2` accepting session and config map
+- [x] 1.1.4.2 Merge new config with existing config
+- [x] 1.1.4.3 Update `updated_at` timestamp on any change
+- [x] 1.1.4.4 Implement `rename/2` accepting session and new name
+- [x] 1.1.4.5 Validate new name before applying
+- [x] 1.1.4.6 Return `{:ok, updated_session}` or `{:error, reason}`
+- [x] 1.1.4.7 Write unit tests for update operations (27 tests: 15 for update_config/2, 12 for rename/2)
 
 **Unit Tests for Section 1.1:**
 - Test `new/1` creates valid session with defaults

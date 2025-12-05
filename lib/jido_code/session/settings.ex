@@ -216,4 +216,37 @@ defmodule JidoCode.Session.Settings do
   def local_path(project_path) when is_binary(project_path) do
     Path.join(local_dir(project_path), @settings_file)
   end
+
+  @doc """
+  Ensures the local settings directory exists for a project.
+
+  Creates `{project_path}/.jido_code` directory if it doesn't exist.
+  Uses `File.mkdir_p/1` for recursive directory creation.
+
+  ## Parameters
+
+  - `project_path` - Absolute path to the project root
+
+  ## Returns
+
+  - `{:ok, dir_path}` - Directory exists or was created successfully
+  - `{:error, reason}` - Failed to create directory
+
+  ## Examples
+
+      iex> Session.Settings.ensure_local_dir("/path/to/project")
+      {:ok, "/path/to/project/.jido_code"}
+
+      iex> Session.Settings.ensure_local_dir("/readonly/path")
+      {:error, :eacces}
+  """
+  @spec ensure_local_dir(String.t()) :: {:ok, String.t()} | {:error, File.posix()}
+  def ensure_local_dir(project_path) when is_binary(project_path) do
+    dir = local_dir(project_path)
+
+    case File.mkdir_p(dir) do
+      :ok -> {:ok, dir}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 end

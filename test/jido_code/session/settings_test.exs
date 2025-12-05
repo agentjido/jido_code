@@ -147,4 +147,40 @@ defmodule JidoCode.Session.SettingsTest do
       assert Settings.local_path("/tmp/test/") == "/tmp/test/.jido_code/settings.json"
     end
   end
+
+  describe "ensure_local_dir/1" do
+    @describetag :tmp_dir
+
+    test "creates directory when it doesn't exist", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "new-project")
+      File.mkdir_p!(project_path)
+      expected_dir = Path.join(project_path, ".jido_code")
+
+      # Directory should not exist yet
+      refute File.dir?(expected_dir)
+
+      result = Settings.ensure_local_dir(project_path)
+
+      assert result == {:ok, expected_dir}
+      assert File.dir?(expected_dir)
+    end
+
+    test "returns ok when directory already exists", %{tmp_dir: tmp_dir} do
+      # Create the directory first
+      settings_dir = Path.join(tmp_dir, ".jido_code")
+      File.mkdir_p!(settings_dir)
+
+      result = Settings.ensure_local_dir(tmp_dir)
+
+      assert result == {:ok, settings_dir}
+      assert File.dir?(settings_dir)
+    end
+
+    test "returns directory path on success", %{tmp_dir: tmp_dir} do
+      {:ok, dir_path} = Settings.ensure_local_dir(tmp_dir)
+
+      assert dir_path == Path.join(tmp_dir, ".jido_code")
+      assert String.ends_with?(dir_path, ".jido_code")
+    end
+  end
 end

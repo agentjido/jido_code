@@ -513,4 +513,179 @@ defmodule JidoCode.Tools.ExecutorTest do
       assert Executor.pubsub_topic("session_abc") == "tui.events.session_abc"
     end
   end
+
+  # ============================================================================
+  # Context Building Tests
+  # ============================================================================
+
+  describe "build_context/2" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      # Suppress deprecation warnings for tests
+      Application.put_env(:jido_code, :suppress_executor_deprecation_warnings, true)
+
+      # Create a session with a manager for testing
+      {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "context-test")
+
+      {:ok, supervisor_pid} =
+        JidoCode.Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:context_test_sup, session.id}}}
+        )
+
+      on_exit(fn ->
+        Application.delete_env(:jido_code, :suppress_executor_deprecation_warnings)
+
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      %{session: session, tmp_dir: tmp_dir}
+    end
+
+    test "builds context with project_root from Session.Manager", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
+      {:ok, context} = Executor.build_context(session.id)
+
+      assert context.session_id == session.id
+      assert context.project_root == tmp_dir
+      assert context.timeout == 30_000
+    end
+
+    test "allows custom timeout", %{session: session, tmp_dir: tmp_dir} do
+      {:ok, context} = Executor.build_context(session.id, timeout: 60_000)
+
+      assert context.session_id == session.id
+      assert context.project_root == tmp_dir
+      assert context.timeout == 60_000
+    end
+
+    test "returns error for unknown session_id" do
+      # Use a valid UUID that doesn't exist
+      assert {:error, :not_found} =
+               Executor.build_context("550e8400-e29b-41d4-a716-446655440000")
+    end
+  end
+
+  describe "enrich_context/1" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      # Create a session with a manager for testing
+      {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "enrich-test")
+
+      {:ok, supervisor_pid} =
+        JidoCode.Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:enrich_test_sup, session.id}}}
+        )
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      %{session: session, tmp_dir: tmp_dir}
+    end
+
+    test "returns context unchanged if project_root already present", %{session: session} do
+      context = %{session_id: session.id, project_root: "/custom/path"}
+      {:ok, enriched} = Executor.enrich_context(context)
+
+      assert enriched == context
+      assert enriched.project_root == "/custom/path"
+    end
+
+    test "adds project_root from Session.Manager", %{session: session, tmp_dir: tmp_dir} do
+      context = %{session_id: session.id}
+      {:ok, enriched} = Executor.enrich_context(context)
+
+      assert enriched.session_id == session.id
+      assert enriched.project_root == tmp_dir
+    end
+
+    test "returns error for missing session_id" do
+      assert {:error, :missing_session_id} = Executor.enrich_context(%{})
+      assert {:error, :missing_session_id} = Executor.enrich_context(%{other: "value"})
+    end
+
+    test "returns error for unknown session_id" do
+      context = %{session_id: "550e8400-e29b-41d4-a716-446655440000"}
+      assert {:error, :not_found} = Executor.enrich_context(context)
+    end
+  end
+
+  describe "execute/2 with context" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      # Suppress deprecation warnings for tests
+      Application.put_env(:jido_code, :suppress_executor_deprecation_warnings, true)
+
+      # Create a session with a manager for testing
+      {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "exec-context-test")
+
+      {:ok, supervisor_pid} =
+        JidoCode.Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:exec_context_test_sup, session.id}}}
+        )
+
+      on_exit(fn ->
+        Application.delete_env(:jido_code, :suppress_executor_deprecation_warnings)
+
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      %{session: session, tmp_dir: tmp_dir}
+    end
+
+    test "uses session_id from context", %{session: session, tmp_dir: tmp_dir} do
+      tool_call = %{id: "call_ctx_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      context = %{session_id: session.id, project_root: tmp_dir}
+
+      {:ok, result} = Executor.execute(tool_call, context: context)
+
+      assert result.status == :ok
+      assert result.tool_call_id == "call_ctx_1"
+    end
+
+    test "auto-populates project_root when session_id present", %{session: session} do
+      tool_call = %{id: "call_ctx_2", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      # Context with only session_id
+      context = %{session_id: session.id}
+
+      {:ok, result} = Executor.execute(tool_call, context: context)
+
+      assert result.status == :ok
+    end
+
+    test "prefers session_id from context over legacy option", %{session: session, tmp_dir: tmp_dir} do
+      tool_call = %{id: "call_ctx_3", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      context = %{session_id: session.id, project_root: tmp_dir}
+
+      # Pass both context.session_id and legacy session_id option
+      {:ok, result} =
+        Executor.execute(tool_call,
+          context: context,
+          session_id: "other-session-id"
+        )
+
+      # Should use context.session_id
+      assert result.status == :ok
+    end
+  end
 end

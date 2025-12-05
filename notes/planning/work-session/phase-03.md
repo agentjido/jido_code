@@ -9,11 +9,11 @@ This phase updates the tool execution pipeline to be session-aware. All tool han
 Update the Tools.Executor to require and propagate session context.
 
 ### 3.1.1 Context Requirements
-- [ ] **Task 3.1.1**
+- [x] **Task 3.1.1**
 
 Define and enforce session context requirements in Executor.
 
-- [ ] 3.1.1.1 Update `@type context()` to include session_id:
+- [x] 3.1.1.1 Update `@type context()` to include session_id:
   ```elixir
   @type context :: %{
     session_id: String.t(),
@@ -21,18 +21,18 @@ Define and enforce session context requirements in Executor.
     timeout: pos_integer()
   }
   ```
-- [ ] 3.1.1.2 Update `execute/2` to validate session_id presence
-- [ ] 3.1.1.3 Return `{:error, :missing_session_id}` if not provided
-- [ ] 3.1.1.4 Fetch project_root from Session.Manager if not in context
-- [ ] 3.1.1.5 Document context requirements in module doc
-- [ ] 3.1.1.6 Write unit tests for context validation
+- [x] 3.1.1.2 Update `execute/2` to validate session_id presence (with backwards-compatible deprecation warning)
+- [x] 3.1.1.3 Return `{:error, :missing_session_id}` if not provided (via `enrich_context/1`)
+- [x] 3.1.1.4 Fetch project_root from Session.Manager if not in context
+- [x] 3.1.1.5 Document context requirements in module doc
+- [x] 3.1.1.6 Write unit tests for context validation
 
 ### 3.1.2 Context Building Helper
-- [ ] **Task 3.1.2**
+- [x] **Task 3.1.2**
 
 Create helper for building execution context from session.
 
-- [ ] 3.1.2.1 Implement `build_context/1` accepting session_id:
+- [x] 3.1.2.1 Implement `build_context/1` accepting session_id:
   ```elixir
   def build_context(session_id, opts \\ []) do
     with {:ok, project_root} <- Session.Manager.project_root(session_id) do
@@ -44,9 +44,9 @@ Create helper for building execution context from session.
     end
   end
   ```
-- [ ] 3.1.2.2 Handle missing session gracefully
-- [ ] 3.1.2.3 Allow timeout override via opts
-- [ ] 3.1.2.4 Write unit tests for context building
+- [x] 3.1.2.2 Handle missing session gracefully
+- [x] 3.1.2.3 Allow timeout override via opts
+- [x] 3.1.2.4 Write unit tests for context building
 
 ### 3.1.3 PubSub Integration
 - [ ] **Task 3.1.3**

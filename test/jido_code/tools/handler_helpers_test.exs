@@ -80,10 +80,23 @@ defmodule JidoCode.Tools.HandlerHelpersTest do
       assert path == tmp_dir
     end
 
-    test "returns error for unknown session_id" do
-      context = %{session_id: "non_existent_session"}
+    test "returns error for unknown session_id (valid UUID format)" do
+      # Use a valid UUID format that doesn't exist
+      context = %{session_id: "550e8400-e29b-41d4-a716-446655440000"}
 
       assert {:error, :not_found} = HandlerHelpers.get_project_root(context)
+    end
+
+    test "returns error for invalid session_id format" do
+      context = %{session_id: "not-a-uuid"}
+
+      assert {:error, :invalid_session_id} = HandlerHelpers.get_project_root(context)
+    end
+
+    test "returns error for empty session_id" do
+      context = %{session_id: ""}
+
+      assert {:error, :invalid_session_id} = HandlerHelpers.get_project_root(context)
     end
   end
 
@@ -164,10 +177,23 @@ defmodule JidoCode.Tools.HandlerHelpersTest do
                HandlerHelpers.validate_path("../../../etc/passwd", context)
     end
 
-    test "returns error for unknown session_id" do
-      context = %{session_id: "non_existent_session"}
+    test "returns error for unknown session_id (valid UUID format)" do
+      # Use a valid UUID format that doesn't exist
+      context = %{session_id: "550e8400-e29b-41d4-a716-446655440000"}
 
       assert {:error, :not_found} = HandlerHelpers.validate_path("test.txt", context)
+    end
+
+    test "returns error for invalid session_id format" do
+      context = %{session_id: "not-a-valid-uuid"}
+
+      assert {:error, :invalid_session_id} = HandlerHelpers.validate_path("test.txt", context)
+    end
+
+    test "returns error for empty session_id" do
+      context = %{session_id: ""}
+
+      assert {:error, :invalid_session_id} = HandlerHelpers.validate_path("test.txt", context)
     end
   end
 
@@ -201,6 +227,12 @@ defmodule JidoCode.Tools.HandlerHelpersTest do
       assert msg =~ "symlink points outside project"
     end
 
+    test "formats :invalid_session_id error" do
+      assert {:ok, msg} = HandlerHelpers.format_common_error(:invalid_session_id, "bad-id")
+      assert msg =~ "Invalid session ID format"
+      assert msg =~ "UUID"
+    end
+
     test "passes through string errors" do
       assert {:ok, "Custom error message"} =
                HandlerHelpers.format_common_error("Custom error message", "/path")
@@ -208,6 +240,101 @@ defmodule JidoCode.Tools.HandlerHelpersTest do
 
     test "returns :not_handled for unknown error types" do
       assert :not_handled = HandlerHelpers.format_common_error(:unknown_error, "/path")
+    end
+  end
+
+  # ============================================================================
+  # Deprecation Warning Tests
+  # ============================================================================
+
+  describe "deprecation warnings" do
+    import ExUnit.CaptureLog
+
+    test "logs warning when get_project_root falls back to global manager" do
+      # Temporarily enable warnings
+      Application.put_env(:jido_code, :suppress_global_manager_warnings, false)
+
+      log =
+        capture_log(fn ->
+          HandlerHelpers.get_project_root(%{})
+        end)
+
+      assert log =~ "get_project_root"
+      assert log =~ "global Tools.Manager"
+      assert log =~ "migrate to session-aware"
+
+      # Re-suppress for other tests
+      Application.put_env(:jido_code, :suppress_global_manager_warnings, true)
+    end
+
+    test "logs warning when validate_path falls back to global manager" do
+      # Temporarily enable warnings
+      Application.put_env(:jido_code, :suppress_global_manager_warnings, false)
+
+      log =
+        capture_log(fn ->
+          HandlerHelpers.validate_path("test.txt", %{})
+        end)
+
+      assert log =~ "validate_path"
+      assert log =~ "global Tools.Manager"
+      assert log =~ "migrate to session-aware"
+
+      # Re-suppress for other tests
+      Application.put_env(:jido_code, :suppress_global_manager_warnings, true)
+    end
+
+    test "suppresses warnings when config is set" do
+      # Ensure warnings are suppressed (should already be from setup)
+      Application.put_env(:jido_code, :suppress_global_manager_warnings, true)
+
+      log =
+        capture_log(fn ->
+          HandlerHelpers.get_project_root(%{})
+          HandlerHelpers.validate_path("test.txt", %{})
+        end)
+
+      # Should not contain deprecation warnings
+      refute log =~ "global Tools.Manager"
+    end
+  end
+
+  # ============================================================================
+  # UUID Validation Edge Cases
+  # ============================================================================
+
+  describe "UUID validation edge cases" do
+    test "accepts lowercase UUIDs" do
+      # Valid UUID but session doesn't exist
+      context = %{session_id: "550e8400-e29b-41d4-a716-446655440000"}
+      assert {:error, :not_found} = HandlerHelpers.get_project_root(context)
+    end
+
+    test "accepts uppercase UUIDs" do
+      # Valid UUID but session doesn't exist
+      context = %{session_id: "550E8400-E29B-41D4-A716-446655440000"}
+      assert {:error, :not_found} = HandlerHelpers.get_project_root(context)
+    end
+
+    test "accepts mixed case UUIDs" do
+      # Valid UUID but session doesn't exist
+      context = %{session_id: "550e8400-E29B-41d4-A716-446655440000"}
+      assert {:error, :not_found} = HandlerHelpers.get_project_root(context)
+    end
+
+    test "rejects UUID-like strings with wrong length" do
+      context = %{session_id: "550e8400-e29b-41d4-a716-44665544000"}
+      assert {:error, :invalid_session_id} = HandlerHelpers.get_project_root(context)
+    end
+
+    test "rejects UUID-like strings with invalid characters" do
+      context = %{session_id: "550e8400-e29b-41d4-a716-44665544000g"}
+      assert {:error, :invalid_session_id} = HandlerHelpers.get_project_root(context)
+    end
+
+    test "rejects UUID without hyphens" do
+      context = %{session_id: "550e8400e29b41d4a716446655440000"}
+      assert {:error, :invalid_session_id} = HandlerHelpers.get_project_root(context)
     end
   end
 end

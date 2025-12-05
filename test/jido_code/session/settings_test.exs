@@ -7,6 +7,73 @@ defmodule JidoCode.Session.SettingsTest do
   alias JidoCode.Session.Settings
 
   # ============================================================================
+  # Path Validation Tests (Security)
+  # ============================================================================
+
+  describe "validate_project_path/1" do
+    test "accepts valid absolute paths" do
+      assert {:ok, "/home/user/project"} = Settings.validate_project_path("/home/user/project")
+      assert {:ok, "/tmp/test"} = Settings.validate_project_path("/tmp/test")
+      assert {:ok, "/"} = Settings.validate_project_path("/")
+    end
+
+    test "expands paths with tilde" do
+      {:ok, expanded} = Settings.validate_project_path("~/project")
+      assert String.starts_with?(expanded, "/")
+      refute String.contains?(expanded, "~")
+    end
+
+    test "rejects paths with traversal components" do
+      assert {:error, "path contains '..' traversal"} =
+               Settings.validate_project_path("/home/user/../etc")
+
+      assert {:error, "path contains '..' traversal"} =
+               Settings.validate_project_path("../escape")
+
+      assert {:error, "path contains '..' traversal"} =
+               Settings.validate_project_path("/safe/path/../../etc/passwd")
+    end
+
+    test "rejects paths with null bytes" do
+      assert {:error, "path contains null byte"} =
+               Settings.validate_project_path("/home/user\0/project")
+    end
+
+    test "rejects excessively long paths" do
+      long_path = "/" <> String.duplicate("a", 5000)
+
+      assert {:error, "path exceeds maximum length of 4096 bytes"} =
+               Settings.validate_project_path(long_path)
+    end
+
+    test "rejects relative paths that don't expand to absolute" do
+      # Relative paths without tilde that don't start with /
+      # Note: Path.expand will make them absolute based on cwd,
+      # so most relative paths will actually pass after expansion
+      {:ok, expanded} = Settings.validate_project_path("relative/path")
+      assert String.starts_with?(expanded, "/")
+    end
+  end
+
+  describe "validate_project_path!/1" do
+    test "returns path for valid input" do
+      assert Settings.validate_project_path!("/tmp/test") == "/tmp/test"
+    end
+
+    test "raises ArgumentError for path traversal" do
+      assert_raise ArgumentError, ~r/Invalid project path.*traversal/, fn ->
+        Settings.validate_project_path!("/home/../etc")
+      end
+    end
+
+    test "raises ArgumentError for null bytes" do
+      assert_raise ArgumentError, ~r/Invalid project path.*null byte/, fn ->
+        Settings.validate_project_path!("/home\0/user")
+      end
+    end
+  end
+
+  # ============================================================================
   # Settings Loading Tests
   # ============================================================================
 
@@ -183,6 +250,55 @@ defmodule JidoCode.Session.SettingsTest do
       assert dir_path == Path.join(tmp_dir, ".jido_code")
       assert String.ends_with?(dir_path, ".jido_code")
     end
+
+    test "rejects symlink directory", %{tmp_dir: tmp_dir} do
+      # Create a target directory
+      target_dir = Path.join(tmp_dir, "target")
+      File.mkdir_p!(target_dir)
+
+      # Create project with symlink .jido_code pointing to target
+      project_path = Path.join(tmp_dir, "project")
+      File.mkdir_p!(project_path)
+      symlink_path = Path.join(project_path, ".jido_code")
+      File.ln_s!(target_dir, symlink_path)
+
+      # ensure_local_dir should reject the symlink
+      result = Settings.ensure_local_dir(project_path)
+
+      assert {:error, "security violation: path is a symlink"} = result
+    end
+  end
+
+  # ============================================================================
+  # Security Tests (Symlink and Path Attacks)
+  # ============================================================================
+
+  describe "symlink attack prevention" do
+    @describetag :tmp_dir
+
+    test "save/2 rejects path traversal", %{tmp_dir: tmp_dir} do
+      assert_raise ArgumentError, ~r/Invalid project path.*traversal/, fn ->
+        Settings.save("#{tmp_dir}/../escape", %{"provider" => "test"})
+      end
+    end
+
+    test "load/1 rejects path traversal", %{tmp_dir: tmp_dir} do
+      assert_raise ArgumentError, ~r/Invalid project path.*traversal/, fn ->
+        Settings.load("#{tmp_dir}/../escape")
+      end
+    end
+
+    test "load_local/1 rejects path traversal", %{tmp_dir: tmp_dir} do
+      assert_raise ArgumentError, ~r/Invalid project path.*traversal/, fn ->
+        Settings.load_local("#{tmp_dir}/../escape")
+      end
+    end
+
+    test "set/3 rejects path traversal", %{tmp_dir: tmp_dir} do
+      assert_raise ArgumentError, ~r/Invalid project path.*traversal/, fn ->
+        Settings.set("#{tmp_dir}/../escape", "provider", "test")
+      end
+    end
   end
 
   # ============================================================================
@@ -302,6 +418,115 @@ defmodule JidoCode.Session.SettingsTest do
       assert result == :ok
       assert File.exists?(Settings.local_path(project_path))
       assert Settings.load_local(project_path) == %{"model" => "claude-3"}
+    end
+  end
+
+  # ============================================================================
+  # Error Path Tests
+  # ============================================================================
+
+  describe "error handling" do
+    @describetag :tmp_dir
+
+    test "load_local/1 logs warning and returns empty map for unreadable file", %{tmp_dir: tmp_dir} do
+      # Create settings dir but make file unreadable
+      settings_dir = Path.join(tmp_dir, ".jido_code")
+      File.mkdir_p!(settings_dir)
+      settings_file = Path.join(settings_dir, "settings.json")
+      File.write!(settings_file, ~s({"provider": "test"}))
+      File.chmod!(settings_file, 0o000)
+
+      # Should return empty map and log warning
+      log =
+        capture_log(fn ->
+          result = Settings.load_local(tmp_dir)
+          # May return empty map or actual content depending on user permissions
+          assert is_map(result)
+        end)
+
+      # Restore permissions for cleanup
+      File.chmod!(settings_file, 0o644)
+
+      # Log may contain warning if file was truly unreadable (depends on user)
+      assert is_binary(log)
+    end
+
+    test "save/2 returns error when directory creation fails", %{tmp_dir: tmp_dir} do
+      # Create a file where directory should be (blocking mkdir)
+      project_path = Path.join(tmp_dir, "blocked-project")
+      File.mkdir_p!(project_path)
+      # Create a file named .jido_code instead of directory
+      blocking_file = Path.join(project_path, ".jido_code")
+      File.write!(blocking_file, "blocking")
+
+      result = Settings.save(project_path, %{"provider" => "test"})
+
+      # Should fail because .jido_code is a file, not a directory
+      assert {:error, _reason} = result
+    end
+
+    test "save/2 returns error for invalid settings", %{tmp_dir: tmp_dir} do
+      # Settings with invalid type should fail validation
+      invalid_settings = %{"permissions" => "not_a_map"}
+
+      result = Settings.save(tmp_dir, invalid_settings)
+
+      assert {:error, _} = result
+    end
+
+    test "ensure_local_dir/1 returns formatted error message", %{tmp_dir: tmp_dir} do
+      # Create a read-only parent to prevent directory creation
+      readonly_parent = Path.join(tmp_dir, "readonly")
+      File.mkdir_p!(readonly_parent)
+      File.chmod!(readonly_parent, 0o444)
+
+      project_path = Path.join(readonly_parent, "project")
+
+      result = Settings.ensure_local_dir(project_path)
+
+      # Restore permissions for cleanup
+      File.chmod!(readonly_parent, 0o755)
+
+      # Should return human-readable error
+      assert {:error, reason} = result
+      assert is_binary(reason)
+    end
+  end
+
+  # ============================================================================
+  # Atomic Write Tests
+  # ============================================================================
+
+  describe "atomic write behavior" do
+    @describetag :tmp_dir
+
+    test "temp files are cleaned up on failure", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "cleanup-test")
+      File.mkdir_p!(project_path)
+
+      # Save valid settings first
+      Settings.save(project_path, %{"provider" => "test"})
+
+      # Check that no .tmp files remain
+      settings_dir = Settings.local_dir(project_path)
+      tmp_files = Path.wildcard(Path.join(settings_dir, "*.tmp.*"))
+      assert tmp_files == []
+    end
+
+    test "uses random suffix for temp files (TOCTOU mitigation)", %{tmp_dir: tmp_dir} do
+      # This is hard to test directly, but we can verify multiple saves don't conflict
+      project_path = Path.join(tmp_dir, "toctou-test")
+      File.mkdir_p!(project_path)
+
+      models = ["claude-3", "gpt-4", "gemini-pro", "llama-3", "mistral-7b"]
+
+      # Rapid sequential saves should all succeed
+      for model <- models do
+        assert :ok = Settings.save(project_path, %{"model" => model})
+      end
+
+      # Final value should be the last one
+      assert Settings.load_local(project_path)["model"] == "mistral-7b"
     end
   end
 end

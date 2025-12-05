@@ -96,19 +96,19 @@ Implement session-scoped path validation.
 - [x] 2.1.4.4 Write unit tests for path validation through Manager
 
 ### 2.1.5 File Operations API
-- [ ] **Task 2.1.5**
+- [x] **Task 2.1.5** ✅ COMPLETE
 
 Implement session-scoped file operations (mirroring Tools.Manager).
 
-- [ ] 2.1.5.1 Implement `read_file/2` client function
-- [ ] 2.1.5.2 Implement `handle_call({:read_file, path}, _, state)`
-- [ ] 2.1.5.3 Validate path before reading
-- [ ] 2.1.5.4 Implement `write_file/3` client function
-- [ ] 2.1.5.5 Implement `handle_call({:write_file, path, content}, _, state)`
-- [ ] 2.1.5.6 Validate path before writing
-- [ ] 2.1.5.7 Implement `list_dir/2` client function
-- [ ] 2.1.5.8 Implement `handle_call({:list_dir, path}, _, state)`
-- [ ] 2.1.5.9 Write unit tests for file operations
+- [x] 2.1.5.1 Implement `read_file/2` client function
+- [x] 2.1.5.2 Implement `handle_call({:read_file, path}, _, state)`
+- [x] 2.1.5.3 Validate path before reading
+- [x] 2.1.5.4 Implement `write_file/3` client function
+- [x] 2.1.5.5 Implement `handle_call({:write_file, path, content}, _, state)`
+- [x] 2.1.5.6 Validate path before writing
+- [x] 2.1.5.7 Implement `list_dir/2` client function
+- [x] 2.1.5.8 Implement `handle_call({:list_dir, path}, _, state)`
+- [x] 2.1.5.9 Write unit tests for file operations
 
 ### 2.1.6 Lua Script Execution
 - [ ] **Task 2.1.6**

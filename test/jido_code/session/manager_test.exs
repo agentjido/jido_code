@@ -235,4 +235,104 @@ defmodule JidoCode.Session.ManagerTest do
       assert {:error, :not_found} = Manager.validate_path("non_existent_session", "file.ex")
     end
   end
+
+  describe "read_file/2" do
+    test "reads file within boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      # Create a test file
+      test_file = Path.join(tmp_dir, "test_read.txt")
+      File.write!(test_file, "hello world")
+
+      assert {:ok, "hello world"} = Manager.read_file(session.id, "test_read.txt")
+    end
+
+    test "rejects path outside boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, :path_outside_boundary} = Manager.read_file(session.id, "/etc/passwd")
+    end
+
+    test "returns error for non-existent file", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, :enoent} = Manager.read_file(session.id, "nonexistent.txt")
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.read_file("non_existent_session", "file.ex")
+    end
+  end
+
+  describe "write_file/3" do
+    test "writes file within boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert :ok = Manager.write_file(session.id, "test_write.txt", "new content")
+
+      # Verify file was written
+      assert File.read!(Path.join(tmp_dir, "test_write.txt")) == "new content"
+    end
+
+    test "creates parent directories", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert :ok = Manager.write_file(session.id, "subdir/nested/file.txt", "nested content")
+
+      # Verify file was written
+      assert File.read!(Path.join(tmp_dir, "subdir/nested/file.txt")) == "nested content"
+    end
+
+    test "rejects path outside boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, :path_outside_boundary} =
+               Manager.write_file(session.id, "/etc/passwd", "malicious")
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.write_file("non_existent_session", "file.ex", "content")
+    end
+  end
+
+  describe "list_dir/2" do
+    test "lists directory within boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      # Create some files
+      File.write!(Path.join(tmp_dir, "file1.txt"), "")
+      File.write!(Path.join(tmp_dir, "file2.txt"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "subdir"))
+
+      {:ok, entries} = Manager.list_dir(session.id, ".")
+      assert "file1.txt" in entries
+      assert "file2.txt" in entries
+      assert "subdir" in entries
+    end
+
+    test "rejects path outside boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, :path_outside_boundary} = Manager.list_dir(session.id, "/etc")
+    end
+
+    test "returns error for non-existent directory", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, :enoent} = Manager.list_dir(session.id, "nonexistent_dir")
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.list_dir("non_existent_session", ".")
+    end
+  end
 end

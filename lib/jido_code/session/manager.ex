@@ -178,6 +178,94 @@ defmodule JidoCode.Session.Manager do
   end
 
   @doc """
+  Reads a file within the session's project boundary.
+
+  Uses atomic read with TOCTOU protection via `Security.atomic_read/3`.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The path to read (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, content}` - File contents as binary
+  - `{:error, :not_found}` - Session manager not found
+  - `{:error, reason}` - Read failed (path validation or file error)
+
+  ## Examples
+
+      iex> {:ok, content} = Manager.read_file("session_123", "src/file.ex")
+  """
+  @spec read_file(String.t(), String.t()) ::
+          {:ok, binary()} | {:error, :not_found | atom()}
+  def read_file(session_id, path) do
+    case Registry.lookup(@registry, {:manager, session_id}) do
+      [{pid, _}] -> GenServer.call(pid, {:read_file, path})
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Writes content to a file within the session's project boundary.
+
+  Uses atomic write with TOCTOU protection via `Security.atomic_write/4`.
+  Creates parent directories if they don't exist.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The path to write (relative or absolute)
+  - `content` - The content to write
+
+  ## Returns
+
+  - `:ok` - Write successful
+  - `{:error, :not_found}` - Session manager not found
+  - `{:error, reason}` - Write failed (path validation or file error)
+
+  ## Examples
+
+      iex> :ok = Manager.write_file("session_123", "src/new_file.ex", "defmodule New do\\nend")
+  """
+  @spec write_file(String.t(), String.t(), binary()) ::
+          :ok | {:error, :not_found | atom()}
+  def write_file(session_id, path, content) do
+    case Registry.lookup(@registry, {:manager, session_id}) do
+      [{pid, _}] -> GenServer.call(pid, {:write_file, path, content})
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Lists directory contents within the session's project boundary.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The directory path (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, entries}` - List of file/directory names
+  - `{:error, :not_found}` - Session manager not found
+  - `{:error, reason}` - List failed (path validation or directory error)
+
+  ## Examples
+
+      iex> {:ok, entries} = Manager.list_dir("session_123", "src")
+      {:ok, ["file1.ex", "file2.ex"]}
+  """
+  @spec list_dir(String.t(), String.t()) ::
+          {:ok, [String.t()]} | {:error, :not_found | atom()}
+  def list_dir(session_id, path) do
+    case Registry.lookup(@registry, {:manager, session_id}) do
+      [{pid, _}] -> GenServer.call(pid, {:list_dir, path})
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Gets the session struct for this manager.
 
   Deprecated: Use `project_root/1` or `session_id/1` instead.
@@ -230,6 +318,26 @@ defmodule JidoCode.Session.Manager do
   def handle_call({:validate_path, path}, _from, state) do
     result = Security.validate_path(path, state.project_root, log_violations: true)
     {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:read_file, path}, _from, state) do
+    result = Security.atomic_read(path, state.project_root, log_violations: true)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:write_file, path, content}, _from, state) do
+    result = Security.atomic_write(path, content, state.project_root, log_violations: true)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:list_dir, path}, _from, state) do
+    case Security.validate_path(path, state.project_root, log_violations: true) do
+      {:ok, safe_path} -> {:reply, File.ls(safe_path), state}
+      {:error, _} = error -> {:reply, error, state}
+    end
   end
 
   @impl true

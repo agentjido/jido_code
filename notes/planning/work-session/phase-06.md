@@ -498,6 +498,89 @@ Implement clearing all persisted sessions.
 
 ---
 
+## 6.7 Phase 6 Integration Tests
+
+Comprehensive integration tests verifying all Phase 6 persistence components work together correctly.
+
+### 6.7.1 Save-Resume Cycle Integration
+- [ ] **Task 6.7.1**
+
+Test complete save and resume cycle end-to-end.
+
+- [ ] 6.7.1.1 Create `test/jido_code/integration/session_phase6_test.exs`
+- [ ] 6.7.1.2 Test: Create session → add messages → close → verify JSON file created
+- [ ] 6.7.1.3 Test: Resume session → verify messages restored → verify todos restored
+- [ ] 6.7.1.4 Test: Resume → verify session ID preserved → verify config preserved
+- [ ] 6.7.1.5 Test: Resume → persisted file deleted → session now active
+- [ ] 6.7.1.6 Write all save-resume cycle integration tests
+
+### 6.7.2 Auto-Save on Close Integration
+- [ ] **Task 6.7.2**
+
+Test auto-save integrates with session close flow.
+
+- [ ] 6.7.2.1 Test: `/session close` → session saved before processes terminated
+- [ ] 6.7.2.2 Test: Ctrl+W close → session saved
+- [ ] 6.7.2.3 Test: Save failure → close continues → warning logged
+- [ ] 6.7.2.4 Test: Save includes conversation at time of close
+- [ ] 6.7.2.5 Write all auto-save integration tests
+
+### 6.7.3 Resume Command Integration
+- [ ] **Task 6.7.3**
+
+Test `/resume` command end-to-end.
+
+- [ ] 6.7.3.1 Test: Close session → `/resume` → shows in resumable list
+- [ ] 6.7.3.2 Test: `/resume 1` → session restored → added to tabs → switched to
+- [ ] 6.7.3.3 Test: `/resume` when at session limit → error message
+- [ ] 6.7.3.4 Test: `/resume` when project path deleted → error message
+- [ ] 6.7.3.5 Test: `/resume` when project already open → error message
+- [ ] 6.7.3.6 Write all resume command integration tests
+
+### 6.7.4 Persistence File Format Integration
+- [ ] **Task 6.7.4**
+
+Test persistence file format works correctly.
+
+- [ ] 6.7.4.1 Test: Saved JSON includes all required fields (version, id, name, etc.)
+- [ ] 6.7.4.2 Test: Conversation messages serialized/deserialized correctly
+- [ ] 6.7.4.3 Test: Todos serialized/deserialized correctly
+- [ ] 6.7.4.4 Test: Timestamps in ISO 8601 format
+- [ ] 6.7.4.5 Test: Handle corrupted JSON gracefully (skip file, log warning)
+- [ ] 6.7.4.6 Write all file format integration tests
+
+### 6.7.5 Multi-Session Persistence Integration
+- [ ] **Task 6.7.5**
+
+Test persistence works correctly with multiple sessions.
+
+- [ ] 6.7.5.1 Test: Close 3 sessions → all 3 appear in `/resume` list
+- [ ] 6.7.5.2 Test: Resume one → remaining 2 still in resume list
+- [ ] 6.7.5.3 Test: `/resume list` sorted by closed_at (most recent first)
+- [ ] 6.7.5.4 Test: Active sessions excluded from resume list
+- [ ] 6.7.5.5 Write all multi-session persistence tests
+
+### 6.7.6 Cleanup Integration
+- [ ] **Task 6.7.6**
+
+Test cleanup functionality integrates correctly.
+
+- [ ] 6.7.6.1 Test: Old sessions (>30 days) cleaned up automatically
+- [ ] 6.7.6.2 Test: `/resume delete 1` → removes specific session file
+- [ ] 6.7.6.3 Test: `/resume clear` → removes all session files
+- [ ] 6.7.6.4 Test: Cleanup doesn't affect active sessions
+- [ ] 6.7.6.5 Write all cleanup integration tests
+
+**Integration Tests for Section 6.7:**
+- Save-resume cycle preserves all session state
+- Auto-save works with session close
+- Resume command restores sessions correctly
+- File format handles all edge cases
+- Multi-session persistence works correctly
+- Cleanup maintains data integrity
+
+---
+
 ## Success Criteria
 
 1. **Save on Close**: Sessions auto-save when closed
@@ -510,6 +593,7 @@ Implement clearing all persisted sessions.
 8. **File Cleanup**: Delete persisted file after resume
 9. **Old Session Cleanup**: Sessions older than 30 days cleaned
 10. **Test Coverage**: Minimum 80% coverage for phase 6 code
+11. **Integration Tests**: All Phase 6 components work together correctly (Section 6.7)
 
 ---
 
@@ -518,6 +602,7 @@ Implement clearing all persisted sessions.
 **New Files:**
 - `lib/jido_code/session/persistence.ex`
 - `test/jido_code/session/persistence_test.exs`
+- `test/jido_code/integration/session_phase6_test.exs`
 
 **Modified Files:**
 - `lib/jido_code/session_supervisor.ex` - Auto-save on stop

@@ -392,6 +392,64 @@ Update HandlerHelpers to prefer session context.
 
 ---
 
+## 2.5 Phase 2 Integration Tests
+
+Comprehensive integration tests verifying all Phase 2 components work together correctly.
+
+### 2.5.1 Manager-State Integration
+- [ ] **Task 2.5.1**
+
+Test Session.Manager and Session.State work together within a session.
+
+- [ ] 2.5.1.1 Create `test/jido_code/integration/session_phase2_test.exs`
+- [ ] 2.5.1.2 Test: Create session → Manager and State both start → both accessible via helpers
+- [ ] 2.5.1.3 Test: Manager validates path → State stores result metadata
+- [ ] 2.5.1.4 Test: Manager Lua execution → State tracks tool call
+- [ ] 2.5.1.5 Test: Session restart → Manager and State both restart with correct session context
+- [ ] 2.5.1.6 Write all Manager-State integration tests
+
+### 2.5.2 Settings Integration
+- [ ] **Task 2.5.2**
+
+Test Session.Settings integrates correctly with session creation.
+
+- [ ] 2.5.2.1 Test: Create session → Settings loaded from project path
+- [ ] 2.5.2.2 Test: Local settings override global settings in session config
+- [ ] 2.5.2.3 Test: Missing local settings → falls back to global only
+- [ ] 2.5.2.4 Test: Save settings → reload session → settings persisted
+- [ ] 2.5.2.5 Write all Settings integration tests
+
+### 2.5.3 Multi-Session Isolation
+- [ ] **Task 2.5.3**
+
+Test multiple sessions have isolated Manager and State instances.
+
+- [ ] 2.5.3.1 Test: Create 2 sessions → each has own Manager with different project_root
+- [ ] 2.5.3.2 Test: Create 2 sessions → each has own State with independent messages
+- [ ] 2.5.3.3 Test: Create 2 sessions → each has own Lua sandbox (isolated state)
+- [ ] 2.5.3.4 Test: Streaming in session A → session B State unaffected
+- [ ] 2.5.3.5 Test: Path validation in session A → uses session A's project_root only
+- [ ] 2.5.3.6 Write all isolation integration tests
+
+### 2.5.4 Backwards Compatibility
+- [ ] **Task 2.5.4**
+
+Test global Tools.Manager compatibility layer works correctly.
+
+- [ ] 2.5.4.1 Test: Tools.Manager with session_id → delegates to Session.Manager
+- [ ] 2.5.4.2 Test: Tools.Manager without session_id → uses global project_root
+- [ ] 2.5.4.3 Test: HandlerHelpers prefer session context when available
+- [ ] 2.5.4.4 Test: Existing tool handlers work with both session and global context
+- [ ] 2.5.4.5 Write all compatibility integration tests
+
+**Integration Tests for Section 2.5:**
+- Manager and State coordinate correctly within session
+- Settings load and merge correctly for sessions
+- Multiple sessions have complete isolation
+- Backwards compatibility maintained
+
+---
+
 ## Success Criteria
 
 1. **Session.Manager**: Per-session GenServer manages project_root and Lua sandbox
@@ -404,6 +462,7 @@ Update HandlerHelpers to prefer session context.
 8. **Session.Settings**: Per-project settings load and merge with global
 9. **Backwards Compatibility**: Global Tools.Manager still works for non-session code
 10. **Test Coverage**: Minimum 80% coverage for phase 2 code
+11. **Integration Tests**: All Phase 2 components work together correctly (Section 2.5)
 
 ---
 
@@ -416,6 +475,7 @@ Update HandlerHelpers to prefer session context.
 - `test/jido_code/session/manager_test.exs`
 - `test/jido_code/session/state_test.exs`
 - `test/jido_code/session/settings_test.exs`
+- `test/jido_code/integration/session_phase2_test.exs`
 
 **Modified Files:**
 - `lib/jido_code/tools/manager.ex` - Add session delegation

@@ -464,6 +464,87 @@ Define clear error messages for all failure cases.
 
 ---
 
+## 5.8 Phase 5 Integration Tests
+
+Comprehensive integration tests verifying all Phase 5 command components work together correctly.
+
+### 5.8.1 Session New Command Integration
+- [ ] **Task 5.8.1**
+
+Test `/session new` command end-to-end.
+
+- [ ] 5.8.1.1 Create `test/jido_code/integration/session_phase5_test.exs`
+- [ ] 5.8.1.2 Test: `/session new /path` → session created → tab added → switched to new session
+- [ ] 5.8.1.3 Test: `/session new` (no path) → uses CWD → session created
+- [ ] 5.8.1.4 Test: `/session new --name=Foo` → custom name in tab and registry
+- [ ] 5.8.1.5 Test: `/session new` at limit (10) → error message → no session created
+- [ ] 5.8.1.6 Test: `/session new` duplicate path → error message → no session created
+- [ ] 5.8.1.7 Write all new command integration tests
+
+### 5.8.2 Session List Command Integration
+- [ ] **Task 5.8.2**
+
+Test `/session list` command end-to-end.
+
+- [ ] 5.8.2.1 Test: Create 3 sessions → `/session list` → shows all 3 with indices
+- [ ] 5.8.2.2 Test: Active session marked with asterisk in list
+- [ ] 5.8.2.3 Test: Empty session list → helpful message shown
+- [ ] 5.8.2.4 Test: List shows truncated paths correctly
+- [ ] 5.8.2.5 Write all list command integration tests
+
+### 5.8.3 Session Switch Command Integration
+- [ ] **Task 5.8.3**
+
+Test `/session switch` command end-to-end.
+
+- [ ] 5.8.3.1 Test: `/session switch 2` → active session changes → view updates
+- [ ] 5.8.3.2 Test: `/session switch MyProject` → switches by name
+- [ ] 5.8.3.3 Test: `/session switch abc123` → switches by ID
+- [ ] 5.8.3.4 Test: `/session switch 99` (invalid) → error message → no change
+- [ ] 5.8.3.5 Test: Partial name match → switches to matching session
+- [ ] 5.8.3.6 Write all switch command integration tests
+
+### 5.8.4 Session Close Command Integration
+- [ ] **Task 5.8.4**
+
+Test `/session close` command end-to-end.
+
+- [ ] 5.8.4.1 Test: `/session close` → active session stopped → removed from tabs → switch to adjacent
+- [ ] 5.8.4.2 Test: `/session close 2` → specific session closed
+- [ ] 5.8.4.3 Test: Close last session → welcome screen appears
+- [ ] 5.8.4.4 Test: Close → processes terminated → registry updated → PubSub unsubscribed
+- [ ] 5.8.4.5 Write all close command integration tests
+
+### 5.8.5 Session Rename Command Integration
+- [ ] **Task 5.8.5**
+
+Test `/session rename` command end-to-end.
+
+- [ ] 5.8.5.1 Test: `/session rename NewName` → tab label updates → registry updates
+- [ ] 5.8.5.2 Test: `/session rename` with invalid name → error message → no change
+- [ ] 5.8.5.3 Test: Rename → `/session list` shows new name
+- [ ] 5.8.5.4 Write all rename command integration tests
+
+### 5.8.6 Command-TUI Flow Integration
+- [ ] **Task 5.8.6**
+
+Test command execution integrates properly with TUI state.
+
+- [ ] 5.8.6.1 Test: Command result {:add_session, session} → TUI model updated correctly
+- [ ] 5.8.6.2 Test: Command result {:switch_session, id} → TUI switches active session
+- [ ] 5.8.6.3 Test: Command result {:remove_session, id} → TUI removes from tabs
+- [ ] 5.8.6.4 Test: Command result {:update_session, session} → TUI updates session data
+- [ ] 5.8.6.5 Test: Command error → displayed in TUI feedback area
+- [ ] 5.8.6.6 Write all TUI flow integration tests
+
+**Integration Tests for Section 5.8:**
+- All session commands work end-to-end
+- Commands properly update TUI state
+- Error cases handled with clear feedback
+- Command results flow correctly to TUI
+
+---
+
 ## Success Criteria
 
 1. **New Command**: `/session new` creates sessions with path/name options
@@ -476,18 +557,20 @@ Define clear error messages for all failure cases.
 8. **Error Handling**: Clear messages for all error cases
 9. **TUI Integration**: Commands update TUI model correctly
 10. **Test Coverage**: Minimum 80% coverage for phase 5 code
+11. **Integration Tests**: All Phase 5 components work together correctly (Section 5.8)
 
 ---
 
 ## Critical Files
 
-**Modified Files:**
-- `lib/jido_code/commands.ex` - Add session command handlers
-- `lib/jido_code/tui.ex` - Handle command result actions
-
 **New Files:**
 - `lib/jido_code/commands/session.ex` - Session command implementation (optional, or inline)
 - `test/jido_code/commands/session_test.exs` - Session command tests
+- `test/jido_code/integration/session_phase5_test.exs`
+
+**Modified Files:**
+- `lib/jido_code/commands.ex` - Add session command handlers
+- `lib/jido_code/tui.ex` - Handle command result actions
 
 ---
 

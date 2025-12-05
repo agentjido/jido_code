@@ -490,6 +490,78 @@ Update PubSub event handlers for multi-session.
 
 ---
 
+## 4.7 Phase 4 Integration Tests
+
+Comprehensive integration tests verifying all Phase 4 TUI components work together correctly.
+
+### 4.7.1 Tab Navigation Integration
+- [ ] **Task 4.7.1**
+
+Test tab navigation works end-to-end.
+
+- [ ] 4.7.1.1 Create `test/jido_code/integration/session_phase4_test.exs`
+- [ ] 4.7.1.2 Test: Create 3 sessions → tabs render with correct labels → Ctrl+1/2/3 switch correctly
+- [ ] 4.7.1.3 Test: Ctrl+Tab cycles through all tabs in order
+- [ ] 4.7.1.4 Test: Ctrl+Shift+Tab cycles backwards
+- [ ] 4.7.1.5 Test: Close middle tab → active switches to adjacent → tab order updates
+- [ ] 4.7.1.6 Test: 10th tab accessible via Ctrl+0
+- [ ] 4.7.1.7 Write all navigation integration tests
+
+### 4.7.2 View-State Synchronization
+- [ ] **Task 4.7.2**
+
+Test view correctly reflects session state.
+
+- [ ] 4.7.2.1 Test: Switch session → conversation view shows new session's messages
+- [ ] 4.7.2.2 Test: Message received via PubSub → view updates for active session only
+- [ ] 4.7.2.3 Test: Streaming chunk received → streaming message area updates
+- [ ] 4.7.2.4 Test: Session.State updated → next view render reflects change
+- [ ] 4.7.2.5 Test: Status bar shows active session's info (name, model, path)
+- [ ] 4.7.2.6 Write all synchronization integration tests
+
+### 4.7.3 Input-Agent Integration
+- [ ] **Task 4.7.3**
+
+Test user input correctly routes to session agent.
+
+- [ ] 4.7.3.1 Test: Submit text in session A → AgentAPI.send_message called for session A
+- [ ] 4.7.3.2 Test: Switch to session B → submit → message goes to session B's agent
+- [ ] 4.7.3.3 Test: Submit during streaming → handled correctly (queue or reject)
+- [ ] 4.7.3.4 Test: Scroll events route to active session's conversation view
+- [ ] 4.7.3.5 Write all input integration tests
+
+### 4.7.4 PubSub Event Flow
+- [ ] **Task 4.7.4**
+
+Test PubSub events flow correctly through TUI.
+
+- [ ] 4.7.4.1 Test: Subscribe to session on add → receive events for that session
+- [ ] 4.7.4.2 Test: Unsubscribe on session close → no more events received
+- [ ] 4.7.4.3 Test: Events for inactive session → model updated but no re-render triggered
+- [ ] 4.7.4.4 Test: Tool call event → tool call UI element appears in active session
+- [ ] 4.7.4.5 Test: Tool result event → result displayed in active session
+- [ ] 4.7.4.6 Write all PubSub integration tests
+
+### 4.7.5 Welcome Screen and Empty State
+- [ ] **Task 4.7.5**
+
+Test empty state and welcome screen behavior.
+
+- [ ] 4.7.5.1 Test: No sessions → welcome screen rendered
+- [ ] 4.7.5.2 Test: Close last session → welcome screen appears
+- [ ] 4.7.5.3 Test: Create first session from welcome → tab bar appears
+- [ ] 4.7.5.4 Test: Ctrl+N from welcome → new session dialog
+- [ ] 4.7.5.5 Write all empty state integration tests
+
+**Integration Tests for Section 4.7:**
+- Tab navigation works across all scenarios
+- View stays in sync with session state
+- Input correctly routes to active session
+- PubSub events handled correctly
+- Welcome screen transitions work
+
+---
+
 ## Success Criteria
 
 1. **Tab Bar Display**: Tabs widget shows all sessions with numbered labels
@@ -502,10 +574,14 @@ Update PubSub event handlers for multi-session.
 8. **Event Routing**: Input and scroll events go to active session
 9. **PubSub Routing**: Events routed to correct session
 10. **Test Coverage**: Minimum 80% coverage for phase 4 code
+11. **Integration Tests**: All Phase 4 components work together correctly (Section 4.7)
 
 ---
 
 ## Critical Files
+
+**New Files:**
+- `test/jido_code/integration/session_phase4_test.exs`
 
 **Modified Files:**
 - `lib/jido_code/tui.ex` - Model struct, init, view, update handlers

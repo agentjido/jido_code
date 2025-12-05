@@ -266,6 +266,38 @@ defmodule JidoCode.Session.Manager do
   end
 
   @doc """
+  Executes a Lua script in the session's sandbox.
+
+  The Lua state is updated after successful execution, so state persists
+  between calls (e.g., variables defined in one call are available in the next).
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `script` - The Lua script to execute
+  - `timeout` - Timeout in milliseconds (default: 30000)
+
+  ## Returns
+
+  - `{:ok, result}` - Script executed successfully, result is list of return values
+  - `{:error, :not_found}` - Session manager not found
+  - `{:error, reason}` - Script execution failed
+
+  ## Examples
+
+      iex> {:ok, [42]} = Manager.run_lua("session_123", "return 21 + 21")
+      iex> {:ok, ["hello"]} = Manager.run_lua("session_123", "return jido.read_file('test.txt')")
+  """
+  @spec run_lua(String.t(), String.t(), timeout()) ::
+          {:ok, list()} | {:error, :not_found | term()}
+  def run_lua(session_id, script, timeout \\ 30_000) do
+    case Registry.lookup(@registry, {:manager, session_id}) do
+      [{pid, _}] -> GenServer.call(pid, {:run_lua, script}, timeout)
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Gets the session struct for this manager.
 
   Deprecated: Use `project_root/1` or `session_id/1` instead.
@@ -341,6 +373,23 @@ defmodule JidoCode.Session.Manager do
   end
 
   @impl true
+  def handle_call({:run_lua, script}, _from, state) do
+    case :luerl.do(script, state.lua_state) do
+      {:ok, result, new_lua_state} ->
+        {:reply, {:ok, result}, %{state | lua_state: new_lua_state}}
+
+      {:error, reason, _lua_state} ->
+        {:reply, {:error, format_lua_error(reason)}, state}
+    end
+  rescue
+    e ->
+      {:reply, {:error, {:exception, Exception.message(e)}}, state}
+  catch
+    kind, reason ->
+      {:reply, {:error, {kind, reason}}, state}
+  end
+
+  @impl true
   def handle_call(:get_session, _from, state) do
     # For backwards compatibility, reconstruct a minimal session-like map
     # This will be deprecated in favor of project_root/1 and session_id/1
@@ -375,4 +424,9 @@ defmodule JidoCode.Session.Manager do
     kind, reason ->
       {:error, {kind, reason}}
   end
+
+  defp format_lua_error(reason) when is_binary(reason), do: reason
+  defp format_lua_error(reason) when is_list(reason), do: to_string(reason)
+  defp format_lua_error({:lua_error, error, _stack}), do: format_lua_error(error)
+  defp format_lua_error(reason), do: inspect(reason)
 end

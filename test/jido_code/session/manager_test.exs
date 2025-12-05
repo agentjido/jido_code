@@ -335,4 +335,56 @@ defmodule JidoCode.Session.ManagerTest do
       assert {:error, :not_found} = Manager.list_dir("non_existent_session", ".")
     end
   end
+
+  describe "run_lua/2" do
+    test "executes simple Lua expressions", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:ok, [42]} = Manager.run_lua(session.id, "return 21 + 21")
+      assert {:ok, ["hello"]} = Manager.run_lua(session.id, "return 'hello'")
+    end
+
+    test "Lua state persists between calls", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      # Set a variable
+      assert {:ok, []} = Manager.run_lua(session.id, "my_var = 123")
+
+      # Read it back
+      assert {:ok, [123]} = Manager.run_lua(session.id, "return my_var")
+    end
+
+    test "can access bridge functions", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      # Create a test file
+      test_file = Path.join(tmp_dir, "lua_test.txt")
+      File.write!(test_file, "content from file")
+
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:ok, ["content from file"]} =
+               Manager.run_lua(session.id, "return jido.read_file('lua_test.txt')")
+    end
+
+    test "handles Lua syntax errors", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, _reason} = Manager.run_lua(session.id, "this is not valid lua !!!")
+    end
+
+    test "handles Lua runtime errors", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, _reason} = Manager.run_lua(session.id, "error('intentional error')")
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.run_lua("non_existent_session", "return 1")
+    end
+  end
 end

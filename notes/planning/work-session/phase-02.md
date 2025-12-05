@@ -111,17 +111,17 @@ Implement session-scoped file operations (mirroring Tools.Manager).
 - [x] 2.1.5.9 Write unit tests for file operations
 
 ### 2.1.6 Lua Script Execution
-- [ ] **Task 2.1.6**
+- [x] **Task 2.1.6** ✅ COMPLETE
 
 Implement session-scoped Lua script execution.
 
-- [ ] 2.1.6.1 Implement `run_lua/2` client function:
+- [x] 2.1.6.1 Implement `run_lua/2` client function:
   ```elixir
   def run_lua(session_id, script) do
     GenServer.call(via(session_id), {:run_lua, script}, 30_000)
   end
   ```
-- [ ] 2.1.6.2 Implement `handle_call({:run_lua, script}, _, state)`:
+- [x] 2.1.6.2 Implement `handle_call({:run_lua, script}, _, state)`:
   ```elixir
   def handle_call({:run_lua, script}, _from, state) do
     case :luerl.do(script, state.lua_state) do
@@ -132,8 +132,8 @@ Implement session-scoped Lua script execution.
     end
   end
   ```
-- [ ] 2.1.6.3 Handle Lua execution timeout
-- [ ] 2.1.6.4 Write unit tests for Lua execution
+- [x] 2.1.6.3 Handle Lua execution timeout
+- [x] 2.1.6.4 Write unit tests for Lua execution
 
 **Unit Tests for Section 2.1:**
 - Test Manager starts with valid session

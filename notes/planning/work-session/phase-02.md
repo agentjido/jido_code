@@ -352,16 +352,16 @@ Implement settings saving for session-specific overrides.
 Update the global Tools.Manager to delegate to session-scoped managers.
 
 ### 2.4.1 Manager Compatibility Layer
-- [ ] **Task 2.4.1**
+- [x] **Task 2.4.1** ✅ COMPLETE
 
 Add session awareness to global Tools.Manager.
 
-- [ ] 2.4.1.1 Update `Tools.Manager` to accept optional `session_id` in context
-- [ ] 2.4.1.2 When `session_id` present, delegate to `Session.Manager`
-- [ ] 2.4.1.3 When `session_id` absent, use global project_root (backwards compat)
-- [ ] 2.4.1.4 Add deprecation warning when using global manager
-- [ ] 2.4.1.5 Document migration path in module doc
-- [ ] 2.4.1.6 Write tests for compatibility layer
+- [x] 2.4.1.1 Update `Tools.Manager` to accept optional `session_id` in context
+- [x] 2.4.1.2 When `session_id` present, delegate to `Session.Manager`
+- [x] 2.4.1.3 When `session_id` absent, use global project_root (backwards compat)
+- [x] 2.4.1.4 Add deprecation warning when using global manager
+- [x] 2.4.1.5 Document migration path in module doc
+- [x] 2.4.1.6 Write tests for compatibility layer
 
 ### 2.4.2 Handler Helpers Update
 - [ ] **Task 2.4.2**

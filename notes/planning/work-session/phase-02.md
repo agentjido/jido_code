@@ -384,11 +384,26 @@ Update HandlerHelpers to prefer session context.
 - [x] 2.4.2.2 Update `validate_path/2` to use session manager when available
 - [x] 2.4.2.3 Write tests for session-aware helpers
 
+### 2.4.3 Review Fixes (Post-Review)
+- [x] **Task 2.4.3** ✅ COMPLETE
+
+Address review findings from Section 2.4 review.
+
+- [x] 2.4.3.1 Add UUID format validation for session_id in HandlerHelpers
+- [x] 2.4.3.2 Add deprecation logging when falling back to global manager
+- [x] 2.4.3.3 Make deprecation warnings suppressible via application config
+- [x] 2.4.3.4 Add format_common_error/2 clause for :invalid_session_id
+- [x] 2.4.3.5 Add edge case tests for UUID validation
+- [x] 2.4.3.6 Add tests for deprecation warning logging
+
 **Unit Tests for Section 2.4:**
 - Test Tools.Manager works with session_id in context
 - Test Tools.Manager works without session_id (backwards compat)
 - Test HandlerHelpers.get_project_root uses session manager
 - Test HandlerHelpers.get_project_root falls back to global
+- Test invalid session_id format returns :invalid_session_id error
+- Test deprecation warnings logged when using global fallback
+- Test deprecation warnings can be suppressed
 
 ---
 

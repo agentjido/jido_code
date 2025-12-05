@@ -9,14 +9,19 @@ defmodule JidoCode.Tools.HandlerHelpers do
 
   Tool handlers receive a context map that may contain:
 
-  - `:session_id` - Session identifier for per-session security
+  - `:session_id` - Session identifier (must be valid UUID format)
   - `:project_root` - Direct project root path (legacy)
 
   The helpers prefer session context when available:
 
-  1. `session_id` present → Uses `Session.Manager` for that session
+  1. `session_id` present (valid UUID) → Uses `Session.Manager` for that session
   2. `project_root` present → Uses the provided path directly
-  3. Neither → Falls back to global `Tools.Manager` (deprecated)
+  3. Neither → Falls back to global `Tools.Manager` (deprecated, logs warning)
+
+  ## Session ID Format
+
+  Session IDs must be valid UUIDs (e.g., "550e8400-e29b-41d4-a716-446655440000").
+  Invalid formats return `{:error, :invalid_session_id}`.
 
   ## Functions
 
@@ -29,7 +34,7 @@ defmodule JidoCode.Tools.HandlerHelpers do
       alias JidoCode.Tools.HandlerHelpers
 
       # Session-aware (preferred)
-      context = %{session_id: "abc123"}
+      context = %{session_id: "550e8400-e29b-41d4-a716-446655440000"}
       with {:ok, project_root} <- HandlerHelpers.get_project_root(context),
            {:ok, safe_path} <- HandlerHelpers.validate_path("src/file.ex", context) do
         # use safe_path
@@ -40,25 +45,40 @@ defmodule JidoCode.Tools.HandlerHelpers do
       with {:ok, project_root} <- HandlerHelpers.get_project_root(context) do
         # use project_root
       end
+
+  ## Configuration
+
+  To suppress deprecation warnings (useful for tests):
+
+      Application.put_env(:jido_code, :suppress_global_manager_warnings, true)
   """
+
+  require Logger
 
   alias JidoCode.Session
   alias JidoCode.Tools.{Manager, Security}
+
+  # UUID v4 format regex (case-insensitive)
+  @uuid_regex ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
   @doc """
   Extracts the project root from the context map.
 
   Checks in priority order:
 
-  1. `session_id` - Delegates to `Session.Manager.project_root/1`
+  1. `session_id` (valid UUID) - Delegates to `Session.Manager.project_root/1`
   2. `project_root` - Returns the provided path directly
-  3. Neither - Falls back to `Tools.Manager.project_root/0` (deprecated)
+  3. Neither - Falls back to `Tools.Manager.project_root/0` (deprecated, logs warning)
 
   ## Examples
 
       # Session-aware (preferred)
-      iex> HandlerHelpers.get_project_root(%{session_id: "abc123"})
+      iex> HandlerHelpers.get_project_root(%{session_id: "550e8400-e29b-41d4-a716-446655440000"})
       {:ok, "/path/from/session/manager"}
+
+      # Invalid session_id format
+      iex> HandlerHelpers.get_project_root(%{session_id: "invalid"})
+      {:error, :invalid_session_id}
 
       # Direct project_root (legacy)
       iex> HandlerHelpers.get_project_root(%{project_root: "/home/user/project"})
@@ -68,22 +88,31 @@ defmodule JidoCode.Tools.HandlerHelpers do
       iex> HandlerHelpers.get_project_root(%{})
       # Returns Manager.project_root() result with deprecation warning
   """
-  @spec get_project_root(map()) :: {:ok, String.t()} | {:error, :not_found | String.t()}
+  @spec get_project_root(map()) ::
+          {:ok, String.t()} | {:error, :not_found | :invalid_session_id | String.t()}
   def get_project_root(%{session_id: session_id}) when is_binary(session_id) do
-    Session.Manager.project_root(session_id)
+    if valid_session_id?(session_id) do
+      Session.Manager.project_root(session_id)
+    else
+      {:error, :invalid_session_id}
+    end
   end
 
   def get_project_root(%{project_root: root}) when is_binary(root), do: {:ok, root}
-  def get_project_root(_context), do: Manager.project_root()
+
+  def get_project_root(_context) do
+    log_deprecation_warning("get_project_root")
+    Manager.project_root()
+  end
 
   @doc """
   Validates a path within the security boundary.
 
   Checks in priority order:
 
-  1. `session_id` - Delegates to `Session.Manager.validate_path/2`
+  1. `session_id` (valid UUID) - Delegates to `Session.Manager.validate_path/2`
   2. `project_root` - Uses `Security.validate_path/3` directly
-  3. Neither - Falls back to `Tools.Manager.validate_path/1` (deprecated)
+  3. Neither - Falls back to `Tools.Manager.validate_path/1` (deprecated, logs warning)
 
   ## Parameters
 
@@ -98,8 +127,12 @@ defmodule JidoCode.Tools.HandlerHelpers do
   ## Examples
 
       # Session-aware (preferred)
-      iex> HandlerHelpers.validate_path("src/file.ex", %{session_id: "abc123"})
+      iex> HandlerHelpers.validate_path("src/file.ex", %{session_id: "550e8400-e29b-41d4-a716-446655440000"})
       {:ok, "/project/src/file.ex"}
+
+      # Invalid session_id format
+      iex> HandlerHelpers.validate_path("src/file.ex", %{session_id: "invalid"})
+      {:error, :invalid_session_id}
 
       # Direct project_root
       iex> HandlerHelpers.validate_path("src/file.ex", %{project_root: "/project"})
@@ -109,9 +142,14 @@ defmodule JidoCode.Tools.HandlerHelpers do
       iex> HandlerHelpers.validate_path("../../../etc/passwd", context)
       {:error, :path_escapes_boundary}
   """
-  @spec validate_path(String.t(), map()) :: {:ok, String.t()} | {:error, atom() | :not_found}
+  @spec validate_path(String.t(), map()) ::
+          {:ok, String.t()} | {:error, atom() | :not_found | :invalid_session_id}
   def validate_path(path, %{session_id: session_id}) when is_binary(session_id) do
-    Session.Manager.validate_path(session_id, path)
+    if valid_session_id?(session_id) do
+      Session.Manager.validate_path(session_id, path)
+    else
+      {:error, :invalid_session_id}
+    end
   end
 
   def validate_path(path, %{project_root: root}) when is_binary(root) do
@@ -119,6 +157,7 @@ defmodule JidoCode.Tools.HandlerHelpers do
   end
 
   def validate_path(path, _context) do
+    log_deprecation_warning("validate_path")
     Manager.validate_path(path)
   end
 
@@ -158,6 +197,28 @@ defmodule JidoCode.Tools.HandlerHelpers do
   def format_common_error(:symlink_escapes_boundary, path),
     do: {:ok, "Security error: symlink points outside project: #{path}"}
 
+  def format_common_error(:invalid_session_id, _path),
+    do: {:ok, "Invalid session ID format (expected UUID)"}
+
   def format_common_error(reason, _path) when is_binary(reason), do: {:ok, reason}
   def format_common_error(_reason, _path), do: :not_handled
+
+  # ============================================================================
+  # Private Functions
+  # ============================================================================
+
+  @doc false
+  defp valid_session_id?(session_id) do
+    Regex.match?(@uuid_regex, session_id)
+  end
+
+  @doc false
+  defp log_deprecation_warning(function_name) do
+    unless Application.get_env(:jido_code, :suppress_global_manager_warnings, false) do
+      Logger.warning(
+        "HandlerHelpers.#{function_name}/1 falling back to global Tools.Manager - " <>
+          "migrate to session-aware context with session_id"
+      )
+    end
+  end
 end

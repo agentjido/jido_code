@@ -55,24 +55,24 @@ Implement GenServer init with Lua sandbox setup.
 - [x] 2.1.2.4 Write unit tests for initialization
 
 ### 2.1.3 Project Root Access
-- [ ] **Task 2.1.3**
+- [x] **Task 2.1.3** ✅ COMPLETE (implemented in Task 2.1.1)
 
 Implement API for accessing project root.
 
-- [ ] 2.1.3.1 Implement `project_root/1` client function:
+- [x] 2.1.3.1 Implement `project_root/1` client function:
   ```elixir
   def project_root(session_id) do
     GenServer.call(via(session_id), :project_root)
   end
   ```
-- [ ] 2.1.3.2 Implement `handle_call(:project_root, _, state)`:
+- [x] 2.1.3.2 Implement `handle_call(:project_root, _, state)`:
   ```elixir
   def handle_call(:project_root, _from, state) do
     {:reply, {:ok, state.project_root}, state}
   end
   ```
-- [ ] 2.1.3.3 Handle case where manager not found
-- [ ] 2.1.3.4 Write unit tests for project_root access
+- [x] 2.1.3.3 Handle case where manager not found
+- [x] 2.1.3.4 Write unit tests for project_root access
 
 ### 2.1.4 Path Validation API
 - [ ] **Task 2.1.4**

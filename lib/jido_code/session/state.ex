@@ -55,6 +55,15 @@ defmodule JidoCode.Session.State do
   alias JidoCode.Session.ProcessRegistry
 
   # ============================================================================
+  # Configuration
+  # ============================================================================
+
+  # Maximum list sizes to prevent unbounded memory growth
+  @max_messages 1000
+  @max_reasoning_steps 100
+  @max_tool_calls 500
+
+  # ============================================================================
   # Type Definitions
   # ============================================================================
 
@@ -247,6 +256,19 @@ defmodule JidoCode.Session.State do
   end
 
   @doc """
+  Gets the tool calls list for a session by session_id.
+
+  ## Examples
+
+      iex> {:ok, tool_calls} = State.get_tool_calls("session-123")
+      iex> {:error, :not_found} = State.get_tool_calls("unknown")
+  """
+  @spec get_tool_calls(String.t()) :: {:ok, [tool_call()]} | {:error, :not_found}
+  def get_tool_calls(session_id) do
+    call_state(session_id, :get_tool_calls)
+  end
+
+  @doc """
   Appends a message to the conversation history.
 
   ## Examples
@@ -256,7 +278,8 @@ defmodule JidoCode.Session.State do
       iex> {:error, :not_found} = State.append_message("unknown", message)
   """
   @spec append_message(String.t(), message()) :: {:ok, state()} | {:error, :not_found}
-  def append_message(session_id, message) do
+  def append_message(session_id, message)
+      when is_binary(session_id) and is_map(message) do
     call_state(session_id, {:append_message, message})
   end
 
@@ -286,7 +309,8 @@ defmodule JidoCode.Session.State do
       iex> {:error, :not_found} = State.start_streaming("unknown", "msg-1")
   """
   @spec start_streaming(String.t(), String.t()) :: {:ok, state()} | {:error, :not_found}
-  def start_streaming(session_id, message_id) do
+  def start_streaming(session_id, message_id)
+      when is_binary(session_id) and is_binary(message_id) do
     call_state(session_id, {:start_streaming, message_id})
   end
 
@@ -296,13 +320,22 @@ defmodule JidoCode.Session.State do
   This is an async operation (cast) for performance during high-frequency updates.
   If the session is not found or not streaming, the chunk is silently ignored.
 
+  ## Race Condition Note
+
+  Because `start_streaming/2` uses `call` (synchronous) and `update_streaming/2`
+  uses `cast` (asynchronous), there is a potential race condition where chunks
+  could arrive before `start_streaming/2` completes. In this case, chunks are
+  safely ignored. Callers should ensure `start_streaming/2` has returned before
+  sending chunks to avoid lost data.
+
   ## Examples
 
       iex> :ok = State.update_streaming("session-123", "Hello ")
       iex> :ok = State.update_streaming("session-123", "world!")
   """
   @spec update_streaming(String.t(), String.t()) :: :ok
-  def update_streaming(session_id, chunk) do
+  def update_streaming(session_id, chunk)
+      when is_binary(session_id) and is_binary(chunk) do
     cast_state(session_id, {:streaming_chunk, chunk})
   end
 
@@ -336,7 +369,8 @@ defmodule JidoCode.Session.State do
       iex> {:error, :not_found} = State.set_scroll_offset("unknown", 10)
   """
   @spec set_scroll_offset(String.t(), non_neg_integer()) :: {:ok, state()} | {:error, :not_found}
-  def set_scroll_offset(session_id, offset) do
+  def set_scroll_offset(session_id, offset)
+      when is_binary(session_id) and is_integer(offset) and offset >= 0 do
     call_state(session_id, {:set_scroll_offset, offset})
   end
 
@@ -350,7 +384,8 @@ defmodule JidoCode.Session.State do
       iex> {:error, :not_found} = State.update_todos("unknown", todos)
   """
   @spec update_todos(String.t(), [todo()]) :: {:ok, state()} | {:error, :not_found}
-  def update_todos(session_id, todos) do
+  def update_todos(session_id, todos)
+      when is_binary(session_id) and is_list(todos) do
     call_state(session_id, {:update_todos, todos})
   end
 
@@ -364,7 +399,8 @@ defmodule JidoCode.Session.State do
       iex> {:error, :not_found} = State.add_reasoning_step("unknown", step)
   """
   @spec add_reasoning_step(String.t(), reasoning_step()) :: {:ok, state()} | {:error, :not_found}
-  def add_reasoning_step(session_id, step) do
+  def add_reasoning_step(session_id, step)
+      when is_binary(session_id) and is_map(step) do
     call_state(session_id, {:add_reasoning_step, step})
   end
 
@@ -391,7 +427,8 @@ defmodule JidoCode.Session.State do
       iex> {:error, :not_found} = State.add_tool_call("unknown", tool_call)
   """
   @spec add_tool_call(String.t(), tool_call()) :: {:ok, state()} | {:error, :not_found}
-  def add_tool_call(session_id, tool_call) do
+  def add_tool_call(session_id, tool_call)
+      when is_binary(session_id) and is_map(tool_call) do
     call_state(session_id, {:add_tool_call, tool_call})
   end
 
@@ -401,18 +438,12 @@ defmodule JidoCode.Session.State do
 
   @spec call_state(String.t(), atom() | tuple()) :: {:ok, term()} | {:error, :not_found}
   defp call_state(session_id, message) do
-    case ProcessRegistry.lookup(:state, session_id) do
-      {:ok, pid} -> GenServer.call(pid, message)
-      {:error, :not_found} -> {:error, :not_found}
-    end
+    ProcessRegistry.call(:state, session_id, message)
   end
 
   @spec cast_state(String.t(), term()) :: :ok
   defp cast_state(session_id, message) do
-    case ProcessRegistry.lookup(:state, session_id) do
-      {:ok, pid} -> GenServer.cast(pid, message)
-      {:error, :not_found} -> :ok
-    end
+    ProcessRegistry.cast(:state, session_id, message)
   end
 
   # ============================================================================
@@ -451,12 +482,14 @@ defmodule JidoCode.Session.State do
 
   @impl true
   def handle_call(:get_messages, _from, state) do
-    {:reply, {:ok, state.messages}, state}
+    # Messages stored in reverse order for O(1) prepend, reverse on read
+    {:reply, {:ok, Enum.reverse(state.messages)}, state}
   end
 
   @impl true
   def handle_call(:get_reasoning_steps, _from, state) do
-    {:reply, {:ok, state.reasoning_steps}, state}
+    # Reasoning steps stored in reverse order for O(1) prepend, reverse on read
+    {:reply, {:ok, Enum.reverse(state.reasoning_steps)}, state}
   end
 
   @impl true
@@ -466,7 +499,10 @@ defmodule JidoCode.Session.State do
 
   @impl true
   def handle_call({:append_message, message}, _from, state) do
-    new_state = %{state | messages: state.messages ++ [message]}
+    # Prepend for O(1), will be reversed on read
+    # Enforce max size limit, evicting oldest items (at end of reversed list)
+    messages = [message | state.messages] |> Enum.take(@max_messages)
+    new_state = %{state | messages: messages}
     {:reply, {:ok, new_state}, new_state}
   end
 
@@ -495,8 +531,9 @@ defmodule JidoCode.Session.State do
         content: state.streaming_message,
         timestamp: DateTime.utc_now()
       }
+      # Prepend for O(1), will be reversed on read
       new_state = %{state |
-        messages: state.messages ++ [message],
+        messages: [message | state.messages],
         is_streaming: false,
         streaming_message: nil,
         streaming_message_id: nil
@@ -504,16 +541,6 @@ defmodule JidoCode.Session.State do
       {:reply, {:ok, message}, new_state}
     else
       {:reply, {:error, :not_streaming}, state}
-    end
-  end
-
-  @impl true
-  def handle_cast({:streaming_chunk, chunk}, state) do
-    if state.is_streaming do
-      new_state = %{state | streaming_message: state.streaming_message <> chunk}
-      {:noreply, new_state}
-    else
-      {:noreply, state}
     end
   end
 
@@ -531,7 +558,10 @@ defmodule JidoCode.Session.State do
 
   @impl true
   def handle_call({:add_reasoning_step, step}, _from, state) do
-    new_state = %{state | reasoning_steps: state.reasoning_steps ++ [step]}
+    # Prepend for O(1), will be reversed on read
+    # Enforce max size limit, evicting oldest items (at end of reversed list)
+    reasoning_steps = [step | state.reasoning_steps] |> Enum.take(@max_reasoning_steps)
+    new_state = %{state | reasoning_steps: reasoning_steps}
     {:reply, {:ok, new_state}, new_state}
   end
 
@@ -543,7 +573,50 @@ defmodule JidoCode.Session.State do
 
   @impl true
   def handle_call({:add_tool_call, tool_call}, _from, state) do
-    new_state = %{state | tool_calls: state.tool_calls ++ [tool_call]}
+    # Prepend for O(1), will be reversed on read
+    # Enforce max size limit, evicting oldest items (at end of reversed list)
+    tool_calls = [tool_call | state.tool_calls] |> Enum.take(@max_tool_calls)
+    new_state = %{state | tool_calls: tool_calls}
     {:reply, {:ok, new_state}, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_tool_calls, _from, state) do
+    # Tool calls stored in reverse order for O(1) prepend, reverse on read
+    {:reply, {:ok, Enum.reverse(state.tool_calls)}, state}
+  end
+
+  # ============================================================================
+  # handle_cast Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_cast({:streaming_chunk, chunk}, state) do
+    if state.is_streaming do
+      new_state = %{state | streaming_message: state.streaming_message <> chunk}
+      {:noreply, new_state}
+    else
+      {:noreply, state}
+    end
+  end
+
+  # ============================================================================
+  # handle_info Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_info(msg, state) do
+    Logger.warning("Session.State #{state.session_id} received unexpected message: #{inspect(msg)}")
+    {:noreply, state}
+  end
+
+  # ============================================================================
+  # terminate Callback
+  # ============================================================================
+
+  @impl true
+  def terminate(reason, state) do
+    Logger.debug("Session.State #{state.session_id} terminating: #{inspect(reason)}")
+    :ok
   end
 end

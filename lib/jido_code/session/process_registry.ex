@@ -98,4 +98,68 @@ defmodule JidoCode.Session.ProcessRegistry do
   """
   @spec registry_name() :: atom()
   def registry_name, do: @registry
+
+  @doc """
+  Makes a synchronous call to a registered process.
+
+  Combines lookup and GenServer.call into a single operation.
+  Returns `{:error, :not_found}` if the process is not registered.
+
+  ## Parameters
+
+  - `process_type` - The type of process to call
+  - `session_id` - The session's unique identifier
+  - `message` - The message to send to the process
+
+  ## Returns
+
+  - The result from `GenServer.call/2` if the process is found
+  - `{:error, :not_found}` if no process is registered
+
+  ## Examples
+
+      iex> ProcessRegistry.call(:state, session_id, :get_state)
+      {:ok, %{...}}
+
+      iex> ProcessRegistry.call(:state, "unknown", :get_state)
+      {:error, :not_found}
+  """
+  @spec call(process_type(), String.t(), term()) :: term()
+  def call(process_type, session_id, message)
+      when process_type in [:session, :manager, :state, :agent] and is_binary(session_id) do
+    case lookup(process_type, session_id) do
+      {:ok, pid} -> GenServer.call(pid, message)
+      {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Makes an asynchronous cast to a registered process.
+
+  Combines lookup and GenServer.cast into a single operation.
+  Silently returns `:ok` if the process is not registered.
+
+  ## Parameters
+
+  - `process_type` - The type of process to cast to
+  - `session_id` - The session's unique identifier
+  - `message` - The message to send to the process
+
+  ## Returns
+
+  - `:ok` always (fire-and-forget semantics)
+
+  ## Examples
+
+      iex> ProcessRegistry.cast(:state, session_id, {:streaming_chunk, "hello"})
+      :ok
+  """
+  @spec cast(process_type(), String.t(), term()) :: :ok
+  def cast(process_type, session_id, message)
+      when process_type in [:session, :manager, :state, :agent] and is_binary(session_id) do
+    case lookup(process_type, session_id) do
+      {:ok, pid} -> GenServer.cast(pid, message)
+      {:error, :not_found} -> :ok
+    end
+  end
 end

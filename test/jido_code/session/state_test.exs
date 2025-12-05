@@ -242,6 +242,22 @@ defmodule JidoCode.Session.StateTest do
     end
   end
 
+  describe "get_tool_calls/1" do
+    test "returns tool calls list for existing session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:ok, tool_calls} = State.get_tool_calls(session.id)
+      assert tool_calls == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_tool_calls("unknown-session-id")
+    end
+  end
+
   describe "append_message/2" do
     test "adds message to empty list", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
@@ -270,11 +286,13 @@ defmodule JidoCode.Session.StateTest do
       message2 = %{id: "msg-2", role: :assistant, content: "Second", timestamp: DateTime.utc_now()}
 
       {:ok, _} = State.append_message(session.id, message1)
-      {:ok, state} = State.append_message(session.id, message2)
+      {:ok, _state} = State.append_message(session.id, message2)
 
-      assert length(state.messages) == 2
-      assert Enum.at(state.messages, 0).id == "msg-1"
-      assert Enum.at(state.messages, 1).id == "msg-2"
+      # Use get_messages to verify order (internally stored reversed, reversed on read)
+      {:ok, messages} = State.get_messages(session.id)
+      assert length(messages) == 2
+      assert Enum.at(messages, 0).id == "msg-1"
+      assert Enum.at(messages, 1).id == "msg-2"
 
       GenServer.stop(pid)
     end
@@ -505,13 +523,16 @@ defmodule JidoCode.Session.StateTest do
       step1 = %{id: "r-1", content: "Analyzing request...", timestamp: DateTime.utc_now()}
       step2 = %{id: "r-2", content: "Planning approach...", timestamp: DateTime.utc_now()}
 
-      {:ok, state1} = State.add_reasoning_step(session.id, step1)
-      assert length(state1.reasoning_steps) == 1
-      assert hd(state1.reasoning_steps).id == "r-1"
+      {:ok, _state1} = State.add_reasoning_step(session.id, step1)
+      {:ok, steps1} = State.get_reasoning_steps(session.id)
+      assert length(steps1) == 1
+      assert hd(steps1).id == "r-1"
 
-      {:ok, state2} = State.add_reasoning_step(session.id, step2)
-      assert length(state2.reasoning_steps) == 2
-      assert Enum.at(state2.reasoning_steps, 1).id == "r-2"
+      {:ok, _state2} = State.add_reasoning_step(session.id, step2)
+      # Use get_reasoning_steps to verify order (internally stored reversed, reversed on read)
+      {:ok, steps2} = State.get_reasoning_steps(session.id)
+      assert length(steps2) == 2
+      assert Enum.at(steps2, 1).id == "r-2"
 
       GenServer.stop(pid)
     end
@@ -575,13 +596,16 @@ defmodule JidoCode.Session.StateTest do
         timestamp: DateTime.utc_now()
       }
 
-      {:ok, state1} = State.add_tool_call(session.id, tool_call1)
-      assert length(state1.tool_calls) == 1
-      assert hd(state1.tool_calls).name == "read_file"
+      {:ok, _state1} = State.add_tool_call(session.id, tool_call1)
+      {:ok, calls1} = State.get_tool_calls(session.id)
+      assert length(calls1) == 1
+      assert hd(calls1).name == "read_file"
 
-      {:ok, state2} = State.add_tool_call(session.id, tool_call2)
-      assert length(state2.tool_calls) == 2
-      assert Enum.at(state2.tool_calls, 1).name == "write_file"
+      {:ok, _state2} = State.add_tool_call(session.id, tool_call2)
+      # Use get_tool_calls to verify order (internally stored reversed, reversed on read)
+      {:ok, calls2} = State.get_tool_calls(session.id)
+      assert length(calls2) == 2
+      assert Enum.at(calls2, 1).name == "write_file"
 
       GenServer.stop(pid)
     end

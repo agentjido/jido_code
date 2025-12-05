@@ -82,4 +82,96 @@ defmodule JidoCode.Session.StateTest do
       GenServer.stop(pid)
     end
   end
+
+  describe "init/1 state structure" do
+    test "initializes with empty messages list", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.messages == []
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with empty reasoning_steps list", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.reasoning_steps == []
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with empty tool_calls list", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.tool_calls == []
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with empty todos list", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.todos == []
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with scroll_offset = 0", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.scroll_offset == 0
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with streaming_message = nil", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.streaming_message == nil
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with is_streaming = false", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.is_streaming == false
+
+      GenServer.stop(pid)
+    end
+
+    test "stores session_id in state", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.session_id == session.id
+
+      GenServer.stop(pid)
+    end
+
+    test "stores session struct in state for backwards compatibility", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.session == session
+
+      GenServer.stop(pid)
+    end
+  end
 end

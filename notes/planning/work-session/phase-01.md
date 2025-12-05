@@ -385,17 +385,17 @@ Implement helper functions for accessing session child processes.
 Integrate the session infrastructure into the application supervision tree.
 
 ### 1.5.1 Supervision Tree Updates
-- [ ] **Task 1.5.1**
+- [x] **Task 1.5.1** ✅ COMPLETE
 
 Update application.ex to include session infrastructure.
 
-- [ ] 1.5.1.1 Add SessionRegistry table creation to `start/2`:
+- [x] 1.5.1.1 Add SessionRegistry table creation to `start/2`:
   ```elixir
   JidoCode.SessionRegistry.create_table()
   ```
-- [ ] 1.5.1.2 Add SessionSupervisor to children list (after Registry, before AgentSupervisor)
-- [ ] 1.5.1.3 Ensure ordering: PubSub → Registry → SessionRegistry → SessionSupervisor
-- [ ] 1.5.1.4 Write integration test for supervision tree startup
+- [x] 1.5.1.2 Add SessionSupervisor to children list (after Registry, before AgentSupervisor)
+- [x] 1.5.1.3 Ensure ordering: PubSub → Registry → SessionRegistry → SessionSupervisor
+- [x] 1.5.1.4 Write integration test for supervision tree startup
 
 ### 1.5.2 Default Session Creation
 - [x] **Task 1.5.2 Complete**
@@ -431,6 +431,81 @@ Provide easy access to default/active session ID.
 
 ---
 
+## 1.6 Phase 1 Integration Tests
+
+Comprehensive integration tests verifying all Phase 1 components work together correctly.
+
+### 1.6.1 Session Lifecycle Integration
+- [x] **Task 1.6.1** ✅ COMPLETE
+
+Test complete session lifecycle through all components.
+
+- [x] 1.6.1.1 Create `test/jido_code/integration/session_phase1_test.exs`
+- [x] 1.6.1.2 Test: Create session → verify in Registry → verify processes running → stop → verify cleanup
+- [x] 1.6.1.3 Test: Create session with custom config → verify config propagated to child processes
+- [x] 1.6.1.4 Test: Update session in Registry → verify updated_at changes
+- [x] 1.6.1.5 Test: Rename session → verify Registry updated
+- [x] 1.6.1.6 Test: Session process crash → verify supervisor restarts children → verify Registry intact
+- [x] 1.6.1.7 Write all lifecycle integration tests
+
+### 1.6.2 Multi-Session Integration
+- [x] **Task 1.6.2** ✅ COMPLETE
+
+Test multiple sessions operating concurrently.
+
+- [x] 1.6.2.1 Test: Create 3 sessions → verify all in Registry → verify all processes running
+- [x] 1.6.2.2 Test: Create sessions for different paths → verify isolation
+- [x] 1.6.2.3 Test: Stop one session → verify others unaffected
+- [x] 1.6.2.4 Test: Lookup by ID, path, and name all work correctly with multiple sessions
+- [x] 1.6.2.5 Test: list_all/0 returns all sessions sorted by created_at
+- [x] 1.6.2.6 Write all multi-session integration tests
+
+### 1.6.3 Session Limit Integration
+- [x] **Task 1.6.3** ✅ COMPLETE
+
+Test 10-session limit enforcement end-to-end.
+
+- [x] 1.6.3.1 Test: Create exactly 10 sessions → all succeed
+- [x] 1.6.3.2 Test: Create 11th session → fails with :session_limit_reached
+- [x] 1.6.3.3 Test: At limit → stop one → create new → succeeds
+- [x] 1.6.3.4 Test: Duplicate path rejected even when under limit
+- [x] 1.6.3.5 Test: Duplicate ID rejected (edge case)
+- [x] 1.6.3.6 Write all limit integration tests
+
+### 1.6.4 Registry-Supervisor Coordination
+- [x] **Task 1.6.4** ✅ COMPLETE
+
+Test coordination between SessionRegistry and SessionSupervisor.
+
+- [x] 1.6.4.1 Test: Session registered in Registry before processes start
+- [x] 1.6.4.2 Test: Session unregistered from Registry after processes stop
+- [x] 1.6.4.3 Test: Registry count matches DynamicSupervisor child count
+- [x] 1.6.4.4 Test: find_session_pid/1 returns correct pid for registered session
+- [x] 1.6.4.5 Test: session_running?/1 matches Registry state
+- [x] 1.6.4.6 Test: Cleanup on partial failure (Registry registered but supervisor start fails)
+- [x] 1.6.4.7 Write all coordination integration tests
+
+### 1.6.5 Child Process Access Integration
+- [x] **Task 1.6.5** ✅ COMPLETE
+
+Test access to session child processes through Session.Supervisor.
+
+- [x] 1.6.5.1 Test: get_manager/1 returns live Manager pid
+- [x] 1.6.5.2 Test: get_state/1 returns live State pid
+- [x] 1.6.5.3 Test: Child pids are different for different sessions
+- [x] 1.6.5.4 Test: Child pids change after supervisor restart
+- [x] 1.6.5.5 Test: get_manager/1 returns error for stopped session
+- [x] 1.6.5.6 Write all child access integration tests
+
+**Integration Tests for Section 1.6:**
+- Full lifecycle from create to cleanup verified
+- Multi-session isolation confirmed
+- 10-session limit enforced correctly
+- Registry and Supervisor stay in sync
+- Child process access works correctly
+
+---
+
 ## Success Criteria
 
 1. **Session Struct**: Valid Session struct with all required fields and types
@@ -443,6 +518,7 @@ Provide easy access to default/active session ID.
 8. **Default Session**: Application starts with session for CWD
 9. **Process Registration**: All session processes findable via Registry
 10. **Test Coverage**: Minimum 80% coverage for phase 1 code
+11. **Integration Tests**: All Phase 1 components work together correctly (Section 1.6)
 
 ---
 
@@ -457,6 +533,7 @@ Provide easy access to default/active session ID.
 - `test/jido_code/session_registry_test.exs`
 - `test/jido_code/session_supervisor_test.exs`
 - `test/jido_code/session/supervisor_test.exs`
+- `test/jido_code/integration/session_phase1_test.exs`
 
 **Modified Files:**
 - `lib/jido_code/application.ex`

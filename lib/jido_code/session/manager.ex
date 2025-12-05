@@ -44,6 +44,7 @@ defmodule JidoCode.Session.Manager do
   require Logger
 
   alias JidoCode.Session
+  alias JidoCode.Tools.Bridge
 
   @registry JidoCode.SessionProcessRegistry
 
@@ -163,15 +164,25 @@ defmodule JidoCode.Session.Manager do
 
   @impl true
   def init(%Session{} = session) do
-    Logger.debug("Starting Session.Manager for session #{session.id} with project_root: #{session.project_path}")
+    Logger.info("Starting Session.Manager for session #{session.id}")
+    Logger.debug("  project_root: #{session.project_path}")
 
-    state = %{
-      session_id: session.id,
-      project_root: session.project_path,
-      lua_state: nil
-    }
+    case initialize_lua_sandbox(session.project_path) do
+      {:ok, lua_state} ->
+        Logger.debug("  Lua sandbox initialized successfully")
 
-    {:ok, state}
+        state = %{
+          session_id: session.id,
+          project_root: session.project_path,
+          lua_state: lua_state
+        }
+
+        {:ok, state}
+
+      {:error, reason} ->
+        Logger.error("Failed to initialize Lua sandbox for session #{session.id}: #{inspect(reason)}")
+        {:stop, {:lua_init_failed, reason}}
+    end
   end
 
   @impl true
@@ -204,5 +215,19 @@ defmodule JidoCode.Session.Manager do
 
   defp via(session_id) do
     {:via, Registry, {@registry, {:manager, session_id}}}
+  end
+
+  @doc false
+  defp initialize_lua_sandbox(project_root) do
+    # Initialize Luerl state and register bridge functions
+    lua_state = :luerl.init()
+    lua_state = Bridge.register(lua_state, project_root)
+    {:ok, lua_state}
+  rescue
+    e ->
+      {:error, {:exception, Exception.message(e)}}
+  catch
+    kind, reason ->
+      {:error, {kind, reason}}
   end
 end

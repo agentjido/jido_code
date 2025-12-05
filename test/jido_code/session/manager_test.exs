@@ -69,7 +69,71 @@ defmodule JidoCode.Session.ManagerTest do
 
       assert state.session_id == session.id
       assert state.project_root == tmp_dir
-      assert state.lua_state == nil
+
+      # Cleanup
+      GenServer.stop(pid)
+    end
+
+    test "initializes Lua sandbox with bridge functions", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, pid} = Manager.start_link(session: session)
+
+      # Access state via sys to verify Lua state
+      state = :sys.get_state(pid)
+
+      # Lua state should be initialized (not nil)
+      assert state.lua_state != nil
+
+      # Verify jido namespace exists by executing Lua code
+      # The jido table should be accessible
+      lua_state = state.lua_state
+      {:ok, result, _new_state} = :luerl.do("return type(jido)", lua_state)
+      assert result == ["table"]
+
+      # Cleanup
+      GenServer.stop(pid)
+    end
+
+    test "Lua sandbox has bridge functions registered", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, pid} = Manager.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      lua_state = state.lua_state
+
+      # Check that bridge functions exist
+      {:ok, [read_file_type], _} = :luerl.do("return type(jido.read_file)", lua_state)
+      {:ok, [write_file_type], _} = :luerl.do("return type(jido.write_file)", lua_state)
+      {:ok, [list_dir_type], _} = :luerl.do("return type(jido.list_dir)", lua_state)
+      {:ok, [shell_type], _} = :luerl.do("return type(jido.shell)", lua_state)
+
+      assert read_file_type == "function"
+      assert write_file_type == "function"
+      assert list_dir_type == "function"
+      assert shell_type == "function"
+
+      # Cleanup
+      GenServer.stop(pid)
+    end
+
+    test "Lua sandbox can execute bridge functions", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      # Create a test file
+      test_file = Path.join(tmp_dir, "test.txt")
+      File.write!(test_file, "hello world")
+
+      {:ok, pid} = Manager.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      lua_state = state.lua_state
+
+      # Read the file through the Lua bridge
+      {:ok, [content], _} = :luerl.do("return jido.read_file('test.txt')", lua_state)
+
+      assert content == "hello world"
 
       # Cleanup
       GenServer.stop(pid)

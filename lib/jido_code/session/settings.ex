@@ -43,8 +43,123 @@ defmodule JidoCode.Session.Settings do
   - `JidoCode.Session.Manager` - Per-session manager with security sandbox
   """
 
+  require Logger
+
+  alias JidoCode.Settings
+
   @local_dir_name ".jido_code"
   @settings_file "settings.json"
+
+  # ============================================================================
+  # Settings Loading
+  # ============================================================================
+
+  @doc """
+  Loads and merges settings from global and local files for a project.
+
+  Settings are loaded with the following precedence (highest to lowest):
+  1. Local settings (`{project_path}/.jido_code/settings.json`)
+  2. Global settings (`~/.jido_code/settings.json`)
+
+  ## Parameters
+
+  - `project_path` - Absolute path to the project root
+
+  ## Returns
+
+  Merged settings map. Missing files are treated as empty maps.
+
+  ## Error Handling
+
+  - Missing files return empty map (no error)
+  - Malformed JSON logs a warning and returns empty map
+  - Always returns a map, never fails
+
+  ## Examples
+
+      iex> Session.Settings.load("/path/to/project")
+      %{"provider" => "anthropic", "model" => "gpt-4o"}
+  """
+  @spec load(String.t()) :: map()
+  def load(project_path) when is_binary(project_path) do
+    global = load_global()
+    local = load_local(project_path)
+    Map.merge(global, local)
+  end
+
+  @doc """
+  Loads settings from the global settings file.
+
+  Reads from `~/.jido_code/settings.json`.
+
+  ## Returns
+
+  Settings map from the global file, or empty map if file doesn't exist
+  or contains invalid JSON.
+
+  ## Examples
+
+      iex> Session.Settings.load_global()
+      %{"provider" => "anthropic"}
+
+      # When file doesn't exist
+      iex> Session.Settings.load_global()
+      %{}
+  """
+  @spec load_global() :: map()
+  def load_global do
+    load_settings_file(Settings.global_path(), "global")
+  end
+
+  @doc """
+  Loads settings from a project's local settings file.
+
+  Reads from `{project_path}/.jido_code/settings.json`.
+
+  ## Parameters
+
+  - `project_path` - Absolute path to the project root
+
+  ## Returns
+
+  Settings map from the local file, or empty map if file doesn't exist
+  or contains invalid JSON.
+
+  ## Examples
+
+      iex> Session.Settings.load_local("/path/to/project")
+      %{"model" => "gpt-4o"}
+
+      # When file doesn't exist
+      iex> Session.Settings.load_local("/tmp/no-settings")
+      %{}
+  """
+  @spec load_local(String.t()) :: map()
+  def load_local(project_path) when is_binary(project_path) do
+    load_settings_file(local_path(project_path), "local")
+  end
+
+  # ============================================================================
+  # Private: Settings File Loading
+  # ============================================================================
+
+  defp load_settings_file(path, label) do
+    case Settings.read_file(path) do
+      {:ok, settings} ->
+        settings
+
+      {:error, :not_found} ->
+        %{}
+
+      {:error, {:invalid_json, reason}} ->
+        Logger.warning("Malformed JSON in #{label} settings file #{path}: #{reason}")
+        %{}
+
+      {:error, reason} ->
+        Logger.warning("Failed to read #{label} settings file #{path}: #{inspect(reason)}")
+        %{}
+    end
+  end
 
   # ============================================================================
   # Path Helpers

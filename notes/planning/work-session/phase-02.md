@@ -297,11 +297,11 @@ Create the Session.Settings module for per-project settings.
 - [x] 2.3.1.4 Write module spec
 
 ### 2.3.2 Settings Loading
-- [ ] **Task 2.3.2**
+- [x] **Task 2.3.2** ✅ COMPLETE
 
 Implement settings loading for a project path.
 
-- [ ] 2.3.2.1 Implement `load/1` accepting project_path:
+- [x] 2.3.2.1 Implement `load/1` accepting project_path:
   ```elixir
   def load(project_path) do
     global = JidoCode.Settings.load_global()
@@ -309,10 +309,10 @@ Implement settings loading for a project path.
     Map.merge(global, local)
   end
   ```
-- [ ] 2.3.2.2 Implement `load_local/1` for project-specific settings
-- [ ] 2.3.2.3 Handle missing local settings file (return empty map)
-- [ ] 2.3.2.4 Handle malformed JSON (log warning, return empty map)
-- [ ] 2.3.2.5 Write unit tests for settings loading
+- [x] 2.3.2.2 Implement `load_local/1` for project-specific settings
+- [x] 2.3.2.3 Handle missing local settings file (return empty map)
+- [x] 2.3.2.4 Handle malformed JSON (log warning, return empty map)
+- [x] 2.3.2.5 Write unit tests for settings loading
 
 ### 2.3.3 Settings Path Functions
 - [ ] **Task 2.3.3**

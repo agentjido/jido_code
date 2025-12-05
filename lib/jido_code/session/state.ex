@@ -244,11 +244,38 @@ defmodule JidoCode.Session.State do
     call_state(session_id, :get_todos)
   end
 
+  @doc """
+  Appends a message to the conversation history.
+
+  ## Examples
+
+      iex> message = %{id: "msg-1", role: :user, content: "Hello", timestamp: DateTime.utc_now()}
+      iex> {:ok, state} = State.append_message("session-123", message)
+      iex> {:error, :not_found} = State.append_message("unknown", message)
+  """
+  @spec append_message(String.t(), message()) :: {:ok, state()} | {:error, :not_found}
+  def append_message(session_id, message) do
+    call_state(session_id, {:append_message, message})
+  end
+
+  @doc """
+  Clears all messages from the conversation history.
+
+  ## Examples
+
+      iex> {:ok, []} = State.clear_messages("session-123")
+      iex> {:error, :not_found} = State.clear_messages("unknown")
+  """
+  @spec clear_messages(String.t()) :: {:ok, []} | {:error, :not_found}
+  def clear_messages(session_id) do
+    call_state(session_id, :clear_messages)
+  end
+
   # ============================================================================
   # Private Helpers
   # ============================================================================
 
-  @spec call_state(String.t(), atom()) :: {:ok, term()} | {:error, :not_found}
+  @spec call_state(String.t(), atom() | tuple()) :: {:ok, term()} | {:error, :not_found}
   defp call_state(session_id, message) do
     case ProcessRegistry.lookup(:state, session_id) do
       {:ok, pid} -> GenServer.call(pid, message)
@@ -302,5 +329,17 @@ defmodule JidoCode.Session.State do
   @impl true
   def handle_call(:get_todos, _from, state) do
     {:reply, {:ok, state.todos}, state}
+  end
+
+  @impl true
+  def handle_call({:append_message, message}, _from, state) do
+    new_state = %{state | messages: state.messages ++ [message]}
+    {:reply, {:ok, new_state}, new_state}
+  end
+
+  @impl true
+  def handle_call(:clear_messages, _from, state) do
+    new_state = %{state | messages: []}
+    {:reply, {:ok, []}, new_state}
   end
 end

@@ -241,4 +241,77 @@ defmodule JidoCode.Session.StateTest do
       assert {:error, :not_found} = State.get_todos("unknown-session-id")
     end
   end
+
+  describe "append_message/2" do
+    test "adds message to empty list", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      message = %{
+        id: "msg-1",
+        role: :user,
+        content: "Hello",
+        timestamp: DateTime.utc_now()
+      }
+
+      assert {:ok, state} = State.append_message(session.id, message)
+      assert length(state.messages) == 1
+      assert hd(state.messages).id == "msg-1"
+      assert hd(state.messages).content == "Hello"
+
+      GenServer.stop(pid)
+    end
+
+    test "adds message to existing list maintaining order", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      message1 = %{id: "msg-1", role: :user, content: "First", timestamp: DateTime.utc_now()}
+      message2 = %{id: "msg-2", role: :assistant, content: "Second", timestamp: DateTime.utc_now()}
+
+      {:ok, _} = State.append_message(session.id, message1)
+      {:ok, state} = State.append_message(session.id, message2)
+
+      assert length(state.messages) == 2
+      assert Enum.at(state.messages, 0).id == "msg-1"
+      assert Enum.at(state.messages, 1).id == "msg-2"
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      message = %{id: "msg-1", role: :user, content: "Hello", timestamp: DateTime.utc_now()}
+      assert {:error, :not_found} = State.append_message("unknown-session-id", message)
+    end
+  end
+
+  describe "clear_messages/1" do
+    test "clears all messages", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Add some messages first
+      message1 = %{id: "msg-1", role: :user, content: "First", timestamp: DateTime.utc_now()}
+      message2 = %{id: "msg-2", role: :assistant, content: "Second", timestamp: DateTime.utc_now()}
+      {:ok, _} = State.append_message(session.id, message1)
+      {:ok, _} = State.append_message(session.id, message2)
+
+      # Verify messages were added
+      {:ok, messages_before} = State.get_messages(session.id)
+      assert length(messages_before) == 2
+
+      # Clear messages
+      assert {:ok, []} = State.clear_messages(session.id)
+
+      # Verify messages are cleared
+      {:ok, messages_after} = State.get_messages(session.id)
+      assert messages_after == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.clear_messages("unknown-session-id")
+    end
+  end
 end

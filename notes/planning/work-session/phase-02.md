@@ -218,20 +218,20 @@ Implement functions for reading state.
 - [x] 2.2.3.5 Write unit tests for state access
 
 ### 2.2.4 Message Management API
-- [ ] **Task 2.2.4**
+- [x] **Task 2.2.4**
 
 Implement functions for managing conversation messages.
 
-- [ ] 2.2.4.1 Implement `append_message/2`:
+- [x] 2.2.4.1 Implement `append_message/2`:
   ```elixir
   def append_message(session_id, message) do
     GenServer.call(via(session_id), {:append_message, message})
   end
   ```
-- [ ] 2.2.4.2 Implement `handle_call({:append_message, message}, _, state)`
-- [ ] 2.2.4.3 Add message to end of messages list
-- [ ] 2.2.4.4 Implement `clear_messages/1` for clearing history
-- [ ] 2.2.4.5 Write unit tests for message management
+- [x] 2.2.4.2 Implement `handle_call({:append_message, message}, _, state)`
+- [x] 2.2.4.3 Add message to end of messages list
+- [x] 2.2.4.4 Implement `clear_messages/1` for clearing history
+- [x] 2.2.4.5 Write unit tests for message management
 
 ### 2.2.5 Streaming API
 - [ ] **Task 2.2.5**

@@ -364,11 +364,11 @@ Add session awareness to global Tools.Manager.
 - [x] 2.4.1.6 Write tests for compatibility layer
 
 ### 2.4.2 Handler Helpers Update
-- [ ] **Task 2.4.2**
+- [x] **Task 2.4.2** ✅ COMPLETE
 
 Update HandlerHelpers to prefer session context.
 
-- [ ] 2.4.2.1 Update `get_project_root/1` to check for session_id first:
+- [x] 2.4.2.1 Update `get_project_root/1` to check for session_id first:
   ```elixir
   def get_project_root(context) do
     cond do
@@ -381,8 +381,8 @@ Update HandlerHelpers to prefer session context.
     end
   end
   ```
-- [ ] 2.4.2.2 Update `validate_path/2` to use session manager when available
-- [ ] 2.4.2.3 Write tests for session-aware helpers
+- [x] 2.4.2.2 Update `validate_path/2` to use session manager when available
+- [x] 2.4.2.3 Write tests for session-aware helpers
 
 **Unit Tests for Section 2.4:**
 - Test Tools.Manager works with session_id in context

@@ -287,14 +287,14 @@ Implement functions for UI state management.
 Create per-session settings loader that respects project-local configuration.
 
 ### 2.3.1 Settings Module Structure
-- [ ] **Task 2.3.1**
+- [x] **Task 2.3.1** ✅ COMPLETE
 
 Create the Session.Settings module for per-project settings.
 
-- [ ] 2.3.1.1 Create `lib/jido_code/session/settings.ex` with module documentation
-- [ ] 2.3.1.2 Define settings file path pattern: `{project_path}/jido_code/settings.json`
-- [ ] 2.3.1.3 Document merge priority: global < local
-- [ ] 2.3.1.4 Write module spec
+- [x] 2.3.1.1 Create `lib/jido_code/session/settings.ex` with module documentation
+- [x] 2.3.1.2 Define settings file path pattern: `{project_path}/.jido_code/settings.json`
+- [x] 2.3.1.3 Document merge priority: global < local
+- [x] 2.3.1.4 Write module spec
 
 ### 2.3.2 Settings Loading
 - [ ] **Task 2.3.2**

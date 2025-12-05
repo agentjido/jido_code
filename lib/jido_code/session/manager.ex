@@ -45,6 +45,7 @@ defmodule JidoCode.Session.Manager do
 
   alias JidoCode.Session
   alias JidoCode.Tools.Bridge
+  alias JidoCode.Tools.Security
 
   @registry JidoCode.SessionProcessRegistry
 
@@ -147,6 +148,36 @@ defmodule JidoCode.Session.Manager do
   end
 
   @doc """
+  Validates a path is within the session's project boundary.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The path to validate (relative or absolute)
+
+  ## Returns
+
+  - `{:ok, resolved_path}` - Path is valid and within boundary
+  - `{:error, :not_found}` - Session manager not found
+  - `{:error, reason}` - Path validation failed (see `JidoCode.Tools.Security`)
+
+  ## Examples
+
+      iex> {:ok, path} = Manager.validate_path("session_123", "src/file.ex")
+      {:ok, "/project/src/file.ex"}
+
+      iex> {:error, :path_escapes_boundary} = Manager.validate_path("session_123", "../../../etc/passwd")
+  """
+  @spec validate_path(String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :not_found | Security.validation_error()}
+  def validate_path(session_id, path) do
+    case Registry.lookup(@registry, {:manager, session_id}) do
+      [{pid, _}] -> GenServer.call(pid, {:validate_path, path})
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Gets the session struct for this manager.
 
   Deprecated: Use `project_root/1` or `session_id/1` instead.
@@ -193,6 +224,12 @@ defmodule JidoCode.Session.Manager do
   @impl true
   def handle_call(:session_id, _from, state) do
     {:reply, {:ok, state.session_id}, state}
+  end
+
+  @impl true
+  def handle_call({:validate_path, path}, _from, state) do
+    result = Security.validate_path(path, state.project_root, log_violations: true)
+    {:reply, result, state}
   end
 
   @impl true

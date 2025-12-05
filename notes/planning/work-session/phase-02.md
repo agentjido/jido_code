@@ -75,25 +75,25 @@ Implement API for accessing project root.
 - [x] 2.1.3.4 Write unit tests for project_root access
 
 ### 2.1.4 Path Validation API
-- [ ] **Task 2.1.4**
+- [x] **Task 2.1.4** ✅ COMPLETE
 
 Implement session-scoped path validation.
 
-- [ ] 2.1.4.1 Implement `validate_path/2` client function:
+- [x] 2.1.4.1 Implement `validate_path/2` client function:
   ```elixir
   def validate_path(session_id, path) do
     GenServer.call(via(session_id), {:validate_path, path})
   end
   ```
-- [ ] 2.1.4.2 Implement `handle_call({:validate_path, path}, _, state)`:
+- [x] 2.1.4.2 Implement `handle_call({:validate_path, path}, _, state)`:
   ```elixir
   def handle_call({:validate_path, path}, _from, state) do
     result = JidoCode.Tools.Security.validate_path(path, state.project_root)
     {:reply, result, state}
   end
   ```
-- [ ] 2.1.4.3 Delegate to existing Security module
-- [ ] 2.1.4.4 Write unit tests for path validation through Manager
+- [x] 2.1.4.3 Delegate to existing Security module
+- [x] 2.1.4.4 Write unit tests for path validation through Manager
 
 ### 2.1.5 File Operations API
 - [ ] **Task 2.1.5**

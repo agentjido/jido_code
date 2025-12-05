@@ -197,4 +197,42 @@ defmodule JidoCode.Session.ManagerTest do
       GenServer.stop(pid)
     end
   end
+
+  describe "validate_path/2" do
+    test "validates relative path within boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:ok, resolved} = Manager.validate_path(session.id, "src/file.ex")
+      assert resolved == Path.join(tmp_dir, "src/file.ex")
+    end
+
+    test "validates absolute path within boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      absolute_path = Path.join(tmp_dir, "src/file.ex")
+      assert {:ok, ^absolute_path} = Manager.validate_path(session.id, absolute_path)
+    end
+
+    test "rejects path traversal attack", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, :path_escapes_boundary} =
+               Manager.validate_path(session.id, "../../../etc/passwd")
+    end
+
+    test "rejects absolute path outside boundary", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:error, :path_outside_boundary} =
+               Manager.validate_path(session.id, "/etc/passwd")
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.validate_path("non_existent_session", "file.ex")
+    end
+  end
 end

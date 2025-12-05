@@ -129,6 +129,7 @@ defmodule JidoCode.Session.State do
   - `todos` - List of task items being tracked
   - `scroll_offset` - Current scroll position in UI (lines from bottom)
   - `streaming_message` - Content being streamed (nil when not streaming)
+  - `streaming_message_id` - ID of the message being streamed (nil when not streaming)
   - `is_streaming` - Whether currently receiving a streaming response
   """
   @type state :: %{
@@ -140,6 +141,7 @@ defmodule JidoCode.Session.State do
           todos: [todo()],
           scroll_offset: non_neg_integer(),
           streaming_message: String.t() | nil,
+          streaming_message_id: String.t() | nil,
           is_streaming: boolean()
         }
 
@@ -271,6 +273,58 @@ defmodule JidoCode.Session.State do
     call_state(session_id, :clear_messages)
   end
 
+  @doc """
+  Starts streaming mode for a new message.
+
+  Sets `is_streaming: true`, `streaming_message: ""`, and stores the message_id.
+
+  ## Examples
+
+      iex> {:ok, state} = State.start_streaming("session-123", "msg-1")
+      iex> state.is_streaming
+      true
+      iex> {:error, :not_found} = State.start_streaming("unknown", "msg-1")
+  """
+  @spec start_streaming(String.t(), String.t()) :: {:ok, state()} | {:error, :not_found}
+  def start_streaming(session_id, message_id) do
+    call_state(session_id, {:start_streaming, message_id})
+  end
+
+  @doc """
+  Appends a chunk to the streaming message.
+
+  This is an async operation (cast) for performance during high-frequency updates.
+  If the session is not found or not streaming, the chunk is silently ignored.
+
+  ## Examples
+
+      iex> :ok = State.update_streaming("session-123", "Hello ")
+      iex> :ok = State.update_streaming("session-123", "world!")
+  """
+  @spec update_streaming(String.t(), String.t()) :: :ok
+  def update_streaming(session_id, chunk) do
+    cast_state(session_id, {:streaming_chunk, chunk})
+  end
+
+  @doc """
+  Ends streaming and finalizes the message.
+
+  Creates a message from the streamed content and appends it to the messages list.
+  Resets streaming state to nil/false.
+
+  ## Examples
+
+      iex> {:ok, message} = State.end_streaming("session-123")
+      iex> message.role
+      :assistant
+      iex> {:error, :not_streaming} = State.end_streaming("session-123")
+      iex> {:error, :not_found} = State.end_streaming("unknown")
+  """
+  @spec end_streaming(String.t()) :: {:ok, message()} | {:error, :not_found | :not_streaming}
+  def end_streaming(session_id) do
+    call_state(session_id, :end_streaming)
+  end
+
   # ============================================================================
   # Private Helpers
   # ============================================================================
@@ -280,6 +334,14 @@ defmodule JidoCode.Session.State do
     case ProcessRegistry.lookup(:state, session_id) do
       {:ok, pid} -> GenServer.call(pid, message)
       {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
+  @spec cast_state(String.t(), term()) :: :ok
+  defp cast_state(session_id, message) do
+    case ProcessRegistry.lookup(:state, session_id) do
+      {:ok, pid} -> GenServer.cast(pid, message)
+      {:error, :not_found} -> :ok
     end
   end
 
@@ -300,6 +362,7 @@ defmodule JidoCode.Session.State do
       todos: [],
       scroll_offset: 0,
       streaming_message: nil,
+      streaming_message_id: nil,
       is_streaming: false
     }
 
@@ -341,5 +404,46 @@ defmodule JidoCode.Session.State do
   def handle_call(:clear_messages, _from, state) do
     new_state = %{state | messages: []}
     {:reply, {:ok, []}, new_state}
+  end
+
+  @impl true
+  def handle_call({:start_streaming, message_id}, _from, state) do
+    new_state = %{state |
+      is_streaming: true,
+      streaming_message: "",
+      streaming_message_id: message_id
+    }
+    {:reply, {:ok, new_state}, new_state}
+  end
+
+  @impl true
+  def handle_call(:end_streaming, _from, state) do
+    if state.is_streaming do
+      message = %{
+        id: state.streaming_message_id,
+        role: :assistant,
+        content: state.streaming_message,
+        timestamp: DateTime.utc_now()
+      }
+      new_state = %{state |
+        messages: state.messages ++ [message],
+        is_streaming: false,
+        streaming_message: nil,
+        streaming_message_id: nil
+      }
+      {:reply, {:ok, message}, new_state}
+    else
+      {:reply, {:error, :not_streaming}, state}
+    end
+  end
+
+  @impl true
+  def handle_cast({:streaming_chunk, chunk}, state) do
+    if state.is_streaming do
+      new_state = %{state | streaming_message: state.streaming_message <> chunk}
+      {:noreply, new_state}
+    else
+      {:noreply, state}
+    end
   end
 end

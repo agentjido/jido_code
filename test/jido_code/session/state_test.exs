@@ -314,4 +314,137 @@ defmodule JidoCode.Session.StateTest do
       assert {:error, :not_found} = State.clear_messages("unknown-session-id")
     end
   end
+
+  describe "start_streaming/2" do
+    test "sets streaming state", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:ok, state} = State.start_streaming(session.id, "msg-1")
+      assert state.is_streaming == true
+      assert state.streaming_message == ""
+      assert state.streaming_message_id == "msg-1"
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.start_streaming("unknown-session-id", "msg-1")
+    end
+  end
+
+  describe "update_streaming/2" do
+    test "appends chunks to streaming message", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, _} = State.start_streaming(session.id, "msg-1")
+
+      :ok = State.update_streaming(session.id, "Hello ")
+      :ok = State.update_streaming(session.id, "world!")
+
+      # Give cast time to process
+      Process.sleep(10)
+
+      {:ok, state} = State.get_state(session.id)
+      assert state.streaming_message == "Hello world!"
+
+      GenServer.stop(pid)
+    end
+
+    test "ignores chunks when not streaming", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Don't start streaming
+      :ok = State.update_streaming(session.id, "ignored chunk")
+
+      # Give cast time to process
+      Process.sleep(10)
+
+      {:ok, state} = State.get_state(session.id)
+      assert state.streaming_message == nil
+      assert state.is_streaming == false
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :ok for unknown session (silent ignore)" do
+      assert :ok = State.update_streaming("unknown-session-id", "chunk")
+    end
+  end
+
+  describe "end_streaming/1" do
+    test "creates message and resets streaming state", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, _} = State.start_streaming(session.id, "msg-1")
+      :ok = State.update_streaming(session.id, "Hello world!")
+
+      # Give cast time to process
+      Process.sleep(10)
+
+      {:ok, message} = State.end_streaming(session.id)
+      assert message.id == "msg-1"
+      assert message.role == :assistant
+      assert message.content == "Hello world!"
+      assert %DateTime{} = message.timestamp
+
+      # Verify state is reset
+      {:ok, state} = State.get_state(session.id)
+      assert state.is_streaming == false
+      assert state.streaming_message == nil
+      assert state.streaming_message_id == nil
+
+      # Verify message is in messages list
+      assert length(state.messages) == 1
+      assert hd(state.messages).id == "msg-1"
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_streaming when not streaming", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:error, :not_streaming} = State.end_streaming(session.id)
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.end_streaming("unknown-session-id")
+    end
+  end
+
+  describe "streaming lifecycle" do
+    test "complete streaming flow", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Start streaming
+      {:ok, state1} = State.start_streaming(session.id, "response-1")
+      assert state1.is_streaming == true
+
+      # Send chunks
+      :ok = State.update_streaming(session.id, "I am ")
+      :ok = State.update_streaming(session.id, "an AI ")
+      :ok = State.update_streaming(session.id, "assistant.")
+
+      # Give casts time to process
+      Process.sleep(10)
+
+      # End streaming
+      {:ok, message} = State.end_streaming(session.id)
+      assert message.content == "I am an AI assistant."
+
+      # Verify final state
+      {:ok, final_state} = State.get_state(session.id)
+      assert final_state.is_streaming == false
+      assert length(final_state.messages) == 1
+
+      GenServer.stop(pid)
+    end
+  end
 end

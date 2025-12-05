@@ -234,27 +234,27 @@ Implement functions for managing conversation messages.
 - [x] 2.2.4.5 Write unit tests for message management
 
 ### 2.2.5 Streaming API
-- [ ] **Task 2.2.5**
+- [x] **Task 2.2.5**
 
 Implement functions for streaming message updates.
 
-- [ ] 2.2.5.1 Implement `start_streaming/2` accepting session_id and message_id:
+- [x] 2.2.5.1 Implement `start_streaming/2` accepting session_id and message_id:
   ```elixir
   def start_streaming(session_id, message_id) do
     GenServer.call(via(session_id), {:start_streaming, message_id})
   end
   ```
-- [ ] 2.2.5.2 Set `is_streaming: true` and `streaming_message: ""`
-- [ ] 2.2.5.3 Implement `update_streaming/2` for appending chunks (cast):
+- [x] 2.2.5.2 Set `is_streaming: true` and `streaming_message: ""`
+- [x] 2.2.5.3 Implement `update_streaming/2` for appending chunks (cast):
   ```elixir
   def update_streaming(session_id, chunk) do
     GenServer.cast(via(session_id), {:streaming_chunk, chunk})
   end
   ```
-- [ ] 2.2.5.4 Implement `end_streaming/1` to finalize streaming
-- [ ] 2.2.5.5 Move streaming_message content to messages list
-- [ ] 2.2.5.6 Set `is_streaming: false` and `streaming_message: nil`
-- [ ] 2.2.5.7 Write unit tests for streaming lifecycle
+- [x] 2.2.5.4 Implement `end_streaming/1` to finalize streaming
+- [x] 2.2.5.5 Move streaming_message content to messages list
+- [x] 2.2.5.6 Set `is_streaming: false` and `streaming_message: nil`
+- [x] 2.2.5.7 Write unit tests for streaming lifecycle
 
 ### 2.2.6 Scroll and UI State
 - [ ] **Task 2.2.6**

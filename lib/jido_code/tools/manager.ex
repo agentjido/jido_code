@@ -54,6 +54,7 @@ defmodule JidoCode.Tools.Manager do
 
   use GenServer
 
+  alias JidoCode.ErrorFormatter
   alias JidoCode.Tools.{Bridge, Security}
 
   require Logger
@@ -550,7 +551,7 @@ defmodule JidoCode.Tools.Manager do
         {:ok, nil}
 
       {:error, reason, _state} ->
-        {:error, format_error(reason)}
+        {:error, ErrorFormatter.format(reason)}
     end
   rescue
     e ->
@@ -636,7 +637,7 @@ defmodule JidoCode.Tools.Manager do
         {:ok, result}
 
       {:error, reason, _state} ->
-        {:error, format_error(reason)}
+        {:error, ErrorFormatter.format(reason)}
     end
   rescue
     e ->
@@ -740,12 +741,4 @@ defmodule JidoCode.Tools.Manager do
   defp to_int_key(k) when is_float(k), do: trunc(k)
   defp to_int_key(_), do: nil
 
-  defp format_error(reason) when is_binary(reason), do: reason
-  defp format_error(reason) when is_atom(reason), do: Atom.to_string(reason)
-
-  defp format_error({:lua_error, error, _stack}) do
-    format_error(error)
-  end
-
-  defp format_error(reason), do: inspect(reason)
 end

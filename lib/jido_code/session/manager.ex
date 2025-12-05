@@ -20,6 +20,27 @@ defmodule JidoCode.Session.Manager do
   - `project_root` - Root directory for file operation boundary
   - `lua_state` - Luerl sandbox state (initialized in Task 2.1.2)
 
+  ## Lua Execution Timeout Limitation
+
+  **Important**: The timeout parameter in `run_lua/3` applies only to the
+  `GenServer.call/3` timeout, not to the Luerl execution itself. If a Lua
+  script contains an infinite loop, the GenServer call will timeout, but the
+  Lua execution may continue in the background until the GenServer terminates.
+
+  For production use with untrusted scripts, consider:
+  - Wrapping Lua execution in a Task with kill-on-timeout
+  - Implementing Lua-level instruction counting (not supported by Luerl)
+  - Using session timeouts to terminate long-running sessions
+
+  ## Resource Considerations for Long-Lived Sessions
+
+  For sessions that run for extended periods:
+
+  - **Lua State Size**: The Lua state grows as variables are defined. Consider
+    periodic state resets for very long sessions.
+  - **Memory Monitoring**: Monitor session process memory via `:erlang.process_info/2`
+  - **State Cleanup**: Use `run_lua/2` with cleanup scripts to nil out unused tables
+
   ## Usage
 
   Typically started as a child of Session.Supervisor:
@@ -43,11 +64,11 @@ defmodule JidoCode.Session.Manager do
 
   require Logger
 
+  alias JidoCode.ErrorFormatter
   alias JidoCode.Session
+  alias JidoCode.Session.ProcessRegistry
   alias JidoCode.Tools.Bridge
   alias JidoCode.Tools.Security
-
-  @registry JidoCode.SessionProcessRegistry
 
   @typedoc """
   Session Manager state.
@@ -77,7 +98,7 @@ defmodule JidoCode.Session.Manager do
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     session = Keyword.fetch!(opts, :session)
-    GenServer.start_link(__MODULE__, session, name: via(session.id))
+    GenServer.start_link(__MODULE__, session, name: ProcessRegistry.via(:manager, session.id))
   end
 
   @doc """
@@ -116,10 +137,7 @@ defmodule JidoCode.Session.Manager do
   """
   @spec project_root(String.t()) :: {:ok, String.t()} | {:error, :not_found}
   def project_root(session_id) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> GenServer.call(pid, :project_root)
-      [] -> {:error, :not_found}
-    end
+    call_manager(session_id, :project_root)
   end
 
   @doc """
@@ -141,10 +159,7 @@ defmodule JidoCode.Session.Manager do
   """
   @spec session_id(String.t()) :: {:ok, String.t()} | {:error, :not_found}
   def session_id(session_id) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> GenServer.call(pid, :session_id)
-      [] -> {:error, :not_found}
-    end
+    call_manager(session_id, :session_id)
   end
 
   @doc """
@@ -171,10 +186,7 @@ defmodule JidoCode.Session.Manager do
   @spec validate_path(String.t(), String.t()) ::
           {:ok, String.t()} | {:error, :not_found | Security.validation_error()}
   def validate_path(session_id, path) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> GenServer.call(pid, {:validate_path, path})
-      [] -> {:error, :not_found}
-    end
+    call_manager(session_id, {:validate_path, path})
   end
 
   @doc """
@@ -200,10 +212,7 @@ defmodule JidoCode.Session.Manager do
   @spec read_file(String.t(), String.t()) ::
           {:ok, binary()} | {:error, :not_found | atom()}
   def read_file(session_id, path) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> GenServer.call(pid, {:read_file, path})
-      [] -> {:error, :not_found}
-    end
+    call_manager(session_id, {:read_file, path})
   end
 
   @doc """
@@ -231,10 +240,7 @@ defmodule JidoCode.Session.Manager do
   @spec write_file(String.t(), String.t(), binary()) ::
           :ok | {:error, :not_found | atom()}
   def write_file(session_id, path, content) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> GenServer.call(pid, {:write_file, path, content})
-      [] -> {:error, :not_found}
-    end
+    call_manager(session_id, {:write_file, path, content})
   end
 
   @doc """
@@ -259,10 +265,7 @@ defmodule JidoCode.Session.Manager do
   @spec list_dir(String.t(), String.t()) ::
           {:ok, [String.t()]} | {:error, :not_found | atom()}
   def list_dir(session_id, path) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> GenServer.call(pid, {:list_dir, path})
-      [] -> {:error, :not_found}
-    end
+    call_manager(session_id, {:list_dir, path})
   end
 
   @doc """
@@ -270,6 +273,11 @@ defmodule JidoCode.Session.Manager do
 
   The Lua state is updated after successful execution, so state persists
   between calls (e.g., variables defined in one call are available in the next).
+
+  ## Timeout Behavior
+
+  The timeout applies to the GenServer call, not to the Luerl execution itself.
+  See the module documentation for details on timeout limitations.
 
   ## Parameters
 
@@ -291,21 +299,27 @@ defmodule JidoCode.Session.Manager do
   @spec run_lua(String.t(), String.t(), timeout()) ::
           {:ok, list()} | {:error, :not_found | term()}
   def run_lua(session_id, script, timeout \\ 30_000) do
-    case Registry.lookup(@registry, {:manager, session_id}) do
-      [{pid, _}] -> GenServer.call(pid, {:run_lua, script}, timeout)
-      [] -> {:error, :not_found}
-    end
+    call_manager(session_id, {:run_lua, script}, timeout)
   end
 
   @doc """
   Gets the session struct for this manager.
 
-  Deprecated: Use `project_root/1` or `session_id/1` instead.
+  ## Deprecation Warning
+
+  This function is deprecated and will be removed in a future version.
+  Use `project_root/1` or `session_id/1` instead.
+
+  **Warning**: The returned session struct contains synthetic data:
+  - `created_at` and `updated_at` are set to the current time (not actual timestamps)
+  - `config` is always empty `%{}`
+  - `name` is derived from the project path basename
 
   ## Examples
 
       iex> {:ok, session} = Manager.get_session(pid)
   """
+  @deprecated "Use project_root/1 or session_id/1 instead"
   @spec get_session(GenServer.server()) :: {:ok, Session.t()}
   def get_session(server) do
     GenServer.call(server, :get_session)
@@ -379,7 +393,7 @@ defmodule JidoCode.Session.Manager do
         {:reply, {:ok, result}, %{state | lua_state: new_lua_state}}
 
       {:error, reason, _lua_state} ->
-        {:reply, {:error, format_lua_error(reason)}, state}
+        {:reply, {:error, ErrorFormatter.format(reason)}, state}
     end
   rescue
     e ->
@@ -392,7 +406,7 @@ defmodule JidoCode.Session.Manager do
   @impl true
   def handle_call(:get_session, _from, state) do
     # For backwards compatibility, reconstruct a minimal session-like map
-    # This will be deprecated in favor of project_root/1 and session_id/1
+    # WARNING: Timestamps are synthetic, config is empty
     session = %Session{
       id: state.session_id,
       project_path: state.project_root,
@@ -407,8 +421,14 @@ defmodule JidoCode.Session.Manager do
 
   # Private helpers
 
-  defp via(session_id) do
-    {:via, Registry, {@registry, {:manager, session_id}}}
+  # Calls a manager process by session_id with the given message.
+  # Returns {:error, :not_found} if no manager exists for this session.
+  @spec call_manager(String.t(), term(), timeout()) :: term()
+  defp call_manager(session_id, message, timeout \\ 5000) do
+    case ProcessRegistry.lookup(:manager, session_id) do
+      {:ok, pid} -> GenServer.call(pid, message, timeout)
+      {:error, :not_found} -> {:error, :not_found}
+    end
   end
 
   @doc false
@@ -424,9 +444,4 @@ defmodule JidoCode.Session.Manager do
     kind, reason ->
       {:error, {kind, reason}}
   end
-
-  defp format_lua_error(reason) when is_binary(reason), do: reason
-  defp format_lua_error(reason) when is_list(reason), do: to_string(reason)
-  defp format_lua_error({:lua_error, error, _stack}), do: format_lua_error(error)
-  defp format_lua_error(reason), do: inspect(reason)
 end

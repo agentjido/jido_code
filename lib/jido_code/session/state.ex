@@ -36,8 +36,7 @@ defmodule JidoCode.Session.State do
   use GenServer
 
   alias JidoCode.Session
-
-  @registry JidoCode.SessionProcessRegistry
+  alias JidoCode.Session.ProcessRegistry
 
   @doc """
   Starts the Session State process.
@@ -54,7 +53,7 @@ defmodule JidoCode.Session.State do
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     session = Keyword.fetch!(opts, :session)
-    GenServer.start_link(__MODULE__, session, name: via(session.id))
+    GenServer.start_link(__MODULE__, session, name: ProcessRegistry.via(:state, session.id))
   end
 
   @doc """
@@ -105,9 +104,4 @@ defmodule JidoCode.Session.State do
     {:reply, {:ok, state.session}, state}
   end
 
-  # Private helpers
-
-  defp via(session_id) do
-    {:via, Registry, {@registry, {:state, session_id}}}
-  end
 end

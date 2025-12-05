@@ -43,8 +43,7 @@ defmodule JidoCode.Session.Supervisor do
   use Supervisor
 
   alias JidoCode.Session
-
-  @registry JidoCode.SessionProcessRegistry
+  alias JidoCode.Session.ProcessRegistry
 
   @doc """
   Starts a per-session supervisor.
@@ -68,7 +67,7 @@ defmodule JidoCode.Session.Supervisor do
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts) do
     session = Keyword.fetch!(opts, :session)
-    Supervisor.start_link(__MODULE__, session, name: via(session.id))
+    Supervisor.start_link(__MODULE__, session, name: ProcessRegistry.via(:session, session.id))
   end
 
   @doc """
@@ -150,7 +149,7 @@ defmodule JidoCode.Session.Supervisor do
   """
   @spec get_manager(String.t()) :: {:ok, pid()} | {:error, :not_found}
   def get_manager(session_id) when is_binary(session_id) do
-    lookup_process(:manager, session_id)
+    ProcessRegistry.lookup(:manager, session_id)
   end
 
   @doc """
@@ -178,7 +177,7 @@ defmodule JidoCode.Session.Supervisor do
   """
   @spec get_state(String.t()) :: {:ok, pid()} | {:error, :not_found}
   def get_state(session_id) when is_binary(session_id) do
-    lookup_process(:state, session_id)
+    ProcessRegistry.lookup(:state, session_id)
   end
 
   @doc """
@@ -208,22 +207,4 @@ defmodule JidoCode.Session.Supervisor do
     {:error, :not_implemented}
   end
 
-  # ============================================================================
-  # Private Helpers
-  # ============================================================================
-
-  # Looks up a session process by type and session ID in the Registry.
-  # Returns {:ok, pid} if found, {:error, :not_found} otherwise.
-  @spec lookup_process(atom(), String.t()) :: {:ok, pid()} | {:error, :not_found}
-  defp lookup_process(process_type, session_id)
-       when process_type in [:manager, :state, :agent] do
-    case Registry.lookup(@registry, {process_type, session_id}) do
-      [{pid, _}] -> {:ok, pid}
-      [] -> {:error, :not_found}
-    end
-  end
-
-  defp via(session_id) do
-    {:via, Registry, {@registry, {:session, session_id}}}
-  end
 end

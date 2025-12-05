@@ -1,6 +1,7 @@
 defmodule JidoCode.Session.SettingsTest do
   use ExUnit.Case, async: true
 
+  import Bitwise
   import ExUnit.CaptureLog
 
   alias JidoCode.Session.Settings
@@ -181,6 +182,126 @@ defmodule JidoCode.Session.SettingsTest do
 
       assert dir_path == Path.join(tmp_dir, ".jido_code")
       assert String.ends_with?(dir_path, ".jido_code")
+    end
+  end
+
+  # ============================================================================
+  # Settings Saving Tests
+  # ============================================================================
+
+  describe "save/2" do
+    @describetag :tmp_dir
+
+    test "creates settings file", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "new-project")
+      File.mkdir_p!(project_path)
+      settings = %{"provider" => "anthropic", "model" => "claude-3"}
+
+      result = Settings.save(project_path, settings)
+
+      assert result == :ok
+
+      # Verify file was created with correct content
+      settings_file = Settings.local_path(project_path)
+      assert File.exists?(settings_file)
+      {:ok, content} = File.read(settings_file)
+      assert Jason.decode!(content) == settings
+    end
+
+    test "creates directory if missing", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "new-project")
+      File.mkdir_p!(project_path)
+      settings_dir = Settings.local_dir(project_path)
+
+      # Directory should not exist yet
+      refute File.dir?(settings_dir)
+
+      result = Settings.save(project_path, %{"provider" => "openai"})
+
+      assert result == :ok
+      assert File.dir?(settings_dir)
+    end
+
+    test "overwrites existing settings file", %{tmp_dir: tmp_dir} do
+      # Create initial settings
+      settings_dir = Path.join(tmp_dir, ".jido_code")
+      File.mkdir_p!(settings_dir)
+      settings_file = Path.join(settings_dir, "settings.json")
+      File.write!(settings_file, ~s({"provider": "old_provider"}))
+
+      # Save new settings (using valid setting keys)
+      new_settings = %{"provider" => "new_provider", "model" => "new_model"}
+      result = Settings.save(tmp_dir, new_settings)
+
+      assert result == :ok
+      {:ok, content} = File.read(settings_file)
+      assert Jason.decode!(content) == new_settings
+    end
+
+    test "validates settings before saving", %{tmp_dir: tmp_dir} do
+      # Settings with invalid type should fail validation
+      # (based on JidoCode.Settings validation rules)
+      invalid_settings = %{"permissions" => "not_a_map"}
+
+      result = Settings.save(tmp_dir, invalid_settings)
+
+      assert {:error, _} = result
+    end
+
+    test "sets file permissions to 0600", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "new-project")
+      File.mkdir_p!(project_path)
+
+      Settings.save(project_path, %{"provider" => "anthropic"})
+
+      settings_file = Settings.local_path(project_path)
+      {:ok, stat} = File.stat(settings_file)
+      # 0o600 = 384 in decimal, need parens for operator precedence
+      assert (stat.mode &&& 0o777) == 0o600
+    end
+  end
+
+  describe "set/3" do
+    @describetag :tmp_dir
+
+    test "updates individual key", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "project")
+      File.mkdir_p!(project_path)
+
+      result = Settings.set(project_path, "provider", "anthropic")
+
+      assert result == :ok
+      assert Settings.load_local(project_path)["provider"] == "anthropic"
+    end
+
+    test "preserves other keys when updating", %{tmp_dir: tmp_dir} do
+      # Create initial settings
+      settings_dir = Path.join(tmp_dir, ".jido_code")
+      File.mkdir_p!(settings_dir)
+      settings_file = Path.join(settings_dir, "settings.json")
+      File.write!(settings_file, ~s({"provider": "openai", "model": "gpt-4"}))
+
+      # Update only one key
+      result = Settings.set(tmp_dir, "provider", "anthropic")
+
+      assert result == :ok
+      loaded = Settings.load_local(tmp_dir)
+      assert loaded["provider"] == "anthropic"
+      assert loaded["model"] == "gpt-4"
+    end
+
+    test "creates file when setting key on new project", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "new-project")
+      File.mkdir_p!(project_path)
+
+      # File doesn't exist yet
+      refute File.exists?(Settings.local_path(project_path))
+
+      result = Settings.set(project_path, "model", "claude-3")
+
+      assert result == :ok
+      assert File.exists?(Settings.local_path(project_path))
+      assert Settings.load_local(project_path) == %{"model" => "claude-3"}
     end
   end
 end

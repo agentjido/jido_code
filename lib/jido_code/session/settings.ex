@@ -140,6 +140,78 @@ defmodule JidoCode.Session.Settings do
   end
 
   # ============================================================================
+  # Settings Saving
+  # ============================================================================
+
+  @doc """
+  Saves settings to a project's local settings file.
+
+  Writes to `{project_path}/.jido_code/settings.json`. Creates the directory
+  if it doesn't exist. Uses atomic write (temp file + rename) for crash safety.
+
+  ## Parameters
+
+  - `project_path` - Absolute path to the project root
+  - `settings` - Settings map to save
+
+  ## Returns
+
+  - `:ok` - Settings saved successfully
+  - `{:error, reason}` - Failed to save
+
+  ## Examples
+
+      iex> Session.Settings.save("/path/to/project", %{"provider" => "anthropic"})
+      :ok
+
+      iex> Session.Settings.save("/readonly/path", %{"model" => "gpt-4o"})
+      {:error, :eacces}
+  """
+  @spec save(String.t(), map()) :: :ok | {:error, term()}
+  def save(project_path, settings) when is_binary(project_path) and is_map(settings) do
+    case Settings.validate(settings) do
+      {:ok, _} ->
+        with {:ok, _dir} <- ensure_local_dir(project_path) do
+          write_atomic(local_path(project_path), settings)
+        end
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Updates a single setting key in a project's local settings file.
+
+  Reads current local settings, merges the new key/value, and saves.
+
+  ## Parameters
+
+  - `project_path` - Absolute path to the project root
+  - `key` - Setting key (string)
+  - `value` - Setting value
+
+  ## Returns
+
+  - `:ok` - Setting updated successfully
+  - `{:error, reason}` - Failed to update
+
+  ## Examples
+
+      iex> Session.Settings.set("/path/to/project", "provider", "openai")
+      :ok
+
+      iex> Session.Settings.set("/path/to/project", "model", "gpt-4o")
+      :ok
+  """
+  @spec set(String.t(), String.t(), term()) :: :ok | {:error, term()}
+  def set(project_path, key, value) when is_binary(project_path) and is_binary(key) do
+    current = load_local(project_path)
+    updated = Map.put(current, key, value)
+    save(project_path, updated)
+  end
+
+  # ============================================================================
   # Private: Settings File Loading
   # ============================================================================
 
@@ -247,6 +319,42 @@ defmodule JidoCode.Session.Settings do
     case File.mkdir_p(dir) do
       :ok -> {:ok, dir}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # ============================================================================
+  # Private: Atomic File Writing
+  # ============================================================================
+
+  defp write_atomic(path, settings) do
+    temp_path = path <> ".tmp"
+    json = Jason.encode!(settings, pretty: true)
+    expected_size = byte_size(json)
+
+    try do
+      File.write!(temp_path, json)
+      File.rename!(temp_path, path)
+
+      # Set file permissions to owner read/write only (0o600)
+      File.chmod(path, 0o600)
+
+      # Verify the final file exists and has expected size
+      case File.stat(path) do
+        {:ok, %{size: ^expected_size}} ->
+          :ok
+
+        {:ok, %{size: actual_size}} ->
+          {:error, {:size_mismatch, expected: expected_size, actual: actual_size}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    rescue
+      e in File.Error ->
+        {:error, e.reason}
+    after
+      # Clean up temp file if it exists
+      File.rm(temp_path)
     end
   end
 end

@@ -192,6 +192,70 @@ defmodule JidoCode.Session.State do
     GenServer.call(server, :get_session)
   end
 
+  @doc """
+  Gets the full state for a session by session_id.
+
+  ## Examples
+
+      iex> {:ok, state} = State.get_state("session-123")
+      iex> {:error, :not_found} = State.get_state("unknown")
+  """
+  @spec get_state(String.t()) :: {:ok, state()} | {:error, :not_found}
+  def get_state(session_id) do
+    call_state(session_id, :get_state)
+  end
+
+  @doc """
+  Gets the messages list for a session by session_id.
+
+  ## Examples
+
+      iex> {:ok, messages} = State.get_messages("session-123")
+      iex> {:error, :not_found} = State.get_messages("unknown")
+  """
+  @spec get_messages(String.t()) :: {:ok, [message()]} | {:error, :not_found}
+  def get_messages(session_id) do
+    call_state(session_id, :get_messages)
+  end
+
+  @doc """
+  Gets the reasoning steps list for a session by session_id.
+
+  ## Examples
+
+      iex> {:ok, steps} = State.get_reasoning_steps("session-123")
+      iex> {:error, :not_found} = State.get_reasoning_steps("unknown")
+  """
+  @spec get_reasoning_steps(String.t()) :: {:ok, [reasoning_step()]} | {:error, :not_found}
+  def get_reasoning_steps(session_id) do
+    call_state(session_id, :get_reasoning_steps)
+  end
+
+  @doc """
+  Gets the todos list for a session by session_id.
+
+  ## Examples
+
+      iex> {:ok, todos} = State.get_todos("session-123")
+      iex> {:error, :not_found} = State.get_todos("unknown")
+  """
+  @spec get_todos(String.t()) :: {:ok, [todo()]} | {:error, :not_found}
+  def get_todos(session_id) do
+    call_state(session_id, :get_todos)
+  end
+
+  # ============================================================================
+  # Private Helpers
+  # ============================================================================
+
+  @spec call_state(String.t(), atom()) :: {:ok, term()} | {:error, :not_found}
+  defp call_state(session_id, message) do
+    case ProcessRegistry.lookup(:state, session_id) do
+      {:ok, pid} -> GenServer.call(pid, message)
+      {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
   # ============================================================================
   # Server Callbacks
   # ============================================================================
@@ -218,5 +282,25 @@ defmodule JidoCode.Session.State do
   @impl true
   def handle_call(:get_session, _from, state) do
     {:reply, {:ok, state.session}, state}
+  end
+
+  @impl true
+  def handle_call(:get_state, _from, state) do
+    {:reply, {:ok, state}, state}
+  end
+
+  @impl true
+  def handle_call(:get_messages, _from, state) do
+    {:reply, {:ok, state.messages}, state}
+  end
+
+  @impl true
+  def handle_call(:get_reasoning_steps, _from, state) do
+    {:reply, {:ok, state.reasoning_steps}, state}
+  end
+
+  @impl true
+  def handle_call(:get_todos, _from, state) do
+    {:reply, {:ok, state.todos}, state}
   end
 end

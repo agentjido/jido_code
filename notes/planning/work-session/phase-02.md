@@ -202,20 +202,20 @@ Implement GenServer init with empty conversation state.
 - [ ] 2.2.2.3 Write unit tests for initialization
 
 ### 2.2.3 State Access API
-- [ ] **Task 2.2.3**
+- [x] **Task 2.2.3**
 
 Implement functions for reading state.
 
-- [ ] 2.2.3.1 Implement `get_state/1` returning full state:
+- [x] 2.2.3.1 Implement `get_state/1` returning full state:
   ```elixir
   def get_state(session_id) do
     GenServer.call(via(session_id), :get_state)
   end
   ```
-- [ ] 2.2.3.2 Implement `get_messages/1` returning messages list
-- [ ] 2.2.3.3 Implement `get_reasoning_steps/1` returning reasoning steps
-- [ ] 2.2.3.4 Implement `get_todos/1` returning todo list
-- [ ] 2.2.3.5 Write unit tests for state access
+- [x] 2.2.3.2 Implement `get_messages/1` returning messages list
+- [x] 2.2.3.3 Implement `get_reasoning_steps/1` returning reasoning steps
+- [x] 2.2.3.4 Implement `get_todos/1` returning todo list
+- [x] 2.2.3.5 Write unit tests for state access
 
 ### 2.2.4 Message Management API
 - [ ] **Task 2.2.4**

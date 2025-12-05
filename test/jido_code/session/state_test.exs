@@ -174,4 +174,71 @@ defmodule JidoCode.Session.StateTest do
       GenServer.stop(pid)
     end
   end
+
+  describe "get_state/1" do
+    test "returns full state for existing session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:ok, state} = State.get_state(session.id)
+      assert state.session_id == session.id
+      assert state.messages == []
+      assert state.reasoning_steps == []
+      assert state.todos == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_state("unknown-session-id")
+    end
+  end
+
+  describe "get_messages/1" do
+    test "returns messages list for existing session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:ok, messages} = State.get_messages(session.id)
+      assert messages == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_messages("unknown-session-id")
+    end
+  end
+
+  describe "get_reasoning_steps/1" do
+    test "returns reasoning steps list for existing session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:ok, steps} = State.get_reasoning_steps(session.id)
+      assert steps == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_reasoning_steps("unknown-session-id")
+    end
+  end
+
+  describe "get_todos/1" do
+    test "returns todos list for existing session", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:ok, todos} = State.get_todos(session.id)
+      assert todos == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_todos("unknown-session-id")
+    end
+  end
 end

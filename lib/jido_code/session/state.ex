@@ -325,6 +325,76 @@ defmodule JidoCode.Session.State do
     call_state(session_id, :end_streaming)
   end
 
+  @doc """
+  Sets the scroll offset for the UI.
+
+  ## Examples
+
+      iex> {:ok, state} = State.set_scroll_offset("session-123", 10)
+      iex> state.scroll_offset
+      10
+      iex> {:error, :not_found} = State.set_scroll_offset("unknown", 10)
+  """
+  @spec set_scroll_offset(String.t(), non_neg_integer()) :: {:ok, state()} | {:error, :not_found}
+  def set_scroll_offset(session_id, offset) do
+    call_state(session_id, {:set_scroll_offset, offset})
+  end
+
+  @doc """
+  Updates the entire todo list.
+
+  ## Examples
+
+      iex> todos = [%{id: "t-1", content: "Task 1", status: :pending}]
+      iex> {:ok, state} = State.update_todos("session-123", todos)
+      iex> {:error, :not_found} = State.update_todos("unknown", todos)
+  """
+  @spec update_todos(String.t(), [todo()]) :: {:ok, state()} | {:error, :not_found}
+  def update_todos(session_id, todos) do
+    call_state(session_id, {:update_todos, todos})
+  end
+
+  @doc """
+  Adds a reasoning step to the list.
+
+  ## Examples
+
+      iex> step = %{id: "r-1", content: "Thinking...", timestamp: DateTime.utc_now()}
+      iex> {:ok, state} = State.add_reasoning_step("session-123", step)
+      iex> {:error, :not_found} = State.add_reasoning_step("unknown", step)
+  """
+  @spec add_reasoning_step(String.t(), reasoning_step()) :: {:ok, state()} | {:error, :not_found}
+  def add_reasoning_step(session_id, step) do
+    call_state(session_id, {:add_reasoning_step, step})
+  end
+
+  @doc """
+  Clears all reasoning steps.
+
+  ## Examples
+
+      iex> {:ok, []} = State.clear_reasoning_steps("session-123")
+      iex> {:error, :not_found} = State.clear_reasoning_steps("unknown")
+  """
+  @spec clear_reasoning_steps(String.t()) :: {:ok, []} | {:error, :not_found}
+  def clear_reasoning_steps(session_id) do
+    call_state(session_id, :clear_reasoning_steps)
+  end
+
+  @doc """
+  Adds a tool call to the list.
+
+  ## Examples
+
+      iex> tool_call = %{id: "tc-1", name: "read_file", arguments: %{}, result: nil, status: :pending, timestamp: DateTime.utc_now()}
+      iex> {:ok, state} = State.add_tool_call("session-123", tool_call)
+      iex> {:error, :not_found} = State.add_tool_call("unknown", tool_call)
+  """
+  @spec add_tool_call(String.t(), tool_call()) :: {:ok, state()} | {:error, :not_found}
+  def add_tool_call(session_id, tool_call) do
+    call_state(session_id, {:add_tool_call, tool_call})
+  end
+
   # ============================================================================
   # Private Helpers
   # ============================================================================
@@ -445,5 +515,35 @@ defmodule JidoCode.Session.State do
     else
       {:noreply, state}
     end
+  end
+
+  @impl true
+  def handle_call({:set_scroll_offset, offset}, _from, state) do
+    new_state = %{state | scroll_offset: offset}
+    {:reply, {:ok, new_state}, new_state}
+  end
+
+  @impl true
+  def handle_call({:update_todos, todos}, _from, state) do
+    new_state = %{state | todos: todos}
+    {:reply, {:ok, new_state}, new_state}
+  end
+
+  @impl true
+  def handle_call({:add_reasoning_step, step}, _from, state) do
+    new_state = %{state | reasoning_steps: state.reasoning_steps ++ [step]}
+    {:reply, {:ok, new_state}, new_state}
+  end
+
+  @impl true
+  def handle_call(:clear_reasoning_steps, _from, state) do
+    new_state = %{state | reasoning_steps: []}
+    {:reply, {:ok, []}, new_state}
+  end
+
+  @impl true
+  def handle_call({:add_tool_call, tool_call}, _from, state) do
+    new_state = %{state | tool_calls: state.tool_calls ++ [tool_call]}
+    {:reply, {:ok, new_state}, new_state}
   end
 end

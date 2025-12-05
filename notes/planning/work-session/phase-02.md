@@ -257,16 +257,16 @@ Implement functions for streaming message updates.
 - [x] 2.2.5.7 Write unit tests for streaming lifecycle
 
 ### 2.2.6 Scroll and UI State
-- [ ] **Task 2.2.6**
+- [x] **Task 2.2.6**
 
 Implement functions for UI state management.
 
-- [ ] 2.2.6.1 Implement `set_scroll_offset/2`
-- [ ] 2.2.6.2 Implement `update_todos/2` for task list updates
-- [ ] 2.2.6.3 Implement `add_reasoning_step/2`
-- [ ] 2.2.6.4 Implement `clear_reasoning_steps/1`
-- [ ] 2.2.6.5 Implement `add_tool_call/2`
-- [ ] 2.2.6.6 Write unit tests for UI state management
+- [x] 2.2.6.1 Implement `set_scroll_offset/2`
+- [x] 2.2.6.2 Implement `update_todos/2` for task list updates
+- [x] 2.2.6.3 Implement `add_reasoning_step/2`
+- [x] 2.2.6.4 Implement `clear_reasoning_steps/1`
+- [x] 2.2.6.5 Implement `add_tool_call/2`
+- [x] 2.2.6.6 Write unit tests for UI state management
 
 **Unit Tests for Section 2.2:**
 - Test State starts with empty messages

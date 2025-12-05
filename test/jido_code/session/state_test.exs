@@ -447,4 +447,148 @@ defmodule JidoCode.Session.StateTest do
       GenServer.stop(pid)
     end
   end
+
+  describe "set_scroll_offset/2" do
+    test "updates scroll offset", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:ok, state} = State.set_scroll_offset(session.id, 10)
+      assert state.scroll_offset == 10
+
+      # Update again
+      {:ok, state2} = State.set_scroll_offset(session.id, 25)
+      assert state2.scroll_offset == 25
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.set_scroll_offset("unknown-session-id", 10)
+    end
+  end
+
+  describe "update_todos/2" do
+    test "replaces todo list", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      todos = [
+        %{id: "t-1", content: "Task 1", status: :pending},
+        %{id: "t-2", content: "Task 2", status: :in_progress}
+      ]
+
+      assert {:ok, state} = State.update_todos(session.id, todos)
+      assert length(state.todos) == 2
+      assert Enum.at(state.todos, 0).id == "t-1"
+      assert Enum.at(state.todos, 1).id == "t-2"
+
+      # Replace with new list
+      new_todos = [%{id: "t-3", content: "Task 3", status: :completed}]
+      {:ok, state2} = State.update_todos(session.id, new_todos)
+      assert length(state2.todos) == 1
+      assert hd(state2.todos).id == "t-3"
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.update_todos("unknown-session-id", [])
+    end
+  end
+
+  describe "add_reasoning_step/2" do
+    test "appends reasoning step", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      step1 = %{id: "r-1", content: "Analyzing request...", timestamp: DateTime.utc_now()}
+      step2 = %{id: "r-2", content: "Planning approach...", timestamp: DateTime.utc_now()}
+
+      {:ok, state1} = State.add_reasoning_step(session.id, step1)
+      assert length(state1.reasoning_steps) == 1
+      assert hd(state1.reasoning_steps).id == "r-1"
+
+      {:ok, state2} = State.add_reasoning_step(session.id, step2)
+      assert length(state2.reasoning_steps) == 2
+      assert Enum.at(state2.reasoning_steps, 1).id == "r-2"
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      step = %{id: "r-1", content: "Test", timestamp: DateTime.utc_now()}
+      assert {:error, :not_found} = State.add_reasoning_step("unknown-session-id", step)
+    end
+  end
+
+  describe "clear_reasoning_steps/1" do
+    test "clears reasoning steps", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Add some steps first
+      step1 = %{id: "r-1", content: "Step 1", timestamp: DateTime.utc_now()}
+      step2 = %{id: "r-2", content: "Step 2", timestamp: DateTime.utc_now()}
+      {:ok, _} = State.add_reasoning_step(session.id, step1)
+      {:ok, _} = State.add_reasoning_step(session.id, step2)
+
+      # Verify steps were added
+      {:ok, state_before} = State.get_state(session.id)
+      assert length(state_before.reasoning_steps) == 2
+
+      # Clear steps
+      assert {:ok, []} = State.clear_reasoning_steps(session.id)
+
+      # Verify steps are cleared
+      {:ok, state_after} = State.get_state(session.id)
+      assert state_after.reasoning_steps == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.clear_reasoning_steps("unknown-session-id")
+    end
+  end
+
+  describe "add_tool_call/2" do
+    test "appends tool call", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      tool_call1 = %{
+        id: "tc-1",
+        name: "read_file",
+        arguments: %{"path" => "/test.txt"},
+        result: nil,
+        status: :pending,
+        timestamp: DateTime.utc_now()
+      }
+
+      tool_call2 = %{
+        id: "tc-2",
+        name: "write_file",
+        arguments: %{"path" => "/out.txt", "content" => "hello"},
+        result: nil,
+        status: :pending,
+        timestamp: DateTime.utc_now()
+      }
+
+      {:ok, state1} = State.add_tool_call(session.id, tool_call1)
+      assert length(state1.tool_calls) == 1
+      assert hd(state1.tool_calls).name == "read_file"
+
+      {:ok, state2} = State.add_tool_call(session.id, tool_call2)
+      assert length(state2.tool_calls) == 2
+      assert Enum.at(state2.tool_calls, 1).name == "write_file"
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      tool_call = %{id: "tc-1", name: "test", arguments: %{}, result: nil, status: :pending, timestamp: DateTime.utc_now()}
+      assert {:error, :not_found} = State.add_tool_call("unknown-session-id", tool_call)
+    end
+  end
 end

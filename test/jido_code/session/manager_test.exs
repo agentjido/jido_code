@@ -53,6 +53,27 @@ defmodule JidoCode.Session.ManagerTest do
       # Cleanup
       GenServer.stop(pid1)
     end
+
+    test "initializes state with correct structure", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, pid} = Manager.start_link(session: session)
+
+      # Access state via sys to verify structure
+      state = :sys.get_state(pid)
+
+      assert is_map(state)
+      assert Map.has_key?(state, :session_id)
+      assert Map.has_key?(state, :project_root)
+      assert Map.has_key?(state, :lua_state)
+
+      assert state.session_id == session.id
+      assert state.project_root == tmp_dir
+      assert state.lua_state == nil
+
+      # Cleanup
+      GenServer.stop(pid)
+    end
   end
 
   describe "child_spec/1" do
@@ -68,8 +89,38 @@ defmodule JidoCode.Session.ManagerTest do
     end
   end
 
+  describe "project_root/1" do
+    test "returns the project root path", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:ok, path} = Manager.project_root(session.id)
+      assert path == tmp_dir
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.project_root("non_existent_session")
+    end
+  end
+
+  describe "session_id/1" do
+    test "returns the session ID", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      assert {:ok, id} = Manager.session_id(session.id)
+      assert id == session.id
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.session_id("non_existent_session")
+    end
+  end
+
   describe "get_session/1" do
-    test "returns the session struct", %{tmp_dir: tmp_dir} do
+    test "returns the session struct (backwards compatibility)", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
 
       {:ok, pid} = Manager.start_link(session: session)

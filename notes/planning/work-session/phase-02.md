@@ -9,13 +9,13 @@ This phase implements the per-session security sandbox. Each session gets its ow
 Create the per-session Manager GenServer that handles security and sandbox isolation.
 
 ### 2.1.1 Manager Module Structure
-- [ ] **Task 2.1.1**
+- [x] **Task 2.1.1** ✅ COMPLETE
 
 Create the Session.Manager module with GenServer behavior.
 
-- [ ] 2.1.1.1 Create `lib/jido_code/session/manager.ex` with module documentation
-- [ ] 2.1.1.2 Add `use GenServer`
-- [ ] 2.1.1.3 Define `@type state()`:
+- [x] 2.1.1.1 Create `lib/jido_code/session/manager.ex` with module documentation
+- [x] 2.1.1.2 Add `use GenServer`
+- [x] 2.1.1.3 Define `@type state()`:
   ```elixir
   @type state :: %{
     session_id: String.t(),
@@ -23,14 +23,14 @@ Create the Session.Manager module with GenServer behavior.
     lua_state: :luerl.state()
   }
   ```
-- [ ] 2.1.1.4 Implement `start_link/1` with session option
-- [ ] 2.1.1.5 Implement `via/1` helper for Registry naming:
+- [x] 2.1.1.4 Implement `start_link/1` with session option
+- [x] 2.1.1.5 Implement `via/1` helper for Registry naming:
   ```elixir
   defp via(session_id) do
     {:via, Registry, {JidoCode.Registry, {:session_manager, session_id}}}
   end
   ```
-- [ ] 2.1.1.6 Write unit tests for manager startup
+- [x] 2.1.1.6 Write unit tests for manager startup
 
 ### 2.1.2 Manager Initialization
 - [ ] **Task 2.1.2**

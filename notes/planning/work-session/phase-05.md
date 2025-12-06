@@ -149,43 +149,16 @@ Handle empty session list.
 Implement the `/session switch` command.
 
 ### 5.4.1 Switch by Index
-- [ ] **Task 5.4.1**
+- [x] **Task 5.4.1** (completed 2025-12-06)
 
 Implement switching by tab index.
 
-- [ ] 5.4.1.1 Implement `execute_session({:switch, target}, model)`:
-  ```elixir
-  def execute_session({:switch, target}, model) do
-    case resolve_session_target(target, model) do
-      {:ok, session_id} ->
-        {:ok, "Switched to session", {:switch_session, session_id}}
-      {:error, :not_found} ->
-        {:error, "Session not found: #{target}"}
-    end
-  end
-  ```
-- [ ] 5.4.1.2 Implement `resolve_session_target/2`:
-  ```elixir
-  defp resolve_session_target(target, model) do
-    cond do
-      # Try as index (1-10)
-      match?({_, ""}, Integer.parse(target)) ->
-        {index, _} = Integer.parse(target)
-        case Enum.at(model.session_order, index - 1) do
-          nil -> {:error, :not_found}
-          id -> {:ok, id}
-        end
-      # Try as session ID
-      Map.has_key?(model.sessions, target) ->
-        {:ok, target}
-      # Try as session name
-      true ->
-        find_session_by_name(target, model)
-    end
-  end
-  ```
-- [ ] 5.4.1.3 Support index 1-10 (0 means 10)
-- [ ] 5.4.1.4 Write unit tests for index switching
+- [x] 5.4.1.1 Implement `execute_session({:switch, target}, model)`
+- [x] 5.4.1.2 Implement `resolve_session_target/2` with helpers
+- [x] 5.4.1.3 Support index 1-10 (0 means 10)
+- [x] 5.4.1.4 Support switch by session ID
+- [x] 5.4.1.5 Support switch by session name
+- [x] 5.4.1.6 Write unit tests for switch command (8 tests)
 
 ### 5.4.2 Switch by ID or Name
 - [ ] **Task 5.4.2**

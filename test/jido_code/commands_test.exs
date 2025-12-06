@@ -775,11 +775,125 @@ defmodule JidoCode.CommandsTest do
       refute message =~ home
     end
 
-    test "{:switch, target} returns not implemented message" do
-      result = Commands.execute_session({:switch, "1"}, %{})
+    test "{:switch, index} switches to session by index" do
+      session1 = %{id: "s1", name: "project-a"}
+      session2 = %{id: "s2", name: "project-b"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:switch, "2"}, model)
+
+      assert {:session_action, {:switch_session, "s2"}} = result
+    end
+
+    test "{:switch, index} index 1 switches to first session" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:switch, "1"}, model)
+
+      assert {:session_action, {:switch_session, "s1"}} = result
+    end
+
+    test "{:switch, index} index 0 switches to session 10" do
+      # Create 10 sessions
+      sessions =
+        for i <- 1..10, into: %{} do
+          {"s#{i}", %{id: "s#{i}", name: "project-#{i}"}}
+        end
+
+      session_order = for i <- 1..10, do: "s#{i}"
+
+      model = %{
+        sessions: sessions,
+        session_order: session_order,
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:switch, "0"}, model)
+
+      # "0" should map to session 10
+      assert {:session_action, {:switch_session, "s10"}} = result
+    end
+
+    test "{:switch, index} out of range returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:switch, "5"}, model)
 
       assert {:error, message} = result
-      assert message =~ "Not yet implemented"
+      assert message =~ "Session not found"
+    end
+
+    test "{:switch, id} switches by session ID" do
+      session1 = %{id: "abc123", name: "project-a"}
+
+      model = %{
+        sessions: %{"abc123" => session1},
+        session_order: ["abc123"],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:switch, "abc123"}, model)
+
+      assert {:session_action, {:switch_session, "abc123"}} = result
+    end
+
+    test "{:switch, name} switches by session name" do
+      session1 = %{id: "s1", name: "my-project"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:switch, "my-project"}, model)
+
+      assert {:session_action, {:switch_session, "s1"}} = result
+    end
+
+    test "{:switch, target} with no sessions returns error" do
+      model = %{
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:switch, "1"}, model)
+
+      assert {:error, message} = result
+      assert message =~ "No sessions available"
+    end
+
+    test "{:switch, target} with unknown target returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:switch, "unknown"}, model)
+
+      assert {:error, message} = result
+      assert message =~ "Session not found"
     end
 
     test "{:close, target} returns not implemented message" do

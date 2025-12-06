@@ -447,9 +447,17 @@ defmodule JidoCode.Commands do
     end
   end
 
-  def execute_session({:switch, _target}, _model) do
-    # TODO: Implement in Task 5.4.1
-    {:error, "Not yet implemented: /session switch"}
+  def execute_session({:switch, target}, model) do
+    case resolve_session_target(target, model) do
+      {:ok, session_id} ->
+        {:session_action, {:switch_session, session_id}}
+
+      {:error, :not_found} ->
+        {:error, "Session not found: #{target}"}
+
+      {:error, :no_sessions} ->
+        {:error, "No sessions available. Use /session new to create one."}
+    end
   end
 
   def execute_session({:close, _target}, _model) do
@@ -535,6 +543,61 @@ defmodule JidoCode.Commands do
       "..." <> String.slice(path, -(min(@max_path_length - 3, String.length(path) - 1))..-1//1)
     else
       path
+    end
+  end
+
+  # Resolve a session target (index, ID, or name) to a session ID
+  defp resolve_session_target(target, model) do
+    session_order = Map.get(model, :session_order, [])
+    sessions = Map.get(model, :sessions, %{})
+
+    if session_order == [] do
+      {:error, :no_sessions}
+    else
+      cond do
+        # Try as index (1-10, with "0" meaning 10)
+        is_numeric_target?(target) ->
+          resolve_by_index(target, session_order)
+
+        # Try as session ID
+        Map.has_key?(sessions, target) ->
+          {:ok, target}
+
+        # Try as session name
+        true ->
+          find_session_by_name(target, sessions)
+      end
+    end
+  end
+
+  defp is_numeric_target?(target) do
+    case Integer.parse(target) do
+      {_num, ""} -> true
+      _ -> false
+    end
+  end
+
+  defp resolve_by_index(target, session_order) do
+    {index, ""} = Integer.parse(target)
+
+    # Handle "0" as index 10 (for Ctrl+0 keyboard shortcut)
+    index = if index == 0, do: 10, else: index
+
+    case Enum.at(session_order, index - 1) do
+      nil -> {:error, :not_found}
+      session_id -> {:ok, session_id}
+    end
+  end
+
+  defp find_session_by_name(name, sessions) do
+    result =
+      Enum.find(sessions, fn {_id, session} ->
+        Map.get(session, :name) == name
+      end)
+
+    case result do
+      {id, _session} -> {:ok, id}
+      nil -> {:error, :not_found}
     end
   end
 

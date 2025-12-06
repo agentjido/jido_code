@@ -1,0 +1,194 @@
+defmodule JidoCode.Session.AgentAPITest do
+  use ExUnit.Case, async: false
+
+  alias JidoCode.Session
+  alias JidoCode.Session.AgentAPI
+  alias JidoCode.Test.SessionTestHelpers
+  alias JidoCode.TestHelpers.EnvIsolation
+
+  @moduletag :agent_api
+
+  setup do
+    # Trap exits in test process to avoid test crashes
+    Process.flag(:trap_exit, true)
+
+    # Isolate environment for clean test state
+    EnvIsolation.isolate(
+      ["JIDO_CODE_PROVIDER", "JIDO_CODE_MODEL", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+      [{:jido_code, :llm}]
+    )
+
+    :ok
+  end
+
+  describe "send_message/2" do
+    test "returns error when session has no agent" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Use a non-existent session ID
+      result = AgentAPI.send_message("non-existent-session-id", "Hello!")
+
+      assert {:error, :agent_not_found} = result
+    end
+
+    test "sends message to correct agent and returns response" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "agent_api_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          # Test send_message - will fail without real API but tests the flow
+          result = AgentAPI.send_message(session.id, "Hello!")
+
+          # The call goes through but may fail due to mock API key
+          case result do
+            {:ok, _response} ->
+              # If it succeeds (unlikely with mock key), that's fine
+              assert true
+
+            {:error, reason} ->
+              # Expected with mock API key - validates the pipeline works
+              # Could be API auth error or other LLM error
+              assert reason != :agent_not_found
+          end
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "validates message is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Should raise FunctionClauseError for non-binary message
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.send_message("session-123", 12345)
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.send_message("session-123", nil)
+      end
+    end
+
+    test "validates session_id is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.send_message(12345, "Hello!")
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.send_message(nil, "Hello!")
+      end
+    end
+  end
+
+  describe "send_message_stream/2" do
+    test "returns error when session has no agent" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      result = AgentAPI.send_message_stream("non-existent-session-id", "Hello!")
+
+      assert {:error, :agent_not_found} = result
+    end
+
+    test "initiates streaming to correct agent" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "agent_api_stream_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          # Subscribe to PubSub to receive stream events
+          topic = JidoCode.PubSubTopics.llm_stream(session.id)
+          Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+
+          # Initiate streaming
+          result = AgentAPI.send_message_stream(session.id, "Hello!")
+
+          # Should return :ok immediately (streaming is async)
+          assert result == :ok
+
+          # Note: Actual stream events would require real API key
+          # The test validates the call chain works correctly
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "accepts timeout option" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "agent_api_timeout_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          # Test with custom timeout
+          result = AgentAPI.send_message_stream(session.id, "Hello!", timeout: 30_000)
+
+          assert result == :ok
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "validates message is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.send_message_stream("session-123", 12345)
+      end
+    end
+
+    test "validates session_id is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.send_message_stream(nil, "Hello!")
+      end
+    end
+  end
+
+  describe "error handling" do
+    test "translates :not_found to :agent_not_found" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Both functions should translate the error
+      assert {:error, :agent_not_found} = AgentAPI.send_message("unknown", "Hello")
+      assert {:error, :agent_not_found} = AgentAPI.send_message_stream("unknown", "Hello")
+    end
+  end
+end

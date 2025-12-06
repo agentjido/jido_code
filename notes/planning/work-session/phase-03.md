@@ -275,22 +275,21 @@ Add helper to Session.Supervisor for accessing agent.
 Create a clean API for TUI to interact with session agents.
 
 ### 3.4.1 Send Message API
-- [ ] **Task 3.4.1**
+- [x] **Task 3.4.1** (completed 2025-12-06)
 
 Create high-level API for sending messages to session agent.
 
-- [ ] 3.4.1.1 Create `lib/jido_code/session/agent_api.ex` module
-- [ ] 3.4.1.2 Implement `send_message/2`:
-  ```elixir
-  def send_message(session_id, message) do
-    with {:ok, agent_pid} <- Session.Supervisor.get_agent(session_id) do
-      LLMAgent.chat(agent_pid, message)
-    end
-  end
-  ```
-- [ ] 3.4.1.3 Implement `send_message_stream/2` for streaming responses
-- [ ] 3.4.1.4 Handle agent not found errors
-- [ ] 3.4.1.5 Write unit tests for message API
+- [x] 3.4.1.1 Create `lib/jido_code/session/agent_api.ex` module
+- [x] 3.4.1.2 Implement `send_message/3`:
+  - Synchronous message sending with options
+  - Calls `LLMAgent.chat/3` via session agent lookup
+- [x] 3.4.1.3 Implement `send_message_stream/3` for streaming responses:
+  - Async streaming via PubSub
+  - Calls `LLMAgent.chat_stream/3` via session agent lookup
+- [x] 3.4.1.4 Handle agent not found errors:
+  - Translates `:not_found` to `:agent_not_found` for clearer semantics
+  - Private `get_agent/1` helper for consistent error handling
+- [x] 3.4.1.5 Write unit tests for message API (10 new tests)
 
 ### 3.4.2 Agent Status API
 - [ ] **Task 3.4.2**

@@ -352,6 +352,128 @@ defmodule JidoCode.Commands do
   end
 
   # ============================================================================
+  # Session Command Execution
+  # ============================================================================
+
+  @doc """
+  Executes a parsed session command.
+
+  Called by the TUI when a `/session` command is parsed. Returns a result
+  tuple that the TUI will handle.
+
+  ## Parameters
+
+  - `subcommand` - The parsed session subcommand from `parse_session_args/1`
+  - `model` - The TUI model (used for context like active session)
+
+  ## Returns
+
+  - `{:session_action, action}` - Action for TUI to perform
+  - `{:ok, message}` - Success message to display
+  - `{:error, message}` - Error message to display
+
+  ## Examples
+
+      iex> Commands.execute_session({:new, %{path: "/tmp/project", name: nil}}, model)
+      {:session_action, {:add_session, %Session{...}}}
+
+      iex> Commands.execute_session(:list, model)
+      {:ok, "1. project-a\\n2. project-b"}
+  """
+  @spec execute_session(term(), map()) ::
+          {:session_action, term()}
+          | {:ok, String.t()}
+          | {:error, String.t()}
+
+  def execute_session(:help, _model) do
+    help = """
+    Session Commands:
+      /session new [path] [--name=NAME]  Create new session
+      /session list                       List all sessions
+      /session switch <index|id|name>     Switch to session
+      /session close [index|id]           Close session
+      /session rename <name>              Rename current session
+
+    Keyboard Shortcuts:
+      Ctrl+1 to Ctrl+0  Switch to session 1-10
+      Ctrl+Tab          Next session
+      Ctrl+Shift+Tab    Previous session
+      Ctrl+W            Close current session
+      Ctrl+N            New session
+    """
+
+    {:ok, String.trim(help)}
+  end
+
+  def execute_session({:new, opts}, _model) do
+    path = opts[:path] || opts.path
+    name = opts[:name] || opts.name
+
+    with {:ok, resolved_path} <- resolve_session_path(path),
+         {:ok, validated_path} <- validate_session_path(resolved_path),
+         {:ok, session} <- create_new_session(validated_path, name) do
+      {:session_action, {:add_session, session}}
+    else
+      {:error, message} when is_binary(message) ->
+        {:error, message}
+
+      {:error, :session_limit_reached} ->
+        {:error, "Maximum 10 sessions reached. Close a session first."}
+
+      {:error, :project_already_open} ->
+        {:error, "Project already open in another session."}
+
+      {:error, :path_not_found} ->
+        {:error, "Path does not exist: #{path}"}
+
+      {:error, :path_not_directory} ->
+        {:error, "Path is not a directory: #{path}"}
+
+      {:error, reason} ->
+        {:error, "Failed to create session: #{inspect(reason)}"}
+    end
+  end
+
+  def execute_session(:list, _model) do
+    # TODO: Implement in Task 5.3.1
+    {:error, "Not yet implemented: /session list"}
+  end
+
+  def execute_session({:switch, _target}, _model) do
+    # TODO: Implement in Task 5.4.1
+    {:error, "Not yet implemented: /session switch"}
+  end
+
+  def execute_session({:close, _target}, _model) do
+    # TODO: Implement in Task 5.5.1
+    {:error, "Not yet implemented: /session close"}
+  end
+
+  def execute_session({:rename, _name}, _model) do
+    # TODO: Implement in Task 5.6.1
+    {:error, "Not yet implemented: /session rename"}
+  end
+
+  def execute_session({:error, :missing_target}, _model) do
+    {:error, "Usage: /session switch <index|id|name>"}
+  end
+
+  def execute_session({:error, :missing_name}, _model) do
+    {:error, "Usage: /session rename <name>"}
+  end
+
+  def execute_session(_, _model) do
+    execute_session(:help, nil)
+  end
+
+  # Helper to create a new session via SessionSupervisor
+  defp create_new_session(path, name) do
+    opts = [project_path: path]
+    opts = if name, do: Keyword.put(opts, :name, name), else: opts
+    JidoCode.SessionSupervisor.create_session(opts)
+  end
+
+  # ============================================================================
   # Command Execution
   # ============================================================================
 

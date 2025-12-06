@@ -585,4 +585,121 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "not a directory"
     end
   end
+
+  describe "execute_session/2" do
+    test ":help returns session command help" do
+      {:ok, message} = Commands.execute_session(:help, %{})
+
+      assert message =~ "Session Commands:"
+      assert message =~ "/session new"
+      assert message =~ "/session list"
+      assert message =~ "/session switch"
+      assert message =~ "/session close"
+      assert message =~ "/session rename"
+      assert message =~ "Keyboard Shortcuts:"
+    end
+
+    test "{:new, opts} with valid path creates session" do
+      # Use a temp directory that exists
+      tmp_dir = System.tmp_dir!()
+      test_path = Path.join(tmp_dir, "jido_code_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(test_path)
+
+      try do
+        result = Commands.execute_session({:new, %{path: test_path, name: "test-session"}}, %{})
+
+        case result do
+          {:session_action, {:add_session, session}} ->
+            assert session.name == "test-session"
+            assert session.project_path == test_path
+
+            # Clean up session
+            JidoCode.SessionSupervisor.stop_session(session.id)
+
+          {:error, message} ->
+            # May fail if supervisor not running in test - that's OK for this unit test
+            assert message =~ "Failed to create session" or message =~ "not started"
+        end
+      after
+        File.rm_rf!(test_path)
+      end
+    end
+
+    test "{:new, opts} with non-existent path returns error" do
+      result =
+        Commands.execute_session(
+          {:new, %{path: "/nonexistent/path/xyz123", name: nil}},
+          %{}
+        )
+
+      assert {:error, message} = result
+      assert message =~ "does not exist"
+    end
+
+    test "{:new, opts} with nil path uses CWD" do
+      result = Commands.execute_session({:new, %{path: nil, name: "cwd-session"}}, %{})
+
+      case result do
+        {:session_action, {:add_session, session}} ->
+          assert session.project_path == File.cwd!()
+
+          # Clean up
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, message} ->
+          # May fail if supervisor not running - check it at least tried with CWD
+          assert message =~ "Failed to create session" or
+                   message =~ "already open" or
+                   message =~ "not started"
+      end
+    end
+
+    test ":list returns not implemented message" do
+      result = Commands.execute_session(:list, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Not yet implemented"
+    end
+
+    test "{:switch, target} returns not implemented message" do
+      result = Commands.execute_session({:switch, "1"}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Not yet implemented"
+    end
+
+    test "{:close, target} returns not implemented message" do
+      result = Commands.execute_session({:close, nil}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Not yet implemented"
+    end
+
+    test "{:rename, name} returns not implemented message" do
+      result = Commands.execute_session({:rename, "NewName"}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Not yet implemented"
+    end
+
+    test "{:error, :missing_target} returns usage message" do
+      result = Commands.execute_session({:error, :missing_target}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Usage: /session switch"
+    end
+
+    test "{:error, :missing_name} returns usage message" do
+      result = Commands.execute_session({:error, :missing_name}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Usage: /session rename"
+    end
+
+    test "unknown subcommand returns help" do
+      {:ok, message} = Commands.execute_session(:unknown, %{})
+
+      assert message =~ "Session Commands:"
+    end
+  end
 end

@@ -60,45 +60,30 @@ Implement argument parsing for session subcommands.
 Implement the `/session new` command for creating sessions.
 
 ### 5.2.1 New Session Handler
-- [ ] **Task 5.2.1**
+- [x] **Task 5.2.1** (completed 2025-12-06)
 
 Implement the handler for creating new sessions.
 
-- [ ] 5.2.1.1 Implement `execute_session({:new, opts}, model)`:
-  ```elixir
-  def execute_session({:new, opts}, model) do
-    path = opts[:path] || File.cwd!()
-    name = opts[:name]  # nil means use folder name
-
-    case SessionSupervisor.create_session(project_path: path, name: name) do
-      {:ok, session} ->
-        {:ok, "Created session: #{session.name}", {:add_session, session}}
-      {:error, :session_limit_reached} ->
-        {:error, "Maximum 10 sessions reached. Close a session first."}
-      {:error, :project_already_open} ->
-        {:error, "Project already open in another session."}
-      {:error, :invalid_path} ->
-        {:error, "Path does not exist: #{path}"}
-    end
-  end
-  ```
-- [ ] 5.2.1.2 Validate path exists before creating session
-- [ ] 5.2.1.3 Handle session limit (10 max)
-- [ ] 5.2.1.4 Handle duplicate project path
-- [ ] 5.2.1.5 Return `{:add_session, session}` action for TUI
-- [ ] 5.2.1.6 Write unit tests for new command
+- [x] 5.2.1.1 Implement `execute_session({:new, opts}, model)` with path resolution
+- [x] 5.2.1.2 Validate path exists before creating session (uses validate_session_path)
+- [x] 5.2.1.3 Handle session limit (10 max) - returns `:session_limit_reached` error
+- [x] 5.2.1.4 Handle duplicate project path - returns `:project_already_open` error
+- [x] 5.2.1.5 Return `{:session_action, {:add_session, session}}` for TUI
+- [x] 5.2.1.6 Write unit tests for new command (11 tests)
+- [x] 5.2.1.7 Implement `execute_session(:help, model)` for session help
+- [x] 5.2.1.8 Add stub handlers for :list, :switch, :close, :rename
 
 ### 5.2.2 Path Resolution
-- [ ] **Task 5.2.2**
+- [x] **Task 5.2.2** (completed in Task 5.1.2)
 
 Implement path resolution for session creation.
 
-- [ ] 5.2.2.1 Handle relative paths (resolve against CWD)
-- [ ] 5.2.2.2 Handle `~` expansion for home directory
-- [ ] 5.2.2.3 Handle `.` for current directory
-- [ ] 5.2.2.4 Handle `..` for parent directory
-- [ ] 5.2.2.5 Validate resolved path exists and is directory
-- [ ] 5.2.2.6 Write unit tests for path resolution
+- [x] 5.2.2.1 Handle relative paths (resolve against CWD)
+- [x] 5.2.2.2 Handle `~` expansion for home directory
+- [x] 5.2.2.3 Handle `.` for current directory
+- [x] 5.2.2.4 Handle `..` for parent directory
+- [x] 5.2.2.5 Validate resolved path exists and is directory
+- [x] 5.2.2.6 Write unit tests for path resolution (14 tests)
 
 ### 5.2.3 TUI Integration for New Session
 - [ ] **Task 5.2.3**

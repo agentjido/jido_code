@@ -654,11 +654,125 @@ defmodule JidoCode.CommandsTest do
       end
     end
 
-    test ":list returns not implemented message" do
-      result = Commands.execute_session(:list, %{})
+    test ":list with no sessions returns empty message" do
+      model = %{sessions: %{}, session_order: [], active_session_id: nil}
+      result = Commands.execute_session(:list, model)
 
-      assert {:error, message} = result
-      assert message =~ "Not yet implemented"
+      assert {:ok, message} = result
+      assert message == "No active sessions."
+    end
+
+    test ":list with one session shows session" do
+      session = %{
+        id: "s1",
+        name: "project-a",
+        project_path: "/tmp/project-a"
+      }
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session(:list, model)
+
+      assert {:ok, message} = result
+      # Active session has * marker
+      assert message =~ "*1. project-a"
+      assert message =~ "/tmp/project-a"
+    end
+
+    test ":list with multiple sessions shows all in order" do
+      session1 = %{id: "s1", name: "project-a", project_path: "/tmp/a"}
+      session2 = %{id: "s2", name: "project-b", project_path: "/tmp/b"}
+      session3 = %{id: "s3", name: "project-c", project_path: "/tmp/c"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s2"
+      }
+
+      result = Commands.execute_session(:list, model)
+
+      assert {:ok, message} = result
+
+      lines = String.split(message, "\n")
+      assert length(lines) == 3
+
+      # Check markers - only s2 is active
+      assert Enum.at(lines, 0) =~ " 1. project-a"
+      assert Enum.at(lines, 1) =~ "*2. project-b"
+      assert Enum.at(lines, 2) =~ " 3. project-c"
+    end
+
+    test ":list shows active session marker" do
+      session = %{id: "s1", name: "test", project_path: "/tmp/test"}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      {:ok, message} = Commands.execute_session(:list, model)
+
+      # Starts with * for active
+      assert String.starts_with?(message, "*")
+    end
+
+    test ":list shows non-active session without marker" do
+      session = %{id: "s1", name: "test", project_path: "/tmp/test"}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      {:ok, message} = Commands.execute_session(:list, model)
+
+      # Starts with space (no active marker)
+      assert String.starts_with?(message, " ")
+    end
+
+    test ":list truncates long paths" do
+      # Use a long path that won't contain home directory
+      long_path = "/var/lib/very/deeply/nested/directory/structure/project"
+
+      session = %{id: "s1", name: "project", project_path: long_path}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      {:ok, message} = Commands.execute_session(:list, model)
+
+      # Path should be truncated if longer than max length
+      assert message =~ "..."
+      # Should still contain the end of the path (most relevant part)
+      assert message =~ "project"
+    end
+
+    test ":list replaces home directory with ~" do
+      home = System.user_home!()
+      path = Path.join(home, "projects/myproject")
+
+      session = %{id: "s1", name: "myproject", project_path: path}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      {:ok, message} = Commands.execute_session(:list, model)
+
+      assert message =~ "~/projects/myproject"
+      refute message =~ home
     end
 
     test "{:switch, target} returns not implemented message" do

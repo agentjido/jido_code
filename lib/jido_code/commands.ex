@@ -434,9 +434,17 @@ defmodule JidoCode.Commands do
     end
   end
 
-  def execute_session(:list, _model) do
-    # TODO: Implement in Task 5.3.1
-    {:error, "Not yet implemented: /session list"}
+  def execute_session(:list, model) do
+    # Get sessions in order from the model
+    sessions = get_sessions_in_order(model)
+
+    if sessions == [] do
+      {:ok, "No active sessions."}
+    else
+      active_id = Map.get(model, :active_session_id)
+      output = format_session_list(sessions, active_id)
+      {:ok, output}
+    end
   end
 
   def execute_session({:switch, _target}, _model) do
@@ -471,6 +479,63 @@ defmodule JidoCode.Commands do
     opts = [project_path: path]
     opts = if name, do: Keyword.put(opts, :name, name), else: opts
     JidoCode.SessionSupervisor.create_session(opts)
+  end
+
+  # Get sessions in order from the model
+  defp get_sessions_in_order(model) do
+    session_order = Map.get(model, :session_order, [])
+    sessions = Map.get(model, :sessions, %{})
+
+    session_order
+    |> Enum.map(&Map.get(sessions, &1))
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Format session list for display
+  # Shows index (1-10), active marker (*), name, and truncated path
+  defp format_session_list(sessions, active_id) do
+    sessions
+    |> Enum.with_index(1)
+    |> Enum.map(fn {session, idx} ->
+      format_session_line(session, idx, active_id)
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_session_line(session, idx, active_id) do
+    marker = if session.id == active_id, do: "*", else: " "
+    name = Map.get(session, :name, "unnamed")
+    path = Map.get(session, :project_path, "")
+    truncated = truncate_path(path)
+
+    "#{marker}#{idx}. #{name} (#{truncated})"
+  end
+
+  # Truncate long paths to fit display
+  # Replaces home directory with ~ and truncates middle if needed
+  @max_path_length 40
+
+  defp truncate_path(nil), do: ""
+  defp truncate_path(""), do: ""
+
+  defp truncate_path(path) do
+    # Replace home directory with ~
+    home = System.user_home!()
+
+    path =
+      if String.starts_with?(path, home) do
+        "~" <> String.replace_prefix(path, home, "")
+      else
+        path
+      end
+
+    # Truncate if still too long
+    if String.length(path) > @max_path_length do
+      # Keep the last part of the path (most relevant)
+      "..." <> String.slice(path, -(min(@max_path_length - 3, String.length(path) - 1))..-1//1)
+    else
+      path
+    end
   end
 
   # ============================================================================

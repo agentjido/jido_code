@@ -115,34 +115,17 @@ Handle `{:session, subcommand}` and `{:session_action, {:add_session, session}}`
 Implement the `/session list` command.
 
 ### 5.3.1 List Handler
-- [ ] **Task 5.3.1**
+- [x] **Task 5.3.1** (completed 2025-12-06)
 
 Implement the handler for listing sessions.
 
-- [ ] 5.3.1.1 Implement `execute_session(:list, model)`:
-  ```elixir
-  def execute_session(:list, model) do
-    sessions = SessionRegistry.list_all()
-    output = format_session_list(sessions, model.active_session_id)
-    {:ok, output, :no_change}
-  end
-  ```
-- [ ] 5.3.1.2 Implement `format_session_list/2`:
-  ```elixir
-  defp format_session_list(sessions, active_id) do
-    sessions
-    |> Enum.with_index(1)
-    |> Enum.map(fn {session, idx} ->
-      marker = if session.id == active_id, do: "*", else: " "
-      "#{marker}#{idx}. #{session.name} (#{truncate_path(session.project_path)})"
-    end)
-    |> Enum.join("\n")
-  end
-  ```
-- [ ] 5.3.1.3 Show index number (1-10)
-- [ ] 5.3.1.4 Show asterisk for active session
-- [ ] 5.3.1.5 Show truncated project path
-- [ ] 5.3.1.6 Write unit tests for list command
+- [x] 5.3.1.1 Implement `execute_session(:list, model)`
+- [x] 5.3.1.2 Implement `format_session_list/2` helper
+- [x] 5.3.1.3 Implement `truncate_path/1` helper
+- [x] 5.3.1.4 Show index number (1-10)
+- [x] 5.3.1.5 Show asterisk for active session
+- [x] 5.3.1.6 Show truncated project path with ~ for home
+- [x] 5.3.1.7 Write unit tests for list command (8 tests)
 
 ### 5.3.2 Empty List Handling
 - [ ] **Task 5.3.2**

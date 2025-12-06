@@ -44,6 +44,10 @@ defmodule JidoCode.Commands do
 
   @pubsub JidoCode.PubSub
 
+  # Session index constants
+  # Ctrl+0 maps to session 10 (keyboard shortcut convention)
+  @ctrl_0_maps_to_index 10
+
   @type config :: %{provider: String.t() | nil, model: String.t() | nil}
   @type result :: {:ok, String.t(), config()} | {:error, String.t()}
 
@@ -213,7 +217,7 @@ defmodule JidoCode.Commands do
     {:switch, String.trim(target)}
   end
 
-  defp parse_session_args("switch"), do: {:error, :missing_target}
+  defp parse_session_args("switch"), do: {:error, "Usage: /session switch <index|id|name>"}
 
   defp parse_session_args("close" <> rest) do
     case String.trim(rest) do
@@ -453,7 +457,7 @@ defmodule JidoCode.Commands do
         {:session_action, {:switch_session, session_id}}
 
       {:error, :not_found} ->
-        {:error, "Session not found: #{target}"}
+        {:error, "Session not found: #{target}. Use /session list to see available sessions."}
 
       {:error, :no_sessions} ->
         {:error, "No sessions available. Use /session new to create one."}
@@ -472,10 +476,6 @@ defmodule JidoCode.Commands do
   def execute_session({:rename, _name}, _model) do
     # TODO: Implement in Task 5.6.1
     {:error, "Not yet implemented: /session rename"}
-  end
-
-  def execute_session({:error, :missing_target}, _model) do
-    {:error, "Usage: /session switch <index|id|name>"}
   end
 
   def execute_session({:error, :missing_name}, _model) do
@@ -575,22 +575,24 @@ defmodule JidoCode.Commands do
   end
 
   defp is_numeric_target?(target) do
-    case Integer.parse(target) do
-      {_num, ""} -> true
-      _ -> false
-    end
+    match?({_, ""}, Integer.parse(target))
   end
 
   defp resolve_by_index(target, session_order) do
     {index, ""} = Integer.parse(target)
 
     # Handle "0" as index 10 (for Ctrl+0 keyboard shortcut)
-    index = if index == 0, do: 10, else: index
+    index = if index == 0, do: @ctrl_0_maps_to_index, else: index
 
     case Enum.at(session_order, index - 1) do
       nil -> {:error, :not_found}
       session_id -> {:ok, session_id}
     end
+  end
+
+  defp find_session_by_name("", _sessions) do
+    # Empty string should not match anything
+    {:error, :not_found}
   end
 
   defp find_session_by_name(name, sessions) do

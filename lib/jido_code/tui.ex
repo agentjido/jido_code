@@ -347,16 +347,16 @@ defmodule JidoCode.TUI do
     ## Examples
 
         iex> model = %Model{sessions: %{"s1" => session}, active_session_id: nil}
-        iex> model = Model.switch_to_session(model, "s1")
+        iex> model = Model.switch_session(model, "s1")
         iex> model.active_session_id
         "s1"
 
-        iex> model = Model.switch_to_session(model, "unknown")
+        iex> model = Model.switch_session(model, "unknown")
         iex> model.active_session_id  # unchanged
         "s1"
     """
-    @spec switch_to_session(t(), String.t()) :: t()
-    def switch_to_session(%__MODULE__{sessions: sessions} = model, session_id) do
+    @spec switch_session(t(), String.t()) :: t()
+    def switch_session(%__MODULE__{sessions: sessions} = model, session_id) do
       if Map.has_key?(sessions, session_id) do
         %{model | active_session_id: session_id}
       else
@@ -1019,108 +1019,47 @@ defmodule JidoCode.TUI do
         # Subscribe to session-specific events
         Phoenix.PubSub.subscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session.id))
 
-        # Show success message
-        success_msg = system_message("Created session: #{session.name}")
-
-        new_conversation_view =
-          if new_state.conversation_view do
-            ConversationView.add_message(new_state.conversation_view, %{
-              id: generate_message_id(),
-              role: :system,
-              content: "Created session: #{session.name}",
-              timestamp: DateTime.utc_now()
-            })
-          else
-            new_state.conversation_view
-          end
-
-        final_state = %{
-          new_state
-          | messages: [success_msg | new_state.messages],
-            conversation_view: new_conversation_view
-        }
-
+        final_state = add_session_message(new_state, "Created session: #{session.name}")
         {final_state, []}
 
       {:session_action, {:switch_session, session_id}} ->
         # Switch to the specified session
-        new_state = Model.switch_to_session(state, session_id)
+        new_state = Model.switch_session(state, session_id)
 
         # Get session name for the message
         session = Map.get(new_state.sessions, session_id)
         session_name = if session, do: session.name, else: session_id
 
-        # Show success message
-        success_msg = system_message("Switched to session: #{session_name}")
-
-        new_conversation_view =
-          if new_state.conversation_view do
-            ConversationView.add_message(new_state.conversation_view, %{
-              id: generate_message_id(),
-              role: :system,
-              content: "Switched to session: #{session_name}",
-              timestamp: DateTime.utc_now()
-            })
-          else
-            new_state.conversation_view
-          end
-
-        final_state = %{
-          new_state
-          | messages: [success_msg | new_state.messages],
-            conversation_view: new_conversation_view
-        }
-
+        final_state = add_session_message(new_state, "Switched to session: #{session_name}")
         {final_state, []}
 
       {:ok, message} ->
-        # Display success/info message
-        system_msg = system_message(message)
-
-        new_conversation_view =
-          if state.conversation_view do
-            ConversationView.add_message(state.conversation_view, %{
-              id: generate_message_id(),
-              role: :system,
-              content: message,
-              timestamp: DateTime.utc_now()
-            })
-          else
-            state.conversation_view
-          end
-
-        new_state = %{
-          state
-          | messages: [system_msg | state.messages],
-            conversation_view: new_conversation_view
-        }
-
+        new_state = add_session_message(state, message)
         {new_state, []}
 
       {:error, error_message} ->
-        # Display error message
-        error_msg = system_message(error_message)
-
-        new_conversation_view =
-          if state.conversation_view do
-            ConversationView.add_message(state.conversation_view, %{
-              id: generate_message_id(),
-              role: :system,
-              content: error_message,
-              timestamp: DateTime.utc_now()
-            })
-          else
-            state.conversation_view
-          end
-
-        new_state = %{
-          state
-          | messages: [error_msg | state.messages],
-            conversation_view: new_conversation_view
-        }
-
+        new_state = add_session_message(state, error_message)
         {new_state, []}
     end
+  end
+
+  # Helper to add a system message to both messages list and conversation view
+  defp add_session_message(state, content) do
+    msg = system_message(content)
+
+    new_conversation_view =
+      if state.conversation_view do
+        ConversationView.add_message(state.conversation_view, %{
+          id: generate_message_id(),
+          role: :system,
+          content: content,
+          timestamp: DateTime.utc_now()
+        })
+      else
+        state.conversation_view
+      end
+
+    %{state | messages: [msg | state.messages], conversation_view: new_conversation_view}
   end
 
   # Handle chat message submission

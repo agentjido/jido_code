@@ -190,6 +190,19 @@ Handle `{:switch_session, id}` action in TUI.
 - Test partial name matching works
 - Test ambiguous name shows error
 
+### 5.4.4 Review Fixes and Improvements
+- [x] **Task 5.4.4** (completed 2025-12-06)
+
+Address code review findings for Section 5.4.
+
+- [x] 5.4.4.1 Extract `add_session_message/2` helper to reduce TUI duplication (~70 lines → ~20 lines)
+- [x] 5.4.4.2 Add missing boundary tests (negative index, empty string, large index)
+- [x] 5.4.4.3 Rename `Model.switch_to_session/2` to `Model.switch_session/2` for consistency
+- [x] 5.4.4.4 Simplify error pattern in `parse_session_args` (return message directly)
+- [x] 5.4.4.5 Use `match?/2` in `is_numeric_target?/1`
+- [x] 5.4.4.6 Extract `@ctrl_0_maps_to_index` module attribute
+- [x] 5.4.4.7 Add helpful suggestions to error messages
+
 ---
 
 ## 5.5 Session Close Command

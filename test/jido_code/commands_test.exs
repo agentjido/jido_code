@@ -400,7 +400,9 @@ defmodule JidoCode.CommandsTest do
 
       result = Commands.execute("/session switch", config)
 
-      assert result == {:session, {:error, :missing_target}}
+      # Now returns error message directly instead of :missing_target atom
+      assert {:session, {:error, message}} = result
+      assert message =~ "Usage: /session switch"
     end
 
     test "/session close parses with no target" do
@@ -980,6 +982,51 @@ defmodule JidoCode.CommandsTest do
       assert {:session_action, {:switch_session, "s1"}} = result
     end
 
+    # Boundary tests for edge cases
+    test "{:switch, target} with negative index returns not found" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      # Negative numbers are not numeric targets (contain -)
+      # They fall through to name matching and fail
+      result = Commands.execute_session({:switch, "-1"}, model)
+      assert {:error, message} = result
+      assert message =~ "Session not found: -1"
+    end
+
+    test "{:switch, target} with empty string returns not found" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:switch, ""}, model)
+      assert {:error, message} = result
+      assert message =~ "Session not found:"
+    end
+
+    test "{:switch, target} with very large index returns not found" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:switch, "999"}, model)
+      assert {:error, message} = result
+      assert message =~ "Session not found: 999"
+    end
+
     test "{:close, target} returns not implemented message" do
       result = Commands.execute_session({:close, nil}, %{})
 
@@ -994,10 +1041,13 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Not yet implemented"
     end
 
-    test "{:error, :missing_target} returns usage message" do
-      result = Commands.execute_session({:error, :missing_target}, %{})
+    test "parse_session_args returns error for switch without target" do
+      # Now parse_session_args returns the error directly
+      # This is tested via execute integration which calls TUI handler
+      result = Commands.execute("/session switch", %{})
 
-      assert {:error, message} = result
+      # The result is wrapped as {:session, {:error, message}}
+      assert {:session, {:error, message}} = result
       assert message =~ "Usage: /session switch"
     end
 

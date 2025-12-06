@@ -415,7 +415,7 @@ defmodule JidoCode.TUI.ModelTest do
     end
   end
 
-  describe "switch_to_session/2" do
+  describe "switch_session/2" do
     test "switches to existing session" do
       session_1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
       session_2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
@@ -426,7 +426,7 @@ defmodule JidoCode.TUI.ModelTest do
         active_session_id: "s1"
       }
 
-      result = Model.switch_to_session(model, "s2")
+      result = Model.switch_session(model, "s2")
 
       assert result.active_session_id == "s2"
     end
@@ -440,7 +440,7 @@ defmodule JidoCode.TUI.ModelTest do
         active_session_id: "s1"
       }
 
-      result = Model.switch_to_session(model, "unknown")
+      result = Model.switch_session(model, "unknown")
 
       # Should not change active_session_id
       assert result.active_session_id == "s1"
@@ -455,7 +455,7 @@ defmodule JidoCode.TUI.ModelTest do
         active_session_id: nil
       }
 
-      result = Model.switch_to_session(model, "s1")
+      result = Model.switch_session(model, "s1")
 
       assert result.active_session_id == "s1"
     end

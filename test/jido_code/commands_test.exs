@@ -1123,6 +1123,58 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Session not found: unknown"
     end
 
+    test "{:close, prefix} with ambiguous prefix returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+      session2 = %{id: "s2", name: "project-b"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      # "proj" matches both sessions
+      result = Commands.execute_session({:close, "proj"}, model)
+
+      assert {:error, message} = result
+      assert message =~ "Ambiguous session name 'proj'"
+      assert message =~ "project-a"
+      assert message =~ "project-b"
+    end
+
+    test "{:close, name} is case-insensitive" do
+      session1 = %{id: "s1", name: "MyProject"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      # Test lowercase
+      result = Commands.execute_session({:close, "myproject"}, model)
+      assert {:session_action, {:close_session, "s1", "MyProject"}} = result
+
+      # Test uppercase
+      result2 = Commands.execute_session({:close, "MYPROJECT"}, model)
+      assert {:session_action, {:close_session, "s1", "MyProject"}} = result2
+    end
+
+    test "{:close, prefix} closes session by prefix match" do
+      session1 = %{id: "s1", name: "project-alpha"}
+      session2 = %{id: "s2", name: "other-beta"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s2"
+      }
+
+      # "proj" uniquely matches project-alpha
+      result = Commands.execute_session({:close, "proj"}, model)
+      assert {:session_action, {:close_session, "s1", "project-alpha"}} = result
+    end
+
     test "{:rename, name} returns not implemented message" do
       result = Commands.execute_session({:rename, "NewName"}, %{})
 

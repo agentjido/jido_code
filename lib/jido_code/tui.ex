@@ -823,16 +823,7 @@ defmodule JidoCode.TUI do
         session = Map.get(state.sessions, session_id)
         session_name = if session, do: session.name, else: session_id
 
-        # Stop the session process
-        JidoCode.SessionSupervisor.stop_session(session_id)
-
-        # Unsubscribe from session-specific events
-        Phoenix.PubSub.unsubscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session_id))
-
-        # Remove session from model
-        new_state = Model.remove_session(state, session_id)
-
-        final_state = add_session_message(new_state, "Closed session: #{session_name}")
+        final_state = do_close_session(state, session_id, session_name)
         {final_state, []}
     end
   end
@@ -1122,16 +1113,7 @@ defmodule JidoCode.TUI do
         {final_state, []}
 
       {:session_action, {:close_session, session_id, session_name}} ->
-        # Stop the session process
-        JidoCode.SessionSupervisor.stop_session(session_id)
-
-        # Unsubscribe from session-specific events
-        Phoenix.PubSub.unsubscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session_id))
-
-        # Remove session from model
-        new_state = Model.remove_session(state, session_id)
-
-        final_state = add_session_message(new_state, "Closed session: #{session_name}")
+        final_state = do_close_session(state, session_id, session_name)
         {final_state, []}
 
       {:ok, message} ->
@@ -1161,6 +1143,22 @@ defmodule JidoCode.TUI do
       end
 
     %{state | messages: [msg | state.messages], conversation_view: new_conversation_view}
+  end
+
+  # Helper to close a session with proper cleanup order
+  # Unsubscribes from PubSub BEFORE stopping the session to avoid race conditions
+  defp do_close_session(state, session_id, session_name) do
+    # Unsubscribe first to prevent receiving messages during teardown
+    Phoenix.PubSub.unsubscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session_id))
+
+    # Stop the session process
+    JidoCode.SessionSupervisor.stop_session(session_id)
+
+    # Remove session from model
+    new_state = Model.remove_session(state, session_id)
+
+    # Add confirmation message
+    add_session_message(new_state, "Closed session: #{session_name}")
   end
 
   # Handle chat message submission

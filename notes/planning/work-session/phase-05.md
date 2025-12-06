@@ -244,6 +244,16 @@ Add keyboard shortcut (Ctrl+W) for closing sessions.
 
 Note: Session removal and adjacent session logic was already implemented in Task 5.5.1 via `Model.remove_session/2`.
 
+### 5.5.4 Review Fixes and Improvements
+- [x] **Task 5.5.4** (completed 2025-12-06)
+
+Address code review findings for Section 5.5.
+
+- [x] 5.5.4.1 Extract `do_close_session/3` helper to eliminate duplication between Ctrl+W handler and command handler
+- [x] 5.5.4.2 Fix PubSub unsubscribe order (unsubscribe BEFORE stop_session to avoid race conditions)
+- [x] 5.5.4.3 Add missing close command tests (ambiguous prefix, case-insensitive, prefix matching)
+- [x] 5.5.4.4 Add Ctrl+W event handler tests
+
 **Unit Tests for Section 5.5:**
 - Test `/session close` closes active session
 - Test `/session close 2` closes by index

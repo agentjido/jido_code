@@ -190,6 +190,20 @@ defmodule JidoCode.TUITest do
       assert TUI.event_to_msg(event, model) == {:msg, :toggle_tool_details}
     end
 
+    test "Ctrl+W returns {:msg, :close_active_session}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("w", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, :close_active_session}
+    end
+
+    test "plain 'w' key is forwarded to TextInput" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("w", char: "w")
+
+      assert {:msg, {:input_event, %Event.Key{key: "w"}}} = TUI.event_to_msg(event, model)
+    end
+
     test "up arrow returns {:msg, {:conversation_event, event}}" do
       model = %Model{text_input: create_text_input()}
       event = Event.key(:up)

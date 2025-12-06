@@ -3,8 +3,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   Handler modules for file system tools.
 
   This module contains sub-modules that implement the execute/2 callback
-  for file system operations, delegating to the Security module for
-  sandboxed execution with path validation.
+  for file system operations with session-aware path validation.
 
   ## Handler Modules
 
@@ -16,26 +15,28 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   - `CreateDirectory` - Create directory
   - `DeleteFile` - Delete file (with confirmation)
 
+  ## Session Context
+
+  Handlers use `HandlerHelpers.validate_path/2` for session-aware path validation:
+
+  1. `session_id` present → Uses `Session.Manager.validate_path/2`
+  2. `project_root` present → Uses `Security.validate_path/3`
+  3. Neither → Falls back to global `Tools.Manager` (deprecated)
+
   ## Usage
 
   These handlers are invoked by the Executor when the LLM calls file tools:
 
-      # Via Executor
+      # Via Executor with session context
+      {:ok, context} = Executor.build_context(session_id)
       Executor.execute(%{
         id: "call_123",
         name: "read_file",
         arguments: %{"path" => "src/main.ex"}
-      })
-
-  ## Context
-
-  The context map should contain:
-  - `:project_root` - Base directory for operations
-
-  If project_root is not in context, it's fetched from the Manager.
+      }, context: context)
   """
 
-  alias JidoCode.Tools.{HandlerHelpers, Manager}
+  alias JidoCode.Tools.HandlerHelpers
 
   # ============================================================================
   # Shared Helpers
@@ -43,6 +44,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
   @doc false
   defdelegate get_project_root(context), to: HandlerHelpers
+
+  @doc false
+  defdelegate validate_path(path, context), to: HandlerHelpers
 
   @doc false
   def format_error(:enoent, path), do: "File not found: #{path}"
@@ -75,11 +79,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Performs exact string replacement within files. Unlike write_file which
     overwrites the entire file, edit_file allows targeted modifications.
 
-    All file operations go through the Lua sandbox via Manager API.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
-    alias JidoCode.Tools.Manager
 
     @doc """
     Edits a file by replacing old_string with new_string.
@@ -91,6 +94,11 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `"new_string"` - Replacement string
     - `"replace_all"` - If true, replace all occurrences; if false (default),
       require exactly one match
+
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
 
     ## Returns
 
@@ -104,14 +112,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     """
     def execute(
           %{"path" => path, "old_string" => old_string, "new_string" => new_string} = args,
-          _context
+          context
         )
         when is_binary(path) and is_binary(old_string) and is_binary(new_string) do
       replace_all = Map.get(args, "replace_all", false)
 
-      with {:ok, content} <- Manager.read_file(path),
+      with {:ok, safe_path} <- FileSystem.validate_path(path, context),
+           {:ok, content} <- File.read(safe_path),
            {:ok, new_content, count} <- do_replace(content, old_string, new_string, replace_all),
-           :ok <- Manager.write_file(path, new_content) do
+           :ok <- File.write(safe_path, new_content) do
         {:ok, "Successfully replaced #{count} occurrence(s) in #{path}"}
       else
         {:error, :not_found} ->
@@ -164,11 +173,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Handler for the read_file tool.
 
     Reads the contents of a file within the project boundary.
-    All file operations go through the Lua sandbox via Manager API.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
-    alias JidoCode.Tools.Manager
 
     @doc """
     Reads the contents of a file.
@@ -177,14 +185,23 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     - `"path"` - Path to the file (relative to project root)
 
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
     ## Returns
 
     - `{:ok, content}` - File contents as string
     - `{:error, reason}` - Error message
     """
-    def execute(%{"path" => path}, _context) when is_binary(path) do
-      case Manager.read_file(path) do
-        {:ok, content} -> {:ok, content}
+    def execute(%{"path" => path}, context) when is_binary(path) do
+      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
+        case File.read(safe_path) do
+          {:ok, content} -> {:ok, content}
+          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+        end
+      else
         {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
       end
     end
@@ -203,11 +220,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Handler for the write_file tool.
 
     Writes content to a file, creating parent directories if needed.
-    All file operations go through the Lua sandbox via Manager API.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
-    alias JidoCode.Tools.Manager
 
     @doc """
     Writes content to a file.
@@ -217,19 +233,28 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `"path"` - Path to the file (relative to project root)
     - `"content"` - Content to write
 
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
     ## Returns
 
     - `{:ok, message}` - Success message
     - `{:error, reason}` - Error message
     """
-    def execute(%{"path" => path, "content" => content}, _context)
+    def execute(%{"path" => path, "content" => content}, context)
         when is_binary(path) and is_binary(content) do
-      # Create parent directories first
-      dir_path = Path.dirname(path)
+      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
+        # Create parent directories first
+        dir_path = Path.dirname(safe_path)
 
-      with :ok <- if(dir_path != ".", do: Manager.mkdir_p(dir_path), else: :ok),
-           :ok <- Manager.write_file(path, content) do
-        {:ok, "File written successfully: #{path}"}
+        with :ok <- if(dir_path != ".", do: File.mkdir_p(dir_path), else: :ok),
+             :ok <- File.write(safe_path, content) do
+          {:ok, "File written successfully: #{path}"}
+        else
+          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+        end
       else
         {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
       end
@@ -249,11 +274,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Handler for the list_directory tool.
 
     Lists the contents of a directory with optional recursive listing.
-    All file operations go through the Lua sandbox via Manager API.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
-    alias JidoCode.Tools.Manager
 
     @doc """
     Lists directory contents.
@@ -263,57 +287,62 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `"path"` - Path to the directory (relative to project root)
     - `"recursive"` - Whether to list recursively (optional, default false)
 
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
     ## Returns
 
     - `{:ok, entries}` - JSON-encoded list of entries
     - `{:error, reason}` - Error message
     """
-    def execute(%{"path" => path} = args, _context) when is_binary(path) do
+    def execute(%{"path" => path} = args, context) when is_binary(path) do
       recursive = Map.get(args, "recursive", false)
-      list_entries(path, recursive)
+
+      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
+        list_entries(path, safe_path, recursive)
+      else
+        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+      end
     end
 
     def execute(_args, _context) do
       {:error, "list_directory requires a path argument"}
     end
 
-    defp list_entries(path, false) do
-      case Manager.list_dir(path) do
+    defp list_entries(original_path, safe_path, false) do
+      case File.ls(safe_path) do
         {:ok, entries} when is_list(entries) ->
-          result = entries |> Enum.sort() |> Enum.map(&entry_info(path, &1))
+          result = entries |> Enum.sort() |> Enum.map(&entry_info(safe_path, &1))
           {:ok, Jason.encode!(result)}
 
         {:error, reason} ->
-          {:error, FileSystem.format_error(reason, path)}
+          {:error, FileSystem.format_error(reason, original_path)}
       end
     end
 
-    defp list_entries(path, true) do
-      case list_recursive(path) do
+    defp list_entries(original_path, safe_path, true) do
+      case list_recursive(safe_path, safe_path) do
         {:ok, entries} ->
           {:ok, Jason.encode!(entries)}
 
         {:error, reason} ->
-          {:error, FileSystem.format_error(reason, path)}
+          {:error, FileSystem.format_error(reason, original_path)}
       end
     end
 
     defp entry_info(parent_path, entry) do
       full_path = Path.join(parent_path, entry)
-
-      type =
-        case Manager.is_dir?(full_path) do
-          {:ok, true} -> "directory"
-          _ -> "file"
-        end
-
+      type = if File.dir?(full_path), do: "directory", else: "file"
       %{name: entry, type: type}
     end
 
-    defp list_recursive(path) do
-      case Manager.list_dir(path) do
+    # Recursive listing - base_path is the root for relative name calculation
+    defp list_recursive(path, base_path) do
+      case File.ls(path) do
         {:ok, entries} when is_list(entries) ->
-          results = entries |> Enum.sort() |> Enum.flat_map(&expand_entry(path, &1))
+          results = entries |> Enum.sort() |> Enum.flat_map(&expand_entry(path, &1, base_path))
           {:ok, results}
 
         {:error, reason} ->
@@ -321,25 +350,25 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       end
     end
 
-    defp expand_entry(parent_path, entry) do
+    defp expand_entry(parent_path, entry, base_path) do
       full_path = Path.join(parent_path, entry)
+      # Calculate relative path from base
+      relative_name = Path.relative_to(full_path, base_path)
 
-      case Manager.is_dir?(full_path) do
-        {:ok, true} ->
-          expand_directory(full_path)
-
-        _ ->
-          [%{name: full_path, type: "file"}]
+      if File.dir?(full_path) do
+        expand_directory(full_path, relative_name, base_path)
+      else
+        [%{name: relative_name, type: "file"}]
       end
     end
 
-    defp expand_directory(full_path) do
-      case list_recursive(full_path) do
+    defp expand_directory(full_path, relative_name, base_path) do
+      case list_recursive(full_path, base_path) do
         {:ok, children} ->
-          [%{name: full_path, type: "directory"} | children]
+          [%{name: relative_name, type: "directory"} | children]
 
         {:error, _} ->
-          [%{name: full_path, type: "directory", error: "unreadable"}]
+          [%{name: relative_name, type: "directory", error: "unreadable"}]
       end
     end
   end
@@ -353,11 +382,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Handler for the file_info tool.
 
     Gets metadata about a file or directory.
-    All file operations go through the Lua sandbox via Manager API.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
-    alias JidoCode.Tools.Manager
 
     @doc """
     Gets file metadata.
@@ -366,26 +394,35 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     - `"path"` - Path to the file/directory (relative to project root)
 
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
     ## Returns
 
     - `{:ok, info}` - JSON-encoded metadata map
     - `{:error, reason}` - Error message
     """
-    def execute(%{"path" => path}, _context) when is_binary(path) do
-      case Manager.file_stat(path) do
-        {:ok, stat} ->
-          info = %{
-            path: path,
-            size: stat.size,
-            type: Atom.to_string(stat.type),
-            access: Atom.to_string(stat.access),
-            mtime: format_mtime(stat.mtime)
-          }
+    def execute(%{"path" => path}, context) when is_binary(path) do
+      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
+        case File.stat(safe_path) do
+          {:ok, stat} ->
+            info = %{
+              path: path,
+              size: stat.size,
+              type: Atom.to_string(stat.type),
+              access: Atom.to_string(stat.access),
+              mtime: format_mtime(stat.mtime)
+            }
 
-          {:ok, Jason.encode!(info)}
+            {:ok, Jason.encode!(info)}
 
-        {:error, reason} ->
-          {:error, FileSystem.format_error(reason, path)}
+          {:error, reason} ->
+            {:error, FileSystem.format_error(reason, path)}
+        end
+      else
+        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
       end
     end
 
@@ -417,11 +454,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Handler for the create_directory tool.
 
     Creates a directory, including parent directories.
-    All file operations go through the Lua sandbox via Manager API.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
-    alias JidoCode.Tools.Manager
 
     @doc """
     Creates a directory.
@@ -430,14 +466,23 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     - `"path"` - Path to the directory to create (relative to project root)
 
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
     ## Returns
 
     - `{:ok, message}` - Success message
     - `{:error, reason}` - Error message
     """
-    def execute(%{"path" => path}, _context) when is_binary(path) do
-      case Manager.mkdir_p(path) do
-        :ok -> {:ok, "Directory created successfully: #{path}"}
+    def execute(%{"path" => path}, context) when is_binary(path) do
+      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
+        case File.mkdir_p(safe_path) do
+          :ok -> {:ok, "Directory created successfully: #{path}"}
+          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+        end
+      else
         {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
       end
     end
@@ -456,11 +501,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Handler for the delete_file tool.
 
     Deletes a file with confirmation requirement for safety.
-    All file operations go through the Lua sandbox via Manager API.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
-    alias JidoCode.Tools.Manager
 
     @doc """
     Deletes a file.
@@ -470,14 +514,23 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `"path"` - Path to the file to delete (relative to project root)
     - `"confirm"` - Must be true to actually delete
 
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
     ## Returns
 
     - `{:ok, message}` - Success message
     - `{:error, reason}` - Error message
     """
-    def execute(%{"path" => path, "confirm" => true}, _context) when is_binary(path) do
-      case Manager.delete_file(path) do
-        :ok -> {:ok, "File deleted successfully: #{path}"}
+    def execute(%{"path" => path, "confirm" => true}, context) when is_binary(path) do
+      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
+        case File.rm(safe_path) do
+          :ok -> {:ok, "File deleted successfully: #{path}"}
+          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+        end
+      else
         {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
       end
     end

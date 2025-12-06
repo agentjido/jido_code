@@ -87,28 +87,30 @@ Address concerns from Section 3.1 code review and implement suggested improvemen
 Update all tool handlers to consistently use session context.
 
 ### 3.2.1 FileSystem Handlers
-- [ ] **Task 3.2.1**
+- [x] **Task 3.2.1**
 
 Update filesystem handlers to use session context.
 
-- [ ] 3.2.1.1 Update `ReadFile.execute/2` to use `context.session_id`:
+- [x] 3.2.1.1 Update `ReadFile.execute/2` to use `HandlerHelpers.validate_path/2`:
   ```elixir
-  def execute(args, context) do
-    with {:ok, safe_path} <- Session.Manager.validate_path(
-           context.session_id, args["path"]
-         ),
-         {:ok, content} <- File.read(safe_path) do
-      {:ok, content}
+  def execute(%{"path" => path}, context) when is_binary(path) do
+    with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
+      case File.read(safe_path) do
+        {:ok, content} -> {:ok, content}
+        {:error, reason} -> {:error, format_error(reason, path)}
+      end
+    else
+      {:error, reason} -> {:error, format_error(reason, path)}
     end
   end
   ```
-- [ ] 3.2.1.2 Update `WriteFile.execute/2` similarly
-- [ ] 3.2.1.3 Update `EditFile.execute/2` similarly
-- [ ] 3.2.1.4 Update `ListDirectory.execute/2` similarly
-- [ ] 3.2.1.5 Update `FileInfo.execute/2` similarly
-- [ ] 3.2.1.6 Update `CreateDirectory.execute/2` similarly
-- [ ] 3.2.1.7 Update `DeleteFile.execute/2` similarly
-- [ ] 3.2.1.8 Write unit tests for each handler with session context
+- [x] 3.2.1.2 Update `WriteFile.execute/2` similarly
+- [x] 3.2.1.3 Update `EditFile.execute/2` similarly
+- [x] 3.2.1.4 Update `ListDirectory.execute/2` similarly
+- [x] 3.2.1.5 Update `FileInfo.execute/2` similarly
+- [x] 3.2.1.6 Update `CreateDirectory.execute/2` similarly
+- [x] 3.2.1.7 Update `DeleteFile.execute/2` similarly
+- [x] 3.2.1.8 Write unit tests for each handler with session context (46 tests, 5 new session-aware tests)
 
 ### 3.2.2 Search Handlers
 - [ ] **Task 3.2.2**

@@ -479,4 +479,103 @@ defmodule JidoCode.TUI.ModelTest do
       assert Model.session_count(model) == 3
     end
   end
+
+  describe "remove_session/2" do
+    test "removes session from sessions map" do
+      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Model.remove_session(model, "s2")
+
+      assert map_size(result.sessions) == 1
+      assert Map.has_key?(result.sessions, "s1")
+      refute Map.has_key?(result.sessions, "s2")
+    end
+
+    test "removes session from session_order" do
+      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Model.remove_session(model, "s2")
+
+      assert result.session_order == ["s1"]
+    end
+
+    test "switches to previous session when closing active" do
+      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+      session3 = %JidoCode.Session{id: "s3", name: "c", project_path: "/c", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s2"
+      }
+
+      result = Model.remove_session(model, "s2")
+
+      # Should switch to previous session (s1)
+      assert result.active_session_id == "s1"
+    end
+
+    test "switches to next session when closing first active" do
+      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Model.remove_session(model, "s1")
+
+      # Should switch to next session (s2)
+      assert result.active_session_id == "s2"
+    end
+
+    test "sets active to nil when closing last session" do
+      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Model.remove_session(model, "s1")
+
+      assert result.active_session_id == nil
+      assert result.sessions == %{}
+      assert result.session_order == []
+    end
+
+    test "keeps active unchanged when closing non-active session" do
+      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Model.remove_session(model, "s2")
+
+      # Active session should remain unchanged
+      assert result.active_session_id == "s1"
+    end
+  end
 end

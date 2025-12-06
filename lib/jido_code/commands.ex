@@ -468,9 +468,37 @@ defmodule JidoCode.Commands do
     end
   end
 
-  def execute_session({:close, _target}, _model) do
-    # TODO: Implement in Task 5.5.1
-    {:error, "Not yet implemented: /session close"}
+  def execute_session({:close, target}, model) do
+    # Determine which session to close
+    session_order = Map.get(model, :session_order, [])
+    active_id = Map.get(model, :active_session_id)
+
+    # If no target, close active session
+    effective_target = target || active_id
+
+    cond do
+      session_order == [] ->
+        {:error, "No sessions to close."}
+
+      effective_target == nil ->
+        {:error, "No active session to close. Specify a session to close."}
+
+      true ->
+        case resolve_session_target(effective_target, model) do
+          {:ok, session_id} ->
+            sessions = Map.get(model, :sessions, %{})
+            session = Map.get(sessions, session_id)
+            session_name = if session, do: Map.get(session, :name, session_id), else: session_id
+            {:session_action, {:close_session, session_id, session_name}}
+
+          {:error, :not_found} ->
+            {:error, "Session not found: #{target}. Use /session list to see available sessions."}
+
+          {:error, {:ambiguous, names}} ->
+            options = Enum.join(names, ", ")
+            {:error, "Ambiguous session name '#{target}'. Did you mean: #{options}?"}
+        end
+    end
   end
 
   def execute_session({:rename, _name}, _model) do

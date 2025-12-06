@@ -1027,11 +1027,100 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Session not found: 999"
     end
 
-    test "{:close, target} returns not implemented message" do
-      result = Commands.execute_session({:close, nil}, %{})
+    # Close session tests
+    test "{:close, nil} closes active session" do
+      session1 = %{id: "s1", name: "project-a"}
+      session2 = %{id: "s2", name: "project-b"}
 
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s2"
+      }
+
+      result = Commands.execute_session({:close, nil}, model)
+      assert {:session_action, {:close_session, "s2", "project-b"}} = result
+    end
+
+    test "{:close, index} closes session by index" do
+      session1 = %{id: "s1", name: "project-a"}
+      session2 = %{id: "s2", name: "project-b"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s2"
+      }
+
+      result = Commands.execute_session({:close, "1"}, model)
+      assert {:session_action, {:close_session, "s1", "project-a"}} = result
+    end
+
+    test "{:close, name} closes session by name" do
+      session1 = %{id: "s1", name: "project-a"}
+      session2 = %{id: "s2", name: "project-b"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:close, "project-b"}, model)
+      assert {:session_action, {:close_session, "s2", "project-b"}} = result
+    end
+
+    test "{:close, id} closes session by ID" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:close, "s1"}, model)
+      assert {:session_action, {:close_session, "s1", "project-a"}} = result
+    end
+
+    test "{:close, target} with no sessions returns error" do
+      model = %{
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:close, nil}, model)
       assert {:error, message} = result
-      assert message =~ "Not yet implemented"
+      assert message =~ "No sessions to close"
+    end
+
+    test "{:close, nil} with no active session returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:close, nil}, model)
+      assert {:error, message} = result
+      assert message =~ "No active session to close"
+    end
+
+    test "{:close, target} with unknown target returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:close, "unknown"}, model)
+      assert {:error, message} = result
+      assert message =~ "Session not found: unknown"
     end
 
     test "{:rename, name} returns not implemented message" do

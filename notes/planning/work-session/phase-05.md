@@ -210,28 +210,16 @@ Address code review findings for Section 5.4.
 Implement the `/session close` command.
 
 ### 5.5.1 Close Handler
-- [ ] **Task 5.5.1**
+- [x] **Task 5.5.1** (completed 2025-12-06)
 
 Implement the handler for closing sessions.
 
-- [ ] 5.5.1.1 Implement `execute_session({:close, target}, model)`:
-  ```elixir
-  def execute_session({:close, target}, model) do
-    session_id = target || model.active_session_id
-
-    case resolve_session_target(session_id, model) do
-      {:ok, id} ->
-        session = model.sessions[id]
-        SessionSupervisor.stop_session(id)
-        {:ok, "Closed session: #{session.name}", {:remove_session, id}}
-      {:error, :not_found} ->
-        {:error, "Session not found: #{target}"}
-    end
-  end
-  ```
-- [ ] 5.5.1.2 Default to active session if no target
-- [ ] 5.5.1.3 Prevent closing if it's the last session (optional)
-- [ ] 5.5.1.4 Write unit tests for close command
+- [x] 5.5.1.1 Implement `execute_session({:close, target}, model)`
+- [x] 5.5.1.2 Default to active session if no target
+- [x] 5.5.1.3 Add `Model.remove_session/2` helper with active session switching
+- [x] 5.5.1.4 Add TUI handler for `{:close_session, id, name}` action
+- [x] 5.5.1.5 Write unit tests for close command (7 tests)
+- [x] 5.5.1.6 Write unit tests for Model.remove_session/2 (6 tests)
 
 ### 5.5.2 Close Cleanup
 - [ ] **Task 5.5.2**

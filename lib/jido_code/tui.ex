@@ -375,6 +375,58 @@ defmodule JidoCode.TUI do
     """
     @spec session_count(t()) :: non_neg_integer()
     def session_count(%__MODULE__{sessions: sessions}), do: map_size(sessions)
+
+    @doc """
+    Removes a session from the model.
+
+    Removes the session from both the sessions map and session_order list.
+    If the removed session was active, switches to the previous session in order,
+    or the next session if it was first, or nil if it was the last session.
+
+    ## Examples
+
+        iex> model = %Model{sessions: %{"s1" => s1, "s2" => s2}, session_order: ["s1", "s2"], active_session_id: "s2"}
+        iex> model = Model.remove_session(model, "s2")
+        iex> model.active_session_id
+        "s1"
+
+        iex> model = Model.remove_session(model, "s1")
+        iex> model.active_session_id
+        nil
+    """
+    @spec remove_session(t(), String.t()) :: t()
+    def remove_session(%__MODULE__{} = model, session_id) do
+      # Remove from sessions map
+      new_sessions = Map.delete(model.sessions, session_id)
+
+      # Remove from session_order
+      new_order = Enum.reject(model.session_order, &(&1 == session_id))
+
+      # Determine new active session if we're closing the active one
+      new_active_id =
+        if model.active_session_id == session_id do
+          # Find the index of the closed session in the original order
+          old_index = Enum.find_index(model.session_order, &(&1 == session_id)) || 0
+
+          cond do
+            # No sessions left
+            new_order == [] ->
+              nil
+
+            # Try previous session (go back one index)
+            old_index > 0 ->
+              Enum.at(new_order, old_index - 1)
+
+            # Otherwise take the first remaining session
+            true ->
+              List.first(new_order)
+          end
+        else
+          model.active_session_id
+        end
+
+      %{model | sessions: new_sessions, session_order: new_order, active_session_id: new_active_id}
+    end
   end
 
   # ============================================================================
@@ -1031,6 +1083,19 @@ defmodule JidoCode.TUI do
         session_name = if session, do: session.name, else: session_id
 
         final_state = add_session_message(new_state, "Switched to session: #{session_name}")
+        {final_state, []}
+
+      {:session_action, {:close_session, session_id, session_name}} ->
+        # Stop the session process
+        JidoCode.SessionSupervisor.stop_session(session_id)
+
+        # Unsubscribe from session-specific events
+        Phoenix.PubSub.unsubscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session_id))
+
+        # Remove session from model
+        new_state = Model.remove_session(state, session_id)
+
+        final_state = add_session_message(new_state, "Closed session: #{session_name}")
         {final_state, []}
 
       {:ok, message} ->

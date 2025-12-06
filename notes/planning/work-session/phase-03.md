@@ -123,14 +123,14 @@ Update search handlers to use session context.
 - [x] 3.2.2.4 Write unit tests for search handlers (27 tests, 6 new session-aware tests)
 
 ### 3.2.3 Shell Handler
-- [ ] **Task 3.2.3**
+- [x] **Task 3.2.3**
 
 Update shell handler to use session context.
 
-- [ ] 3.2.3.1 Update `RunCommand.execute/2` to use session's project_root as cwd
-- [ ] 3.2.3.2 Validate command arguments don't escape project boundary
-- [ ] 3.2.3.3 Set working directory to session's project_root
-- [ ] 3.2.3.4 Write unit tests for shell handler
+- [x] 3.2.3.1 Update `RunCommand.execute/2` to use session's project_root as cwd
+- [x] 3.2.3.2 Validate command arguments don't escape project boundary
+- [x] 3.2.3.3 Set working directory to session's project_root
+- [x] 3.2.3.4 Write unit tests for shell handler (35 tests, 5 new session-aware tests)
 
 ### 3.2.4 Web Handlers
 - [ ] **Task 3.2.4**

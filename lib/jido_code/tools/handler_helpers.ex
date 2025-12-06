@@ -51,6 +51,14 @@ defmodule JidoCode.Tools.HandlerHelpers do
   To suppress deprecation warnings (useful for tests):
 
       Application.put_env(:jido_code, :suppress_global_manager_warnings, true)
+
+  To require session context (disables fallback to global Manager):
+
+      config :jido_code, require_session_context: true
+
+  When `require_session_context` is true, calls without `session_id` or
+  `project_root` will return `{:error, :session_context_required}` instead
+  of falling back to the global `Tools.Manager`.
   """
 
   require Logger
@@ -92,17 +100,26 @@ defmodule JidoCode.Tools.HandlerHelpers do
           {:ok, String.t()} | {:error, :not_found | :invalid_session_id | String.t()}
   def get_project_root(%{session_id: session_id}) when is_binary(session_id) do
     if valid_session_id?(session_id) do
+      emit_context_telemetry(:session_id, session_id)
       Session.Manager.project_root(session_id)
     else
       {:error, :invalid_session_id}
     end
   end
 
-  def get_project_root(%{project_root: root}) when is_binary(root), do: {:ok, root}
+  def get_project_root(%{project_root: root}) when is_binary(root) do
+    emit_context_telemetry(:project_root, nil)
+    {:ok, root}
+  end
 
   def get_project_root(_context) do
-    log_deprecation_warning("get_project_root")
-    Manager.project_root()
+    if Application.get_env(:jido_code, :require_session_context, false) do
+      {:error, :session_context_required}
+    else
+      emit_context_telemetry(:global_fallback, nil)
+      log_deprecation_warning("get_project_root")
+      Manager.project_root()
+    end
   end
 
   @doc """
@@ -157,8 +174,12 @@ defmodule JidoCode.Tools.HandlerHelpers do
   end
 
   def validate_path(path, _context) do
-    log_deprecation_warning("validate_path")
-    Manager.validate_path(path)
+    if Application.get_env(:jido_code, :require_session_context, false) do
+      {:error, :session_context_required}
+    else
+      log_deprecation_warning("validate_path")
+      Manager.validate_path(path)
+    end
   end
 
   @doc """
@@ -200,6 +221,9 @@ defmodule JidoCode.Tools.HandlerHelpers do
   def format_common_error(:invalid_session_id, _path),
     do: {:ok, "Invalid session ID format (expected UUID)"}
 
+  def format_common_error(:session_context_required, _path),
+    do: {:ok, "Session context required (session_id or project_root must be provided)"}
+
   def format_common_error(reason, _path) when is_binary(reason), do: {:ok, reason}
   def format_common_error(_reason, _path), do: :not_handled
 
@@ -207,12 +231,18 @@ defmodule JidoCode.Tools.HandlerHelpers do
   # Private Functions
   # ============================================================================
 
-  @doc false
   defp valid_session_id?(session_id) do
     Regex.match?(@uuid_regex, session_id)
   end
 
-  @doc false
+  defp emit_context_telemetry(context_type, session_id) do
+    :telemetry.execute(
+      [:jido_code, :handler_helpers, :context_resolution],
+      %{count: 1},
+      %{type: context_type, session_id: session_id}
+    )
+  end
+
   defp log_deprecation_warning(function_name) do
     unless Application.get_env(:jido_code, :suppress_global_manager_warnings, false) do
       Logger.warning(

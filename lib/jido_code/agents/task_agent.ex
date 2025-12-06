@@ -308,14 +308,15 @@ defmodule JidoCode.Agents.TaskAgent do
       {:ok, %{content: content}} when is_binary(content) ->
         {:ok, content}
 
-      {:ok, content} when is_binary(content) ->
-        {:ok, content}
-
       {:ok, %{response: response}} when is_binary(response) ->
         {:ok, response}
 
       {:ok, result} when is_map(result) ->
         content = Map.get(result, :content) || Map.get(result, :response) || inspect(result)
+        {:ok, content}
+
+      {:ok, content} when is_binary(content) ->
+        # Direct string response (rare but possible)
         {:ok, content}
 
       {:error, reason} ->

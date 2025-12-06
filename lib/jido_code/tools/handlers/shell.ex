@@ -86,6 +86,9 @@ defmodule JidoCode.Tools.Handlers.Shell do
   def format_error(:shell_interpreter_blocked, command),
     do: "Shell interpreters are blocked: #{command}"
 
+  def format_error(:timeout, command),
+    do: "Command timed out: #{command}"
+
   def format_error(:path_traversal_blocked, arg),
     do: "Path traversal not allowed in argument: #{arg}"
 
@@ -215,10 +218,22 @@ defmodule JidoCode.Tools.Handlers.Shell do
     # Special system paths that are always allowed
     @allowed_system_paths ~w(/dev/null /dev/stdin /dev/stdout /dev/stderr /dev/zero /dev/random /dev/urandom)
 
+    # Check for path traversal patterns including URL-encoded variants
+    defp contains_path_traversal?(arg) do
+      lower = String.downcase(arg)
+
+      String.contains?(arg, "../") or
+        String.contains?(lower, "%2e%2e%2f") or
+        String.contains?(lower, "%2e%2e/") or
+        String.contains?(lower, "..%2f") or
+        String.contains?(lower, "%2e%2e%5c") or
+        String.contains?(lower, "..%5c")
+    end
+
     defp validate_single_arg(arg, project_root) do
       cond do
-        # Check for path traversal patterns
-        String.contains?(arg, "../") ->
+        # Check for path traversal patterns (literal and URL-encoded)
+        contains_path_traversal?(arg) ->
           {:error, {:path_traversal_blocked, arg}}
 
         # Allow special system paths
@@ -241,37 +256,50 @@ defmodule JidoCode.Tools.Handlers.Shell do
       end
     end
 
-    defp run_command(command, args, project_root, _timeout) do
-      try do
-        # Execute with session's project_root as cwd
-        {output, exit_code} =
-          System.cmd(command, args,
-            cd: project_root,
-            stderr_to_stdout: true,
-            # Convert timeout from ms to ms (System.cmd uses ms internally for Task)
-            # Note: System.cmd doesn't directly support timeout, using Task for that
-            env: []
-          )
-
-        stdout = maybe_truncate(output)
-
-        formatted = %{
-          exit_code: exit_code,
-          stdout: stdout,
-          stderr: ""
-        }
-
-        {:ok, Jason.encode!(formatted)}
-      rescue
-        e in ErlangError ->
-          case e.original do
-            :enoent -> {:error, Shell.format_error(:enoent, command)}
-            :eacces -> {:error, Shell.format_error(:eacces, command)}
-            other -> {:error, Shell.format_error({:system_error, other}, command)}
+    defp run_command(command, args, project_root, timeout) do
+      # Use Task.async with yield/shutdown to enforce timeout
+      task =
+        Task.async(fn ->
+          try do
+            System.cmd(command, args,
+              cd: project_root,
+              stderr_to_stdout: true,
+              env: []
+            )
+          rescue
+            e in ErlangError -> {:error, e.original}
+          catch
+            :exit, reason -> {:error, {:exit, reason}}
           end
-      catch
-        :exit, reason ->
+        end)
+
+      case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
+        {:ok, {:error, :enoent}} ->
+          {:error, Shell.format_error(:enoent, command)}
+
+        {:ok, {:error, :eacces}} ->
+          {:error, Shell.format_error(:eacces, command)}
+
+        {:ok, {:error, {:exit, reason}}} ->
           {:error, Shell.format_error({:exit, reason}, command)}
+
+        {:ok, {:error, reason}} ->
+          {:error, Shell.format_error({:system_error, reason}, command)}
+
+        {:ok, {output, exit_code}} ->
+          stdout = maybe_truncate(output)
+
+          formatted = %{
+            exit_code: exit_code,
+            stdout: stdout,
+            stderr: ""
+          }
+
+          {:ok, Jason.encode!(formatted)}
+
+        nil ->
+          # Timeout - task was killed
+          {:error, Shell.format_error(:timeout, command)}
       end
     end
 

@@ -55,6 +55,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   def format_error(:enotdir, path), do: "Not a directory: #{path}"
   def format_error(:enospc, _path), do: "No space left on device"
 
+  def format_error(:content_too_large, _path),
+    do: "Content exceeds maximum file size (10MB)"
+
   def format_error(:path_escapes_boundary, path),
     do: "Security error: path escapes project boundary: #{path}"
 
@@ -224,6 +227,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
+    alias JidoCode.Tools.HandlerHelpers
+
+    # Maximum file size: 10MB
+    @max_file_size 10 * 1024 * 1024
 
     @doc """
     Writes content to a file.
@@ -231,7 +238,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     ## Arguments
 
     - `"path"` - Path to the file (relative to project root)
-    - `"content"` - Content to write
+    - `"content"` - Content to write (max 10MB)
 
     ## Context
 
@@ -242,19 +249,21 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     - `{:ok, message}` - Success message
     - `{:error, reason}` - Error message
+
+    ## Security
+
+    - Content size limited to 10MB
+    - Parent directories validated to prevent symlink escape
     """
     def execute(%{"path" => path, "content" => content}, context)
         when is_binary(path) and is_binary(content) do
-      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
-        # Create parent directories first
-        dir_path = Path.dirname(safe_path)
-
-        with :ok <- if(dir_path != ".", do: File.mkdir_p(dir_path), else: :ok),
-             :ok <- File.write(safe_path, content) do
-          {:ok, "File written successfully: #{path}"}
-        else
-          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
-        end
+      with :ok <- validate_content_size(content),
+           {:ok, safe_path} <- FileSystem.validate_path(path, context),
+           dir_path <- Path.dirname(safe_path),
+           :ok <- validate_parent_directory(dir_path, context),
+           :ok <- maybe_create_directory(dir_path),
+           :ok <- File.write(safe_path, content) do
+        {:ok, "File written successfully: #{path}"}
       else
         {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
       end
@@ -262,6 +271,72 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     def execute(_args, _context) do
       {:error, "write_file requires path and content arguments"}
+    end
+
+    # Private functions for WriteFile
+
+    defp validate_content_size(content) when byte_size(content) > @max_file_size do
+      {:error, :content_too_large}
+    end
+
+    defp validate_content_size(_content), do: :ok
+
+    defp maybe_create_directory("."), do: :ok
+    defp maybe_create_directory(dir_path), do: File.mkdir_p(dir_path)
+
+    # Validate parent directory to prevent TOCTOU attacks with symlinks
+    defp validate_parent_directory(".", _context), do: :ok
+
+    defp validate_parent_directory(dir_path, context) do
+      case File.lstat(dir_path) do
+        {:ok, %{type: :symlink}} ->
+          # Symlink exists - validate where it points
+          validate_symlink_target(dir_path, context)
+
+        {:ok, _stat} ->
+          # Regular directory exists, OK
+          :ok
+
+        {:error, :enoent} ->
+          # Directory doesn't exist yet - check parent recursively
+          parent = Path.dirname(dir_path)
+
+          if parent == dir_path do
+            # Reached root
+            :ok
+          else
+            validate_parent_directory(parent, context)
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+
+    defp validate_symlink_target(symlink_path, context) do
+      case File.read_link(symlink_path) do
+        {:ok, target} ->
+          # Resolve symlink relative to its location
+          resolved = Path.expand(target, Path.dirname(symlink_path))
+
+          case HandlerHelpers.get_project_root(context) do
+            {:ok, root} ->
+              normalized_root = Path.expand(root)
+
+              if String.starts_with?(resolved, normalized_root <> "/") or
+                   resolved == normalized_root do
+                :ok
+              else
+                {:error, :symlink_escapes_boundary}
+              end
+
+            {:error, _} = error ->
+              error
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 

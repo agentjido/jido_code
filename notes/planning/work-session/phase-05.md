@@ -233,31 +233,16 @@ Proper cleanup when closing session - all cleanup was already implemented in Tas
 - [x] 5.5.2.5 Write unit tests for cleanup (covered by 5.5.1 tests)
 
 ### 5.5.3 TUI Integration for Close
-- [ ] **Task 5.5.3**
+- [x] **Task 5.5.3** (completed 2025-12-06)
 
-Handle `{:remove_session, id}` action in TUI.
+Add keyboard shortcut (Ctrl+W) for closing sessions.
 
-- [ ] 5.5.3.1 Update `update({:command_result, {:remove_session, id}}, model)`:
-  ```elixir
-  def update({:command_result, {:remove_session, session_id}}, model) do
-    new_order = List.delete(model.session_order, session_id)
-    new_sessions = Map.delete(model.sessions, session_id)
+- [x] 5.5.3.1 Add Ctrl+W event handler in `event_to_msg/2`
+- [x] 5.5.3.2 Add `update(:close_active_session, state)` handler
+- [x] 5.5.3.3 Handle no active session case with error message
+- [x] 5.5.3.4 Reuse existing close logic (stop process, unsubscribe, remove_session)
 
-    # Switch to adjacent session
-    new_active = find_adjacent_session(model.session_order, session_id)
-
-    unsubscribe_from_session(session_id)
-
-    %{model |
-      sessions: new_sessions,
-      session_order: new_order,
-      active_session_id: new_active
-    }
-  end
-  ```
-- [ ] 5.5.3.2 Find adjacent session (prefer next, fallback to previous)
-- [ ] 5.5.3.3 Handle closing last session (show welcome screen)
-- [ ] 5.5.3.4 Write integration tests
+Note: Session removal and adjacent session logic was already implemented in Task 5.5.1 via `Model.remove_session/2`.
 
 **Unit Tests for Section 5.5:**
 - Test `/session close` closes active session

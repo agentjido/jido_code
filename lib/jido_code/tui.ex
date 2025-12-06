@@ -552,6 +552,15 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Ctrl+W to close current session
+  def event_to_msg(%Event.Key{key: "w", modifiers: modifiers} = event, _state) do
+    if :ctrl in modifiers do
+      {:msg, :close_active_session}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
   # Enter key - forward to modal if open, otherwise submit current input
   def event_to_msg(%Event.Key{key: :enter} = event, state) do
     cond do
@@ -800,6 +809,33 @@ defmodule JidoCode.TUI do
 
   def update(:toggle_tool_details, state),
     do: MessageHandlers.handle_toggle_tool_details(state)
+
+  # Close active session (Ctrl+W)
+  def update(:close_active_session, state) do
+    case state.active_session_id do
+      nil ->
+        # No active session to close
+        new_state = add_session_message(state, "No active session to close.")
+        {new_state, []}
+
+      session_id ->
+        # Get session name for the message
+        session = Map.get(state.sessions, session_id)
+        session_name = if session, do: session.name, else: session_id
+
+        # Stop the session process
+        JidoCode.SessionSupervisor.stop_session(session_id)
+
+        # Unsubscribe from session-specific events
+        Phoenix.PubSub.unsubscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session_id))
+
+        # Remove session from model
+        new_state = Model.remove_session(state, session_id)
+
+        final_state = add_session_message(new_state, "Closed session: #{session_name}")
+        {final_state, []}
+    end
+  end
 
   # Tool call handling - add pending tool call to list
   # The session_id in the message is for routing identification; we pass it through

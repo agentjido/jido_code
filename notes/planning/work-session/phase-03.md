@@ -171,14 +171,14 @@ Update Todo handler to store todos in session state.
 - [x] 3.2.6.3 Write unit tests for Todo handler (21 tests, 5 new session-aware tests)
 
 ### 3.2.7 Task Handler
-- [ ] **Task 3.2.7**
+- [x] **Task 3.2.7**
 
 Update Task handler to spawn tasks within session context.
 
-- [ ] 3.2.7.1 Update `Task.execute/2` to include session context in spawned task
-- [ ] 3.2.7.2 Pass session_id to sub-agent for proper isolation
-- [ ] 3.2.7.3 Sub-tasks should operate within same session boundary
-- [ ] 3.2.7.4 Write unit tests for Task handler
+- [x] 3.2.7.1 Update `Task.execute/2` to include session context in spawned task (already done)
+- [x] 3.2.7.2 Pass session_id to sub-agent for proper isolation
+- [x] 3.2.7.3 Sub-tasks operate within same session boundary (broadcasts to session topics)
+- [x] 3.2.7.4 Write unit tests for Task handler (27 tests, 4 new session-aware tests)
 
 **Unit Tests for Section 3.2:**
 - Test ReadFile uses Session.Manager.validate_path

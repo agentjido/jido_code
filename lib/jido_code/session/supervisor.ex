@@ -183,8 +183,9 @@ defmodule JidoCode.Session.Supervisor do
   @doc """
   Gets the LLMAgent pid for a session.
 
-  **Note**: This is a stub that returns `{:error, :not_implemented}`.
-  LLMAgent will be added as a session child in Phase 3 after tool integration.
+  Uses Registry lookup with `{:agent, session_id}` key for O(1) performance.
+  The agent must be started with `name: LLMAgent.via(session_id)` to be
+  found via this lookup.
 
   ## Parameters
 
@@ -192,19 +193,21 @@ defmodule JidoCode.Session.Supervisor do
 
   ## Returns
 
-  - `{:ok, pid}` - Agent found (Phase 3)
+  - `{:ok, pid}` - Agent found
   - `{:error, :not_found}` - No Agent for this session
-  - `{:error, :not_implemented}` - Agent not yet implemented
 
   ## Examples
 
-      iex> Session.Supervisor.get_agent(session.id)
-      {:error, :not_implemented}
+      iex> {:ok, pid} = Session.Supervisor.get_agent(session.id)
+      iex> is_pid(pid)
+      true
+
+      iex> Session.Supervisor.get_agent("unknown")
+      {:error, :not_found}
   """
-  @spec get_agent(String.t()) :: {:ok, pid()} | {:error, :not_found | :not_implemented}
+  @spec get_agent(String.t()) :: {:ok, pid()} | {:error, :not_found}
   def get_agent(session_id) when is_binary(session_id) do
-    # LLMAgent will be added in Phase 3 after tool integration
-    {:error, :not_implemented}
+    ProcessRegistry.lookup(:agent, session_id)
   end
 
 end

@@ -197,20 +197,20 @@ Update Task handler to spawn tasks within session context.
 Integrate LLMAgent into per-session supervision and tool execution.
 
 ### 3.3.1 Agent Session Awareness
-- [ ] **Task 3.3.1**
+- [x] **Task 3.3.1**
 
 Update LLMAgent to be fully session-aware.
 
-- [ ] 3.3.1.1 Add `session_id` to LLMAgent state (already partially exists)
-- [ ] 3.3.1.2 Implement `via/1` for Registry naming by session:
+- [x] 3.3.1.1 Add `session_id` to LLMAgent state (already partially exists)
+- [x] 3.3.1.2 Implement `via/1` for Registry naming by session:
   ```elixir
-  defp via(session_id) do
-    {:via, Registry, {JidoCode.Registry, {:session_agent, session_id}}}
+  def via(session_id) do
+    ProcessRegistry.via(:agent, session_id)
   end
   ```
-- [ ] 3.3.1.3 Update `start_link/1` to accept session_id in opts
-- [ ] 3.3.1.4 Build tool execution context from session_id
-- [ ] 3.3.1.5 Write unit tests for session-aware agent
+- [x] 3.3.1.3 Update `start_link/1` to accept session_id in opts (already implemented)
+- [x] 3.3.1.4 Build tool execution context from session_id (`get_tool_context/1`, `build_tool_context/1`)
+- [x] 3.3.1.5 Write unit tests for session-aware agent (8 new tests)
 
 ### 3.3.2 Agent Integration with Session Supervisor
 - [ ] **Task 3.3.2**

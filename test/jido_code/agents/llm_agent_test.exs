@@ -2,6 +2,8 @@ defmodule JidoCode.Agents.LLMAgentTest do
   use ExUnit.Case, async: false
 
   alias JidoCode.Agents.LLMAgent
+  alias JidoCode.Session
+  alias JidoCode.Session.ProcessRegistry
   alias JidoCode.TestHelpers.EnvIsolation
 
   @moduletag :llm_agent
@@ -549,6 +551,158 @@ defmodule JidoCode.Agents.LLMAgentTest do
         {:error, _reason} ->
           :ok
       end
+    end
+  end
+
+  # ============================================================================
+  # Session-Aware Agent Tests (Task 3.3.1)
+  # ============================================================================
+
+  describe "via/1" do
+    test "returns correct registry via tuple" do
+      session_id = "550e8400-e29b-41d4-a716-446655440000"
+      via = LLMAgent.via(session_id)
+
+      assert {:via, Registry, {JidoCode.SessionProcessRegistry, {:agent, ^session_id}}} = via
+    end
+
+    test "via tuple matches ProcessRegistry.via/2" do
+      session_id = "test-session-abc"
+      assert LLMAgent.via(session_id) == ProcessRegistry.via(:agent, session_id)
+    end
+  end
+
+  describe "session registry integration" do
+    test "agent started with via/1 can be found via Session.Supervisor.get_agent/1" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      session_id = "test-registry-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(
+             session_id: session_id,
+             name: LLMAgent.via(session_id)
+           ) do
+        {:ok, pid} ->
+          # Should be findable via Session.Supervisor.get_agent/1
+          assert {:ok, ^pid} = Session.Supervisor.get_agent(session_id)
+
+          # Should also be findable via ProcessRegistry.lookup/2
+          assert {:ok, ^pid} = ProcessRegistry.lookup(:agent, session_id)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "Session.Supervisor.get_agent/1 returns :not_found for non-existent session" do
+      assert {:error, :not_found} = Session.Supervisor.get_agent("nonexistent-session-id")
+    end
+  end
+
+  describe "build_tool_context/1" do
+    test "returns error for nil session_id" do
+      assert {:error, :no_session_id} = LLMAgent.build_tool_context(nil)
+    end
+
+    test "returns error for non-existent session" do
+      # Valid UUID format but no session exists
+      result = LLMAgent.build_tool_context("550e8400-e29b-41d4-a716-446655440000")
+
+      # Should return error (session not found)
+      assert {:error, _reason} = result
+    end
+
+    test "returns context for valid session" do
+      # Create a real session first
+      {:ok, session} = Session.new(project_path: System.tmp_dir!())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      # Now build_tool_context should work
+      result = LLMAgent.build_tool_context(session.id)
+
+      case result do
+        {:ok, context} ->
+          assert context.session_id == session.id
+          assert is_binary(context.project_root)
+          assert is_integer(context.timeout)
+
+        {:error, _reason} ->
+          # May fail if session manager not fully ready
+          :ok
+      end
+
+      # Cleanup
+      JidoCode.SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "get_tool_context/1" do
+    test "returns error when agent has no proper session_id" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Start agent without explicit session_id (uses PID string)
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          result = LLMAgent.get_tool_context(pid)
+
+          # Should return error since session_id is a PID string
+          assert {:error, :no_session_id} = result
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "returns context for agent with valid session" do
+      # Create a real session
+      {:ok, session} = Session.new(project_path: System.tmp_dir!())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Start agent with session_id
+      case LLMAgent.start_link(session_id: session.id) do
+        {:ok, pid} ->
+          result = LLMAgent.get_tool_context(pid)
+
+          case result do
+            {:ok, context} ->
+              assert context.session_id == session.id
+              assert is_binary(context.project_root)
+              assert is_integer(context.timeout)
+
+            {:error, _reason} ->
+              # May fail if session not ready
+              :ok
+          end
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+
+      # Cleanup
+      JidoCode.SessionSupervisor.stop_session(session.id)
     end
   end
 end

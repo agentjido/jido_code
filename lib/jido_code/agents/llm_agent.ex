@@ -47,6 +47,8 @@ defmodule JidoCode.Agents.LLMAgent do
   alias Jido.AI.Prompt
   alias JidoCode.Config
   alias JidoCode.PubSubTopics
+  alias JidoCode.Session.ProcessRegistry
+  alias JidoCode.Tools.Executor
 
   @pubsub JidoCode.PubSub
   @default_timeout 60_000
@@ -104,6 +106,36 @@ defmodule JidoCode.Agents.LLMAgent do
     {name, opts} = Keyword.pop(opts, :name)
     server_opts = if name, do: [name: name], else: []
     GenServer.start_link(__MODULE__, opts, server_opts)
+  end
+
+  @doc """
+  Returns a via tuple for registering an LLMAgent with a session.
+
+  Use this when you want to register an agent in the session registry
+  and look it up by session_id later using `Session.Supervisor.get_agent/1`.
+
+  ## Parameters
+
+  - `session_id` - The session's unique identifier (must be a valid UUID)
+
+  ## Returns
+
+  A via tuple suitable for use as the `name` option in `start_link/1`.
+
+  ## Examples
+
+      # Start an agent registered to a session
+      {:ok, pid} = LLMAgent.start_link(
+        session_id: "550e8400-e29b-41d4-a716-446655440000",
+        name: LLMAgent.via("550e8400-e29b-41d4-a716-446655440000")
+      )
+
+      # Later, look up by session_id
+      {:ok, pid} = Session.Supervisor.get_agent("550e8400-e29b-41d4-a716-446655440000")
+  """
+  @spec via(String.t()) :: {:via, Registry, {atom(), {atom(), String.t()}}}
+  def via(session_id) when is_binary(session_id) do
+    ProcessRegistry.via(:agent, session_id)
   end
 
   @doc """
@@ -218,6 +250,61 @@ defmodule JidoCode.Agents.LLMAgent do
   def topic_for_session(session_id) when is_binary(session_id) do
     PubSubTopics.llm_stream(session_id)
   end
+
+  @doc """
+  Returns the tool execution context for this agent's session.
+
+  The context is built from the agent's session_id and includes:
+  - `session_id` - The session identifier
+  - `project_root` - The session's project root path
+  - `timeout` - Default tool execution timeout
+
+  This is useful for external code that needs to execute tools
+  in the same session context as the agent.
+
+  ## Returns
+
+  - `{:ok, context}` - Context map with session_id, project_root, timeout
+  - `{:error, :no_session_id}` - Agent was started without session_id
+  - `{:error, :not_found}` - Session not found in registry
+
+  ## Examples
+
+      {:ok, context} = LLMAgent.get_tool_context(pid)
+      Tools.Executor.execute(tool_call, context: context)
+  """
+  @spec get_tool_context(GenServer.server()) :: {:ok, map()} | {:error, term()}
+  def get_tool_context(pid) do
+    GenServer.call(pid, :get_tool_context)
+  end
+
+  @doc """
+  Builds a tool execution context from a session_id.
+
+  This is a convenience function that delegates to `Tools.Executor.build_context/1`.
+  Use this when you have a session_id but not a running agent.
+
+  ## Parameters
+
+  - `session_id` - The session's unique identifier
+
+  ## Returns
+
+  - `{:ok, context}` - Context map with session_id, project_root, timeout
+  - `{:error, :not_found}` - Session not found
+  - `{:error, :invalid_session_id}` - Invalid session_id format
+
+  ## Examples
+
+      {:ok, context} = LLMAgent.build_tool_context("550e8400-e29b-41d4-a716-446655440000")
+      Tools.Executor.execute(tool_call, context: context)
+  """
+  @spec build_tool_context(String.t()) :: {:ok, map()} | {:error, term()}
+  def build_tool_context(session_id) when is_binary(session_id) do
+    Executor.build_context(session_id)
+  end
+
+  def build_tool_context(nil), do: {:error, :no_session_id}
 
   @doc """
   Reconfigures the agent with new provider/model settings at runtime.
@@ -398,6 +485,12 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   @impl true
+  def handle_call(:get_tool_context, _from, state) do
+    result = do_build_tool_context(state.session_id)
+    {:reply, result, state}
+  end
+
+  @impl true
   def handle_call({:configure, opts}, _from, state) do
     # Build new config, merging with current config
     new_config = %{
@@ -542,6 +635,20 @@ defmodule JidoCode.Agents.LLMAgent do
 
   defp build_topic(session_id) do
     PubSubTopics.llm_stream(session_id)
+  end
+
+  # Build tool execution context from session_id
+  # Returns {:ok, context} or {:error, reason}
+  defp do_build_tool_context(nil), do: {:error, :no_session_id}
+
+  defp do_build_tool_context(session_id) when is_binary(session_id) do
+    # Check if session_id looks like a PID string (e.g., "#PID<0.123.0>")
+    # In that case, the agent was started without a proper session_id
+    if String.starts_with?(session_id, "#PID<") do
+      {:error, :no_session_id}
+    else
+      Executor.build_context(session_id)
+    end
   end
 
   defp broadcast_response(topic, response) do

@@ -217,6 +217,87 @@ defmodule JidoCode.TUI do
       session_topic: nil,
       conversation_view: nil
     ]
+
+    # =========================================================================
+    # Session Access Helpers
+    # =========================================================================
+
+    @doc """
+    Returns the currently active Session struct from the model.
+
+    Returns `nil` if no session is active (active_session_id is nil) or if
+    the active session is not found in the sessions map.
+
+    ## Examples
+
+        iex> model = %Model{sessions: %{"s1" => session}, active_session_id: "s1"}
+        iex> Model.get_active_session(model)
+        %Session{...}
+
+        iex> model = %Model{active_session_id: nil}
+        iex> Model.get_active_session(model)
+        nil
+    """
+    @spec get_active_session(t()) :: JidoCode.Session.t() | nil
+    def get_active_session(%__MODULE__{active_session_id: nil}), do: nil
+
+    def get_active_session(%__MODULE__{active_session_id: id, sessions: sessions}) do
+      Map.get(sessions, id)
+    end
+
+    @doc """
+    Fetches the active session's state from the Session.State GenServer.
+
+    This function looks up the active session and retrieves its conversation
+    state (messages, streaming state, etc.) from the Session.State process.
+
+    Returns `nil` if no session is active.
+
+    ## Examples
+
+        iex> model = %Model{active_session_id: "session-123"}
+        iex> Model.get_active_session_state(model)
+        %{messages: [...], streaming_message: nil, ...}
+    """
+    @spec get_active_session_state(t()) :: map() | nil
+    def get_active_session_state(%__MODULE__{active_session_id: nil}), do: nil
+
+    def get_active_session_state(%__MODULE__{active_session_id: id}) do
+      JidoCode.Session.State.get_state(id)
+    end
+
+    @doc """
+    Returns the session at the given tab index (1-based).
+
+    Tab indices 1-9 correspond to Ctrl+1 through Ctrl+9.
+    Tab index 10 corresponds to Ctrl+0 (the 10th tab).
+
+    Returns `nil` if the index is out of range or if no sessions exist.
+
+    ## Examples
+
+        iex> model = %Model{session_order: ["s1", "s2", "s3"], sessions: %{...}}
+        iex> Model.get_session_by_index(model, 1)
+        %Session{id: "s1", ...}
+
+        iex> Model.get_session_by_index(model, 10)
+        nil  # Only 3 sessions exist
+    """
+    @spec get_session_by_index(t(), pos_integer()) :: JidoCode.Session.t() | nil
+    def get_session_by_index(%__MODULE__{session_order: []}, _index), do: nil
+
+    def get_session_by_index(%__MODULE__{session_order: order, sessions: sessions}, index)
+        when is_integer(index) and index >= 1 and index <= 10 do
+      # Convert 1-based tab index to 0-based list index
+      list_index = index - 1
+
+      case Enum.at(order, list_index) do
+        nil -> nil
+        session_id -> Map.get(sessions, session_id)
+      end
+    end
+
+    def get_session_by_index(_model, _index), do: nil
   end
 
   # ============================================================================

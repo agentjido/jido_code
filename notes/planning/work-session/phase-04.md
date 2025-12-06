@@ -44,11 +44,11 @@ Restructure the Model to support multiple sessions.
 - [x] 4.1.1.4 Write unit tests for model structure (13 tests, 0 failures)
 
 ### 4.1.2 Session State Access
-- [ ] **Task 4.1.2**
+- [x] **Task 4.1.2** (completed 2025-12-06)
 
 Add helper functions for accessing active session state.
 
-- [ ] 4.1.2.1 Implement `get_active_session/1`:
+- [x] 4.1.2.1 Implement `get_active_session/1`:
   ```elixir
   def get_active_session(model) do
     case model.active_session_id do
@@ -57,7 +57,7 @@ Add helper functions for accessing active session state.
     end
   end
   ```
-- [ ] 4.1.2.2 Implement `get_active_session_state/1` fetching from Session.State:
+- [x] 4.1.2.2 Implement `get_active_session_state/1` fetching from Session.State:
   ```elixir
   def get_active_session_state(model) do
     case model.active_session_id do
@@ -66,8 +66,8 @@ Add helper functions for accessing active session state.
     end
   end
   ```
-- [ ] 4.1.2.3 Implement `get_session_by_index/2` for tab number lookup
-- [ ] 4.1.2.4 Write unit tests for session access helpers
+- [x] 4.1.2.3 Implement `get_session_by_index/2` for tab number lookup
+- [x] 4.1.2.4 Write unit tests for session access helpers (13 new tests, 26 total)
 
 ### 4.1.3 Session Order Management
 - [ ] **Task 4.1.3**

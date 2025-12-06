@@ -164,4 +164,159 @@ defmodule JidoCode.TUI.ModelTest do
       assert updated.focus == :tabs
     end
   end
+
+  # ===========================================================================
+  # Session Access Helper Tests
+  # ===========================================================================
+
+  describe "get_active_session/1" do
+    test "returns nil when no active session" do
+      model = %Model{active_session_id: nil}
+      assert Model.get_active_session(model) == nil
+    end
+
+    test "returns nil when active_session_id not in sessions map" do
+      model = %Model{
+        active_session_id: "missing-session",
+        sessions: %{}
+      }
+
+      assert Model.get_active_session(model) == nil
+    end
+
+    test "returns the active session when it exists" do
+      mock_session = %{id: "session-1", name: "project-a", project_path: "/tmp/a"}
+
+      model = %Model{
+        active_session_id: "session-1",
+        sessions: %{"session-1" => mock_session}
+      }
+
+      assert Model.get_active_session(model) == mock_session
+    end
+
+    test "returns correct session from multiple sessions" do
+      session_1 = %{id: "s1", name: "project-a"}
+      session_2 = %{id: "s2", name: "project-b"}
+      session_3 = %{id: "s3", name: "project-c"}
+
+      model = %Model{
+        active_session_id: "s2",
+        sessions: %{
+          "s1" => session_1,
+          "s2" => session_2,
+          "s3" => session_3
+        }
+      }
+
+      assert Model.get_active_session(model) == session_2
+    end
+  end
+
+  describe "get_session_by_index/2" do
+    test "returns nil when no sessions exist" do
+      model = %Model{session_order: [], sessions: %{}}
+      assert Model.get_session_by_index(model, 1) == nil
+    end
+
+    test "returns first session for index 1" do
+      session_1 = %{id: "s1", name: "project-a"}
+      session_2 = %{id: "s2", name: "project-b"}
+
+      model = %Model{
+        session_order: ["s1", "s2"],
+        sessions: %{"s1" => session_1, "s2" => session_2}
+      }
+
+      assert Model.get_session_by_index(model, 1) == session_1
+    end
+
+    test "returns second session for index 2" do
+      session_1 = %{id: "s1", name: "project-a"}
+      session_2 = %{id: "s2", name: "project-b"}
+
+      model = %Model{
+        session_order: ["s1", "s2"],
+        sessions: %{"s1" => session_1, "s2" => session_2}
+      }
+
+      assert Model.get_session_by_index(model, 2) == session_2
+    end
+
+    test "returns nil for out-of-range index" do
+      session_1 = %{id: "s1", name: "project-a"}
+
+      model = %Model{
+        session_order: ["s1"],
+        sessions: %{"s1" => session_1}
+      }
+
+      # Only 1 session, index 2 should return nil
+      assert Model.get_session_by_index(model, 2) == nil
+      assert Model.get_session_by_index(model, 10) == nil
+    end
+
+    test "returns 10th session for index 10 (Ctrl+0)" do
+      # Create 10 sessions
+      sessions =
+        for i <- 1..10, into: %{} do
+          {"s#{i}", %{id: "s#{i}", name: "project-#{i}"}}
+        end
+
+      session_order = for i <- 1..10, do: "s#{i}"
+
+      model = %Model{
+        session_order: session_order,
+        sessions: sessions
+      }
+
+      # Index 10 should return the 10th session (s10)
+      result = Model.get_session_by_index(model, 10)
+      assert result.id == "s10"
+    end
+
+    test "returns nil for index 0" do
+      session_1 = %{id: "s1", name: "project-a"}
+
+      model = %Model{
+        session_order: ["s1"],
+        sessions: %{"s1" => session_1}
+      }
+
+      assert Model.get_session_by_index(model, 0) == nil
+    end
+
+    test "returns nil for negative index" do
+      session_1 = %{id: "s1", name: "project-a"}
+
+      model = %Model{
+        session_order: ["s1"],
+        sessions: %{"s1" => session_1}
+      }
+
+      assert Model.get_session_by_index(model, -1) == nil
+    end
+
+    test "returns nil for index > 10" do
+      session_1 = %{id: "s1", name: "project-a"}
+
+      model = %Model{
+        session_order: ["s1"],
+        sessions: %{"s1" => session_1}
+      }
+
+      assert Model.get_session_by_index(model, 11) == nil
+    end
+  end
+
+  describe "get_active_session_state/1" do
+    test "returns nil when no active session" do
+      model = %Model{active_session_id: nil}
+      assert Model.get_active_session_state(model) == nil
+    end
+
+    # Note: Testing get_active_session_state with a real Session.State process
+    # requires integration tests with the full session infrastructure.
+    # These unit tests verify the nil case; integration tests cover the full flow.
+  end
 end

@@ -143,13 +143,13 @@ Update web handlers to include session context in results.
 - [x] 3.2.4.4 Write unit tests for web handlers (30 tests, 4 new session-aware tests)
 
 ### 3.2.5 Livebook Handler
-- [ ] **Task 3.2.5**
+- [x] **Task 3.2.5**
 
 Update Livebook handler to use session context.
 
-- [ ] 3.2.5.1 Update `EditCell.execute/2` to validate notebook path
-- [ ] 3.2.5.2 Use Session.Manager.validate_path for notebook files
-- [ ] 3.2.5.3 Write unit tests for Livebook handler
+- [x] 3.2.5.1 Update `EditCell.execute/2` to validate notebook path
+- [x] 3.2.5.2 Use Session.Manager.validate_path for notebook files
+- [x] 3.2.5.3 Write unit tests for Livebook handler (17 tests, 5 new session-aware tests)
 
 ### 3.2.6 Todo Handler
 - [ ] **Task 3.2.6**

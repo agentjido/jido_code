@@ -24,11 +24,14 @@ defmodule JidoCode.Tools.Handlers.Livebook do
       })
   """
 
-  alias JidoCode.Tools.{HandlerHelpers, Manager}
+  alias JidoCode.Tools.HandlerHelpers
   alias JidoCode.Livebook.{Parser, Serializer, Notebook, Cell}
 
   @doc false
   defdelegate get_project_root(context), to: HandlerHelpers
+
+  @doc false
+  defdelegate validate_path(path, context), to: HandlerHelpers
 
   @doc false
   def format_error(:enoent, path), do: "Notebook not found: #{path}"
@@ -54,10 +57,14 @@ defmodule JidoCode.Tools.Handlers.Livebook do
     Handler for the livebook_edit tool.
 
     Edits, inserts, or deletes cells in Livebook notebooks (.livemd files).
+
+    ## Session Context
+
+    Uses session-aware path validation when `session_id` is provided in context.
+    Falls back to `project_root` for legacy compatibility.
     """
 
     alias JidoCode.Tools.Handlers.Livebook
-    alias JidoCode.Tools.Manager
     alias JidoCode.Livebook.{Parser, Serializer, Notebook, Cell}
 
     @doc """
@@ -71,6 +78,11 @@ defmodule JidoCode.Tools.Handlers.Livebook do
     - `"cell_type"` - Cell type (optional, defaults to existing type or "elixir" for insert)
     - `"edit_mode"` - Operation mode: "replace" (default), "insert", or "delete"
 
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Fallback project root for legacy compatibility
+
     ## Returns
 
     - `{:ok, message}` - Success message
@@ -79,18 +91,19 @@ defmodule JidoCode.Tools.Handlers.Livebook do
     def execute(
           %{"notebook_path" => path, "cell_index" => cell_index, "new_source" => new_source} =
             args,
-          _context
+          context
         )
         when is_binary(path) and is_integer(cell_index) and is_binary(new_source) do
       edit_mode = Map.get(args, "edit_mode", "replace")
       cell_type = Map.get(args, "cell_type", nil)
 
-      with {:ok, content} <- Manager.read_file(path),
+      with {:ok, safe_path} <- Livebook.validate_path(path, context),
+           {:ok, content} <- File.read(safe_path),
            {:ok, notebook} <- Parser.parse(content),
            {:ok, updated_notebook} <-
              apply_edit(notebook, cell_index, new_source, cell_type, edit_mode),
            new_content = Serializer.serialize(updated_notebook),
-           :ok <- Manager.write_file(path, new_content) do
+           :ok <- File.write(safe_path, new_content) do
         {:ok, format_success_message(edit_mode, cell_index, path)}
       else
         {:error, reason} -> {:error, Livebook.format_error(reason, path)}
@@ -100,14 +113,15 @@ defmodule JidoCode.Tools.Handlers.Livebook do
     # Handle delete mode (new_source not required)
     def execute(
           %{"notebook_path" => path, "cell_index" => cell_index, "edit_mode" => "delete"},
-          _context
+          context
         )
         when is_binary(path) and is_integer(cell_index) do
-      with {:ok, content} <- Manager.read_file(path),
+      with {:ok, safe_path} <- Livebook.validate_path(path, context),
+           {:ok, content} <- File.read(safe_path),
            {:ok, notebook} <- Parser.parse(content),
            {:ok, updated_notebook} <- Notebook.delete_cell(notebook, cell_index),
            new_content = Serializer.serialize(updated_notebook),
-           :ok <- Manager.write_file(path, new_content) do
+           :ok <- File.write(safe_path, new_content) do
         {:ok, "Successfully deleted cell #{cell_index} from #{path}"}
       else
         {:error, reason} -> {:error, Livebook.format_error(reason, path)}

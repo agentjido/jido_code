@@ -133,14 +133,14 @@ Update shell handler to use session context.
 - [x] 3.2.3.4 Write unit tests for shell handler (35 tests, 5 new session-aware tests)
 
 ### 3.2.4 Web Handlers
-- [ ] **Task 3.2.4**
+- [x] **Task 3.2.4**
 
 Update web handlers to include session context in results.
 
-- [ ] 3.2.4.1 Update `Fetch.execute/2` to include session_id in result metadata
-- [ ] 3.2.4.2 Update `Search.execute/2` similarly
-- [ ] 3.2.4.3 Web handlers don't need path validation but should track session
-- [ ] 3.2.4.4 Write unit tests for web handlers
+- [x] 3.2.4.1 Update `Fetch.execute/2` to include session_id in result metadata
+- [x] 3.2.4.2 Update `Search.execute/2` similarly
+- [x] 3.2.4.3 Web handlers don't need path validation but should track session
+- [x] 3.2.4.4 Write unit tests for web handlers (30 tests, 4 new session-aware tests)
 
 ### 3.2.5 Livebook Handler
 - [ ] **Task 3.2.5**

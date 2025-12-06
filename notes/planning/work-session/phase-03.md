@@ -113,14 +113,14 @@ Update filesystem handlers to use session context.
 - [x] 3.2.1.8 Write unit tests for each handler with session context (46 tests, 5 new session-aware tests)
 
 ### 3.2.2 Search Handlers
-- [ ] **Task 3.2.2**
+- [x] **Task 3.2.2**
 
 Update search handlers to use session context.
 
-- [ ] 3.2.2.1 Update `Grep.execute/2` to use session's project_root
-- [ ] 3.2.2.2 Update `FindFiles.execute/2` similarly
-- [ ] 3.2.2.3 Ensure search paths validated against session boundary
-- [ ] 3.2.2.4 Write unit tests for search handlers
+- [x] 3.2.2.1 Update `Grep.execute/2` to use session's project_root
+- [x] 3.2.2.2 Update `FindFiles.execute/2` similarly
+- [x] 3.2.2.3 Ensure search paths validated against session boundary
+- [x] 3.2.2.4 Write unit tests for search handlers (27 tests, 6 new session-aware tests)
 
 ### 3.2.3 Shell Handler
 - [ ] **Task 3.2.3**

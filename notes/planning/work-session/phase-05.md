@@ -128,17 +128,12 @@ Implement the handler for listing sessions.
 - [x] 5.3.1.7 Write unit tests for list command (8 tests)
 
 ### 5.3.2 Empty List Handling
-- [ ] **Task 5.3.2**
+- [x] **Task 5.3.2** (completed 2025-12-06)
 
 Handle empty session list.
 
-- [ ] 5.3.2.1 Return helpful message when no sessions:
-  ```elixir
-  defp format_session_list([], _) do
-    "No sessions. Use /session new to create one."
-  end
-  ```
-- [ ] 5.3.2.2 Write unit tests for empty list
+- [x] 5.3.2.1 Return helpful message when no sessions
+- [x] 5.3.2.2 Update unit test for empty list
 
 **Unit Tests for Section 5.3:**
 - Test `/session list` shows all sessions

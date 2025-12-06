@@ -654,12 +654,12 @@ defmodule JidoCode.CommandsTest do
       end
     end
 
-    test ":list with no sessions returns empty message" do
+    test ":list with no sessions returns helpful message" do
       model = %{sessions: %{}, session_order: [], active_session_id: nil}
       result = Commands.execute_session(:list, model)
 
       assert {:ok, message} = result
-      assert message == "No active sessions."
+      assert message == "No sessions. Use /session new to create one."
     end
 
     test ":list with one session shows session" do

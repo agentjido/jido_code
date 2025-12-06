@@ -439,7 +439,7 @@ defmodule JidoCode.Commands do
     sessions = get_sessions_in_order(model)
 
     if sessions == [] do
-      {:ok, "No active sessions."}
+      {:ok, "No sessions. Use /session new to create one."}
     else
       active_id = Map.get(model, :active_session_id)
       output = format_session_list(sessions, active_id)

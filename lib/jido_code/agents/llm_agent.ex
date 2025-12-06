@@ -48,6 +48,7 @@ defmodule JidoCode.Agents.LLMAgent do
   alias JidoCode.Config
   alias JidoCode.PubSubTopics
   alias JidoCode.Session.ProcessRegistry
+  alias JidoCode.Session.State, as: SessionState
   alias JidoCode.Tools.Executor
   alias JidoCode.Tools.Result
 
@@ -590,11 +591,12 @@ defmodule JidoCode.Agents.LLMAgent do
   def handle_cast({:chat_stream, message, timeout}, state) do
     topic = state.topic
     config = state.config
+    session_id = state.session_id
 
     # ARCH-1 Fix: Use Task.Supervisor for monitored async streaming
     Task.Supervisor.start_child(JidoCode.TaskSupervisor, fn ->
       try do
-        do_chat_stream_with_timeout(config, message, topic, timeout)
+        do_chat_stream_with_timeout(config, message, topic, timeout, session_id)
       catch
         :exit, {:timeout, _} ->
           Logger.warning("Stream timed out after #{timeout}ms")
@@ -756,11 +758,17 @@ defmodule JidoCode.Agents.LLMAgent do
     Phoenix.PubSub.broadcast(@pubsub, topic, {:config_changed, new_config})
   end
 
-  defp broadcast_stream_chunk(topic, chunk) do
+  defp broadcast_stream_chunk(topic, chunk, session_id) do
+    # Update Session.State with chunk (skip if session_id is PID string)
+    update_session_streaming(session_id, chunk)
+    # Also broadcast for TUI
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_chunk, chunk})
   end
 
-  defp broadcast_stream_end(topic, full_content) do
+  defp broadcast_stream_end(topic, full_content, session_id) do
+    # Finalize message in Session.State (skip if session_id is PID string)
+    end_session_streaming(session_id)
+    # Also broadcast for TUI
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, full_content})
   end
 
@@ -769,11 +777,11 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   # Wrapper that enforces timeout on stream operations
-  defp do_chat_stream_with_timeout(config, message, topic, timeout) do
+  defp do_chat_stream_with_timeout(config, message, topic, timeout, session_id) do
     # Use a Task to enforce timeout on the entire streaming operation
     task =
       Task.async(fn ->
-        do_chat_stream(config, message, topic)
+        do_chat_stream(config, message, topic, session_id)
       end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
@@ -787,7 +795,7 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp do_chat_stream(config, message, topic) do
+  defp do_chat_stream(config, message, topic, session_id) do
     # Build model from config
     model_tuple =
       {config.provider,
@@ -799,7 +807,7 @@ defmodule JidoCode.Agents.LLMAgent do
 
     case Model.from(model_tuple) do
       {:ok, model} ->
-        execute_stream(model, message, topic)
+        execute_stream(model, message, topic, session_id)
 
       {:error, reason} ->
         Logger.error("Failed to create model for streaming: #{inspect(reason)}")
@@ -807,7 +815,7 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp execute_stream(model, message, topic) do
+  defp execute_stream(model, message, topic, session_id) do
     # Build prompt with system message and user message
     prompt =
       Prompt.new(%{
@@ -816,6 +824,12 @@ defmodule JidoCode.Agents.LLMAgent do
           %{role: :user, content: message, engine: :none}
         ]
       })
+
+    # Generate a unique message ID for this streaming response
+    message_id = "msg_" <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+
+    # Start streaming in Session.State (skip if session_id is PID string)
+    start_session_streaming(session_id, message_id)
 
     # Execute streaming chat completion
     case ChatCompletion.run(
@@ -827,7 +841,7 @@ defmodule JidoCode.Agents.LLMAgent do
            %{}
          ) do
       {:ok, stream} ->
-        process_stream(stream, topic)
+        process_stream(stream, topic, session_id)
 
       {:error, reason} ->
         Logger.error("Failed to start stream: #{inspect(reason)}")
@@ -835,27 +849,27 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp process_stream(stream, topic) do
+  defp process_stream(stream, topic, session_id) do
     # Accumulate full content while streaming chunks
     full_content =
       Enum.reduce_while(stream, "", fn chunk, acc ->
         case extract_chunk_content(chunk) do
           {:ok, content} ->
-            broadcast_stream_chunk(topic, content)
+            broadcast_stream_chunk(topic, content, session_id)
             {:cont, acc <> content}
 
           {:finish, content} ->
             # Last chunk with finish_reason
             if content != "" do
-              broadcast_stream_chunk(topic, content)
+              broadcast_stream_chunk(topic, content, session_id)
             end
 
             {:halt, acc <> content}
         end
       end)
 
-    # Broadcast stream completion
-    broadcast_stream_end(topic, full_content)
+    # Broadcast stream completion and finalize in Session.State
+    broadcast_stream_end(topic, full_content, session_id)
   rescue
     error ->
       Logger.error("Stream processing error: #{inspect(error)}")
@@ -935,6 +949,42 @@ defmodule JidoCode.Agents.LLMAgent do
       {:error, _} ->
         {:stop, {:error, :cannot_restore_agent}, {:error, reason}, state}
     end
+  end
+
+  # ============================================================================
+  # Session.State Streaming Helpers
+  # ============================================================================
+
+  # Start streaming in Session.State (skip if session_id is PID string)
+  defp start_session_streaming(session_id, message_id) when is_binary(session_id) do
+    if is_valid_session_id?(session_id) do
+      SessionState.start_streaming(session_id, message_id)
+    else
+      :ok
+    end
+  end
+
+  # Update streaming content in Session.State (skip if session_id is PID string)
+  defp update_session_streaming(session_id, chunk) when is_binary(session_id) do
+    if is_valid_session_id?(session_id) do
+      SessionState.update_streaming(session_id, chunk)
+    else
+      :ok
+    end
+  end
+
+  # End streaming in Session.State (skip if session_id is PID string)
+  defp end_session_streaming(session_id) when is_binary(session_id) do
+    if is_valid_session_id?(session_id) do
+      SessionState.end_streaming(session_id)
+    else
+      :ok
+    end
+  end
+
+  # Check if session_id is a valid session ID (not a PID string)
+  defp is_valid_session_id?(session_id) when is_binary(session_id) do
+    not String.starts_with?(session_id, "#PID<")
   end
 
   # ============================================================================

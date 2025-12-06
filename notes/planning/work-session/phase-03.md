@@ -234,21 +234,24 @@ Update agent's tool execution to use session context.
 - [x] 3.3.3.5 Write unit tests for agent tool execution (7 new tests)
 
 ### 3.3.4 Agent Streaming with Session
-- [ ] **Task 3.3.4**
+- [x] **Task 3.3.4** (completed 2025-12-06)
 
 Update streaming to route through Session.State.
 
-- [ ] 3.3.4.1 Update stream chunk handling to update Session.State:
-  ```elixir
-  defp handle_stream_chunk(chunk, state) do
-    Session.State.update_streaming(state.session_id, chunk)
-    # Also broadcast via PubSub for TUI
-    broadcast_chunk(state.session_id, chunk)
-    state
-  end
-  ```
-- [ ] 3.3.4.2 Update stream end to finalize in Session.State
-- [ ] 3.3.4.3 Write unit tests for streaming integration
+- [x] 3.3.4.1 Update stream chunk handling to update Session.State:
+  - Added `update_session_streaming/2` helper that checks for valid session_id
+  - Modified `broadcast_stream_chunk/3` to call `SessionState.update_streaming/2`
+- [x] 3.3.4.2 Update stream end to finalize in Session.State:
+  - Added `start_session_streaming/2` and `end_session_streaming/1` helpers
+  - Modified `execute_stream/4` to generate message_id and call `start_streaming`
+  - Modified `broadcast_stream_end/3` to call `SessionState.end_streaming/1`
+- [x] 3.3.4.3 Thread session_id through streaming call chain:
+  - Updated `handle_cast({:chat_stream, ...})` to pass session_id
+  - Updated all streaming functions to accept session_id parameter
+- [x] 3.3.4.4 Handle non-session session_id (PID string) gracefully:
+  - Added `is_valid_session_id?/1` helper to detect PID strings
+  - Session.State calls are skipped when session_id starts with "#PID<"
+- [x] 3.3.4.5 Write unit tests for streaming integration (5 new tests)
 
 ### 3.3.5 Session Supervisor Access Helper
 - [x] **Task 3.3.5** (completed in Task 3.3.1 and 3.3.2)

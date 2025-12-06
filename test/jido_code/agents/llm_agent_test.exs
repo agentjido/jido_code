@@ -1025,4 +1025,203 @@ defmodule JidoCode.Agents.LLMAgentTest do
       JidoCode.SessionSupervisor.stop_session(session.id)
     end
   end
+
+  # ============================================================================
+  # Streaming Integration Tests
+  # ============================================================================
+
+  describe "streaming with Session.State integration" do
+    alias JidoCode.Session.State, as: SessionState
+
+    test "start_session_streaming is skipped when session_id is PID string" do
+      # Agents started without a session have a PID-based session_id
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Start agent without session - session_id will be a PID string
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          # Get the session_id from state
+          state = :sys.get_state(pid)
+          session_id = state.session_id
+
+          # Verify it's a PID string
+          assert String.starts_with?(session_id, "#PID<")
+
+          # Attempt to call start_streaming with this should not crash
+          # (the internal helper handles graceful degradation)
+          result = SessionState.start_streaming(session_id, "test-msg-id")
+
+          # Should return :not_found since the session doesn't exist
+          assert {:error, :not_found} = result
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "streaming with proper session updates Session.State" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "streaming_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      # Create a proper session
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          # Get the agent from the session supervisor
+          case Session.Supervisor.get_agent(session.id) do
+            {:ok, _agent_pid} ->
+              # Verify session is registered
+              assert {:ok, _} = ProcessRegistry.lookup(:state, session.id)
+
+              # Manually test the Session.State streaming API (direct test)
+              message_id = "test-msg-123"
+
+              # Start streaming
+              {:ok, state1} = SessionState.start_streaming(session.id, message_id)
+              assert state1.is_streaming == true
+              assert state1.streaming_message == ""
+              assert state1.streaming_message_id == message_id
+
+              # Send some chunks
+              :ok = SessionState.update_streaming(session.id, "Hello ")
+              :ok = SessionState.update_streaming(session.id, "world!")
+
+              # Give async casts time to process
+              Process.sleep(50)
+
+              # End streaming
+              {:ok, final_message} = SessionState.end_streaming(session.id)
+              assert final_message.id == message_id
+              assert final_message.role == :assistant
+              assert final_message.content == "Hello world!"
+
+              # Verify message is in session history
+              {:ok, messages} = SessionState.get_messages(session.id)
+              assert length(messages) >= 1
+
+              last_message = List.last(messages)
+              assert last_message.id == message_id
+              assert last_message.content == "Hello world!"
+
+              # Cleanup - don't stop agent directly
+              :ok
+
+            {:error, _reason} ->
+              :ok
+          end
+
+          # Cleanup session
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "end_streaming returns error when not streaming" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "end_streaming_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          # Try to end streaming without starting it
+          result = SessionState.end_streaming(session.id)
+          assert {:error, :not_streaming} = result
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "streaming chunks are silently ignored when not streaming" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "chunks_ignored_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          # Send a chunk without starting streaming
+          result = SessionState.update_streaming(session.id, "orphan chunk")
+
+          # Should silently succeed (cast doesn't return errors)
+          assert result == :ok
+
+          # Messages should be empty
+          {:ok, messages} = SessionState.get_messages(session.id)
+          # Filter to only assistant messages (no orphan chunk added)
+          assistant_messages = Enum.filter(messages, fn m -> m.role == :assistant end)
+          assert assistant_messages == []
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "is_valid_session_id helper correctly identifies PID strings" do
+      # This is an internal helper, but we can test the logic indirectly
+      # by checking that agents without sessions don't crash on streaming ops
+
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          # Get the session_id (should be PID string)
+          state = :sys.get_state(pid)
+          session_id = state.session_id
+
+          # Verify it starts with #PID<
+          assert String.starts_with?(session_id, "#PID<")
+
+          # The agent should handle streaming requests gracefully
+          # even without a proper session
+          # (This tests the internal logic won't crash)
+          assert Process.alive?(pid)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+  end
 end

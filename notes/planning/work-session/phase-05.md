@@ -9,23 +9,23 @@ This phase implements the `/session` command family for managing sessions via th
 Update the command parser to recognize session commands.
 
 ### 5.1.1 Session Command Registration
-- [ ] **Task 5.1.1**
+- [x] **Task 5.1.1** (completed 2025-12-06)
 
 Add session commands to the command registry.
 
-- [ ] 5.1.1.1 Update command pattern matching in `Commands.parse/1`:
+- [x] 5.1.1.1 Update command pattern matching in `Commands.parse/1`:
   ```elixir
   def parse("/session " <> args), do: {:session, parse_session_args(args)}
   def parse("/session"), do: {:session, :help}
   ```
-- [ ] 5.1.1.2 Define session subcommands:
+- [x] 5.1.1.2 Define session subcommands:
   - `new [path] [--name=name]` - Create new session
   - `list` - List all sessions
   - `switch <id|index>` - Switch to session
   - `close [id|index]` - Close session
   - `rename <name>` - Rename current session
-- [ ] 5.1.1.3 Implement `parse_session_args/1` for subcommand parsing
-- [ ] 5.1.1.4 Write unit tests for command parsing
+- [x] 5.1.1.3 Implement `parse_session_args/1` for subcommand parsing
+- [x] 5.1.1.4 Write unit tests for command parsing (17 tests)
 
 ### 5.1.2 Session Argument Parser
 - [ ] **Task 5.1.2**

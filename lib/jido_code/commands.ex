@@ -60,6 +60,12 @@ defmodule JidoCode.Commands do
     /providers               - List available providers
     /theme                   - List available themes
     /theme <name>            - Switch to a theme (dark, light, high_contrast)
+    /session                 - Show session command help
+    /session new [path]      - Create new session (--name=NAME for custom name)
+    /session list            - List all sessions
+    /session switch <target> - Switch to session by index, ID, or name
+    /session close [target]  - Close session (default: active)
+    /session rename <name>   - Rename current session
     /sandbox-test            - Test the Luerl sandbox security (dev/test only)
     /shell <command> [args]  - Run a shell command (e.g., /shell ls -la)
   """
@@ -163,6 +169,14 @@ defmodule JidoCode.Commands do
     end
   end
 
+  defp parse_and_execute("/session " <> rest, _config) do
+    {:session, parse_session_args(String.trim(rest))}
+  end
+
+  defp parse_and_execute("/session", _config) do
+    {:session, :help}
+  end
+
   defp parse_and_execute("/shell " <> rest, _config) do
     execute_shell_command(String.trim(rest))
   end
@@ -180,6 +194,81 @@ defmodule JidoCode.Commands do
 
   defp parse_and_execute(text, _config) do
     {:error, "Not a command: #{text}. Commands start with /"}
+  end
+
+  # ============================================================================
+  # Session Command Parsing
+  # ============================================================================
+
+  @doc false
+  # Parse session subcommand arguments
+  # Returns a tuple that the TUI will handle for execution
+  defp parse_session_args("new" <> rest) do
+    {:new, parse_new_session_args(String.trim(rest))}
+  end
+
+  defp parse_session_args("list"), do: :list
+
+  defp parse_session_args("switch " <> target) do
+    {:switch, String.trim(target)}
+  end
+
+  defp parse_session_args("switch"), do: {:error, :missing_target}
+
+  defp parse_session_args("close" <> rest) do
+    case String.trim(rest) do
+      "" -> {:close, nil}
+      target -> {:close, target}
+    end
+  end
+
+  defp parse_session_args("rename " <> name) do
+    {:rename, String.trim(name)}
+  end
+
+  defp parse_session_args("rename"), do: {:error, :missing_name}
+
+  defp parse_session_args(_), do: :help
+
+  # Parse arguments for /session new [path] [--name=NAME]
+  defp parse_new_session_args("") do
+    %{path: nil, name: nil}
+  end
+
+  defp parse_new_session_args(args_string) do
+    parts = String.split(args_string, ~r/\s+/)
+    parse_new_session_parts(parts, %{path: nil, name: nil})
+  end
+
+  defp parse_new_session_parts([], acc), do: acc
+
+  defp parse_new_session_parts(["--name=" <> name | rest], acc) do
+    parse_new_session_parts(rest, %{acc | name: name})
+  end
+
+  defp parse_new_session_parts(["-n" <> name | rest], acc) when name != "" do
+    # Handle -nNAME (no space)
+    parse_new_session_parts(rest, %{acc | name: name})
+  end
+
+  defp parse_new_session_parts(["-n", name | rest], acc) do
+    # Handle -n NAME (with space)
+    parse_new_session_parts(rest, %{acc | name: name})
+  end
+
+  defp parse_new_session_parts(["--name", name | rest], acc) do
+    # Handle --name NAME (with space)
+    parse_new_session_parts(rest, %{acc | name: name})
+  end
+
+  defp parse_new_session_parts([part | rest], acc) do
+    # First non-flag argument is the path
+    if acc.path == nil and not String.starts_with?(part, "-") do
+      parse_new_session_parts(rest, %{acc | path: part})
+    else
+      # Ignore unknown flags
+      parse_new_session_parts(rest, acc)
+    end
   end
 
   # ============================================================================

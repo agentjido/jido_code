@@ -314,6 +314,157 @@ defmodule JidoCode.CommandsTest do
     end
   end
 
+  describe "/session command parsing" do
+    test "/session returns {:session, :help}" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session", config)
+
+      assert result == {:session, :help}
+    end
+
+    test "/session new parses with no arguments" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session new", config)
+
+      assert result == {:session, {:new, %{path: nil, name: nil}}}
+    end
+
+    test "/session new /path/to/project parses path" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session new /path/to/project", config)
+
+      assert result == {:session, {:new, %{path: "/path/to/project", name: nil}}}
+    end
+
+    test "/session new /path --name=MyProject parses path and name flag" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session new /path/to/project --name=MyProject", config)
+
+      assert result == {:session, {:new, %{path: "/path/to/project", name: "MyProject"}}}
+    end
+
+    test "/session new --name=MyProject /path parses name before path" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session new --name=MyProject /path/to/project", config)
+
+      assert result == {:session, {:new, %{path: "/path/to/project", name: "MyProject"}}}
+    end
+
+    test "/session new /path -n Name parses short name flag" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session new /path/to/project -n Name", config)
+
+      assert result == {:session, {:new, %{path: "/path/to/project", name: "Name"}}}
+    end
+
+    test "/session list parses to :list" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session list", config)
+
+      assert result == {:session, :list}
+    end
+
+    test "/session switch 1 parses index as target" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session switch 1", config)
+
+      assert result == {:session, {:switch, "1"}}
+    end
+
+    test "/session switch abc123 parses ID as target" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session switch abc123", config)
+
+      assert result == {:session, {:switch, "abc123"}}
+    end
+
+    test "/session switch MyProject parses name as target" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session switch MyProject", config)
+
+      assert result == {:session, {:switch, "MyProject"}}
+    end
+
+    test "/session switch without target returns error" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session switch", config)
+
+      assert result == {:session, {:error, :missing_target}}
+    end
+
+    test "/session close parses with no target" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session close", config)
+
+      assert result == {:session, {:close, nil}}
+    end
+
+    test "/session close 2 parses with index target" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session close 2", config)
+
+      assert result == {:session, {:close, "2"}}
+    end
+
+    test "/session close abc123 parses with ID target" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session close abc123", config)
+
+      assert result == {:session, {:close, "abc123"}}
+    end
+
+    test "/session rename NewName parses name" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session rename NewName", config)
+
+      assert result == {:session, {:rename, "NewName"}}
+    end
+
+    test "/session rename without name returns error" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session rename", config)
+
+      assert result == {:session, {:error, :missing_name}}
+    end
+
+    test "/session unknown returns :help" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session unknown", config)
+
+      assert result == {:session, :help}
+    end
+
+    test "/help includes session commands" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, _} = Commands.execute("/help", config)
+
+      assert message =~ "/session"
+      assert message =~ "/session new"
+      assert message =~ "/session list"
+      assert message =~ "/session switch"
+      assert message =~ "/session close"
+      assert message =~ "/session rename"
+    end
+  end
+
   describe "config key formats" do
     test "works with atom keys in config" do
       config = %{provider: "openai", model: "gpt-4o"}

@@ -308,20 +308,20 @@ Create API for checking agent status.
 - [x] 3.4.2.4 Write unit tests for status API (6 new tests)
 
 ### 3.4.3 Agent Configuration API
-- [ ] **Task 3.4.3**
+- [x] **Task 3.4.3** (completed 2025-12-06)
 
 Create API for updating agent configuration.
 
-- [ ] 3.4.3.1 Implement `update_config/2`:
-  ```elixir
-  def update_config(session_id, config) do
-    with {:ok, agent_pid} <- Session.Supervisor.get_agent(session_id) do
-      LLMAgent.update_config(agent_pid, config)
-    end
-  end
-  ```
-- [ ] 3.4.3.2 Also update session's stored config
-- [ ] 3.4.3.3 Write unit tests for config API
+- [x] 3.4.3.1 Implement `update_config/2` in AgentAPI:
+  - Accepts session_id and config (map or keyword list)
+  - Updates agent via `LLMAgent.configure/2`
+  - Also updates session's stored config via `Session.State.update_session_config/2`
+- [x] 3.4.3.2 Implement `get_config/1` in AgentAPI:
+  - Returns current config via `LLMAgent.get_config/1`
+- [x] 3.4.3.3 Implement `update_session_config/2` in Session.State:
+  - Uses existing `Session.update_config/2` for validation
+  - Updates session struct in state
+- [x] 3.4.3.4 Write unit tests for config API (8 new tests)
 
 **Unit Tests for Section 3.4:**
 - Test `send_message/2` sends to correct agent

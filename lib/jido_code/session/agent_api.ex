@@ -30,6 +30,7 @@ defmodule JidoCode.Session.AgentAPI do
   """
 
   alias JidoCode.Agents.LLMAgent
+  alias JidoCode.Session.State
   alias JidoCode.Session.Supervisor, as: SessionSupervisor
 
   # ============================================================================
@@ -192,6 +193,82 @@ defmodule JidoCode.Session.AgentAPI do
       # Processing is the inverse of ready
       # When the AI agent is not alive/ready, we consider it "processing"
       {:ok, not status.ready}
+    end
+  end
+
+  # ============================================================================
+  # Configuration API
+  # ============================================================================
+
+  @doc """
+  Updates the session's agent configuration.
+
+  This updates both the agent's runtime configuration and the session's
+  stored configuration, keeping them in sync.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `config` - Map or keyword list of configuration options:
+    - `:provider` - LLM provider (e.g., :anthropic, :openai)
+    - `:model` - Model name
+    - `:temperature` - Temperature (0.0-2.0)
+    - `:max_tokens` - Maximum tokens
+
+  ## Returns
+
+  - `:ok` - Configuration updated successfully
+  - `{:error, :agent_not_found}` - Session has no agent
+  - `{:error, reason}` - Validation or other error
+
+  ## Examples
+
+      iex> AgentAPI.update_config("session-123", %{temperature: 0.5})
+      :ok
+
+      iex> AgentAPI.update_config("session-123", provider: :openai, model: "gpt-4")
+      :ok
+
+      iex> AgentAPI.update_config("unknown-session", %{temperature: 0.5})
+      {:error, :agent_not_found}
+  """
+  @spec update_config(String.t(), map() | keyword()) :: :ok | {:error, term()}
+  def update_config(session_id, config) when is_binary(session_id) do
+    opts = if is_map(config), do: Map.to_list(config), else: config
+
+    with {:ok, agent_pid} <- get_agent(session_id),
+         :ok <- LLMAgent.configure(agent_pid, opts) do
+      # Also update session's stored config
+      config_map = Map.new(opts)
+      State.update_session_config(session_id, config_map)
+      :ok
+    end
+  end
+
+  @doc """
+  Gets the current configuration for the session's agent.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, config}` - Current configuration map
+  - `{:error, :agent_not_found}` - Session has no agent
+
+  ## Examples
+
+      iex> AgentAPI.get_config("session-123")
+      {:ok, %{provider: :anthropic, model: "claude-3-5-sonnet-20241022", ...}}
+
+      iex> AgentAPI.get_config("unknown-session")
+      {:error, :agent_not_found}
+  """
+  @spec get_config(String.t()) :: {:ok, map()} | {:error, term()}
+  def get_config(session_id) when is_binary(session_id) do
+    with {:ok, agent_pid} <- get_agent(session_id) do
+      {:ok, LLMAgent.get_config(agent_pid)}
     end
   end
 

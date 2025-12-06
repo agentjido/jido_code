@@ -432,6 +432,38 @@ defmodule JidoCode.Session.State do
     call_state(session_id, {:add_tool_call, tool_call})
   end
 
+  @doc """
+  Updates the session's LLM configuration.
+
+  This merges the provided config with the existing session config using
+  `Session.update_config/2`, which validates the config and updates the
+  `updated_at` timestamp.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `config` - Map of config options to merge (provider, model, temperature, max_tokens)
+
+  ## Returns
+
+  - `{:ok, session}` - Successfully updated session
+  - `{:error, :not_found}` - Session not found
+  - `{:error, [reasons]}` - Config validation errors
+
+  ## Examples
+
+      iex> {:ok, session} = State.update_session_config("session-123", %{temperature: 0.5})
+      iex> session.config.temperature
+      0.5
+
+      iex> {:error, :not_found} = State.update_session_config("unknown", %{temperature: 0.5})
+  """
+  @spec update_session_config(String.t(), map()) :: {:ok, Session.t()} | {:error, :not_found | [atom()]}
+  def update_session_config(session_id, config)
+      when is_binary(session_id) and is_map(config) do
+    call_state(session_id, {:update_session_config, config})
+  end
+
   # ============================================================================
   # Private Helpers
   # ============================================================================
@@ -584,6 +616,18 @@ defmodule JidoCode.Session.State do
   def handle_call(:get_tool_calls, _from, state) do
     # Tool calls stored in reverse order for O(1) prepend, reverse on read
     {:reply, {:ok, Enum.reverse(state.tool_calls)}, state}
+  end
+
+  @impl true
+  def handle_call({:update_session_config, config}, _from, state) do
+    case Session.update_config(state.session, config) do
+      {:ok, updated_session} ->
+        new_state = %{state | session: updated_session}
+        {:reply, {:ok, updated_session}, new_state}
+
+      {:error, reasons} ->
+        {:reply, {:error, reasons}, state}
+    end
   end
 
   # ============================================================================

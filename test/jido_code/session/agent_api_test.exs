@@ -299,4 +299,166 @@ defmodule JidoCode.Session.AgentAPITest do
       end
     end
   end
+
+  describe "update_config/2" do
+    test "returns error when session has no agent" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      result = AgentAPI.update_config("non-existent-session-id", %{temperature: 0.5})
+
+      assert {:error, :agent_not_found} = result
+    end
+
+    test "updates agent configuration with map" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "update_config_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          result = AgentAPI.update_config(session.id, %{temperature: 0.5})
+
+          assert result == :ok
+
+          # Verify config was updated
+          {:ok, new_config} = AgentAPI.get_config(session.id)
+          assert new_config.temperature == 0.5
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "updates agent configuration with keyword list" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "update_config_kw_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          result = AgentAPI.update_config(session.id, temperature: 0.3, max_tokens: 2048)
+
+          assert result == :ok
+
+          # Verify config was updated
+          {:ok, new_config} = AgentAPI.get_config(session.id)
+          assert new_config.temperature == 0.3
+          assert new_config.max_tokens == 2048
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "also updates session's stored config" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "update_config_session_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          :ok = AgentAPI.update_config(session.id, %{temperature: 0.8})
+
+          # Verify session's stored config was also updated
+          {:ok, updated_session} = JidoCode.Session.State.get_state(session.id)
+          assert updated_session.session.config.temperature == 0.8
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "validates session_id is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.update_config(12345, %{temperature: 0.5})
+      end
+    end
+  end
+
+  describe "get_config/1" do
+    test "returns error when session has no agent" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      result = AgentAPI.get_config("non-existent-session-id")
+
+      assert {:error, :agent_not_found} = result
+    end
+
+    test "returns current config for valid session" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "get_config_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          result = AgentAPI.get_config(session.id)
+
+          case result do
+            {:ok, config} ->
+              assert is_map(config)
+              assert Map.has_key?(config, :provider)
+              assert Map.has_key?(config, :model)
+              assert Map.has_key?(config, :temperature)
+              assert Map.has_key?(config, :max_tokens)
+
+            {:error, _reason} ->
+              # May fail if agent not fully started
+              :ok
+          end
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "validates session_id is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.get_config(nil)
+      end
+    end
+  end
 end

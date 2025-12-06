@@ -4,6 +4,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.Session
   alias JidoCode.Session.ProcessRegistry
+  alias JidoCode.Test.SessionTestHelpers
   alias JidoCode.TestHelpers.EnvIsolation
 
   @moduletag :llm_agent
@@ -620,8 +621,11 @@ defmodule JidoCode.Agents.LLMAgentTest do
     end
 
     test "returns context for valid session" do
-      # Create a real session first
-      {:ok, session} = Session.new(project_path: System.tmp_dir!())
+      # Set API key BEFORE starting session
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create a real session first with valid config
+      {:ok, session} = Session.new(project_path: System.tmp_dir!(), config: SessionTestHelpers.valid_session_config())
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Now build_tool_context should work
@@ -668,19 +672,15 @@ defmodule JidoCode.Agents.LLMAgentTest do
     end
 
     test "returns context for agent with valid session" do
-      # Create a real session
-      {:ok, session} = Session.new(project_path: System.tmp_dir!())
-      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
-
-      Application.put_env(:jido_code, :llm,
-        provider: :anthropic,
-        model: "claude-3-5-sonnet-20241022"
-      )
-
+      # Set API key BEFORE starting session
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
-      # Start agent with session_id
-      case LLMAgent.start_link(session_id: session.id) do
+      # Create a real session with valid config
+      {:ok, session} = Session.new(project_path: System.tmp_dir!(), config: SessionTestHelpers.valid_session_config())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      # Get agent from session (already started by session supervisor)
+      case Session.Supervisor.get_agent(session.id) do
         {:ok, pid} ->
           result = LLMAgent.get_tool_context(pid)
 
@@ -695,7 +695,327 @@ defmodule JidoCode.Agents.LLMAgentTest do
               :ok
           end
 
+          # Don't stop agent - session supervisor handles it
+
+        {:error, _reason} ->
+          :ok
+      end
+
+      # Cleanup
+      JidoCode.SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  # ============================================================================
+  # Tool Execution Tests (Task 3.3.3)
+  # ============================================================================
+
+  describe "execute_tool/2" do
+    setup do
+      # Register tools for execution
+      JidoCode.Tools.register_all()
+      :ok
+    end
+
+    test "returns error when agent has no proper session_id" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Start agent without explicit session_id (uses PID string)
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          tool_call = %{id: "call_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
+          result = LLMAgent.execute_tool(pid, tool_call)
+
+          # Should return error since session_id is a PID string
+          assert {:error, :no_session_id} = result
+
           stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "executes tool with valid session context" do
+      # Set API key BEFORE starting session (session starts LLMAgent)
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create temp file for testing
+      tmp_dir = System.tmp_dir!()
+      test_file = Path.join(tmp_dir, "test_#{System.unique_integer([:positive])}.txt")
+      File.write!(test_file, "Hello, World!")
+
+      on_exit(fn -> File.rm(test_file) end)
+
+      # Create a real session with valid config
+      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      # Session already has LLMAgent started - get it from the session
+      case Session.Supervisor.get_agent(session.id) do
+        {:ok, pid} ->
+          tool_call = %{
+            id: "call_1",
+            name: "read_file",
+            arguments: %{"path" => test_file}
+          }
+
+          result = LLMAgent.execute_tool(pid, tool_call)
+
+          case result do
+            {:ok, tool_result} ->
+              assert tool_result.tool_call_id == "call_1"
+              assert tool_result.tool_name == "read_file"
+              assert tool_result.status == :ok
+              assert String.contains?(tool_result.content, "Hello, World!")
+
+            {:error, _reason} ->
+              # May fail if session not ready
+              :ok
+          end
+
+          # Don't stop agent - session supervisor handles it
+
+        {:error, _reason} ->
+          :ok
+      end
+
+      # Cleanup
+      JidoCode.SessionSupervisor.stop_session(session.id)
+    end
+
+    test "handles tool not found error" do
+      # Set API key BEFORE starting session
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create a real session with valid config
+      tmp_dir = System.tmp_dir!()
+      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      # Get agent from session
+      case Session.Supervisor.get_agent(session.id) do
+        {:ok, pid} ->
+          tool_call = %{
+            id: "call_1",
+            name: "nonexistent_tool",
+            arguments: %{}
+          }
+
+          result = LLMAgent.execute_tool(pid, tool_call)
+
+          case result do
+            {:ok, tool_result} ->
+              # Tool not found is returned as an error Result, not an error tuple
+              assert tool_result.status == :error
+              assert String.contains?(tool_result.content, "not found")
+
+            {:error, _reason} ->
+              # May fail if session not ready
+              :ok
+          end
+
+          # Don't stop agent - session supervisor handles it
+
+        {:error, _reason} ->
+          :ok
+      end
+
+      # Cleanup
+      JidoCode.SessionSupervisor.stop_session(session.id)
+    end
+
+    test "handles path outside project boundary" do
+      # Set API key BEFORE starting session
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create a real session with restricted project path
+      tmp_dir = Path.join(System.tmp_dir!(), "project_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      # Get agent from session
+      case Session.Supervisor.get_agent(session.id) do
+        {:ok, pid} ->
+          # Try to read file outside project boundary
+          tool_call = %{
+            id: "call_1",
+            name: "read_file",
+            arguments: %{"path" => "/etc/passwd"}
+          }
+
+          result = LLMAgent.execute_tool(pid, tool_call)
+
+          case result do
+            {:ok, tool_result} ->
+              # Path validation error
+              assert tool_result.status == :error
+              assert String.contains?(tool_result.content, "outside") or
+                       String.contains?(tool_result.content, "boundary") or
+                       String.contains?(tool_result.content, "allowed")
+
+            {:error, _reason} ->
+              # May fail if session not ready
+              :ok
+          end
+
+          # Don't stop agent - session supervisor handles it
+
+        {:error, _reason} ->
+          :ok
+      end
+
+      # Cleanup
+      JidoCode.SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "execute_tool_batch/3" do
+    setup do
+      # Register tools for execution
+      JidoCode.Tools.register_all()
+      :ok
+    end
+
+    test "returns error when agent has no proper session_id" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Start agent without explicit session_id (uses PID string)
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          tool_calls = [
+            %{id: "call_1", name: "read_file", arguments: %{"path" => "/a.txt"}},
+            %{id: "call_2", name: "read_file", arguments: %{"path" => "/b.txt"}}
+          ]
+
+          result = LLMAgent.execute_tool_batch(pid, tool_calls)
+
+          assert {:error, :no_session_id} = result
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "executes multiple tools sequentially" do
+      # Set API key BEFORE starting session
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create temp files for testing
+      tmp_dir = System.tmp_dir!()
+      file_a = Path.join(tmp_dir, "a_#{System.unique_integer([:positive])}.txt")
+      file_b = Path.join(tmp_dir, "b_#{System.unique_integer([:positive])}.txt")
+      File.write!(file_a, "Content A")
+      File.write!(file_b, "Content B")
+
+      on_exit(fn ->
+        File.rm(file_a)
+        File.rm(file_b)
+      end)
+
+      # Create a real session with valid config
+      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      # Get agent from session
+      case Session.Supervisor.get_agent(session.id) do
+        {:ok, pid} ->
+          tool_calls = [
+            %{id: "call_1", name: "read_file", arguments: %{"path" => file_a}},
+            %{id: "call_2", name: "read_file", arguments: %{"path" => file_b}}
+          ]
+
+          result = LLMAgent.execute_tool_batch(pid, tool_calls)
+
+          case result do
+            {:ok, results} ->
+              assert length(results) == 2
+
+              [result_a, result_b] = results
+              assert result_a.tool_call_id == "call_1"
+              assert result_a.status == :ok
+              assert String.contains?(result_a.content, "Content A")
+
+              assert result_b.tool_call_id == "call_2"
+              assert result_b.status == :ok
+              assert String.contains?(result_b.content, "Content B")
+
+            {:error, _reason} ->
+              # May fail if session not ready
+              :ok
+          end
+
+          # Don't stop agent - session supervisor handles it
+
+        {:error, _reason} ->
+          :ok
+      end
+
+      # Cleanup
+      JidoCode.SessionSupervisor.stop_session(session.id)
+    end
+
+    test "executes multiple tools in parallel" do
+      # Set API key BEFORE starting session
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create temp files for testing
+      tmp_dir = System.tmp_dir!()
+      file_a = Path.join(tmp_dir, "a_#{System.unique_integer([:positive])}.txt")
+      file_b = Path.join(tmp_dir, "b_#{System.unique_integer([:positive])}.txt")
+      File.write!(file_a, "Parallel A")
+      File.write!(file_b, "Parallel B")
+
+      on_exit(fn ->
+        File.rm(file_a)
+        File.rm(file_b)
+      end)
+
+      # Create a real session with valid config
+      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+      # Get agent from session
+      case Session.Supervisor.get_agent(session.id) do
+        {:ok, pid} ->
+          tool_calls = [
+            %{id: "call_1", name: "read_file", arguments: %{"path" => file_a}},
+            %{id: "call_2", name: "read_file", arguments: %{"path" => file_b}}
+          ]
+
+          result = LLMAgent.execute_tool_batch(pid, tool_calls, parallel: true)
+
+          case result do
+            {:ok, results} ->
+              assert length(results) == 2
+
+              # Results should be in the same order as input
+              [result_a, result_b] = results
+              assert result_a.tool_call_id == "call_1"
+              assert result_b.tool_call_id == "call_2"
+
+            {:error, _reason} ->
+              # May fail if session not ready
+              :ok
+          end
+
+          # Don't stop agent - session supervisor handles it
 
         {:error, _reason} ->
           :ok

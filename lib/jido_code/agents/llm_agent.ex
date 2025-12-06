@@ -49,6 +49,7 @@ defmodule JidoCode.Agents.LLMAgent do
   alias JidoCode.PubSubTopics
   alias JidoCode.Session.ProcessRegistry
   alias JidoCode.Tools.Executor
+  alias JidoCode.Tools.Result
 
   @pubsub JidoCode.PubSub
   @default_timeout 60_000
@@ -307,6 +308,71 @@ defmodule JidoCode.Agents.LLMAgent do
   def build_tool_context(nil), do: {:error, :no_session_id}
 
   @doc """
+  Executes a tool call using the agent's session context.
+
+  The tool call is executed through the session-scoped executor,
+  which validates paths and enforces security boundaries.
+
+  ## Parameters
+
+  - `pid` - The agent process
+  - `tool_call` - Map with `:id`, `:name`, `:arguments` keys
+
+  ## Returns
+
+  - `{:ok, %Result{}}` - Tool execution result
+  - `{:error, :no_session_id}` - Agent was started without proper session_id
+  - `{:error, :not_found}` - Session not found in registry
+  - `{:error, term()}` - Other execution failures
+
+  ## Examples
+
+      tool_call = %{id: "call_1", name: "read_file", arguments: %{"path" => "/src/main.ex"}}
+      {:ok, result} = LLMAgent.execute_tool(pid, tool_call)
+      result.status  # => :ok or :error
+      result.content # => file contents or error message
+  """
+  @spec execute_tool(GenServer.server(), map()) ::
+          {:ok, Result.t()} | {:error, term()}
+  def execute_tool(pid, tool_call) do
+    GenServer.call(pid, {:execute_tool, tool_call})
+  end
+
+  @doc """
+  Executes multiple tool calls using the agent's session context.
+
+  ## Parameters
+
+  - `pid` - The agent process
+  - `tool_calls` - List of tool call maps with `:id`, `:name`, `:arguments` keys
+  - `opts` - Options
+
+  ## Options
+
+  - `:parallel` - Execute tools in parallel (default: `false`)
+  - `:timeout` - Override timeout per tool (default: executor's default)
+
+  ## Returns
+
+  - `{:ok, [%Result{}]}` - List of results in same order as input
+  - `{:error, :no_session_id}` - Agent was started without proper session_id
+  - `{:error, :not_found}` - Session not found in registry
+
+  ## Examples
+
+      tool_calls = [
+        %{id: "call_1", name: "read_file", arguments: %{"path" => "/a.txt"}},
+        %{id: "call_2", name: "read_file", arguments: %{"path" => "/b.txt"}}
+      ]
+      {:ok, results} = LLMAgent.execute_tool_batch(pid, tool_calls, parallel: true)
+  """
+  @spec execute_tool_batch(GenServer.server(), [map()], keyword()) ::
+          {:ok, [Result.t()]} | {:error, term()}
+  def execute_tool_batch(pid, tool_calls, opts \\ []) do
+    GenServer.call(pid, {:execute_tool_batch, tool_calls, opts})
+  end
+
+  @doc """
   Reconfigures the agent with new provider/model settings at runtime.
 
   This performs hot-swapping of the underlying AI agent without restarting
@@ -491,6 +557,18 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   @impl true
+  def handle_call({:execute_tool, tool_call}, _from, state) do
+    result = do_execute_tool(tool_call, state)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:execute_tool_batch, tool_calls, opts}, _from, state) do
+    result = do_execute_tool_batch(tool_calls, opts, state)
+    {:reply, result, state}
+  end
+
+  @impl true
   def handle_call({:configure, opts}, _from, state) do
     # Build new config, merging with current config
     new_config = %{
@@ -648,6 +726,22 @@ defmodule JidoCode.Agents.LLMAgent do
       {:error, :no_session_id}
     else
       Executor.build_context(session_id)
+    end
+  end
+
+  # Execute a single tool using the session context
+  defp do_execute_tool(tool_call, %{session_id: session_id} = _state) do
+    with {:ok, context} <- do_build_tool_context(session_id) do
+      Executor.execute(tool_call, context: context)
+    end
+  end
+
+  # Execute multiple tools using the session context
+  defp do_execute_tool_batch(tool_calls, opts, %{session_id: session_id} = _state) do
+    with {:ok, context} <- do_build_tool_context(session_id) do
+      # Merge context into opts for execute_batch
+      batch_opts = Keyword.put(opts, :context, context)
+      Executor.execute_batch(tool_calls, batch_opts)
     end
   end
 

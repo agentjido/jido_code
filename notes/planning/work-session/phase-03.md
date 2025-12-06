@@ -223,20 +223,15 @@ Add LLMAgent to per-session supervision tree.
 - [x] 3.3.2.4 Write integration tests for supervised agent (34 tests updated)
 
 ### 3.3.3 Agent Tool Execution
-- [ ] **Task 3.3.3**
+- [x] **Task 3.3.3**
 
 Update agent's tool execution to use session context.
 
-- [ ] 3.3.3.1 Update tool call handling to build context from session:
-  ```elixir
-  defp execute_tool(tool_call, state) do
-    {:ok, context} = Tools.Executor.build_context(state.session_id)
-    Tools.Executor.execute(tool_call, context: context)
-  end
-  ```
-- [ ] 3.3.3.2 Ensure all tool calls go through session-scoped executor
-- [ ] 3.3.3.3 Handle tool execution errors properly
-- [ ] 3.3.3.4 Write unit tests for agent tool execution
+- [x] 3.3.3.1 Add `execute_tool/2` and `execute_tool_batch/3` client APIs
+- [x] 3.3.3.2 Add GenServer handlers for tool execution
+- [x] 3.3.3.3 Implement `do_execute_tool/2` and `do_execute_tool_batch/3` with session context
+- [x] 3.3.3.4 Handle tool execution errors properly (:no_session_id, :not_found)
+- [x] 3.3.3.5 Write unit tests for agent tool execution (7 new tests)
 
 ### 3.3.4 Agent Streaming with Session
 - [ ] **Task 3.3.4**

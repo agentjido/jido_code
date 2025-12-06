@@ -86,24 +86,17 @@ Implement path resolution for session creation.
 - [x] 5.2.2.6 Write unit tests for path resolution (14 tests)
 
 ### 5.2.3 TUI Integration for New Session
-- [ ] **Task 5.2.3**
+- [x] **Task 5.2.3** (completed 2025-12-06)
 
-Handle `{:add_session, session}` action in TUI.
+Handle `{:session, subcommand}` and `{:session_action, {:add_session, session}}` in TUI.
 
-- [ ] 5.2.3.1 Update `update({:command_result, {:add_session, session}}, model)`:
-  ```elixir
-  def update({:command_result, {:add_session, session}}, model) do
-    model
-    |> add_session_to_tabs(session)
-    |> switch_to_session(session.id)
-    |> subscribe_to_session(session.id)
-  end
-  ```
-- [ ] 5.2.3.2 Add session to model.sessions
-- [ ] 5.2.3.3 Add to session_order
-- [ ] 5.2.3.4 Switch to new session
-- [ ] 5.2.3.5 Subscribe to session's PubSub topic
-- [ ] 5.2.3.6 Write integration tests
+- [x] 5.2.3.1 Add `{:session, subcommand}` handling in `do_handle_command/2`
+- [x] 5.2.3.2 Add `handle_session_command/2` to execute session subcommands
+- [x] 5.2.3.3 Add `Model.add_session/2` to add session to model
+- [x] 5.2.3.4 Add `Model.switch_to_session/2` to switch active session
+- [x] 5.2.3.5 Add `Model.session_count/1` helper function
+- [x] 5.2.3.6 Subscribe to session's PubSub topic on creation
+- [x] 5.2.3.7 Write unit tests for Model helpers (8 tests)
 
 **Unit Tests for Section 5.2:**
 - Test `/session new` creates session for CWD

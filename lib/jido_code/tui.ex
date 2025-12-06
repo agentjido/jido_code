@@ -305,6 +305,76 @@ defmodule JidoCode.TUI do
     end
 
     def get_session_by_index(_model, _index), do: nil
+
+    # =========================================================================
+    # Session Modification Helpers
+    # =========================================================================
+
+    @doc """
+    Adds a session to the model and makes it the active session.
+
+    This function:
+    1. Adds the session to the sessions map
+    2. Appends the session ID to session_order
+    3. Sets the session as the active session
+
+    Returns the updated model.
+
+    ## Examples
+
+        iex> model = %Model{}
+        iex> session = %Session{id: "s1", name: "project"}
+        iex> model = Model.add_session(model, session)
+        iex> model.active_session_id
+        "s1"
+    """
+    @spec add_session(t(), JidoCode.Session.t()) :: t()
+    def add_session(%__MODULE__{} = model, %JidoCode.Session{} = session) do
+      %{
+        model
+        | sessions: Map.put(model.sessions, session.id, session),
+          session_order: model.session_order ++ [session.id],
+          active_session_id: session.id
+      }
+    end
+
+    @doc """
+    Switches to a different session by ID.
+
+    Only switches if the session exists in the sessions map.
+    Returns the model unchanged if session ID is not found.
+
+    ## Examples
+
+        iex> model = %Model{sessions: %{"s1" => session}, active_session_id: nil}
+        iex> model = Model.switch_to_session(model, "s1")
+        iex> model.active_session_id
+        "s1"
+
+        iex> model = Model.switch_to_session(model, "unknown")
+        iex> model.active_session_id  # unchanged
+        "s1"
+    """
+    @spec switch_to_session(t(), String.t()) :: t()
+    def switch_to_session(%__MODULE__{sessions: sessions} = model, session_id) do
+      if Map.has_key?(sessions, session_id) do
+        %{model | active_session_id: session_id}
+      else
+        model
+      end
+    end
+
+    @doc """
+    Returns the number of sessions in the model.
+
+    ## Examples
+
+        iex> model = %Model{sessions: %{"s1" => s1, "s2" => s2}}
+        iex> Model.session_count(model)
+        2
+    """
+    @spec session_count(t()) :: non_neg_integer()
+    def session_count(%__MODULE__{sessions: sessions}), do: map_size(sessions)
   end
 
   # ============================================================================
@@ -913,6 +983,93 @@ defmodule JidoCode.TUI do
         error_msg = system_message(error_message)
 
         # Sync error message to ConversationView
+        new_conversation_view =
+          if state.conversation_view do
+            ConversationView.add_message(state.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: error_message,
+              timestamp: DateTime.utc_now()
+            })
+          else
+            state.conversation_view
+          end
+
+        new_state = %{
+          state
+          | messages: [error_msg | state.messages],
+            conversation_view: new_conversation_view
+        }
+
+        {new_state, []}
+
+      {:session, subcommand} ->
+        # Handle session commands by executing the subcommand
+        handle_session_command(subcommand, state)
+    end
+  end
+
+  # Handle session command execution and results
+  defp handle_session_command(subcommand, state) do
+    case Commands.execute_session(subcommand, state) do
+      {:session_action, {:add_session, session}} ->
+        # Add session to model and subscribe to its PubSub topic
+        new_state = Model.add_session(state, session)
+
+        # Subscribe to session-specific events
+        Phoenix.PubSub.subscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session.id))
+
+        # Show success message
+        success_msg = system_message("Created session: #{session.name}")
+
+        new_conversation_view =
+          if new_state.conversation_view do
+            ConversationView.add_message(new_state.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: "Created session: #{session.name}",
+              timestamp: DateTime.utc_now()
+            })
+          else
+            new_state.conversation_view
+          end
+
+        final_state = %{
+          new_state
+          | messages: [success_msg | new_state.messages],
+            conversation_view: new_conversation_view
+        }
+
+        {final_state, []}
+
+      {:ok, message} ->
+        # Display success/info message
+        system_msg = system_message(message)
+
+        new_conversation_view =
+          if state.conversation_view do
+            ConversationView.add_message(state.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: message,
+              timestamp: DateTime.utc_now()
+            })
+          else
+            state.conversation_view
+          end
+
+        new_state = %{
+          state
+          | messages: [system_msg | state.messages],
+            conversation_view: new_conversation_view
+        }
+
+        {new_state, []}
+
+      {:error, error_message} ->
+        # Display error message
+        error_msg = system_message(error_message)
+
         new_conversation_view =
           if state.conversation_view do
             ConversationView.add_message(state.conversation_view, %{

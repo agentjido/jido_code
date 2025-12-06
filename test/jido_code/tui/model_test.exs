@@ -334,4 +334,149 @@ defmodule JidoCode.TUI.ModelTest do
     # requires integration tests with the full session infrastructure.
     # These unit tests verify the nil case; integration tests cover the full flow.
   end
+
+  # ===========================================================================
+  # Session Modification Helper Tests
+  # ===========================================================================
+
+  describe "add_session/2" do
+    test "adds session to empty model" do
+      model = %Model{sessions: %{}, session_order: [], active_session_id: nil}
+
+      session = %JidoCode.Session{
+        id: "s1",
+        name: "project-a",
+        project_path: "/tmp/project-a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      result = Model.add_session(model, session)
+
+      assert result.sessions["s1"] == session
+      assert result.session_order == ["s1"]
+      assert result.active_session_id == "s1"
+    end
+
+    test "adds session to model with existing sessions" do
+      existing_session = %JidoCode.Session{
+        id: "s1",
+        name: "project-a",
+        project_path: "/tmp/project-a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      model = %Model{
+        sessions: %{"s1" => existing_session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      new_session = %JidoCode.Session{
+        id: "s2",
+        name: "project-b",
+        project_path: "/tmp/project-b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      result = Model.add_session(model, new_session)
+
+      assert map_size(result.sessions) == 2
+      assert result.sessions["s1"] == existing_session
+      assert result.sessions["s2"] == new_session
+      assert result.session_order == ["s1", "s2"]
+      # New session becomes active
+      assert result.active_session_id == "s2"
+    end
+
+    test "appends session to end of session_order" do
+      model = %Model{
+        sessions: %{
+          "s1" => %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()},
+          "s2" => %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+        },
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      new_session = %JidoCode.Session{
+        id: "s3",
+        name: "c",
+        project_path: "/c",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      result = Model.add_session(model, new_session)
+
+      assert result.session_order == ["s1", "s2", "s3"]
+    end
+  end
+
+  describe "switch_to_session/2" do
+    test "switches to existing session" do
+      session_1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session_2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session_1, "s2" => session_2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Model.switch_to_session(model, "s2")
+
+      assert result.active_session_id == "s2"
+    end
+
+    test "returns unchanged model for non-existent session" do
+      session_1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session_1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Model.switch_to_session(model, "unknown")
+
+      # Should not change active_session_id
+      assert result.active_session_id == "s1"
+    end
+
+    test "can switch from nil active session" do
+      session_1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session_1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      result = Model.switch_to_session(model, "s1")
+
+      assert result.active_session_id == "s1"
+    end
+  end
+
+  describe "session_count/1" do
+    test "returns 0 for empty sessions" do
+      model = %Model{sessions: %{}}
+      assert Model.session_count(model) == 0
+    end
+
+    test "returns correct count for multiple sessions" do
+      model = %Model{
+        sessions: %{
+          "s1" => %{id: "s1"},
+          "s2" => %{id: "s2"},
+          "s3" => %{id: "s3"}
+        }
+      }
+
+      assert Model.session_count(model) == 3
+    end
+  end
 end

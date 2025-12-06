@@ -239,6 +239,29 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   @doc """
+  Returns the current status of the agent.
+
+  ## Returns
+
+  `{:ok, status}` where status is a map containing:
+  - `:ready` - Boolean indicating if the agent is ready to process messages
+  - `:config` - Current LLM configuration
+  - `:session_id` - Session identifier
+  - `:topic` - PubSub topic for this agent
+
+  ## Example
+
+      {:ok, status} = LLMAgent.get_status(pid)
+      if status.ready do
+        LLMAgent.chat(pid, "Hello!")
+      end
+  """
+  @spec get_status(GenServer.server()) :: {:ok, map()}
+  def get_status(pid) do
+    GenServer.call(pid, :get_status)
+  end
+
+  @doc """
   Builds a PubSub topic for a given session ID.
 
   This is useful for subscribing to events before the agent is started.
@@ -549,6 +572,18 @@ defmodule JidoCode.Agents.LLMAgent do
   @impl true
   def handle_call(:get_session_info, _from, state) do
     {:reply, {:ok, state.session_id, state.topic}, state}
+  end
+
+  @impl true
+  def handle_call(:get_status, _from, state) do
+    status = %{
+      ready: is_pid(state.ai_pid) and Process.alive?(state.ai_pid),
+      config: state.config,
+      session_id: state.session_id,
+      topic: state.topic
+    }
+
+    {:reply, {:ok, status}, state}
   end
 
   @impl true

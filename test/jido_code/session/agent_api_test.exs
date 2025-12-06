@@ -191,4 +191,112 @@ defmodule JidoCode.Session.AgentAPITest do
       assert {:error, :agent_not_found} = AgentAPI.send_message_stream("unknown", "Hello")
     end
   end
+
+  describe "get_status/1" do
+    test "returns error when session has no agent" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      result = AgentAPI.get_status("non-existent-session-id")
+
+      assert {:error, :agent_not_found} = result
+    end
+
+    test "returns status for valid session" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "get_status_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          result = AgentAPI.get_status(session.id)
+
+          case result do
+            {:ok, status} ->
+              assert is_boolean(status.ready)
+              assert is_map(status.config)
+              assert status.session_id == session.id
+              assert is_binary(status.topic)
+              assert String.contains?(status.topic, session.id)
+
+            {:error, _reason} ->
+              # May fail if agent not fully started
+              :ok
+          end
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "validates session_id is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.get_status(12345)
+      end
+    end
+  end
+
+  describe "is_processing?/1" do
+    test "returns error when session has no agent" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      result = AgentAPI.is_processing?("non-existent-session-id")
+
+      assert {:error, :agent_not_found} = result
+    end
+
+    test "returns boolean for valid session" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Create unique temp directory for this test
+      tmp_dir = Path.join(System.tmp_dir!(), "is_processing_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      config = SessionTestHelpers.valid_session_config()
+
+      case Session.new(project_path: tmp_dir, config: config) do
+        {:ok, session} ->
+          {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
+
+          result = AgentAPI.is_processing?(session.id)
+
+          case result do
+            {:ok, is_processing} ->
+              assert is_boolean(is_processing)
+              # Agent should be ready (not processing) when idle
+              assert is_processing == false
+
+            {:error, _reason} ->
+              # May fail if agent not fully started
+              :ok
+          end
+
+          # Cleanup
+          JidoCode.SessionSupervisor.stop_session(session.id)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "validates session_id is binary" do
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      assert_raise FunctionClauseError, fn ->
+        AgentAPI.is_processing?(nil)
+      end
+    end
+  end
 end

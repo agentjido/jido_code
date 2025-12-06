@@ -120,6 +120,82 @@ defmodule JidoCode.Session.AgentAPI do
   end
 
   # ============================================================================
+  # Status API
+  # ============================================================================
+
+  @doc """
+  Gets the status of the session's agent.
+
+  Returns information about whether the agent is ready and its configuration.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  `{:ok, status}` where status is a map containing:
+  - `:ready` - Boolean indicating if the agent is ready to process messages
+  - `:config` - Current LLM configuration (provider, model, etc.)
+  - `:session_id` - Session identifier
+  - `:topic` - PubSub topic for this agent
+
+  `{:error, :agent_not_found}` if the session has no agent.
+
+  ## Examples
+
+      iex> AgentAPI.get_status("session-123")
+      {:ok, %{ready: true, config: %{provider: :anthropic, ...}, ...}}
+
+      iex> AgentAPI.get_status("unknown-session")
+      {:error, :agent_not_found}
+  """
+  @spec get_status(String.t()) :: {:ok, map()} | {:error, term()}
+  def get_status(session_id) when is_binary(session_id) do
+    with {:ok, agent_pid} <- get_agent(session_id) do
+      LLMAgent.get_status(agent_pid)
+    end
+  end
+
+  @doc """
+  Checks if the session's agent is currently processing a request.
+
+  This is a quick check to determine if the agent is busy. Currently,
+  this returns `false` when the agent is ready (i.e., `ready: true` in status).
+
+  Note: LLMAgent handles requests asynchronously through Task.Supervisor,
+  so "processing" state detection is based on whether the underlying
+  AI agent is alive and ready.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, true}` - Agent is processing (not ready)
+  - `{:ok, false}` - Agent is idle (ready)
+  - `{:error, :agent_not_found}` - Session has no agent
+
+  ## Examples
+
+      iex> AgentAPI.is_processing?("session-123")
+      {:ok, false}
+
+      iex> AgentAPI.is_processing?("unknown-session")
+      {:error, :agent_not_found}
+  """
+  @spec is_processing?(String.t()) :: {:ok, boolean()} | {:error, term()}
+  def is_processing?(session_id) when is_binary(session_id) do
+    with {:ok, agent_pid} <- get_agent(session_id),
+         {:ok, status} <- LLMAgent.get_status(agent_pid) do
+      # Processing is the inverse of ready
+      # When the AI agent is not alive/ready, we consider it "processing"
+      {:ok, not status.ready}
+    end
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 

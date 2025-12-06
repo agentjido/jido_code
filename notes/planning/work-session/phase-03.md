@@ -292,20 +292,20 @@ Create high-level API for sending messages to session agent.
 - [x] 3.4.1.5 Write unit tests for message API (10 new tests)
 
 ### 3.4.2 Agent Status API
-- [ ] **Task 3.4.2**
+- [x] **Task 3.4.2** (completed 2025-12-06)
 
 Create API for checking agent status.
 
-- [ ] 3.4.2.1 Implement `get_status/1` returning agent status:
-  ```elixir
-  def get_status(session_id) do
-    with {:ok, agent_pid} <- Session.Supervisor.get_agent(session_id) do
-      LLMAgent.get_status(agent_pid)
-    end
-  end
-  ```
-- [ ] 3.4.2.2 Implement `is_processing?/1` for quick status check
-- [ ] 3.4.2.3 Write unit tests for status API
+- [x] 3.4.2.1 Add `get_status/1` to LLMAgent:
+  - Returns `{:ok, status}` with ready, config, session_id, topic
+  - Checks if AI agent process is alive
+- [x] 3.4.2.2 Add `get_status/1` to AgentAPI:
+  - Wraps LLMAgent.get_status with session lookup
+  - Translates :not_found to :agent_not_found
+- [x] 3.4.2.3 Implement `is_processing?/1` for quick status check:
+  - Returns `{:ok, boolean}` based on ready status
+  - Processing is inverse of ready
+- [x] 3.4.2.4 Write unit tests for status API (6 new tests)
 
 ### 3.4.3 Agent Configuration API
 - [ ] **Task 3.4.3**

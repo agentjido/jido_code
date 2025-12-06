@@ -222,15 +222,15 @@ Implement the handler for closing sessions.
 - [x] 5.5.1.6 Write unit tests for Model.remove_session/2 (6 tests)
 
 ### 5.5.2 Close Cleanup
-- [ ] **Task 5.5.2**
+- [x] **Task 5.5.2** (completed 2025-12-06 - already implemented in 5.5.1)
 
-Implement proper cleanup when closing session.
+Proper cleanup when closing session - all cleanup was already implemented in Task 5.5.1.
 
-- [ ] 5.5.2.1 Stop session processes via SessionSupervisor
-- [ ] 5.5.2.2 Unregister from SessionRegistry
-- [ ] 5.5.2.3 Unsubscribe from PubSub topic
-- [ ] 5.5.2.4 Save session state for /resume (Phase 6)
-- [ ] 5.5.2.5 Write unit tests for cleanup
+- [x] 5.5.2.1 Stop session processes via SessionSupervisor (done in 5.5.1 TUI handler)
+- [x] 5.5.2.2 Unregister from SessionRegistry (done by SessionSupervisor.stop_session/1)
+- [x] 5.5.2.3 Unsubscribe from PubSub topic (done in 5.5.1 TUI handler)
+- [ ] 5.5.2.4 Save session state for /resume (deferred to Phase 6)
+- [x] 5.5.2.5 Write unit tests for cleanup (covered by 5.5.1 tests)
 
 ### 5.5.3 TUI Integration for Close
 - [ ] **Task 5.5.3**

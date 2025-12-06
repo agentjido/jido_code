@@ -102,6 +102,26 @@ defmodule JidoCode.TUI do
   defmodule Model do
     @moduledoc """
     The TUI application state.
+
+    ## Multi-Session Support
+
+    The Model supports multiple concurrent sessions via the session tracking fields:
+
+    - `sessions` - Map of session_id to Session.t() structs
+    - `session_order` - List of session_ids in tab display order
+    - `active_session_id` - Currently focused session
+
+    Per-session data (messages, reasoning_steps, tool_calls, streaming state) is
+    stored in Session.State and accessed via the active_session_id. The legacy
+    fields are retained for backwards compatibility during transition.
+
+    ## Focus States
+
+    The `focus` field controls keyboard navigation:
+
+    - `:input` - Text input has focus (default)
+    - `:conversation` - Conversation view has focus (for scrolling)
+    - `:tabs` - Tab bar has focus (for tab selection)
     """
 
     @type message :: %{
@@ -127,48 +147,76 @@ defmodule JidoCode.TUI do
 
     @type queued_message :: {term(), DateTime.t()}
 
+    @typedoc "Focus states for keyboard navigation"
+    @type focus :: :input | :conversation | :tabs
+
+    @typedoc "Map of session_id to Session struct"
+    @type session_map :: %{optional(String.t()) => JidoCode.Session.t()}
+
     @type t :: %__MODULE__{
+            # Session management (multi-session support)
+            sessions: session_map(),
+            session_order: [String.t()],
+            active_session_id: String.t() | nil,
+
+            # UI state
             text_input: map(),
-            messages: [message()],
+            focus: focus(),
+            window: {non_neg_integer(), non_neg_integer()},
+            show_reasoning: boolean(),
+            show_tool_details: boolean(),
             agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
+
+            # Modals (shared across sessions)
+            shell_dialog: map() | nil,
+            shell_viewport: map() | nil,
+            pick_list: map() | nil,
+
+            # Legacy per-session fields (for backwards compatibility)
+            # These will be migrated to Session.State in Phase 4.2
+            messages: [message()],
             reasoning_steps: [reasoning_step()],
             tool_calls: [tool_call_entry()],
-            show_tool_details: boolean(),
-            window: {non_neg_integer(), non_neg_integer()},
             message_queue: [queued_message()],
             scroll_offset: non_neg_integer(),
-            show_reasoning: boolean(),
             agent_name: atom(),
             streaming_message: String.t() | nil,
             is_streaming: boolean(),
             session_topic: String.t() | nil,
-            shell_dialog: map() | nil,
-            shell_viewport: map() | nil,
-            pick_list: map() | nil,
             conversation_view: map() | nil
           }
 
     @enforce_keys []
-    defstruct text_input: nil,
-              messages: [],
-              agent_status: :unconfigured,
-              config: %{provider: nil, model: nil},
-              reasoning_steps: [],
-              tool_calls: [],
-              show_tool_details: false,
-              window: {80, 24},
-              message_queue: [],
-              scroll_offset: 0,
-              show_reasoning: false,
-              agent_name: :llm_agent,
-              streaming_message: nil,
-              is_streaming: false,
-              session_topic: nil,
-              shell_dialog: nil,
-              shell_viewport: nil,
-              pick_list: nil,
-              conversation_view: nil
+    defstruct [
+      # Session management (multi-session support)
+      sessions: %{},
+      session_order: [],
+      active_session_id: nil,
+      # UI state
+      text_input: nil,
+      focus: :input,
+      window: {80, 24},
+      show_reasoning: false,
+      show_tool_details: false,
+      agent_status: :unconfigured,
+      config: %{provider: nil, model: nil},
+      # Modals (shared across sessions)
+      shell_dialog: nil,
+      shell_viewport: nil,
+      pick_list: nil,
+      # Legacy per-session fields (for backwards compatibility)
+      messages: [],
+      reasoning_steps: [],
+      tool_calls: [],
+      message_queue: [],
+      scroll_offset: 0,
+      agent_name: :llm_agent,
+      streaming_message: nil,
+      is_streaming: false,
+      session_topic: nil,
+      conversation_view: nil
+    ]
   end
 
   # ============================================================================

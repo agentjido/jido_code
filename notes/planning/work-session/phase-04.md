@@ -9,11 +9,11 @@ This phase integrates the TermUI Tabs widget into the JidoCode TUI, enabling use
 Update the TUI Model to support multiple sessions with tab-based navigation.
 
 ### 4.1.1 Model Struct Changes
-- [ ] **Task 4.1.1**
+- [x] **Task 4.1.1** (completed 2025-12-06)
 
 Restructure the Model to support multiple sessions.
 
-- [ ] 4.1.1.1 Add session tracking fields to Model struct:
+- [x] 4.1.1.1 Add session tracking fields to Model struct:
   ```elixir
   defstruct [
     # Session management
@@ -39,9 +39,9 @@ Restructure the Model to support multiple sessions.
     # streaming_message: nil # REMOVED
   ]
   ```
-- [ ] 4.1.1.2 Update `@type model()` typespec
-- [ ] 4.1.1.3 Add `@type focus()` for focus states
-- [ ] 4.1.1.4 Write unit tests for model structure
+- [x] 4.1.1.2 Update `@type model()` typespec
+- [x] 4.1.1.3 Add `@type focus()` for focus states
+- [x] 4.1.1.4 Write unit tests for model structure (13 tests, 0 failures)
 
 ### 4.1.2 Session State Access
 - [ ] **Task 4.1.2**

@@ -28,6 +28,13 @@ defmodule JidoCode.Tools.Handlers.Todo do
         }
       })
 
+  ## Session State Integration
+
+  When a `session_id` is provided in context, todos are stored in Session.State
+  for persistence and retrieval:
+
+      Session.State.update_todos(session_id, todos)
+
   ## PubSub Integration
 
   Todo updates are broadcast via PubSub for TUI display:
@@ -35,7 +42,10 @@ defmodule JidoCode.Tools.Handlers.Todo do
       Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events", {:todo_update, todos})
   """
 
+  require Logger
+
   alias JidoCode.PubSubHelpers
+  alias JidoCode.Session.State, as: SessionState
 
   @valid_statuses ["pending", "in_progress", "completed"]
 
@@ -56,8 +66,12 @@ defmodule JidoCode.Tools.Handlers.Todo do
   """
   def execute(%{"todos" => todos}, context) when is_list(todos) do
     with {:ok, validated_todos} <- validate_todos(todos) do
-      # Broadcast the update via PubSub
       session_id = Map.get(context, :session_id)
+
+      # Store in Session.State if session_id available
+      store_todos(validated_todos, session_id)
+
+      # Broadcast the update via PubSub
       broadcast_todos(validated_todos, session_id)
 
       {:ok, format_success_message(validated_todos)}
@@ -112,6 +126,23 @@ defmodule JidoCode.Tools.Handlers.Todo do
 
   defp validate_todo(_todo) do
     {:error, "Each todo must be a map with content, status, and active_form"}
+  end
+
+  # Store todos in Session.State if session_id is available
+  defp store_todos(_todos, nil), do: :ok
+
+  defp store_todos(todos, session_id) do
+    case SessionState.update_todos(session_id, todos) do
+      {:ok, _state} ->
+        :ok
+
+      {:error, :not_found} ->
+        Logger.warning(
+          "Session.State not found for session #{session_id}, todos not persisted"
+        )
+
+        :ok
+    end
   end
 
   defp broadcast_todos(todos, session_id) do

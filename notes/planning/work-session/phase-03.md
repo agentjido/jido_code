@@ -152,19 +152,23 @@ Update Livebook handler to use session context.
 - [x] 3.2.5.3 Write unit tests for Livebook handler (17 tests, 5 new session-aware tests)
 
 ### 3.2.6 Todo Handler
-- [ ] **Task 3.2.6**
+- [x] **Task 3.2.6**
 
 Update Todo handler to store todos in session state.
 
-- [ ] 3.2.6.1 Update `Todo.execute/2` to use Session.State:
+- [x] 3.2.6.1 Update `Todo.execute/2` to use Session.State:
   ```elixir
-  def execute(args, context) do
-    Session.State.update_todos(context.session_id, args["todos"])
-    {:ok, %{updated: true}}
+  def execute(%{"todos" => todos}, context) when is_list(todos) do
+    with {:ok, validated_todos} <- validate_todos(todos) do
+      session_id = Map.get(context, :session_id)
+      store_todos(validated_todos, session_id)  # NEW: Store in Session.State
+      broadcast_todos(validated_todos, session_id)
+      {:ok, format_success_message(validated_todos)}
+    end
   end
   ```
-- [ ] 3.2.6.2 Todos stored in session-specific state, not global
-- [ ] 3.2.6.3 Write unit tests for Todo handler
+- [x] 3.2.6.2 Todos stored in session-specific state via Session.State.update_todos/2
+- [x] 3.2.6.3 Write unit tests for Todo handler (21 tests, 5 new session-aware tests)
 
 ### 3.2.7 Task Handler
 - [ ] **Task 3.2.7**

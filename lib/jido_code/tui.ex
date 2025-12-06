@@ -85,8 +85,8 @@ defmodule JidoCode.TUI do
           | {:config_change, map()}
           | {:reasoning_step, Model.reasoning_step()}
           | :clear_reasoning_steps
-          | {:tool_call, String.t(), map(), String.t()}
-          | {:tool_result, Result.t()}
+          | {:tool_call, String.t(), map(), String.t(), String.t() | nil}
+          | {:tool_result, Result.t(), String.t() | nil}
           | :toggle_tool_details
           | {:stream_chunk, String.t()}
           | {:stream_end, String.t()}
@@ -544,11 +544,13 @@ defmodule JidoCode.TUI do
     do: MessageHandlers.handle_toggle_tool_details(state)
 
   # Tool call handling - add pending tool call to list
-  def update({:tool_call, tool_name, params, call_id}, state),
+  # The session_id in the message is for routing identification; we pass it through
+  def update({:tool_call, tool_name, params, call_id, _session_id}, state),
     do: MessageHandlers.handle_tool_call(tool_name, params, call_id, state)
 
   # Tool result handling - match result to pending call and update
-  def update({:tool_result, %Result{} = result}, state),
+  # The session_id in the message is for routing identification; we pass it through
+  def update({:tool_result, %Result{} = result, _session_id}, state),
     do: MessageHandlers.handle_tool_result(result, state)
 
   # Theme change handling - triggers re-render with new theme colors

@@ -64,8 +64,12 @@ defmodule JidoCode.Tools.Executor do
   `"tui.events"`.
 
   Events broadcast:
-  - `{:tool_call, tool_name, params, call_id}` - When tool execution starts
-  - `{:tool_result, result}` - When tool execution completes (Result struct)
+  - `{:tool_call, tool_name, params, call_id, session_id}` - When tool execution starts
+  - `{:tool_result, result, session_id}` - When tool execution completes (Result struct)
+
+  The session_id in the payload allows consumers on the global topic to identify
+  which session the event originated from. The session_id may be nil if no session
+  context was provided.
   """
 
   require Logger
@@ -641,7 +645,9 @@ defmodule JidoCode.Tools.Executor do
 
   ## Events
 
-  Broadcasts `{:tool_call, tool_name, params, call_id}` to the topic.
+  Broadcasts `{:tool_call, tool_name, params, call_id, session_id}` to the topic.
+  The session_id is included in the message payload so consumers on the global
+  topic can identify which session the event originated from.
 
   ## ARCH-2 Fix
 
@@ -651,7 +657,7 @@ defmodule JidoCode.Tools.Executor do
   """
   @spec broadcast_tool_call(String.t() | nil, String.t(), map(), String.t()) :: :ok
   def broadcast_tool_call(session_id, tool_name, params, call_id) do
-    message = {:tool_call, tool_name, params, call_id}
+    message = {:tool_call, tool_name, params, call_id, session_id}
     broadcast_to_topics(session_id, message)
   end
 
@@ -665,7 +671,9 @@ defmodule JidoCode.Tools.Executor do
 
   ## Events
 
-  Broadcasts `{:tool_result, result}` to the topic.
+  Broadcasts `{:tool_result, result, session_id}` to the topic.
+  The session_id is included in the message payload so consumers on the global
+  topic can identify which session the event originated from.
 
   ## ARCH-2 Fix
 
@@ -674,7 +682,7 @@ defmodule JidoCode.Tools.Executor do
   """
   @spec broadcast_tool_result(String.t() | nil, Result.t()) :: :ok
   def broadcast_tool_result(session_id, result) do
-    message = {:tool_result, result}
+    message = {:tool_result, result, session_id}
     broadcast_to_topics(session_id, message)
   end
 

@@ -1708,7 +1708,7 @@ defmodule JidoCode.TUITest do
       model = %Model{text_input: create_text_input(), tool_calls: []}
 
       {new_model, _} =
-        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123", nil}, model)
 
       assert length(new_model.tool_calls) == 1
       entry = hd(new_model.tool_calls)
@@ -1731,7 +1731,7 @@ defmodule JidoCode.TUITest do
       model = %Model{text_input: create_text_input(), tool_calls: [existing]}
 
       {new_model, _} =
-        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2"}, model)
+        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2", nil}, model)
 
       # Tool calls are stored in reverse order (newest first)
       assert length(new_model.tool_calls) == 2
@@ -1743,7 +1743,7 @@ defmodule JidoCode.TUITest do
       model = %Model{text_input: create_text_input(), tool_calls: [], message_queue: []}
 
       {new_model, _} =
-        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123"}, model)
+        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123", nil}, model)
 
       assert length(new_model.message_queue) == 1
 
@@ -1768,7 +1768,7 @@ defmodule JidoCode.TUITest do
 
       result = Result.ok("call_123", "read_file", "file contents", 45)
 
-      {new_model, _} = TUI.update({:tool_result, result}, model)
+      {new_model, _} = TUI.update({:tool_result, result, nil}, model)
 
       assert length(new_model.tool_calls) == 1
       entry = hd(new_model.tool_calls)
@@ -1799,7 +1799,7 @@ defmodule JidoCode.TUITest do
 
       result = Result.ok("call_1", "read_file", "content", 30)
 
-      {new_model, _} = TUI.update({:tool_result, result}, model)
+      {new_model, _} = TUI.update({:tool_result, result, nil}, model)
 
       assert Enum.at(new_model.tool_calls, 0).result != nil
       assert Enum.at(new_model.tool_calls, 1).result == nil
@@ -1818,7 +1818,7 @@ defmodule JidoCode.TUITest do
 
       result = Result.error("call_123", "read_file", "File not found", 12)
 
-      {new_model, _} = TUI.update({:tool_result, result}, model)
+      {new_model, _} = TUI.update({:tool_result, result, nil}, model)
 
       entry = hd(new_model.tool_calls)
       assert entry.result.status == :error
@@ -1838,7 +1838,7 @@ defmodule JidoCode.TUITest do
 
       result = Result.timeout("call_123", "slow_op", 30_000)
 
-      {new_model, _} = TUI.update({:tool_result, result}, model)
+      {new_model, _} = TUI.update({:tool_result, result, nil}, model)
 
       entry = hd(new_model.tool_calls)
       assert entry.result.status == :timeout
@@ -1857,7 +1857,7 @@ defmodule JidoCode.TUITest do
 
       result = Result.ok("call_123", "read_file", "content", 30)
 
-      {new_model, _} = TUI.update({:tool_result, result}, model)
+      {new_model, _} = TUI.update({:tool_result, result, nil}, model)
 
       assert length(new_model.message_queue) == 1
       {{:tool_result, ^result}, _ts} = hd(new_model.message_queue)

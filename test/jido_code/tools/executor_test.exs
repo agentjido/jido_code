@@ -434,8 +434,8 @@ defmodule JidoCode.Tools.ExecutorTest do
       tool_call = %{id: "call_pubsub_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
       {:ok, _result} = Executor.execute(tool_call)
 
-      # Should receive tool_call event
-      assert_receive {:tool_call, "read_file", %{"path" => "/test.txt"}, "call_pubsub_1"}, 1000
+      # Should receive tool_call event with session_id (nil when not provided)
+      assert_receive {:tool_call, "read_file", %{"path" => "/test.txt"}, "call_pubsub_1", nil}, 1000
     end
 
     test "broadcasts tool_result event when executing" do
@@ -445,8 +445,8 @@ defmodule JidoCode.Tools.ExecutorTest do
       tool_call = %{id: "call_pubsub_2", name: "read_file", arguments: %{"path" => "/result.txt"}}
       {:ok, _result} = Executor.execute(tool_call)
 
-      # Should receive tool_result event
-      assert_receive {:tool_result, result}, 1000
+      # Should receive tool_result event with session_id (nil when not provided)
+      assert_receive {:tool_result, result, nil}, 1000
       assert result.tool_call_id == "call_pubsub_2"
       assert result.tool_name == "read_file"
       assert result.status == :ok
@@ -460,9 +460,9 @@ defmodule JidoCode.Tools.ExecutorTest do
       tool_call = %{id: "call_session_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
       {:ok, _result} = Executor.execute(tool_call, session_id: session_id)
 
-      # Should receive events on session topic
-      assert_receive {:tool_call, "read_file", _, "call_session_1"}, 1000
-      assert_receive {:tool_result, _result}, 1000
+      # Should receive events on session topic with session_id in payload
+      assert_receive {:tool_call, "read_file", _, "call_session_1", ^session_id}, 1000
+      assert_receive {:tool_result, _result, ^session_id}, 1000
     end
 
     test "broadcasts to BOTH global and session topic when session_id provided (ARCH-2 fix)" do
@@ -474,9 +474,9 @@ defmodule JidoCode.Tools.ExecutorTest do
       tool_call = %{id: "call_isolated", name: "read_file", arguments: %{"path" => "/test.txt"}}
       {:ok, _result} = Executor.execute(tool_call, session_id: session_id)
 
-      # ARCH-2: Should NOW receive events on global topic (for PubSubBridge)
-      assert_receive {:tool_call, _, _, "call_isolated"}, 100
-      assert_receive {:tool_result, _}, 100
+      # ARCH-2: Should NOW receive events on global topic with session_id in payload
+      assert_receive {:tool_call, _, _, "call_isolated", ^session_id}, 100
+      assert_receive {:tool_result, _, ^session_id}, 100
     end
 
     test "broadcasts error result for non-existent tool" do
@@ -485,8 +485,8 @@ defmodule JidoCode.Tools.ExecutorTest do
       tool_call = %{id: "call_error_1", name: "nonexistent", arguments: %{}}
       {:ok, _result} = Executor.execute(tool_call)
 
-      # Should receive error result
-      assert_receive {:tool_result, result}, 1000
+      # Should receive error result with nil session_id
+      assert_receive {:tool_result, result, nil}, 1000
       assert result.status == :error
       assert result.content =~ "not found"
     end
@@ -497,10 +497,34 @@ defmodule JidoCode.Tools.ExecutorTest do
       tool_call = %{id: "call_timeout_1", name: "slow_tool", arguments: %{"slow" => 500}}
       {:ok, _result} = Executor.execute(tool_call, timeout: 50)
 
-      # Should receive both call and timeout result
-      assert_receive {:tool_call, "slow_tool", _, "call_timeout_1"}, 1000
-      assert_receive {:tool_result, result}, 1000
+      # Should receive both call and timeout result with nil session_id
+      assert_receive {:tool_call, "slow_tool", _, "call_timeout_1", nil}, 1000
+      assert_receive {:tool_result, result, nil}, 1000
       assert result.status == :timeout
+    end
+
+    test "includes session_id in tool_call payload" do
+      session_id = "payload_test_session"
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
+      tool_call = %{id: "call_payload_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      {:ok, _result} = Executor.execute(tool_call, session_id: session_id)
+
+      # Verify session_id is in the 5th position of the tuple
+      assert_receive {:tool_call, _name, _params, _call_id, received_session_id}, 1000
+      assert received_session_id == session_id
+    end
+
+    test "includes session_id in tool_result payload" do
+      session_id = "result_payload_session"
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
+
+      tool_call = %{id: "call_result_1", name: "read_file", arguments: %{"path" => "/test.txt"}}
+      {:ok, _result} = Executor.execute(tool_call, session_id: session_id)
+
+      # Verify session_id is in the 3rd position of the tuple
+      assert_receive {:tool_result, _result, received_session_id}, 1000
+      assert received_session_id == session_id
     end
   end
 

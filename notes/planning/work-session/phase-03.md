@@ -49,15 +49,15 @@ Create helper for building execution context from session.
 - [x] 3.1.2.4 Write unit tests for context building
 
 ### 3.1.3 PubSub Integration
-- [ ] **Task 3.1.3**
+- [x] **Task 3.1.3**
 
 Update tool result broadcasting to use session topic.
 
-- [ ] 3.1.3.1 Update `broadcast_result/3` to use session-specific topic
-- [ ] 3.1.3.2 Build topic from session_id: `"tui.events.#{session_id}"`
-- [ ] 3.1.3.3 Include session_id in broadcast payload
-- [ ] 3.1.3.4 Update `broadcast_tool_call/4` similarly
-- [ ] 3.1.3.5 Write unit tests for broadcast routing
+- [x] 3.1.3.1 Update `broadcast_result/3` to use session-specific topic (already implemented)
+- [x] 3.1.3.2 Build topic from session_id: `"tui.events.#{session_id}"` (already implemented)
+- [x] 3.1.3.3 Include session_id in broadcast payload
+- [x] 3.1.3.4 Update `broadcast_tool_call/4` similarly
+- [x] 3.1.3.5 Write unit tests for broadcast routing
 
 **Unit Tests for Section 3.1:**
 - Test `execute/2` requires session_id in context

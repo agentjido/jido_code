@@ -59,6 +59,20 @@ Update tool result broadcasting to use session topic.
 - [x] 3.1.3.4 Update `broadcast_tool_call/4` similarly
 - [x] 3.1.3.5 Write unit tests for broadcast routing
 
+### 3.1.4 Review Fixes and Improvements
+- [x] **Task 3.1.4**
+
+Address concerns from Section 3.1 code review and implement suggested improvements.
+
+- [x] 3.1.4.1 Add UUID validation to `build_context/2` for defense-in-depth
+- [x] 3.1.4.2 Fix context enrichment silent failure (don't add session_id on lookup failure)
+- [x] 3.1.4.3 Consolidate `build_context/2` to delegate to `enrich_context/1`
+- [x] 3.1.4.4 Create `JidoCode.PubSubHelpers` module for shared broadcasting
+- [x] 3.1.4.5 Refactor `Executor` to use `PubSubHelpers.broadcast/2`
+- [x] 3.1.4.6 Refactor `Handlers.Todo` to use `PubSubHelpers.broadcast/2`
+- [x] 3.1.4.7 Add security tests for UUID validation (invalid formats, special characters)
+- [x] 3.1.4.8 Write tests for `PubSubHelpers` module
+
 **Unit Tests for Section 3.1:**
 - Test `execute/2` requires session_id in context
 - Test `execute/2` returns error for missing session_id

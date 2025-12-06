@@ -712,4 +712,66 @@ defmodule JidoCode.Tools.ExecutorTest do
       assert result.status == :ok
     end
   end
+
+  # ============================================================================
+  # Security Tests
+  # ============================================================================
+
+  describe "build_context/2 UUID validation" do
+    test "rejects non-UUID format strings" do
+      assert {:error, :invalid_session_id} = Executor.build_context("not-a-uuid")
+      assert {:error, :invalid_session_id} = Executor.build_context("abc123")
+      assert {:error, :invalid_session_id} = Executor.build_context("")
+    end
+
+    test "rejects malformed UUIDs" do
+      # Wrong length
+      assert {:error, :invalid_session_id} =
+               Executor.build_context("550e8400-e29b-41d4-a716")
+
+      # Missing dashes
+      assert {:error, :invalid_session_id} =
+               Executor.build_context("550e8400e29b41d4a716446655440000")
+
+      # Invalid characters
+      assert {:error, :invalid_session_id} =
+               Executor.build_context("550e8400-e29b-41d4-a716-44665544ZZZZ")
+    end
+
+    test "rejects session IDs with special characters" do
+      assert {:error, :invalid_session_id} = Executor.build_context("../../../etc/passwd")
+      assert {:error, :invalid_session_id} = Executor.build_context("test<script>alert(1)</script>")
+      assert {:error, :invalid_session_id} = Executor.build_context("session\nid")
+      assert {:error, :invalid_session_id} = Executor.build_context("session\x00id")
+    end
+
+    test "rejects path traversal attempts" do
+      assert {:error, :invalid_session_id} = Executor.build_context("..%2F..%2F..%2Fetc%2Fpasswd")
+      assert {:error, :invalid_session_id} = Executor.build_context("....//....//etc/passwd")
+    end
+
+    test "accepts valid UUIDs" do
+      # Valid UUID v4 - will return :not_found since session doesn't exist
+      assert {:error, :not_found} =
+               Executor.build_context("550e8400-e29b-41d4-a716-446655440000")
+
+      # Valid UUID with uppercase
+      assert {:error, :not_found} =
+               Executor.build_context("550E8400-E29B-41D4-A716-446655440000")
+
+      # Mixed case
+      assert {:error, :not_found} =
+               Executor.build_context("550e8400-E29B-41d4-A716-446655440000")
+    end
+  end
+
+  describe "pubsub_topic/1 delegates to PubSubHelpers" do
+    test "returns global topic for nil" do
+      assert Executor.pubsub_topic(nil) == "tui.events"
+    end
+
+    test "returns session-specific topic for session_id" do
+      assert Executor.pubsub_topic("abc-123") == "tui.events.abc-123"
+    end
+  end
 end

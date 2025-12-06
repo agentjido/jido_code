@@ -74,10 +74,14 @@ defmodule JidoCode.Tools.Executor do
 
   require Logger
 
+  alias JidoCode.PubSubHelpers
   alias JidoCode.Session
   alias JidoCode.Tools.{Registry, Result, Tool}
 
   @default_timeout 30_000
+
+  # UUID v4 format regex (case-insensitive) - consistent with HandlerHelpers
+  @uuid_regex ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
   @typedoc """
   A parsed tool call from an LLM response.
@@ -231,15 +235,15 @@ defmodule JidoCode.Tools.Executor do
   """
   @spec build_context(String.t(), keyword()) :: {:ok, context()} | {:error, :not_found | :invalid_session_id}
   def build_context(session_id, opts \\ []) when is_binary(session_id) do
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    # Validate UUID format for defense-in-depth
+    if not valid_uuid?(session_id) do
+      {:error, :invalid_session_id}
+    else
+      timeout = Keyword.get(opts, :timeout, @default_timeout)
+      base_context = %{session_id: session_id, timeout: timeout}
 
-    with {:ok, project_root} <- Session.Manager.project_root(session_id) do
-      {:ok,
-       %{
-         session_id: session_id,
-         project_root: project_root,
-         timeout: timeout
-       }}
+      # Delegate to enrich_context to avoid duplication
+      enrich_context(base_context)
     end
   end
 
@@ -470,6 +474,11 @@ defmodule JidoCode.Tools.Executor do
   # Private Functions
   # ============================================================================
 
+  # Validate UUID v4 format
+  defp valid_uuid?(session_id) do
+    Regex.match?(@uuid_regex, session_id)
+  end
+
   # Extract session_id from context or legacy option
   defp get_session_id(%{session_id: session_id}, _legacy) when is_binary(session_id) do
     session_id
@@ -499,9 +508,13 @@ defmodule JidoCode.Tools.Executor do
         |> Map.put(:session_id, session_id)
         |> Map.put(:project_root, project_root)
 
-      {:error, _} ->
-        # Session not found - pass context through unchanged
-        Map.put(context, :session_id, session_id)
+      {:error, reason} ->
+        # Session not found - return context unchanged (don't add invalid session_id)
+        Logger.warning(
+          "Executor: Failed to enrich context for session #{session_id}: #{inspect(reason)}"
+        )
+
+        context
     end
   end
 
@@ -658,7 +671,7 @@ defmodule JidoCode.Tools.Executor do
   @spec broadcast_tool_call(String.t() | nil, String.t(), map(), String.t()) :: :ok
   def broadcast_tool_call(session_id, tool_name, params, call_id) do
     message = {:tool_call, tool_name, params, call_id, session_id}
-    broadcast_to_topics(session_id, message)
+    PubSubHelpers.broadcast(session_id, message)
   end
 
   @doc """
@@ -683,24 +696,13 @@ defmodule JidoCode.Tools.Executor do
   @spec broadcast_tool_result(String.t() | nil, Result.t()) :: :ok
   def broadcast_tool_result(session_id, result) do
     message = {:tool_result, result, session_id}
-    broadcast_to_topics(session_id, message)
-  end
-
-  # ARCH-2 Fix: Broadcast to both session-specific and global topics
-  defp broadcast_to_topics(nil, message) do
-    # No session ID - just broadcast to global topic
-    Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events", message)
-  end
-
-  defp broadcast_to_topics(session_id, message) when is_binary(session_id) do
-    # Session ID provided - broadcast to both session-specific AND global topics
-    # This ensures PubSubBridge (global subscriber) receives the message
-    Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.#{session_id}", message)
-    Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events", message)
+    PubSubHelpers.broadcast(session_id, message)
   end
 
   @doc """
   Returns the PubSub topic for a given session ID.
+
+  Delegates to `PubSubHelpers.session_topic/1`.
 
   ## Parameters
 
@@ -712,6 +714,5 @@ defmodule JidoCode.Tools.Executor do
   - `"tui.events"` if session_id is nil
   """
   @spec pubsub_topic(String.t() | nil) :: String.t()
-  def pubsub_topic(nil), do: "tui.events"
-  def pubsub_topic(session_id) when is_binary(session_id), do: "tui.events.#{session_id}"
+  def pubsub_topic(session_id), do: PubSubHelpers.session_topic(session_id)
 end

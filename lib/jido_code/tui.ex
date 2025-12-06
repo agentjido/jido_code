@@ -187,7 +187,9 @@ defmodule JidoCode.TUI do
             conversation_view: map() | nil
           }
 
-    @enforce_keys []
+    # Maximum number of tabs supported (Ctrl+1 through Ctrl+9, plus Ctrl+0 for 10th)
+    @max_tabs 10
+
     defstruct [
       # Session management (multi-session support)
       sessions: %{},
@@ -195,6 +197,7 @@ defmodule JidoCode.TUI do
       active_session_id: nil,
       # UI state
       text_input: nil,
+      # Focus state for keyboard navigation (used in Phase 4.5)
       focus: :input,
       window: {80, 24},
       show_reasoning: false,
@@ -206,6 +209,7 @@ defmodule JidoCode.TUI do
       shell_viewport: nil,
       pick_list: nil,
       # Legacy per-session fields (for backwards compatibility)
+      # These will be migrated to Session.State in Phase 4.2
       messages: [],
       reasoning_steps: [],
       tool_calls: [],
@@ -263,7 +267,10 @@ defmodule JidoCode.TUI do
     def get_active_session_state(%__MODULE__{active_session_id: nil}), do: nil
 
     def get_active_session_state(%__MODULE__{active_session_id: id}) do
-      JidoCode.Session.State.get_state(id)
+      case JidoCode.Session.State.get_state(id) do
+        {:ok, state} -> state
+        {:error, :not_found} -> nil
+      end
     end
 
     @doc """
@@ -287,7 +294,7 @@ defmodule JidoCode.TUI do
     def get_session_by_index(%__MODULE__{session_order: []}, _index), do: nil
 
     def get_session_by_index(%__MODULE__{session_order: order, sessions: sessions}, index)
-        when is_integer(index) and index >= 1 and index <= 10 do
+        when is_integer(index) and index >= 1 and index <= @max_tabs do
       # Convert 1-based tab index to 0-based list index
       list_index = index - 1
 

@@ -307,6 +307,21 @@ defmodule JidoCode.TUI.ModelTest do
 
       assert Model.get_session_by_index(model, 11) == nil
     end
+
+    test "returns nil when session_id in order but not in sessions map" do
+      # This tests data inconsistency - session_order contains ID not in sessions map
+      model = %Model{
+        session_order: ["s1", "s2"],
+        sessions: %{"s1" => %{id: "s1", name: "project-a"}}
+        # Note: s2 is missing from sessions map!
+      }
+
+      # Index 1 (s1) should return the session
+      assert Model.get_session_by_index(model, 1) == %{id: "s1", name: "project-a"}
+
+      # Index 2 (s2) should return nil because s2 is not in sessions map
+      assert Model.get_session_by_index(model, 2) == nil
+    end
   end
 
   describe "get_active_session_state/1" do

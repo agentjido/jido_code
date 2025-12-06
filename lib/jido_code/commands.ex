@@ -272,6 +272,86 @@ defmodule JidoCode.Commands do
   end
 
   # ============================================================================
+  # Path Resolution
+  # ============================================================================
+
+  @doc """
+  Resolves a path string to an absolute path.
+
+  Handles:
+  - `~` expansion to home directory
+  - `.` for current working directory
+  - `..` for parent directory
+  - Relative paths resolved against CWD
+  - Absolute paths passed through unchanged
+
+  Returns `{:ok, absolute_path}` or `{:error, reason}`.
+
+  ## Examples
+
+      iex> Commands.resolve_session_path("~/projects")
+      {:ok, "/home/user/projects"}
+
+      iex> Commands.resolve_session_path(".")
+      {:ok, "/current/working/dir"}
+
+      iex> Commands.resolve_session_path("/absolute/path")
+      {:ok, "/absolute/path"}
+  """
+  @spec resolve_session_path(String.t() | nil) :: {:ok, String.t()} | {:error, String.t()}
+  def resolve_session_path(nil) do
+    # Default to current working directory
+    {:ok, File.cwd!()}
+  end
+
+  def resolve_session_path("") do
+    {:ok, File.cwd!()}
+  end
+
+  def resolve_session_path("~") do
+    {:ok, System.user_home!()}
+  end
+
+  def resolve_session_path("~/" <> rest) do
+    path = Path.join(System.user_home!(), rest)
+    {:ok, Path.expand(path)}
+  end
+
+  def resolve_session_path("." <> _ = path) do
+    # Handles "." and "./something" and "../something"
+    {:ok, Path.expand(path)}
+  end
+
+  def resolve_session_path("/" <> _ = path) do
+    # Absolute path - just expand to resolve any . or .. within
+    {:ok, Path.expand(path)}
+  end
+
+  def resolve_session_path(path) do
+    # Relative path - resolve against CWD
+    {:ok, Path.expand(path)}
+  end
+
+  @doc """
+  Validates that a resolved path exists and is a directory.
+
+  Returns `{:ok, path}` if valid, `{:error, reason}` otherwise.
+  """
+  @spec validate_session_path(String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def validate_session_path(path) do
+    cond do
+      not File.exists?(path) ->
+        {:error, "Path does not exist: #{path}"}
+
+      not File.dir?(path) ->
+        {:error, "Path is not a directory: #{path}"}
+
+      true ->
+        {:ok, path}
+    end
+  end
+
+  # ============================================================================
   # Command Execution
   # ============================================================================
 

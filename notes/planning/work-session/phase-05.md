@@ -28,24 +28,19 @@ Add session commands to the command registry.
 - [x] 5.1.1.4 Write unit tests for command parsing (17 tests)
 
 ### 5.1.2 Session Argument Parser
-- [ ] **Task 5.1.2**
+- [x] **Task 5.1.2** (completed 2025-12-06)
 
 Implement argument parsing for session subcommands.
 
-- [ ] 5.1.2.1 Implement `parse_session_args/1`:
-  ```elixir
-  defp parse_session_args("new " <> rest) do
-    {:new, parse_new_args(rest)}
-  end
-  defp parse_session_args("list"), do: :list
-  defp parse_session_args("switch " <> target), do: {:switch, target}
-  defp parse_session_args("close" <> rest), do: {:close, parse_close_args(rest)}
-  defp parse_session_args("rename " <> name), do: {:rename, String.trim(name)}
-  defp parse_session_args(_), do: :help
-  ```
-- [ ] 5.1.2.2 Implement `parse_new_args/1` handling path and --name flag
-- [ ] 5.1.2.3 Implement `parse_close_args/1` handling optional target
-- [ ] 5.1.2.4 Write unit tests for argument parsing
+- [x] 5.1.2.1 Implement `parse_session_args/1` (done in 5.1.1)
+- [x] 5.1.2.2 Implement `parse_new_args/1` handling path and --name flag (done in 5.1.1)
+- [x] 5.1.2.3 Implement `parse_close_args/1` handling optional target (done in 5.1.1)
+- [x] 5.1.2.4 Implement `resolve_session_path/1` for path resolution:
+  - Handle `~` expansion to home directory
+  - Handle `.` and `..` for relative paths
+  - Handle relative paths resolved against CWD
+- [x] 5.1.2.5 Implement `validate_session_path/1` for path validation
+- [x] 5.1.2.6 Write unit tests for path resolution (14 tests)
 
 **Unit Tests for Section 5.1:**
 - Test `/session new /path/to/project` parses correctly

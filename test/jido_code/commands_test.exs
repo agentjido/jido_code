@@ -495,4 +495,94 @@ defmodule JidoCode.CommandsTest do
       cleanup_api_key("anthropic")
     end
   end
+
+  describe "resolve_session_path/1" do
+    test "nil returns current working directory" do
+      {:ok, path} = Commands.resolve_session_path(nil)
+
+      assert path == File.cwd!()
+    end
+
+    test "empty string returns current working directory" do
+      {:ok, path} = Commands.resolve_session_path("")
+
+      assert path == File.cwd!()
+    end
+
+    test "~ expands to home directory" do
+      {:ok, path} = Commands.resolve_session_path("~")
+
+      assert path == System.user_home!()
+    end
+
+    test "~/subdir expands to home directory subpath" do
+      {:ok, path} = Commands.resolve_session_path("~/projects")
+
+      assert path == Path.join(System.user_home!(), "projects")
+    end
+
+    test ". resolves to current directory" do
+      {:ok, path} = Commands.resolve_session_path(".")
+
+      assert path == File.cwd!()
+    end
+
+    test "./subdir resolves relative to current directory" do
+      {:ok, path} = Commands.resolve_session_path("./lib")
+
+      assert path == Path.join(File.cwd!(), "lib")
+    end
+
+    test ".. resolves to parent directory" do
+      {:ok, path} = Commands.resolve_session_path("..")
+
+      assert path == Path.dirname(File.cwd!())
+    end
+
+    test "../sibling resolves to sibling directory" do
+      {:ok, path} = Commands.resolve_session_path("../sibling")
+
+      expected = Path.join(Path.dirname(File.cwd!()), "sibling")
+      assert path == expected
+    end
+
+    test "absolute path passes through unchanged" do
+      {:ok, path} = Commands.resolve_session_path("/tmp/test")
+
+      assert path == "/tmp/test"
+    end
+
+    test "relative path resolves against CWD" do
+      {:ok, path} = Commands.resolve_session_path("lib/jido_code")
+
+      assert path == Path.join(File.cwd!(), "lib/jido_code")
+    end
+
+    test "path with .. inside is normalized" do
+      {:ok, path} = Commands.resolve_session_path("/tmp/foo/../bar")
+
+      assert path == "/tmp/bar"
+    end
+  end
+
+  describe "validate_session_path/1" do
+    test "returns ok for existing directory" do
+      {:ok, result} = Commands.validate_session_path(File.cwd!())
+
+      assert result == File.cwd!()
+    end
+
+    test "returns error for non-existent path" do
+      {:error, message} = Commands.validate_session_path("/nonexistent/path/xyz123")
+
+      assert message =~ "does not exist"
+    end
+
+    test "returns error for file (not directory)" do
+      # mix.exs exists but is a file, not directory
+      {:error, message} = Commands.validate_session_path(Path.join(File.cwd!(), "mix.exs"))
+
+      assert message =~ "not a directory"
+    end
+  end
 end

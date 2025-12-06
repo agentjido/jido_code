@@ -213,21 +213,14 @@ Update LLMAgent to be fully session-aware.
 - [x] 3.3.1.5 Write unit tests for session-aware agent (8 new tests)
 
 ### 3.3.2 Agent Integration with Session Supervisor
-- [ ] **Task 3.3.2**
+- [x] **Task 3.3.2**
 
 Add LLMAgent to per-session supervision tree.
 
-- [ ] 3.3.2.1 Update `Session.Supervisor.init/1` to include LLMAgent:
-  ```elixir
-  children = [
-    {JidoCode.Session.Manager, session: session},
-    {JidoCode.Session.State, session: session},
-    {JidoCode.Agents.LLMAgent, session_id: session.id, config: session.config}
-  ]
-  ```
-- [ ] 3.3.2.2 Agent should start after Manager (depends on path validation)
-- [ ] 3.3.2.3 Pass session config to agent for LLM configuration
-- [ ] 3.3.2.4 Write integration tests for supervised agent
+- [x] 3.3.2.1 Update `Session.Supervisor.init/1` to include LLMAgent via `agent_child_spec/1`
+- [x] 3.3.2.2 Agent starts after Manager (uses session's project_root)
+- [x] 3.3.2.3 Pass session config to agent via `agent_child_spec/1` helper
+- [x] 3.3.2.4 Write integration tests for supervised agent (34 tests updated)
 
 ### 3.3.3 Agent Tool Execution
 - [ ] **Task 3.3.3**
@@ -263,21 +256,12 @@ Update streaming to route through Session.State.
 - [ ] 3.3.4.3 Write unit tests for streaming integration
 
 ### 3.3.5 Session Supervisor Access Helper
-- [ ] **Task 3.3.5**
+- [x] **Task 3.3.5** (completed in Task 3.3.1 and 3.3.2)
 
 Add helper to Session.Supervisor for accessing agent.
 
-- [ ] 3.3.5.1 Implement `get_agent/1` in Session.Supervisor:
-  ```elixir
-  def get_agent(session_id) do
-    Registry.lookup(JidoCode.Registry, {:session_agent, session_id})
-    |> case do
-      [{pid, _}] -> {:ok, pid}
-      [] -> {:error, :not_found}
-    end
-  end
-  ```
-- [ ] 3.3.5.2 Write unit tests for agent lookup
+- [x] 3.3.5.1 Implement `get_agent/1` in Session.Supervisor (completed in Task 3.3.1)
+- [x] 3.3.5.2 Write unit tests for agent lookup (completed in Task 3.3.2)
 
 **Unit Tests for Section 3.3:**
 - Test LLMAgent registers with session-specific name

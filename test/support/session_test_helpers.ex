@@ -8,12 +8,29 @@ defmodule JidoCode.Test.SessionTestHelpers do
 
   - `setup_session_registry/1` - Lightweight setup for unit tests (Registry + tmp_dir)
   - `setup_session_supervisor/1` - Full setup with SessionSupervisor for integration tests
+  - `valid_session_config/0` - Returns a valid LLM config for tests
   """
 
   alias JidoCode.SessionRegistry
   alias JidoCode.SessionSupervisor
 
   @registry JidoCode.SessionProcessRegistry
+
+  @doc """
+  Returns a valid LLM configuration for tests.
+
+  This config uses actual model names that will pass validation.
+  Use this when creating sessions for tests that need LLMAgent.
+  """
+  @spec valid_session_config() :: map()
+  def valid_session_config do
+    %{
+      provider: "anthropic",
+      model: "claude-3-5-haiku-20241022",
+      temperature: 0.7,
+      max_tokens: 4096
+    }
+  end
 
   # ============================================================================
   # Lightweight Setup (for unit tests)
@@ -43,19 +60,16 @@ defmodule JidoCode.Test.SessionTestHelpers do
   """
   @spec setup_session_registry(String.t()) :: {:ok, map()}
   def setup_session_registry(suffix \\ "test") do
-    # Stop existing registry if running and wait for termination
-    if pid = Process.whereis(@registry) do
-      ref = Process.monitor(pid)
-      GenServer.stop(pid)
+    # Ensure registry is available - either use existing or start new
+    case Process.whereis(@registry) do
+      nil ->
+        # No registry, start one
+        {:ok, _} = Registry.start_link(keys: :unique, name: @registry)
 
-      receive do
-        {:DOWN, ^ref, :process, ^pid, _} -> :ok
-      after
-        100 -> Process.demonitor(ref, [:flush])
-      end
+      pid when is_pid(pid) ->
+        # Registry exists, use it (application.ex starts it)
+        :ok
     end
-
-    {:ok, _} = Registry.start_link(keys: :unique, name: @registry)
 
     # Create a temp directory for sessions
     tmp_dir = Path.join(System.tmp_dir!(), "session_#{suffix}_#{:rand.uniform(100_000)}")

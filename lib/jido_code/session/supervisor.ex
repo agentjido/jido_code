@@ -11,8 +11,9 @@ defmodule JidoCode.Session.Supervisor do
   ```
   SessionSupervisor (DynamicSupervisor)
   └── Session.Supervisor (this module)
-      ├── Session.Manager (Task 1.4.2)
-      └── Session.State (Task 1.4.2)
+      ├── Session.Manager
+      ├── Session.State
+      └── LLMAgent (registered as {:agent, session_id})
   ```
 
   ## Registry
@@ -42,6 +43,9 @@ defmodule JidoCode.Session.Supervisor do
 
   use Supervisor
 
+  require Logger
+
+  alias JidoCode.Agents.LLMAgent
   alias JidoCode.Session
   alias JidoCode.Session.ProcessRegistry
 
@@ -103,21 +107,49 @@ defmodule JidoCode.Session.Supervisor do
   @doc false
   @impl true
   def init(%Session{} = session) do
-    # Session children - both register in SessionProcessRegistry for lookup
+    # Session children - all register in SessionProcessRegistry for lookup
     # Manager: handles session coordination and lifecycle
     # State: manages conversation history, tool context, settings
+    # Agent: LLM agent for chat interactions (started after Manager)
     #
     # Strategy: :one_for_all because children are tightly coupled:
     # - Manager depends on State for session data
     # - State depends on Manager for coordination
-    # - If either crashes, both should restart to ensure consistency
+    # - Agent depends on Manager for path validation
+    # - If any crashes, all should restart to ensure consistency
     children = [
       {JidoCode.Session.Manager, session: session},
-      {JidoCode.Session.State, session: session}
-      # Note: LLMAgent will be added in Phase 3 after tool integration
+      {JidoCode.Session.State, session: session},
+      agent_child_spec(session)
     ]
 
     Supervisor.init(children, strategy: :one_for_all)
+  end
+
+  # Build child spec for LLMAgent from session config
+  # The agent is started with session_id for registry naming and LLM config
+  defp agent_child_spec(%Session{} = session) do
+    config = session.config
+
+    # Convert string provider to atom for LLMAgent
+    # Session stores provider as string, LLMAgent expects atom
+    provider =
+      cond do
+        is_atom(config.provider) -> config.provider
+        is_binary(config.provider) -> String.to_existing_atom(config.provider)
+        true -> :anthropic
+      end
+
+    opts = [
+      session_id: session.id,
+      provider: provider,
+      model: config.model,
+      temperature: config.temperature,
+      max_tokens: config.max_tokens,
+      name: LLMAgent.via(session.id)
+    ]
+
+    {LLMAgent, opts}
   end
 
   # ============================================================================

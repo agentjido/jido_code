@@ -65,9 +65,7 @@ defmodule JidoCode.Tools.HandlerHelpers do
 
   alias JidoCode.Session
   alias JidoCode.Tools.{Manager, Security}
-
-  # UUID v4 format regex (case-insensitive)
-  @uuid_regex ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  alias JidoCode.Utils.UUID, as: UUIDUtils
 
   @doc """
   Extracts the project root from the context map.
@@ -232,7 +230,7 @@ defmodule JidoCode.Tools.HandlerHelpers do
   # ============================================================================
 
   defp valid_session_id?(session_id) do
-    Regex.match?(@uuid_regex, session_id)
+    UUIDUtils.valid?(session_id)
   end
 
   defp emit_context_telemetry(context_type, session_id) do

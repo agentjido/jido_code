@@ -20,6 +20,18 @@ defmodule JidoCode.Session.AgentAPI do
   - `{:error, :agent_not_found}` - Session has no agent
   - `{:error, reason}` - Other errors (validation, agent errors)
 
+  ### Error Atom Convention
+
+  This module uses `:agent_not_found` rather than `:not_found` (used by
+  lower-level modules like `Session.State` and `Session.Supervisor`).
+  This is intentional API-level semantics:
+
+  - `:not_found` - Generic "resource not found" (used internally)
+  - `:agent_not_found` - Specific "session has no agent" (API-level)
+
+  This semantic distinction helps callers understand exactly what was
+  not found without needing to know the internal lookup hierarchy.
+
   ## PubSub Integration
 
   Streaming responses are broadcast to the session topic.
@@ -27,11 +39,46 @@ defmodule JidoCode.Session.AgentAPI do
   - `{:stream_chunk, content}` - Content chunks as they arrive
   - `{:stream_end, full_content}` - Stream completion with full content
   - `{:stream_error, reason}` - Stream error occurred
+
+  ## Related Modules
+
+  - `JidoCode.Agents.LLMAgent` - The underlying agent implementation
+  - `JidoCode.Session.State` - Session state management
+  - `JidoCode.Session.Supervisor` - Per-session process supervision
   """
 
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.Session.State
   alias JidoCode.Session.Supervisor, as: SessionSupervisor
+
+  # ============================================================================
+  # Type Definitions
+  # ============================================================================
+
+  @typedoc """
+  Agent status information returned by `get_status/1`.
+  """
+  @type status :: %{
+          required(:ready) => boolean(),
+          required(:config) => config(),
+          required(:session_id) => String.t(),
+          required(:topic) => String.t()
+        }
+
+  @typedoc """
+  Agent configuration map.
+  """
+  @type config :: %{
+          optional(:provider) => atom(),
+          optional(:model) => String.t(),
+          optional(:temperature) => float(),
+          optional(:max_tokens) => pos_integer()
+        }
+
+  @typedoc """
+  Configuration update options (map or keyword list).
+  """
+  @type config_opts :: map() | keyword()
 
   # ============================================================================
   # Message API
@@ -151,7 +198,7 @@ defmodule JidoCode.Session.AgentAPI do
       iex> AgentAPI.get_status("unknown-session")
       {:error, :agent_not_found}
   """
-  @spec get_status(String.t()) :: {:ok, map()} | {:error, term()}
+  @spec get_status(String.t()) :: {:ok, status()} | {:error, :agent_not_found | term()}
   def get_status(session_id) when is_binary(session_id) do
     with {:ok, agent_pid} <- get_agent(session_id) do
       LLMAgent.get_status(agent_pid)

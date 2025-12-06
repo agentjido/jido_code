@@ -9,6 +9,12 @@ defmodule JidoCode.Test.SessionTestHelpers do
   - `setup_session_registry/1` - Lightweight setup for unit tests (Registry + tmp_dir)
   - `setup_session_supervisor/1` - Full setup with SessionSupervisor for integration tests
   - `valid_session_config/0` - Returns a valid LLM config for tests
+
+  ## Tool Testing Helpers
+
+  - `tool_call/2` - Create a properly formatted tool call map
+  - `unwrap_result/1` - Extract content from Executor.execute result
+  - `assert_eventually/2` - Polling helper to replace Process.sleep
   """
 
   alias JidoCode.SessionRegistry
@@ -279,6 +285,104 @@ defmodule JidoCode.Test.SessionTestHelpers do
         else
           :timeout
         end
+    end
+  end
+
+  # ============================================================================
+  # Tool Testing Helpers
+  # ============================================================================
+
+  @doc """
+  Creates a properly formatted tool call map for Executor.execute.
+
+  This standardizes tool call creation across tests and ensures the
+  correct format is used consistently.
+
+  ## Parameters
+
+  - `name` - Tool name as a string
+  - `args` - Map of arguments for the tool
+
+  ## Examples
+
+      iex> tool_call("read_file", %{"path" => "lib/app.ex"})
+      %{"name" => "read_file", "arguments" => %{"path" => "lib/app.ex"}}
+
+      iex> tool_call("grep", %{"pattern" => "TODO", "path" => "."})
+      %{"name" => "grep", "arguments" => %{"pattern" => "TODO", "path" => "."}}
+  """
+  @spec tool_call(String.t(), map()) :: map()
+  def tool_call(name, args) when is_binary(name) and is_map(args) do
+    %{"name" => name, "arguments" => args}
+  end
+
+  @doc """
+  Extracts the content from an Executor.execute result.
+
+  Handles both success and error cases, returning the content string
+  or the error tuple for further assertion.
+
+  ## Examples
+
+      # Success case
+      iex> unwrap_result({:ok, %{content: "file contents"}})
+      {:ok, "file contents"}
+
+      # Error case (passes through)
+      iex> unwrap_result({:error, "not found"})
+      {:error, "not found"}
+  """
+  @spec unwrap_result({:ok, map()} | {:error, term()}) :: {:ok, String.t()} | {:error, term()}
+  def unwrap_result({:ok, %{content: content}}), do: {:ok, content}
+  def unwrap_result({:error, _} = error), do: error
+
+  @doc """
+  Polls a condition function until it returns true or timeout is reached.
+
+  This is preferred over `Process.sleep/1` as it doesn't introduce
+  unnecessary delays and is more deterministic on slow CI systems.
+
+  ## Parameters
+
+  - `condition_fn` - Zero-arity function that returns a boolean
+  - `opts` - Keyword list of options:
+    - `:timeout` - Maximum time to wait in milliseconds (default: 500)
+    - `:interval` - Polling interval in milliseconds (default: 10)
+
+  ## Returns
+
+  - `true` - Condition was satisfied
+  - `false` - Timeout reached before condition was satisfied
+
+  ## Examples
+
+      # Wait for a process to be registered
+      assert_eventually(fn -> Process.whereis(:my_process) != nil end)
+
+      # Wait with custom timeout
+      assert_eventually(fn -> check_something() end, timeout: 1000)
+
+      # Use in tests
+      assert assert_eventually(fn -> File.exists?(path) end)
+  """
+  @spec assert_eventually((-> boolean()), keyword()) :: boolean()
+  def assert_eventually(condition_fn, opts \\ []) when is_function(condition_fn, 0) do
+    timeout = Keyword.get(opts, :timeout, 500)
+    interval = Keyword.get(opts, :interval, 10)
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_assert_eventually(condition_fn, deadline, interval)
+  end
+
+  defp do_assert_eventually(condition_fn, deadline, interval) do
+    if condition_fn.() do
+      true
+    else
+      if System.monotonic_time(:millisecond) < deadline do
+        Process.sleep(interval)
+        do_assert_eventually(condition_fn, deadline, interval)
+      else
+        false
+      end
     end
   end
 end

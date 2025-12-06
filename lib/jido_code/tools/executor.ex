@@ -77,11 +77,9 @@ defmodule JidoCode.Tools.Executor do
   alias JidoCode.PubSubHelpers
   alias JidoCode.Session
   alias JidoCode.Tools.{Registry, Result, Tool}
+  alias JidoCode.Utils.UUID, as: UUIDUtils
 
   @default_timeout 30_000
-
-  # UUID v4 format regex (case-insensitive) - consistent with HandlerHelpers
-  @uuid_regex ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
   @typedoc """
   A parsed tool call from an LLM response.
@@ -476,7 +474,7 @@ defmodule JidoCode.Tools.Executor do
 
   # Validate UUID v4 format
   defp valid_uuid?(session_id) do
-    Regex.match?(@uuid_regex, session_id)
+    UUIDUtils.valid?(session_id)
   end
 
   # Extract session_id from context or legacy option

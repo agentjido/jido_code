@@ -1042,6 +1042,37 @@ defmodule JidoCode.TUI do
 
         {final_state, []}
 
+      {:session_action, {:switch_session, session_id}} ->
+        # Switch to the specified session
+        new_state = Model.switch_to_session(state, session_id)
+
+        # Get session name for the message
+        session = Map.get(new_state.sessions, session_id)
+        session_name = if session, do: session.name, else: session_id
+
+        # Show success message
+        success_msg = system_message("Switched to session: #{session_name}")
+
+        new_conversation_view =
+          if new_state.conversation_view do
+            ConversationView.add_message(new_state.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: "Switched to session: #{session_name}",
+              timestamp: DateTime.utc_now()
+            })
+          else
+            new_state.conversation_view
+          end
+
+        final_state = %{
+          new_state
+          | messages: [success_msg | new_state.messages],
+            conversation_view: new_conversation_view
+        }
+
+        {final_state, []}
+
       {:ok, message} ->
         # Display success/info message
         system_msg = system_message(message)

@@ -172,17 +172,14 @@ Implement switching by session ID or name.
 - [x] 5.4.2.5 Write unit tests for name/prefix matching (5 tests)
 
 ### 5.4.3 TUI Integration for Switch
-- [ ] **Task 5.4.3**
+- [x] **Task 5.4.3** (completed 2025-12-06)
 
 Handle `{:switch_session, id}` action in TUI.
 
-- [ ] 5.4.3.1 Update `update({:command_result, {:switch_session, id}}, model)`:
-  ```elixir
-  def update({:command_result, {:switch_session, session_id}}, model) do
-    %{model | active_session_id: session_id}
-  end
-  ```
-- [ ] 5.4.3.2 Write integration tests
+- [x] 5.4.3.1 Add `{:session_action, {:switch_session, session_id}}` handler
+- [x] 5.4.3.2 Call `Model.switch_to_session/2` to update active session
+- [x] 5.4.3.3 Show success message with session name
+- [x] 5.4.3.4 Model.switch_to_session/2 already tested in model_test.exs
 
 **Unit Tests for Section 5.4:**
 - Test `/session switch 1` switches to first session

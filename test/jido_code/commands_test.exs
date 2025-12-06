@@ -896,6 +896,90 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Session not found"
     end
 
+    test "{:switch, name} is case-insensitive" do
+      session1 = %{id: "s1", name: "MyProject"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      # Lowercase should match
+      result = Commands.execute_session({:switch, "myproject"}, model)
+      assert {:session_action, {:switch_session, "s1"}} = result
+
+      # Uppercase should match
+      result = Commands.execute_session({:switch, "MYPROJECT"}, model)
+      assert {:session_action, {:switch_session, "s1"}} = result
+    end
+
+    test "{:switch, prefix} matches session by name prefix" do
+      session1 = %{id: "s1", name: "my-long-project-name"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      # Prefix "my" should match
+      result = Commands.execute_session({:switch, "my"}, model)
+      assert {:session_action, {:switch_session, "s1"}} = result
+
+      # Prefix "my-long" should match
+      result = Commands.execute_session({:switch, "my-long"}, model)
+      assert {:session_action, {:switch_session, "s1"}} = result
+    end
+
+    test "{:switch, prefix} prefers exact match over prefix" do
+      session1 = %{id: "s1", name: "proj"}
+      session2 = %{id: "s2", name: "project"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: nil
+      }
+
+      # "proj" should match s1 exactly, not s2 as prefix
+      result = Commands.execute_session({:switch, "proj"}, model)
+      assert {:session_action, {:switch_session, "s1"}} = result
+    end
+
+    test "{:switch, prefix} returns error for ambiguous prefix" do
+      session1 = %{id: "s1", name: "project-a"}
+      session2 = %{id: "s2", name: "project-b"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: nil
+      }
+
+      # "proj" matches both sessions
+      result = Commands.execute_session({:switch, "proj"}, model)
+
+      assert {:error, message} = result
+      assert message =~ "Ambiguous session name"
+      assert message =~ "project-a"
+      assert message =~ "project-b"
+    end
+
+    test "{:switch, prefix} is case-insensitive" do
+      session1 = %{id: "s1", name: "MyProject"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      # Lowercase prefix should match
+      result = Commands.execute_session({:switch, "myp"}, model)
+      assert {:session_action, {:switch_session, "s1"}} = result
+    end
+
     test "{:close, target} returns not implemented message" do
       result = Commands.execute_session({:close, nil}, %{})
 

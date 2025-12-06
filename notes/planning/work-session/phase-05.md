@@ -161,22 +161,15 @@ Implement switching by tab index.
 - [x] 5.4.1.6 Write unit tests for switch command (8 tests)
 
 ### 5.4.2 Switch by ID or Name
-- [ ] **Task 5.4.2**
+- [x] **Task 5.4.2** (completed 2025-12-06)
 
 Implement switching by session ID or name.
 
-- [ ] 5.4.2.1 Implement `find_session_by_name/2`:
-  ```elixir
-  defp find_session_by_name(name, model) do
-    case Enum.find(model.sessions, fn {_id, s} -> s.name == name end) do
-      {id, _} -> {:ok, id}
-      nil -> {:error, :not_found}
-    end
-  end
-  ```
-- [ ] 5.4.2.2 Support partial name matching (prefix)
-- [ ] 5.4.2.3 Handle ambiguous names (multiple matches)
-- [ ] 5.4.2.4 Write unit tests for ID/name switching
+- [x] 5.4.2.1 Implement `find_session_by_name/2` with case-insensitive matching
+- [x] 5.4.2.2 Support partial name matching (prefix)
+- [x] 5.4.2.3 Handle ambiguous names (multiple matches) with helpful error
+- [x] 5.4.2.4 Add `find_session_by_prefix/2` helper
+- [x] 5.4.2.5 Write unit tests for name/prefix matching (5 tests)
 
 ### 5.4.3 TUI Integration for Switch
 - [ ] **Task 5.4.3**

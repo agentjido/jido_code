@@ -457,6 +457,10 @@ defmodule JidoCode.Commands do
 
       {:error, :no_sessions} ->
         {:error, "No sessions available. Use /session new to create one."}
+
+      {:error, {:ambiguous, names}} ->
+        options = Enum.join(names, ", ")
+        {:error, "Ambiguous session name '#{target}'. Did you mean: #{options}?"}
     end
   end
 
@@ -590,14 +594,43 @@ defmodule JidoCode.Commands do
   end
 
   defp find_session_by_name(name, sessions) do
-    result =
+    name_lower = String.downcase(name)
+
+    # First try exact match (case-insensitive)
+    exact_match =
       Enum.find(sessions, fn {_id, session} ->
-        Map.get(session, :name) == name
+        session_name = Map.get(session, :name, "")
+        String.downcase(session_name) == name_lower
       end)
 
-    case result do
-      {id, _session} -> {:ok, id}
-      nil -> {:error, :not_found}
+    case exact_match do
+      {id, _session} ->
+        {:ok, id}
+
+      nil ->
+        # Fall back to prefix match (case-insensitive)
+        find_session_by_prefix(name_lower, sessions)
+    end
+  end
+
+  defp find_session_by_prefix(prefix, sessions) do
+    matches =
+      Enum.filter(sessions, fn {_id, session} ->
+        session_name = Map.get(session, :name, "")
+        String.starts_with?(String.downcase(session_name), prefix)
+      end)
+
+    case matches do
+      [] ->
+        {:error, :not_found}
+
+      [{id, _session}] ->
+        {:ok, id}
+
+      multiple ->
+        # Multiple matches - return error with options
+        names = Enum.map(multiple, fn {_id, s} -> Map.get(s, :name) end)
+        {:error, {:ambiguous, names}}
     end
   end
 

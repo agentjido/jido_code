@@ -2,8 +2,8 @@ defmodule JidoCode.Tools.Handlers.LivebookTest do
   # async: false because we're modifying the shared Manager state
   use ExUnit.Case, async: false
 
+  alias JidoCode.Livebook.{Cell, Parser}
   alias JidoCode.Tools.Handlers.Livebook.EditCell
-  alias JidoCode.Livebook.{Parser, Cell}
 
   @moduletag :tmp_dir
 

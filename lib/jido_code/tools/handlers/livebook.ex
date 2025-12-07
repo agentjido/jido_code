@@ -24,8 +24,8 @@ defmodule JidoCode.Tools.Handlers.Livebook do
       })
   """
 
+  alias JidoCode.Livebook.{Cell, Notebook, Parser, Serializer}
   alias JidoCode.Tools.HandlerHelpers
-  alias JidoCode.Livebook.{Parser, Serializer, Notebook, Cell}
 
   @doc false
   defdelegate get_project_root(context), to: HandlerHelpers
@@ -64,8 +64,8 @@ defmodule JidoCode.Tools.Handlers.Livebook do
     Falls back to `project_root` for legacy compatibility.
     """
 
+    alias JidoCode.Livebook.{Cell, Notebook, Parser, Serializer}
     alias JidoCode.Tools.Handlers.Livebook
-    alias JidoCode.Livebook.{Parser, Serializer, Notebook, Cell}
 
     @doc """
     Edits a Livebook notebook cell.

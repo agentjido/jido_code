@@ -199,13 +199,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `{:error, reason}` - Error message
     """
     def execute(%{"path" => path}, context) when is_binary(path) do
-      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
-        case File.read(safe_path) do
-          {:ok, content} -> {:ok, content}
-          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
-        end
-      else
-        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+      case FileSystem.validate_path(path, context) do
+        {:ok, safe_path} ->
+          case File.read(safe_path) do
+            {:ok, content} -> {:ok, content}
+            {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+          end
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, path)}
       end
     end
 
@@ -226,8 +228,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
-    alias JidoCode.Tools.Handlers.FileSystem
     alias JidoCode.Tools.HandlerHelpers
+    alias JidoCode.Tools.Handlers.FileSystem
 
     # Maximum file size: 10MB
     @max_file_size 10 * 1024 * 1024
@@ -375,10 +377,12 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     def execute(%{"path" => path} = args, context) when is_binary(path) do
       recursive = Map.get(args, "recursive", false)
 
-      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
-        list_entries(path, safe_path, recursive)
-      else
-        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+      case FileSystem.validate_path(path, context) do
+        {:ok, safe_path} ->
+          list_entries(path, safe_path, recursive)
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, path)}
       end
     end
 
@@ -480,24 +484,26 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `{:error, reason}` - Error message
     """
     def execute(%{"path" => path}, context) when is_binary(path) do
-      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
-        case File.stat(safe_path) do
-          {:ok, stat} ->
-            info = %{
-              path: path,
-              size: stat.size,
-              type: Atom.to_string(stat.type),
-              access: Atom.to_string(stat.access),
-              mtime: format_mtime(stat.mtime)
-            }
+      case FileSystem.validate_path(path, context) do
+        {:ok, safe_path} ->
+          case File.stat(safe_path) do
+            {:ok, stat} ->
+              info = %{
+                path: path,
+                size: stat.size,
+                type: Atom.to_string(stat.type),
+                access: Atom.to_string(stat.access),
+                mtime: format_mtime(stat.mtime)
+              }
 
-            {:ok, Jason.encode!(info)}
+              {:ok, Jason.encode!(info)}
 
-          {:error, reason} ->
-            {:error, FileSystem.format_error(reason, path)}
-        end
-      else
-        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+            {:error, reason} ->
+              {:error, FileSystem.format_error(reason, path)}
+          end
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, path)}
       end
     end
 
@@ -552,13 +558,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `{:error, reason}` - Error message
     """
     def execute(%{"path" => path}, context) when is_binary(path) do
-      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
-        case File.mkdir_p(safe_path) do
-          :ok -> {:ok, "Directory created successfully: #{path}"}
-          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
-        end
-      else
-        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+      case FileSystem.validate_path(path, context) do
+        {:ok, safe_path} ->
+          case File.mkdir_p(safe_path) do
+            :ok -> {:ok, "Directory created successfully: #{path}"}
+            {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+          end
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, path)}
       end
     end
 
@@ -600,13 +608,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `{:error, reason}` - Error message
     """
     def execute(%{"path" => path, "confirm" => true}, context) when is_binary(path) do
-      with {:ok, safe_path} <- FileSystem.validate_path(path, context) do
-        case File.rm(safe_path) do
-          :ok -> {:ok, "File deleted successfully: #{path}"}
-          {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
-        end
-      else
-        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+      case FileSystem.validate_path(path, context) do
+        {:ok, safe_path} ->
+          case File.rm(safe_path) do
+            :ok -> {:ok, "File deleted successfully: #{path}"}
+            {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+          end
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, path)}
       end
     end
 

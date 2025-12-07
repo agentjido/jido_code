@@ -31,10 +31,10 @@ defmodule JidoCode.Integration.SessionPhase3Test do
   alias JidoCode.SessionRegistry
   alias JidoCode.SessionSupervisor
   alias JidoCode.Test.SessionTestHelpers
-  alias JidoCode.Tools.Executor
   alias JidoCode.Tools.Definitions.FileSystem, as: FileSystemDefs
   alias JidoCode.Tools.Definitions.Search, as: SearchDefs
   alias JidoCode.Tools.Definitions.Shell, as: ShellDefs
+  alias JidoCode.Tools.Executor
   alias JidoCode.Tools.Registry, as: ToolsRegistry
 
   @moduletag :integration

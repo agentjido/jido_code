@@ -35,8 +35,8 @@ defmodule JidoCode.Application do
   require Logger
 
   alias JidoCode.Session
-  alias JidoCode.Settings
   alias JidoCode.SessionSupervisor
+  alias JidoCode.Settings
 
   @impl true
   def start(_type, _args) do

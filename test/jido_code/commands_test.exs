@@ -442,7 +442,8 @@ defmodule JidoCode.CommandsTest do
 
       result = Commands.execute("/session rename", config)
 
-      assert result == {:session, {:error, :missing_name}}
+      assert {:session, {:error, message}} = result
+      assert message =~ "Usage: /session rename"
     end
 
     test "/session unknown returns :help" do
@@ -585,6 +586,42 @@ defmodule JidoCode.CommandsTest do
       {:error, message} = Commands.validate_session_path(Path.join(File.cwd!(), "mix.exs"))
 
       assert message =~ "not a directory"
+    end
+
+    test "returns error for forbidden system directory /etc" do
+      {:error, message} = Commands.validate_session_path("/etc")
+
+      assert message =~ "Cannot create session in system directory"
+    end
+
+    test "returns error for forbidden subdirectory /etc/ssh" do
+      {:error, message} = Commands.validate_session_path("/etc/ssh")
+
+      assert message =~ "Cannot create session in system directory"
+    end
+
+    test "returns error for forbidden /root directory" do
+      {:error, message} = Commands.validate_session_path("/root")
+
+      assert message =~ "Cannot create session in system directory"
+    end
+
+    test "returns error for forbidden /var/log directory" do
+      {:error, message} = Commands.validate_session_path("/var/log")
+
+      assert message =~ "Cannot create session in system directory"
+    end
+
+    test "allows /home directory (not forbidden)" do
+      # /home exists and is a directory on Linux systems
+      case Commands.validate_session_path("/home") do
+        {:ok, "/home"} -> assert true
+        {:error, "Path does not exist: /home"} -> assert true
+      end
+    end
+
+    test "allows /tmp directory (not forbidden)" do
+      {:ok, "/tmp"} = Commands.validate_session_path("/tmp")
     end
   end
 
@@ -1261,6 +1298,120 @@ defmodule JidoCode.CommandsTest do
       assert {:session_action, {:rename_session, "s1", ^max_name}} = result
     end
 
+    test "{:rename, name} with path separators returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, "my/project"}, model)
+      assert {:error, message} = result
+      assert message =~ "invalid characters"
+    end
+
+    test "{:rename, name} with backslash returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, "my\\project"}, model)
+      assert {:error, message} = result
+      assert message =~ "invalid characters"
+    end
+
+    test "{:rename, name} with control characters returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      # Null character
+      result = Commands.execute_session({:rename, "my\0project"}, model)
+      assert {:error, message} = result
+      assert message =~ "invalid characters"
+    end
+
+    test "{:rename, name} with newline returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, "my\nproject"}, model)
+      assert {:error, message} = result
+      assert message =~ "invalid characters"
+    end
+
+    test "{:rename, name} with special characters returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      # Test various special characters
+      for char <- ["@", "#", "$", "%", "^", "&", "*", "!", "?", "<", ">", "|"] do
+        result = Commands.execute_session({:rename, "my#{char}project"}, model)
+        assert {:error, message} = result, "Expected error for character: #{char}"
+        assert message =~ "invalid characters", "Expected invalid characters message for: #{char}"
+      end
+    end
+
+    test "{:rename, name} accepts valid names with hyphens and underscores" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      # Test valid names
+      result = Commands.execute_session({:rename, "my-project_name"}, model)
+      assert {:session_action, {:rename_session, "s1", "my-project_name"}} = result
+    end
+
+    test "{:rename, name} accepts valid names with spaces" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, "My Project Name"}, model)
+      assert {:session_action, {:rename_session, "s1", "My Project Name"}} = result
+    end
+
+    test "{:rename, name} accepts valid names with numbers" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, "Project 123"}, model)
+      assert {:session_action, {:rename_session, "s1", "Project 123"}} = result
+    end
+
     test "parse_session_args returns error for switch without target" do
       # Now parse_session_args returns the error directly
       # This is tested via execute integration which calls TUI handler
@@ -1269,13 +1420,6 @@ defmodule JidoCode.CommandsTest do
       # The result is wrapped as {:session, {:error, message}}
       assert {:session, {:error, message}} = result
       assert message =~ "Usage: /session switch"
-    end
-
-    test "{:error, :missing_name} returns usage message" do
-      result = Commands.execute_session({:error, :missing_name}, %{})
-
-      assert {:error, message} = result
-      assert message =~ "Usage: /session rename"
     end
 
     test "unknown subcommand returns help" do

@@ -204,7 +204,6 @@ defmodule JidoCode.Commands do
   # Session Command Parsing
   # ============================================================================
 
-  @doc false
   # Parse session subcommand arguments
   # Returns a tuple that the TUI will handle for execution
   defp parse_session_args("new" <> rest) do
@@ -230,7 +229,7 @@ defmodule JidoCode.Commands do
     {:rename, String.trim(name)}
   end
 
-  defp parse_session_args("rename"), do: {:error, :missing_name}
+  defp parse_session_args("rename"), do: {:error, "Usage: /session rename <name>"}
 
   defp parse_session_args(_), do: :help
 
@@ -341,6 +340,24 @@ defmodule JidoCode.Commands do
 
   Returns `{:ok, path}` if valid, `{:error, reason}` otherwise.
   """
+  # Forbidden paths that should not be used as session directories
+  # These are system directories that could pose security risks
+  @forbidden_session_paths [
+    "/etc",
+    "/root",
+    "/boot",
+    "/sys",
+    "/proc",
+    "/dev",
+    "/var/log",
+    "/var/run",
+    "/run",
+    "/sbin",
+    "/bin",
+    "/usr/sbin",
+    "/usr/bin"
+  ]
+
   @spec validate_session_path(String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def validate_session_path(path) do
     cond do
@@ -350,9 +367,18 @@ defmodule JidoCode.Commands do
       not File.dir?(path) ->
         {:error, "Path is not a directory: #{path}"}
 
+      forbidden_path?(path) ->
+        {:error, "Cannot create session in system directory: #{path}"}
+
       true ->
         {:ok, path}
     end
+  end
+
+  defp forbidden_path?(path) do
+    Enum.any?(@forbidden_session_paths, fn forbidden ->
+      path == forbidden or String.starts_with?(path, forbidden <> "/")
+    end)
   end
 
   # ============================================================================
@@ -456,15 +482,8 @@ defmodule JidoCode.Commands do
       {:ok, session_id} ->
         {:session_action, {:switch_session, session_id}}
 
-      {:error, :not_found} ->
-        {:error, "Session not found: #{target}. Use /session list to see available sessions."}
-
-      {:error, :no_sessions} ->
-        {:error, "No sessions available. Use /session new to create one."}
-
-      {:error, {:ambiguous, names}} ->
-        options = Enum.join(names, ", ")
-        {:error, "Ambiguous session name '#{target}'. Did you mean: #{options}?"}
+      {:error, reason} ->
+        format_resolution_error(reason, target)
     end
   end
 
@@ -491,12 +510,8 @@ defmodule JidoCode.Commands do
             session_name = if session, do: Map.get(session, :name, session_id), else: session_id
             {:session_action, {:close_session, session_id, session_name}}
 
-          {:error, :not_found} ->
-            {:error, "Session not found: #{target}. Use /session list to see available sessions."}
-
-          {:error, {:ambiguous, names}} ->
-            options = Enum.join(names, ", ")
-            {:error, "Ambiguous session name '#{target}'. Did you mean: #{options}?"}
+          {:error, reason} ->
+            format_resolution_error(reason, target)
         end
     end
   end
@@ -521,10 +536,6 @@ defmodule JidoCode.Commands do
     end
   end
 
-  def execute_session({:error, :missing_name}, _model) do
-    {:error, "Usage: /session rename <name>"}
-  end
-
   def execute_session(_, _model) do
     execute_session(:help, nil)
   end
@@ -540,12 +551,28 @@ defmodule JidoCode.Commands do
       String.length(trimmed) > @max_session_name_length ->
         {:error, "Session name too long (max #{@max_session_name_length} characters)."}
 
+      not valid_session_name_chars?(trimmed) ->
+        {:error,
+         "Session name contains invalid characters. Use letters, numbers, spaces, hyphens, and underscores only."}
+
       true ->
         :ok
     end
   end
 
   defp validate_session_name(_), do: {:error, "Session name must be a string."}
+
+  # Validate session name contains only safe characters:
+  # - Letters (a-z, A-Z, including Unicode letters)
+  # - Numbers (0-9)
+  # - Spaces
+  # - Hyphens (-)
+  # - Underscores (_)
+  # Rejects: control characters, path separators, ANSI escape codes, etc.
+  defp valid_session_name_chars?(name) do
+    # Match only safe characters
+    Regex.match?(~r/^[\p{L}\p{N} _-]+$/u, name)
+  end
 
   # Helper to create a new session via SessionSupervisor
   defp create_new_session(path, name) do
@@ -569,10 +596,9 @@ defmodule JidoCode.Commands do
   defp format_session_list(sessions, active_id) do
     sessions
     |> Enum.with_index(1)
-    |> Enum.map(fn {session, idx} ->
+    |> Enum.map_join("\n", fn {session, idx} ->
       format_session_line(session, idx, active_id)
     end)
-    |> Enum.join("\n")
   end
 
   defp format_session_line(session, idx, active_id) do
@@ -584,6 +610,20 @@ defmodule JidoCode.Commands do
     "#{marker}#{idx}. #{name} (#{truncated})"
   end
 
+  # Format session resolution errors consistently
+  defp format_resolution_error(:not_found, target) do
+    {:error, "Session not found: #{target}. Use /session list to see available sessions."}
+  end
+
+  defp format_resolution_error(:no_sessions, _target) do
+    {:error, "No sessions available. Use /session new to create one."}
+  end
+
+  defp format_resolution_error({:ambiguous, names}, target) do
+    options = Enum.join(names, ", ")
+    {:error, "Ambiguous session name '#{target}'. Did you mean: #{options}?"}
+  end
+
   # Truncate long paths to fit display
   # Replaces home directory with ~ and truncates middle if needed
   @max_path_length 40
@@ -592,20 +632,27 @@ defmodule JidoCode.Commands do
   defp truncate_path(""), do: ""
 
   defp truncate_path(path) do
-    # Replace home directory with ~
+    path
+    |> replace_home_with_tilde()
+    |> truncate_if_long(@max_path_length)
+  end
+
+  # Replace home directory with ~ for shorter display
+  defp replace_home_with_tilde(path) do
     home = System.user_home!()
 
-    path =
-      if String.starts_with?(path, home) do
-        "~" <> String.replace_prefix(path, home, "")
-      else
-        path
-      end
+    if String.starts_with?(path, home) do
+      "~" <> String.replace_prefix(path, home, "")
+    else
+      path
+    end
+  end
 
-    # Truncate if still too long
-    if String.length(path) > @max_path_length do
-      # Keep the last part of the path (most relevant)
-      "..." <> String.slice(path, -(min(@max_path_length - 3, String.length(path) - 1))..-1//1)
+  # Truncate path if longer than max_length, keeping the end (most relevant)
+  defp truncate_if_long(path, max_length) when is_binary(path) do
+    if String.length(path) > max_length do
+      suffix_length = min(max_length - 3, String.length(path) - 1)
+      "..." <> String.slice(path, -suffix_length..-1//1)
     else
       path
     end
@@ -882,67 +929,28 @@ defmodule JidoCode.Commands do
     :ok
   end
 
-  # Local providers that don't require API keys
-  @local_providers ["lmstudio", "llama", "ollama"]
-
-  defp validate_api_key(provider) when provider in @local_providers do
-    # Local providers don't require API keys
-    :ok
-  end
+  # Use shared provider keys module
+  alias JidoCode.Config.ProviderKeys
 
   defp validate_api_key(provider) do
-    key_name = provider_to_key_name(provider)
+    if ProviderKeys.local_provider?(provider) do
+      # Local providers don't require API keys
+      :ok
+    else
+      key_name = ProviderKeys.to_key_name(provider)
 
-    case Keyring.get(key_name) do
-      nil ->
-        # Use generic message - don't expose env var names
-        {:error, "Provider #{provider} is not configured. Please set up API credentials."}
+      case Keyring.get(key_name) do
+        nil ->
+          # Use generic message - don't expose env var names
+          {:error, "Provider #{provider} is not configured. Please set up API credentials."}
 
-      "" ->
-        # Use generic message - don't expose env var names
-        {:error, "Provider #{provider} has empty credentials. Please configure API credentials."}
+        "" ->
+          # Use generic message - don't expose env var names
+          {:error, "Provider #{provider} has empty credentials. Please configure API credentials."}
 
-      _key ->
-        :ok
-    end
-  end
-
-  # Known provider to API key name mapping
-  # This whitelist prevents atom exhaustion from arbitrary user input
-  @known_provider_keys %{
-    "openai" => :openai_api_key,
-    "anthropic" => :anthropic_api_key,
-    "openrouter" => :openrouter_api_key,
-    "azure" => :azure_api_key,
-    "google" => :google_api_key,
-    "gemini" => :google_api_key,
-    "cohere" => :cohere_api_key,
-    "mistral" => :mistral_api_key,
-    "groq" => :groq_api_key,
-    "together" => :together_api_key,
-    "fireworks" => :fireworks_api_key,
-    "deepseek" => :deepseek_api_key,
-    "perplexity" => :perplexity_api_key,
-    "xai" => :xai_api_key,
-    "ollama" => :ollama_api_key,
-    "cerebras" => :cerebras_api_key,
-    "sambanova" => :sambanova_api_key,
-    # Local providers (no API key required)
-    "lmstudio" => :lmstudio_api_key,
-    "llama" => :llama_api_key
-  }
-
-  # Map provider names to their keyring key names
-  defp provider_to_key_name(provider) do
-    # Use whitelist to prevent atom exhaustion from user input
-    case Map.get(@known_provider_keys, provider) do
-      nil ->
-        # For unknown providers, return a generic key (don't create new atoms)
-        # This will likely fail API key validation, which is the correct behavior
-        :unknown_provider_api_key
-
-      key ->
-        key
+        _key ->
+          :ok
+      end
     end
   end
 

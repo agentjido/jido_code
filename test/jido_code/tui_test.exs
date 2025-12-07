@@ -2081,4 +2081,231 @@ defmodule JidoCode.TUITest do
       assert view_text =~ "grep"
     end
   end
+
+  # ============================================================================
+  # Session Keyboard Shortcuts Tests (B3)
+  # ============================================================================
+
+  describe "session switching keyboard shortcuts" do
+    test "Ctrl+1 returns {:msg, {:switch_to_session_index, 1}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("1", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 1}}
+    end
+
+    test "Ctrl+2 returns {:msg, {:switch_to_session_index, 2}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("2", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 2}}
+    end
+
+    test "Ctrl+3 returns {:msg, {:switch_to_session_index, 3}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("3", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 3}}
+    end
+
+    test "Ctrl+4 returns {:msg, {:switch_to_session_index, 4}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("4", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 4}}
+    end
+
+    test "Ctrl+5 returns {:msg, {:switch_to_session_index, 5}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("5", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 5}}
+    end
+
+    test "Ctrl+6 returns {:msg, {:switch_to_session_index, 6}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("6", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 6}}
+    end
+
+    test "Ctrl+7 returns {:msg, {:switch_to_session_index, 7}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("7", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 7}}
+    end
+
+    test "Ctrl+8 returns {:msg, {:switch_to_session_index, 8}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("8", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 8}}
+    end
+
+    test "Ctrl+9 returns {:msg, {:switch_to_session_index, 9}}" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("9", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 9}}
+    end
+
+    test "Ctrl+0 returns {:msg, {:switch_to_session_index, 10}} (maps to session 10)" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("0", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, {:switch_to_session_index, 10}}
+    end
+  end
+
+  # ============================================================================
+  # Session Model Helper Tests (B1)
+  # Tests the Model helpers that power session action handling.
+  # Note: Session actions are processed by handle_session_command/2 which uses
+  # these Model helpers. The helpers are extensively tested in model_test.exs.
+  # These tests verify the Model helpers work correctly in TUI context.
+  # ============================================================================
+
+  describe "session model helpers in TUI context" do
+    test "Model.add_session/2 adds session and sets as active" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil,
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      session = %JidoCode.Session{
+        id: "test-session-id",
+        name: "Test Session",
+        project_path: "/tmp/test"
+      }
+
+      new_model = Model.add_session(model, session)
+
+      # Session should be added
+      assert Map.has_key?(new_model.sessions, "test-session-id")
+      assert new_model.active_session_id == "test-session-id"
+      assert "test-session-id" in new_model.session_order
+    end
+
+    test "Model.switch_session/2 switches active session" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{
+          "session-1" => %{id: "session-1", name: "Session 1"},
+          "session-2" => %{id: "session-2", name: "Session 2"}
+        },
+        session_order: ["session-1", "session-2"],
+        active_session_id: "session-1",
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      new_model = Model.switch_session(model, "session-2")
+
+      assert new_model.active_session_id == "session-2"
+    end
+
+    test "Model.rename_session/3 renames session" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{
+          "session-1" => %{id: "session-1", name: "Old Name"}
+        },
+        session_order: ["session-1"],
+        active_session_id: "session-1",
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      new_model = Model.rename_session(model, "session-1", "New Name")
+
+      assert new_model.sessions["session-1"].name == "New Name"
+    end
+
+    test "Model.remove_session/2 removes session and switches to adjacent" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{
+          "session-1" => %{id: "session-1", name: "Session 1"},
+          "session-2" => %{id: "session-2", name: "Session 2"}
+        },
+        session_order: ["session-1", "session-2"],
+        active_session_id: "session-1",
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      new_model = Model.remove_session(model, "session-1")
+
+      refute Map.has_key?(new_model.sessions, "session-1")
+      refute "session-1" in new_model.session_order
+      # Should switch to adjacent session
+      assert new_model.active_session_id == "session-2"
+    end
+  end
+
+  # ============================================================================
+  # Session Index Switching Handler Tests
+  # Tests the update handler for {:switch_to_session_index, index}
+  # ============================================================================
+
+  describe "switch to session index handler" do
+    test "switches to session at valid index" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{
+          "session-1" => %{id: "session-1", name: "Session 1"},
+          "session-2" => %{id: "session-2", name: "Session 2"}
+        },
+        session_order: ["session-1", "session-2"],
+        active_session_id: "session-1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _commands} = TUI.update({:switch_to_session_index, 2}, model)
+
+      assert new_model.active_session_id == "session-2"
+    end
+
+    test "shows error message for invalid index" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{
+          "session-1" => %{id: "session-1", name: "Session 1"}
+        },
+        session_order: ["session-1"],
+        active_session_id: "session-1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _commands} = TUI.update({:switch_to_session_index, 5}, model)
+
+      # Should stay on same session
+      assert new_model.active_session_id == "session-1"
+      # Should have an error message
+      assert length(new_model.messages) > 0
+    end
+
+    test "does nothing when already on target session" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{
+          "session-1" => %{id: "session-1", name: "Session 1"}
+        },
+        session_order: ["session-1"],
+        active_session_id: "session-1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _commands} = TUI.update({:switch_to_session_index, 1}, model)
+
+      # Should stay on same session
+      assert new_model.active_session_id == "session-1"
+      # Should NOT add a message (no change)
+      assert length(new_model.messages) == 0
+    end
+  end
 end

@@ -42,6 +42,7 @@ defmodule JidoCode.TUI do
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.AgentSupervisor
   alias JidoCode.Commands
+  alias JidoCode.Config.ProviderKeys
   alias JidoCode.PubSubTopics
   alias JidoCode.Reasoning.QueryClassifier
   alias JidoCode.Settings
@@ -597,6 +598,26 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Ctrl+1 through Ctrl+9 to switch to session by index
+  def event_to_msg(%Event.Key{key: key, modifiers: modifiers} = event, _state)
+      when key in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] do
+    if :ctrl in modifiers do
+      index = String.to_integer(key)
+      {:msg, {:switch_to_session_index, index}}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
+  # Ctrl+0 to switch to session 10 (the 10th tab)
+  def event_to_msg(%Event.Key{key: "0", modifiers: modifiers} = event, _state) do
+    if :ctrl in modifiers do
+      {:msg, {:switch_to_session_index, 10}}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
   # Enter key - forward to modal if open, otherwise submit current input
   def event_to_msg(%Event.Key{key: :enter} = event, state) do
     cond do
@@ -861,6 +882,29 @@ defmodule JidoCode.TUI do
 
         final_state = do_close_session(state, session_id, session_name)
         {final_state, []}
+    end
+  end
+
+  # Switch to session by index (Ctrl+1 through Ctrl+0)
+  def update({:switch_to_session_index, index}, state) do
+    case Model.get_session_by_index(state, index) do
+      nil ->
+        # No session at that index
+        new_state = add_session_message(state, "No session at index #{index}.")
+        {new_state, []}
+
+      session ->
+        if session.id == state.active_session_id do
+          # Already on this session
+          {state, []}
+        else
+          new_state =
+            state
+            |> Model.switch_session(session.id)
+            |> add_session_message("Switched to: #{session.name}")
+
+          {new_state, []}
+        end
     end
   end
 
@@ -1546,48 +1590,19 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Local providers that don't require API keys
-  @local_providers ["lmstudio", "llama", "ollama"]
-
   # Check if API key is available for the provider
-  defp has_api_key?(provider) when provider in @local_providers, do: true
-
   defp has_api_key?(provider) do
-    key_name = provider_to_key_name(provider)
+    if ProviderKeys.local_provider?(provider) do
+      true
+    else
+      key_name = ProviderKeys.to_key_name(provider)
 
-    case Keyring.get(key_name) do
-      nil -> false
-      "" -> false
-      _key -> true
+      case Keyring.get(key_name) do
+        nil -> false
+        "" -> false
+        _key -> true
+      end
     end
-  end
-
-  # Known provider to API key name mapping
-  @provider_keys %{
-    "openai" => :openai_api_key,
-    "anthropic" => :anthropic_api_key,
-    "openrouter" => :openrouter_api_key,
-    "azure" => :azure_api_key,
-    "google" => :google_api_key,
-    "gemini" => :google_api_key,
-    "cohere" => :cohere_api_key,
-    "mistral" => :mistral_api_key,
-    "groq" => :groq_api_key,
-    "together" => :together_api_key,
-    "fireworks" => :fireworks_api_key,
-    "deepseek" => :deepseek_api_key,
-    "perplexity" => :perplexity_api_key,
-    "xai" => :xai_api_key,
-    "ollama" => :ollama_api_key,
-    "cerebras" => :cerebras_api_key,
-    "sambanova" => :sambanova_api_key,
-    # Local providers (no API key required)
-    "lmstudio" => :lmstudio_api_key,
-    "llama" => :llama_api_key
-  }
-
-  defp provider_to_key_name(provider) do
-    Map.get(@provider_keys, provider, :unknown_provider_api_key)
   end
 
   @doc false

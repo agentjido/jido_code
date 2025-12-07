@@ -463,6 +463,45 @@ Note: Implemented in Task 5.8.1 integration test file. The "TUI command flow" de
 
 ---
 
+## 5.9 Phase 5 Review Fixes
+
+Address blockers, concerns, and improvements from the Phase 5 code review.
+
+### 5.9.1 Security and Validation
+- [x] **Task 5.9.1** (completed 2025-12-06)
+
+- [x] 5.9.1.1 Add session path security restrictions (S1) - forbid system directories
+- [x] 5.9.1.2 Add session name character validation (S2) - Unicode-aware whitelist
+- [x] 5.9.1.3 Add tests for security improvements (14 tests)
+
+### 5.9.2 Test Coverage
+- [x] **Task 5.9.2** (completed 2025-12-06)
+
+- [x] 5.9.2.1 Add keyboard shortcut tests for Ctrl+1-9,0 (B3) - 10 tests
+- [x] 5.9.2.2 Add TUI model helper tests (B1) - 7 tests
+
+### 5.9.3 Code Quality
+- [x] **Task 5.9.3** (completed 2025-12-06)
+
+- [x] 5.9.3.1 Extract shared ProviderKeys module (R1) - eliminate duplication
+- [x] 5.9.3.2 Standardize error returns (CN1) - use strings consistently
+- [x] 5.9.3.3 Remove redundant @doc false (CN3)
+- [x] 5.9.3.4 Extract format_resolution_error helper (R2)
+- [x] 5.9.3.5 Refactor truncate_path for pipe friendliness (E1)
+
+Note: CN2 (make execute_session private) was skipped - function is public API used by TUI.
+
+**Files Changed:**
+- `lib/jido_code/config/provider_keys.ex` (new)
+- `lib/jido_code/commands.ex`
+- `lib/jido_code/tui.ex`
+- `test/jido_code/commands_test.exs`
+- `test/jido_code/tui/model_test.exs`
+
+See `notes/features/ws-5.9-review-fixes.md` and `notes/summaries/ws-5.9-review-fixes.md` for details.
+
+---
+
 ## Dependencies
 
 - **Depends on Phase 1**: SessionSupervisor, SessionRegistry, Session struct

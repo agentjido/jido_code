@@ -85,6 +85,7 @@ defmodule JidoCode.Tools.Handlers.TodoTest do
         %{"content" => "Second A", "status" => "pending", "active_form" => "Second A"},
         %{"content" => "Second B", "status" => "completed", "active_form" => "Second B"}
       ]
+
       assert {:ok, _} = Todo.execute(%{"todos" => todos2}, context)
 
       {:ok, stored2} = SessionState.get_todos(session.id)
@@ -105,7 +106,10 @@ defmodule JidoCode.Tools.Handlers.TodoTest do
     test "still broadcasts via PubSub with session_id", %{session: session} do
       Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events.#{session.id}")
 
-      todos = [%{"content" => "Broadcast me", "status" => "pending", "active_form" => "Broadcasting"}]
+      todos = [
+        %{"content" => "Broadcast me", "status" => "pending", "active_form" => "Broadcasting"}
+      ]
+
       context = %{session_id: session.id}
 
       assert {:ok, _} = Todo.execute(%{"todos" => todos}, context)

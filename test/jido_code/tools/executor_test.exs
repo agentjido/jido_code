@@ -435,7 +435,8 @@ defmodule JidoCode.Tools.ExecutorTest do
       {:ok, _result} = Executor.execute(tool_call)
 
       # Should receive tool_call event with session_id (nil when not provided)
-      assert_receive {:tool_call, "read_file", %{"path" => "/test.txt"}, "call_pubsub_1", nil}, 1000
+      assert_receive {:tool_call, "read_file", %{"path" => "/test.txt"}, "call_pubsub_1", nil},
+                     1000
     end
 
     test "broadcasts tool_result event when executing" do
@@ -697,7 +698,10 @@ defmodule JidoCode.Tools.ExecutorTest do
       assert result.status == :ok
     end
 
-    test "prefers session_id from context over legacy option", %{session: session, tmp_dir: tmp_dir} do
+    test "prefers session_id from context over legacy option", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
       tool_call = %{id: "call_ctx_3", name: "read_file", arguments: %{"path" => "/test.txt"}}
       context = %{session_id: session.id, project_root: tmp_dir}
 
@@ -740,7 +744,10 @@ defmodule JidoCode.Tools.ExecutorTest do
 
     test "rejects session IDs with special characters" do
       assert {:error, :invalid_session_id} = Executor.build_context("../../../etc/passwd")
-      assert {:error, :invalid_session_id} = Executor.build_context("test<script>alert(1)</script>")
+
+      assert {:error, :invalid_session_id} =
+               Executor.build_context("test<script>alert(1)</script>")
+
       assert {:error, :invalid_session_id} = Executor.build_context("session\nid")
       assert {:error, :invalid_session_id} = Executor.build_context("session\x00id")
     end

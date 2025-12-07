@@ -625,7 +625,12 @@ defmodule JidoCode.Agents.LLMAgentTest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create a real session first with valid config
-      {:ok, session} = Session.new(project_path: System.tmp_dir!(), config: SessionTestHelpers.valid_session_config())
+      {:ok, session} =
+        Session.new(
+          project_path: System.tmp_dir!(),
+          config: SessionTestHelpers.valid_session_config()
+        )
+
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Now build_tool_context should work
@@ -676,7 +681,12 @@ defmodule JidoCode.Agents.LLMAgentTest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create a real session with valid config
-      {:ok, session} = Session.new(project_path: System.tmp_dir!(), config: SessionTestHelpers.valid_session_config())
+      {:ok, session} =
+        Session.new(
+          project_path: System.tmp_dir!(),
+          config: SessionTestHelpers.valid_session_config()
+        )
+
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Get agent from session (already started by session supervisor)
@@ -695,7 +705,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
               :ok
           end
 
-          # Don't stop agent - session supervisor handles it
+        # Don't stop agent - session supervisor handles it
 
         {:error, _reason} ->
           :ok
@@ -753,7 +763,9 @@ defmodule JidoCode.Agents.LLMAgentTest do
       on_exit(fn -> File.rm(test_file) end)
 
       # Create a real session with valid config
-      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, session} =
+        Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Session already has LLMAgent started - get it from the session
@@ -779,7 +791,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
               :ok
           end
 
-          # Don't stop agent - session supervisor handles it
+        # Don't stop agent - session supervisor handles it
 
         {:error, _reason} ->
           :ok
@@ -795,7 +807,10 @@ defmodule JidoCode.Agents.LLMAgentTest do
 
       # Create a real session with valid config
       tmp_dir = System.tmp_dir!()
-      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+
+      {:ok, session} =
+        Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Get agent from session
@@ -820,7 +835,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
               :ok
           end
 
-          # Don't stop agent - session supervisor handles it
+        # Don't stop agent - session supervisor handles it
 
         {:error, _reason} ->
           :ok
@@ -840,7 +855,9 @@ defmodule JidoCode.Agents.LLMAgentTest do
 
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
-      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, session} =
+        Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Get agent from session
@@ -859,6 +876,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
             {:ok, tool_result} ->
               # Path validation error
               assert tool_result.status == :error
+
               assert String.contains?(tool_result.content, "outside") or
                        String.contains?(tool_result.content, "boundary") or
                        String.contains?(tool_result.content, "allowed")
@@ -868,7 +886,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
               :ok
           end
 
-          # Don't stop agent - session supervisor handles it
+        # Don't stop agent - session supervisor handles it
 
         {:error, _reason} ->
           :ok
@@ -930,7 +948,9 @@ defmodule JidoCode.Agents.LLMAgentTest do
       end)
 
       # Create a real session with valid config
-      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, session} =
+        Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Get agent from session
@@ -961,7 +981,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
               :ok
           end
 
-          # Don't stop agent - session supervisor handles it
+        # Don't stop agent - session supervisor handles it
 
         {:error, _reason} ->
           :ok
@@ -988,7 +1008,9 @@ defmodule JidoCode.Agents.LLMAgentTest do
       end)
 
       # Create a real session with valid config
-      {:ok, session} = Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+      {:ok, session} =
+        Session.new(project_path: tmp_dir, config: SessionTestHelpers.valid_session_config())
+
       {:ok, _sup_pid} = JidoCode.SessionSupervisor.start_session(session)
 
       # Get agent from session
@@ -1015,7 +1037,7 @@ defmodule JidoCode.Agents.LLMAgentTest do
               :ok
           end
 
-          # Don't stop agent - session supervisor handles it
+        # Don't stop agent - session supervisor handles it
 
         {:error, _reason} ->
           :ok
@@ -1070,7 +1092,9 @@ defmodule JidoCode.Agents.LLMAgentTest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "streaming_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "streaming_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -1136,7 +1160,9 @@ defmodule JidoCode.Agents.LLMAgentTest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "end_streaming_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "end_streaming_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -1162,7 +1188,9 @@ defmodule JidoCode.Agents.LLMAgentTest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "chunks_ignored_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "chunks_ignored_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 

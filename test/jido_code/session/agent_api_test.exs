@@ -35,7 +35,9 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "agent_api_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "agent_api_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -107,7 +109,12 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "agent_api_stream_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "agent_api_stream_test_#{System.unique_integer([:positive])}"
+        )
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -142,7 +149,12 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "agent_api_timeout_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "agent_api_timeout_test_#{System.unique_integer([:positive])}"
+        )
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -205,7 +217,9 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "get_status_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "get_status_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -260,7 +274,9 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "is_processing_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "is_processing_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -313,7 +329,9 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "update_config_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "update_config_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -343,7 +361,12 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "update_config_kw_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "update_config_kw_test_#{System.unique_integer([:positive])}"
+        )
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -374,7 +397,12 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "update_config_session_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "update_config_session_test_#{System.unique_integer([:positive])}"
+        )
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
@@ -420,7 +448,9 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       # Create unique temp directory for this test
-      tmp_dir = Path.join(System.tmp_dir!(), "get_config_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "get_config_test_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 

@@ -464,7 +464,8 @@ defmodule JidoCode.Session.Settings do
               :ok
 
             {:ok, %{size: actual_size}} ->
-              {:error, "File size mismatch after write: expected #{expected_size}, got #{actual_size}"}
+              {:error,
+               "File size mismatch after write: expected #{expected_size}, got #{actual_size}"}
 
             {:error, reason} ->
               {:error, "Failed to verify written file: #{format_posix_error(reason)}"}

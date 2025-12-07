@@ -345,7 +345,10 @@ defmodule JidoCode.Session.Manager do
         {:ok, state}
 
       {:error, reason} ->
-        Logger.error("Failed to initialize Lua sandbox for session #{session.id}: #{inspect(reason)}")
+        Logger.error(
+          "Failed to initialize Lua sandbox for session #{session.id}: #{inspect(reason)}"
+        )
+
         {:stop, {:lua_init_failed, reason}}
     end
   end

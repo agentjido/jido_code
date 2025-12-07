@@ -521,18 +521,16 @@ defmodule JidoCode.Commands do
   def execute_session({:rename, name}, model) do
     active_id = Map.get(model, :active_session_id)
 
-    cond do
-      active_id == nil ->
-        {:error, "No active session to rename. Create a session first with /session new."}
+    if is_nil(active_id) do
+      {:error, "No active session to rename. Create a session first with /session new."}
+    else
+      case validate_session_name(name) do
+        :ok ->
+          {:session_action, {:rename_session, active_id, name}}
 
-      true ->
-        case validate_session_name(name) do
-          :ok ->
-            {:session_action, {:rename_session, active_id, name}}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -946,7 +944,8 @@ defmodule JidoCode.Commands do
 
         "" ->
           # Use generic message - don't expose env var names
-          {:error, "Provider #{provider} has empty credentials. Please configure API credentials."}
+          {:error,
+           "Provider #{provider} has empty credentials. Please configure API credentials."}
 
         _key ->
           :ok

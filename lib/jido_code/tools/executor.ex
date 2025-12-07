@@ -231,7 +231,8 @@ defmodule JidoCode.Tools.Executor do
       # Invalid session
       {:error, :not_found} = Executor.build_context("unknown-session-id")
   """
-  @spec build_context(String.t(), keyword()) :: {:ok, context()} | {:error, :not_found | :invalid_session_id}
+  @spec build_context(String.t(), keyword()) ::
+          {:ok, context()} | {:error, :not_found | :invalid_session_id}
   def build_context(session_id, opts \\ []) when is_binary(session_id) do
     # Validate UUID format for defense-in-depth
     if not valid_uuid?(session_id) do
@@ -361,7 +362,16 @@ defmodule JidoCode.Tools.Executor do
       broadcast_tool_call(session_id, name, args, id)
 
       result =
-        execute_with_timeout(id, name, tool, args, enriched_context, executor, timeout, start_time)
+        execute_with_timeout(
+          id,
+          name,
+          tool,
+          args,
+          enriched_context,
+          executor,
+          timeout,
+          start_time
+        )
 
       # Broadcast tool result
       case result do

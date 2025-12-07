@@ -428,7 +428,9 @@ defmodule JidoCode.Session.SettingsTest do
   describe "error handling" do
     @describetag :tmp_dir
 
-    test "load_local/1 logs warning and returns empty map for unreadable file", %{tmp_dir: tmp_dir} do
+    test "load_local/1 logs warning and returns empty map for unreadable file", %{
+      tmp_dir: tmp_dir
+    } do
       # Create settings dir but make file unreadable
       settings_dir = Path.join(tmp_dir, ".jido_code")
       File.mkdir_p!(settings_dir)

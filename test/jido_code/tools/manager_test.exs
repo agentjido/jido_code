@@ -284,7 +284,10 @@ defmodule JidoCode.Tools.ManagerTest do
       {:ok, session} = Session.new(project_path: tmp_dir, name: "test-session")
 
       {:ok, supervisor_pid} =
-        Session.Supervisor.start_link(session: session, name: {:via, Registry, {JidoCode.Registry, {:test_supervisor, session.id}}})
+        Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:test_supervisor, session.id}}}
+        )
 
       on_exit(fn ->
         try do
@@ -297,7 +300,10 @@ defmodule JidoCode.Tools.ManagerTest do
       %{session: session, tmp_dir: tmp_dir}
     end
 
-    test "project_root/1 delegates to Session.Manager when session_id provided", %{session: session, tmp_dir: tmp_dir} do
+    test "project_root/1 delegates to Session.Manager when session_id provided", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
       {:ok, path} = Manager.project_root(session_id: session.id)
       assert path == tmp_dir
     end
@@ -312,7 +318,10 @@ defmodule JidoCode.Tools.ManagerTest do
       assert {:error, :not_found} = Manager.project_root(session_id: "non_existent_session")
     end
 
-    test "validate_path/2 delegates to Session.Manager when session_id provided", %{session: session, tmp_dir: tmp_dir} do
+    test "validate_path/2 delegates to Session.Manager when session_id provided", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
       {:ok, resolved} = Manager.validate_path("test.txt", session_id: session.id)
       assert resolved == Path.join(tmp_dir, "test.txt")
     end
@@ -327,7 +336,10 @@ defmodule JidoCode.Tools.ManagerTest do
       assert {:error, :not_found} = Manager.validate_path("test.txt", session_id: "non_existent")
     end
 
-    test "read_file/2 delegates to Session.Manager when session_id provided", %{session: session, tmp_dir: tmp_dir} do
+    test "read_file/2 delegates to Session.Manager when session_id provided", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
       # Create a test file
       test_file = Path.join(tmp_dir, "test_read.txt")
       File.write!(test_file, "test content")
@@ -340,7 +352,10 @@ defmodule JidoCode.Tools.ManagerTest do
       assert {:error, :not_found} = Manager.read_file("test.txt", session_id: "non_existent")
     end
 
-    test "write_file/3 delegates to Session.Manager when session_id provided", %{session: session, tmp_dir: tmp_dir} do
+    test "write_file/3 delegates to Session.Manager when session_id provided", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
       :ok = Manager.write_file("test_write.txt", "written content", session_id: session.id)
 
       # Verify the file was written
@@ -349,10 +364,14 @@ defmodule JidoCode.Tools.ManagerTest do
     end
 
     test "write_file/3 returns error for unknown session_id" do
-      assert {:error, :not_found} = Manager.write_file("test.txt", "content", session_id: "non_existent")
+      assert {:error, :not_found} =
+               Manager.write_file("test.txt", "content", session_id: "non_existent")
     end
 
-    test "list_dir/2 delegates to Session.Manager when session_id provided", %{session: session, tmp_dir: tmp_dir} do
+    test "list_dir/2 delegates to Session.Manager when session_id provided", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
       # Create a test subdirectory with files
       subdir = Path.join(tmp_dir, "subdir")
       File.mkdir_p!(subdir)
@@ -399,7 +418,10 @@ defmodule JidoCode.Tools.ManagerTest do
       {:ok, session} = Session.new(project_path: tmp_dir, name: "warning-test")
 
       {:ok, supervisor_pid} =
-        Session.Supervisor.start_link(session: session, name: {:via, Registry, {JidoCode.Registry, {:warning_test, session.id}}})
+        Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:warning_test, session.id}}}
+        )
 
       on_exit(fn ->
         try do

@@ -2305,7 +2305,7 @@ defmodule JidoCode.TUITest do
       # Should stay on same session
       assert new_model.active_session_id == "session-1"
       # Should NOT add a message (no change)
-      assert length(new_model.messages) == 0
+      assert new_model.messages == []
     end
   end
 end

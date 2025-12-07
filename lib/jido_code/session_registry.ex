@@ -231,11 +231,13 @@ defmodule JidoCode.SessionRegistry do
   #   - return_type: What to return - true for boolean check, :"$_" for full tuple
   @spec build_match_spec(atom(), term(), true | :"$_") :: :ets.match_spec()
   defp build_match_spec(field, value, return_type) do
-    [{
-      {:_, %{field => :"$1"}},
-      [{:==, :"$1", value}],
-      [return_type]
-    }]
+    [
+      {
+        {:_, %{field => :"$1"}},
+        [{:==, :"$1", value}],
+        [return_type]
+      }
+    ]
   end
 
   # ============================================================================

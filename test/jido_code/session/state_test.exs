@@ -283,7 +283,13 @@ defmodule JidoCode.Session.StateTest do
       {:ok, pid} = State.start_link(session: session)
 
       message1 = %{id: "msg-1", role: :user, content: "First", timestamp: DateTime.utc_now()}
-      message2 = %{id: "msg-2", role: :assistant, content: "Second", timestamp: DateTime.utc_now()}
+
+      message2 = %{
+        id: "msg-2",
+        role: :assistant,
+        content: "Second",
+        timestamp: DateTime.utc_now()
+      }
 
       {:ok, _} = State.append_message(session.id, message1)
       {:ok, _state} = State.append_message(session.id, message2)
@@ -310,7 +316,14 @@ defmodule JidoCode.Session.StateTest do
 
       # Add some messages first
       message1 = %{id: "msg-1", role: :user, content: "First", timestamp: DateTime.utc_now()}
-      message2 = %{id: "msg-2", role: :assistant, content: "Second", timestamp: DateTime.utc_now()}
+
+      message2 = %{
+        id: "msg-2",
+        role: :assistant,
+        content: "Second",
+        timestamp: DateTime.utc_now()
+      }
+
       {:ok, _} = State.append_message(session.id, message1)
       {:ok, _} = State.append_message(session.id, message2)
 
@@ -611,7 +624,15 @@ defmodule JidoCode.Session.StateTest do
     end
 
     test "returns :not_found for unknown session" do
-      tool_call = %{id: "tc-1", name: "test", arguments: %{}, result: nil, status: :pending, timestamp: DateTime.utc_now()}
+      tool_call = %{
+        id: "tc-1",
+        name: "test",
+        arguments: %{},
+        result: nil,
+        status: :pending,
+        timestamp: DateTime.utc_now()
+      }
+
       assert {:error, :not_found} = State.add_tool_call("unknown-session-id", tool_call)
     end
   end

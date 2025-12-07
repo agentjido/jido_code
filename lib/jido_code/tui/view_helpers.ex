@@ -73,7 +73,10 @@ defmodule JidoCode.TUI.ViewHelpers do
     box(
       [
         stack(:vertical, [top_border | middle_rows] ++ [bottom_border])
-      ], width: width, height: height)
+      ],
+      width: width,
+      height: height
+    )
   end
 
   @doc """
@@ -128,7 +131,10 @@ defmodule JidoCode.TUI.ViewHelpers do
     box(
       [
         stack(:vertical, top_padding ++ [padded_modal] ++ bottom_padding)
-      ], width: width, height: height)
+      ],
+      width: width,
+      height: height
+    )
   end
 
   @doc """

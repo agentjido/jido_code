@@ -458,7 +458,8 @@ defmodule JidoCode.Session.State do
 
       iex> {:error, :not_found} = State.update_session_config("unknown", %{temperature: 0.5})
   """
-  @spec update_session_config(String.t(), map()) :: {:ok, Session.t()} | {:error, :not_found | [atom()]}
+  @spec update_session_config(String.t(), map()) ::
+          {:ok, Session.t()} | {:error, :not_found | [atom()]}
   def update_session_config(session_id, config)
       when is_binary(session_id) and is_map(config) do
     call_state(session_id, {:update_session_config, config})
@@ -546,11 +547,13 @@ defmodule JidoCode.Session.State do
 
   @impl true
   def handle_call({:start_streaming, message_id}, _from, state) do
-    new_state = %{state |
-      is_streaming: true,
-      streaming_message: "",
-      streaming_message_id: message_id
+    new_state = %{
+      state
+      | is_streaming: true,
+        streaming_message: "",
+        streaming_message_id: message_id
     }
+
     {:reply, {:ok, new_state}, new_state}
   end
 
@@ -563,13 +566,16 @@ defmodule JidoCode.Session.State do
         content: state.streaming_message,
         timestamp: DateTime.utc_now()
       }
+
       # Prepend for O(1), will be reversed on read
-      new_state = %{state |
-        messages: [message | state.messages],
-        is_streaming: false,
-        streaming_message: nil,
-        streaming_message_id: nil
+      new_state = %{
+        state
+        | messages: [message | state.messages],
+          is_streaming: false,
+          streaming_message: nil,
+          streaming_message_id: nil
       }
+
       {:reply, {:ok, message}, new_state}
     else
       {:reply, {:error, :not_streaming}, state}
@@ -650,7 +656,10 @@ defmodule JidoCode.Session.State do
 
   @impl true
   def handle_info(msg, state) do
-    Logger.warning("Session.State #{state.session_id} received unexpected message: #{inspect(msg)}")
+    Logger.warning(
+      "Session.State #{state.session_id} received unexpected message: #{inspect(msg)}"
+    )
+
     {:noreply, state}
   end
 

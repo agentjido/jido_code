@@ -146,8 +146,12 @@ defmodule JidoCode.Integration.SessionPhase3Test do
 
   # Helper to extract result from Executor.execute response
   # Executor.execute returns {:ok, %Result{}} or {:error, term()}
-  defp unwrap_result({:ok, %JidoCode.Tools.Result{status: :ok, content: content}}), do: {:ok, content}
-  defp unwrap_result({:ok, %JidoCode.Tools.Result{status: :error, content: content}}), do: {:error, content}
+  defp unwrap_result({:ok, %JidoCode.Tools.Result{status: :ok, content: content}}),
+    do: {:ok, content}
+
+  defp unwrap_result({:ok, %JidoCode.Tools.Result{status: :error, content: content}}),
+    do: {:error, content}
+
   defp unwrap_result({:error, _} = result), do: result
 
   # Polling helper to wait for a condition instead of using Process.sleep
@@ -195,10 +199,12 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       session = create_session(project_path)
 
       # Execute tool with session context
-      result = Executor.execute(
-        tool_call("read_file", %{"path" => "test.txt"}),
-        context: %{session_id: session.id, project_root: project_path}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("read_file", %{"path" => "test.txt"}),
+          context: %{session_id: session.id, project_root: project_path}
+        )
+        |> unwrap_result()
 
       assert {:ok, "Hello, World!"} = result
     end
@@ -213,10 +219,12 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       topic = JidoCode.PubSubTopics.llm_stream(session.id)
       Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
 
-      result = Executor.execute(
-        tool_call("read_file", %{"path" => "test.txt"}),
-        context: %{session_id: session.id, project_root: project_path}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("read_file", %{"path" => "test.txt"}),
+          context: %{session_id: session.id, project_root: project_path}
+        )
+        |> unwrap_result()
 
       assert {:ok, _} = result
       # Tool result may or may not be broadcast depending on configuration
@@ -233,17 +241,22 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       session = create_session(project_path)
 
       # Reading file inside boundary should work
-      result = Executor.execute(
-        tool_call("read_file", %{"path" => "allowed.txt"}),
-        context: %{session_id: session.id, project_root: project_path}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("read_file", %{"path" => "allowed.txt"}),
+          context: %{session_id: session.id, project_root: project_path}
+        )
+        |> unwrap_result()
+
       assert {:ok, "allowed content"} = result
 
       # Reading file outside boundary should fail
-      result = Executor.execute(
-        tool_call("read_file", %{"path" => "../outside.txt"}),
-        context: %{session_id: session.id, project_root: project_path}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("read_file", %{"path" => "../outside.txt"}),
+          context: %{session_id: session.id, project_root: project_path}
+        )
+        |> unwrap_result()
 
       assert {:error, error} = result
       assert is_binary(error)
@@ -254,10 +267,12 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       session = create_session(project_path)
 
       # Write file inside boundary
-      result = Executor.execute(
-        tool_call("write_file", %{"path" => "new_file.txt", "content" => "test content"}),
-        context: %{session_id: session.id, project_root: project_path}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("write_file", %{"path" => "new_file.txt", "content" => "test content"}),
+          context: %{session_id: session.id, project_root: project_path}
+        )
+        |> unwrap_result()
 
       assert {:ok, _} = result
       assert File.read!(Path.join(project_path, "new_file.txt")) == "test content"
@@ -268,10 +283,12 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       File.write!(Path.join(project_path, "test.txt"), "content")
 
       # Context without session_id but with project_root
-      result = Executor.execute(
-        tool_call("read_file", %{"path" => "test.txt"}),
-        context: %{project_root: project_path}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("read_file", %{"path" => "test.txt"}),
+          context: %{project_root: project_path}
+        )
+        |> unwrap_result()
 
       # Should work with deprecation warning (backwards compatibility)
       assert {:ok, "content"} = result
@@ -290,10 +307,12 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       session = create_session(project_path)
 
       # List directory should work
-      result = Executor.execute(
-        tool_call("list_directory", %{"path" => "."}),
-        context: %{session_id: session.id, project_root: project_path}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("list_directory", %{"path" => "."}),
+          context: %{session_id: session.id, project_root: project_path}
+        )
+        |> unwrap_result()
 
       assert {:ok, listing} = result
       assert listing =~ "file.txt"
@@ -312,15 +331,18 @@ defmodule JidoCode.Integration.SessionPhase3Test do
         session = create_session(project_path)
 
         # Grep should find content
-        result = Executor.execute(
-          tool_call("grep", %{"pattern" => "needle", "path" => "."}),
-          context: %{session_id: session.id, project_root: project_path}
-        ) |> unwrap_result()
+        result =
+          Executor.execute(
+            tool_call("grep", %{"pattern" => "needle", "path" => "."}),
+            context: %{session_id: session.id, project_root: project_path}
+          )
+          |> unwrap_result()
 
         # With grep available, we expect success with matching content
         assert {:ok, output} = result
+
         assert output =~ "needle" or output =~ "searchable.txt",
-          "Expected grep output to contain 'needle' or 'searchable.txt', got: #{inspect(output)}"
+               "Expected grep output to contain 'needle' or 'searchable.txt', got: #{inspect(output)}"
       end
     end
 
@@ -337,15 +359,18 @@ defmodule JidoCode.Integration.SessionPhase3Test do
         session = create_session(project_path)
 
         # Run ls command
-        result = Executor.execute(
-          tool_call("run_command", %{"command" => "ls"}),
-          context: %{session_id: session.id, project_root: project_path}
-        ) |> unwrap_result()
+        result =
+          Executor.execute(
+            tool_call("run_command", %{"command" => "ls"}),
+            context: %{session_id: session.id, project_root: project_path}
+          )
+          |> unwrap_result()
 
         # With ls available, we expect success showing the marker file
         assert {:ok, output} = result
+
         assert output =~ "marker.txt",
-          "Expected ls output to contain 'marker.txt', got: #{inspect(output)}"
+               "Expected ls output to contain 'marker.txt', got: #{inspect(output)}"
       end
     end
 
@@ -382,6 +407,7 @@ defmodule JidoCode.Integration.SessionPhase3Test do
         {:ok, agent_pid} ->
           assert is_pid(agent_pid)
           assert Process.alive?(agent_pid)
+
         {:error, :not_found} ->
           # Agent might not have started due to mock API key
           :ok
@@ -419,20 +445,24 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       session = create_session(project_path)
 
       # Get agent pid if available
-      agent_pid = case PerSessionSupervisor.get_agent(session.id) do
-        {:ok, pid} -> pid
-        {:error, :not_found} -> nil
-      end
+      agent_pid =
+        case PerSessionSupervisor.get_agent(session.id) do
+          {:ok, pid} -> pid
+          {:error, :not_found} -> nil
+        end
 
       # Stop the session
       :ok = SessionSupervisor.stop_session(session.id)
 
       # Wait for cleanup using polling instead of fixed sleep
       # This avoids flaky tests from timing-based assertions
-      assert_eventually(fn ->
-        # Session should be gone from registry
-        PerSessionSupervisor.get_agent(session.id) == {:error, :not_found}
-      end, timeout: 500)
+      assert_eventually(
+        fn ->
+          # Session should be gone from registry
+          PerSessionSupervisor.get_agent(session.id) == {:error, :not_found}
+        end,
+        timeout: 500
+      )
 
       # Agent should be terminated (if it was running)
       if agent_pid do
@@ -461,22 +491,28 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       session_b = create_session(project_b)
 
       # Session A can read its own file
-      assert {:ok, "content A"} = Executor.execute(
-        tool_call("read_file", %{"path" => "a.txt"}),
-        context: %{session_id: session_a.id, project_root: project_a}
-      ) |> unwrap_result()
+      assert {:ok, "content A"} =
+               Executor.execute(
+                 tool_call("read_file", %{"path" => "a.txt"}),
+                 context: %{session_id: session_a.id, project_root: project_a}
+               )
+               |> unwrap_result()
 
       # Session B can read its own file
-      assert {:ok, "content B"} = Executor.execute(
-        tool_call("read_file", %{"path" => "b.txt"}),
-        context: %{session_id: session_b.id, project_root: project_b}
-      ) |> unwrap_result()
+      assert {:ok, "content B"} =
+               Executor.execute(
+                 tool_call("read_file", %{"path" => "b.txt"}),
+                 context: %{session_id: session_b.id, project_root: project_b}
+               )
+               |> unwrap_result()
 
       # Session A cannot read session B's file via path traversal
-      result = Executor.execute(
-        tool_call("read_file", %{"path" => "../project_b/b.txt"}),
-        context: %{session_id: session_a.id, project_root: project_a}
-      ) |> unwrap_result()
+      result =
+        Executor.execute(
+          tool_call("read_file", %{"path" => "../project_b/b.txt"}),
+          context: %{session_id: session_a.id, project_root: project_a}
+        )
+        |> unwrap_result()
 
       assert {:error, _} = result
     end
@@ -489,19 +525,23 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       session_b = create_session(project_b)
 
       # Execute writes concurrently
-      task_a = Task.async(fn ->
-        Executor.execute(
-          tool_call("write_file", %{"path" => "test.txt", "content" => "content A"}),
-          context: %{session_id: session_a.id, project_root: project_a}
-        ) |> unwrap_result()
-      end)
+      task_a =
+        Task.async(fn ->
+          Executor.execute(
+            tool_call("write_file", %{"path" => "test.txt", "content" => "content A"}),
+            context: %{session_id: session_a.id, project_root: project_a}
+          )
+          |> unwrap_result()
+        end)
 
-      task_b = Task.async(fn ->
-        Executor.execute(
-          tool_call("write_file", %{"path" => "test.txt", "content" => "content B"}),
-          context: %{session_id: session_b.id, project_root: project_b}
-        ) |> unwrap_result()
-      end)
+      task_b =
+        Task.async(fn ->
+          Executor.execute(
+            tool_call("write_file", %{"path" => "test.txt", "content" => "content B"}),
+            context: %{session_id: session_b.id, project_root: project_b}
+          )
+          |> unwrap_result()
+        end)
 
       {:ok, _} = Task.await(task_a)
       {:ok, _} = Task.await(task_b)
@@ -577,6 +617,7 @@ defmodule JidoCode.Integration.SessionPhase3Test do
           assert is_boolean(status.ready)
           assert is_map(status.config)
           assert status.session_id == session.id
+
         {:error, :agent_not_found} ->
           # Agent might not have started
           :ok
@@ -608,7 +649,10 @@ defmodule JidoCode.Integration.SessionPhase3Test do
 
       assert {:error, :agent_not_found} = AgentAPI.get_status(fake_session_id)
       assert {:error, :agent_not_found} = AgentAPI.get_config(fake_session_id)
-      assert {:error, :agent_not_found} = AgentAPI.update_config(fake_session_id, %{temperature: 0.5})
+
+      assert {:error, :agent_not_found} =
+               AgentAPI.update_config(fake_session_id, %{temperature: 0.5})
+
       assert {:error, :agent_not_found} = AgentAPI.send_message(fake_session_id, "Hello")
       assert {:error, :agent_not_found} = AgentAPI.send_message_stream(fake_session_id, "Hello")
     end
@@ -620,6 +664,7 @@ defmodule JidoCode.Integration.SessionPhase3Test do
       case AgentAPI.is_processing?(session.id) do
         {:ok, is_processing} ->
           assert is_boolean(is_processing)
+
         {:error, :agent_not_found} ->
           # Agent might not have started
           :ok

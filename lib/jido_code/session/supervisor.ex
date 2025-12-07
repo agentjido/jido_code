@@ -241,5 +241,4 @@ defmodule JidoCode.Session.Supervisor do
   def get_agent(session_id) when is_binary(session_id) do
     ProcessRegistry.lookup(:agent, session_id)
   end
-
 end

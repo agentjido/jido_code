@@ -297,7 +297,8 @@ defmodule JidoCode.Session.ManagerTest do
     end
 
     test "returns error for non-existent session" do
-      assert {:error, :not_found} = Manager.write_file("non_existent_session", "file.ex", "content")
+      assert {:error, :not_found} =
+               Manager.write_file("non_existent_session", "file.ex", "content")
     end
   end
 

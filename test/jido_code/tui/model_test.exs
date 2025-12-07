@@ -394,8 +394,20 @@ defmodule JidoCode.TUI.ModelTest do
     test "appends session to end of session_order" do
       model = %Model{
         sessions: %{
-          "s1" => %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()},
-          "s2" => %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+          "s1" => %JidoCode.Session{
+            id: "s1",
+            name: "a",
+            project_path: "/a",
+            config: %{},
+            created_at: DateTime.utc_now()
+          },
+          "s2" => %JidoCode.Session{
+            id: "s2",
+            name: "b",
+            project_path: "/b",
+            config: %{},
+            created_at: DateTime.utc_now()
+          }
         },
         session_order: ["s1", "s2"],
         active_session_id: "s1"
@@ -417,8 +429,21 @@ defmodule JidoCode.TUI.ModelTest do
 
   describe "switch_session/2" do
     test "switches to existing session" do
-      session_1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
-      session_2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+      session_1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session_2 = %JidoCode.Session{
+        id: "s2",
+        name: "b",
+        project_path: "/b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session_1, "s2" => session_2},
@@ -432,7 +457,13 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "returns unchanged model for non-existent session" do
-      session_1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session_1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session_1},
@@ -447,7 +478,13 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "can switch from nil active session" do
-      session_1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session_1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session_1},
@@ -482,8 +519,21 @@ defmodule JidoCode.TUI.ModelTest do
 
   describe "remove_session/2" do
     test "removes session from sessions map" do
-      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
-      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %JidoCode.Session{
+        id: "s2",
+        name: "b",
+        project_path: "/b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
@@ -499,8 +549,21 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "removes session from session_order" do
-      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
-      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %JidoCode.Session{
+        id: "s2",
+        name: "b",
+        project_path: "/b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
@@ -514,9 +577,29 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "switches to previous session when closing active" do
-      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
-      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
-      session3 = %JidoCode.Session{id: "s3", name: "c", project_path: "/c", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %JidoCode.Session{
+        id: "s2",
+        name: "b",
+        project_path: "/b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session3 = %JidoCode.Session{
+        id: "s3",
+        name: "c",
+        project_path: "/c",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
@@ -531,8 +614,21 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "switches to next session when closing first active" do
-      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
-      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %JidoCode.Session{
+        id: "s2",
+        name: "b",
+        project_path: "/b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
@@ -547,7 +643,13 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "sets active to nil when closing last session" do
-      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1},
@@ -563,8 +665,21 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "keeps active unchanged when closing non-active session" do
-      session1 = %JidoCode.Session{id: "s1", name: "a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
-      session2 = %JidoCode.Session{id: "s2", name: "b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %JidoCode.Session{
+        id: "s2",
+        name: "b",
+        project_path: "/b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
@@ -581,7 +696,13 @@ defmodule JidoCode.TUI.ModelTest do
 
   describe "rename_session/3" do
     test "renames session in sessions map" do
-      session1 = %JidoCode.Session{id: "s1", name: "old-name", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "old-name",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1},
@@ -596,7 +717,14 @@ defmodule JidoCode.TUI.ModelTest do
 
     test "preserves other session properties" do
       now = DateTime.utc_now()
-      session1 = %JidoCode.Session{id: "s1", name: "old-name", project_path: "/path/a", config: %{foo: "bar"}, created_at: now}
+
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "old-name",
+        project_path: "/path/a",
+        config: %{foo: "bar"},
+        created_at: now
+      }
 
       model = %Model{
         sessions: %{"s1" => session1},
@@ -613,7 +741,13 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "returns unchanged model for non-existent session" do
-      session1 = %JidoCode.Session{id: "s1", name: "project-a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "project-a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1},
@@ -627,8 +761,21 @@ defmodule JidoCode.TUI.ModelTest do
     end
 
     test "preserves other sessions when renaming one" do
-      session1 = %JidoCode.Session{id: "s1", name: "project-a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
-      session2 = %JidoCode.Session{id: "s2", name: "project-b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+      session1 = %JidoCode.Session{
+        id: "s1",
+        name: "project-a",
+        project_path: "/a",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %JidoCode.Session{
+        id: "s2",
+        name: "project-b",
+        project_path: "/b",
+        config: %{},
+        created_at: DateTime.utc_now()
+      }
 
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},

@@ -259,7 +259,12 @@ defmodule JidoCode.Integration.SessionPhase2Test do
       path = create_test_dir(tmp_base, "settings_load")
 
       # Create local settings
-      local_settings = %{"provider" => "openai", "model" => "gpt-4o", "custom_key" => "local_value"}
+      local_settings = %{
+        "provider" => "openai",
+        "model" => "gpt-4o",
+        "custom_key" => "local_value"
+      }
+
       create_settings_file(path, local_settings)
 
       # Load settings using Session.Settings

@@ -135,7 +135,9 @@ defmodule JidoCode.SessionSupervisorTest do
     test "starts a session and returns pid", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
 
-      assert {:ok, pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+      assert {:ok, pid} =
+               SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
       assert is_pid(pid)
       assert Process.alive?(pid)
     end
@@ -143,7 +145,8 @@ defmodule JidoCode.SessionSupervisorTest do
     test "registers session in SessionRegistry", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
 
-      {:ok, _pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+      {:ok, _pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       # Session should be in registry
       assert {:ok, registered} = SessionRegistry.lookup(session.id)
@@ -154,10 +157,12 @@ defmodule JidoCode.SessionSupervisorTest do
     test "registers session process in SessionProcessRegistry", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
 
-      {:ok, pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+      {:ok, pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       # Process should be findable via Registry
-      assert [{^pid, _}] = Registry.lookup(JidoCode.SessionProcessRegistry, {:session, session.id})
+      assert [{^pid, _}] =
+               Registry.lookup(JidoCode.SessionProcessRegistry, {:session, session.id})
     end
 
     test "fails with :session_limit_reached when limit exceeded", %{tmp_dir: tmp_dir} do
@@ -189,26 +194,31 @@ defmodule JidoCode.SessionSupervisorTest do
       {:ok, _} = SessionSupervisor.start_session(s2, supervisor_module: SessionSupervisorStub)
 
       # Third should fail
-      assert {:error, :session_limit_reached} = SessionSupervisor.start_session(s3, supervisor_module: SessionSupervisorStub)
+      assert {:error, :session_limit_reached} =
+               SessionSupervisor.start_session(s3, supervisor_module: SessionSupervisorStub)
     end
 
     test "fails with :session_exists for duplicate ID", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
 
-      {:ok, _} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+      {:ok, _} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       # Same session again should fail
-      assert {:error, :session_exists} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+      assert {:error, :session_exists} =
+               SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
     end
 
     test "fails with :project_already_open for duplicate path", %{tmp_dir: tmp_dir} do
       {:ok, session1} = Session.new(project_path: tmp_dir)
       {:ok, session2} = Session.new(project_path: tmp_dir)
 
-      {:ok, _} = SessionSupervisor.start_session(session1, supervisor_module: SessionSupervisorStub)
+      {:ok, _} =
+        SessionSupervisor.start_session(session1, supervisor_module: SessionSupervisorStub)
 
       # Different session, same path should fail
-      assert {:error, :project_already_open} = SessionSupervisor.start_session(session2, supervisor_module: SessionSupervisorStub)
+      assert {:error, :project_already_open} =
+               SessionSupervisor.start_session(session2, supervisor_module: SessionSupervisorStub)
     end
 
     test "increments DynamicSupervisor child count", %{tmp_dir: tmp_dir} do
@@ -216,7 +226,8 @@ defmodule JidoCode.SessionSupervisorTest do
 
       assert DynamicSupervisor.count_children(SessionSupervisor).active == 0
 
-      {:ok, _} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+      {:ok, _} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert DynamicSupervisor.count_children(SessionSupervisor).active == 1
     end
@@ -259,7 +270,9 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "stops a running session", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert Process.alive?(pid)
 
@@ -272,7 +285,9 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "unregisters session from SessionRegistry", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, _} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, _} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert {:ok, _} = SessionRegistry.lookup(session.id)
 
@@ -283,7 +298,9 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "removes process from SessionProcessRegistry", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert [{_, _}] = Registry.lookup(JidoCode.SessionProcessRegistry, {:session, session.id})
 
@@ -291,16 +308,21 @@ defmodule JidoCode.SessionSupervisorTest do
 
       # Wait for process to terminate and Registry entry to be cleaned up
       assert :ok = SessionTestHelpers.wait_for_process_death(pid)
-      assert :ok = SessionTestHelpers.wait_for_registry_cleanup(
-        JidoCode.SessionProcessRegistry,
-        {:session, session.id}
-      )
+
+      assert :ok =
+               SessionTestHelpers.wait_for_registry_cleanup(
+                 JidoCode.SessionProcessRegistry,
+                 {:session, session.id}
+               )
+
       assert [] = Registry.lookup(JidoCode.SessionProcessRegistry, {:session, session.id})
     end
 
     test "decrements DynamicSupervisor child count", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, _} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, _} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert DynamicSupervisor.count_children(SessionSupervisor).active == 1
 
@@ -352,7 +374,9 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "finds registered session pid", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, expected_pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, expected_pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert {:ok, pid} = SessionSupervisor.find_session_pid(session.id)
       assert pid == expected_pid
@@ -364,16 +388,20 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "returns error after session is stopped", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       :ok = SessionSupervisor.stop_session(session.id)
 
       # Wait for Registry cleanup
       assert :ok = SessionTestHelpers.wait_for_process_death(pid)
-      assert :ok = SessionTestHelpers.wait_for_registry_cleanup(
-        JidoCode.SessionProcessRegistry,
-        {:session, session.id}
-      )
+
+      assert :ok =
+               SessionTestHelpers.wait_for_registry_cleanup(
+                 JidoCode.SessionProcessRegistry,
+                 {:session, session.id}
+               )
 
       assert {:error, :not_found} = SessionSupervisor.find_session_pid(session.id)
     end
@@ -438,7 +466,9 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "returns true for running session", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, _pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, _pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert SessionSupervisor.session_running?(session.id) == true
     end
@@ -449,7 +479,9 @@ defmodule JidoCode.SessionSupervisorTest do
 
     test "returns false after session is stopped", %{tmp_dir: tmp_dir} do
       {:ok, session} = Session.new(project_path: tmp_dir)
-      {:ok, _pid} = SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      {:ok, _pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
 
       assert SessionSupervisor.session_running?(session.id) == true
 
@@ -470,78 +502,86 @@ defmodule JidoCode.SessionSupervisorTest do
     end
 
     test "creates and starts a session", %{tmp_dir: tmp_dir} do
-      assert {:ok, session} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        supervisor_module: SessionSupervisorStub
-      )
+      assert {:ok, session} =
+               SessionSupervisor.create_session(
+                 project_path: tmp_dir,
+                 supervisor_module: SessionSupervisorStub
+               )
 
       assert %Session{} = session
       assert session.project_path == tmp_dir
     end
 
     test "returns session struct (not pid)", %{tmp_dir: tmp_dir} do
-      {:ok, result} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        supervisor_module: SessionSupervisorStub
-      )
+      {:ok, result} =
+        SessionSupervisor.create_session(
+          project_path: tmp_dir,
+          supervisor_module: SessionSupervisorStub
+        )
 
       assert %Session{} = result
       refute is_pid(result)
     end
 
     test "registers session in SessionRegistry", %{tmp_dir: tmp_dir} do
-      {:ok, session} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        supervisor_module: SessionSupervisorStub
-      )
+      {:ok, session} =
+        SessionSupervisor.create_session(
+          project_path: tmp_dir,
+          supervisor_module: SessionSupervisorStub
+        )
 
       assert {:ok, registered} = SessionRegistry.lookup(session.id)
       assert registered.id == session.id
     end
 
     test "session is running after creation", %{tmp_dir: tmp_dir} do
-      {:ok, session} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        supervisor_module: SessionSupervisorStub
-      )
+      {:ok, session} =
+        SessionSupervisor.create_session(
+          project_path: tmp_dir,
+          supervisor_module: SessionSupervisorStub
+        )
 
       assert SessionSupervisor.session_running?(session.id)
     end
 
     test "uses folder name as default session name", %{tmp_dir: tmp_dir} do
-      {:ok, session} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        supervisor_module: SessionSupervisorStub
-      )
+      {:ok, session} =
+        SessionSupervisor.create_session(
+          project_path: tmp_dir,
+          supervisor_module: SessionSupervisorStub
+        )
 
       assert session.name == Path.basename(tmp_dir)
     end
 
     test "accepts custom name option", %{tmp_dir: tmp_dir} do
-      {:ok, session} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        name: "my-custom-name",
-        supervisor_module: SessionSupervisorStub
-      )
+      {:ok, session} =
+        SessionSupervisor.create_session(
+          project_path: tmp_dir,
+          name: "my-custom-name",
+          supervisor_module: SessionSupervisorStub
+        )
 
       assert session.name == "my-custom-name"
     end
 
     test "fails for non-existent path" do
-      assert {:error, :path_not_found} = SessionSupervisor.create_session(
-        project_path: "/nonexistent/path/that/does/not/exist",
-        supervisor_module: SessionSupervisorStub
-      )
+      assert {:error, :path_not_found} =
+               SessionSupervisor.create_session(
+                 project_path: "/nonexistent/path/that/does/not/exist",
+                 supervisor_module: SessionSupervisorStub
+               )
     end
 
     test "fails for file path (not directory)", %{tmp_dir: tmp_dir} do
       file_path = Path.join(tmp_dir, "a_file.txt")
       File.write!(file_path, "content")
 
-      assert {:error, :path_not_directory} = SessionSupervisor.create_session(
-        project_path: file_path,
-        supervisor_module: SessionSupervisorStub
-      )
+      assert {:error, :path_not_directory} =
+               SessionSupervisor.create_session(
+                 project_path: file_path,
+                 supervisor_module: SessionSupervisorStub
+               )
     end
 
     test "fails with :session_limit_reached when limit exceeded", %{tmp_dir: tmp_dir} do
@@ -565,27 +605,39 @@ defmodule JidoCode.SessionSupervisorTest do
       File.mkdir_p!(dir2)
       File.mkdir_p!(dir3)
 
-      {:ok, _} = SessionSupervisor.create_session(project_path: dir1, supervisor_module: SessionSupervisorStub)
-      {:ok, _} = SessionSupervisor.create_session(project_path: dir2, supervisor_module: SessionSupervisorStub)
+      {:ok, _} =
+        SessionSupervisor.create_session(
+          project_path: dir1,
+          supervisor_module: SessionSupervisorStub
+        )
+
+      {:ok, _} =
+        SessionSupervisor.create_session(
+          project_path: dir2,
+          supervisor_module: SessionSupervisorStub
+        )
 
       # Third should fail
-      assert {:error, :session_limit_reached} = SessionSupervisor.create_session(
-        project_path: dir3,
-        supervisor_module: SessionSupervisorStub
-      )
+      assert {:error, :session_limit_reached} =
+               SessionSupervisor.create_session(
+                 project_path: dir3,
+                 supervisor_module: SessionSupervisorStub
+               )
     end
 
     test "fails with :project_already_open for duplicate path", %{tmp_dir: tmp_dir} do
-      {:ok, _} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        supervisor_module: SessionSupervisorStub
-      )
+      {:ok, _} =
+        SessionSupervisor.create_session(
+          project_path: tmp_dir,
+          supervisor_module: SessionSupervisorStub
+        )
 
       # Same path again should fail
-      assert {:error, :project_already_open} = SessionSupervisor.create_session(
-        project_path: tmp_dir,
-        supervisor_module: SessionSupervisorStub
-      )
+      assert {:error, :project_already_open} =
+               SessionSupervisor.create_session(
+                 project_path: tmp_dir,
+                 supervisor_module: SessionSupervisorStub
+               )
     end
   end
 end

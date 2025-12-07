@@ -255,7 +255,8 @@ defmodule JidoCode.Session.SupervisorTest do
     end
 
     test "works with SessionSupervisor.create_session/1", %{tmp_dir: tmp_dir, config: config} do
-      assert {:ok, session} = JidoCode.SessionSupervisor.create_session(project_path: tmp_dir, config: config)
+      assert {:ok, session} =
+               JidoCode.SessionSupervisor.create_session(project_path: tmp_dir, config: config)
 
       assert %Session{} = session
       assert JidoCode.SessionSupervisor.session_running?(session.id) == true
@@ -415,7 +416,10 @@ defmodule JidoCode.Session.SupervisorTest do
   # ============================================================================
 
   describe ":one_for_all crash recovery" do
-    test "Manager crash restarts all children due to :one_for_all", %{tmp_dir: tmp_dir, config: config} do
+    test "Manager crash restarts all children due to :one_for_all", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -449,7 +453,10 @@ defmodule JidoCode.Session.SupervisorTest do
       Supervisor.stop(sup_pid)
     end
 
-    test "State crash restarts all children due to :one_for_all", %{tmp_dir: tmp_dir, config: config} do
+    test "State crash restarts all children due to :one_for_all", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -483,7 +490,10 @@ defmodule JidoCode.Session.SupervisorTest do
       Supervisor.stop(sup_pid)
     end
 
-    test "Agent crash restarts all children due to :one_for_all", %{tmp_dir: tmp_dir, config: config} do
+    test "Agent crash restarts all children due to :one_for_all", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -517,7 +527,10 @@ defmodule JidoCode.Session.SupervisorTest do
       Supervisor.stop(sup_pid)
     end
 
-    test "Registry entries remain consistent after crash restart", %{tmp_dir: tmp_dir, config: config} do
+    test "Registry entries remain consistent after crash restart", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
 

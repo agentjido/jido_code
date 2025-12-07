@@ -73,7 +73,10 @@ defmodule JidoCode.Tools.HandlerHelpersTest do
       assert path == tmp_dir
     end
 
-    test "uses session_id to get project root from Session.Manager", %{session: session, tmp_dir: tmp_dir} do
+    test "uses session_id to get project root from Session.Manager", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
       context = %{session_id: session.id}
 
       {:ok, path} = HandlerHelpers.get_project_root(context)
@@ -218,7 +221,9 @@ defmodule JidoCode.Tools.HandlerHelpersTest do
     end
 
     test "formats :path_outside_boundary error" do
-      assert {:ok, msg} = HandlerHelpers.format_common_error(:path_outside_boundary, "/etc/passwd")
+      assert {:ok, msg} =
+               HandlerHelpers.format_common_error(:path_outside_boundary, "/etc/passwd")
+
       assert msg =~ "path is outside project"
     end
 

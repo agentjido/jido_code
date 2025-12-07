@@ -137,9 +137,7 @@ defmodule JidoCode.Tools.Handlers.Todo do
         :ok
 
       {:error, :not_found} ->
-        Logger.warning(
-          "Session.State not found for session #{session_id}, todos not persisted"
-        )
+        Logger.warning("Session.State not found for session #{session_id}, todos not persisted")
 
         :ok
     end

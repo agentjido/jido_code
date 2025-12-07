@@ -48,7 +48,9 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
 
       # Use session_id context
       context = %{session_id: session.id}
-      {:ok, json} = RunCommand.execute(%{"command" => "cat", "args" => ["session_test.txt"]}, context)
+
+      {:ok, json} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["session_test.txt"]}, context)
 
       result = Jason.decode!(json)
       assert result["exit_code"] == 0

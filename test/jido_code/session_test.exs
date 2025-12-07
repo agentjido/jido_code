@@ -384,7 +384,10 @@ defmodule JidoCode.SessionTest do
       assert :path_not_found in reasons
     end
 
-    test "returns error for file path (not directory)", %{valid_session: session, tmp_dir: tmp_dir} do
+    test "returns error for file path (not directory)", %{
+      valid_session: session,
+      tmp_dir: tmp_dir
+    } do
       file_path = Path.join(tmp_dir, "test_file.txt")
       File.write!(file_path, "test content")
       session = %{session | project_path: file_path}
@@ -544,7 +547,9 @@ defmodule JidoCode.SessionTest do
 
   describe "Session.update_config/2" do
     setup do
-      tmp_dir = Path.join(System.tmp_dir!(), "session_update_config_test_#{:rand.uniform(100_000)}")
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "session_update_config_test_#{:rand.uniform(100_000)}")
+
       File.mkdir_p!(tmp_dir)
 
       on_exit(fn ->
@@ -579,12 +584,13 @@ defmodule JidoCode.SessionTest do
     end
 
     test "can update multiple config values at once", %{session: session} do
-      {:ok, updated} = Session.update_config(session, %{
-        provider: "openai",
-        model: "gpt-4",
-        temperature: 1.0,
-        max_tokens: 8192
-      })
+      {:ok, updated} =
+        Session.update_config(session, %{
+          provider: "openai",
+          model: "gpt-4",
+          temperature: 1.0,
+          max_tokens: 8192
+        })
 
       assert updated.config.provider == "openai"
       assert updated.config.model == "gpt-4"
@@ -635,12 +641,13 @@ defmodule JidoCode.SessionTest do
 
     # C1: Test accumulating errors (consistent with validate/1)
     test "returns all errors when multiple config values are invalid", %{session: session} do
-      assert {:error, reasons} = Session.update_config(session, %{
-        provider: "",
-        model: "",
-        temperature: -1,
-        max_tokens: 0
-      })
+      assert {:error, reasons} =
+               Session.update_config(session, %{
+                 provider: "",
+                 model: "",
+                 temperature: -1,
+                 max_tokens: 0
+               })
 
       assert :invalid_provider in reasons
       assert :invalid_model in reasons

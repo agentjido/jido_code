@@ -317,7 +317,8 @@ defmodule JidoCode.SessionRegistryTest do
       end
 
       # Get the ID of an existing session
-      [{existing_id, _}] = :ets.lookup(JidoCode.SessionRegistry, :ets.first(JidoCode.SessionRegistry))
+      [{existing_id, _}] =
+        :ets.lookup(JidoCode.SessionRegistry, :ets.first(JidoCode.SessionRegistry))
 
       # Try to register with same ID - should hit limit first
       session = create_test_session(id: existing_id, project_path: "/tmp/project-11")

@@ -406,7 +406,9 @@ defmodule JidoCode.IntegrationTest do
       {:ok, _result} = Executor.execute(tool_call)
 
       # Should receive events (with nil session_id since none provided)
-      assert_receive {:tool_call, "pubsub_broadcast_test", %{"value" => "test"}, "call_1", nil}, 1000
+      assert_receive {:tool_call, "pubsub_broadcast_test", %{"value" => "test"}, "call_1", nil},
+                     1000
+
       assert_receive {:tool_result, %Result{}, nil}, 1000
     end
 

@@ -426,7 +426,12 @@ defmodule JidoCode.TUI do
           model.active_session_id
         end
 
-      %{model | sessions: new_sessions, session_order: new_order, active_session_id: new_active_id}
+      %{
+        model
+        | sessions: new_sessions,
+          session_order: new_order,
+          active_session_id: new_active_id
+      }
     end
 
     @doc """

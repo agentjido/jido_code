@@ -151,7 +151,9 @@ defmodule JidoCode.Integration.SessionPhase5Test do
   # ============================================================================
 
   describe "5.8.1 Session New Command Integration" do
-    test "/session new /path creates session and returns add_session action", %{tmp_base: tmp_base} do
+    test "/session new /path creates session and returns add_session action", %{
+      tmp_base: tmp_base
+    } do
       project_path = create_test_dir(tmp_base, "new_project")
 
       result = create_session_via_command(project_path)
@@ -354,7 +356,9 @@ defmodule JidoCode.Integration.SessionPhase5Test do
 
     test "/session switch by name returns switch action", %{tmp_base: tmp_base} do
       project_path = create_test_dir(tmp_base, "named_project")
-      {:session_action, {:add_session, session}} = create_session_via_command(project_path, "MyProject")
+
+      {:session_action, {:add_session, session}} =
+        create_session_via_command(project_path, "MyProject")
 
       model = build_model_with_sessions([session])
 

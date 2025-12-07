@@ -416,6 +416,99 @@ defmodule JidoCode.Session.PersistenceTest do
     end
   end
 
+  describe "sessions_dir/0" do
+    test "returns path under user home directory" do
+      dir = Persistence.sessions_dir()
+      home = System.user_home!()
+
+      assert String.starts_with?(dir, home)
+    end
+
+    test "returns path ending with .jido_code/sessions" do
+      dir = Persistence.sessions_dir()
+
+      assert String.ends_with?(dir, ".jido_code/sessions")
+    end
+
+    test "returns absolute path" do
+      dir = Persistence.sessions_dir()
+
+      assert Path.type(dir) == :absolute
+    end
+
+    test "returns consistent path" do
+      dir1 = Persistence.sessions_dir()
+      dir2 = Persistence.sessions_dir()
+
+      assert dir1 == dir2
+    end
+  end
+
+  describe "session_file/1" do
+    test "returns path with .json extension" do
+      path = Persistence.session_file("test-123")
+
+      assert String.ends_with?(path, ".json")
+    end
+
+    test "includes session_id in filename" do
+      path = Persistence.session_file("my-session-id")
+
+      assert String.ends_with?(path, "my-session-id.json")
+    end
+
+    test "returns path under sessions directory" do
+      path = Persistence.session_file("test")
+      sessions_dir = Persistence.sessions_dir()
+
+      assert String.starts_with?(path, sessions_dir)
+    end
+
+    test "returns absolute path" do
+      path = Persistence.session_file("test")
+
+      assert Path.type(path) == :absolute
+    end
+
+    test "handles session IDs with special characters" do
+      path = Persistence.session_file("test-123_abc")
+
+      assert String.ends_with?(path, "test-123_abc.json")
+    end
+  end
+
+  describe "ensure_sessions_dir/0" do
+    setup do
+      # Use a temporary directory for testing
+      test_dir =
+        Path.join(System.tmp_dir!(), "persistence_test_#{System.unique_integer([:positive])}")
+
+      on_exit(fn -> File.rm_rf!(test_dir) end)
+      {:ok, test_dir: test_dir}
+    end
+
+    test "returns :ok when directory exists" do
+      # The actual sessions_dir may or may not exist, but mkdir_p handles both
+      result = Persistence.ensure_sessions_dir()
+
+      assert result == :ok
+    end
+
+    test "creates directory if it doesn't exist" do
+      # Ensure the directory exists after calling ensure_sessions_dir
+      :ok = Persistence.ensure_sessions_dir()
+
+      assert File.dir?(Persistence.sessions_dir())
+    end
+
+    test "is idempotent" do
+      # Can be called multiple times without error
+      assert :ok = Persistence.ensure_sessions_dir()
+      assert :ok = Persistence.ensure_sessions_dir()
+      assert :ok = Persistence.ensure_sessions_dir()
+    end
+  end
+
   # ============================================================================
   # Test Helpers
   # ============================================================================

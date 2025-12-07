@@ -50,16 +50,16 @@ Define the schema for persisted session data.
 - [x] 6.1.1.6 Write unit tests for schema types
 
 ### 6.1.2 Storage Location
-- [ ] **Task 6.1.2**
+- [x] **Task 6.1.2**
 
 Define storage locations for persisted sessions.
 
-- [ ] 6.1.2.1 Define sessions directory: `~/.jido_code/sessions/`
-- [ ] 6.1.2.2 Define session file pattern: `{session_id}.json`
-- [ ] 6.1.2.3 Implement `sessions_dir/0` returning expanded path
-- [ ] 6.1.2.4 Implement `session_file/1` returning file path for session ID
-- [ ] 6.1.2.5 Implement `ensure_sessions_dir/0` creating directory if missing
-- [ ] 6.1.2.6 Write unit tests for path functions
+- [x] 6.1.2.1 Define sessions directory: `~/.jido_code/sessions/`
+- [x] 6.1.2.2 Define session file pattern: `{session_id}.json`
+- [x] 6.1.2.3 Implement `sessions_dir/0` returning expanded path
+- [x] 6.1.2.4 Implement `session_file/1` returning file path for session ID
+- [x] 6.1.2.5 Implement `ensure_sessions_dir/0` creating directory if missing
+- [x] 6.1.2.6 Write unit tests for path functions
 
 **Unit Tests for Section 6.1:**
 - Test persisted_session schema matches expected format

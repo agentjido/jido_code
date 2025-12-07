@@ -323,6 +323,59 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # ============================================================================
+  # Storage Location
+  # ============================================================================
+
+  @doc """
+  Returns the directory path where persisted sessions are stored.
+
+  The sessions directory is located at `~/.jido_code/sessions/`.
+
+  ## Examples
+
+      iex> Persistence.sessions_dir()
+      "/home/user/.jido_code/sessions"
+  """
+  @spec sessions_dir() :: String.t()
+  def sessions_dir do
+    Path.join([System.user_home!(), ".jido_code", "sessions"])
+  end
+
+  @doc """
+  Returns the file path for a persisted session.
+
+  Session files are named `{session_id}.json` within the sessions directory.
+
+  ## Examples
+
+      iex> Persistence.session_file("abc123")
+      "/home/user/.jido_code/sessions/abc123.json"
+  """
+  @spec session_file(String.t()) :: String.t()
+  def session_file(session_id) when is_binary(session_id) do
+    Path.join(sessions_dir(), "#{session_id}.json")
+  end
+
+  @doc """
+  Ensures the sessions directory exists, creating it if necessary.
+
+  Returns `:ok` if the directory exists or was created successfully,
+  or `{:error, reason}` if creation failed.
+
+  ## Examples
+
+      iex> Persistence.ensure_sessions_dir()
+      :ok
+  """
+  @spec ensure_sessions_dir() :: :ok | {:error, term()}
+  def ensure_sessions_dir do
+    case File.mkdir_p(sessions_dir()) do
+      :ok -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 

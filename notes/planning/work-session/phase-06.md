@@ -75,11 +75,11 @@ Define storage locations for persisted sessions.
 Implement saving sessions to disk.
 
 ### 6.2.1 Save Session State
-- [ ] **Task 6.2.1**
+- [x] **Task 6.2.1**
 
 Implement saving session to JSON file.
 
-- [ ] 6.2.1.1 Implement `save/1` accepting session_id:
+- [x] 6.2.1.1 Implement `save/1` accepting session_id:
   ```elixir
   def save(session_id) do
     with {:ok, session} <- SessionRegistry.lookup(session_id),
@@ -90,7 +90,7 @@ Implement saving session to JSON file.
     end
   end
   ```
-- [ ] 6.2.1.2 Implement `build_persisted_session/2`:
+- [x] 6.2.1.2 Implement `build_persisted_session/2`:
   ```elixir
   defp build_persisted_session(session, state) do
     %{
@@ -107,9 +107,9 @@ Implement saving session to JSON file.
     }
   end
   ```
-- [ ] 6.2.1.3 Write JSON atomically (temp file then rename)
-- [ ] 6.2.1.4 Handle write errors gracefully
-- [ ] 6.2.1.5 Write unit tests for save function
+- [x] 6.2.1.3 Write JSON atomically (temp file then rename)
+- [x] 6.2.1.4 Handle write errors gracefully
+- [x] 6.2.1.5 Write unit tests for save function
 
 ### 6.2.2 Auto-Save on Close
 - [ ] **Task 6.2.2**

@@ -376,8 +376,138 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # ============================================================================
+  # Session Saving
+  # ============================================================================
+
+  @doc """
+  Saves a session to disk as a JSON file.
+
+  Fetches the current session state, serializes it to JSON, and writes it
+  atomically to the sessions directory.
+
+  ## Arguments
+
+  - `session_id` - The unique session identifier
+
+  ## Returns
+
+  - `{:ok, path}` - The path where the session was saved
+  - `{:error, :not_found}` - Session not found
+  - `{:error, reason}` - Write failed
+
+  ## Examples
+
+      iex> Persistence.save("session-123")
+      {:ok, "/home/user/.jido_code/sessions/session-123.json"}
+  """
+  @spec save(String.t()) :: {:ok, String.t()} | {:error, term()}
+  def save(session_id) when is_binary(session_id) do
+    alias JidoCode.Session.State
+
+    with {:ok, state} <- State.get_state(session_id),
+         persisted = build_persisted_session(state),
+         :ok <- write_session_file(session_id, persisted) do
+      {:ok, session_file(session_id)}
+    end
+  end
+
+  @doc """
+  Builds a persisted session map from runtime state.
+
+  Converts the live session state into the persistence format, including
+  serializing messages and todos to their string-based representations.
+  """
+  @spec build_persisted_session(map()) :: persisted_session()
+  def build_persisted_session(state) do
+    session = state.session
+
+    %{
+      version: schema_version(),
+      id: session.id,
+      name: session.name,
+      project_path: session.project_path,
+      config: serialize_config(session.config),
+      created_at: format_datetime(session.created_at),
+      updated_at: format_datetime(session.updated_at),
+      closed_at: DateTime.to_iso8601(DateTime.utc_now()),
+      conversation: Enum.map(state.messages, &serialize_message/1),
+      todos: Enum.map(state.todos, &serialize_todo/1)
+    }
+  end
+
+  @doc """
+  Writes a persisted session to disk atomically.
+
+  Uses a temporary file and rename to ensure atomic writes, preventing
+  partial or corrupted files if the write is interrupted.
+  """
+  @spec write_session_file(String.t(), persisted_session()) :: :ok | {:error, term()}
+  def write_session_file(session_id, persisted) do
+    :ok = ensure_sessions_dir()
+    path = session_file(session_id)
+    temp_path = "#{path}.tmp"
+
+    case Jason.encode(persisted, pretty: true) do
+      {:ok, json} ->
+        with :ok <- File.write(temp_path, json),
+             :ok <- File.rename(temp_path, path) do
+          :ok
+        else
+          {:error, reason} ->
+            # Clean up temp file on failure
+            File.rm(temp_path)
+            {:error, reason}
+        end
+
+      {:error, reason} ->
+        {:error, {:json_encode_error, reason}}
+    end
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
+
+  # Serialize a message to the persisted format
+  defp serialize_message(msg) do
+    %{
+      id: msg.id,
+      role: to_string(msg.role),
+      content: msg.content,
+      timestamp: format_datetime(msg.timestamp)
+    }
+  end
+
+  # Serialize a todo to the persisted format
+  defp serialize_todo(todo) do
+    %{
+      content: todo.content,
+      status: to_string(todo.status),
+      # Fall back to content if active_form not present
+      active_form: Map.get(todo, :active_form) || todo.content
+    }
+  end
+
+  # Serialize config, converting atoms to strings for JSON
+  defp serialize_config(config) when is_struct(config) do
+    config
+    |> Map.from_struct()
+    |> serialize_config()
+  end
+
+  defp serialize_config(config) when is_map(config) do
+    Map.new(config, fn
+      {key, value} when is_atom(value) -> {to_string(key), to_string(value)}
+      {key, value} when is_map(value) -> {to_string(key), serialize_config(value)}
+      {key, value} -> {to_string(key), value}
+    end)
+  end
+
+  defp serialize_config(other), do: other
+
+  # Format datetime to ISO 8601 string, handling nil
+  defp format_datetime(nil), do: DateTime.to_iso8601(DateTime.utc_now())
+  defp format_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
 
   # Normalize map keys from strings to atoms for validation
   defp normalize_keys(map) when is_map(map) do

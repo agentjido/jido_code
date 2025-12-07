@@ -509,9 +509,213 @@ defmodule JidoCode.Session.PersistenceTest do
     end
   end
 
+  describe "save/1" do
+    test "returns error for non-existent session" do
+      result = Persistence.save("non-existent-session-id")
+
+      assert {:error, :not_found} = result
+    end
+  end
+
+  describe "build_persisted_session/1" do
+    test "builds valid persisted session from state" do
+      state = mock_session_state()
+
+      result = Persistence.build_persisted_session(state)
+
+      assert result.version == Persistence.schema_version()
+      assert result.id == "test-session-id"
+      assert result.name == "Test Session"
+      assert result.project_path == "/tmp/test-project"
+      assert is_binary(result.created_at)
+      assert is_binary(result.updated_at)
+      assert is_binary(result.closed_at)
+      assert is_list(result.conversation)
+      assert is_list(result.todos)
+    end
+
+    test "serializes messages correctly" do
+      state =
+        mock_session_state()
+        |> Map.put(:messages, [
+          %{
+            id: "msg-1",
+            role: :user,
+            content: "Hello",
+            timestamp: ~U[2024-01-01 12:00:00Z]
+          },
+          %{
+            id: "msg-2",
+            role: :assistant,
+            content: "Hi there!",
+            timestamp: ~U[2024-01-01 12:01:00Z]
+          }
+        ])
+
+      result = Persistence.build_persisted_session(state)
+
+      assert length(result.conversation) == 2
+
+      [msg1, msg2] = result.conversation
+      assert msg1.id == "msg-1"
+      assert msg1.role == "user"
+      assert msg1.content == "Hello"
+      assert is_binary(msg1.timestamp)
+
+      assert msg2.id == "msg-2"
+      assert msg2.role == "assistant"
+      assert msg2.content == "Hi there!"
+    end
+
+    test "serializes todos correctly" do
+      state =
+        mock_session_state()
+        |> Map.put(:todos, [
+          %{content: "Task 1", status: :pending, active_form: "Doing task 1"},
+          %{content: "Task 2", status: :completed, active_form: "Doing task 2"}
+        ])
+
+      result = Persistence.build_persisted_session(state)
+
+      assert length(result.todos) == 2
+
+      [todo1, todo2] = result.todos
+      assert todo1.content == "Task 1"
+      assert todo1.status == "pending"
+      assert todo1.active_form == "Doing task 1"
+
+      assert todo2.content == "Task 2"
+      assert todo2.status == "completed"
+    end
+
+    test "serializes config with atom values" do
+      state = mock_session_state()
+      result = Persistence.build_persisted_session(state)
+
+      assert is_map(result.config)
+      # Config should have string keys/values for JSON compatibility
+      assert result.config["provider"] == "anthropic"
+      assert result.config["model"] == "test-model"
+    end
+
+    test "handles todos without active_form" do
+      state =
+        mock_session_state()
+        |> Map.put(:todos, [
+          %{content: "Task without active_form", status: :pending}
+        ])
+
+      result = Persistence.build_persisted_session(state)
+
+      [todo] = result.todos
+      # Falls back to content when active_form missing
+      assert todo.active_form == "Task without active_form"
+    end
+  end
+
+  describe "write_session_file/2" do
+    setup do
+      # Create a unique temp directory for testing
+      test_id = "test-write-#{System.unique_integer([:positive])}"
+
+      on_exit(fn ->
+        # Clean up any test files
+        path = Persistence.session_file(test_id)
+        File.rm(path)
+        File.rm("#{path}.tmp")
+      end)
+
+      {:ok, test_id: test_id}
+    end
+
+    test "writes JSON file to correct location", %{test_id: test_id} do
+      persisted = %{
+        version: 1,
+        id: test_id,
+        name: "Test",
+        project_path: "/tmp",
+        config: %{},
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        closed_at: "2024-01-01T00:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      result = Persistence.write_session_file(test_id, persisted)
+
+      assert result == :ok
+      assert File.exists?(Persistence.session_file(test_id))
+    end
+
+    test "writes valid JSON", %{test_id: test_id} do
+      persisted = %{
+        version: 1,
+        id: test_id,
+        name: "Test Session",
+        project_path: "/tmp/project",
+        config: %{"provider" => "anthropic"},
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        closed_at: "2024-01-01T00:00:00Z",
+        conversation: [
+          %{id: "1", role: "user", content: "Hello", timestamp: "2024-01-01T00:00:00Z"}
+        ],
+        todos: [%{content: "Task", status: "pending", active_form: "Doing task"}]
+      }
+
+      :ok = Persistence.write_session_file(test_id, persisted)
+
+      path = Persistence.session_file(test_id)
+      {:ok, content} = File.read(path)
+      {:ok, decoded} = Jason.decode(content)
+
+      assert decoded["version"] == 1
+      assert decoded["id"] == test_id
+      assert decoded["name"] == "Test Session"
+      assert length(decoded["conversation"]) == 1
+      assert length(decoded["todos"]) == 1
+    end
+
+    test "cleans up temp file on success", %{test_id: test_id} do
+      persisted = %{
+        version: 1,
+        id: test_id,
+        name: "Test",
+        project_path: "/tmp",
+        config: %{},
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        closed_at: "2024-01-01T00:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      :ok = Persistence.write_session_file(test_id, persisted)
+
+      temp_path = "#{Persistence.session_file(test_id)}.tmp"
+      refute File.exists?(temp_path)
+    end
+  end
+
   # ============================================================================
   # Test Helpers
   # ============================================================================
+
+  defp mock_session_state do
+    %{
+      session: %{
+        id: "test-session-id",
+        name: "Test Session",
+        project_path: "/tmp/test-project",
+        config: %{provider: :anthropic, model: "test-model", temperature: 0.7},
+        created_at: ~U[2024-01-01 00:00:00Z],
+        updated_at: ~U[2024-01-01 12:00:00Z]
+      },
+      messages: [],
+      todos: []
+    }
+  end
 
   defp valid_session do
     %{

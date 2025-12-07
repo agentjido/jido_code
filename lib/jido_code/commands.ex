@@ -666,7 +666,7 @@ defmodule JidoCode.Commands do
     else
       cond do
         # Try as index (1-10, with "0" meaning 10)
-        is_numeric_target?(target) ->
+        numeric_target?(target) ->
           resolve_by_index(target, session_order)
 
         # Try as session ID
@@ -680,7 +680,7 @@ defmodule JidoCode.Commands do
     end
   end
 
-  defp is_numeric_target?(target) do
+  defp numeric_target?(target) do
     match?({_, ""}, Integer.parse(target))
   end
 

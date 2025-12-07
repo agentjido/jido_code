@@ -75,7 +75,7 @@ defmodule JidoCode.Session.AgentAPITest do
 
       # Should raise FunctionClauseError for non-binary message
       assert_raise FunctionClauseError, fn ->
-        AgentAPI.send_message("session-123", 12345)
+        AgentAPI.send_message("session-123", 12_345)
       end
 
       assert_raise FunctionClauseError, fn ->
@@ -87,7 +87,7 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert_raise FunctionClauseError, fn ->
-        AgentAPI.send_message(12345, "Hello!")
+        AgentAPI.send_message(12_345, "Hello!")
       end
 
       assert_raise FunctionClauseError, fn ->
@@ -181,7 +181,7 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert_raise FunctionClauseError, fn ->
-        AgentAPI.send_message_stream("session-123", 12345)
+        AgentAPI.send_message_stream("session-123", 12_345)
       end
     end
 
@@ -256,7 +256,7 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert_raise FunctionClauseError, fn ->
-        AgentAPI.get_status(12345)
+        AgentAPI.get_status(12_345)
       end
     end
   end
@@ -430,7 +430,7 @@ defmodule JidoCode.Session.AgentAPITest do
       System.put_env("ANTHROPIC_API_KEY", "test-key")
 
       assert_raise FunctionClauseError, fn ->
-        AgentAPI.update_config(12345, %{temperature: 0.5})
+        AgentAPI.update_config(12_345, %{temperature: 0.5})
       end
     end
   end

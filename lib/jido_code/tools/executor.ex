@@ -235,14 +235,14 @@ defmodule JidoCode.Tools.Executor do
           {:ok, context()} | {:error, :not_found | :invalid_session_id}
   def build_context(session_id, opts \\ []) when is_binary(session_id) do
     # Validate UUID format for defense-in-depth
-    if not valid_uuid?(session_id) do
-      {:error, :invalid_session_id}
-    else
+    if valid_uuid?(session_id) do
       timeout = Keyword.get(opts, :timeout, @default_timeout)
       base_context = %{session_id: session_id, timeout: timeout}
 
       # Delegate to enrich_context to avoid duplication
       enrich_context(base_context)
+    else
+      {:error, :invalid_session_id}
     end
   end
 

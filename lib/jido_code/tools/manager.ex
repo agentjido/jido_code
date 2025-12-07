@@ -419,8 +419,8 @@ defmodule JidoCode.Tools.Manager do
   - `{:ok, is_file}` - Boolean indicating if path is a regular file
   - `{:error, reason}` - Error message (security violation)
   """
-  @spec is_file?(String.t()) :: {:ok, boolean()} | {:error, String.t()}
-  def is_file?(path) do
+  @spec file?(String.t()) :: {:ok, boolean()} | {:error, String.t()}
+  def file?(path) do
     GenServer.call(__MODULE__, {:sandbox_is_file, path})
   end
 
@@ -438,8 +438,8 @@ defmodule JidoCode.Tools.Manager do
   - `{:ok, is_dir}` - Boolean indicating if path is a directory
   - `{:error, reason}` - Error message (security violation)
   """
-  @spec is_dir?(String.t()) :: {:ok, boolean()} | {:error, String.t()}
-  def is_dir?(path) do
+  @spec directory?(String.t()) :: {:ok, boolean()} | {:error, String.t()}
+  def directory?(path) do
     GenServer.call(__MODULE__, {:sandbox_is_dir, path})
   end
 
@@ -654,10 +654,7 @@ defmodule JidoCode.Tools.Manager do
 
   defp call_bridge_function(lua_state, func_name, args) do
     # Build Lua call: jido.func_name(args...)
-    args_str =
-      args
-      |> Enum.map(&lua_encode_arg/1)
-      |> Enum.join(", ")
+    args_str = Enum.map_join(args, ", ", &lua_encode_arg/1)
 
     script = "return jido.#{func_name}(#{args_str})"
 
@@ -704,12 +701,10 @@ defmodule JidoCode.Tools.Manager do
   defp lua_encode_arg(arg) when is_list(arg) do
     # Encode as Lua table
     items =
-      arg
-      |> Enum.map(fn
+      Enum.map_join(arg, ", ", fn
         {k, v} when is_integer(k) -> "[#{k}] = #{lua_encode_arg(v)}"
         {k, v} -> "[\"#{k}\"] = #{lua_encode_arg(v)}"
       end)
-      |> Enum.join(", ")
 
     "{#{items}}"
   end

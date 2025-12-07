@@ -257,7 +257,7 @@ defmodule JidoCode.Tools.Handlers.Web do
     defp convert_to_markdown(node) when is_binary(node), do: node
 
     defp convert_to_markdown({tag, _attrs, children}) do
-      content = children |> Enum.map(&convert_to_markdown/1) |> Enum.join("")
+      content = Enum.map_join(children, "", &convert_to_markdown/1)
 
       case tag do
         "h1" -> "\n# #{String.trim(content)}\n"
@@ -288,7 +288,7 @@ defmodule JidoCode.Tools.Handlers.Web do
     end
 
     defp convert_to_markdown(nodes) when is_list(nodes) do
-      nodes |> Enum.map(&convert_to_markdown/1) |> Enum.join("")
+      Enum.map_join(nodes, "", &convert_to_markdown/1)
     end
 
     defp convert_to_markdown(_), do: ""
@@ -400,8 +400,7 @@ defmodule JidoCode.Tools.Handlers.Web do
 
       related_results =
         related
-        |> Enum.filter(&is_map/1)
-        |> Enum.filter(&Map.has_key?(&1, "Text"))
+        |> Enum.filter(fn item -> is_map(item) and Map.has_key?(item, "Text") end)
         |> Enum.take(max_results - length(results))
         |> Enum.map(fn topic ->
           %{

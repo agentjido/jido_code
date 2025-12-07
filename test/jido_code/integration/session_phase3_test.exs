@@ -321,10 +321,7 @@ defmodule JidoCode.Integration.SessionPhase3Test do
     @tag :requires_system_tools
     test "Search handlers respect session boundary", %{tmp_base: tmp_base} do
       # Skip if grep is not available on this system
-      unless system_tool_available?("grep") do
-        IO.puts("Skipping grep test - grep not available")
-        :ok
-      else
+      if system_tool_available?("grep") do
         project_path = create_test_dir(tmp_base, "search_test")
         File.write!(Path.join(project_path, "searchable.txt"), "needle in haystack")
 
@@ -343,16 +340,16 @@ defmodule JidoCode.Integration.SessionPhase3Test do
 
         assert output =~ "needle" or output =~ "searchable.txt",
                "Expected grep output to contain 'needle' or 'searchable.txt', got: #{inspect(output)}"
+      else
+        IO.puts("Skipping grep test - grep not available")
+        :ok
       end
     end
 
     @tag :requires_system_tools
     test "Shell handler uses session's project_root as cwd", %{tmp_base: tmp_base} do
       # Skip if ls is not available on this system
-      unless system_tool_available?("ls") do
-        IO.puts("Skipping shell test - ls not available")
-        :ok
-      else
+      if system_tool_available?("ls") do
         project_path = create_test_dir(tmp_base, "shell_test")
         File.write!(Path.join(project_path, "marker.txt"), "marker")
 
@@ -371,6 +368,9 @@ defmodule JidoCode.Integration.SessionPhase3Test do
 
         assert output =~ "marker.txt",
                "Expected ls output to contain 'marker.txt', got: #{inspect(output)}"
+      else
+        IO.puts("Skipping shell test - ls not available")
+        :ok
       end
     end
 

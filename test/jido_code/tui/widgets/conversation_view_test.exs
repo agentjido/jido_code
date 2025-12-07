@@ -1085,7 +1085,7 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
 
     test "renders truncation indicator for long messages" do
       # Create a message with many lines
-      long_content = Enum.map(1..20, fn i -> "Line #{i}" end) |> Enum.join("\n")
+      long_content = Enum.map_join(1..20, "\n", fn i -> "Line #{i}" end)
       messages = [make_message("1", :user, long_content)]
       state = init_state(messages: messages, max_collapsed_lines: 5)
       area = %{x: 0, y: 0, width: 80, height: 24}
@@ -1105,7 +1105,7 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
     end
 
     test "does not render truncation indicator for expanded messages" do
-      long_content = Enum.map(1..20, fn i -> "Line #{i}" end) |> Enum.join("\n")
+      long_content = Enum.map_join(1..20, "\n", fn i -> "Line #{i}" end)
       messages = [make_message("1", :user, long_content)]
       state = init_state(messages: messages, max_collapsed_lines: 5)
       state = ConversationView.toggle_expand(state, "1")

@@ -578,4 +578,70 @@ defmodule JidoCode.TUI.ModelTest do
       assert result.active_session_id == "s1"
     end
   end
+
+  describe "rename_session/3" do
+    test "renames session in sessions map" do
+      session1 = %JidoCode.Session{id: "s1", name: "old-name", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Model.rename_session(model, "s1", "new-name")
+
+      assert result.sessions["s1"].name == "new-name"
+    end
+
+    test "preserves other session properties" do
+      now = DateTime.utc_now()
+      session1 = %JidoCode.Session{id: "s1", name: "old-name", project_path: "/path/a", config: %{foo: "bar"}, created_at: now}
+
+      model = %Model{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Model.rename_session(model, "s1", "new-name")
+
+      assert result.sessions["s1"].id == "s1"
+      assert result.sessions["s1"].project_path == "/path/a"
+      assert result.sessions["s1"].config == %{foo: "bar"}
+      assert result.sessions["s1"].created_at == now
+    end
+
+    test "returns unchanged model for non-existent session" do
+      session1 = %JidoCode.Session{id: "s1", name: "project-a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Model.rename_session(model, "nonexistent", "new-name")
+
+      assert result == model
+    end
+
+    test "preserves other sessions when renaming one" do
+      session1 = %JidoCode.Session{id: "s1", name: "project-a", project_path: "/a", config: %{}, created_at: DateTime.utc_now()}
+      session2 = %JidoCode.Session{id: "s2", name: "project-b", project_path: "/b", config: %{}, created_at: DateTime.utc_now()}
+
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Model.rename_session(model, "s1", "renamed")
+
+      assert result.sessions["s1"].name == "renamed"
+      assert result.sessions["s2"].name == "project-b"
+      assert result.session_order == ["s1", "s2"]
+      assert result.active_session_id == "s1"
+    end
+  end
 end

@@ -501,9 +501,24 @@ defmodule JidoCode.Commands do
     end
   end
 
-  def execute_session({:rename, _name}, _model) do
-    # TODO: Implement in Task 5.6.1
-    {:error, "Not yet implemented: /session rename"}
+  @max_session_name_length 50
+
+  def execute_session({:rename, name}, model) do
+    active_id = Map.get(model, :active_session_id)
+
+    cond do
+      active_id == nil ->
+        {:error, "No active session to rename. Create a session first with /session new."}
+
+      true ->
+        case validate_session_name(name) do
+          :ok ->
+            {:session_action, {:rename_session, active_id, name}}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+    end
   end
 
   def execute_session({:error, :missing_name}, _model) do
@@ -513,6 +528,24 @@ defmodule JidoCode.Commands do
   def execute_session(_, _model) do
     execute_session(:help, nil)
   end
+
+  # Private helpers for session name validation
+  defp validate_session_name(name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    cond do
+      trimmed == "" ->
+        {:error, "Session name cannot be empty."}
+
+      String.length(trimmed) > @max_session_name_length ->
+        {:error, "Session name too long (max #{@max_session_name_length} characters)."}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_session_name(_), do: {:error, "Session name must be a string."}
 
   # Helper to create a new session via SessionSupervisor
   defp create_new_session(path, name) do

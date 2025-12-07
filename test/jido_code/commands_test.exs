@@ -1175,11 +1175,90 @@ defmodule JidoCode.CommandsTest do
       assert {:session_action, {:close_session, "s1", "project-alpha"}} = result
     end
 
-    test "{:rename, name} returns not implemented message" do
-      result = Commands.execute_session({:rename, "NewName"}, %{})
+    # Rename session tests
+    test "{:rename, name} renames active session" do
+      session1 = %{id: "s1", name: "old-name"}
 
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, "NewName"}, model)
+      assert {:session_action, {:rename_session, "s1", "NewName"}} = result
+    end
+
+    test "{:rename, name} with no active session returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:rename, "NewName"}, model)
       assert {:error, message} = result
-      assert message =~ "Not yet implemented"
+      assert message =~ "No active session to rename"
+    end
+
+    test "{:rename, name} with empty name returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, ""}, model)
+      assert {:error, message} = result
+      assert message =~ "cannot be empty"
+    end
+
+    test "{:rename, name} with whitespace-only name returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:rename, "   "}, model)
+      assert {:error, message} = result
+      assert message =~ "cannot be empty"
+    end
+
+    test "{:rename, name} with too-long name returns error" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      long_name = String.duplicate("a", 51)
+      result = Commands.execute_session({:rename, long_name}, model)
+      assert {:error, message} = result
+      assert message =~ "too long"
+      assert message =~ "50"
+    end
+
+    test "{:rename, name} accepts name at max length" do
+      session1 = %{id: "s1", name: "project-a"}
+
+      model = %{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      max_name = String.duplicate("a", 50)
+      result = Commands.execute_session({:rename, max_name}, model)
+      assert {:session_action, {:rename_session, "s1", ^max_name}} = result
     end
 
     test "parse_session_args returns error for switch without target" do

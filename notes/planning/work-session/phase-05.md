@@ -270,48 +270,39 @@ Address code review findings for Section 5.5.
 Implement the `/session rename` command.
 
 ### 5.6.1 Rename Handler
-- [ ] **Task 5.6.1**
+- [x] **Task 5.6.1** (completed 2025-12-06)
 
 Implement the handler for renaming sessions.
 
-- [ ] 5.6.1.1 Implement `execute_session({:rename, name}, model)`:
-  ```elixir
-  def execute_session({:rename, name}, model) do
-    session_id = model.active_session_id
+- [x] 5.6.1.1 Implement `execute_session({:rename, name}, model)` with validation
+- [x] 5.6.1.2 Validate new name (non-empty after trim, max 50 chars)
+- [x] 5.6.1.3 Add Model.rename_session/3 helper to update session in model
+- [x] 5.6.1.4 Add TUI handler for `{:rename_session, session_id, new_name}` action
+- [x] 5.6.1.5 Write unit tests for rename command (6 tests)
+- [x] 5.6.1.6 Write unit tests for Model.rename_session/3 (4 tests)
 
-    case Session.rename(model.sessions[session_id], name) do
-      {:ok, updated} ->
-        SessionRegistry.update(updated)
-        {:ok, "Renamed to: #{name}", {:update_session, updated}}
-      {:error, reason} ->
-        {:error, "Invalid name: #{reason}"}
-    end
-  end
-  ```
-- [ ] 5.6.1.2 Validate new name (non-empty, max 50 chars)
-- [ ] 5.6.1.3 Update session in registry
-- [ ] 5.6.1.4 Write unit tests for rename command
+Note: Simplified design - sessions are local to TUI model, no SessionRegistry update needed. Returns `{:session_action, {:rename_session, session_id, new_name}}` for TUI handling.
 
 ### 5.6.2 TUI Integration for Rename
-- [ ] **Task 5.6.2**
+- [x] **Task 5.6.2** (completed in Task 5.6.1)
 
-Handle `{:update_session, session}` action in TUI.
+Handle `{:rename_session, session_id, new_name}` action in TUI - implemented in Task 5.6.1.
 
-- [ ] 5.6.2.1 Update `update({:command_result, {:update_session, session}}, model)`:
-  ```elixir
-  def update({:command_result, {:update_session, session}}, model) do
-    %{model | sessions: Map.put(model.sessions, session.id, session)}
-  end
-  ```
-- [ ] 5.6.2.2 Tab label updates automatically on next render
-- [ ] 5.6.2.3 Write integration tests
+- [x] 5.6.2.1 Add handler in `handle_session_command/2` for rename action
+- [x] 5.6.2.2 Call Model.rename_session/3 to update session name
+- [x] 5.6.2.3 Tab label updates automatically on next render (uses session.name)
 
 **Unit Tests for Section 5.6:**
 - Test `/session rename NewName` renames active session
-- Test rename updates registry
+- Test rename fails for no active session
 - Test rename fails for empty name
+- Test rename fails for whitespace-only name
 - Test rename fails for too-long name
-- Test TUI updates session in model
+- Test rename accepts name at max length
+- Test Model.rename_session updates name
+- Test Model.rename_session preserves other properties
+- Test Model.rename_session handles non-existent session
+- Test Model.rename_session preserves other sessions
 
 ---
 

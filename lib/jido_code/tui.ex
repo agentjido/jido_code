@@ -427,6 +427,42 @@ defmodule JidoCode.TUI do
 
       %{model | sessions: new_sessions, session_order: new_order, active_session_id: new_active_id}
     end
+
+    @doc """
+    Renames a session in the model.
+
+    Updates the session's name in the sessions map.
+
+    ## Parameters
+      - model: The current model state
+      - session_id: The ID of the session to rename
+      - new_name: The new name for the session
+
+    ## Returns
+      The updated model with the renamed session.
+
+    ## Examples
+
+        iex> session = %{id: "s1", name: "old-name", project_path: "/path"}
+        iex> model = %Model{sessions: %{"s1" => session}, session_order: ["s1"], active_session_id: "s1"}
+        iex> model = Model.rename_session(model, "s1", "new-name")
+        iex> model.sessions["s1"].name
+        "new-name"
+    """
+    @spec rename_session(t(), String.t(), String.t()) :: t()
+    def rename_session(%__MODULE__{} = model, session_id, new_name) do
+      case Map.get(model.sessions, session_id) do
+        nil ->
+          # Session not found, return unchanged
+          model
+
+        session ->
+          # Update the session name
+          updated_session = Map.put(session, :name, new_name)
+          new_sessions = Map.put(model.sessions, session_id, updated_session)
+          %{model | sessions: new_sessions}
+      end
+    end
   end
 
   # ============================================================================
@@ -1114,6 +1150,11 @@ defmodule JidoCode.TUI do
 
       {:session_action, {:close_session, session_id, session_name}} ->
         final_state = do_close_session(state, session_id, session_name)
+        {final_state, []}
+
+      {:session_action, {:rename_session, session_id, new_name}} ->
+        new_state = Model.rename_session(state, session_id, new_name)
+        final_state = add_session_message(new_state, "Renamed session to: #{new_name}")
         {final_state, []}
 
       {:ok, message} ->

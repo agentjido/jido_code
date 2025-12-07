@@ -9,12 +9,12 @@ This phase implements session persistence, allowing sessions to be saved to disk
 Define the data structures and file formats for persisted sessions.
 
 ### 6.1.1 Persisted Session Schema
-- [ ] **Task 6.1.1**
+- [x] **Task 6.1.1**
 
 Define the schema for persisted session data.
 
-- [ ] 6.1.1.1 Create `lib/jido_code/session/persistence.ex` module
-- [ ] 6.1.1.2 Define `@type persisted_session()`:
+- [x] 6.1.1.1 Create `lib/jido_code/session/persistence.ex` module
+- [x] 6.1.1.2 Define `@type persisted_session()`:
   ```elixir
   @type persisted_session :: %{
     version: pos_integer(),        # Schema version for migrations
@@ -29,7 +29,7 @@ Define the schema for persisted session data.
     todos: [persisted_todo()]
   }
   ```
-- [ ] 6.1.1.3 Define `@type persisted_message()`:
+- [x] 6.1.1.3 Define `@type persisted_message()`:
   ```elixir
   @type persisted_message :: %{
     id: String.t(),
@@ -38,7 +38,7 @@ Define the schema for persisted session data.
     timestamp: String.t()
   }
   ```
-- [ ] 6.1.1.4 Define `@type persisted_todo()`:
+- [x] 6.1.1.4 Define `@type persisted_todo()`:
   ```elixir
   @type persisted_todo :: %{
     content: String.t(),
@@ -46,8 +46,8 @@ Define the schema for persisted session data.
     active_form: String.t()
   }
   ```
-- [ ] 6.1.1.5 Document schema version for future migrations
-- [ ] 6.1.1.6 Write unit tests for schema types
+- [x] 6.1.1.5 Document schema version for future migrations
+- [x] 6.1.1.6 Write unit tests for schema types
 
 ### 6.1.2 Storage Location
 - [ ] **Task 6.1.2**

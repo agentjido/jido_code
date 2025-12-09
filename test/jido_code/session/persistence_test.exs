@@ -448,34 +448,111 @@ defmodule JidoCode.Session.PersistenceTest do
 
   describe "session_file/1" do
     test "returns path with .json extension" do
-      path = Persistence.session_file("test-123")
+      path = Persistence.session_file(test_uuid(0))
 
       assert String.ends_with?(path, ".json")
     end
 
     test "includes session_id in filename" do
-      path = Persistence.session_file("my-session-id")
+      session_id = test_uuid(1)
+      path = Persistence.session_file(session_id)
 
-      assert String.ends_with?(path, "my-session-id.json")
+      assert String.ends_with?(path, "#{session_id}.json")
     end
 
     test "returns path under sessions directory" do
-      path = Persistence.session_file("test")
+      # Use a valid UUID v4
+      path = Persistence.session_file("550e8400-e29b-41d4-a716-446655440000")
       sessions_dir = Persistence.sessions_dir()
 
       assert String.starts_with?(path, sessions_dir)
     end
 
     test "returns absolute path" do
-      path = Persistence.session_file("test")
+      # Use a valid UUID v4
+      path = Persistence.session_file("550e8400-e29b-41d4-a716-446655440000")
 
       assert Path.type(path) == :absolute
     end
 
-    test "handles session IDs with special characters" do
-      path = Persistence.session_file("test-123_abc")
+    test "uses session ID in filename" do
+      # Use a valid UUID v4
+      session_id = "550e8400-e29b-41d4-a716-446655440000"
+      path = Persistence.session_file(session_id)
 
-      assert String.ends_with?(path, "test-123_abc.json")
+      assert String.ends_with?(path, "#{session_id}.json")
+    end
+  end
+
+  describe "Security: Path Traversal Protection" do
+    test "rejects session IDs with path traversal attempts" do
+      assert_raise ArgumentError, fn ->
+        Persistence.session_file("../../../etc/passwd")
+      end
+    end
+
+    test "rejects session IDs with absolute paths" do
+      assert_raise ArgumentError, fn ->
+        Persistence.session_file("/tmp/malicious")
+      end
+    end
+
+    test "rejects session IDs that are not UUID v4 format" do
+      assert_raise ArgumentError, fn ->
+        Persistence.session_file("not-a-uuid")
+      end
+    end
+
+    test "rejects session IDs with invalid UUID versions" do
+      # UUID v1 format (not v4)
+      assert_raise ArgumentError, fn ->
+        Persistence.session_file("550e8400-e29b-11d4-a716-446655440000")
+      end
+    end
+
+    test "accepts valid UUID v4 session IDs" do
+      # Valid UUID v4
+      path = Persistence.session_file("550e8400-e29b-41d4-a716-446655440000")
+      assert String.ends_with?(path, "550e8400-e29b-41d4-a716-446655440000.json")
+    end
+
+    test "rejects empty session IDs" do
+      assert_raise ArgumentError, fn ->
+        Persistence.session_file("")
+      end
+    end
+
+    test "rejects session IDs with null bytes" do
+      assert_raise ArgumentError, fn ->
+        Persistence.session_file("test\0malicious")
+      end
+    end
+  end
+
+  describe "Security: File Size Limits" do
+    test "skips files larger than max size" do
+      # Create a large file (11MB, over the 10MB limit) directly in sessions dir
+      large_id = test_uuid(0)
+      large_file = Path.join(Persistence.sessions_dir(), "#{large_id}.json")
+      large_content = String.duplicate("x", 11 * 1024 * 1024)
+      File.write!(large_file, large_content)
+
+      on_exit(fn -> File.rm(large_file) end)
+
+      # Should skip the large file
+      result = Persistence.list_persisted()
+      # Should not include the large file
+      refute Enum.any?(result, &(&1.id == large_id))
+    end
+
+    test "accepts files under max size" do
+      # Create a valid session file under 10MB
+      session = create_test_session(test_uuid(0), "Test", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file(test_uuid(0), session)
+
+      # Should successfully load the file
+      result = Persistence.list_persisted()
+      assert Enum.any?(result, &(&1.id == test_uuid(0)))
     end
   end
 
@@ -526,7 +603,7 @@ defmodule JidoCode.Session.PersistenceTest do
       result = Persistence.build_persisted_session(state)
 
       assert result.version == Persistence.schema_version()
-      assert result.id == "test-session-id"
+      assert result.id == test_uuid(5)
       assert result.name == "Test Session"
       assert result.project_path == "/tmp/test-project"
       assert is_binary(result.created_at)
@@ -617,8 +694,8 @@ defmodule JidoCode.Session.PersistenceTest do
 
   describe "write_session_file/2" do
     setup do
-      # Create a unique temp directory for testing
-      test_id = "test-write-#{System.unique_integer([:positive])}"
+      # Use a deterministic UUID for testing
+      test_id = test_uuid(System.unique_integer([:positive]))
 
       on_exit(fn ->
         # Clean up any test files
@@ -720,7 +797,7 @@ defmodule JidoCode.Session.PersistenceTest do
       # Create two session files
       session1 = %{
         version: 1,
-        id: "session-1",
+        id: test_uuid(1),
         name: "First Session",
         project_path: "/tmp/proj1",
         config: %{},
@@ -733,7 +810,7 @@ defmodule JidoCode.Session.PersistenceTest do
 
       session2 = %{
         version: 1,
-        id: "session-2",
+        id: test_uuid(2),
         name: "Second Session",
         project_path: "/tmp/proj2",
         config: %{},
@@ -744,42 +821,42 @@ defmodule JidoCode.Session.PersistenceTest do
         todos: []
       }
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
 
       result = Persistence.list_persisted()
 
       assert length(result) == 2
-      assert Enum.any?(result, &(&1.id == "session-1"))
-      assert Enum.any?(result, &(&1.id == "session-2"))
+      assert Enum.any?(result, &(&1.id == test_uuid(1)))
+      assert Enum.any?(result, &(&1.id == test_uuid(2)))
     end
 
     test "returns sessions sorted by closed_at (most recent first)" do
       # Create three sessions with different closed_at times
-      session1 = create_test_session("session-1", "Session 1", "2024-01-01T00:00:00Z")
-      session2 = create_test_session("session-2", "Session 2", "2024-01-03T00:00:00Z")
-      session3 = create_test_session("session-3", "Session 3", "2024-01-02T00:00:00Z")
+      session1 = create_test_session(test_uuid(1), "Session 1", "2024-01-01T00:00:00Z")
+      session2 = create_test_session(test_uuid(2), "Session 2", "2024-01-03T00:00:00Z")
+      session3 = create_test_session(test_uuid(3), "Session 3", "2024-01-02T00:00:00Z")
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
-      :ok = Persistence.write_session_file("session-3", session3)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
+      :ok = Persistence.write_session_file(test_uuid(3), session3)
 
       result = Persistence.list_persisted()
 
       assert length(result) == 3
       # Most recent should be first
-      assert Enum.at(result, 0).id == "session-2"
-      assert Enum.at(result, 1).id == "session-3"
-      assert Enum.at(result, 2).id == "session-1"
+      assert Enum.at(result, 0).id == test_uuid(2)
+      assert Enum.at(result, 1).id == test_uuid(3)
+      assert Enum.at(result, 2).id == test_uuid(1)
     end
 
     test "includes required metadata fields" do
-      session = create_test_session("test-session", "Test Session", "2024-01-01T00:00:00Z")
-      :ok = Persistence.write_session_file("test-session", session)
+      session = create_test_session(test_uuid(5), "Test Session", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file(test_uuid(5), session)
 
       [result] = Persistence.list_persisted()
 
-      assert result.id == "test-session"
+      assert result.id == test_uuid(5)
       assert result.name == "Test Session"
       assert result.project_path == "/tmp/test-project"
       assert result.closed_at == "2024-01-01T00:00:00Z"
@@ -787,23 +864,24 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "handles corrupted JSON files gracefully" do
       # Create a valid session
-      session = create_test_session("valid-session", "Valid", "2024-01-01T00:00:00Z")
-      :ok = Persistence.write_session_file("valid-session", session)
+      session = create_test_session(test_uuid(4), "Valid", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file(test_uuid(4), session)
 
-      # Create a corrupted JSON file
-      corrupted_path = Persistence.session_file("corrupted-session")
+      # Create a corrupted JSON file directly in sessions dir
+      corrupted_id = test_uuid(3)
+      corrupted_path = Path.join(Persistence.sessions_dir(), "#{corrupted_id}.json")
       File.write!(corrupted_path, "{invalid json")
 
       result = Persistence.list_persisted()
 
       # Should only return the valid session
       assert length(result) == 1
-      assert List.first(result).id == "valid-session"
+      assert List.first(result).id == test_uuid(4)
     end
 
     test "ignores non-JSON files in sessions directory" do
-      session = create_test_session("test-session", "Test", "2024-01-01T00:00:00Z")
-      :ok = Persistence.write_session_file("test-session", session)
+      session = create_test_session(test_uuid(5), "Test", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file(test_uuid(5), session)
 
       # Create a non-JSON file
       non_json_path = Path.join(Persistence.sessions_dir(), "readme.txt")
@@ -812,7 +890,7 @@ defmodule JidoCode.Session.PersistenceTest do
       result = Persistence.list_persisted()
 
       assert length(result) == 1
-      assert List.first(result).id == "test-session"
+      assert List.first(result).id == test_uuid(5)
     end
 
     test "handles missing sessions directory" do
@@ -851,27 +929,27 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "returns all persisted sessions when no active sessions" do
       # Create two persisted sessions
-      session1 = create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
-      session2 = create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+      session1 = create_test_session(test_uuid(1), "Session 1", "2024-01-02T00:00:00Z")
+      session2 = create_test_session(test_uuid(2), "Session 2", "2024-01-01T00:00:00Z")
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
 
       result = Persistence.list_resumable()
 
       assert length(result) == 2
       # Should be sorted by closed_at (most recent first)
-      assert Enum.at(result, 0).id == "session-1"
-      assert Enum.at(result, 1).id == "session-2"
+      assert Enum.at(result, 0).id == test_uuid(1)
+      assert Enum.at(result, 1).id == test_uuid(2)
     end
 
     test "excludes session with matching active ID" do
       # Create two persisted sessions
-      session1 = create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
-      session2 = create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+      session1 = create_test_session(test_uuid(1), "Session 1", "2024-01-02T00:00:00Z")
+      session2 = create_test_session(test_uuid(2), "Session 2", "2024-01-01T00:00:00Z")
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
 
       # Create temporary directory for active session
       tmp_dir = System.tmp_dir!() |> Path.join("active-session-#{:rand.uniform(1000)}")
@@ -879,16 +957,16 @@ defmodule JidoCode.Session.PersistenceTest do
 
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
-      # Register session-1 as active (need to manually set ID since Session.new generates one)
+      # Register test_uuid(1) as active (need to manually set ID since Session.new generates one)
       {:ok, active_session} = Session.new(project_path: tmp_dir)
-      active_session_with_id = %{active_session | id: "session-1"}
+      active_session_with_id = %{active_session | id: test_uuid(1)}
       {:ok, _} = SessionRegistry.register(active_session_with_id)
 
       result = Persistence.list_resumable()
 
-      # Should only return session-2
+      # Should only return test_uuid(2)
       assert length(result) == 1
-      assert List.first(result).id == "session-2"
+      assert List.first(result).id == test_uuid(2)
     end
 
     test "excludes session with matching active project_path" do
@@ -905,19 +983,19 @@ defmodule JidoCode.Session.PersistenceTest do
 
       # Create two persisted sessions with different project paths
       session1 = %{
-        create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
+        create_test_session(test_uuid(1), "Session 1", "2024-01-02T00:00:00Z")
         | project_path: tmp_dir_a
       }
 
       session2 = %{
-        create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+        create_test_session(test_uuid(2), "Session 2", "2024-01-01T00:00:00Z")
         | project_path: tmp_dir_b
       }
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
 
-      # Register a different session ID but with same project_path as session-1
+      # Register a different session ID but with same project_path as test_uuid(1)
       {:ok, active_session} =
         Session.new(id: "different-id", project_path: tmp_dir_a)
 
@@ -925,18 +1003,18 @@ defmodule JidoCode.Session.PersistenceTest do
 
       result = Persistence.list_resumable()
 
-      # Should only return session-2 (session-1 excluded due to matching project_path)
+      # Should only return test_uuid(2) (test_uuid(1) excluded due to matching project_path)
       assert length(result) == 1
-      assert List.first(result).id == "session-2"
+      assert List.first(result).id == test_uuid(2)
       assert List.first(result).project_path == tmp_dir_b
     end
 
     test "excludes session matching both ID and project_path" do
-      session1 = create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
-      session2 = create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+      session1 = create_test_session(test_uuid(1), "Session 1", "2024-01-02T00:00:00Z")
+      session2 = create_test_session(test_uuid(2), "Session 2", "2024-01-01T00:00:00Z")
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
 
       # Create temporary directory
       tmp_dir = System.tmp_dir!() |> Path.join("active-session-#{:rand.uniform(1000)}")
@@ -945,14 +1023,14 @@ defmodule JidoCode.Session.PersistenceTest do
 
       # Register session with same ID (project_path will be different but that's ok)
       {:ok, active_session} = Session.new(project_path: tmp_dir)
-      active_session_with_id = %{active_session | id: "session-1"}
+      active_session_with_id = %{active_session | id: test_uuid(1)}
       {:ok, _} = SessionRegistry.register(active_session_with_id)
 
       result = Persistence.list_resumable()
 
-      # Should only return session-2 (excluded by matching ID)
+      # Should only return test_uuid(2) (excluded by matching ID)
       assert length(result) == 1
-      assert List.first(result).id == "session-2"
+      assert List.first(result).id == test_uuid(2)
     end
 
     test "handles multiple active sessions" do
@@ -976,27 +1054,27 @@ defmodule JidoCode.Session.PersistenceTest do
 
       # Create three persisted sessions
       session1 = %{
-        create_test_session("session-1", "Session 1", "2024-01-03T00:00:00Z")
+        create_test_session(test_uuid(1), "Session 1", "2024-01-03T00:00:00Z")
         | project_path: tmp_dir1
       }
 
       session2 = %{
-        create_test_session("session-2", "Session 2", "2024-01-02T00:00:00Z")
+        create_test_session(test_uuid(2), "Session 2", "2024-01-02T00:00:00Z")
         | project_path: tmp_dir2
       }
 
       session3 = %{
-        create_test_session("session-3", "Session 3", "2024-01-01T00:00:00Z")
+        create_test_session(test_uuid(3), "Session 3", "2024-01-01T00:00:00Z")
         | project_path: tmp_dir3
       }
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
-      :ok = Persistence.write_session_file("session-3", session3)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
+      :ok = Persistence.write_session_file(test_uuid(3), session3)
 
       # Register two active sessions - one matches ID, one matches project_path
       {:ok, active1} = Session.new(project_path: tmp_dir4)
-      active1_with_id = %{active1 | id: "session-1"}  # Matches session1 by ID
+      active1_with_id = %{active1 | id: test_uuid(1)}  # Matches session1 by ID
 
       {:ok, active2} = Session.new(project_path: tmp_dir3)  # Matches session3 by project_path
 
@@ -1005,14 +1083,14 @@ defmodule JidoCode.Session.PersistenceTest do
 
       result = Persistence.list_resumable()
 
-      # Should only return session-2 (session-1 excluded by ID, session-3 excluded by path)
+      # Should only return test_uuid(2) (test_uuid(1) excluded by ID, test_uuid(3) excluded by path)
       assert length(result) == 1
-      assert List.first(result).id == "session-2"
+      assert List.first(result).id == test_uuid(2)
     end
 
     test "returns empty list when all persisted sessions are active" do
-      session1 = create_test_session("session-1", "Session 1", "2024-01-01T00:00:00Z")
-      :ok = Persistence.write_session_file("session-1", session1)
+      session1 = create_test_session(test_uuid(1), "Session 1", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
 
       # Create temporary directory
       tmp_dir = System.tmp_dir!() |> Path.join("active-session-#{:rand.uniform(1000)}")
@@ -1020,7 +1098,7 @@ defmodule JidoCode.Session.PersistenceTest do
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       {:ok, active_session} = Session.new(project_path: tmp_dir)
-      active_session_with_id = %{active_session | id: "session-1"}
+      active_session_with_id = %{active_session | id: test_uuid(1)}
       {:ok, _} = SessionRegistry.register(active_session_with_id)
 
       result = Persistence.list_resumable()
@@ -1031,31 +1109,31 @@ defmodule JidoCode.Session.PersistenceTest do
     test "preserves sort order by closed_at" do
       # Create sessions with different closed_at times
       session1 = %{
-        create_test_session("session-1", "Session 1", "2024-01-01T00:00:00Z")
+        create_test_session(test_uuid(1), "Session 1", "2024-01-01T00:00:00Z")
         | project_path: "/tmp/proj-1"
       }
 
       session2 = %{
-        create_test_session("session-2", "Session 2", "2024-01-03T00:00:00Z")
+        create_test_session(test_uuid(2), "Session 2", "2024-01-03T00:00:00Z")
         | project_path: "/tmp/proj-2"
       }
 
       session3 = %{
-        create_test_session("session-3", "Session 3", "2024-01-02T00:00:00Z")
+        create_test_session(test_uuid(3), "Session 3", "2024-01-02T00:00:00Z")
         | project_path: "/tmp/proj-3"
       }
 
-      :ok = Persistence.write_session_file("session-1", session1)
-      :ok = Persistence.write_session_file("session-2", session2)
-      :ok = Persistence.write_session_file("session-3", session3)
+      :ok = Persistence.write_session_file(test_uuid(1), session1)
+      :ok = Persistence.write_session_file(test_uuid(2), session2)
+      :ok = Persistence.write_session_file(test_uuid(3), session3)
 
       result = Persistence.list_resumable()
 
       # Should be sorted by closed_at (most recent first)
       assert length(result) == 3
-      assert Enum.at(result, 0).id == "session-2"
-      assert Enum.at(result, 1).id == "session-3"
-      assert Enum.at(result, 2).id == "session-1"
+      assert Enum.at(result, 0).id == test_uuid(2)
+      assert Enum.at(result, 1).id == test_uuid(3)
+      assert Enum.at(result, 2).id == test_uuid(1)
     end
   end
 
@@ -1093,7 +1171,7 @@ defmodule JidoCode.Session.PersistenceTest do
   defp mock_session_state do
     %{
       session: %{
-        id: "test-session-id",
+        id: test_uuid(5),
         name: "Test Session",
         project_path: "/tmp/test-project",
         config: %{provider: :anthropic, model: "test-model", temperature: 0.7},
@@ -1105,10 +1183,26 @@ defmodule JidoCode.Session.PersistenceTest do
     }
   end
 
+  # Generate a valid UUID v4 for testing
+  # Uses a deterministic UUID based on index for reproducible tests
+  # All UUIDs are valid v4 format (4 in version position, 8-b in variant position)
+  defp test_uuid(index \\ 0) do
+    base_uuids = [
+      "550e8400-e29b-41d4-a716-446655440000",
+      "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+      "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "123e4567-e89b-42d3-a456-426614174000",
+      "987fbc97-4bed-4078-9f07-9141ba07c9f3",
+      "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"
+    ]
+
+    Enum.at(base_uuids, rem(index, length(base_uuids)))
+  end
+
   defp valid_session do
     %{
       version: 1,
-      id: "test-123",
+      id: test_uuid(0),
       name: "Test Session",
       project_path: "/path/to/project",
       config: %{provider: :anthropic, model: "claude-3"},

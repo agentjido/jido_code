@@ -1,4 +1,6 @@
 defmodule JidoCode.Session.Persistence do
+  require Logger
+
   @moduledoc """
   Session persistence schema and utilities.
 
@@ -45,6 +47,10 @@ defmodule JidoCode.Session.Persistence do
   # Increment this when making breaking changes to the persistence format.
   # The `deserialize_session/1` function should handle migration from older versions.
   @schema_version 1
+
+  # Maximum file size for session files (10MB)
+  # Files larger than this will be skipped to prevent DoS attacks
+  @max_session_file_size 10 * 1024 * 1024
 
   @doc """
   Returns the current schema version.
@@ -346,14 +352,40 @@ defmodule JidoCode.Session.Persistence do
 
   Session files are named `{session_id}.json` within the sessions directory.
 
+  Validates the session ID to prevent path traversal attacks. Session IDs
+  must be valid UUID v4 format.
+
+  ## Parameters
+
+  - `session_id` - The session's unique identifier (must be UUID v4 format)
+
+  ## Returns
+
+  The absolute path to the session file, or raises ArgumentError if the
+  session ID is invalid.
+
   ## Examples
 
-      iex> Persistence.session_file("abc123")
-      "/home/user/.jido_code/sessions/abc123.json"
+      iex> Persistence.session_file("550e8400-e29b-41d4-a716-446655440000")
+      "/home/user/.jido_code/sessions/550e8400-e29b-41d4-a716-446655440000.json"
+
+  ## Security
+
+  Session IDs are validated against UUID v4 format to prevent path traversal
+  attacks. Invalid IDs will raise ArgumentError.
   """
   @spec session_file(String.t()) :: String.t()
   def session_file(session_id) when is_binary(session_id) do
-    Path.join(sessions_dir(), "#{session_id}.json")
+    unless valid_session_id?(session_id) do
+      raise ArgumentError, """
+      Invalid session ID format: #{inspect(session_id)}
+      Session IDs must be valid UUID v4 format.
+      """
+    end
+
+    # Additional sanitization as defense-in-depth
+    sanitized_id = sanitize_session_id(session_id)
+    Path.join(sessions_dir(), "#{sanitized_id}.json")
   end
 
   @doc """
@@ -506,8 +538,9 @@ defmodule JidoCode.Session.Persistence do
         # Sessions directory doesn't exist yet - return empty list
         []
 
-      {:error, _} ->
-        # Other errors (permissions, etc.) - return empty list
+      {:error, reason} ->
+        # Log other errors (permissions, etc.) for visibility
+        Logger.warning("Failed to list sessions directory: #{inspect(reason)}")
         []
     end
   end
@@ -538,12 +571,10 @@ defmodule JidoCode.Session.Persistence do
   def list_resumable do
     alias JidoCode.SessionRegistry
 
-    # Get active session IDs and project paths
-    active_ids = SessionRegistry.list_ids()
-
-    active_paths =
-      SessionRegistry.list_all()
-      |> Enum.map(& &1.project_path)
+    # Get active sessions once and extract both IDs and paths
+    active_sessions = SessionRegistry.list_all()
+    active_ids = Enum.map(active_sessions, & &1.id)
+    active_paths = Enum.map(active_sessions, & &1.project_path)
 
     # Filter out persisted sessions that conflict with active ones
     list_persisted()
@@ -553,11 +584,13 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # Loads minimal session metadata from a JSON file.
-  # Returns nil if the file is corrupted or cannot be read.
+  # Returns nil if the file is corrupted, too large, or cannot be read.
   defp load_session_metadata(filename) do
     path = Path.join(sessions_dir(), filename)
 
-    with {:ok, content} <- File.read(path),
+    with {:ok, %{size: size}} <- File.stat(path),
+         :ok <- validate_file_size(size, filename),
+         {:ok, content} <- File.read(path),
          {:ok, data} <- Jason.decode(content) do
       # Convert string keys to atoms for the fields we need
       %{
@@ -567,7 +600,15 @@ defmodule JidoCode.Session.Persistence do
         closed_at: Map.get(data, "closed_at")
       }
     else
-      _ -> nil
+      {:error, :file_too_large} ->
+        nil
+
+      {:error, reason} when reason != :enoent ->
+        Logger.warning("Failed to read session file #{filename}: #{inspect(reason)}")
+        nil
+
+      _ ->
+        nil
     end
   end
 
@@ -586,6 +627,37 @@ defmodule JidoCode.Session.Persistence do
   # ============================================================================
   # Private Helpers
   # ============================================================================
+
+  # Validates session ID format (UUID v4)
+  # Returns true if the ID matches UUID v4 format, false otherwise
+  defp valid_session_id?(id) when is_binary(id) do
+    # UUID v4 format: 8-4-4-4-12 hexadecimal characters
+    # Version 4 has '4' in the version position and [89ab] in variant position
+    Regex.match?(
+      ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      id
+    )
+  end
+
+  defp valid_session_id?(_), do: false
+
+  # Sanitizes session ID by removing any non-UUID characters
+  # This is defense-in-depth after validation
+  defp sanitize_session_id(id) do
+    String.replace(id, ~r/[^a-zA-Z0-9\-]/, "")
+  end
+
+  # Validates file size to prevent DoS attacks
+  # Returns :ok if size is within limits, {:error, :file_too_large} otherwise
+  defp validate_file_size(size, filename) when size > @max_session_file_size do
+    Logger.warning(
+      "Session file #{filename} exceeds maximum size (#{size} bytes > #{@max_session_file_size} bytes)"
+    )
+
+    {:error, :file_too_large}
+  end
+
+  defp validate_file_size(_size, _filename), do: :ok
 
   # Serialize a message to the persisted format
   defp serialize_message(msg) do
@@ -629,12 +701,49 @@ defmodule JidoCode.Session.Persistence do
   defp format_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
 
   # Normalize map keys from strings to atoms for validation
+  # Only converts keys that correspond to known fields (session, message, todo)
   defp normalize_keys(map) when is_map(map) do
-    Map.new(map, fn
-      {key, value} when is_binary(key) -> {String.to_existing_atom(key), value}
-      {key, value} -> {key, value}
-    end)
-  rescue
-    ArgumentError -> map
+    # Known fields that should be normalized
+    # Includes session, message, and todo fields
+    known_fields = [
+      # Session fields
+      "version",
+      "id",
+      "name",
+      "project_path",
+      "config",
+      "created_at",
+      "updated_at",
+      "closed_at",
+      "conversation",
+      "todos",
+      # Message fields
+      "role",
+      "content",
+      "timestamp",
+      # Task list fields
+      "status",
+      "active_form"
+    ]
+
+    {normalized, unknown} =
+      Enum.reduce(map, {%{}, []}, fn
+        {key, value}, {acc, unknown_keys} when is_binary(key) ->
+          if key in known_fields do
+            {Map.put(acc, String.to_atom(key), value), unknown_keys}
+          else
+            {acc, [key | unknown_keys]}
+          end
+
+        {key, value}, {acc, unknown_keys} ->
+          {Map.put(acc, key, value), unknown_keys}
+      end)
+
+    # Log unknown keys for visibility (but don't warn for empty unknown list)
+    if unknown != [] do
+      Logger.warning("Unknown keys encountered and skipped: #{inspect(unknown)}")
+    end
+
+    normalized
   end
 end

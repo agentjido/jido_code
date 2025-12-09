@@ -698,9 +698,162 @@ defmodule JidoCode.Session.PersistenceTest do
     end
   end
 
+  describe "list_persisted/0" do
+    setup do
+      # Ensure sessions directory exists and is clean
+      :ok = Persistence.ensure_sessions_dir()
+      cleanup_session_files()
+
+      on_exit(fn -> cleanup_session_files() end)
+      :ok
+    end
+
+    test "returns empty list when no sessions exist" do
+      result = Persistence.list_persisted()
+
+      assert result == []
+    end
+
+    test "returns list of persisted sessions" do
+      # Create two session files
+      session1 = %{
+        version: 1,
+        id: "session-1",
+        name: "First Session",
+        project_path: "/tmp/proj1",
+        config: %{},
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        closed_at: "2024-01-01T12:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      session2 = %{
+        version: 1,
+        id: "session-2",
+        name: "Second Session",
+        project_path: "/tmp/proj2",
+        config: %{},
+        created_at: "2024-01-02T00:00:00Z",
+        updated_at: "2024-01-02T00:00:00Z",
+        closed_at: "2024-01-02T12:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+
+      result = Persistence.list_persisted()
+
+      assert length(result) == 2
+      assert Enum.any?(result, &(&1.id == "session-1"))
+      assert Enum.any?(result, &(&1.id == "session-2"))
+    end
+
+    test "returns sessions sorted by closed_at (most recent first)" do
+      # Create three sessions with different closed_at times
+      session1 = create_test_session("session-1", "Session 1", "2024-01-01T00:00:00Z")
+      session2 = create_test_session("session-2", "Session 2", "2024-01-03T00:00:00Z")
+      session3 = create_test_session("session-3", "Session 3", "2024-01-02T00:00:00Z")
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file("session-3", session3)
+
+      result = Persistence.list_persisted()
+
+      assert length(result) == 3
+      # Most recent should be first
+      assert Enum.at(result, 0).id == "session-2"
+      assert Enum.at(result, 1).id == "session-3"
+      assert Enum.at(result, 2).id == "session-1"
+    end
+
+    test "includes required metadata fields" do
+      session = create_test_session("test-session", "Test Session", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file("test-session", session)
+
+      [result] = Persistence.list_persisted()
+
+      assert result.id == "test-session"
+      assert result.name == "Test Session"
+      assert result.project_path == "/tmp/test-project"
+      assert result.closed_at == "2024-01-01T00:00:00Z"
+    end
+
+    test "handles corrupted JSON files gracefully" do
+      # Create a valid session
+      session = create_test_session("valid-session", "Valid", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file("valid-session", session)
+
+      # Create a corrupted JSON file
+      corrupted_path = Persistence.session_file("corrupted-session")
+      File.write!(corrupted_path, "{invalid json")
+
+      result = Persistence.list_persisted()
+
+      # Should only return the valid session
+      assert length(result) == 1
+      assert List.first(result).id == "valid-session"
+    end
+
+    test "ignores non-JSON files in sessions directory" do
+      session = create_test_session("test-session", "Test", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file("test-session", session)
+
+      # Create a non-JSON file
+      non_json_path = Path.join(Persistence.sessions_dir(), "readme.txt")
+      File.write!(non_json_path, "This is not a session file")
+
+      result = Persistence.list_persisted()
+
+      assert length(result) == 1
+      assert List.first(result).id == "test-session"
+    end
+
+    test "handles missing sessions directory" do
+      # Remove sessions directory
+      sessions_dir = Persistence.sessions_dir()
+      File.rm_rf!(sessions_dir)
+
+      result = Persistence.list_persisted()
+
+      assert result == []
+    end
+  end
+
   # ============================================================================
   # Test Helpers
   # ============================================================================
+
+  defp cleanup_session_files do
+    sessions_dir = Persistence.sessions_dir()
+
+    if File.dir?(sessions_dir) do
+      File.ls!(sessions_dir)
+      |> Enum.each(fn file ->
+        path = Path.join(sessions_dir, file)
+        File.rm(path)
+      end)
+    end
+  end
+
+  defp create_test_session(id, name, closed_at) do
+    %{
+      version: 1,
+      id: id,
+      name: name,
+      project_path: "/tmp/test-project",
+      config: %{},
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      closed_at: closed_at,
+      conversation: [],
+      todos: []
+    }
+  end
 
   defp mock_session_state do
     %{

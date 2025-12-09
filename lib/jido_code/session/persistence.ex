@@ -465,6 +465,85 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # ============================================================================
+  # Session Listing
+  # ============================================================================
+
+  @doc """
+  Lists all persisted sessions from the sessions directory.
+
+  Returns session metadata (id, name, project_path, closed_at) sorted by
+  closed_at with most recent first. Corrupted files are skipped gracefully.
+
+  ## Returns
+
+  A list of maps with session metadata:
+  - `id` - Session identifier
+  - `name` - Session name
+  - `project_path` - Project path
+  - `closed_at` - ISO 8601 timestamp when session was closed
+
+  ## Examples
+
+      iex> Persistence.list_persisted()
+      [
+        %{id: "abc", name: "Session 1", project_path: "/path/1", closed_at: "2024-01-02T00:00:00Z"},
+        %{id: "def", name: "Session 2", project_path: "/path/2", closed_at: "2024-01-01T00:00:00Z"}
+      ]
+  """
+  @spec list_persisted() :: [map()]
+  def list_persisted do
+    dir = sessions_dir()
+
+    case File.ls(dir) do
+      {:ok, files} ->
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".json"))
+        |> Enum.map(&load_session_metadata/1)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.sort_by(&parse_datetime(&1.closed_at), {:desc, DateTime})
+
+      {:error, :enoent} ->
+        # Sessions directory doesn't exist yet - return empty list
+        []
+
+      {:error, _} ->
+        # Other errors (permissions, etc.) - return empty list
+        []
+    end
+  end
+
+  # Loads minimal session metadata from a JSON file.
+  # Returns nil if the file is corrupted or cannot be read.
+  defp load_session_metadata(filename) do
+    path = Path.join(sessions_dir(), filename)
+
+    with {:ok, content} <- File.read(path),
+         {:ok, data} <- Jason.decode(content) do
+      # Convert string keys to atoms for the fields we need
+      %{
+        id: Map.get(data, "id"),
+        name: Map.get(data, "name"),
+        project_path: Map.get(data, "project_path"),
+        closed_at: Map.get(data, "closed_at")
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  # Parse ISO 8601 datetime string, returning a default old date on error
+  defp parse_datetime(nil), do: ~U[1970-01-01 00:00:00Z]
+
+  defp parse_datetime(iso_string) when is_binary(iso_string) do
+    case DateTime.from_iso8601(iso_string) do
+      {:ok, dt, _} -> dt
+      {:error, _} -> ~U[1970-01-01 00:00:00Z]
+    end
+  end
+
+  defp parse_datetime(_), do: ~U[1970-01-01 00:00:00Z]
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 

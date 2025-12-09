@@ -163,11 +163,11 @@ Implement `/session save` command (optional).
 Implement listing persisted sessions for resume.
 
 ### 6.3.1 List Persisted Sessions
-- [ ] **Task 6.3.1**
+- [x] **Task 6.3.1**
 
 Implement listing all persisted sessions.
 
-- [ ] 6.3.1.1 Implement `list_persisted/0`:
+- [x] 6.3.1.1 Implement `list_persisted/0`:
   ```elixir
   def list_persisted do
     sessions_dir()
@@ -178,7 +178,7 @@ Implement listing all persisted sessions.
     |> Enum.sort_by(& &1.closed_at, {:desc, DateTime})
   end
   ```
-- [ ] 6.3.1.2 Implement `load_session_metadata/1` (load minimal info):
+- [x] 6.3.1.2 Implement `load_session_metadata/1` (load minimal info):
   ```elixir
   defp load_session_metadata(filename) do
     path = Path.join(sessions_dir(), filename)
@@ -190,9 +190,9 @@ Implement listing all persisted sessions.
     end
   end
   ```
-- [ ] 6.3.1.3 Sort by closed_at (most recent first)
-- [ ] 6.3.1.4 Handle corrupted files gracefully
-- [ ] 6.3.1.5 Write unit tests for listing
+- [x] 6.3.1.3 Sort by closed_at (most recent first)
+- [x] 6.3.1.4 Handle corrupted files gracefully
+- [x] 6.3.1.5 Write unit tests for listing
 
 ### 6.3.2 Filter Active Sessions
 - [ ] **Task 6.3.2**

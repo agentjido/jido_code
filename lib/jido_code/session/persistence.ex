@@ -583,6 +583,108 @@ defmodule JidoCode.Session.Persistence do
     end)
   end
 
+  @doc """
+  Loads a persisted session from disk.
+
+  Reads the JSON file for the given session ID, parses it, and deserializes
+  it into properly typed Elixir data structures.
+
+  ## Parameters
+
+  - `session_id` - The session ID (must be valid UUID v4 format)
+
+  ## Returns
+
+  - `{:ok, session_data}` - Successfully loaded and deserialized session
+  - `{:error, :not_found}` - Session file doesn't exist
+  - `{:error, {:invalid_json, error}}` - JSON parsing failed
+  - `{:error, reason}` - Validation or deserialization failed
+
+  ## Examples
+
+      iex> Persistence.load("550e8400-e29b-41d4-a716-446655440000")
+      {:ok, %{id: "550e8400-...", name: "My Session", ...}}
+
+      iex> Persistence.load("nonexistent")
+      {:error, :not_found}
+
+  ## Session Data Structure
+
+  The returned map contains:
+  - `:id` - Session ID (string)
+  - `:name` - Session name (string)
+  - `:project_path` - Project directory (string)
+  - `:config` - Configuration map
+  - `:created_at` - Creation timestamp (DateTime)
+  - `:updated_at` - Last update timestamp (DateTime)
+  - `:conversation` - List of message maps
+  - `:todos` - List of todo maps
+  """
+  @spec load(String.t()) :: {:ok, map()} | {:error, term()}
+  def load(session_id) when is_binary(session_id) do
+    path = session_file(session_id)
+
+    with {:ok, content} <- File.read(path),
+         {:ok, data} <- Jason.decode(content),
+         {:ok, session} <- deserialize_session(data) do
+      {:ok, session}
+    else
+      {:error, :enoent} ->
+        {:error, :not_found}
+
+      {:error, %Jason.DecodeError{} = error} ->
+        {:error, {:invalid_json, error}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Deserializes a session from JSON data.
+
+  Converts JSON maps (with string keys and values) into properly typed
+  Elixir data structures with atom keys, DateTime structs, and atom enums.
+
+  ## Parameters
+
+  - `data` - Parsed JSON data (map with string keys)
+
+  ## Returns
+
+  - `{:ok, session_map}` - Successfully deserialized session
+  - `{:error, reason}` - Validation or conversion failed
+
+  ## Examples
+
+      iex> data = %{"id" => "abc", "name" => "Test", ...}
+      iex> Persistence.deserialize_session(data)
+      {:ok, %{id: "abc", name: "Test", ...}}
+  """
+  @spec deserialize_session(map()) :: {:ok, map()} | {:error, term()}
+  def deserialize_session(data) when is_map(data) do
+    with {:ok, validated} <- validate_session(data),
+         {:ok, _version} <- check_schema_version(validated.version),
+         {:ok, messages} <- deserialize_messages(validated.conversation),
+         {:ok, todos} <- deserialize_todos(validated.todos),
+         {:ok, created_at} <- parse_datetime_required(validated.created_at),
+         {:ok, updated_at} <- parse_datetime_required(validated.updated_at) do
+      {:ok,
+       %{
+         id: validated.id,
+         name: validated.name,
+         project_path: validated.project_path,
+         config: deserialize_config(validated.config),
+         created_at: created_at,
+         updated_at: updated_at,
+         conversation: messages,
+         todos: todos
+       }}
+    end
+  end
+
+  def deserialize_session(_), do: {:error, :not_a_map}
+
   # Loads minimal session metadata from a JSON file.
   # Returns nil if the file is corrupted, too large, or cannot be read.
   defp load_session_metadata(filename) do
@@ -746,4 +848,126 @@ defmodule JidoCode.Session.Persistence do
 
     normalized
   end
+
+  # ============================================================================
+  # Session Deserialization Helpers
+  # ============================================================================
+
+  # Check schema version compatibility
+  defp check_schema_version(version) when is_integer(version) do
+    current = schema_version()
+
+    cond do
+      version > current ->
+        {:error, {:unsupported_version, version}}
+
+      version < 1 ->
+        {:error, {:invalid_version, version}}
+
+      true ->
+        {:ok, version}
+    end
+  end
+
+  defp check_schema_version(version), do: {:error, {:invalid_version, version}}
+
+  # Deserialize list of messages
+  defp deserialize_messages(messages) when is_list(messages) do
+    messages
+    |> Enum.reduce_while({:ok, []}, fn msg, {:ok, acc} ->
+      case deserialize_message(msg) do
+        {:ok, deserialized} -> {:cont, {:ok, [deserialized | acc]}}
+        {:error, reason} -> {:halt, {:error, {:invalid_message, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, messages} -> {:ok, Enum.reverse(messages)}
+      error -> error
+    end
+  end
+
+  defp deserialize_messages(_), do: {:error, :messages_not_list}
+
+  # Deserialize single message
+  defp deserialize_message(msg) do
+    with {:ok, validated} <- validate_message(msg),
+         {:ok, timestamp} <- parse_datetime_required(validated.timestamp),
+         {:ok, role} <- parse_role(validated.role) do
+      {:ok,
+       %{
+         id: validated.id,
+         role: role,
+         content: validated.content,
+         timestamp: timestamp
+       }}
+    end
+  end
+
+  # Deserialize list of todos
+  defp deserialize_todos(todos) when is_list(todos) do
+    todos
+    |> Enum.reduce_while({:ok, []}, fn todo, {:ok, acc} ->
+      case deserialize_todo(todo) do
+        {:ok, deserialized} -> {:cont, {:ok, [deserialized | acc]}}
+        {:error, reason} -> {:halt, {:error, {:invalid_todo, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, todos} -> {:ok, Enum.reverse(todos)}
+      error -> error
+    end
+  end
+
+  defp deserialize_todos(_), do: {:error, :todos_not_list}
+
+  # Deserialize single todo
+  defp deserialize_todo(todo) do
+    with {:ok, validated} <- validate_todo(todo),
+         {:ok, status} <- parse_status(validated.status) do
+      {:ok,
+       %{
+         content: validated.content,
+         status: status,
+         active_form: validated.active_form
+       }}
+    end
+  end
+
+  # Parse ISO 8601 timestamp (required field)
+  defp parse_datetime_required(nil), do: {:error, :missing_timestamp}
+
+  defp parse_datetime_required(iso_string) when is_binary(iso_string) do
+    case DateTime.from_iso8601(iso_string) do
+      {:ok, dt, _offset} -> {:ok, dt}
+      {:error, reason} -> {:error, {:invalid_timestamp, iso_string, reason}}
+    end
+  end
+
+  defp parse_datetime_required(other), do: {:error, {:invalid_timestamp, other}}
+
+  # Parse message role string to atom
+  defp parse_role("user"), do: {:ok, :user}
+  defp parse_role("assistant"), do: {:ok, :assistant}
+  defp parse_role("system"), do: {:ok, :system}
+  defp parse_role("tool"), do: {:ok, :tool}
+  defp parse_role(other), do: {:error, {:invalid_role, other}}
+
+  # Parse todo status string to atom
+  defp parse_status("pending"), do: {:ok, :pending}
+  defp parse_status("in_progress"), do: {:ok, :in_progress}
+  defp parse_status("completed"), do: {:ok, :completed}
+  defp parse_status(other), do: {:error, {:invalid_status, other}}
+
+  # Deserialize config map (string keys to appropriate types)
+  defp deserialize_config(config) when is_map(config) do
+    # Config uses string keys - just ensure expected structure with defaults
+    %{
+      "provider" => Map.get(config, "provider", "anthropic"),
+      "model" => Map.get(config, "model", "claude-3-5-sonnet-20241022"),
+      "temperature" => Map.get(config, "temperature", 0.7),
+      "max_tokens" => Map.get(config, "max_tokens", 4096)
+    }
+  end
+
+  defp deserialize_config(_), do: %{}
 end

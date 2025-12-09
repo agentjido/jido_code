@@ -1137,6 +1137,322 @@ defmodule JidoCode.Session.PersistenceTest do
     end
   end
 
+  describe "load/1" do
+    test "loads valid session file" do
+      # Create and save a session
+      session = create_test_session(test_uuid(0), "Test Session", "2024-01-01T12:00:00Z")
+      :ok = Persistence.write_session_file(test_uuid(0), session)
+
+      # Load it back
+      assert {:ok, loaded} = Persistence.load(test_uuid(0))
+      assert loaded.id == test_uuid(0)
+      assert loaded.name == "Test Session"
+      assert loaded.project_path == "/tmp/test-project"
+      assert %DateTime{} = loaded.created_at
+      assert %DateTime{} = loaded.updated_at
+      assert loaded.conversation == []
+      assert loaded.todos == []
+    end
+
+    test "returns error for non-existent file" do
+      assert {:error, :not_found} = Persistence.load(test_uuid(0))
+    end
+
+    test "returns error for corrupted JSON" do
+      # Create a corrupted file
+      session_id = test_uuid(0)
+      path = Persistence.session_file(session_id)
+      File.write!(path, "{invalid json")
+
+      assert {:error, {:invalid_json, _}} = Persistence.load(session_id)
+    end
+
+    test "loads session with messages" do
+      # Create session with messages
+      session = %{
+        create_test_session(test_uuid(0), "Test", "2024-01-01T12:00:00Z")
+        | conversation: [
+            %{
+              id: "msg-1",
+              role: "user",
+              content: "Hello",
+              timestamp: "2024-01-01T10:00:00Z"
+            },
+            %{
+              id: "msg-2",
+              role: "assistant",
+              content: "Hi there",
+              timestamp: "2024-01-01T10:01:00Z"
+            }
+          ]
+      }
+
+      :ok = Persistence.write_session_file(test_uuid(0), session)
+
+      assert {:ok, loaded} = Persistence.load(test_uuid(0))
+      assert length(loaded.conversation) == 2
+      assert Enum.at(loaded.conversation, 0).role == :user
+      assert Enum.at(loaded.conversation, 0).content == "Hello"
+      assert Enum.at(loaded.conversation, 1).role == :assistant
+    end
+
+    test "loads session with todos" do
+      session = %{
+        create_test_session(test_uuid(0), "Test", "2024-01-01T12:00:00Z")
+        | todos: [
+            %{content: "Task 1", status: "pending", active_form: "Doing task 1"},
+            %{content: "Task 2", status: "completed", active_form: "Doing task 2"}
+          ]
+      }
+
+      :ok = Persistence.write_session_file(test_uuid(0), session)
+
+      assert {:ok, loaded} = Persistence.load(test_uuid(0))
+      assert length(loaded.todos) == 2
+      assert Enum.at(loaded.todos, 0).status == :pending
+      assert Enum.at(loaded.todos, 1).status == :completed
+    end
+
+    test "loads session with config" do
+      session = %{
+        create_test_session(test_uuid(0), "Test", "2024-01-01T12:00:00Z")
+        | config: %{
+            "provider" => "openai",
+            "model" => "gpt-4",
+            "temperature" => 0.5
+          }
+      }
+
+      :ok = Persistence.write_session_file(test_uuid(0), session)
+
+      assert {:ok, loaded} = Persistence.load(test_uuid(0))
+      assert loaded.config["provider"] == "openai"
+      assert loaded.config["model"] == "gpt-4"
+      assert loaded.config["temperature"] == 0.5
+    end
+  end
+
+  describe "deserialize_session/1" do
+    test "deserializes complete session" do
+      data = %{
+        "version" => 1,
+        "id" => test_uuid(0),
+        "name" => "Test",
+        "project_path" => "/tmp/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T12:00:00Z",
+        "closed_at" => "2024-01-01T18:00:00Z",
+        "conversation" => [],
+        "todos" => []
+      }
+
+      assert {:ok, session} = Persistence.deserialize_session(data)
+      assert session.id == test_uuid(0)
+      assert session.name == "Test"
+      assert %DateTime{} = session.created_at
+      assert %DateTime{} = session.updated_at
+    end
+
+    test "deserializes session with empty conversation" do
+      data = %{
+        "version" => 1,
+        "id" => test_uuid(0),
+        "name" => "Test",
+        "project_path" => "/tmp/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T12:00:00Z",
+        "closed_at" => "2024-01-01T18:00:00Z",
+        "conversation" => [],
+        "todos" => []
+      }
+
+      assert {:ok, session} = Persistence.deserialize_session(data)
+      assert session.conversation == []
+    end
+
+    test "deserializes session with empty todos" do
+      data = %{
+        "version" => 1,
+        "id" => test_uuid(0),
+        "name" => "Test",
+        "project_path" => "/tmp/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T12:00:00Z",
+        "closed_at" => "2024-01-01T18:00:00Z",
+        "conversation" => [],
+        "todos" => []
+      }
+
+      assert {:ok, session} = Persistence.deserialize_session(data)
+      assert session.todos == []
+    end
+
+    test "rejects unsupported schema version" do
+      data = %{
+        "version" => 99,
+        "id" => test_uuid(0),
+        "name" => "Test",
+        "project_path" => "/tmp/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T12:00:00Z",
+        "closed_at" => "2024-01-01T18:00:00Z",
+        "conversation" => [],
+        "todos" => []
+      }
+
+      assert {:error, {:unsupported_version, 99}} = Persistence.deserialize_session(data)
+    end
+
+    test "rejects invalid schema version" do
+      data = %{
+        "version" => 0,
+        "id" => test_uuid(0),
+        "name" => "Test",
+        "project_path" => "/tmp/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T12:00:00Z",
+        "closed_at" => "2024-01-01T18:00:00Z",
+        "conversation" => [],
+        "todos" => []
+      }
+
+      assert {:error, {:invalid_version, 0}} = Persistence.deserialize_session(data)
+    end
+
+    test "rejects non-map input" do
+      assert {:error, :not_a_map} = Persistence.deserialize_session("not a map")
+      assert {:error, :not_a_map} = Persistence.deserialize_session(123)
+    end
+
+    test "returns error for invalid message role" do
+      data = %{
+        "version" => 1,
+        "id" => test_uuid(0),
+        "name" => "Test",
+        "project_path" => "/tmp/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T12:00:00Z",
+        "closed_at" => "2024-01-01T18:00:00Z",
+        "conversation" => [
+          %{
+            "id" => "msg-1",
+            "role" => "invalid_role",
+            "content" => "test",
+            "timestamp" => "2024-01-01T00:00:00Z"
+          }
+        ],
+        "todos" => []
+      }
+
+      assert {:error, {:invalid_message, {:unknown_role, "invalid_role"}}} =
+               Persistence.deserialize_session(data)
+    end
+
+    test "returns error for invalid todo status" do
+      data = %{
+        "version" => 1,
+        "id" => test_uuid(0),
+        "name" => "Test",
+        "project_path" => "/tmp/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T12:00:00Z",
+        "closed_at" => "2024-01-01T18:00:00Z",
+        "conversation" => [],
+        "todos" => [
+          %{
+            "content" => "Task",
+            "status" => "invalid_status",
+            "active_form" => "Doing task"
+          }
+        ]
+      }
+
+      assert {:error, {:invalid_todo, {:unknown_status, "invalid_status"}}} =
+               Persistence.deserialize_session(data)
+    end
+  end
+
+  describe "round-trip serialization" do
+    test "save then load preserves all data" do
+      # Create a session with full data
+      session_id = test_uuid(0)
+
+      session = %{
+        version: 1,
+        id: session_id,
+        name: "Full Session",
+        project_path: "/tmp/project",
+        config: %{"provider" => "openai", "model" => "gpt-4"},
+        created_at: "2024-01-01T10:00:00Z",
+        updated_at: "2024-01-01T12:00:00Z",
+        closed_at: "2024-01-01T14:00:00Z",
+        conversation: [
+          %{
+            id: "msg-1",
+            role: "user",
+            content: "Test message",
+            timestamp: "2024-01-01T11:00:00Z"
+          }
+        ],
+        todos: [
+          %{content: "Task 1", status: "pending", active_form: "Doing task 1"}
+        ]
+      }
+
+      # Save and load
+      :ok = Persistence.write_session_file(session_id, session)
+      assert {:ok, loaded} = Persistence.load(session_id)
+
+      # Verify all data preserved
+      assert loaded.id == session_id
+      assert loaded.name == "Full Session"
+      assert loaded.project_path == "/tmp/project"
+      assert loaded.config["provider"] == "openai"
+      assert loaded.config["model"] == "gpt-4"
+      assert length(loaded.conversation) == 1
+      assert hd(loaded.conversation).role == :user
+      assert hd(loaded.conversation).content == "Test message"
+      assert length(loaded.todos) == 1
+      assert hd(loaded.todos).status == :pending
+      assert hd(loaded.todos).content == "Task 1"
+    end
+
+    test "timestamps preserved after round-trip" do
+      session_id = test_uuid(0)
+
+      session = %{
+        version: 1,
+        id: session_id,
+        name: "Test",
+        project_path: "/tmp/test",
+        config: %{},
+        created_at: "2024-01-01T10:00:00Z",
+        updated_at: "2024-01-01T12:00:00Z",
+        closed_at: "2024-01-01T14:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      :ok = Persistence.write_session_file(session_id, session)
+      assert {:ok, loaded} = Persistence.load(session_id)
+
+      # Verify timestamps are DateTime structs
+      assert %DateTime{} = loaded.created_at
+      assert %DateTime{} = loaded.updated_at
+
+      # Verify timestamp values match (allowing for timezone conversion)
+      assert DateTime.to_iso8601(loaded.created_at) == "2024-01-01T10:00:00Z"
+      assert DateTime.to_iso8601(loaded.updated_at) == "2024-01-01T12:00:00Z"
+    end
+  end
+
   # ============================================================================
   # Test Helpers
   # ============================================================================

@@ -225,11 +225,11 @@ Exclude already-active sessions from persisted list.
 Implement restoring sessions from persisted state.
 
 ### 6.4.1 Load Persisted Session
-- [ ] **Task 6.4.1**
+- [x] **Task 6.4.1**
 
 Implement loading full session data from file.
 
-- [ ] 6.4.1.1 Implement `load/1` accepting session_id:
+- [x] 6.4.1.1 Implement `load/1` accepting session_id:
   ```elixir
   def load(session_id) do
     path = session_file(session_id)
@@ -243,10 +243,10 @@ Implement loading full session data from file.
     end
   end
   ```
-- [ ] 6.4.1.2 Implement `deserialize_session/1` converting JSON to structs
-- [ ] 6.4.1.3 Handle schema version migrations
-- [ ] 6.4.1.4 Validate loaded data
-- [ ] 6.4.1.5 Write unit tests for load function
+- [x] 6.4.1.2 Implement `deserialize_session/1` converting JSON to structs
+- [x] 6.4.1.3 Handle schema version migrations
+- [x] 6.4.1.4 Validate loaded data
+- [x] 6.4.1.5 Write unit tests for load function
 
 ### 6.4.2 Resume Session
 - [ ] **Task 6.4.2**

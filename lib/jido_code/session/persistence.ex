@@ -970,4 +970,166 @@ defmodule JidoCode.Session.Persistence do
   end
 
   defp deserialize_config(_), do: %{}
+
+  # ============================================================================
+  # Session Resume
+  # ============================================================================
+
+  @doc """
+  Resumes a persisted session, restoring it to fully running state.
+
+  Performs the following steps:
+  1. Loads persisted session data from disk
+  2. Validates project path still exists
+  3. Rebuilds Session struct from persisted data
+  4. Starts session processes (Manager, State, Agent)
+  5. Restores conversation history and todos
+  6. Deletes persisted file (session is now active)
+
+  ## Parameters
+
+  - `session_id` - The session ID (must be valid UUID v4 format)
+
+  ## Returns
+
+  - `{:ok, session}` - Session resumed successfully
+  - `{:error, :not_found}` - No persisted session with this ID
+  - `{:error, :project_path_not_found}` - Project path no longer exists
+  - `{:error, :project_path_not_directory}` - Project path is not a directory
+  - `{:error, :session_limit_reached}` - Already 10 sessions running
+  - `{:error, :project_already_open}` - Another session for this project
+  - `{:error, reason}` - Other errors (deserialization, validation, etc.)
+
+  ## Examples
+
+      iex> Persistence.resume("550e8400-e29b-41d4-a716-446655440000")
+      {:ok, %Session{...}}
+
+      iex> Persistence.resume("nonexistent")
+      {:error, :not_found}
+
+  ## Cleanup on Failure
+
+  If session processes start successfully but state restoration fails,
+  the session is automatically stopped to prevent inconsistent state.
+  """
+  @spec resume(String.t()) :: {:ok, JidoCode.Session.t()} | {:error, term()}
+  def resume(session_id) when is_binary(session_id) do
+    with {:ok, persisted} <- load(session_id),
+         :ok <- validate_project_path(persisted.project_path),
+         {:ok, session} <- rebuild_session(persisted),
+         {:ok, _pid} <- start_session_processes(session),
+         :ok <- restore_state_or_cleanup(session.id, persisted) do
+      {:ok, session}
+    end
+  end
+
+  # Validates that the project path still exists and is a directory
+  @spec validate_project_path(String.t()) :: :ok | {:error, atom()}
+  defp validate_project_path(path) do
+    cond do
+      not File.exists?(path) ->
+        {:error, :project_path_not_found}
+
+      not File.dir?(path) ->
+        {:error, :project_path_not_directory}
+
+      true ->
+        :ok
+    end
+  end
+
+  # Rebuilds a Session struct from persisted data
+  @spec rebuild_session(map()) :: {:ok, JidoCode.Session.t()} | {:error, term()}
+  defp rebuild_session(persisted) do
+    alias JidoCode.Session
+
+    # Convert string-keyed config to atom-keyed (Session expects atom keys)
+    config = %{
+      provider: Map.get(persisted.config, "provider"),
+      model: Map.get(persisted.config, "model"),
+      temperature: Map.get(persisted.config, "temperature"),
+      max_tokens: Map.get(persisted.config, "max_tokens")
+    }
+
+    session = %Session{
+      id: persisted.id,
+      name: persisted.name,
+      project_path: persisted.project_path,
+      config: config,
+      created_at: persisted.created_at,
+      updated_at: DateTime.utc_now()
+    }
+
+    # Validate the reconstructed session
+    Session.validate(session)
+  end
+
+  # Starts the session processes via SessionSupervisor
+  @spec start_session_processes(JidoCode.Session.t()) :: {:ok, pid()} | {:error, term()}
+  defp start_session_processes(session) do
+    alias JidoCode.SessionSupervisor
+    SessionSupervisor.start_session(session)
+  end
+
+  # Restores conversation and todos, or cleans up session on failure
+  @spec restore_state_or_cleanup(String.t(), map()) :: :ok | {:error, term()}
+  defp restore_state_or_cleanup(session_id, persisted) do
+    with :ok <- restore_conversation(session_id, persisted.conversation),
+         :ok <- restore_todos(session_id, persisted.todos),
+         :ok <- delete_persisted(session_id) do
+      :ok
+    else
+      error ->
+        # State restore failed, stop the session to prevent inconsistent state
+        alias JidoCode.SessionSupervisor
+        SessionSupervisor.stop_session(session_id)
+        error
+    end
+  end
+
+  # Restores conversation messages to Session.State
+  @spec restore_conversation(String.t(), [map()]) :: :ok | {:error, term()}
+  defp restore_conversation(session_id, messages) do
+    alias JidoCode.Session.State
+
+    # Messages are already deserialized with proper atom keys and DateTime structs
+    Enum.reduce_while(messages, :ok, fn message, :ok ->
+      case State.append_message(session_id, message) do
+        {:ok, _state} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, {:restore_message_failed, reason}}}
+      end
+    end)
+  end
+
+  # Restores todos to Session.State
+  @spec restore_todos(String.t(), [map()]) :: :ok | {:error, term()}
+  defp restore_todos(session_id, todos) do
+    alias JidoCode.Session.State
+
+    case State.update_todos(session_id, todos) do
+      {:ok, _state} -> :ok
+      {:error, reason} -> {:error, {:restore_todos_failed, reason}}
+    end
+  end
+
+  # Deletes the persisted session file
+  @spec delete_persisted(String.t()) :: :ok | {:error, term()}
+  defp delete_persisted(session_id) do
+    path = session_file(session_id)
+
+    case File.rm(path) do
+      :ok ->
+        :ok
+
+      {:error, :enoent} ->
+        # Already deleted, that's fine
+        :ok
+
+      {:error, reason} ->
+        # Log warning but don't fail the resume operation
+        Logger.warning("Failed to delete persisted session #{session_id}: #{inspect(reason)}")
+        {:error, {:delete_failed, reason}}
+    end
+  end
 end

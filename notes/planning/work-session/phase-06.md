@@ -249,11 +249,11 @@ Implement loading full session data from file.
 - [x] 6.4.1.5 Write unit tests for load function
 
 ### 6.4.2 Resume Session
-- [ ] **Task 6.4.2**
+- [x] **Task 6.4.2**
 
 Implement full session restoration.
 
-- [ ] 6.4.2.1 Implement `resume/1` accepting session_id:
+- [x] 6.4.2.1 Implement `resume/1` accepting session_id:
   ```elixir
   def resume(session_id) do
     with {:ok, persisted} <- load(session_id),
@@ -270,7 +270,7 @@ Implement full session restoration.
     end
   end
   ```
-- [ ] 6.4.2.2 Implement `rebuild_session/1` creating Session from persisted:
+- [x] 6.4.2.2 Implement `rebuild_session/1` creating Session from persisted:
   ```elixir
   defp rebuild_session(persisted) do
     %Session{
@@ -283,10 +283,10 @@ Implement full session restoration.
     }
   end
   ```
-- [ ] 6.4.2.3 Restore messages to Session.State
-- [ ] 6.4.2.4 Restore todos to Session.State
-- [ ] 6.4.2.5 Delete persisted file after successful resume
-- [ ] 6.4.2.6 Write unit tests for resume function
+- [x] 6.4.2.3 Restore messages to Session.State
+- [x] 6.4.2.4 Restore todos to Session.State
+- [x] 6.4.2.5 Delete persisted file after successful resume
+- [x] 6.4.2.6 Write unit tests for resume function
 
 ### 6.4.3 Project Path Validation
 - [ ] **Task 6.4.3**

@@ -112,11 +112,11 @@ Implement saving session to JSON file.
 - [x] 6.2.1.5 Write unit tests for save function
 
 ### 6.2.2 Auto-Save on Close
-- [ ] **Task 6.2.2**
+- [x] **Task 6.2.2**
 
 Integrate save with session close flow.
 
-- [ ] 6.2.2.1 Update `SessionSupervisor.stop_session/1` to save first:
+- [x] 6.2.2.1 Update `SessionSupervisor.stop_session/1` to save first:
   ```elixir
   def stop_session(session_id) do
     # Save before stopping
@@ -125,9 +125,9 @@ Integrate save with session close flow.
     terminate_session_processes(session_id)
   end
   ```
-- [ ] 6.2.2.2 Log save success/failure
-- [ ] 6.2.2.3 Continue with stop even if save fails
-- [ ] 6.2.2.4 Write integration tests for auto-save
+- [x] 6.2.2.2 Log save success/failure
+- [x] 6.2.2.3 Continue with stop even if save fails
+- [x] 6.2.2.4 Write integration tests for auto-save
 
 ### 6.2.3 Manual Save Command
 - [ ] **Task 6.2.3**

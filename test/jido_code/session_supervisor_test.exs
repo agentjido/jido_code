@@ -363,6 +363,89 @@ defmodule JidoCode.SessionSupervisorTest do
   end
 
   # ============================================================================
+  # Auto-Save on Close Tests (Task 6.2.2)
+  # ============================================================================
+
+  describe "stop_session/1 auto-save" do
+    setup do
+      {:ok, context} = SessionTestHelpers.setup_session_supervisor("stop_session_autosave")
+      context
+    end
+
+    test "attempts to save session before stopping", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      # Capture log to verify save was attempted
+      import ExUnit.CaptureLog
+
+      log =
+        capture_log(fn ->
+          # Stop the session - should attempt auto-save
+          :ok = SessionSupervisor.stop_session(session.id)
+        end)
+
+      # Verify save was attempted (warning logged since State process doesn't exist in stub)
+      assert log =~ "Failed to save session #{session.id}"
+
+      # Verify process is stopped
+      assert :ok = SessionTestHelpers.wait_for_process_death(pid)
+      refute Process.alive?(pid)
+    end
+
+    test "stop completes successfully even when save fails", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      # Stop should complete even though save will fail (no State process in stub)
+      assert :ok = SessionSupervisor.stop_session(session.id)
+
+      # Verify process is stopped
+      assert :ok = SessionTestHelpers.wait_for_process_death(pid)
+      refute Process.alive?(pid)
+
+      # Session should be unregistered
+      assert {:error, :not_found} = SessionRegistry.lookup(session.id)
+    end
+
+    test "session close continues even if save fails (non-existent session)", %{tmp_dir: tmp_dir} do
+      # This test verifies that if the session state is already gone
+      # (edge case), the stop still completes successfully
+
+      {:ok, session} = Session.new(project_path: tmp_dir)
+
+      {:ok, pid} =
+        SessionSupervisor.start_session(session, supervisor_module: SessionSupervisorStub)
+
+      # Manually stop the state process to simulate state being gone
+      case Registry.lookup(JidoCode.SessionProcessRegistry, {:state, session.id}) do
+        [{state_pid, _}] ->
+          Process.exit(state_pid, :kill)
+          # Wait for it to die
+          SessionTestHelpers.wait_for_process_death(state_pid)
+
+        [] ->
+          :ok
+      end
+
+      # Stop should still work even though save will fail
+      assert :ok = SessionSupervisor.stop_session(session.id)
+
+      # Verify process is stopped
+      assert :ok = SessionTestHelpers.wait_for_process_death(pid)
+      refute Process.alive?(pid)
+
+      # Session file should not exist since save failed
+      session_file = JidoCode.Session.Persistence.session_file(session.id)
+      refute File.exists?(session_file)
+    end
+  end
+
+  # ============================================================================
   # Session Process Lookup Tests (Task 1.3.3)
   # ============================================================================
 

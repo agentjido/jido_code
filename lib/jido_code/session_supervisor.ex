@@ -44,7 +44,10 @@ defmodule JidoCode.SessionSupervisor do
 
   use DynamicSupervisor
 
+  require Logger
+
   alias JidoCode.Session
+  alias JidoCode.Session.Persistence
   alias JidoCode.SessionRegistry
 
   @registry JidoCode.SessionProcessRegistry
@@ -161,10 +164,28 @@ defmodule JidoCode.SessionSupervisor do
   """
   @spec stop_session(String.t()) :: :ok | {:error, :not_found}
   def stop_session(session_id) do
+    # Save session before stopping (best effort - doesn't block close)
+    save_session_before_close(session_id)
+
+    # Then stop processes
     with {:ok, pid} <- find_session_pid(session_id),
          :ok <- DynamicSupervisor.terminate_child(__MODULE__, pid) do
       SessionRegistry.unregister(session_id)
       :ok
+    end
+  end
+
+  # Saves session state before closing. Best-effort - failures are logged but
+  # don't prevent the session from being closed.
+  defp save_session_before_close(session_id) do
+    case Persistence.save(session_id) do
+      {:ok, path} ->
+        Logger.info("Session #{session_id} saved to #{path}")
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to save session #{session_id}: #{inspect(reason)}")
+        :error
     end
   end
 

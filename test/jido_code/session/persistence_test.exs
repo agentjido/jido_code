@@ -1155,7 +1155,9 @@ defmodule JidoCode.Session.PersistenceTest do
     end
 
     test "returns error for non-existent file" do
-      assert {:error, :not_found} = Persistence.load(test_uuid(0))
+      # Use a UUID that's unlikely to exist from other tests
+      non_existent_id = "99999999-9999-4999-8999-999999999999"
+      assert {:error, :not_found} = Persistence.load(non_existent_id)
     end
 
     test "returns error for corrupted JSON" do

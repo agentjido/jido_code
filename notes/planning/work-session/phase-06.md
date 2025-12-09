@@ -195,20 +195,21 @@ Implement listing all persisted sessions.
 - [x] 6.3.1.5 Write unit tests for listing
 
 ### 6.3.2 Filter Active Sessions
-- [ ] **Task 6.3.2**
+- [x] **Task 6.3.2**
 
 Exclude already-active sessions from persisted list.
 
-- [ ] 6.3.2.1 Implement `list_resumable/0`:
+- [x] 6.3.2.1 Implement `list_resumable/0`:
   ```elixir
   def list_resumable do
     active_ids = SessionRegistry.list_ids()
+    active_paths = SessionRegistry.list_all() |> Enum.map(& &1.project_path)
     list_persisted()
-    |> Enum.reject(& &1.id in active_ids)
+    |> Enum.reject(& &1.id in active_ids or &1.project_path in active_paths)
   end
   ```
-- [ ] 6.3.2.2 Also exclude sessions with same project_path as active
-- [ ] 6.3.2.3 Write unit tests for filtering
+- [x] 6.3.2.2 Also exclude sessions with same project_path as active
+- [x] 6.3.2.3 Write unit tests for filtering
 
 **Unit Tests for Section 6.3:**
 - Test `list_persisted/0` finds all JSON files

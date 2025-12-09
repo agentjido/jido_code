@@ -1,7 +1,9 @@
 defmodule JidoCode.Session.PersistenceTest do
   use ExUnit.Case, async: true
 
+  alias JidoCode.Session
   alias JidoCode.Session.Persistence
+  alias JidoCode.SessionRegistry
 
   describe "schema_version/0" do
     test "returns current schema version" do
@@ -821,6 +823,239 @@ defmodule JidoCode.Session.PersistenceTest do
       result = Persistence.list_persisted()
 
       assert result == []
+    end
+  end
+
+  describe "list_resumable/0" do
+    setup do
+      # Ensure sessions directory exists and is clean
+      :ok = Persistence.ensure_sessions_dir()
+      cleanup_session_files()
+
+      # Clear active sessions registry
+      SessionRegistry.clear()
+
+      on_exit(fn ->
+        cleanup_session_files()
+        SessionRegistry.clear()
+      end)
+
+      :ok
+    end
+
+    test "returns empty list when no persisted sessions exist" do
+      result = Persistence.list_resumable()
+
+      assert result == []
+    end
+
+    test "returns all persisted sessions when no active sessions" do
+      # Create two persisted sessions
+      session1 = create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
+      session2 = create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+
+      result = Persistence.list_resumable()
+
+      assert length(result) == 2
+      # Should be sorted by closed_at (most recent first)
+      assert Enum.at(result, 0).id == "session-1"
+      assert Enum.at(result, 1).id == "session-2"
+    end
+
+    test "excludes session with matching active ID" do
+      # Create two persisted sessions
+      session1 = create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
+      session2 = create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+
+      # Create temporary directory for active session
+      tmp_dir = System.tmp_dir!() |> Path.join("active-session-#{:rand.uniform(1000)}")
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      # Register session-1 as active (need to manually set ID since Session.new generates one)
+      {:ok, active_session} = Session.new(project_path: tmp_dir)
+      active_session_with_id = %{active_session | id: "session-1"}
+      {:ok, _} = SessionRegistry.register(active_session_with_id)
+
+      result = Persistence.list_resumable()
+
+      # Should only return session-2
+      assert length(result) == 1
+      assert List.first(result).id == "session-2"
+    end
+
+    test "excludes session with matching active project_path" do
+      # Create temporary directories for the project paths
+      tmp_dir_a = System.tmp_dir!() |> Path.join("project-a-#{:rand.uniform(10000)}")
+      tmp_dir_b = System.tmp_dir!() |> Path.join("project-b-#{:rand.uniform(10000)}")
+      File.mkdir_p!(tmp_dir_a)
+      File.mkdir_p!(tmp_dir_b)
+
+      on_exit(fn ->
+        File.rm_rf!(tmp_dir_a)
+        File.rm_rf!(tmp_dir_b)
+      end)
+
+      # Create two persisted sessions with different project paths
+      session1 = %{
+        create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
+        | project_path: tmp_dir_a
+      }
+
+      session2 = %{
+        create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+        | project_path: tmp_dir_b
+      }
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+
+      # Register a different session ID but with same project_path as session-1
+      {:ok, active_session} =
+        Session.new(id: "different-id", project_path: tmp_dir_a)
+
+      {:ok, _} = SessionRegistry.register(active_session)
+
+      result = Persistence.list_resumable()
+
+      # Should only return session-2 (session-1 excluded due to matching project_path)
+      assert length(result) == 1
+      assert List.first(result).id == "session-2"
+      assert List.first(result).project_path == tmp_dir_b
+    end
+
+    test "excludes session matching both ID and project_path" do
+      session1 = create_test_session("session-1", "Session 1", "2024-01-02T00:00:00Z")
+      session2 = create_test_session("session-2", "Session 2", "2024-01-01T00:00:00Z")
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+
+      # Create temporary directory
+      tmp_dir = System.tmp_dir!() |> Path.join("active-session-#{:rand.uniform(1000)}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      # Register session with same ID (project_path will be different but that's ok)
+      {:ok, active_session} = Session.new(project_path: tmp_dir)
+      active_session_with_id = %{active_session | id: "session-1"}
+      {:ok, _} = SessionRegistry.register(active_session_with_id)
+
+      result = Persistence.list_resumable()
+
+      # Should only return session-2 (excluded by matching ID)
+      assert length(result) == 1
+      assert List.first(result).id == "session-2"
+    end
+
+    test "handles multiple active sessions" do
+      # Create temporary directories for persisted and active sessions
+      tmp_dir1 = System.tmp_dir!() |> Path.join("proj-1-#{:rand.uniform(10000)}")
+      tmp_dir2 = System.tmp_dir!() |> Path.join("proj-2-#{:rand.uniform(10000)}")
+      tmp_dir3 = System.tmp_dir!() |> Path.join("proj-3-#{:rand.uniform(10000)}")
+      tmp_dir4 = System.tmp_dir!() |> Path.join("active-#{:rand.uniform(10000)}")
+
+      File.mkdir_p!(tmp_dir1)
+      File.mkdir_p!(tmp_dir2)
+      File.mkdir_p!(tmp_dir3)
+      File.mkdir_p!(tmp_dir4)
+
+      on_exit(fn ->
+        File.rm_rf!(tmp_dir1)
+        File.rm_rf!(tmp_dir2)
+        File.rm_rf!(tmp_dir3)
+        File.rm_rf!(tmp_dir4)
+      end)
+
+      # Create three persisted sessions
+      session1 = %{
+        create_test_session("session-1", "Session 1", "2024-01-03T00:00:00Z")
+        | project_path: tmp_dir1
+      }
+
+      session2 = %{
+        create_test_session("session-2", "Session 2", "2024-01-02T00:00:00Z")
+        | project_path: tmp_dir2
+      }
+
+      session3 = %{
+        create_test_session("session-3", "Session 3", "2024-01-01T00:00:00Z")
+        | project_path: tmp_dir3
+      }
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file("session-3", session3)
+
+      # Register two active sessions - one matches ID, one matches project_path
+      {:ok, active1} = Session.new(project_path: tmp_dir4)
+      active1_with_id = %{active1 | id: "session-1"}  # Matches session1 by ID
+
+      {:ok, active2} = Session.new(project_path: tmp_dir3)  # Matches session3 by project_path
+
+      {:ok, _} = SessionRegistry.register(active1_with_id)
+      {:ok, _} = SessionRegistry.register(active2)
+
+      result = Persistence.list_resumable()
+
+      # Should only return session-2 (session-1 excluded by ID, session-3 excluded by path)
+      assert length(result) == 1
+      assert List.first(result).id == "session-2"
+    end
+
+    test "returns empty list when all persisted sessions are active" do
+      session1 = create_test_session("session-1", "Session 1", "2024-01-01T00:00:00Z")
+      :ok = Persistence.write_session_file("session-1", session1)
+
+      # Create temporary directory
+      tmp_dir = System.tmp_dir!() |> Path.join("active-session-#{:rand.uniform(1000)}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      {:ok, active_session} = Session.new(project_path: tmp_dir)
+      active_session_with_id = %{active_session | id: "session-1"}
+      {:ok, _} = SessionRegistry.register(active_session_with_id)
+
+      result = Persistence.list_resumable()
+
+      assert result == []
+    end
+
+    test "preserves sort order by closed_at" do
+      # Create sessions with different closed_at times
+      session1 = %{
+        create_test_session("session-1", "Session 1", "2024-01-01T00:00:00Z")
+        | project_path: "/tmp/proj-1"
+      }
+
+      session2 = %{
+        create_test_session("session-2", "Session 2", "2024-01-03T00:00:00Z")
+        | project_path: "/tmp/proj-2"
+      }
+
+      session3 = %{
+        create_test_session("session-3", "Session 3", "2024-01-02T00:00:00Z")
+        | project_path: "/tmp/proj-3"
+      }
+
+      :ok = Persistence.write_session_file("session-1", session1)
+      :ok = Persistence.write_session_file("session-2", session2)
+      :ok = Persistence.write_session_file("session-3", session3)
+
+      result = Persistence.list_resumable()
+
+      # Should be sorted by closed_at (most recent first)
+      assert length(result) == 3
+      assert Enum.at(result, 0).id == "session-2"
+      assert Enum.at(result, 1).id == "session-3"
+      assert Enum.at(result, 2).id == "session-1"
     end
   end
 

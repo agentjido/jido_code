@@ -512,6 +512,46 @@ defmodule JidoCode.Session.Persistence do
     end
   end
 
+  @doc """
+  Lists all persisted sessions that can be resumed.
+
+  Excludes sessions that are already active in memory. A session is considered
+  active if either:
+  - Its session ID matches an active session
+  - Its project_path matches an active session's project_path
+
+  Returns sessions sorted by `closed_at` (most recent first).
+
+  ## Returns
+
+  - List of session metadata maps (empty list if none available)
+
+  ## Examples
+
+      iex> Persistence.list_resumable()
+      [
+        %{id: "sess-123", name: "project1", project_path: "/tmp/p1", closed_at: "2025-01-15T10:00:00Z"},
+        %{id: "sess-456", name: "project2", project_path: "/tmp/p2", closed_at: "2025-01-14T09:00:00Z"}
+      ]
+  """
+  @spec list_resumable() :: [map()]
+  def list_resumable do
+    alias JidoCode.SessionRegistry
+
+    # Get active session IDs and project paths
+    active_ids = SessionRegistry.list_ids()
+
+    active_paths =
+      SessionRegistry.list_all()
+      |> Enum.map(& &1.project_path)
+
+    # Filter out persisted sessions that conflict with active ones
+    list_persisted()
+    |> Enum.reject(fn session ->
+      session.id in active_ids or session.project_path in active_paths
+    end)
+  end
+
   # Loads minimal session metadata from a JSON file.
   # Returns nil if the file is corrupted or cannot be read.
   defp load_session_metadata(filename) do

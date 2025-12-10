@@ -475,26 +475,63 @@ defmodule JidoCode.Session.Persistence do
   """
   @spec write_session_file(String.t(), persisted_session()) :: :ok | {:error, term()}
   def write_session_file(session_id, persisted) do
+    alias JidoCode.Session.Persistence.Crypto
+
     :ok = ensure_sessions_dir()
     path = session_file(session_id)
     temp_path = "#{path}.tmp"
 
-    case Jason.encode(persisted, pretty: true) do
-      {:ok, json} ->
-        with :ok <- File.write(temp_path, json),
-             :ok <- File.rename(temp_path, path) do
-          :ok
-        else
+    # First, normalize all keys to strings for consistent JSON encoding
+    # This ensures decode->re-encode produces identical JSON
+    normalized = normalize_keys_to_strings(persisted)
+
+    # Encode to pretty JSON with strict maps for deterministic output
+    case Jason.encode(normalized, pretty: true, maps: :strict) do
+      {:ok, unsigned_json} ->
+        # Generate HMAC signature over the JSON
+        signature = Crypto.compute_signature(unsigned_json)
+
+        # Add signature to the normalized map
+        signed_map = Map.put(normalized, "signature", signature)
+
+        case Jason.encode(signed_map, pretty: true, maps: :strict) do
+          {:ok, signed_json} ->
+            with :ok <- File.write(temp_path, signed_json),
+                 :ok <- File.rename(temp_path, path) do
+              :ok
+            else
+              {:error, reason} ->
+                # Clean up temp file on failure
+                File.rm(temp_path)
+                {:error, reason}
+            end
+
           {:error, reason} ->
-            # Clean up temp file on failure
-            File.rm(temp_path)
-            {:error, reason}
+            {:error, {:json_encode_error, reason}}
         end
 
       {:error, reason} ->
         {:error, {:json_encode_error, reason}}
     end
   end
+
+  # Recursively converts all atom keys to string keys
+  # This ensures consistent JSON encoding/decoding
+  defp normalize_keys_to_strings(map) when is_map(map) do
+    Map.new(map, fn
+      {key, value} when is_atom(key) ->
+        {Atom.to_string(key), normalize_keys_to_strings(value)}
+
+      {key, value} ->
+        {key, normalize_keys_to_strings(value)}
+    end)
+  end
+
+  defp normalize_keys_to_strings(list) when is_list(list) do
+    Enum.map(list, &normalize_keys_to_strings/1)
+  end
+
+  defp normalize_keys_to_strings(value), do: value
 
   # ============================================================================
   # Session Listing
@@ -622,11 +659,16 @@ defmodule JidoCode.Session.Persistence do
   """
   @spec load(String.t()) :: {:ok, map()} | {:error, term()}
   def load(session_id) when is_binary(session_id) do
+    alias JidoCode.Session.Persistence.Crypto
+
     path = session_file(session_id)
 
-    with {:ok, content} <- File.read(path),
+    with {:ok, stat} <- File.stat(path),
+         :ok <- validate_file_size(stat.size, path),
+         {:ok, content} <- File.read(path),
          {:ok, data} <- Jason.decode(content),
-         {:ok, session} <- deserialize_session(data) do
+         {:ok, unsigned_data} <- verify_and_unwrap_signature(data),
+         {:ok, session} <- deserialize_session(unsigned_data) do
       {:ok, session}
     else
       {:error, :enoent} ->
@@ -637,6 +679,37 @@ defmodule JidoCode.Session.Persistence do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # Verifies HMAC signature and removes it from payload
+  # Handles graceful migration from unsigned v1.0.0 files
+  defp verify_and_unwrap_signature(data) do
+    alias JidoCode.Session.Persistence.Crypto
+
+    # Check if signature field exists
+    case Map.pop(data, "signature") do
+      {nil, _} ->
+        # Unsigned file (v1.0.0 compatibility)
+        Logger.warning(
+          "Loading unsigned session file (legacy v1.0.0 format). " <>
+          "File will be automatically signed on next save."
+        )
+        {:ok, data}
+
+      {provided_signature, unsigned_data} ->
+        # Signed file - verify it
+        # Reconstruct JSON without signature field using same encoding options as when signed
+        unsigned_json = Jason.encode!(unsigned_data, pretty: true, maps: :strict)
+
+        case Crypto.verify_signature(unsigned_json, provided_signature) do
+          :ok ->
+            {:ok, unsigned_data}
+
+          {:error, :signature_verification_failed} ->
+            Logger.error("Session file signature verification failed - file may have been tampered with")
+            {:error, :signature_verification_failed}
+        end
     end
   end
 
@@ -871,22 +944,28 @@ defmodule JidoCode.Session.Persistence do
 
   defp check_schema_version(version), do: {:error, {:invalid_version, version}}
 
-  # Deserialize list of messages
-  defp deserialize_messages(messages) when is_list(messages) do
-    messages
-    |> Enum.reduce_while({:ok, []}, fn msg, {:ok, acc} ->
-      case deserialize_message(msg) do
+  # Generic helper for deserializing lists with fail-fast behavior
+  # Reduces code duplication between deserialize_messages and deserialize_todos
+  defp deserialize_list(items, deserializer_fn, error_key) when is_list(items) do
+    items
+    |> Enum.reduce_while({:ok, []}, fn item, {:ok, acc} ->
+      case deserializer_fn.(item) do
         {:ok, deserialized} -> {:cont, {:ok, [deserialized | acc]}}
-        {:error, reason} -> {:halt, {:error, {:invalid_message, reason}}}
+        {:error, reason} -> {:halt, {:error, {error_key, reason}}}
       end
     end)
     |> case do
-      {:ok, messages} -> {:ok, Enum.reverse(messages)}
+      {:ok, items} -> {:ok, Enum.reverse(items)}
       error -> error
     end
   end
 
-  defp deserialize_messages(_), do: {:error, :messages_not_list}
+  defp deserialize_list(_, _, error_key), do: {:error, :"#{error_key}s_not_list"}
+
+  # Deserialize list of messages
+  defp deserialize_messages(messages) do
+    deserialize_list(messages, &deserialize_message/1, :invalid_message)
+  end
 
   # Deserialize single message
   defp deserialize_message(msg) do
@@ -904,21 +983,9 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # Deserialize list of todos
-  defp deserialize_todos(todos) when is_list(todos) do
-    todos
-    |> Enum.reduce_while({:ok, []}, fn todo, {:ok, acc} ->
-      case deserialize_todo(todo) do
-        {:ok, deserialized} -> {:cont, {:ok, [deserialized | acc]}}
-        {:error, reason} -> {:halt, {:error, {:invalid_todo, reason}}}
-      end
-    end)
-    |> case do
-      {:ok, todos} -> {:ok, Enum.reverse(todos)}
-      error -> error
-    end
+  defp deserialize_todos(todos) do
+    deserialize_list(todos, &deserialize_todo/1, :invalid_todo)
   end
-
-  defp deserialize_todos(_), do: {:error, :todos_not_list}
 
   # Deserialize single todo
   defp deserialize_todo(todo) do
@@ -1015,11 +1082,16 @@ defmodule JidoCode.Session.Persistence do
   """
   @spec resume(String.t()) :: {:ok, JidoCode.Session.t()} | {:error, term()}
   def resume(session_id) when is_binary(session_id) do
-    with {:ok, persisted} <- load(session_id),
+    alias JidoCode.RateLimit
+
+    with :ok <- RateLimit.check_rate_limit(:resume, session_id),
+         {:ok, persisted} <- load(session_id),
          :ok <- validate_project_path(persisted.project_path),
          {:ok, session} <- rebuild_session(persisted),
          {:ok, _pid} <- start_session_processes(session),
          :ok <- restore_state_or_cleanup(session.id, persisted) do
+      # Record successful resume for rate limiting
+      RateLimit.record_attempt(:resume, session_id)
       {:ok, session}
     end
   end
@@ -1073,19 +1145,32 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # Restores conversation and todos, or cleans up session on failure
+  # Includes re-validation of project path to prevent TOCTOU attacks
   @spec restore_state_or_cleanup(String.t(), map()) :: :ok | {:error, term()}
   defp restore_state_or_cleanup(session_id, persisted) do
-    with :ok <- restore_conversation(session_id, persisted.conversation),
+    with :ok <- revalidate_project_path(persisted.project_path),
+         :ok <- restore_conversation(session_id, persisted.conversation),
          :ok <- restore_todos(session_id, persisted.todos),
          :ok <- delete_persisted(session_id) do
       :ok
     else
       error ->
-        # State restore failed, stop the session to prevent inconsistent state
+        # State restore or validation failed, stop the session to prevent inconsistent state
         alias JidoCode.SessionSupervisor
         SessionSupervisor.stop_session(session_id)
         error
     end
+  end
+
+  # Re-validates project path after session start to prevent TOCTOU attacks
+  # This catches cases where the path was swapped/modified between initial
+  # validation and session startup
+  @spec revalidate_project_path(String.t()) :: :ok | {:error, term()}
+  defp revalidate_project_path(project_path) do
+    # Re-validate that path still exists and is a directory
+    # This prevents TOCTOU attacks where the path is swapped between
+    # initial validation and session start
+    validate_project_path(project_path)
   end
 
   # Restores conversation messages to Session.State

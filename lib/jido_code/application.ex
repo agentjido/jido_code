@@ -76,6 +76,9 @@ defmodule JidoCode.Application do
       # DynamicSupervisor for agent processes
       JidoCode.AgentSupervisor,
 
+      # Rate limiter for session operations
+      JidoCode.RateLimit,
+
       # DynamicSupervisor for session processes (per-session supervisors)
       JidoCode.SessionSupervisor
 

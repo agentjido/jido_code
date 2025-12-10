@@ -1170,6 +1170,10 @@ defmodule JidoCode.TUI do
       {:session, subcommand} ->
         # Handle session commands by executing the subcommand
         handle_session_command(subcommand, state)
+
+      {:resume, subcommand} ->
+        # Handle resume commands
+        handle_resume_command(subcommand, state)
     end
   end
 
@@ -1211,6 +1215,31 @@ defmodule JidoCode.TUI do
         {new_state, []}
 
       {:error, error_message} ->
+        new_state = add_session_message(state, error_message)
+        {new_state, []}
+    end
+  end
+
+  # Handle resume command execution and results
+  defp handle_resume_command(subcommand, state) do
+    case Commands.execute_resume(subcommand, state) do
+      {:session_action, {:add_session, session}} ->
+        # Session resumed - add to model and subscribe
+        new_state = Model.add_session(state, session)
+
+        # Subscribe to session-specific events
+        Phoenix.PubSub.subscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session.id))
+
+        final_state = add_session_message(new_state, "Resumed session: #{session.name}")
+        {final_state, []}
+
+      {:ok, message} ->
+        # List output or informational message
+        new_state = add_session_message(state, message)
+        {new_state, []}
+
+      {:error, error_message} ->
+        # Error during resume
         new_state = add_session_message(state, error_message)
         {new_state, []}
     end

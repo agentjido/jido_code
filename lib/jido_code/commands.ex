@@ -17,6 +17,8 @@ defmodule JidoCode.Commands do
   | `/models` | List models for current provider (pending) |
   | `/models <provider>` | List models for provider (pending) |
   | `/providers` | List available providers (pending) |
+  | `/resume` | List resumable sessions |
+  | `/resume <target>` | Resume session by index or ID |
 
   ## Usage
 
@@ -70,6 +72,8 @@ defmodule JidoCode.Commands do
     /session switch <target> - Switch to session by index, ID, or name
     /session close [target]  - Close session (default: active)
     /session rename <name>   - Rename current session
+    /resume                  - List resumable sessions
+    /resume <target>         - Resume session by index or ID
     /sandbox-test            - Test the Luerl sandbox security (dev/test only)
     /shell <command> [args]  - Run a shell command (e.g., /shell ls -la)
   """
@@ -179,6 +183,14 @@ defmodule JidoCode.Commands do
 
   defp parse_and_execute("/session", _config) do
     {:session, :help}
+  end
+
+  defp parse_and_execute("/resume " <> rest, _config) do
+    {:resume, {:restore, String.trim(rest)}}
+  end
+
+  defp parse_and_execute("/resume", _config) do
+    {:resume, :list}
   end
 
   defp parse_and_execute("/shell " <> rest, _config) do
@@ -536,6 +548,167 @@ defmodule JidoCode.Commands do
 
   def execute_session(_, _model) do
     execute_session(:help, nil)
+  end
+
+  # ============================================================================
+  # Resume Command Execution
+  # ============================================================================
+
+  @doc """
+  Executes a resume command.
+
+  ## Parameters
+
+  - `subcommand` - The resume subcommand (`:list` or `{:restore, target}`)
+  - `model` - The TUI model (used for context like active sessions)
+
+  ## Returns
+
+  - `{:session_action, action}` - Action for TUI to perform (when resuming a session)
+  - `{:ok, message}` - Informational message (when listing sessions)
+  - `{:error, message}` - Error message
+  """
+  @spec execute_resume(atom() | tuple(), map()) ::
+          {:session_action, tuple()} | {:ok, String.t()} | {:error, String.t()}
+  def execute_resume(:list, _model) do
+    alias JidoCode.Session.Persistence
+
+    case Persistence.list_resumable() do
+      {:ok, sessions} ->
+        message = format_resumable_list(sessions)
+        {:ok, message}
+
+      {:error, reason} ->
+        {:error, "Failed to list resumable sessions: #{inspect(reason)}"}
+    end
+  end
+
+  def execute_resume({:restore, target}, _model) do
+    alias JidoCode.Session.Persistence
+
+    case Persistence.list_resumable() do
+      {:ok, sessions} ->
+        case resolve_resume_target(target, sessions) do
+          {:ok, session_id} ->
+            # Attempt to resume the session
+            case Persistence.resume(session_id) do
+              {:ok, session} ->
+                {:session_action, {:add_session, session}}
+
+              {:error, :project_path_not_found} ->
+                {:error, "Project path no longer exists."}
+
+              {:error, :project_path_not_directory} ->
+                {:error, "Project path is not a directory."}
+
+              {:error, :project_already_open} ->
+                {:error, "Project already open in another session."}
+
+              {:error, :session_limit_reached} ->
+                {:error, "Maximum 10 sessions reached. Close a session first."}
+
+              {:error, {:rate_limit_exceeded, retry_after}} ->
+                {:error, "Rate limit exceeded. Try again in #{retry_after} seconds."}
+
+              {:error, :not_found} ->
+                {:error, "Session file not found."}
+
+              {:error, reason} ->
+                {:error, "Failed to resume session: #{inspect(reason)}"}
+            end
+
+          {:error, error_message} ->
+            {:error, error_message}
+        end
+
+      {:error, reason} ->
+        {:error, "Failed to list resumable sessions: #{inspect(reason)}"}
+    end
+  end
+
+  # Private helpers for resume command
+
+  # Formats the list of resumable sessions for display
+  defp format_resumable_list([]) do
+    "No resumable sessions available."
+  end
+
+  defp format_resumable_list(sessions) do
+    header = "Resumable sessions:\n\n"
+
+    list =
+      sessions
+      |> Enum.with_index(1)
+      |> Enum.map(fn {session, idx} ->
+        time_ago = format_ago(session.closed_at)
+        "  #{idx}. #{session.name} (#{session.project_path}) - closed #{time_ago}"
+      end)
+      |> Enum.join("\n")
+
+    footer = "\n\nUse /resume <number> to restore a session."
+
+    header <> list <> footer
+  end
+
+  # Formats a timestamp as relative time (e.g., "5 min ago", "2 hours ago")
+  defp format_ago(iso_timestamp) when is_binary(iso_timestamp) do
+    case DateTime.from_iso8601(iso_timestamp) do
+      {:ok, dt, _} ->
+        diff = DateTime.diff(DateTime.utc_now(), dt, :second)
+
+        cond do
+          diff < 60 ->
+            "just now"
+
+          diff < 3600 ->
+            minutes = div(diff, 60)
+            "#{minutes} min ago"
+
+          diff < 86400 ->
+            hours = div(diff, 3600)
+            "#{hours} #{if hours == 1, do: "hour", else: "hours"} ago"
+
+          diff < 172800 ->
+            # Less than 2 days
+            "yesterday"
+
+          diff < 604800 ->
+            # Less than 7 days
+            days = div(diff, 86400)
+            "#{days} days ago"
+
+          true ->
+            # More than a week, show date
+            dt |> DateTime.to_date() |> Date.to_string()
+        end
+
+      {:error, _} ->
+        # Fallback if parsing fails
+        "unknown"
+    end
+  end
+
+  # Resolves a resume target (numeric index or UUID) to a session ID
+  defp resolve_resume_target(target, sessions) do
+    # Try parsing as integer (1-based index)
+    case Integer.parse(target) do
+      {index, ""} when index > 0 and index <= length(sessions) ->
+        session = Enum.at(sessions, index - 1)
+        {:ok, session.id}
+
+      {index, ""} ->
+        {:error, "Invalid index: #{index}. Valid range is 1-#{length(sessions)}."}
+
+      :error ->
+        # Not an integer, try as UUID
+        target_trimmed = String.trim(target)
+
+        if Enum.any?(sessions, fn s -> s.id == target_trimmed end) do
+          {:ok, target_trimmed}
+        else
+          {:error, "Session not found: #{target_trimmed}"}
+        end
+    end
   end
 
   # Private helpers for session name validation

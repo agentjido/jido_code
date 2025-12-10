@@ -515,16 +515,16 @@ Test complete save and resume cycle end-to-end.
 - [x] 6.7.1.5 Test: Resume → persisted file deleted → session now active
 - [x] 6.7.1.6 Write all save-resume cycle integration tests (9 comprehensive tests)
 
-### 6.7.2 Auto-Save on Close Integration
-- [ ] **Task 6.7.2**
+### 6.7.2 Auto-Save on Close Integration ✅
+- [x] **Task 6.7.2** ✅ **COMPLETE**
 
 Test auto-save integrates with session close flow.
 
-- [ ] 6.7.2.1 Test: `/session close` → session saved before processes terminated
-- [ ] 6.7.2.2 Test: Ctrl+W close → session saved
-- [ ] 6.7.2.3 Test: Save failure → close continues → warning logged
-- [ ] 6.7.2.4 Test: Save includes conversation at time of close
-- [ ] 6.7.2.5 Write all auto-save integration tests
+- [x] 6.7.2.1 Test: `/session close` → session saved before processes terminated
+- [x] 6.7.2.2 Test: Ctrl+W close → session saved
+- [x] 6.7.2.3 Test: Save failure → close continues → warning logged
+- [x] 6.7.2.4 Test: Save includes conversation at time of close
+- [x] 6.7.2.5 Write all auto-save integration tests (6 comprehensive tests)
 
 ### 6.7.3 Resume Command Integration
 - [ ] **Task 6.7.3**

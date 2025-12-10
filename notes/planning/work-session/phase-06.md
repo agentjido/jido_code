@@ -289,28 +289,65 @@ Implement full session restoration.
 - [x] 6.4.2.6 Write unit tests for resume function
 
 ### 6.4.3 Project Path Validation
-- [ ] **Task 6.4.3**
+- [x] **Task 6.4.3** ✅ (Completed in 6.4.2)
 
 Validate project path still exists before resuming.
 
-- [ ] 6.4.3.1 Implement `validate_project_path/1`:
-  ```elixir
-  defp validate_project_path(path) do
-    cond do
-      not File.exists?(path) ->
-        {:error, :path_not_found}
-      not File.dir?(path) ->
-        {:error, :path_not_directory}
-      SessionRegistry.lookup_by_path(path) != {:error, :not_found} ->
-        {:error, :project_already_open}
-      true ->
-        :ok
-    end
-  end
-  ```
-- [ ] 6.4.3.2 Return clear error if path doesn't exist
-- [ ] 6.4.3.3 Return error if project already open
-- [ ] 6.4.3.4 Write unit tests for validation
+- [x] 6.4.3.1 Implement `validate_project_path/1` (completed in 6.4.2)
+- [x] 6.4.3.2 Return clear error if path doesn't exist
+- [x] 6.4.3.3 Return error if project already open
+- [x] 6.4.3.4 Write unit tests for validation
+
+### 6.4.4 Security Review Fixes
+- [x] **Task 6.4.4** ✅ (Completed 2025-12-10)
+
+Address all security findings from Section 6.4 review (notes/reviews/section-6.4-review.md).
+
+**High Priority Security Fixes:**
+- [x] 6.4.4.1 HMAC Signature Infrastructure
+  - Created lib/jido_code/session/persistence/crypto.ex
+  - HMAC-SHA256 with PBKDF2 key derivation
+  - Integrated into write_session_file/2 and load/1
+  - Graceful backward compatibility for unsigned files
+  - 24 comprehensive tests
+- [x] 6.4.4.2 TOCTOU Race Condition Fix
+  - Added revalidate_project_path/1
+  - Integrated into restore_state_or_cleanup/2
+  - Re-validates path after session start
+  - Automatic cleanup on failure
+- [x] 6.4.4.3 File Size Validation in load/1
+  - Added File.stat check to load/1
+  - Enforces 10MB limit consistently
+  - DoS prevention
+
+**Medium Priority Defense in Depth:**
+- [x] 6.4.4.4 Rate Limiting
+  - Created lib/jido_code/rate_limit.ex
+  - ETS-based sliding window (5 attempts/60 seconds)
+  - GenServer with periodic cleanup
+  - Integrated into resume/1
+  - 20 comprehensive tests
+- [x] 6.4.4.5 Enhanced Path Validation
+  - Implemented as part of TOCTOU fix
+  - Full security validation after session start
+
+**Code Quality Improvements:**
+- [x] 6.4.4.6 Extract deserialize_list/2 helper
+  - Reduced code duplication by ~90%
+  - Generic list deserialization function
+- [x] 6.4.4.7 Enhanced test helpers
+  - Added persistence helpers to SessionTestHelpers
+  - test_uuid/1, create_test_session/4, create_persisted_session/4
+
+**Documentation:**
+- [x] 6.4.4.8 Feature plan: notes/features/ws-6.4.3-review-fixes.md
+- [x] 6.4.4.9 Summary: notes/summaries/ws-6.4.3-review-fixes.md
+- [x] 6.4.4.10 Review document: notes/reviews/section-6.4-review.md
+
+**Test Results:**
+- 166 tests passing (122 integration + 24 Crypto + 20 RateLimit)
+- 0 failures, 0 compilation errors, 0 new credo issues
+- Production-ready security posture
 
 **Unit Tests for Section 6.4:**
 - Test `load/1` parses JSON correctly

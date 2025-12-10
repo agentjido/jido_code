@@ -552,15 +552,15 @@ Test persistence file format works correctly at file level.
 - [x] 6.7.4.7 Write all file format integration tests (6 tests, 21/21 phase6 passing)
 
 ### 6.7.5 Multi-Session Persistence Integration
-- [ ] **Task 6.7.5**
+- [x] **Task 6.7.5** ✅
 
 Test persistence works correctly with multiple sessions.
 
-- [ ] 6.7.5.1 Test: Close 3 sessions → all 3 appear in `/resume` list
-- [ ] 6.7.5.2 Test: Resume one → remaining 2 still in resume list
-- [ ] 6.7.5.3 Test: `/resume list` sorted by closed_at (most recent first)
-- [ ] 6.7.5.4 Test: Active sessions excluded from resume list
-- [ ] 6.7.5.5 Write all multi-session persistence tests
+- [x] 6.7.5.1 Test: Close 3 sessions → all 3 appear in `/resume` list ✅
+- [x] 6.7.5.2 Test: Resume one → remaining 2 still in resume list ✅
+- [x] 6.7.5.3 Test: `/resume list` sorted by closed_at (most recent first) ✅
+- [x] 6.7.5.4 Test: Active sessions excluded from resume list ✅
+- [x] 6.7.5.5 Write all multi-session persistence tests ✅
 
 ### 6.7.6 Cleanup Integration
 - [ ] **Task 6.7.6**

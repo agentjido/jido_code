@@ -1958,4 +1958,176 @@ defmodule JidoCode.CommandsTest do
       end
     end
   end
+
+  describe "/resume command - multiple sessions" do
+    setup do
+      # Set API key for test sessions
+      System.put_env("ANTHROPIC_API_KEY", "test-key-multi-session")
+
+      # Ensure app started
+      {:ok, _} = Application.ensure_all_started(:jido_code)
+
+      # Wait for SessionSupervisor
+      wait_for_supervisor()
+
+      # Clear registry
+      JidoCode.SessionRegistry.clear()
+
+      # Create temp directory for test projects
+      tmp_base = Path.join(System.tmp_dir!(), "multi_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_base)
+
+      on_exit(fn ->
+        # Stop all test sessions
+        for session <- JidoCode.SessionRegistry.list_all() do
+          JidoCode.SessionSupervisor.stop_session(session.id)
+        end
+
+        # Clean up temp dirs and session files
+        File.rm_rf!(tmp_base)
+        sessions_dir = JidoCode.Session.Persistence.sessions_dir()
+
+        if File.exists?(sessions_dir) do
+          File.rm_rf!(sessions_dir)
+        end
+      end)
+
+      {:ok, tmp_base: tmp_base}
+    end
+
+    test "lists all closed sessions", %{tmp_base: tmp_base} do
+      # Create 3 projects
+      projects =
+        for i <- 1..3 do
+          project = Path.join(tmp_base, "project#{i}")
+          File.mkdir_p!(project)
+          project
+        end
+
+      # Create and close 3 sessions
+      _sessions =
+        for {project, i} <- Enum.with_index(projects, 1) do
+          create_and_close_session("Session #{i}", project)
+        end
+
+      # List resumable sessions
+      result = Commands.execute_resume(:list, %{})
+
+      # Verify all 3 appear
+      assert {:ok, message} = result
+      assert message =~ "Session 1"
+      assert message =~ "Session 2"
+      assert message =~ "Session 3"
+    end
+
+    test "resuming one session leaves others in list", %{tmp_base: tmp_base} do
+      # Create 3 projects
+      projects =
+        for i <- 1..3 do
+          project = Path.join(tmp_base, "project#{i}")
+          File.mkdir_p!(project)
+          project
+        end
+
+      # Create and close 3 sessions
+      _sessions =
+        for {project, i} <- Enum.with_index(projects, 1) do
+          create_and_close_session("Session #{i}", project)
+        end
+
+      # Resume first session
+      result = Commands.execute_resume({:restore, "1"}, %{})
+      assert {:session_action, {:add_session, _resumed}} = result
+
+      # List remaining resumable sessions
+      list_result = Commands.execute_resume(:list, %{})
+      assert {:ok, message} = list_result
+
+      # Verify 2 remaining (Session 1 was resumed and should not appear)
+      # Note: We can't guarantee which one was resumed (sorted by closed_at),
+      # so we just check that exactly 2 sessions remain and at least one is different
+      assert message =~ "Session"
+      # Count how many "Session" appears - should be less than 3
+      session_count = length(String.split(message, "Session")) - 1
+      assert session_count == 2
+    end
+
+    test "sessions sorted by closed_at (most recent first)", %{tmp_base: tmp_base} do
+      # Create 3 projects
+      projects =
+        for i <- 1..3 do
+          project = Path.join(tmp_base, "project#{i}")
+          File.mkdir_p!(project)
+          project
+        end
+
+      # Create and close sessions with delays to ensure different closed_at times
+      for {project, i} <- Enum.with_index(projects, 1) do
+        create_and_close_session("Session #{i}", project)
+        # Small delay to ensure different closed_at times
+        Process.sleep(100)
+      end
+
+      # List sessions
+      result = Commands.execute_resume(:list, %{})
+      assert {:ok, message} = result
+
+      # Verify order - Session 3 should appear before Session 1
+      # (most recent closed appears first)
+      session3_match = :binary.match(message, "Session 3")
+      session2_match = :binary.match(message, "Session 2")
+      session1_match = :binary.match(message, "Session 1")
+
+      # All should be found
+      assert session3_match != :nomatch
+      assert session2_match != :nomatch
+      assert session1_match != :nomatch
+
+      # Extract positions
+      {session3_pos, _} = session3_match
+      {session2_pos, _} = session2_match
+      {session1_pos, _} = session1_match
+
+      # Most recent (Session 3) should appear first
+      assert session3_pos < session2_pos
+      assert session2_pos < session1_pos
+    end
+
+    test "active sessions excluded from resumable list", %{tmp_base: tmp_base} do
+      # Create 3 projects
+      projects =
+        for i <- 1..3 do
+          project = Path.join(tmp_base, "project#{i}")
+          File.mkdir_p!(project)
+          project
+        end
+
+      # Create and close 3 sessions
+      for {project, i} <- Enum.with_index(projects, 1) do
+        create_and_close_session("Session #{i}", project)
+      end
+
+      # List all first to identify session at index 2
+      list_result = Commands.execute_resume(:list, %{})
+      assert {:ok, _} = list_result
+
+      # Resume session 2 (making it active)
+      result = Commands.execute_resume({:restore, "2"}, %{})
+      assert {:session_action, {:add_session, resumed_session}} = result
+
+      # List resumable again
+      list_result = Commands.execute_resume(:list, %{})
+      assert {:ok, message} = list_result
+
+      # Resumed session should NOT appear in list
+      refute message =~ resumed_session.name
+
+      # Should show 2 sessions, not 3
+      session_count = length(String.split(message, "Session")) - 1
+      assert session_count == 2
+    end
+
+    # Reuse helper functions from /resume command integration describe block
+    # (create_and_close_session, wait_for_persisted_file, wait_for_supervisor)
+  end
 end

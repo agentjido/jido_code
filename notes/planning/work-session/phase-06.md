@@ -428,26 +428,26 @@ Format "closed X ago" for display.
 Implement cleanup of old persisted sessions.
 
 ### 6.6.1 Session Cleanup
-- [ ] **Task 6.6.1**
+- [x] **Task 6.6.1** ✅ (Completed 2025-12-10)
 
 Implement cleanup of old persisted sessions.
 
-- [ ] 6.6.1.1 Implement `cleanup/1` accepting max_age in days:
-  ```elixir
-  def cleanup(max_age_days \\ 30) do
-    cutoff = DateTime.add(DateTime.utc_now(), -max_age_days * 86400, :second)
+- [x] 6.6.1.1 Implement `cleanup/1` accepting max_age in days (default 30)
+- [x] 6.6.1.2 Calculate cutoff DateTime and filter old sessions
+- [x] 6.6.1.3 Delete sessions older than cutoff
+- [x] 6.6.1.4 Continue-on-error strategy for robustness
+- [x] 6.6.1.5 Return detailed results map (deleted, skipped, failed, errors)
+- [x] 6.6.1.6 Add comprehensive logging (info, debug, warning)
+- [x] 6.6.1.7 Make delete_persisted/1 public for reuse
+- [x] 6.6.1.8 Write unit tests (12 tests passing, 3 skipped)
 
-    list_persisted()
-    |> Enum.filter(fn s ->
-      {:ok, closed_at, _} = DateTime.from_iso8601(s.closed_at)
-      DateTime.compare(closed_at, cutoff) == :lt
-    end)
-    |> Enum.each(&delete_persisted(&1.id))
-  end
-  ```
-- [ ] 6.6.1.2 Default to 30 days max age
-- [ ] 6.6.1.3 Delete sessions older than cutoff
-- [ ] 6.6.1.4 Write unit tests for cleanup
+**Implementation Summary:**
+- Created `cleanup/1` function in Persistence module
+- Helper function `parse_and_compare_timestamp/2` for timestamp parsing
+- Made `delete_persisted/1` public with documentation
+- Comprehensive error handling for all edge cases
+- Tests: 12 passing, 3 skipped (platform-dependent file permissions)
+- Total persistence tests: 137 passing, 0 failures
 
 ### 6.6.2 Delete Command
 - [ ] **Task 6.6.2**

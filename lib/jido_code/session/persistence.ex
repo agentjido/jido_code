@@ -621,6 +621,133 @@ defmodule JidoCode.Session.Persistence do
   end
 
   @doc """
+  Cleans up old persisted session files.
+
+  Deletes session files that are older than the specified maximum age (in days).
+  This function is idempotent and safe to run multiple times. It continues
+  processing even if some deletions fail, returning detailed results.
+
+  ## Parameters
+
+  - `max_age_days` - Maximum age in days (default: 30). Sessions closed longer
+    ago than this will be deleted.
+
+  ## Returns
+
+  A map with the following keys:
+  - `:deleted` - Number of sessions successfully deleted
+  - `:skipped` - Number of sessions skipped (recent or invalid timestamp)
+  - `:failed` - Number of sessions that failed to delete
+  - `:errors` - List of error tuples `{session_id, reason}` for failed deletions
+
+  ## Examples
+
+      iex> Persistence.cleanup()
+      %{deleted: 5, skipped: 2, failed: 0, errors: []}
+
+      iex> Persistence.cleanup(7)
+      %{deleted: 10, skipped: 1, failed: 0, errors: []}
+
+  ## Behavior
+
+  - Uses `list_persisted/0` to get all persisted sessions
+  - Compares `closed_at` timestamp with cutoff date
+  - Deletes sessions older than cutoff
+  - Skips sessions with invalid timestamps (logs warning)
+  - Continues even if individual deletions fail
+  - Returns detailed results for transparency
+
+  ## Safety
+
+  This function is safe to run multiple times. Already-deleted files won't cause
+  errors. Invalid timestamps are logged and skipped rather than causing failures.
+  """
+  @spec cleanup(pos_integer()) :: %{
+          deleted: non_neg_integer(),
+          skipped: non_neg_integer(),
+          failed: non_neg_integer(),
+          errors: [{String.t(), term()}]
+        }
+  def cleanup(max_age_days \\ 30) when is_integer(max_age_days) and max_age_days > 0 do
+    require Logger
+
+    # Calculate cutoff date
+    cutoff = DateTime.add(DateTime.utc_now(), -max_age_days * 86400, :second)
+
+    Logger.info("Starting session cleanup: removing sessions older than #{max_age_days} days")
+
+    # Get all persisted sessions (returns a list directly)
+    sessions = list_persisted()
+
+    # Process each session and collect results
+    results =
+      Enum.reduce(sessions, %{deleted: 0, skipped: 0, failed: 0, errors: []}, fn session, acc ->
+        case parse_and_compare_timestamp(session.closed_at, cutoff) do
+          :older ->
+            # Session is old enough to delete
+            case delete_persisted(session.id) do
+              :ok ->
+                Logger.debug("Deleted old session: #{session.id} (#{session.name})")
+                %{acc | deleted: acc.deleted + 1}
+
+              {:error, :enoent} ->
+                # File already deleted - not an error, just skip
+                Logger.debug("Session already deleted: #{session.id}")
+                %{acc | skipped: acc.skipped + 1}
+
+              {:error, reason} ->
+                Logger.warning("Failed to delete session #{session.id}: #{inspect(reason)}")
+
+                %{
+                  acc
+                  | failed: acc.failed + 1,
+                    errors: [{session.id, reason} | acc.errors]
+                }
+            end
+
+          :newer ->
+            # Session is too recent, skip it
+            %{acc | skipped: acc.skipped + 1}
+
+          {:error, reason} ->
+            # Invalid timestamp, skip and log
+            Logger.warning(
+              "Skipping session #{session.id} due to invalid timestamp: #{inspect(reason)}"
+            )
+
+            %{acc | skipped: acc.skipped + 1}
+        end
+      end)
+
+    # Reverse errors list so it's in chronological order
+    results = %{results | errors: Enum.reverse(results.errors)}
+
+    Logger.info(
+      "Cleanup complete: deleted=#{results.deleted}, skipped=#{results.skipped}, failed=#{results.failed}"
+    )
+
+    results
+  end
+
+  # Parses timestamp and compares it with cutoff
+  # Returns :older, :newer, or {:error, reason}
+  @spec parse_and_compare_timestamp(String.t(), DateTime.t()) ::
+          :older | :newer | {:error, term()}
+  defp parse_and_compare_timestamp(iso_timestamp, cutoff) do
+    case DateTime.from_iso8601(iso_timestamp) do
+      {:ok, dt, _} ->
+        if DateTime.compare(dt, cutoff) == :lt do
+          :older
+        else
+          :newer
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Loads a persisted session from disk.
 
   Reads the JSON file for the given session ID, parses it, and deserializes
@@ -1198,9 +1325,36 @@ defmodule JidoCode.Session.Persistence do
     end
   end
 
-  # Deletes the persisted session file
+  @doc """
+  Deletes a persisted session file.
+
+  Removes the JSON file for the specified session ID from disk. This function
+  is idempotent - deleting an already-deleted file returns `:ok`.
+
+  ## Parameters
+
+  - `session_id` - The session ID (UUID format)
+
+  ## Returns
+
+  - `:ok` - File successfully deleted or already deleted
+  - `{:error, reason}` - Failed to delete file (e.g., permission denied)
+
+  ## Examples
+
+      iex> Persistence.delete_persisted("550e8400-e29b-41d4-a716-446655440000")
+      :ok
+
+      iex> Persistence.delete_persisted("nonexistent-id")
+      :ok  # Already deleted
+
+  ## Safety
+
+  This function treats missing files (`:enoent`) as success, making it safe
+  to call multiple times on the same session ID.
+  """
   @spec delete_persisted(String.t()) :: :ok | {:error, term()}
-  defp delete_persisted(session_id) do
+  def delete_persisted(session_id) do
     path = session_file(session_id)
 
     case File.rm(path) do
@@ -1212,9 +1366,8 @@ defmodule JidoCode.Session.Persistence do
         :ok
 
       {:error, reason} ->
-        # Log warning but don't fail the resume operation
-        Logger.warning("Failed to delete persisted session #{session_id}: #{inspect(reason)}")
-        {:error, {:delete_failed, reason}}
+        # Return error without logging (caller can decide to log)
+        {:error, reason}
     end
   end
 end

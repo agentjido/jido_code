@@ -503,17 +503,17 @@ Implement clearing all persisted sessions.
 
 Comprehensive integration tests verifying all Phase 6 persistence components work together correctly.
 
-### 6.7.1 Save-Resume Cycle Integration
-- [ ] **Task 6.7.1**
+### 6.7.1 Save-Resume Cycle Integration ✅
+- [x] **Task 6.7.1** ✅ **COMPLETE**
 
 Test complete save and resume cycle end-to-end.
 
-- [ ] 6.7.1.1 Create `test/jido_code/integration/session_phase6_test.exs`
-- [ ] 6.7.1.2 Test: Create session → add messages → close → verify JSON file created
-- [ ] 6.7.1.3 Test: Resume session → verify messages restored → verify todos restored
-- [ ] 6.7.1.4 Test: Resume → verify session ID preserved → verify config preserved
-- [ ] 6.7.1.5 Test: Resume → persisted file deleted → session now active
-- [ ] 6.7.1.6 Write all save-resume cycle integration tests
+- [x] 6.7.1.1 Create `test/jido_code/integration/session_phase6_test.exs`
+- [x] 6.7.1.2 Test: Create session → add messages → close → verify JSON file created
+- [x] 6.7.1.3 Test: Resume session → verify messages restored → verify todos restored
+- [x] 6.7.1.4 Test: Resume → verify session ID preserved → verify config preserved
+- [x] 6.7.1.5 Test: Resume → persisted file deleted → session now active
+- [x] 6.7.1.6 Write all save-resume cycle integration tests (9 comprehensive tests)
 
 ### 6.7.2 Auto-Save on Close Integration
 - [ ] **Task 6.7.2**

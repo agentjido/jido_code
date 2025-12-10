@@ -1599,4 +1599,81 @@ defmodule JidoCode.CommandsTest do
   defp days_ago(days) do
     DateTime.add(DateTime.utc_now(), -days * 86400, :second)
   end
+
+  describe "/resume clear command" do
+    setup do
+      # Ensure application started
+      Application.ensure_all_started(:jido_code)
+
+      # Clean up sessions directory
+      sessions_dir = JidoCode.Session.Persistence.sessions_dir()
+      File.rm_rf!(sessions_dir)
+      File.mkdir_p!(sessions_dir)
+
+      on_exit(fn ->
+        File.rm_rf!(sessions_dir)
+      end)
+
+      :ok
+    end
+
+    test "parses /resume clear correctly" do
+      result = Commands.execute("/resume clear", %{})
+
+      # Parsing should return the command tuple
+      assert {:resume, :clear} = result
+    end
+
+    test "clears multiple sessions" do
+      # Create three persisted sessions
+      _id1 = create_test_session("Session 1", days_ago(5))
+      _id2 = create_test_session("Session 2", days_ago(4))
+      _id3 = create_test_session("Session 3", days_ago(3))
+
+      # Execute clear
+      result = Commands.execute_resume(:clear, %{})
+
+      assert {:ok, message} = result
+      assert message =~ "Cleared 3 saved session(s)."
+
+      # Verify all sessions are deleted
+      remaining = JidoCode.Session.Persistence.list_persisted()
+      assert remaining == []
+    end
+
+    test "returns message when no sessions to clear" do
+      # No sessions exist
+      result = Commands.execute_resume(:clear, %{})
+
+      assert {:ok, "No saved sessions to clear."} = result
+    end
+
+    test "is idempotent - can run multiple times" do
+      # Create a session
+      _id = create_test_session("Test Session", days_ago(5))
+
+      # Clear once
+      result1 = Commands.execute_resume(:clear, %{})
+      assert {:ok, "Cleared 1 saved session(s)."} = result1
+
+      # Clear again (no sessions left)
+      result2 = Commands.execute_resume(:clear, %{})
+      assert {:ok, "No saved sessions to clear."} = result2
+    end
+
+    test "counts correctly with various session counts" do
+      # Test with 1 session
+      id1 = create_test_session("Session 1", days_ago(5))
+      result = Commands.execute_resume(:clear, %{})
+      assert {:ok, "Cleared 1 saved session(s)."} = result
+
+      # Create 5 sessions
+      Enum.each(1..5, fn n ->
+        create_test_session("Session #{n}", days_ago(n))
+      end)
+
+      result = Commands.execute_resume(:clear, %{})
+      assert {:ok, "Cleared 5 saved session(s)."} = result
+    end
+  end
 end

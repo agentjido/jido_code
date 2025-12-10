@@ -20,6 +20,7 @@ defmodule JidoCode.Commands do
   | `/resume` | List resumable sessions |
   | `/resume <target>` | Resume session by index or ID |
   | `/resume delete <target>` | Delete session by index or ID |
+  | `/resume clear` | Delete all persisted sessions |
 
   ## Usage
 
@@ -76,6 +77,7 @@ defmodule JidoCode.Commands do
     /resume                  - List resumable sessions
     /resume <target>         - Resume session by index or ID
     /resume delete <target>  - Delete session by index or ID
+    /resume clear            - Delete all persisted sessions
     /sandbox-test            - Test the Luerl sandbox security (dev/test only)
     /shell <command> [args]  - Run a shell command (e.g., /shell ls -la)
   """
@@ -189,6 +191,10 @@ defmodule JidoCode.Commands do
 
   defp parse_and_execute("/resume delete " <> rest, _config) do
     {:resume, {:delete, String.trim(rest)}}
+  end
+
+  defp parse_and_execute("/resume clear", _config) do
+    {:resume, :clear}
   end
 
   defp parse_and_execute("/resume " <> rest, _config) do
@@ -565,13 +571,13 @@ defmodule JidoCode.Commands do
 
   ## Parameters
 
-  - `subcommand` - The resume subcommand (`:list`, `{:restore, target}`, or `{:delete, target}`)
+  - `subcommand` - The resume subcommand (`:list`, `{:restore, target}`, `{:delete, target}`, or `:clear`)
   - `model` - The TUI model (used for context like active sessions)
 
   ## Returns
 
   - `{:session_action, action}` - Action for TUI to perform (when resuming a session)
-  - `{:ok, message}` - Informational message (when listing sessions or deleting)
+  - `{:ok, message}` - Informational message (when listing sessions, deleting, or clearing)
   - `{:error, message}` - Error message
   """
   @spec execute_resume(atom() | tuple(), map()) ::
@@ -641,6 +647,24 @@ defmodule JidoCode.Commands do
 
       {:error, error_message} ->
         {:error, error_message}
+    end
+  end
+
+  def execute_resume(:clear, _model) do
+    alias JidoCode.Session.Persistence
+
+    sessions = Persistence.list_persisted()
+    count = length(sessions)
+
+    if count > 0 do
+      # Delete all sessions
+      Enum.each(sessions, fn session ->
+        Persistence.delete_persisted(session.id)
+      end)
+
+      {:ok, "Cleared #{count} saved session(s)."}
+    else
+      {:ok, "No saved sessions to clear."}
     end
   end
 

@@ -539,16 +539,17 @@ Test `/resume` command end-to-end at Commands module level.
 - [x] 6.7.3.6 Write all resume command integration tests (8 tests, 145/145 passing)
 
 ### 6.7.4 Persistence File Format Integration
-- [ ] **Task 6.7.4**
+- [x] **Task 6.7.4** ✅
 
-Test persistence file format works correctly.
+Test persistence file format works correctly at file level.
 
-- [ ] 6.7.4.1 Test: Saved JSON includes all required fields (version, id, name, etc.)
-- [ ] 6.7.4.2 Test: Conversation messages serialized/deserialized correctly
-- [ ] 6.7.4.3 Test: Todos serialized/deserialized correctly
-- [ ] 6.7.4.4 Test: Timestamps in ISO 8601 format
-- [ ] 6.7.4.5 Test: Handle corrupted JSON gracefully (skip file, log warning)
-- [ ] 6.7.4.6 Write all file format integration tests
+- [x] 6.7.4.1 Test: Saved JSON includes all required fields (version, id, name, config, closed_at, etc.)
+- [x] 6.7.4.2 Test: Conversation messages serialized correctly (role as string, timestamps ISO 8601)
+- [x] 6.7.4.3 Test: Todos serialized correctly (status as string, active_form present)
+- [x] 6.7.4.4 Test: Timestamps in ISO 8601 format (parseable, accurate)
+- [x] 6.7.4.5 Test: Round-trip preserves all data (save → resume → verify)
+- [x] 6.7.4.6 Test: Corrupted JSON handled gracefully (skip file, log warning)
+- [x] 6.7.4.7 Write all file format integration tests (6 tests, 21/21 phase6 passing)
 
 ### 6.7.5 Multi-Session Persistence Integration
 - [ ] **Task 6.7.5**

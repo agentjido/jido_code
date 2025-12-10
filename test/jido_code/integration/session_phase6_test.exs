@@ -616,4 +616,294 @@ defmodule JidoCode.Integration.SessionPhase6Test do
       assert length(data["conversation"]) == expected_count
     end
   end
+
+  # ============================================================================
+  # Persistence File Format Integration Tests (Task 6.7.4)
+  # ============================================================================
+
+  describe "persistence file format integration" do
+    test "saved JSON includes all required fields", %{tmp_base: tmp_base} do
+      # Create session with full data
+      session = create_test_session(tmp_base, "Format Test")
+
+      # Add a message
+      message = %{
+        id: "test-msg-#{System.unique_integer([:positive])}",
+        role: :user,
+        content: "Test message",
+        timestamp: DateTime.utc_now()
+      }
+
+      Session.State.append_message(session.id, message)
+
+      # Add a todo
+      Session.State.update_todos(session.id, [
+        %{content: "Test task", status: :in_progress, active_form: "Testing"}
+      ])
+
+      # Close and wait for file
+      :ok = SessionSupervisor.stop_session(session.id)
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      wait_for_file(session_file)
+
+      # Read and parse JSON
+      json_content = File.read!(session_file)
+      data = Jason.decode!(json_content)
+
+      # Verify required fields present
+      assert data["version"] == 1
+      assert data["id"] == session.id
+      assert data["name"] == "Format Test"
+      assert data["project_path"] == session.project_path
+      assert is_map(data["config"])
+      assert is_binary(data["closed_at"])
+      assert is_list(data["conversation"])
+      assert is_list(data["todos"])
+    end
+
+    test "conversation messages serialized correctly", %{tmp_base: tmp_base} do
+      session = create_test_session(tmp_base, "Messages Test")
+
+      # Add messages with different roles
+      timestamp = DateTime.utc_now()
+
+      messages = [
+        %{
+          id: "test-msg-1-#{System.unique_integer([:positive])}",
+          role: :user,
+          content: "User message",
+          timestamp: timestamp
+        },
+        %{
+          id: "test-msg-2-#{System.unique_integer([:positive])}",
+          role: :assistant,
+          content: "Assistant reply",
+          timestamp: timestamp
+        },
+        %{
+          id: "test-msg-3-#{System.unique_integer([:positive])}",
+          role: :system,
+          content: "System message",
+          timestamp: timestamp
+        }
+      ]
+
+      Enum.each(messages, fn msg -> Session.State.append_message(session.id, msg) end)
+
+      # Close and read JSON
+      :ok = SessionSupervisor.stop_session(session.id)
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      wait_for_file(session_file)
+
+      data = File.read!(session_file) |> Jason.decode!()
+      messages = data["conversation"]
+
+      # Verify message structure
+      assert length(messages) == 3
+
+      # Find messages by role (order may vary)
+      user_msg = Enum.find(messages, fn m -> m["role"] == "user" end)
+      assistant_msg = Enum.find(messages, fn m -> m["role"] == "assistant" end)
+      system_msg = Enum.find(messages, fn m -> m["role"] == "system" end)
+
+      # Verify user message exists and has correct structure
+      assert user_msg != nil
+      assert user_msg["content"] == "User message"
+      assert is_binary(user_msg["id"])
+      assert is_binary(user_msg["timestamp"])
+
+      # Verify assistant message
+      assert assistant_msg != nil
+      assert assistant_msg["content"] == "Assistant reply"
+
+      # Verify system message
+      assert system_msg != nil
+      assert system_msg["content"] == "System message"
+    end
+
+    test "todos serialized correctly", %{tmp_base: tmp_base} do
+      session = create_test_session(tmp_base, "Todos Test")
+
+      # Add todos with different statuses
+      todos = [
+        %{content: "Task 1", status: :pending, active_form: "Waiting for task 1"},
+        %{content: "Task 2", status: :in_progress, active_form: "Working on task 2"},
+        %{content: "Task 3", status: :completed, active_form: "Task 3 done"}
+      ]
+
+      Session.State.update_todos(session.id, todos)
+
+      # Close and read JSON
+      :ok = SessionSupervisor.stop_session(session.id)
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      wait_for_file(session_file)
+
+      data = File.read!(session_file) |> Jason.decode!()
+      todos = data["todos"]
+
+      # Verify todo structure
+      assert length(todos) == 3
+
+      [todo1, todo2, todo3] = todos
+
+      # Verify pending todo
+      assert todo1["content"] == "Task 1"
+      assert todo1["status"] == "pending"
+      assert todo1["active_form"] == "Waiting for task 1"
+
+      # Verify in_progress todo
+      assert todo2["content"] == "Task 2"
+      assert todo2["status"] == "in_progress"
+      assert todo2["active_form"] == "Working on task 2"
+
+      # Verify completed todo
+      assert todo3["content"] == "Task 3"
+      assert todo3["status"] == "completed"
+      assert todo3["active_form"] == "Task 3 done"
+    end
+
+    test "timestamps in ISO 8601 format", %{tmp_base: tmp_base} do
+      session = create_test_session(tmp_base, "Timestamps Test")
+
+      # Add message with known timestamp
+      now = DateTime.utc_now()
+
+      message = %{
+        id: "test-msg-#{System.unique_integer([:positive])}",
+        role: :user,
+        content: "Time test",
+        timestamp: now
+      }
+
+      Session.State.append_message(session.id, message)
+
+      # Close and read JSON
+      :ok = SessionSupervisor.stop_session(session.id)
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      wait_for_file(session_file)
+
+      data = File.read!(session_file) |> Jason.decode!()
+
+      # Verify closed_at is ISO 8601
+      closed_at = data["closed_at"]
+      assert {:ok, _datetime, _offset} = DateTime.from_iso8601(closed_at)
+
+      # Verify message timestamp is ISO 8601
+      message_timestamp = hd(data["conversation"])["timestamp"]
+      assert {:ok, parsed_time, _offset} = DateTime.from_iso8601(message_timestamp)
+
+      # Should be close to original timestamp (within 1 second)
+      diff = DateTime.diff(parsed_time, now, :second)
+      assert abs(diff) <= 1
+    end
+
+    test "round-trip preserves all data", %{tmp_base: tmp_base} do
+      session = create_test_session(tmp_base, "Round-Trip Test")
+
+      # Add complex data
+      timestamp = DateTime.utc_now()
+
+      messages = [
+        %{
+          id: "test-msg-1-#{System.unique_integer([:positive])}",
+          role: :user,
+          content: "Message 1",
+          timestamp: timestamp
+        },
+        %{
+          id: "test-msg-2-#{System.unique_integer([:positive])}",
+          role: :assistant,
+          content: "Reply 1",
+          timestamp: timestamp
+        }
+      ]
+
+      Enum.each(messages, fn msg -> Session.State.append_message(session.id, msg) end)
+
+      todos = [
+        %{content: "Task 1", status: :pending, active_form: "Pending task"},
+        %{content: "Task 2", status: :completed, active_form: "Done task"}
+      ]
+
+      Session.State.update_todos(session.id, todos)
+
+      # Close (save)
+      :ok = SessionSupervisor.stop_session(session.id)
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      wait_for_file(session_file)
+
+      # Resume (load)
+      {:ok, resumed_session} = Persistence.resume(session.id)
+
+      # Verify session metadata
+      assert resumed_session.id == session.id
+      assert resumed_session.name == "Round-Trip Test"
+      assert resumed_session.project_path == session.project_path
+
+      # Get state from resumed session
+      {:ok, messages} = Session.State.get_messages(resumed_session.id)
+      {:ok, todos} = Session.State.get_todos(resumed_session.id)
+
+      # Verify messages preserved
+      assert length(messages) == 2
+
+      # Find messages by role (order may vary)
+      user_msg = Enum.find(messages, fn m -> m.role == :user end)
+      assert user_msg != nil
+      assert user_msg.content == "Message 1"
+
+      # Verify todos preserved
+      assert length(todos) == 2
+
+      # Find todos by status (order may vary)
+      pending_todo = Enum.find(todos, fn t -> t.status == :pending end)
+      assert pending_todo != nil
+      assert pending_todo.content == "Task 1"
+      assert pending_todo.active_form == "Pending task"
+    end
+
+    test "handles corrupted JSON files gracefully", %{tmp_base: tmp_base} do
+      import ExUnit.CaptureLog
+
+      # Create sessions directory
+      sessions_dir = Persistence.sessions_dir()
+      File.mkdir_p!(sessions_dir)
+
+      # Create a good session file
+      good_id = Uniq.UUID.uuid4()
+
+      good_session = %{
+        version: 1,
+        id: good_id,
+        name: "Good Session",
+        project_path: Path.join(tmp_base, "good"),
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"},
+        closed_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+        conversation: [],
+        todos: []
+      }
+
+      good_path = Path.join(sessions_dir, "#{good_id}.json")
+      File.write!(good_path, Jason.encode!(good_session))
+
+      # Create a corrupted JSON file
+      corrupted_id = Uniq.UUID.uuid4()
+      corrupted_path = Path.join(sessions_dir, "#{corrupted_id}.json")
+      File.write!(corrupted_path, "{invalid json content")
+
+      # List persisted should skip corrupted file and include good one
+      log =
+        capture_log(fn ->
+          sessions = Persistence.list_persisted()
+
+          # Should have only the good session
+          assert length(sessions) == 1
+          assert hd(sessions).id == good_id
+          assert hd(sessions).name == "Good Session"
+        end)
+
+      # Should log warning about corrupted file
+      assert log =~ "corrupted" or log =~ "invalid" or log =~ "failed"
+    end
+  end
 end

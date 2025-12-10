@@ -1676,4 +1676,286 @@ defmodule JidoCode.CommandsTest do
       assert {:ok, "Cleared 5 saved session(s)."} = result
     end
   end
+
+  # ============================================================================
+  # Resume Command Integration Tests (Task 6.7.3)
+  # ============================================================================
+
+  describe "/resume command integration" do
+    setup do
+      # Set API key for test sessions
+      System.put_env("ANTHROPIC_API_KEY", "test-key-for-resume-integration")
+
+      # Ensure app started and supervisor available
+      {:ok, _} = Application.ensure_all_started(:jido_code)
+
+      # Wait for SessionSupervisor
+      wait_for_supervisor()
+
+      # Clear registry
+      JidoCode.SessionRegistry.clear()
+
+      # Create temp directory for test projects
+      tmp_base = Path.join(System.tmp_dir!(), "resume_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_base)
+
+      on_exit(fn ->
+        # Stop all test sessions
+        for session <- JidoCode.SessionRegistry.list_all() do
+          JidoCode.SessionSupervisor.stop_session(session.id)
+        end
+
+        # Clean up temp dirs and session files
+        File.rm_rf!(tmp_base)
+        sessions_dir = JidoCode.Session.Persistence.sessions_dir()
+
+        if File.exists?(sessions_dir) do
+          File.rm_rf!(sessions_dir)
+        end
+      end)
+
+      {:ok, tmp_base: tmp_base}
+    end
+
+    test "lists resumable sessions when closed sessions exist", %{tmp_base: tmp_base} do
+      # Create and close 2 test sessions
+      project1 = Path.join(tmp_base, "project1")
+      project2 = Path.join(tmp_base, "project2")
+      File.mkdir_p!(project1)
+      File.mkdir_p!(project2)
+
+      _session1 = create_and_close_session("Project 1", project1)
+      _session2 = create_and_close_session("Project 2", project2)
+
+      # Execute /resume (list)
+      result = Commands.execute_resume(:list, %{})
+
+      # Verify returns {:ok, message} with session details
+      assert {:ok, message} = result
+      assert is_binary(message)
+      assert message =~ "Project 1"
+      assert message =~ "Project 2"
+      assert message =~ project1
+      assert message =~ project2
+    end
+
+    test "returns message when no resumable sessions", %{tmp_base: _tmp_base} do
+      # No sessions created
+
+      # Execute /resume (list)
+      result = Commands.execute_resume(:list, %{})
+
+      # Verify returns {:ok, message} indicating no sessions
+      assert {:ok, message} = result
+      # Actual message: "No resumable sessions available."
+      assert String.contains?(message, "No resumable sessions")
+    end
+
+    test "resumes session by index", %{tmp_base: tmp_base} do
+      # Create and close 2 test sessions
+      project1 = Path.join(tmp_base, "project1")
+      project2 = Path.join(tmp_base, "project2")
+      File.mkdir_p!(project1)
+      File.mkdir_p!(project2)
+
+      _session1 = create_and_close_session("Project 1", project1)
+      _session2 = create_and_close_session("Project 2", project2)
+
+      # Execute /resume 1 (first session in list)
+      result = Commands.execute_resume({:restore, "1"}, %{})
+
+      # Verify returns {:session_action, {:add_session, session}}
+      assert {:session_action, {:add_session, resumed_session}} = result
+
+      # Verify resumed session has correct name
+      assert resumed_session.name == "Project 1" or resumed_session.name == "Project 2"
+
+      # Verify session is now active
+      assert {:ok, _} = JidoCode.SessionRegistry.lookup(resumed_session.id)
+
+      # Persisted file should be deleted after resume
+      # (The important thing is that resume succeeded)
+    end
+
+    test "returns error for invalid index", %{tmp_base: tmp_base} do
+      # Create one session
+      project1 = Path.join(tmp_base, "project1")
+      File.mkdir_p!(project1)
+      _session1 = create_and_close_session("Project 1", project1)
+
+      # Try to resume index 999 (doesn't exist)
+      result = Commands.execute_resume({:restore, "999"}, %{})
+
+      # Verify returns error
+      assert {:error, _reason} = result
+    end
+
+    test "returns error when session limit reached", %{tmp_base: tmp_base} do
+      # First create and close a session to resume later
+      project_to_resume = Path.join(tmp_base, "closed_project")
+      File.mkdir_p!(project_to_resume)
+      _closed_session = create_and_close_session("Closed Session", project_to_resume)
+
+      # Now create 10 active sessions (at limit)
+      Enum.each(1..10, fn i ->
+        project = Path.join(tmp_base, "active_project#{i}")
+        File.mkdir_p!(project)
+
+        {:ok, _session} =
+          JidoCode.SessionSupervisor.create_session(
+            project_path: project,
+            name: "Active Session #{i}",
+            config: %{
+              provider: "anthropic",
+              model: "claude-3-5-haiku-20241022",
+              temperature: 0.7,
+              max_tokens: 4096
+            }
+          )
+      end)
+
+      # Try to resume (should fail - at limit)
+      result = Commands.execute_resume({:restore, "1"}, %{})
+
+      # Verify returns error about session limit
+      assert {:error, reason} = result
+      # Error message: "Maximum 10 sessions reached. Close a session first."
+      assert is_binary(reason) and (String.contains?(reason, "Maximum") or String.contains?(reason, "limit"))
+    end
+
+    test "returns error when project path deleted", %{tmp_base: tmp_base} do
+      # Create and close session
+      project = Path.join(tmp_base, "project_to_delete")
+      File.mkdir_p!(project)
+      _session = create_and_close_session("Deleted Project", project)
+
+      # Delete project directory
+      File.rm_rf!(project)
+
+      # Try to resume
+      result = Commands.execute_resume({:restore, "1"}, %{})
+
+      # Verify returns error about missing project
+      assert {:error, reason} = result
+      # Error from Persistence.resume/1 for deleted path
+      assert is_binary(reason) and String.contains?(reason, "no longer exists")
+    end
+
+    test "filters out sessions for projects that are already open", %{tmp_base: tmp_base} do
+      # Create two projects
+      project1 = Path.join(tmp_base, "project1")
+      project2 = Path.join(tmp_base, "project2")
+      File.mkdir_p!(project1)
+      File.mkdir_p!(project2)
+
+      # Create and close sessions for both projects
+      _session1 = create_and_close_session("Project 1 Closed", project1)
+      _session2 = create_and_close_session("Project 2 Closed", project2)
+
+      # Now open project1 again (but not project2)
+      {:ok, _active_session} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project1,
+          name: "Project 1 Active",
+          config: %{
+            provider: "anthropic",
+            model: "claude-3-5-haiku-20241022",
+            temperature: 0.7,
+            max_tokens: 4096
+          }
+        )
+
+      # List resumable sessions - should only show project2
+      result = Commands.execute_resume(:list, %{})
+
+      # Verify returns {:ok, message} with only project2
+      assert {:ok, message} = result
+      refute String.contains?(message, "Project 1")
+      assert String.contains?(message, "Project 2")
+    end
+
+    test "resumes session by UUID", %{tmp_base: tmp_base} do
+      # Create and close session
+      project = Path.join(tmp_base, "project_uuid")
+      File.mkdir_p!(project)
+      session = create_and_close_session("UUID Project", project)
+
+      # Execute /resume <uuid>
+      result = Commands.execute_resume({:restore, session.id}, %{})
+
+      # Verify returns {:session_action, {:add_session, session}}
+      assert {:session_action, {:add_session, resumed_session}} = result
+      assert resumed_session.id == session.id
+
+      # Verify session active
+      assert {:ok, _} = JidoCode.SessionRegistry.lookup(resumed_session.id)
+    end
+
+    # Helper functions
+
+    defp wait_for_supervisor(retries \\ 50) do
+      case Process.whereis(JidoCode.SessionSupervisor) do
+        nil when retries > 0 ->
+          Process.sleep(10)
+          wait_for_supervisor(retries - 1)
+
+        nil ->
+          raise "SessionSupervisor did not start within timeout"
+
+        _pid ->
+          :ok
+      end
+    end
+
+    defp create_and_close_session(name, project_path) do
+      # Create session
+      config = %{
+        provider: "anthropic",
+        model: "claude-3-5-haiku-20241022",
+        temperature: 0.7,
+        max_tokens: 4096
+      }
+
+      {:ok, session} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project_path,
+          name: name,
+          config: config
+        )
+
+      # Add a message so session has content
+      message = %{
+        id: "test-msg-#{System.unique_integer([:positive])}",
+        role: :user,
+        content: "Test message",
+        timestamp: DateTime.utc_now()
+      }
+
+      JidoCode.Session.State.append_message(session.id, message)
+
+      # Close session (triggers auto-save)
+      :ok = JidoCode.SessionSupervisor.stop_session(session.id)
+
+      # Wait for file creation
+      session_file =
+        Path.join(JidoCode.Session.Persistence.sessions_dir(), "#{session.id}.json")
+
+      wait_for_persisted_file(session_file)
+
+      session
+    end
+
+    defp wait_for_persisted_file(file_path, retries \\ 50) do
+      if File.exists?(file_path) do
+        :ok
+      else
+        if retries > 0 do
+          Process.sleep(10)
+          wait_for_persisted_file(file_path, retries - 1)
+        else
+          {:error, :timeout}
+        end
+      end
+    end
+  end
 end

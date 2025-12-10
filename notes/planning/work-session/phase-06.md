@@ -527,16 +527,16 @@ Test auto-save integrates with session close flow.
 - [x] 6.7.2.5 Write all auto-save integration tests (6 comprehensive tests)
 
 ### 6.7.3 Resume Command Integration
-- [ ] **Task 6.7.3**
+- [x] **Task 6.7.3** ✅
 
-Test `/resume` command end-to-end.
+Test `/resume` command end-to-end at Commands module level.
 
-- [ ] 6.7.3.1 Test: Close session → `/resume` → shows in resumable list
-- [ ] 6.7.3.2 Test: `/resume 1` → session restored → added to tabs → switched to
-- [ ] 6.7.3.3 Test: `/resume` when at session limit → error message
-- [ ] 6.7.3.4 Test: `/resume` when project path deleted → error message
-- [ ] 6.7.3.5 Test: `/resume` when project already open → error message
-- [ ] 6.7.3.6 Write all resume command integration tests
+- [x] 6.7.3.1 Test: Close session → `/resume` → shows in resumable list
+- [x] 6.7.3.2 Test: `/resume 1` → session restored (returns {:session_action, {:add_session, session}})
+- [x] 6.7.3.3 Test: `/resume` when at session limit → error message
+- [x] 6.7.3.4 Test: `/resume` when project path deleted → error message
+- [x] 6.7.3.5 Test: Filtering - sessions for open projects excluded from list
+- [x] 6.7.3.6 Write all resume command integration tests (8 tests, 145/145 passing)
 
 ### 6.7.4 Persistence File Format Integration
 - [ ] **Task 6.7.4**

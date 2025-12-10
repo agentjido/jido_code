@@ -450,21 +450,24 @@ Implement cleanup of old persisted sessions.
 - Total persistence tests: 137 passing, 0 failures
 
 ### 6.6.2 Delete Command
-- [ ] **Task 6.6.2**
+- [x] **Task 6.6.2** ✅ (Completed 2025-12-10)
 
 Implement deleting persisted sessions without restoring.
 
-- [ ] 6.6.2.1 Add `/resume delete <target>` subcommand
-- [ ] 6.6.2.2 Implement handler:
-  ```elixir
-  def execute({:resume, {:delete, target}}, model) do
-    sessions = Persistence.list_resumable()
-    session_id = resolve_resume_target(target, sessions)
-    Persistence.delete_persisted(session_id)
-    {:ok, "Deleted saved session.", :no_change}
-  end
-  ```
-- [ ] 6.6.2.3 Write unit tests for delete
+- [x] 6.6.2.1 Add `/resume delete <target>` subcommand parsing
+- [x] 6.6.2.2 Implement execute_resume({:delete, target}, model) handler
+- [x] 6.6.2.3 Fix resolve_resume_target to handle UUID starting with digits
+- [x] 6.6.2.4 Fix list_resumable() return value handling (was expecting {:ok, list})
+- [x] 6.6.2.5 Update module documentation and help text
+- [x] 6.6.2.6 Write 12 comprehensive unit tests (all passing)
+
+**Implementation Summary:**
+- Command parsing: `/resume delete <target>` → `{:resume, {:delete, target}}`
+- Handler calls list_resumable(), resolve_resume_target(), delete_persisted()
+- Fixed bug: resolve_resume_target now handles partial integer parses (UUIDs starting with digits)
+- Fixed bug: execute_resume functions now correctly handle list_resumable() returning plain list
+- Tests: 12 new tests, 132 total passing (0 failures)
+- TUI integration: Already working via existing handle_resume_command/2
 
 ### 6.6.3 Clear All Command
 - [ ] **Task 6.6.3**

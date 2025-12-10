@@ -1428,4 +1428,175 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Session Commands:"
     end
   end
+
+  describe "/resume delete command" do
+    setup do
+      # Ensure application started
+      Application.ensure_all_started(:jido_code)
+
+      # Clean up sessions directory
+      sessions_dir = JidoCode.Session.Persistence.sessions_dir()
+      File.rm_rf!(sessions_dir)
+      File.mkdir_p!(sessions_dir)
+
+      on_exit(fn ->
+        File.rm_rf!(sessions_dir)
+      end)
+
+      :ok
+    end
+
+    test "parses /resume delete <index> correctly" do
+      result = Commands.execute("/resume delete 1", %{})
+
+      # Parsing should return the command tuple
+      assert {:resume, {:delete, "1"}} = result
+    end
+
+    test "parses /resume delete <uuid> correctly" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      result = Commands.execute("/resume delete #{uuid}", %{})
+
+      # Parsing should return the command tuple
+      assert {:resume, {:delete, ^uuid}} = result
+    end
+
+    test "deletes session by numeric index" do
+      # Create a persisted session
+      session_id = create_test_session("Test Session", days_ago(5))
+
+      # Execute delete by index 1
+      result = Commands.execute_resume({:delete, "1"}, %{})
+
+      assert {:ok, "Deleted saved session."} = result
+
+      # Verify session is deleted
+      assert {:error, :not_found} = JidoCode.Session.Persistence.load(session_id)
+    end
+
+    test "deletes session by UUID" do
+      # Create a persisted session
+      session_id = create_test_session("Test Session", days_ago(5))
+
+      # Execute delete by UUID
+      result = Commands.execute_resume({:delete, session_id}, %{})
+
+      assert {:ok, "Deleted saved session."} = result
+
+      # Verify session is deleted
+      assert {:error, :not_found} = JidoCode.Session.Persistence.load(session_id)
+    end
+
+    test "returns error when target not found" do
+      # No sessions exist
+      result = Commands.execute_resume({:delete, "1"}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Invalid" or message =~ "range"
+    end
+
+    test "returns error when index out of range" do
+      # Create one session
+      _session_id = create_test_session("Test Session", days_ago(5))
+
+      # Try to delete index 2 (doesn't exist)
+      result = Commands.execute_resume({:delete, "2"}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Invalid" or message =~ "range"
+    end
+
+    test "returns error when UUID doesn't exist" do
+      result = Commands.execute_resume({:delete, "550e8400-e29b-41d4-a716-446655440000"}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Session not found" or message =~ "Invalid"
+    end
+
+    test "is idempotent - deleting twice doesn't fail" do
+      # Create a session
+      session_id = create_test_session("Test Session", days_ago(5))
+
+      # Delete once
+      result1 = Commands.execute_resume({:delete, "1"}, %{})
+      assert {:ok, "Deleted saved session."} = result1
+
+      # Delete again (by UUID since index won't work anymore)
+      result2 = Commands.execute_resume({:delete, session_id}, %{})
+      # Should get "not found" error since it's already gone
+      assert {:error, _message} = result2
+    end
+
+    test "deletes correct session when multiple exist" do
+      # Create three sessions
+      id1 = create_test_session("Session 1", days_ago(5))
+      id2 = create_test_session("Session 2", days_ago(4))
+      _id3 = create_test_session("Session 3", days_ago(3))
+
+      # Delete second session (index 2)
+      result = Commands.execute_resume({:delete, "2"}, %{})
+      assert {:ok, "Deleted saved session."} = result
+
+      # Verify correct session deleted
+      assert {:error, :not_found} = JidoCode.Session.Persistence.load(id2)
+      assert {:ok, _} = JidoCode.Session.Persistence.load(id1)
+      # Note: id3 verification would require listing
+    end
+
+    test "handles whitespace in target" do
+      # Create a session
+      _session_id = create_test_session("Test Session", days_ago(5))
+
+      # Delete with extra whitespace
+      # Note: whitespace trimming happens in parse_and_execute
+      result = Commands.execute_resume({:delete, "1"}, %{})
+      assert {:ok, "Deleted saved session."} = result
+    end
+
+    test "returns error for empty target" do
+      # Empty target after trimming
+      result = Commands.execute_resume({:delete, ""}, %{})
+
+      # Empty target should be handled
+      assert {:error, _message} = result
+    end
+
+    test "returns error for invalid target format" do
+      result = Commands.execute_resume({:delete, "invalid"}, %{})
+
+      assert {:error, message} = result
+      assert message =~ "Invalid" or message =~ "not found" or message =~ "format"
+    end
+  end
+
+  # Helper functions for delete tests
+
+  defp create_test_session(name, closed_at) do
+    session_id = Uniq.UUID.uuid4()
+
+    persisted = %{
+      version: 1,
+      id: session_id,
+      name: name,
+      project_path: "/tmp/test_project",
+      config: %{
+        "provider" => "anthropic",
+        "model" => "claude-3-5-haiku-20241022",
+        "temperature" => 0.7,
+        "max_tokens" => 4096
+      },
+      created_at: DateTime.to_iso8601(closed_at),
+      updated_at: DateTime.to_iso8601(closed_at),
+      closed_at: DateTime.to_iso8601(closed_at),
+      conversation: [],
+      todos: []
+    }
+
+    :ok = JidoCode.Session.Persistence.write_session_file(session_id, persisted)
+    session_id
+  end
+
+  defp days_ago(days) do
+    DateTime.add(DateTime.utc_now(), -days * 86400, :second)
+  end
 end

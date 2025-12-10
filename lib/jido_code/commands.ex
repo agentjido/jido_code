@@ -19,6 +19,7 @@ defmodule JidoCode.Commands do
   | `/providers` | List available providers (pending) |
   | `/resume` | List resumable sessions |
   | `/resume <target>` | Resume session by index or ID |
+  | `/resume delete <target>` | Delete session by index or ID |
 
   ## Usage
 
@@ -74,6 +75,7 @@ defmodule JidoCode.Commands do
     /session rename <name>   - Rename current session
     /resume                  - List resumable sessions
     /resume <target>         - Resume session by index or ID
+    /resume delete <target>  - Delete session by index or ID
     /sandbox-test            - Test the Luerl sandbox security (dev/test only)
     /shell <command> [args]  - Run a shell command (e.g., /shell ls -la)
   """
@@ -183,6 +185,10 @@ defmodule JidoCode.Commands do
 
   defp parse_and_execute("/session", _config) do
     {:session, :help}
+  end
+
+  defp parse_and_execute("/resume delete " <> rest, _config) do
+    {:resume, {:delete, String.trim(rest)}}
   end
 
   defp parse_and_execute("/resume " <> rest, _config) do
@@ -559,13 +565,13 @@ defmodule JidoCode.Commands do
 
   ## Parameters
 
-  - `subcommand` - The resume subcommand (`:list` or `{:restore, target}`)
+  - `subcommand` - The resume subcommand (`:list`, `{:restore, target}`, or `{:delete, target}`)
   - `model` - The TUI model (used for context like active sessions)
 
   ## Returns
 
   - `{:session_action, action}` - Action for TUI to perform (when resuming a session)
-  - `{:ok, message}` - Informational message (when listing sessions)
+  - `{:ok, message}` - Informational message (when listing sessions or deleting)
   - `{:error, message}` - Error message
   """
   @spec execute_resume(atom() | tuple(), map()) ::
@@ -573,56 +579,68 @@ defmodule JidoCode.Commands do
   def execute_resume(:list, _model) do
     alias JidoCode.Session.Persistence
 
-    case Persistence.list_resumable() do
-      {:ok, sessions} ->
-        message = format_resumable_list(sessions)
-        {:ok, message}
-
-      {:error, reason} ->
-        {:error, "Failed to list resumable sessions: #{inspect(reason)}"}
-    end
+    sessions = Persistence.list_resumable()
+    message = format_resumable_list(sessions)
+    {:ok, message}
   end
 
   def execute_resume({:restore, target}, _model) do
     alias JidoCode.Session.Persistence
 
-    case Persistence.list_resumable() do
-      {:ok, sessions} ->
-        case resolve_resume_target(target, sessions) do
-          {:ok, session_id} ->
-            # Attempt to resume the session
-            case Persistence.resume(session_id) do
-              {:ok, session} ->
-                {:session_action, {:add_session, session}}
+    sessions = Persistence.list_resumable()
 
-              {:error, :project_path_not_found} ->
-                {:error, "Project path no longer exists."}
+    case resolve_resume_target(target, sessions) do
+      {:ok, session_id} ->
+        # Attempt to resume the session
+        case Persistence.resume(session_id) do
+          {:ok, session} ->
+            {:session_action, {:add_session, session}}
 
-              {:error, :project_path_not_directory} ->
-                {:error, "Project path is not a directory."}
+          {:error, :project_path_not_found} ->
+            {:error, "Project path no longer exists."}
 
-              {:error, :project_already_open} ->
-                {:error, "Project already open in another session."}
+          {:error, :project_path_not_directory} ->
+            {:error, "Project path is not a directory."}
 
-              {:error, :session_limit_reached} ->
-                {:error, "Maximum 10 sessions reached. Close a session first."}
+          {:error, :project_already_open} ->
+            {:error, "Project already open in another session."}
 
-              {:error, {:rate_limit_exceeded, retry_after}} ->
-                {:error, "Rate limit exceeded. Try again in #{retry_after} seconds."}
+          {:error, :session_limit_reached} ->
+            {:error, "Maximum 10 sessions reached. Close a session first."}
 
-              {:error, :not_found} ->
-                {:error, "Session file not found."}
+          {:error, {:rate_limit_exceeded, retry_after}} ->
+            {:error, "Rate limit exceeded. Try again in #{retry_after} seconds."}
 
-              {:error, reason} ->
-                {:error, "Failed to resume session: #{inspect(reason)}"}
-            end
+          {:error, :not_found} ->
+            {:error, "Session file not found."}
 
-          {:error, error_message} ->
-            {:error, error_message}
+          {:error, reason} ->
+            {:error, "Failed to resume session: #{inspect(reason)}"}
         end
 
-      {:error, reason} ->
-        {:error, "Failed to list resumable sessions: #{inspect(reason)}"}
+      {:error, error_message} ->
+        {:error, error_message}
+    end
+  end
+
+  def execute_resume({:delete, target}, _model) do
+    alias JidoCode.Session.Persistence
+
+    sessions = Persistence.list_resumable()
+
+    case resolve_resume_target(target, sessions) do
+      {:ok, session_id} ->
+        # Attempt to delete the session
+        case Persistence.delete_persisted(session_id) do
+          :ok ->
+            {:ok, "Deleted saved session."}
+
+          {:error, reason} ->
+            {:error, "Failed to delete session: #{inspect(reason)}"}
+        end
+
+      {:error, error_message} ->
+        {:error, error_message}
     end
   end
 
@@ -699,8 +717,18 @@ defmodule JidoCode.Commands do
       {index, ""} ->
         {:error, "Invalid index: #{index}. Valid range is 1-#{length(sessions)}."}
 
+      {_number, _remaining} ->
+        # Partial parse (e.g., "5abc") - treat as UUID/string
+        target_trimmed = String.trim(target)
+
+        if Enum.any?(sessions, fn s -> s.id == target_trimmed end) do
+          {:ok, target_trimmed}
+        else
+          {:error, "Session not found: #{target_trimmed}"}
+        end
+
       :error ->
-        # Not an integer, try as UUID
+        # Not an integer at all, try as UUID
         target_trimmed = String.trim(target)
 
         if Enum.any?(sessions, fn s -> s.id == target_trimmed end) do

@@ -289,6 +289,134 @@ defmodule JidoCode.Test.SessionTestHelpers do
   end
 
   # ============================================================================
+  # Session Persistence Test Helpers
+  # ============================================================================
+
+  @doc """
+  Generates a deterministic valid UUID v4 for testing.
+
+  Creates UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  where the version digit is 4 and the variant digit is one of [8, 9, A, B].
+
+  ## Parameters
+
+  - `index` - Integer index to generate unique UUIDs (default: 0)
+
+  ## Examples
+
+      iex> test_uuid(0)
+      "00010000-0000-4000-8000-000000000000"
+
+      iex> test_uuid(42)
+      "00010042-0000-4000-8000-004200000000"
+  """
+  @spec test_uuid(non_neg_integer()) :: String.t()
+  def test_uuid(index \\ 0) do
+    # Generate valid UUID v4 format
+    # Version 4 UUID: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    # where y is one of [8, 9, A, B]
+    base_id = 10000 + index
+    id_str = Integer.to_string(base_id) |> String.pad_leading(12, "0")
+    "#{String.slice(id_str, 0..7)}-0000-4000-8000-#{String.slice(id_str, 8..11)}00000000"
+  end
+
+  @doc """
+  Creates a test Session struct with sensible defaults.
+
+  ## Parameters
+
+  - `id` - Session ID (UUID string)
+  - `name` - Session name
+  - `project_path` - Project directory path
+  - `opts` - Optional keyword list to override defaults
+
+  ## Examples
+
+      iex> session = create_test_session("123", "Test Session", "/tmp/test")
+      iex> session.name
+      "Test Session"
+  """
+  @spec create_test_session(String.t(), String.t(), String.t(), keyword()) :: JidoCode.Session.t()
+  def create_test_session(id, name, project_path, opts \\ []) do
+    %JidoCode.Session{
+      id: id,
+      name: name,
+      project_path: project_path,
+      config: valid_session_config(),
+      created_at: Keyword.get(opts, :created_at, DateTime.utc_now()),
+      updated_at: Keyword.get(opts, :updated_at, DateTime.utc_now())
+    }
+  end
+
+  @doc """
+  Creates a persisted session map (JSON-serializable format).
+
+  Returns a map matching the structure expected by the persistence layer,
+  with string keys and ISO8601 timestamp strings.
+
+  ## Parameters
+
+  - `id` - Session ID (UUID string)
+  - `name` - Session name
+  - `project_path` - Project directory path
+  - `opts` - Optional keyword list to override defaults
+
+  ## Examples
+
+      iex> persisted = create_persisted_session("123", "Test", "/tmp/test")
+      iex> persisted["version"]
+      1
+  """
+  @spec create_persisted_session(String.t(), String.t(), String.t(), keyword()) :: map()
+  def create_persisted_session(id, name, project_path, opts \\ []) do
+    now = Keyword.get(opts, :timestamp, DateTime.utc_now())
+    timestamp = DateTime.to_iso8601(now)
+
+    config = Keyword.get(opts, :config, %{
+      "provider" => "anthropic",
+      "model" => "claude-3-5-haiku-20241022",
+      "temperature" => 0.7,
+      "max_tokens" => 4096
+    })
+
+    conversation = Keyword.get(opts, :conversation, [
+      %{
+        "id" => "msg-1",
+        "role" => "user",
+        "content" => "Hello",
+        "timestamp" => timestamp
+      },
+      %{
+        "id" => "msg-2",
+        "role" => "assistant",
+        "content" => "Hi there!",
+        "timestamp" => timestamp
+      }
+    ])
+
+    todos = Keyword.get(opts, :todos, [
+      %{
+        "content" => "Test task",
+        "status" => "pending",
+        "active_form" => "Testing task"
+      }
+    ])
+
+    %{
+      version: 1,
+      id: id,
+      name: name,
+      project_path: project_path,
+      config: config,
+      created_at: timestamp,
+      updated_at: timestamp,
+      closed_at: timestamp,
+      conversation: conversation,
+      todos: todos
+    }
+  end
+
+  # ============================================================================
   # Tool Testing Helpers
   # ============================================================================
 

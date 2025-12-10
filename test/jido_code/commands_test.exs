@@ -1945,6 +1945,235 @@ defmodule JidoCode.CommandsTest do
       session
     end
 
+    test "delete command doesn't affect active sessions", %{tmp_base: tmp_base} do
+      # Create and close session 1 (persisted)
+      project1 = Path.join(tmp_base, "project1")
+      File.mkdir_p!(project1)
+      _closed_session = create_and_close_session("Closed Session", project1)
+
+      # Create session 2 and keep active
+      project2 = Path.join(tmp_base, "project2")
+      File.mkdir_p!(project2)
+
+      {:ok, active_session} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project2,
+          name: "Active Session",
+          config: %{
+            provider: "anthropic",
+            model: "claude-3-5-haiku-20241022",
+            temperature: 0.7,
+            max_tokens: 4096
+          }
+        )
+
+      # Add state to active session
+      test_message = %{
+        id: "msg-1",
+        role: :user,
+        content: "Test message",
+        timestamp: DateTime.utc_now()
+      }
+
+      JidoCode.Session.State.append_message(active_session.id, test_message)
+
+      # Delete closed session
+      result = Commands.execute_resume({:delete, "1"}, %{})
+      assert {:ok, "Deleted saved session."} = result
+
+      # Verify active session still works
+      assert {:ok, session} = JidoCode.SessionRegistry.lookup(active_session.id)
+      assert session.name == "Active Session"
+
+      # Verify active session state intact
+      {:ok, messages} = JidoCode.Session.State.get_messages(active_session.id)
+      assert Enum.any?(messages, fn m -> m.content == "Test message" end)
+    end
+
+    test "clear command doesn't affect active sessions", %{tmp_base: tmp_base} do
+      # Create and close 2 sessions (persisted)
+      project1 = Path.join(tmp_base, "project1")
+      project2 = Path.join(tmp_base, "project2")
+      File.mkdir_p!(project1)
+      File.mkdir_p!(project2)
+
+      _closed1 = create_and_close_session("Closed 1", project1)
+      _closed2 = create_and_close_session("Closed 2", project2)
+
+      # Create active session
+      project3 = Path.join(tmp_base, "project3")
+      File.mkdir_p!(project3)
+
+      {:ok, active} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project3,
+          name: "Active",
+          config: %{
+            provider: "anthropic",
+            model: "claude-3-5-haiku-20241022",
+            temperature: 0.7,
+            max_tokens: 4096
+          }
+        )
+
+      # Add todos to active session
+      todos = [
+        %{content: "Task 1", status: :pending, active_form: "Working on task 1"}
+      ]
+
+      JidoCode.Session.State.update_todos(active.id, todos)
+
+      # Clear all persisted sessions
+      result = Commands.execute_resume(:clear, %{})
+      assert {:ok, message} = result
+      assert message =~ "Cleared 2"
+
+      # Verify active session still works
+      assert {:ok, _} = JidoCode.SessionRegistry.lookup(active.id)
+
+      # Verify active session state intact
+      {:ok, active_todos} = JidoCode.Session.State.get_todos(active.id)
+      assert length(active_todos) == 1
+      assert Enum.at(active_todos, 0).content == "Task 1"
+    end
+
+    test "automatic cleanup doesn't affect active sessions", %{tmp_base: tmp_base} do
+      # Create and close old session (>30 days)
+      project1 = Path.join(tmp_base, "project1")
+      File.mkdir_p!(project1)
+      old_session = create_and_close_session("Old Session", project1)
+
+      # Modify file timestamp to be 31 days old
+      old_file =
+        Path.join(JidoCode.Session.Persistence.sessions_dir(), "#{old_session.id}.json")
+
+      wait_for_persisted_file(old_file)
+
+      {:ok, data} = File.read(old_file)
+      {:ok, json} = Jason.decode(data)
+      old_time = DateTime.add(DateTime.utc_now(), -31 * 86400, :second)
+      modified_json = Map.put(json, "closed_at", DateTime.to_iso8601(old_time))
+      File.write!(old_file, Jason.encode!(modified_json))
+
+      # Create active session
+      project2 = Path.join(tmp_base, "project2")
+      File.mkdir_p!(project2)
+
+      {:ok, active} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project2,
+          name: "Active",
+          config: %{
+            provider: "anthropic",
+            model: "claude-3-5-haiku-20241022",
+            temperature: 0.7,
+            max_tokens: 4096
+          }
+        )
+
+      # Add both messages and todos to active
+      JidoCode.Session.State.append_message(active.id, %{
+        id: "msg-1",
+        role: :user,
+        content: "Active message",
+        timestamp: DateTime.utc_now()
+      })
+
+      JidoCode.Session.State.update_todos(active.id, [
+        %{content: "Active task", status: :pending, active_form: "Working"}
+      ])
+
+      # Run cleanup (30 days)
+      result = JidoCode.Session.Persistence.cleanup(30)
+
+      # Verify old session deleted
+      assert result.deleted == 1
+      refute File.exists?(old_file)
+
+      # Verify active session unaffected
+      assert {:ok, _} = JidoCode.SessionRegistry.lookup(active.id)
+      {:ok, messages} = JidoCode.Session.State.get_messages(active.id)
+      {:ok, todos} = JidoCode.Session.State.get_todos(active.id)
+
+      assert Enum.any?(messages, fn m -> m.content == "Active message" end)
+      assert length(todos) == 1
+    end
+
+    test "cleanup with active session having persisted file", %{tmp_base: tmp_base} do
+      project = Path.join(tmp_base, "project1")
+      File.mkdir_p!(project)
+
+      # Create, add data, and close session (creates file)
+      {:ok, session} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project,
+          name: "Test Session",
+          config: %{
+            provider: "anthropic",
+            model: "claude-3-5-haiku-20241022",
+            temperature: 0.7,
+            max_tokens: 4096
+          }
+        )
+
+      session_id = session.id
+
+      JidoCode.Session.State.append_message(session_id, %{
+        id: "msg-1",
+        role: :user,
+        content: "Original message",
+        timestamp: DateTime.utc_now()
+      })
+
+      :ok = JidoCode.SessionSupervisor.stop_session(session_id)
+
+      # Wait for file
+      file = Path.join(JidoCode.Session.Persistence.sessions_dir(), "#{session_id}.json")
+      wait_for_persisted_file(file)
+
+      # Modify file to be 31 days old
+      {:ok, data} = File.read(file)
+      {:ok, json} = Jason.decode(data)
+      old_time = DateTime.add(DateTime.utc_now(), -31 * 86400, :second)
+      modified_json = Map.put(json, "closed_at", DateTime.to_iso8601(old_time))
+      File.write!(file, Jason.encode!(modified_json))
+
+      # Recreate session at same path (simulates user returning to project)
+      {:ok, new_session} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project,
+          name: "Test Session",
+          config: %{
+            provider: "anthropic",
+            model: "claude-3-5-haiku-20241022",
+            temperature: 0.7,
+            max_tokens: 4096
+          }
+        )
+
+      new_id = new_session.id
+
+      # Add NEW data to active session
+      JidoCode.Session.State.append_message(new_id, %{
+        id: "msg-2",
+        role: :user,
+        content: "New message",
+        timestamp: DateTime.utc_now()
+      })
+
+      # Run cleanup - should delete OLD file
+      result = JidoCode.Session.Persistence.cleanup(30)
+
+      # Old file should be deleted (it's >30 days old)
+      assert result.deleted == 1
+      refute File.exists?(file)
+
+      # New active session should be unaffected
+      assert {:ok, _} = JidoCode.SessionRegistry.lookup(new_id)
+      {:ok, messages} = JidoCode.Session.State.get_messages(new_id)
+      assert Enum.any?(messages, fn m -> m.content == "New message" end)
+    end
+
     defp wait_for_persisted_file(file_path, retries \\ 50) do
       if File.exists?(file_path) do
         :ok

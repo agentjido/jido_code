@@ -14,6 +14,8 @@ defmodule JidoCode.Integration.SessionPhase6Test do
   """
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
+
   alias JidoCode.Session
   alias JidoCode.SessionRegistry
   alias JidoCode.SessionSupervisor
@@ -409,5 +411,209 @@ defmodule JidoCode.Integration.SessionPhase6Test do
     refute File.exists?(f1)
     refute File.exists?(f2)
     assert Persistence.list_persisted() == []
+  end
+
+  # ============================================================================
+  # Auto-Save on Close Integration Tests (Task 6.7.2)
+  # ============================================================================
+
+  describe "auto-save on close integration" do
+    test "stop_session triggers auto-save before termination", %{tmp_base: tmp_base} do
+      # Create session with messages
+      session = create_test_session(tmp_base, "Auto-Save Test")
+      add_messages_to_session(session.id, 2)
+
+      # Verify session is active
+      assert {:ok, _} = SessionRegistry.lookup(session.id)
+
+      # Stop session (triggers auto-save)
+      :ok = SessionSupervisor.stop_session(session.id)
+
+      # Wait for file creation
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      assert :ok = wait_for_file(session_file)
+
+      # Verify file exists
+      assert File.exists?(session_file)
+
+      # Verify session no longer active
+      assert {:error, :not_found} = SessionRegistry.lookup(session.id)
+
+      # Verify file contains messages
+      {:ok, json} = File.read(session_file)
+      {:ok, data} = Jason.decode(json)
+      assert length(data["conversation"]) == 2
+      assert data["name"] == "Auto-Save Test"
+    end
+
+    test "saves conversation state at exact time of close", %{tmp_base: tmp_base} do
+      # Create session
+      session = create_test_session(tmp_base, "State Preservation")
+
+      # Add initial messages
+      add_messages_to_session(session.id, 2)
+
+      # Add one more message immediately before close
+      final_message = %{
+        id: "final-msg-#{System.unique_integer([:positive])}",
+        role: :user,
+        content: "Final message before close",
+        timestamp: DateTime.utc_now()
+      }
+
+      Session.State.append_message(session.id, final_message)
+
+      # Close immediately
+      :ok = SessionSupervisor.stop_session(session.id)
+
+      # Wait for file
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      assert :ok = wait_for_file(session_file)
+
+      # Verify file contains all 3 messages including the final one
+      {:ok, json} = File.read(session_file)
+      {:ok, data} = Jason.decode(json)
+      assert length(data["conversation"]) == 3
+
+      # Verify final message is in the saved conversation
+      contents = Enum.map(data["conversation"], & &1["content"])
+      assert "Final message before close" in contents
+    end
+
+    test "save failure logs warning but allows close to continue", %{tmp_base: tmp_base} do
+      # Create session
+      session = create_test_session(tmp_base, "Failure Test")
+      add_messages_to_session(session.id, 1)
+
+      # Make sessions directory read-only (simulates permission error)
+      sessions_dir = Persistence.sessions_dir()
+      original_mode = File.stat!(sessions_dir).mode
+      File.chmod!(sessions_dir, 0o555)
+
+      # Ensure cleanup restores permissions
+      on_exit(fn -> File.chmod!(sessions_dir, original_mode) end)
+
+      # Capture log output
+      log =
+        capture_log(fn ->
+          # Stop session (save will fail due to permissions)
+          result = SessionSupervisor.stop_session(session.id)
+
+          # Verify stop_session still returns :ok
+          assert :ok == result
+        end)
+
+      # Verify warning was logged (match partial string)
+      assert log =~ "Failed to save session"
+      assert log =~ ":eacces"
+
+      # Verify session was still terminated (not in registry)
+      assert {:error, :not_found} = SessionRegistry.lookup(session.id)
+
+      # Verify no session file created (save failed)
+      session_file = Path.join(sessions_dir, "#{session.id}.json")
+      refute File.exists?(session_file)
+    end
+
+    test "saves todos state during auto-save", %{tmp_base: tmp_base} do
+      # Create session
+      session = create_test_session(tmp_base, "Todos Test")
+
+      # Add messages and todos
+      add_messages_to_session(session.id, 1)
+      add_todos_to_session(session.id, 3)
+
+      # Close session
+      :ok = SessionSupervisor.stop_session(session.id)
+
+      # Wait for file
+      session_file = Path.join(Persistence.sessions_dir(), "#{session.id}.json")
+      assert :ok = wait_for_file(session_file)
+
+      # Verify file contains todos
+      {:ok, json} = File.read(session_file)
+      {:ok, data} = Jason.decode(json)
+      assert length(data["todos"]) == 3
+      assert length(data["conversation"]) == 1
+
+      # Verify todo structure
+      first_todo = hd(data["todos"])
+      assert Map.has_key?(first_todo, "content")
+      assert Map.has_key?(first_todo, "status")
+      assert Map.has_key?(first_todo, "active_form")
+    end
+
+    test "multiple session closes create separate session files", %{tmp_base: tmp_base} do
+      # Create 3 sessions
+      session1 = create_test_session(tmp_base, "Session 1")
+      session2 = create_test_session(tmp_base, "Session 2")
+      session3 = create_test_session(tmp_base, "Session 3")
+
+      # Add different messages to each
+      add_messages_to_session(session1.id, 1)
+      add_messages_to_session(session2.id, 2)
+      add_messages_to_session(session3.id, 3)
+
+      # Close all three
+      :ok = SessionSupervisor.stop_session(session1.id)
+      :ok = SessionSupervisor.stop_session(session2.id)
+      :ok = SessionSupervisor.stop_session(session3.id)
+
+      # Wait for all files
+      sessions_dir = Persistence.sessions_dir()
+      file1 = Path.join(sessions_dir, "#{session1.id}.json")
+      file2 = Path.join(sessions_dir, "#{session2.id}.json")
+      file3 = Path.join(sessions_dir, "#{session3.id}.json")
+
+      assert :ok = wait_for_file(file1)
+      assert :ok = wait_for_file(file2)
+      assert :ok = wait_for_file(file3)
+
+      # Verify all three files exist
+      assert File.exists?(file1)
+      assert File.exists?(file2)
+      assert File.exists?(file3)
+
+      # Verify each file has correct message count
+      assert_message_count(file1, 1)
+      assert_message_count(file2, 2)
+      assert_message_count(file3, 3)
+    end
+
+    test "auto-saved sessions removed from active registry", %{tmp_base: tmp_base} do
+      # Create two sessions
+      session1 = create_test_session(tmp_base, "Active")
+      session2 = create_test_session(tmp_base, "Closed")
+
+      # Verify both active
+      assert {:ok, _} = SessionRegistry.lookup(session1.id)
+      assert {:ok, _} = SessionRegistry.lookup(session2.id)
+
+      # Close only session2
+      :ok = SessionSupervisor.stop_session(session2.id)
+
+      # Wait for file
+      session_file = Path.join(Persistence.sessions_dir(), "#{session2.id}.json")
+      assert :ok = wait_for_file(session_file)
+
+      # Verify session1 still active
+      assert {:ok, _} = SessionRegistry.lookup(session1.id)
+
+      # Verify session2 NOT in active registry
+      assert {:error, :not_found} = SessionRegistry.lookup(session2.id)
+
+      # Verify session2 file exists
+      assert File.exists?(session_file)
+
+      # Cleanup active session
+      SessionSupervisor.stop_session(session1.id)
+    end
+
+    # Helper function for verifying message counts in JSON files
+    defp assert_message_count(file_path, expected_count) do
+      {:ok, json} = File.read(file_path)
+      {:ok, data} = Jason.decode(json)
+      assert length(data["conversation"]) == expected_count
+    end
   end
 end

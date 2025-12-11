@@ -48,15 +48,18 @@ defmodule JidoCode.Session.Persistence do
   # The `deserialize_session/1` function should handle migration from older versions.
   @schema_version 1
 
-  # Maximum file size for session files (10MB)
-  # Files larger than this will be skipped to prevent DoS attacks
-  @max_session_file_size 10 * 1024 * 1024
-
   @doc """
   Returns the current schema version.
   """
   @spec schema_version() :: pos_integer()
   def schema_version, do: @schema_version
+
+  # Returns the maximum file size for session files (configurable)
+  # Files larger than this will be skipped to prevent DoS attacks
+  defp max_file_size do
+    Application.get_env(:jido_code, :persistence, [])
+    |> Keyword.get(:max_file_size, 10 * 1024 * 1024)
+  end
 
   # ============================================================================
   # Type Definitions
@@ -187,7 +190,10 @@ defmodule JidoCode.Session.Persistence do
       if validator.(value) do
         {:cont, acc}
       else
-        {:halt, {:error, {error_key, value}}}
+        # Log detailed error for debugging, return sanitized error
+        require Logger
+        Logger.debug("Validation failed for #{field}: #{inspect(value)}")
+        {:halt, {:error, error_key}}
       end
     end)
   end
@@ -205,6 +211,7 @@ defmodule JidoCode.Session.Persistence do
   """
   @spec validate_message(map()) :: {:ok, persisted_message()} | {:error, term()}
   def validate_message(message) when is_map(message) do
+    require Logger
     required_fields = [:id, :role, :content, :timestamp]
     message = normalize_keys(message)
     missing = Enum.filter(required_fields, &(not Map.has_key?(message, &1)))
@@ -214,19 +221,24 @@ defmodule JidoCode.Session.Persistence do
         {:error, {:missing_fields, missing}}
 
       not is_binary(message.id) ->
-        {:error, {:invalid_id, message.id}}
+        Logger.debug("Invalid message ID type: #{inspect(message.id)}")
+        {:error, :invalid_id}
 
       not is_binary(message.role) ->
-        {:error, {:invalid_role, message.role}}
+        Logger.debug("Invalid message role type: #{inspect(message.role)}")
+        {:error, :invalid_role}
 
       message.role not in ["user", "assistant", "system"] ->
-        {:error, {:unknown_role, message.role}}
+        Logger.debug("Unknown message role: #{inspect(message.role)}")
+        {:error, :unknown_role}
 
       not is_binary(message.content) ->
-        {:error, {:invalid_content, message.content}}
+        Logger.debug("Invalid message content type")
+        {:error, :invalid_content}
 
       not is_binary(message.timestamp) ->
-        {:error, {:invalid_timestamp, message.timestamp}}
+        Logger.debug("Invalid message timestamp type: #{inspect(message.timestamp)}")
+        {:error, :invalid_timestamp}
 
       true ->
         {:ok, message}
@@ -246,6 +258,7 @@ defmodule JidoCode.Session.Persistence do
   """
   @spec validate_todo(map()) :: {:ok, persisted_todo()} | {:error, term()}
   def validate_todo(todo) when is_map(todo) do
+    require Logger
     required_fields = [:content, :status, :active_form]
     todo = normalize_keys(todo)
     missing = Enum.filter(required_fields, &(not Map.has_key?(todo, &1)))
@@ -255,16 +268,20 @@ defmodule JidoCode.Session.Persistence do
         {:error, {:missing_fields, missing}}
 
       not is_binary(todo.content) ->
-        {:error, {:invalid_content, todo.content}}
+        Logger.debug("Invalid todo content type")
+        {:error, :invalid_content}
 
       not is_binary(todo.status) ->
-        {:error, {:invalid_status, todo.status}}
+        Logger.debug("Invalid todo status type: #{inspect(todo.status)}")
+        {:error, :invalid_status}
 
       todo.status not in ["pending", "in_progress", "completed"] ->
-        {:error, {:unknown_status, todo.status}}
+        Logger.debug("Unknown todo status: #{inspect(todo.status)}")
+        {:error, :unknown_status}
 
       not is_binary(todo.active_form) ->
-        {:error, {:invalid_active_form, todo.active_form}}
+        Logger.debug("Invalid todo active_form type")
+        {:error, :invalid_active_form}
 
       true ->
         {:ok, todo}
@@ -377,8 +394,12 @@ defmodule JidoCode.Session.Persistence do
   @spec session_file(String.t()) :: String.t()
   def session_file(session_id) when is_binary(session_id) do
     unless valid_session_id?(session_id) do
+      # Log detailed error for debugging, but raise generic message to avoid leaking session ID
+      require Logger
+      Logger.error("Invalid session ID format attempted: #{inspect(session_id)}")
+
       raise ArgumentError, """
-      Invalid session ID format: #{inspect(session_id)}
+      Invalid session ID format.
       Session IDs must be valid UUID v4 format.
       """
     end
@@ -501,17 +522,23 @@ defmodule JidoCode.Session.Persistence do
               :ok
             else
               {:error, reason} ->
-                # Clean up temp file on failure
+                # Clean up temp file on failure, log detailed error
                 File.rm(temp_path)
-                {:error, reason}
+                require Logger
+                Logger.error("Failed to write session file: #{inspect(reason)}")
+                {:error, :write_failed}
             end
 
           {:error, reason} ->
-            {:error, {:json_encode_error, reason}}
+            require Logger
+            Logger.error("Failed to encode signed session to JSON: #{inspect(reason)}")
+            {:error, :json_encode_error}
         end
 
       {:error, reason} ->
-        {:error, {:json_encode_error, reason}}
+        require Logger
+        Logger.error("Failed to encode session to JSON: #{inspect(reason)}")
+        {:error, :json_encode_error}
     end
   end
 
@@ -951,15 +978,19 @@ defmodule JidoCode.Session.Persistence do
 
   # Validates file size to prevent DoS attacks
   # Returns :ok if size is within limits, {:error, :file_too_large} otherwise
-  defp validate_file_size(size, filename) when size > @max_session_file_size do
-    Logger.warning(
-      "Session file #{filename} exceeds maximum size (#{size} bytes > #{@max_session_file_size} bytes)"
-    )
+  defp validate_file_size(size, filename) do
+    max_size = max_file_size()
 
-    {:error, :file_too_large}
+    if size > max_size do
+      Logger.warning(
+        "Session file #{filename} exceeds maximum size (#{size} bytes > #{max_size} bytes)"
+      )
+
+      {:error, :file_too_large}
+    else
+      :ok
+    end
   end
-
-  defp validate_file_size(_size, _filename), do: :ok
 
   # Serialize a message to the persisted format
   defp serialize_message(msg) do
@@ -1059,17 +1090,25 @@ defmodule JidoCode.Session.Persistence do
 
     cond do
       version > current ->
-        {:error, {:unsupported_version, version}}
+        require Logger
+        Logger.warning("Unsupported schema version: #{version} (current: #{current})")
+        {:error, :unsupported_version}
 
       version < 1 ->
-        {:error, {:invalid_version, version}}
+        require Logger
+        Logger.warning("Invalid schema version: #{version}")
+        {:error, :invalid_version}
 
       true ->
         {:ok, version}
     end
   end
 
-  defp check_schema_version(version), do: {:error, {:invalid_version, version}}
+  defp check_schema_version(version) do
+    require Logger
+    Logger.warning("Invalid schema version type: #{inspect(version)}")
+    {:error, :invalid_version}
+  end
 
   # Generic helper for deserializing lists with fail-fast behavior
   # Reduces code duplication between deserialize_messages and deserialize_todos
@@ -1132,25 +1171,45 @@ defmodule JidoCode.Session.Persistence do
 
   defp parse_datetime_required(iso_string) when is_binary(iso_string) do
     case DateTime.from_iso8601(iso_string) do
-      {:ok, dt, _offset} -> {:ok, dt}
-      {:error, reason} -> {:error, {:invalid_timestamp, iso_string, reason}}
+      {:ok, dt, _offset} ->
+        {:ok, dt}
+
+      {:error, reason} ->
+        # Log detailed error for debugging, return sanitized error
+        require Logger
+        Logger.debug("Failed to parse timestamp: #{inspect(iso_string)}, reason: #{inspect(reason)}")
+        {:error, :invalid_timestamp}
     end
   end
 
-  defp parse_datetime_required(other), do: {:error, {:invalid_timestamp, other}}
+  defp parse_datetime_required(other) do
+    require Logger
+    Logger.debug("Invalid timestamp type: #{inspect(other)}")
+    {:error, :invalid_timestamp}
+  end
 
   # Parse message role string to atom
   defp parse_role("user"), do: {:ok, :user}
   defp parse_role("assistant"), do: {:ok, :assistant}
   defp parse_role("system"), do: {:ok, :system}
   defp parse_role("tool"), do: {:ok, :tool}
-  defp parse_role(other), do: {:error, {:invalid_role, other}}
+
+  defp parse_role(other) do
+    require Logger
+    Logger.debug("Invalid role value: #{inspect(other)}")
+    {:error, :invalid_role}
+  end
 
   # Parse todo status string to atom
   defp parse_status("pending"), do: {:ok, :pending}
   defp parse_status("in_progress"), do: {:ok, :in_progress}
   defp parse_status("completed"), do: {:ok, :completed}
-  defp parse_status(other), do: {:error, {:invalid_status, other}}
+
+  defp parse_status(other) do
+    require Logger
+    Logger.debug("Invalid status value: #{inspect(other)}")
+    {:error, :invalid_status}
+  end
 
   # Deserialize config map (string keys to appropriate types)
   defp deserialize_config(config) when is_map(config) do

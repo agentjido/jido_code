@@ -27,12 +27,6 @@ defmodule JidoCode.RateLimit do
   require Logger
 
   @table_name :jido_code_rate_limits
-  @cleanup_interval :timer.minutes(1)
-
-  # Default limits per operation
-  @default_limits %{
-    resume: %{limit: 5, window_seconds: 60}
-  }
 
   ## Client API
 
@@ -115,6 +109,7 @@ defmodule JidoCode.RateLimit do
   def record_attempt(operation, key) when is_atom(operation) and is_binary(key) do
     now = System.system_time(:second)
     lookup_key = {operation, key}
+    limits = get_limits(operation)
 
     # Get current timestamps or initialize empty list
     timestamps = case :ets.lookup(@table_name, lookup_key) do
@@ -122,8 +117,12 @@ defmodule JidoCode.RateLimit do
       [] -> []
     end
 
-    # Prepend new timestamp
-    updated_timestamps = [now | timestamps]
+    # Prepend new timestamp and bound list to prevent unbounded growth
+    # Cap at 2x limit to maintain recent history while preventing memory leaks
+    max_entries = limits.limit * 2
+    updated_timestamps =
+      [now | timestamps]
+      |> Enum.take(max_entries)
 
     # Store updated list
     :ets.insert(@table_name, {lookup_key, updated_timestamps})
@@ -171,13 +170,14 @@ defmodule JidoCode.RateLimit do
   ## Private Functions
 
   defp get_limits(operation) do
-    config_limits = Application.get_env(:jido_code, :rate_limits, %{})
-    operation_config = Map.get(config_limits, operation)
+    config_limits = Application.get_env(:jido_code, :rate_limits, [])
+    operation_config = Keyword.get(config_limits, operation)
 
     case operation_config do
       nil ->
         # Use default
-        Map.get(@default_limits, operation, %{limit: 10, window_seconds: 60})
+        default_limits()
+        |> Map.get(operation, %{limit: 10, window_seconds: 60})
 
       config when is_list(config) ->
         %{
@@ -190,8 +190,21 @@ defmodule JidoCode.RateLimit do
     end
   end
 
+  # Returns default rate limits (configurable via runtime.exs)
+  defp default_limits do
+    %{
+      resume: %{limit: 5, window_seconds: 60}
+    }
+  end
+
+  # Returns cleanup interval (configurable via runtime.exs)
+  defp cleanup_interval do
+    Application.get_env(:jido_code, :rate_limits, [])
+    |> Keyword.get(:cleanup_interval, :timer.minutes(1))
+  end
+
   defp schedule_cleanup do
-    Process.send_after(self(), :cleanup, @cleanup_interval)
+    Process.send_after(self(), :cleanup, cleanup_interval())
   end
 
   defp cleanup_expired_entries do

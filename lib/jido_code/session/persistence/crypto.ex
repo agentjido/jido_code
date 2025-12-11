@@ -34,8 +34,55 @@ defmodule JidoCode.Session.Persistence.Crypto do
   # Compile-time application salt (changes per release)
   @app_salt Application.compile_env(:jido_code, :signing_salt, "jido_code_session_v1")
 
+  # ETS table for caching the derived signing key
+  @crypto_cache :jido_code_crypto_cache
+
   @typedoc "Signed payload with signature field"
   @type signed_payload :: %{required(String.t()) => term(), required(String.t()) => String.t()}
+
+  @doc """
+  Creates the ETS table for caching the signing key.
+
+  This should be called during application startup to ensure the cache
+  is available before any signing operations occur.
+
+  ## Examples
+
+      iex> Crypto.create_cache_table()
+      :ok
+  """
+  @spec create_cache_table() :: :ok
+  def create_cache_table do
+    # Create table if it doesn't exist
+    case :ets.whereis(@crypto_cache) do
+      :undefined ->
+        :ets.new(@crypto_cache, [:set, :public, :named_table])
+        :ok
+      _ref ->
+        :ok
+    end
+  end
+
+  @doc """
+  Invalidates the cached signing key.
+
+  Useful for testing scenarios where you want to force re-derivation
+  of the signing key.
+
+  ## Examples
+
+      iex> Crypto.invalidate_key_cache()
+      :ok
+  """
+  @spec invalidate_key_cache() :: :ok
+  def invalidate_key_cache do
+    case :ets.whereis(@crypto_cache) do
+      :undefined -> :ok
+      _ref ->
+        :ets.delete(@crypto_cache, :signing_key)
+        :ok
+    end
+  end
 
   @doc """
   Computes HMAC-SHA256 signature for a JSON string.
@@ -122,12 +169,33 @@ defmodule JidoCode.Session.Persistence.Crypto do
 
   # Derives a deterministic but machine-specific signing key
   defp signing_key do
+    # Check cache first (10x+ speedup by avoiding PBKDF2 recomputation)
+    case :ets.whereis(@crypto_cache) do
+      :undefined ->
+        # Cache not initialized, derive key directly (testing scenario)
+        derive_signing_key()
+      _ref ->
+        case :ets.lookup(@crypto_cache, :signing_key) do
+          [{:signing_key, key}] ->
+            # Cache hit - return cached key
+            key
+          [] ->
+            # Cache miss - derive and cache the key
+            key = derive_signing_key()
+            :ets.insert(@crypto_cache, {:signing_key, key})
+            key
+        end
+    end
+  end
+
+  # Derives the signing key using PBKDF2
+  defp derive_signing_key do
     # Combine application salt with hostname for machine specificity
     # This prevents sessions from being copied between machines
     hostname = get_hostname()
     salt = @app_salt <> hostname
 
-    # Use PBKDF2 to derive a strong key
+    # Use PBKDF2 to derive a strong key (expensive operation - 100k iterations)
     :crypto.pbkdf2_hmac(
       @hash_algorithm,
       @app_salt,

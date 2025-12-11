@@ -50,42 +50,50 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "returns error for invalid version" do
       session = valid_session() |> Map.put(:version, 0)
-      assert {:error, {:invalid_version, 0}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_version} = Persistence.validate_session(session)
     end
 
     test "returns error for non-integer version" do
       session = valid_session() |> Map.put(:version, "1")
-      assert {:error, {:invalid_version, "1"}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_version} = Persistence.validate_session(session)
     end
 
     test "returns error for invalid id type" do
       session = valid_session() |> Map.put(:id, 123)
-      assert {:error, {:invalid_id, 123}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_id} = Persistence.validate_session(session)
     end
 
     test "returns error for invalid name type" do
       session = valid_session() |> Map.put(:name, nil)
-      assert {:error, {:invalid_name, nil}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_name} = Persistence.validate_session(session)
     end
 
     test "returns error for invalid project_path type" do
       session = valid_session() |> Map.put(:project_path, 123)
-      assert {:error, {:invalid_project_path, 123}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_project_path} = Persistence.validate_session(session)
     end
 
     test "returns error for invalid config type" do
       session = valid_session() |> Map.put(:config, "invalid")
-      assert {:error, {:invalid_config, "invalid"}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_config} = Persistence.validate_session(session)
     end
 
     test "returns error for invalid conversation type" do
       session = valid_session() |> Map.put(:conversation, "invalid")
-      assert {:error, {:invalid_conversation, "invalid"}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_conversation} = Persistence.validate_session(session)
     end
 
     test "returns error for invalid todos type" do
       session = valid_session() |> Map.put(:todos, "invalid")
-      assert {:error, {:invalid_todos, "invalid"}} = Persistence.validate_session(session)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_todos} = Persistence.validate_session(session)
     end
 
     test "returns error for non-map input" do
@@ -121,7 +129,8 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "returns error for unknown role" do
       message = valid_message() |> Map.put(:role, "unknown")
-      assert {:error, {:unknown_role, "unknown"}} = Persistence.validate_message(message)
+      # Error sanitization: role value no longer exposed in error tuple
+      assert {:error, :unknown_role} = Persistence.validate_message(message)
     end
 
     test "returns error for missing required fields" do
@@ -134,22 +143,26 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "returns error for invalid id type" do
       message = valid_message() |> Map.put(:id, 123)
-      assert {:error, {:invalid_id, 123}} = Persistence.validate_message(message)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_id} = Persistence.validate_message(message)
     end
 
     test "returns error for invalid role type" do
       message = valid_message() |> Map.put(:role, :user)
-      assert {:error, {:invalid_role, :user}} = Persistence.validate_message(message)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_role} = Persistence.validate_message(message)
     end
 
     test "returns error for invalid content type" do
       message = valid_message() |> Map.put(:content, nil)
-      assert {:error, {:invalid_content, nil}} = Persistence.validate_message(message)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_content} = Persistence.validate_message(message)
     end
 
     test "returns error for invalid timestamp type" do
       message = valid_message() |> Map.put(:timestamp, ~U[2024-01-01 00:00:00Z])
-      assert {:error, {:invalid_timestamp, _}} = Persistence.validate_message(message)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_timestamp} = Persistence.validate_message(message)
     end
 
     test "returns error for non-map input" do
@@ -182,7 +195,8 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "returns error for unknown status" do
       todo = valid_todo() |> Map.put(:status, "unknown")
-      assert {:error, {:unknown_status, "unknown"}} = Persistence.validate_todo(todo)
+      # Error sanitization: status value no longer exposed in error tuple
+      assert {:error, :unknown_status} = Persistence.validate_todo(todo)
     end
 
     test "returns error for missing required fields" do
@@ -194,17 +208,20 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "returns error for invalid content type" do
       todo = valid_todo() |> Map.put(:content, nil)
-      assert {:error, {:invalid_content, nil}} = Persistence.validate_todo(todo)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_content} = Persistence.validate_todo(todo)
     end
 
     test "returns error for invalid status type" do
       todo = valid_todo() |> Map.put(:status, :pending)
-      assert {:error, {:invalid_status, :pending}} = Persistence.validate_todo(todo)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_status} = Persistence.validate_todo(todo)
     end
 
     test "returns error for invalid active_form type" do
       todo = valid_todo() |> Map.put(:active_form, 123)
-      assert {:error, {:invalid_active_form, 123}} = Persistence.validate_todo(todo)
+      # Error sanitization: value no longer exposed in error tuple
+      assert {:error, :invalid_active_form} = Persistence.validate_todo(todo)
     end
 
     test "returns error for non-map input" do
@@ -1306,7 +1323,8 @@ defmodule JidoCode.Session.PersistenceTest do
         "todos" => []
       }
 
-      assert {:error, {:unsupported_version, 99}} = Persistence.deserialize_session(data)
+      # Error sanitization: version number no longer exposed in error tuple
+      assert {:error, :unsupported_version} = Persistence.deserialize_session(data)
     end
 
     test "rejects invalid schema version" do
@@ -1323,7 +1341,8 @@ defmodule JidoCode.Session.PersistenceTest do
         "todos" => []
       }
 
-      assert {:error, {:invalid_version, 0}} = Persistence.deserialize_session(data)
+      # Error sanitization: version number no longer exposed in error tuple
+      assert {:error, :invalid_version} = Persistence.deserialize_session(data)
     end
 
     test "rejects non-map input" do
@@ -1352,7 +1371,8 @@ defmodule JidoCode.Session.PersistenceTest do
         "todos" => []
       }
 
-      assert {:error, {:invalid_message, {:unknown_role, "invalid_role"}}} =
+      # Error sanitization: role value no longer exposed in error tuple
+      assert {:error, {:invalid_message, :unknown_role}} =
                Persistence.deserialize_session(data)
     end
 
@@ -1376,7 +1396,8 @@ defmodule JidoCode.Session.PersistenceTest do
         ]
       }
 
-      assert {:error, {:invalid_todo, {:unknown_status, "invalid_status"}}} =
+      # Error sanitization: status value no longer exposed in error tuple
+      assert {:error, {:invalid_todo, :unknown_status}} =
                Persistence.deserialize_session(data)
     end
   end

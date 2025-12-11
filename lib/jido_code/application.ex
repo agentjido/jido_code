@@ -143,6 +143,10 @@ defmodule JidoCode.Application do
     # This table tracks active sessions for the work-session feature
     JidoCode.SessionRegistry.create_table()
 
+    # Initialize crypto cache ETS table
+    # This table caches the PBKDF2-derived signing key to avoid recomputation
+    JidoCode.Session.Persistence.Crypto.create_cache_table()
+
     :ok
   end
 

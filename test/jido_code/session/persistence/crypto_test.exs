@@ -280,4 +280,55 @@ defmodule JidoCode.Session.Persistence.CryptoTest do
       assert :ok == Crypto.verify_signature(json, signature)
     end
   end
+
+  describe "signing key caching" do
+    test "signing key is cached and reused" do
+      # Clear cache to start fresh
+      Crypto.invalidate_key_cache()
+
+      # First computation - derive key
+      json1 = Jason.encode!(%{test: "data1"})
+      sig1 = Crypto.compute_signature(json1)
+
+      # Second computation - should use cached key
+      json2 = Jason.encode!(%{test: "data2"})
+      sig2 = Crypto.compute_signature(json2)
+
+      # Both signatures should verify (key is consistent)
+      assert :ok == Crypto.verify_signature(json1, sig1)
+      assert :ok == Crypto.verify_signature(json2, sig2)
+    end
+
+    test "invalidate_key_cache clears the cache" do
+      # Create a signature with cached key
+      json = Jason.encode!(%{test: "data"})
+      sig1 = Crypto.compute_signature(json)
+
+      # Invalidate cache
+      Crypto.invalidate_key_cache()
+
+      # Create another signature (should re-derive key)
+      sig2 = Crypto.compute_signature(json)
+
+      # Signatures should be identical (same key derivation)
+      assert sig1 == sig2
+    end
+
+    test "caching provides performance benefit" do
+      # Clear cache
+      Crypto.invalidate_key_cache()
+
+      json = Jason.encode!(%{test: "perf"})
+
+      # Measure first call (cold cache)
+      {time1, _sig1} = :timer.tc(fn -> Crypto.compute_signature(json) end)
+
+      # Measure second call (warm cache)
+      {time2, _sig2} = :timer.tc(fn -> Crypto.compute_signature(json) end)
+
+      # Second call should be significantly faster (at least 2x)
+      # PBKDF2 with 100k iterations is expensive
+      assert time2 < time1 / 2, "Cached call should be at least 2x faster"
+    end
+  end
 end

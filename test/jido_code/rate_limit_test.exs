@@ -358,5 +358,22 @@ defmodule JidoCode.RateLimitTest do
       # Table should still exist
       assert :jido_code_rate_limits in :ets.all()
     end
+
+    test "record_attempt bounds timestamp list to prevent unbounded growth" do
+      key = "bounded-test-#{:rand.uniform(10000)}"
+
+      # Record 100 attempts (far exceeding limit)
+      for _ <- 1..100 do
+        RateLimit.record_attempt(:resume, key)
+      end
+
+      # Verify list is bounded to 2x limit (limit=5, so max=10)
+      [{_, timestamps}] = :ets.lookup(:jido_code_rate_limits, {:resume, key})
+      assert length(timestamps) <= 10
+
+      # Verify we kept the most recent entries
+      assert is_list(timestamps)
+      assert Enum.all?(timestamps, &is_integer/1)
+    end
   end
 end

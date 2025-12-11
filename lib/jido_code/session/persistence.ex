@@ -4,8 +4,16 @@ defmodule JidoCode.Session.Persistence do
   @moduledoc """
   Session persistence schema and utilities.
 
-  This module defines the data structures used for persisting sessions to disk,
+  This module provides the high-level API for persisting sessions to disk,
   enabling session state to be saved and restored via the `/resume` command.
+
+  ## Sub-modules
+
+  Persistence functionality is organized into sub-modules:
+
+  - `JidoCode.Session.Persistence.Schema` - Type definitions and validation
+  - `JidoCode.Session.Persistence.Serialization` - Data conversion and formatting
+  - `JidoCode.Session.Persistence.Crypto` - HMAC signatures and integrity
 
   ## Schema Version
 
@@ -21,7 +29,7 @@ defmodule JidoCode.Session.Persistence do
 
   ## Data Types
 
-  Three main types are defined for persistence:
+  Three main types are defined for persistence (see Schema module):
 
   - `persisted_session/0` - Complete session state including metadata
   - `persisted_message/0` - Single conversation message
@@ -39,23 +47,28 @@ defmodule JidoCode.Session.Persistence do
   command.
   """
 
+  alias JidoCode.Session.Persistence.Schema
+  alias JidoCode.Session.Persistence.Serialization
+
+  # Re-export types from Schema module for backward compatibility
+  @type persisted_session :: Schema.persisted_session()
+  @type persisted_message :: Schema.persisted_message()
+  @type persisted_todo :: Schema.persisted_todo()
+
   # ============================================================================
   # Schema Version
   # ============================================================================
-
-  # Current schema version for persisted sessions.
-  # Increment this when making breaking changes to the persistence format.
-  # The `deserialize_session/1` function should handle migration from older versions.
-  @schema_version 1
 
   # ETS table for tracking in-progress saves (per-session locks)
   @save_locks_table :jido_code_persistence_save_locks
 
   @doc """
   Returns the current schema version.
+
+  Delegates to Schema module.
   """
   @spec schema_version() :: pos_integer()
-  def schema_version, do: @schema_version
+  defdelegate schema_version(), to: Schema
 
   @doc """
   Initializes the persistence module.
@@ -86,288 +99,60 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # ============================================================================
-  # Type Definitions
-  # ============================================================================
-
-  @typedoc """
-  Complete persisted session data.
-
-  Contains all information needed to restore a session, including:
-
-  - `version` - Schema version for migrations
-  - `id` - Unique session identifier (preserved on restore)
-  - `name` - User-visible session name
-  - `project_path` - Absolute path to the project directory
-  - `config` - LLM configuration (provider, model, temperature, etc.)
-  - `created_at` - ISO 8601 timestamp when session was first created
-  - `updated_at` - ISO 8601 timestamp of last activity
-  - `closed_at` - ISO 8601 timestamp when session was saved/closed
-  - `conversation` - List of conversation messages
-  - `todos` - List of todo items
-  """
-  @type persisted_session :: %{
-          version: pos_integer(),
-          id: String.t(),
-          name: String.t(),
-          project_path: String.t(),
-          config: map(),
-          created_at: String.t(),
-          updated_at: String.t(),
-          closed_at: String.t(),
-          conversation: [persisted_message()],
-          todos: [persisted_todo()]
-        }
-
-  @typedoc """
-  Single conversation message for persistence.
-
-  Contains:
-
-  - `id` - Unique message identifier
-  - `role` - Message role (user, assistant, system)
-  - `content` - Message text content
-  - `timestamp` - ISO 8601 timestamp when message was created
-  """
-  @type persisted_message :: %{
-          id: String.t(),
-          role: String.t(),
-          content: String.t(),
-          timestamp: String.t()
-        }
-
-  @typedoc """
-  Single todo item for persistence.
-
-  Contains:
-
-  - `content` - Todo description (imperative form, e.g., "Run tests")
-  - `status` - Current status (pending, in_progress, completed)
-  - `active_form` - Present continuous form (e.g., "Running tests")
-  """
-  @type persisted_todo :: %{
-          content: String.t(),
-          status: String.t(),
-          active_form: String.t()
-        }
-
-  # ============================================================================
-  # Schema Validation
+  # Schema Validation (Delegated to Schema module)
   # ============================================================================
 
   @doc """
   Validates a persisted session map matches the expected schema.
 
-  Returns `{:ok, session}` if valid, `{:error, reason}` otherwise.
-
-  ## Examples
-
-      iex> session = %{version: 1, id: "abc", name: "Test", ...}
-      iex> Persistence.validate_session(session)
-      {:ok, session}
-
-      iex> Persistence.validate_session(%{})
-      {:error, {:missing_fields, [:version, :id, ...]}}
+  Delegates to Schema module.
   """
   @spec validate_session(map()) :: {:ok, persisted_session()} | {:error, term()}
-  def validate_session(session) when is_map(session) do
-    required_fields = [
-      :version,
-      :id,
-      :name,
-      :project_path,
-      :config,
-      :created_at,
-      :updated_at,
-      :closed_at,
-      :conversation,
-      :todos
-    ]
-
-    # Convert string keys to atoms for validation
-    session = normalize_keys(session)
-
-    missing = Enum.filter(required_fields, &(not Map.has_key?(session, &1)))
-
-    if missing != [] do
-      {:error, {:missing_fields, missing}}
-    else
-      validate_session_fields(session)
-    end
-  end
-
-  def validate_session(_), do: {:error, :not_a_map}
-
-  defp validate_session_fields(session) do
-    validations = [
-      {&valid_version?/1, :version, :invalid_version},
-      {&is_binary/1, :id, :invalid_id},
-      {&is_binary/1, :name, :invalid_name},
-      {&is_binary/1, :project_path, :invalid_project_path},
-      {&is_map/1, :config, :invalid_config},
-      {&is_list/1, :conversation, :invalid_conversation},
-      {&is_list/1, :todos, :invalid_todos}
-    ]
-
-    Enum.reduce_while(validations, {:ok, session}, fn {validator, field, error_key}, acc ->
-      value = Map.get(session, field)
-
-      if validator.(value) do
-        {:cont, acc}
-      else
-        # Log detailed error for debugging, return sanitized error
-        require Logger
-        Logger.debug("Validation failed for #{field}: #{inspect(value)}")
-        {:halt, {:error, error_key}}
-      end
-    end)
-  end
-
-  defp valid_version?(v), do: is_integer(v) and v >= 1
+  defdelegate validate_session(session), to: Schema
 
   @doc """
   Validates a persisted message map matches the expected schema.
 
-  ## Examples
-
-      iex> msg = %{id: "1", role: "user", content: "Hello", timestamp: "2024-01-01T00:00:00Z"}
-      iex> Persistence.validate_message(msg)
-      {:ok, msg}
+  Delegates to Schema module.
   """
   @spec validate_message(map()) :: {:ok, persisted_message()} | {:error, term()}
-  def validate_message(message) when is_map(message) do
-    require Logger
-    required_fields = [:id, :role, :content, :timestamp]
-    message = normalize_keys(message)
-    missing = Enum.filter(required_fields, &(not Map.has_key?(message, &1)))
-
-    cond do
-      missing != [] ->
-        {:error, {:missing_fields, missing}}
-
-      not is_binary(message.id) ->
-        Logger.debug("Invalid message ID type: #{inspect(message.id)}")
-        {:error, :invalid_id}
-
-      not is_binary(message.role) ->
-        Logger.debug("Invalid message role type: #{inspect(message.role)}")
-        {:error, :invalid_role}
-
-      message.role not in ["user", "assistant", "system"] ->
-        Logger.debug("Unknown message role: #{inspect(message.role)}")
-        {:error, :unknown_role}
-
-      not is_binary(message.content) ->
-        Logger.debug("Invalid message content type")
-        {:error, :invalid_content}
-
-      not is_binary(message.timestamp) ->
-        Logger.debug("Invalid message timestamp type: #{inspect(message.timestamp)}")
-        {:error, :invalid_timestamp}
-
-      true ->
-        {:ok, message}
-    end
-  end
-
-  def validate_message(_), do: {:error, :not_a_map}
+  defdelegate validate_message(message), to: Schema
 
   @doc """
   Validates a persisted todo map matches the expected schema.
 
-  ## Examples
-
-      iex> todo = %{content: "Run tests", status: "pending", active_form: "Running tests"}
-      iex> Persistence.validate_todo(todo)
-      {:ok, todo}
+  Delegates to Schema module.
   """
   @spec validate_todo(map()) :: {:ok, persisted_todo()} | {:error, term()}
-  def validate_todo(todo) when is_map(todo) do
-    require Logger
-    required_fields = [:content, :status, :active_form]
-    todo = normalize_keys(todo)
-    missing = Enum.filter(required_fields, &(not Map.has_key?(todo, &1)))
-
-    cond do
-      missing != [] ->
-        {:error, {:missing_fields, missing}}
-
-      not is_binary(todo.content) ->
-        Logger.debug("Invalid todo content type")
-        {:error, :invalid_content}
-
-      not is_binary(todo.status) ->
-        Logger.debug("Invalid todo status type: #{inspect(todo.status)}")
-        {:error, :invalid_status}
-
-      todo.status not in ["pending", "in_progress", "completed"] ->
-        Logger.debug("Unknown todo status: #{inspect(todo.status)}")
-        {:error, :unknown_status}
-
-      not is_binary(todo.active_form) ->
-        Logger.debug("Invalid todo active_form type")
-        {:error, :invalid_active_form}
-
-      true ->
-        {:ok, todo}
-    end
-  end
-
-  def validate_todo(_), do: {:error, :not_a_map}
+  defdelegate validate_todo(todo), to: Schema
 
   # ============================================================================
-  # Schema Helpers
+  # Schema Helpers (Delegated to Schema module)
   # ============================================================================
 
   @doc """
   Creates a new persisted session map with the current schema version.
 
-  This is a convenience function for building valid persisted session data.
-  All timestamps should be in ISO 8601 format.
+  Delegates to Schema module.
   """
   @spec new_session(map()) :: persisted_session()
-  def new_session(attrs) when is_map(attrs) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    %{
-      version: @schema_version,
-      id: Map.fetch!(attrs, :id),
-      name: Map.fetch!(attrs, :name),
-      project_path: Map.fetch!(attrs, :project_path),
-      config: Map.get(attrs, :config, %{}),
-      created_at: Map.get(attrs, :created_at, now),
-      updated_at: Map.get(attrs, :updated_at, now),
-      closed_at: Map.get(attrs, :closed_at, now),
-      conversation: Map.get(attrs, :conversation, []),
-      todos: Map.get(attrs, :todos, [])
-    }
-  end
+  defdelegate new_session(attrs), to: Schema
 
   @doc """
   Creates a new persisted message map.
+
+  Delegates to Schema module.
   """
   @spec new_message(map()) :: persisted_message()
-  def new_message(attrs) when is_map(attrs) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    %{
-      id: Map.fetch!(attrs, :id),
-      role: Map.fetch!(attrs, :role),
-      content: Map.fetch!(attrs, :content),
-      timestamp: Map.get(attrs, :timestamp, now)
-    }
-  end
+  defdelegate new_message(attrs), to: Schema
 
   @doc """
   Creates a new persisted todo map.
+
+  Delegates to Schema module.
   """
   @spec new_todo(map()) :: persisted_todo()
-  def new_todo(attrs) when is_map(attrs) do
-    %{
-      content: Map.fetch!(attrs, :content),
-      status: Map.get(attrs, :status, "pending"),
-      active_form: Map.fetch!(attrs, :active_form)
-    }
-  end
+  defdelegate new_todo(attrs), to: Schema
 
   # ============================================================================
   # Storage Location
@@ -521,6 +306,9 @@ defmodule JidoCode.Session.Persistence do
 
   # Check if adding this session would exceed max_sessions limit
   # Allows updates to existing sessions, only blocks new sessions
+  # Features:
+  # - Warns at 80% threshold
+  # - Optionally auto-cleans oldest sessions when limit reached
   defp check_session_count_limit(session_id) do
     max_sessions = get_max_sessions()
     session_file = session_file(session_id)
@@ -534,10 +322,52 @@ defmodule JidoCode.Session.Persistence do
         {:ok, sessions} ->
           current_count = length(sessions)
 
+          # Calculate thresholds
+          warn_threshold = trunc(max_sessions * 0.8)
+
+          # Warn at 80% threshold
+          if current_count >= warn_threshold and current_count < max_sessions do
+            percentage = trunc(current_count / max_sessions * 100)
+
+            require Logger
+
+            Logger.warning(
+              "Session count at #{percentage}%: #{current_count}/#{max_sessions} " <>
+                "(#{max_sessions - current_count} remaining)"
+            )
+          end
+
+          # Check if limit reached
           if current_count >= max_sessions do
             require Logger
-            Logger.warning("Session limit reached: #{current_count}/#{max_sessions}")
-            {:error, :session_limit_reached}
+
+            Logger.warning(
+              "Session limit reached: #{current_count}/#{max_sessions}"
+            )
+
+            # Check if auto-cleanup is enabled
+            if get_auto_cleanup_enabled?() do
+              case cleanup_oldest_sessions(sessions, 1) do
+                :ok ->
+                  Logger.info(
+                    "Auto-cleanup: Removed 1 oldest session to make room " <>
+                      "(#{current_count - 1}/#{max_sessions})"
+                  )
+
+                  :ok
+
+                {:error, reason} ->
+                  Logger.error(
+                    "Auto-cleanup failed: #{inspect(reason)}, " <>
+                      "cannot create new session"
+                  )
+
+                  {:error, :session_limit_reached}
+              end
+            else
+              # Auto-cleanup disabled, fail
+              {:error, :session_limit_reached}
+            end
           else
             :ok
           end
@@ -550,9 +380,63 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # Get max_sessions config value
-  defp get_max_sessions do
+  @doc false
+  def get_max_sessions do
     Application.get_env(:jido_code, :persistence, [])
     |> Keyword.get(:max_sessions, 100)
+  end
+
+  # Get auto_cleanup_on_limit config value
+  # When enabled, automatically deletes oldest sessions when limit reached
+  # When disabled (default), returns :session_limit_reached error
+  @doc false
+  def get_auto_cleanup_enabled?() do
+    Application.get_env(:jido_code, :persistence, [])
+    |> Keyword.get(:auto_cleanup_on_limit, false)
+  end
+
+  # Cleanup (delete) the N oldest sessions based on last_resumed_at timestamp
+  # Returns :ok if successful, {:error, reason} otherwise
+  defp cleanup_oldest_sessions(sessions, count) when is_list(sessions) and count > 0 do
+    # Sort sessions by last_resumed_at (oldest first)
+    # Sessions without last_resumed_at are treated as oldest
+    oldest_sessions =
+      sessions
+      |> Enum.sort_by(
+        fn session ->
+          case session.last_resumed_at do
+            nil -> DateTime.from_unix!(0)
+            dt when is_binary(dt) -> DateTime.from_iso8601(dt) |> elem(1)
+            dt -> dt
+          end
+        end,
+        DateTime
+      )
+      |> Enum.take(count)
+
+    # Delete each old session
+    results =
+      for session <- oldest_sessions do
+        case delete_persisted(session.id) do
+          :ok ->
+            require Logger
+            Logger.debug("Auto-cleanup: Deleted session #{session.id}")
+            :ok
+
+          {:error, reason} = error ->
+            require Logger
+            Logger.error("Auto-cleanup: Failed to delete session #{session.id}: #{inspect(reason)}")
+            error
+        end
+      end
+
+    # Check if all deletions succeeded
+    if Enum.all?(results, fn r -> r == :ok end) do
+      :ok
+    else
+      # Return first error
+      Enum.find(results, fn r -> match?({:error, _}, r) end)
+    end
   end
 
   @doc """
@@ -560,24 +444,11 @@ defmodule JidoCode.Session.Persistence do
 
   Converts the live session state into the persistence format, including
   serializing messages and todos to their string-based representations.
+
+  Delegates to Serialization module.
   """
   @spec build_persisted_session(map()) :: persisted_session()
-  def build_persisted_session(state) do
-    session = state.session
-
-    %{
-      version: schema_version(),
-      id: session.id,
-      name: session.name,
-      project_path: session.project_path,
-      config: serialize_config(session.config),
-      created_at: format_datetime(session.created_at),
-      updated_at: format_datetime(session.updated_at),
-      closed_at: DateTime.to_iso8601(DateTime.utc_now()),
-      conversation: Enum.map(state.messages, &serialize_message/1),
-      todos: Enum.map(state.todos, &serialize_todo/1)
-    }
-  end
+  defdelegate build_persisted_session(state), to: Serialization
 
   @doc """
   Writes a persisted session to disk atomically.
@@ -595,7 +466,7 @@ defmodule JidoCode.Session.Persistence do
 
     # First, normalize all keys to strings for consistent JSON encoding
     # This ensures decode->re-encode produces identical JSON
-    normalized = normalize_keys_to_strings(persisted)
+    normalized = Serialization.normalize_keys_to_strings(persisted)
 
     # Encode to pretty JSON with strict maps for deterministic output
     case Jason.encode(normalized, pretty: true, maps: :strict) do
@@ -632,24 +503,6 @@ defmodule JidoCode.Session.Persistence do
         {:error, :json_encode_error}
     end
   end
-
-  # Recursively converts all atom keys to string keys
-  # This ensures consistent JSON encoding/decoding
-  defp normalize_keys_to_strings(map) when is_map(map) do
-    Map.new(map, fn
-      {key, value} when is_atom(key) ->
-        {Atom.to_string(key), normalize_keys_to_strings(value)}
-
-      {key, value} ->
-        {key, normalize_keys_to_strings(value)}
-    end)
-  end
-
-  defp normalize_keys_to_strings(list) when is_list(list) do
-    Enum.map(list, &normalize_keys_to_strings/1)
-  end
-
-  defp normalize_keys_to_strings(value), do: value
 
   # ============================================================================
   # Session Listing
@@ -1005,30 +858,11 @@ defmodule JidoCode.Session.Persistence do
       iex> data = %{"id" => "abc", "name" => "Test", ...}
       iex> Persistence.deserialize_session(data)
       {:ok, %{id: "abc", name: "Test", ...}}
+
+  Delegates to Serialization module.
   """
   @spec deserialize_session(map()) :: {:ok, map()} | {:error, term()}
-  def deserialize_session(data) when is_map(data) do
-    with {:ok, validated} <- validate_session(data),
-         {:ok, _version} <- check_schema_version(validated.version),
-         {:ok, messages} <- deserialize_messages(validated.conversation),
-         {:ok, todos} <- deserialize_todos(validated.todos),
-         {:ok, created_at} <- parse_datetime_required(validated.created_at),
-         {:ok, updated_at} <- parse_datetime_required(validated.updated_at) do
-      {:ok,
-       %{
-         id: validated.id,
-         name: validated.name,
-         project_path: validated.project_path,
-         config: deserialize_config(validated.config),
-         created_at: created_at,
-         updated_at: updated_at,
-         conversation: messages,
-         todos: todos
-       }}
-    end
-  end
-
-  def deserialize_session(_), do: {:error, :not_a_map}
+  defdelegate deserialize_session(data), to: Serialization
 
   # Loads minimal session metadata from a JSON file.
   # Returns nil if the file is corrupted, too large, or cannot be read.
@@ -1388,20 +1222,23 @@ defmodule JidoCode.Session.Persistence do
   def resume(session_id) when is_binary(session_id) do
     alias JidoCode.RateLimit
 
-    with :ok <- RateLimit.check_rate_limit(:resume, session_id),
+    with :ok <- RateLimit.check_global_rate_limit(:resume),
+         :ok <- RateLimit.check_rate_limit(:resume, session_id),
          {:ok, persisted} <- load(session_id),
-         :ok <- validate_project_path(persisted.project_path),
+         {:ok, cached_stats} <- validate_project_path(persisted.project_path),
          {:ok, session} <- rebuild_session(persisted),
          {:ok, _pid} <- start_session_processes(session),
-         :ok <- restore_state_or_cleanup(session.id, persisted) do
-      # Record successful resume for rate limiting
+         :ok <- restore_state_or_cleanup(session.id, persisted, cached_stats) do
+      # Record successful resume for rate limiting (both global and per-session)
+      RateLimit.record_global_attempt(:resume)
       RateLimit.record_attempt(:resume, session_id)
       {:ok, session}
     end
   end
 
   # Validates that the project path still exists and is a directory
-  @spec validate_project_path(String.t()) :: :ok | {:error, atom()}
+  # Returns cached file stats for TOCTOU protection
+  @spec validate_project_path(String.t()) :: {:ok, map()} | {:error, atom()}
   defp validate_project_path(path) do
     cond do
       not File.exists?(path) ->
@@ -1411,7 +1248,21 @@ defmodule JidoCode.Session.Persistence do
         {:error, :project_path_not_directory}
 
       true ->
-        :ok
+        # Cache file stats for TOCTOU protection
+        # We'll verify these haven't changed during re-validation
+        case File.stat(path) do
+          {:ok, stat} ->
+            cached_stats = %{
+              inode: stat.inode,
+              uid: stat.uid,
+              gid: stat.gid,
+              mode: stat.mode
+            }
+            {:ok, cached_stats}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 
@@ -1450,9 +1301,9 @@ defmodule JidoCode.Session.Persistence do
 
   # Restores conversation and todos, or cleans up session on failure
   # Includes re-validation of project path to prevent TOCTOU attacks
-  @spec restore_state_or_cleanup(String.t(), map()) :: :ok | {:error, term()}
-  defp restore_state_or_cleanup(session_id, persisted) do
-    with :ok <- revalidate_project_path(persisted.project_path),
+  @spec restore_state_or_cleanup(String.t(), map(), map()) :: :ok | {:error, term()}
+  defp restore_state_or_cleanup(session_id, persisted, cached_stats) do
+    with :ok <- revalidate_project_path(persisted.project_path, cached_stats),
          :ok <- restore_conversation(session_id, persisted.conversation),
          :ok <- restore_todos(session_id, persisted.todos),
          :ok <- delete_persisted(session_id) do
@@ -1469,12 +1320,40 @@ defmodule JidoCode.Session.Persistence do
   # Re-validates project path after session start to prevent TOCTOU attacks
   # This catches cases where the path was swapped/modified between initial
   # validation and session startup
-  @spec revalidate_project_path(String.t()) :: :ok | {:error, term()}
-  defp revalidate_project_path(project_path) do
-    # Re-validate that path still exists and is a directory
-    # This prevents TOCTOU attacks where the path is swapped between
-    # initial validation and session start
-    validate_project_path(project_path)
+  #
+  # Compares current file stats with cached stats to detect chown/chmod attacks
+  @spec revalidate_project_path(String.t(), map()) :: :ok | {:error, term()}
+  defp revalidate_project_path(project_path, cached_stats) do
+    # Re-validate that path still exists and is a directory, and get current stats
+    case validate_project_path(project_path) do
+      {:ok, current_stats} ->
+        # Compare cached stats with current stats to detect tampering
+        cond do
+          current_stats.inode != cached_stats.inode ->
+            Logger.warning("TOCTOU attack detected: inode changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          current_stats.uid != cached_stats.uid ->
+            Logger.warning("TOCTOU attack detected: ownership changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          current_stats.gid != cached_stats.gid ->
+            Logger.warning("TOCTOU attack detected: group ownership changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          current_stats.mode != cached_stats.mode ->
+            Logger.warning("TOCTOU attack detected: permissions changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          true ->
+            # Stats match - no tampering detected
+            :ok
+        end
+
+      {:error, reason} ->
+        # Path no longer exists or is no longer a directory
+        {:error, reason}
+    end
   end
 
   # Restores conversation messages to Session.State

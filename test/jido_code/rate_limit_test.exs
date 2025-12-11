@@ -14,6 +14,12 @@ defmodule JidoCode.RateLimitTest do
     on_exit(fn ->
       RateLimit.reset(:test_operation, "test-key")
       RateLimit.reset(:resume, "session-123")
+
+      # Reset global rate limits
+      :ets.delete(:jido_code_rate_limits, {:global, :resume})
+      :ets.delete(:jido_code_rate_limits, {:global, :test_operation})
+      :ets.delete(:jido_code_rate_limits, {:global, :unconfigured_operation})
+      :ets.delete(:jido_code_rate_limits, {:global, :unconfigured_op})
     end)
 
     :ok
@@ -374,6 +380,156 @@ defmodule JidoCode.RateLimitTest do
       # Verify we kept the most recent entries
       assert is_list(timestamps)
       assert Enum.all?(timestamps, &is_integer/1)
+    end
+  end
+
+  describe "check_global_rate_limit/1" do
+    test "allows operation when under global limit" do
+      # Global limit for resume is 20 per 60 seconds (default)
+      assert :ok == RateLimit.check_global_rate_limit(:resume)
+    end
+
+    test "allows multiple operations up to global limit" do
+      # Record 19 global attempts (limit is 20)
+      for _ <- 1..19 do
+        RateLimit.record_global_attempt(:resume)
+      end
+
+      # 20th check should still be allowed
+      assert :ok == RateLimit.check_global_rate_limit(:resume)
+    end
+
+    test "blocks operation after exceeding global limit" do
+      # Record 20 global attempts (the limit)
+      for _ <- 1..20 do
+        RateLimit.record_global_attempt(:resume)
+      end
+
+      # 21st attempt should be blocked
+      assert {:error, :rate_limit_exceeded, retry_after} =
+               RateLimit.check_global_rate_limit(:resume)
+
+      assert is_integer(retry_after)
+      assert retry_after > 0
+      assert retry_after <= 60
+    end
+
+    test "global limit is independent of per-session limits" do
+      # Exhaust per-session limit for a specific session
+      session_key = "session-#{:rand.uniform(10000)}"
+
+      for _ <- 1..5 do
+        RateLimit.record_attempt(:resume, session_key)
+      end
+
+      # Per-session should be blocked
+      assert {:error, :rate_limit_exceeded, _} =
+               RateLimit.check_rate_limit(:resume, session_key)
+
+      # But global should still be allowed (different tracking)
+      assert :ok == RateLimit.check_global_rate_limit(:resume)
+    end
+
+    test "returns :ok when global limit not configured" do
+      # Operations without global limits configured should always pass
+      assert :ok == RateLimit.check_global_rate_limit(:unconfigured_operation)
+    end
+  end
+
+  describe "record_global_attempt/1" do
+    test "records a global attempt successfully" do
+      assert :ok == RateLimit.record_global_attempt(:resume)
+    end
+
+    test "multiple global records increment the count" do
+      # Record several global attempts
+      for _ <- 1..10 do
+        RateLimit.record_global_attempt(:resume)
+      end
+
+      # Should be able to check how many are tracked
+      # Global limit is 20, so 10 attempts should still be under limit
+      assert :ok == RateLimit.check_global_rate_limit(:resume)
+    end
+
+    test "global tracking is separate from per-session tracking" do
+      session_key = "session-#{:rand.uniform(10000)}"
+
+      # Record global attempts
+      for _ <- 1..10 do
+        RateLimit.record_global_attempt(:resume)
+      end
+
+      # Record per-session attempts
+      for _ <- 1..3 do
+        RateLimit.record_attempt(:resume, session_key)
+      end
+
+      # Both should be under their respective limits
+      assert :ok == RateLimit.check_global_rate_limit(:resume)
+      assert :ok == RateLimit.check_rate_limit(:resume, session_key)
+    end
+
+    test "handles unconfigured operations gracefully" do
+      # Recording attempt for unconfigured operation should succeed
+      assert :ok == RateLimit.record_global_attempt(:unconfigured_op)
+
+      # Check should also succeed
+      assert :ok == RateLimit.check_global_rate_limit(:unconfigured_op)
+    end
+  end
+
+  describe "global rate limiting prevents bypass attacks" do
+    test "cannot bypass global limit by creating multiple sessions" do
+      # This simulates the attack scenario from Security Issue #6:
+      # Attacker creates 100 sessions and resumes each 5 times
+
+      # Record resume attempts across many different sessions
+      # Each session gets 1 resume, but globally we exceed the limit
+      for i <- 1..21 do
+        session_key = "attack-session-#{i}"
+
+        # Record both global and per-session
+        # (In real code, resume/1 does both automatically)
+        RateLimit.record_global_attempt(:resume)
+        RateLimit.record_attempt(:resume, session_key)
+      end
+
+      # Any individual session is still under its per-session limit (1 < 5)
+      assert :ok == RateLimit.check_rate_limit(:resume, "attack-session-1")
+
+      # But the global limit (20) is exceeded
+      assert {:error, :rate_limit_exceeded, _} =
+               RateLimit.check_global_rate_limit(:resume)
+
+      # This prevents the attack: even though the attacker has many sessions,
+      # they hit the global rate limit
+    end
+
+    test "legitimate multi-session use is still allowed" do
+      # A user with 4 active sessions, each resuming occasionally,
+      # should not hit global limits under normal use
+
+      for session_num <- 1..4 do
+        for _attempt_num <- 1..3 do
+          session_key = "legit-session-#{session_num}"
+
+          # Simulate resume (both checks would happen in real code)
+          assert :ok == RateLimit.check_global_rate_limit(:resume)
+          assert :ok == RateLimit.check_rate_limit(:resume, session_key)
+
+          # Record both
+          RateLimit.record_global_attempt(:resume)
+          RateLimit.record_attempt(:resume, session_key)
+        end
+      end
+
+      # Total: 4 sessions × 3 resumes = 12 global operations
+      # This is under the global limit (20), so it should succeed
+
+      # Both checks should still pass
+      assert :ok == RateLimit.check_global_rate_limit(:resume)
+      assert :ok == RateLimit.check_rate_limit(:resume, "legit-session-1")
     end
   end
 end

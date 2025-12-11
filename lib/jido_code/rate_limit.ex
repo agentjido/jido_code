@@ -38,10 +38,13 @@ defmodule JidoCode.RateLimit do
   end
 
   @doc """
-  Checks if an operation is allowed under the rate limit.
+  Checks if an operation is allowed under the per-session rate limit.
 
   Returns `:ok` if the operation is allowed, or an error tuple with
   retry-after time if the rate limit has been exceeded.
+
+  Note: This only checks per-session limits. For operations that need
+  global rate limiting, use check_global_rate_limit/1 in addition.
 
   ## Parameters
 
@@ -91,9 +94,71 @@ defmodule JidoCode.RateLimit do
   end
 
   @doc """
-  Records an attempt for rate limiting tracking.
+  Checks if an operation is allowed under the global rate limit.
+
+  Global rate limits apply across all sessions/keys to prevent bypass attacks
+  where an attacker creates multiple sessions to circumvent per-session limits.
+
+  Returns `:ok` if the operation is allowed, or an error tuple with
+  retry-after time if the global rate limit has been exceeded.
+
+  ## Parameters
+
+  - `operation` - The operation type (`:resume`, etc.)
+
+  ## Returns
+
+  - `:ok` - Operation is allowed globally
+  - `{:error, :rate_limit_exceeded, retry_after_seconds}` - Global rate limit exceeded
+
+  ## Examples
+
+      iex> RateLimit.check_global_rate_limit(:resume)
+      :ok
+
+      iex> # After exceeding global limit...
+      iex> RateLimit.check_global_rate_limit(:resume)
+      {:error, :rate_limit_exceeded, 30}
+  """
+  @spec check_global_rate_limit(atom()) :: :ok | {:error, :rate_limit_exceeded, pos_integer()}
+  def check_global_rate_limit(operation) when is_atom(operation) do
+    limits = get_global_limits(operation)
+
+    # If no global limit configured, allow operation
+    if limits == :none do
+      :ok
+    else
+      now = System.system_time(:second)
+      lookup_key = {:global, operation}
+
+      # Get all timestamps for this global key
+      timestamps = case :ets.lookup(@table_name, lookup_key) do
+        [{^lookup_key, ts}] -> ts
+        [] -> []
+      end
+
+      # Filter to timestamps within the window
+      window_start = now - limits.window_seconds
+      recent_timestamps = Enum.filter(timestamps, fn ts -> ts > window_start end)
+
+      # Check if global limit exceeded
+      if length(recent_timestamps) >= limits.limit do
+        # Calculate retry-after time
+        oldest_recent = Enum.min(recent_timestamps)
+        retry_after = oldest_recent + limits.window_seconds - now
+
+        {:error, :rate_limit_exceeded, max(retry_after, 1)}
+      else
+        :ok
+      end
+    end
+  end
+
+  @doc """
+  Records an attempt for per-session rate limiting tracking.
 
   Should be called after a successful operation to track it for rate limiting.
+  For operations with global rate limiting, also call record_global_attempt/1.
 
   ## Parameters
 
@@ -128,6 +193,52 @@ defmodule JidoCode.RateLimit do
     :ets.insert(@table_name, {lookup_key, updated_timestamps})
 
     :ok
+  end
+
+  @doc """
+  Records an attempt for global rate limiting tracking.
+
+  Should be called after a successful operation to track it globally.
+  This prevents bypass attacks where multiple sessions are created to
+  circumvent per-session rate limits.
+
+  ## Parameters
+
+  - `operation` - The operation type (`:resume`, etc.)
+
+  ## Examples
+
+      iex> RateLimit.record_global_attempt(:resume)
+      :ok
+  """
+  @spec record_global_attempt(atom()) :: :ok
+  def record_global_attempt(operation) when is_atom(operation) do
+    limits = get_global_limits(operation)
+
+    # If no global limit configured, skip recording
+    if limits == :none do
+      :ok
+    else
+      now = System.system_time(:second)
+      lookup_key = {:global, operation}
+
+      # Get current timestamps or initialize empty list
+      timestamps = case :ets.lookup(@table_name, lookup_key) do
+        [{^lookup_key, ts}] -> ts
+        [] -> []
+      end
+
+      # Prepend new timestamp and bound list
+      max_entries = limits.limit * 2
+      updated_timestamps =
+        [now | timestamps]
+        |> Enum.take(max_entries)
+
+      # Store updated list
+      :ets.insert(@table_name, {lookup_key, updated_timestamps})
+
+      :ok
+    end
   end
 
   @doc """
@@ -260,6 +371,41 @@ defmodule JidoCode.RateLimit do
   defp default_limits do
     %{
       resume: %{limit: 5, window_seconds: 60}
+    }
+  end
+
+  defp get_global_limits(operation) do
+    config_limits = Application.get_env(:jido_code, :global_rate_limits, [])
+    operation_config = Keyword.get(config_limits, operation)
+
+    case operation_config do
+      nil ->
+        # Use default global limits
+        default_global_limits()
+        |> Map.get(operation, :none)
+
+      false ->
+        # Explicitly disabled
+        :none
+
+      config when is_list(config) ->
+        %{
+          limit: Keyword.get(config, :limit, 20),
+          window_seconds: Keyword.get(config, :window_seconds, 60)
+        }
+
+      config when is_map(config) ->
+        config
+    end
+  end
+
+  # Returns default global rate limits (configurable via runtime.exs)
+  # Global limits should be higher than per-session limits to allow
+  # legitimate multi-session use while preventing abuse
+  defp default_global_limits do
+    %{
+      # Allow 20 resumes per minute across all sessions (vs 5 per session)
+      resume: %{limit: 20, window_seconds: 60}
     }
   end
 

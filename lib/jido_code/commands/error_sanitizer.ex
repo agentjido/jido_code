@@ -98,6 +98,7 @@ defmodule JidoCode.Commands.ErrorSanitizer do
   def sanitize_error(:not_found), do: "Session not found."
   def sanitize_error(:project_path_not_found), do: "Project path no longer exists."
   def sanitize_error(:project_path_not_directory), do: "Project path is not a directory."
+  def sanitize_error(:project_path_changed), do: "Project path properties changed unexpectedly."
   def sanitize_error(:project_already_open), do: "Project already open in another session."
   def sanitize_error(:session_limit_reached), do: "Maximum sessions reached."
   def sanitize_error(:save_in_progress), do: "Save operation already in progress."

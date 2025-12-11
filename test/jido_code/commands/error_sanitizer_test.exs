@@ -18,6 +18,9 @@ defmodule JidoCode.Commands.ErrorSanitizerTest do
       assert ErrorSanitizer.sanitize_error(:project_path_not_found) ==
                "Project path no longer exists."
 
+      assert ErrorSanitizer.sanitize_error(:project_path_changed) ==
+               "Project path properties changed unexpectedly."
+
       assert ErrorSanitizer.sanitize_error(:project_already_open) ==
                "Project already open in another session."
 

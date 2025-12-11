@@ -197,7 +197,7 @@ defmodule JidoCode.Integration.SessionPhase6Test do
 
   test "session appears in resumable list after close", %{tmp_base: tmp_base} do
     # Initially no resumable sessions
-    assert Persistence.list_resumable() == []
+    assert {:ok, []} = Persistence.list_resumable()
 
     # Create and close session
     session = create_test_session(tmp_base, "List Test")
@@ -208,7 +208,7 @@ defmodule JidoCode.Integration.SessionPhase6Test do
     assert :ok = wait_for_file(session_file)
 
     # Verify appears in resumable list
-    resumable = Persistence.list_resumable()
+    {:ok, resumable} = Persistence.list_resumable()
     assert length(resumable) == 1
     assert hd(resumable).id == session.id
   end
@@ -225,13 +225,14 @@ defmodule JidoCode.Integration.SessionPhase6Test do
     assert :ok = wait_for_file(session_file)
 
     # Verify in resumable list
-    assert length(Persistence.list_resumable()) == 1
+    {:ok, resumable} = Persistence.list_resumable()
+    assert length(resumable) == 1
 
     # Resume it (becomes active)
     {:ok, resumed_session} = Persistence.resume(session.id)
 
     # Verify NOT in resumable list anymore
-    assert Persistence.list_resumable() == []
+    assert {:ok, []} = Persistence.list_resumable()
 
     # Cleanup
     SessionSupervisor.stop_session(resumed_session.id)
@@ -328,7 +329,7 @@ defmodule JidoCode.Integration.SessionPhase6Test do
     File.write!(file1, Jason.encode!(old_json))
 
     # Run cleanup (default 30 days)
-    result = Persistence.cleanup()
+    {:ok, result} = Persistence.cleanup()
 
     # Verify old session deleted, recent kept
     assert result.deleted == 1
@@ -355,7 +356,7 @@ defmodule JidoCode.Integration.SessionPhase6Test do
     end)
 
     # Verify all in list
-    persisted = Persistence.list_persisted()
+    {:ok, persisted} = Persistence.list_persisted()
     assert length(persisted) == 3
 
     ids = Enum.map(persisted, & &1.id)
@@ -384,13 +385,13 @@ defmodule JidoCode.Integration.SessionPhase6Test do
     assert File.exists?(f2)
 
     # Clear all via iteration (same as /resume clear)
-    sessions = Persistence.list_persisted()
+    {:ok, sessions} = Persistence.list_persisted()
     Enum.each(sessions, fn s -> Persistence.delete_persisted(s.id) end)
 
     # Verify all deleted
     refute File.exists?(f1)
     refute File.exists?(f2)
-    assert Persistence.list_persisted() == []
+    assert {:ok, []} = Persistence.list_persisted()
   end
 
   # ============================================================================
@@ -874,7 +875,7 @@ defmodule JidoCode.Integration.SessionPhase6Test do
       # List persisted should skip corrupted file and include good one
       log =
         capture_log(fn ->
-          sessions = Persistence.list_persisted()
+          {:ok, sessions} = Persistence.list_persisted()
 
           # Should have only the good session
           assert length(sessions) == 1

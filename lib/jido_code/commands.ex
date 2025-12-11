@@ -585,86 +585,110 @@ defmodule JidoCode.Commands do
   def execute_resume(:list, _model) do
     alias JidoCode.Session.Persistence
 
-    sessions = Persistence.list_resumable()
-    message = format_resumable_list(sessions)
-    {:ok, message}
+    case Persistence.list_resumable() do
+      {:ok, sessions} ->
+        message = format_resumable_list(sessions)
+        {:ok, message}
+
+      {:error, :eacces} ->
+        {:error, "Permission denied: Unable to access sessions directory."}
+
+      {:error, reason} ->
+        {:error, "Failed to list sessions: #{inspect(reason)}"}
+    end
   end
 
   def execute_resume({:restore, target}, _model) do
     alias JidoCode.Session.Persistence
 
-    sessions = Persistence.list_resumable()
+    with {:ok, sessions} <- Persistence.list_resumable(),
+         {:ok, session_id} <- resolve_resume_target(target, sessions) do
+      # Attempt to resume the session
+      case Persistence.resume(session_id) do
+        {:ok, session} ->
+          {:session_action, {:add_session, session}}
 
-    case resolve_resume_target(target, sessions) do
-      {:ok, session_id} ->
-        # Attempt to resume the session
-        case Persistence.resume(session_id) do
-          {:ok, session} ->
-            {:session_action, {:add_session, session}}
+        {:error, :project_path_not_found} ->
+          {:error, "Project path no longer exists."}
 
-          {:error, :project_path_not_found} ->
-            {:error, "Project path no longer exists."}
+        {:error, :project_path_not_directory} ->
+          {:error, "Project path is not a directory."}
 
-          {:error, :project_path_not_directory} ->
-            {:error, "Project path is not a directory."}
+        {:error, :project_already_open} ->
+          {:error, "Project already open in another session."}
 
-          {:error, :project_already_open} ->
-            {:error, "Project already open in another session."}
+        {:error, :session_limit_reached} ->
+          {:error, "Maximum 10 sessions reached. Close a session first."}
 
-          {:error, :session_limit_reached} ->
-            {:error, "Maximum 10 sessions reached. Close a session first."}
+        {:error, {:rate_limit_exceeded, retry_after}} ->
+          {:error, "Rate limit exceeded. Try again in #{retry_after} seconds."}
 
-          {:error, {:rate_limit_exceeded, retry_after}} ->
-            {:error, "Rate limit exceeded. Try again in #{retry_after} seconds."}
+        {:error, :not_found} ->
+          {:error, "Session file not found."}
 
-          {:error, :not_found} ->
-            {:error, "Session file not found."}
+        {:error, reason} ->
+          {:error, "Failed to resume session: #{inspect(reason)}"}
+      end
+    else
+      {:error, :eacces} ->
+        {:error, "Permission denied: Unable to access sessions directory."}
 
-          {:error, reason} ->
-            {:error, "Failed to resume session: #{inspect(reason)}"}
-        end
-
-      {:error, error_message} ->
+      {:error, error_message} when is_binary(error_message) ->
         {:error, error_message}
+
+      {:error, reason} ->
+        {:error, "Failed to list sessions: #{inspect(reason)}"}
     end
   end
 
   def execute_resume({:delete, target}, _model) do
     alias JidoCode.Session.Persistence
 
-    sessions = Persistence.list_resumable()
+    with {:ok, sessions} <- Persistence.list_resumable(),
+         {:ok, session_id} <- resolve_resume_target(target, sessions) do
+      # Attempt to delete the session
+      case Persistence.delete_persisted(session_id) do
+        :ok ->
+          {:ok, "Deleted saved session."}
 
-    case resolve_resume_target(target, sessions) do
-      {:ok, session_id} ->
-        # Attempt to delete the session
-        case Persistence.delete_persisted(session_id) do
-          :ok ->
-            {:ok, "Deleted saved session."}
+        {:error, reason} ->
+          {:error, "Failed to delete session: #{inspect(reason)}"}
+      end
+    else
+      {:error, :eacces} ->
+        {:error, "Permission denied: Unable to access sessions directory."}
 
-          {:error, reason} ->
-            {:error, "Failed to delete session: #{inspect(reason)}"}
-        end
-
-      {:error, error_message} ->
+      {:error, error_message} when is_binary(error_message) ->
         {:error, error_message}
+
+      {:error, reason} ->
+        {:error, "Failed to list sessions: #{inspect(reason)}"}
     end
   end
 
   def execute_resume(:clear, _model) do
     alias JidoCode.Session.Persistence
 
-    sessions = Persistence.list_persisted()
-    count = length(sessions)
+    case Persistence.list_persisted() do
+      {:ok, sessions} ->
+        count = length(sessions)
 
-    if count > 0 do
-      # Delete all sessions
-      Enum.each(sessions, fn session ->
-        Persistence.delete_persisted(session.id)
-      end)
+        if count > 0 do
+          # Delete all sessions
+          Enum.each(sessions, fn session ->
+            Persistence.delete_persisted(session.id)
+          end)
 
-      {:ok, "Cleared #{count} saved session(s)."}
-    else
-      {:ok, "No saved sessions to clear."}
+          {:ok, "Cleared #{count} saved session(s)."}
+        else
+          {:ok, "No saved sessions to clear."}
+        end
+
+      {:error, :eacces} ->
+        {:error, "Permission denied: Unable to access sessions directory."}
+
+      {:error, reason} ->
+        {:error, "Failed to list sessions: #{inspect(reason)}"}
     end
   end
 

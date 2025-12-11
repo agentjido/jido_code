@@ -147,6 +147,10 @@ defmodule JidoCode.Application do
     # This table caches the PBKDF2-derived signing key to avoid recomputation
     JidoCode.Session.Persistence.Crypto.create_cache_table()
 
+    # Initialize persistence save locks ETS table
+    # This table tracks in-progress saves to prevent concurrent saves to same session
+    JidoCode.Session.Persistence.init()
+
     :ok
   end
 

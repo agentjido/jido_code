@@ -1639,7 +1639,7 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Cleared 3 saved session(s)."
 
       # Verify all sessions are deleted
-      remaining = JidoCode.Session.Persistence.list_persisted()
+      {:ok, remaining} = JidoCode.Session.Persistence.list_persisted()
       assert remaining == []
     end
 

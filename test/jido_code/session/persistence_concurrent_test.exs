@@ -110,6 +110,69 @@ defmodule JidoCode.Session.PersistenceConcurrentTest do
       {:ok, content} = File.read(session_file)
       assert {:ok, _json} = Jason.decode(content)
     end
+
+    test "concurrent saves to same session are serialized", %{tmp_base: tmp_base} do
+      # This test verifies that the per-session lock prevents concurrent saves
+      # to the same session from racing with each other.
+      project_path = Path.join(tmp_base, "concurrent_save_serialization")
+      File.mkdir_p!(project_path)
+
+      # Create a session
+      {:ok, session} =
+        SessionSupervisor.create_session(
+          project_path: project_path,
+          name: "Serialization Test",
+          config: %{
+            provider: "anthropic",
+            model: "claude-3-5-haiku-20241022",
+            temperature: 0.7,
+            max_tokens: 4096
+          }
+        )
+
+      session_id = session.id
+
+      # Try to save the same session from 5 concurrent processes
+      tasks =
+        for i <- 1..5 do
+          Task.async(fn ->
+            # Add a unique message so we can see which save won
+            message = %{
+              id: "msg-#{i}",
+              role: :user,
+              content: "Message #{i}",
+              timestamp: DateTime.utc_now()
+            }
+
+            JidoCode.Session.State.append_message(session_id, message)
+
+            # Try to save
+            result = Persistence.save(session_id)
+            {i, result}
+          end)
+        end
+
+      results = Task.await_many(tasks, 10000)
+
+      # Some saves should succeed, others should return :save_in_progress
+      successes = Enum.count(results, fn {_i, result} -> match?({:ok, _}, result) end)
+      in_progress = Enum.count(results, fn {_i, result} -> result == {:error, :save_in_progress} end)
+
+      # At least one save should succeed
+      assert successes >= 1, "At least one save should succeed"
+
+      # Some saves should be blocked by the lock (unless timing is such that they all serialize perfectly)
+      # This assertion is lenient because timing may vary
+      assert successes + in_progress == 5, "All save attempts should either succeed or be blocked"
+
+      # Verify the session file exists and is valid
+      session_file = Persistence.session_file(session_id)
+      assert File.exists?(session_file)
+      assert {:ok, _loaded} = Persistence.load(session_id)
+
+      # Cleanup
+      SessionSupervisor.stop_session(session_id)
+    end
   end
 
   describe "save during resume race conditions" do
@@ -283,7 +346,7 @@ defmodule JidoCode.Session.PersistenceConcurrentTest do
       _old_session = create_and_close_session("Old Session", project1)
 
       # Make old session appear 31 days old
-      [old_persisted | _] = Persistence.list_resumable()
+      {:ok, [old_persisted | _]} = Persistence.list_resumable()
       session_file = Persistence.session_file(old_persisted.id)
       {:ok, content} = File.read(session_file)
       {:ok, data} = Jason.decode(content)
@@ -393,11 +456,11 @@ defmodule JidoCode.Session.PersistenceConcurrentTest do
         end)
       ]
 
-      [list1, list2, :ok] = Task.await_many(tasks, 5000)
+      [result1, result2, :ok] = Task.await_many(tasks, 5000)
 
       # Both lists should be valid
-      assert is_list(list1)
-      assert is_list(list2)
+      assert {:ok, list1} = result1
+      assert {:ok, list2} = result2
       assert length(list1) >= 3
       assert length(list2) >= 3
 

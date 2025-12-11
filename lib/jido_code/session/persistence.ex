@@ -48,11 +48,35 @@ defmodule JidoCode.Session.Persistence do
   # The `deserialize_session/1` function should handle migration from older versions.
   @schema_version 1
 
+  # ETS table for tracking in-progress saves (per-session locks)
+  @save_locks_table :jido_code_persistence_save_locks
+
   @doc """
   Returns the current schema version.
   """
   @spec schema_version() :: pos_integer()
   def schema_version, do: @schema_version
+
+  @doc """
+  Initializes the persistence module.
+
+  Creates the ETS table for tracking in-progress saves to prevent
+  concurrent saves to the same session.
+
+  Should be called during application startup.
+  """
+  @spec init() :: :ok
+  def init do
+    # Create ETS table for save locks if it doesn't exist
+    case :ets.whereis(@save_locks_table) do
+      :undefined ->
+        :ets.new(@save_locks_table, [:set, :public, :named_table, read_concurrency: true])
+        :ok
+
+      _tid ->
+        :ok
+    end
+  end
 
   # Returns the maximum file size for session files (configurable)
   # Files larger than this will be skipped to prevent DoS attacks
@@ -457,12 +481,42 @@ defmodule JidoCode.Session.Persistence do
   def save(session_id) when is_binary(session_id) do
     alias JidoCode.Session.State
 
-    with {:ok, state} <- State.get_state(session_id),
-         :ok <- check_session_count_limit(session_id),
-         persisted = build_persisted_session(state),
-         :ok <- write_session_file(session_id, persisted) do
-      {:ok, session_file(session_id)}
+    # Acquire lock to prevent concurrent saves to same session
+    case acquire_save_lock(session_id) do
+      :ok ->
+        try do
+          # Perform save with lock held
+          with {:ok, state} <- State.get_state(session_id),
+               :ok <- check_session_count_limit(session_id),
+               persisted = build_persisted_session(state),
+               :ok <- write_session_file(session_id, persisted) do
+            {:ok, session_file(session_id)}
+          end
+        after
+          # Always release lock, even if save fails
+          release_save_lock(session_id)
+        end
+
+      {:error, :save_in_progress} ->
+        Logger.debug("Save already in progress for session #{session_id}, skipping concurrent save")
+        {:error, :save_in_progress}
     end
+  end
+
+  # Acquire per-session save lock using ETS
+  # Returns :ok if lock acquired, {:error, :save_in_progress} if already locked
+  defp acquire_save_lock(session_id) do
+    # insert_new is atomic - returns true only if key didn't exist
+    case :ets.insert_new(@save_locks_table, {session_id, :locked, System.monotonic_time()}) do
+      true -> :ok
+      false -> {:error, :save_in_progress}
+    end
+  end
+
+  # Release per-session save lock
+  defp release_save_lock(session_id) do
+    :ets.delete(@save_locks_table, session_id)
+    :ok
   end
 
   # Check if adding this session would exceed max_sessions limit
@@ -476,14 +530,21 @@ defmodule JidoCode.Session.Persistence do
       :ok
     else
       # New session - check count
-      current_count = length(list_resumable())
+      case list_resumable() do
+        {:ok, sessions} ->
+          current_count = length(sessions)
 
-      if current_count >= max_sessions do
-        require Logger
-        Logger.warning("Session limit reached: #{current_count}/#{max_sessions}")
-        {:error, :session_limit_reached}
-      else
-        :ok
+          if current_count >= max_sessions do
+            require Logger
+            Logger.warning("Session limit reached: #{current_count}/#{max_sessions}")
+            {:error, :session_limit_reached}
+          else
+            :ok
+          end
+
+        {:error, reason} ->
+          # If we can't list sessions, propagate the error
+          {:error, reason}
       end
     end
   end
@@ -602,7 +663,12 @@ defmodule JidoCode.Session.Persistence do
 
   ## Returns
 
-  A list of maps with session metadata:
+  - `{:ok, sessions}` - List of session metadata maps
+  - `{:error, :enoent}` - Sessions directory doesn't exist yet (returns `{:ok, []}`)
+  - `{:error, :eacces}` - Permission denied accessing sessions directory
+  - `{:error, reason}` - Other filesystem errors
+
+  Session metadata maps contain:
   - `id` - Session identifier
   - `name` - Session name
   - `project_path` - Project path
@@ -611,31 +677,38 @@ defmodule JidoCode.Session.Persistence do
   ## Examples
 
       iex> Persistence.list_persisted()
-      [
+      {:ok, [
         %{id: "abc", name: "Session 1", project_path: "/path/1", closed_at: "2024-01-02T00:00:00Z"},
         %{id: "def", name: "Session 2", project_path: "/path/2", closed_at: "2024-01-01T00:00:00Z"}
-      ]
+      ]}
+
+      iex> Persistence.list_persisted()  # Permission denied
+      {:error, :eacces}
   """
-  @spec list_persisted() :: [map()]
+  @spec list_persisted() :: {:ok, [map()]} | {:error, atom()}
   def list_persisted do
     dir = sessions_dir()
 
     case File.ls(dir) do
       {:ok, files} ->
-        files
-        |> Enum.filter(&String.ends_with?(&1, ".json"))
-        |> Enum.map(&load_session_metadata/1)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.sort_by(&parse_datetime(&1.closed_at), {:desc, DateTime})
+        sessions =
+          files
+          |> Enum.filter(&String.ends_with?(&1, ".json"))
+          |> Enum.map(&load_session_metadata/1)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.sort_by(&parse_datetime(&1.closed_at), {:desc, DateTime})
+
+        {:ok, sessions}
 
       {:error, :enoent} ->
         # Sessions directory doesn't exist yet - return empty list
-        []
+        {:ok, []}
 
-      {:error, reason} ->
-        # Log other errors (permissions, etc.) for visibility
+      {:error, reason} = error ->
+        # Return distinct errors for permission failures and other issues
+        # Caller can decide how to handle (retry, fail, log, etc.)
         Logger.warning("Failed to list sessions directory: #{inspect(reason)}")
-        []
+        error
     end
   end
 
@@ -651,17 +724,21 @@ defmodule JidoCode.Session.Persistence do
 
   ## Returns
 
-  - List of session metadata maps (empty list if none available)
+  - `{:ok, sessions}` - List of resumable session metadata maps
+  - `{:error, reason}` - Filesystem error from list_persisted/0
 
   ## Examples
 
       iex> Persistence.list_resumable()
-      [
+      {:ok, [
         %{id: "sess-123", name: "project1", project_path: "/tmp/p1", closed_at: "2025-01-15T10:00:00Z"},
         %{id: "sess-456", name: "project2", project_path: "/tmp/p2", closed_at: "2025-01-14T09:00:00Z"}
-      ]
+      ]}
+
+      iex> Persistence.list_resumable()
+      {:error, :eacces}
   """
-  @spec list_resumable() :: [map()]
+  @spec list_resumable() :: {:ok, [map()]} | {:error, atom()}
   def list_resumable do
     alias JidoCode.SessionRegistry
 
@@ -671,10 +748,14 @@ defmodule JidoCode.Session.Persistence do
     active_paths = Enum.map(active_sessions, & &1.project_path)
 
     # Filter out persisted sessions that conflict with active ones
-    list_persisted()
-    |> Enum.reject(fn session ->
-      session.id in active_ids or session.project_path in active_paths
-    end)
+    with {:ok, sessions} <- list_persisted() do
+      resumable =
+        Enum.reject(sessions, fn session ->
+          session.id in active_ids or session.project_path in active_paths
+        end)
+
+      {:ok, resumable}
+    end
   end
 
   @doc """
@@ -691,19 +772,23 @@ defmodule JidoCode.Session.Persistence do
 
   ## Returns
 
-  A map with the following keys:
-  - `:deleted` - Number of sessions successfully deleted
-  - `:skipped` - Number of sessions skipped (recent or invalid timestamp)
-  - `:failed` - Number of sessions that failed to delete
-  - `:errors` - List of error tuples `{session_id, reason}` for failed deletions
+  - `{:ok, results}` - Cleanup completed with result map containing:
+    - `:deleted` - Number of sessions successfully deleted
+    - `:skipped` - Number of sessions skipped (recent or invalid timestamp)
+    - `:failed` - Number of sessions that failed to delete
+    - `:errors` - List of error tuples `{session_id, reason}` for failed deletions
+  - `{:error, reason}` - Failed to list sessions (e.g., `:eacces` permission denied)
 
   ## Examples
 
       iex> Persistence.cleanup()
-      %{deleted: 5, skipped: 2, failed: 0, errors: []}
+      {:ok, %{deleted: 5, skipped: 2, failed: 0, errors: []}}
 
       iex> Persistence.cleanup(7)
-      %{deleted: 10, skipped: 1, failed: 0, errors: []}
+      {:ok, %{deleted: 10, skipped: 1, failed: 0, errors: []}}
+
+      iex> Persistence.cleanup()
+      {:error, :eacces}  # Permission denied
 
   ## Behavior
 
@@ -719,12 +804,15 @@ defmodule JidoCode.Session.Persistence do
   This function is safe to run multiple times. Already-deleted files won't cause
   errors. Invalid timestamps are logged and skipped rather than causing failures.
   """
-  @spec cleanup(pos_integer()) :: %{
-          deleted: non_neg_integer(),
-          skipped: non_neg_integer(),
-          failed: non_neg_integer(),
-          errors: [{String.t(), term()}]
-        }
+  @spec cleanup(pos_integer()) ::
+          {:ok,
+           %{
+             deleted: non_neg_integer(),
+             skipped: non_neg_integer(),
+             failed: non_neg_integer(),
+             errors: [{String.t(), term()}]
+           }}
+          | {:error, atom()}
   def cleanup(max_age_days \\ 30) when is_integer(max_age_days) and max_age_days > 0 do
     require Logger
 
@@ -733,12 +821,11 @@ defmodule JidoCode.Session.Persistence do
 
     Logger.info("Starting session cleanup: removing sessions older than #{max_age_days} days")
 
-    # Get all persisted sessions (returns a list directly)
-    sessions = list_persisted()
-
-    # Process each session and collect results
-    results =
-      Enum.reduce(sessions, %{deleted: 0, skipped: 0, failed: 0, errors: []}, fn session, acc ->
+    # Get all persisted sessions
+    with {:ok, sessions} <- list_persisted() do
+      # Process each session and collect results
+      results =
+        Enum.reduce(sessions, %{deleted: 0, skipped: 0, failed: 0, errors: []}, fn session, acc ->
         case parse_and_compare_timestamp(session.closed_at, cutoff) do
           :older ->
             # Session is old enough to delete
@@ -776,14 +863,15 @@ defmodule JidoCode.Session.Persistence do
         end
       end)
 
-    # Reverse errors list so it's in chronological order
-    results = %{results | errors: Enum.reverse(results.errors)}
+      # Reverse errors list so it's in chronological order
+      results = %{results | errors: Enum.reverse(results.errors)}
 
-    Logger.info(
-      "Cleanup complete: deleted=#{results.deleted}, skipped=#{results.skipped}, failed=#{results.failed}"
-    )
+      Logger.info(
+        "Cleanup complete: deleted=#{results.deleted}, skipped=#{results.skipped}, failed=#{results.failed}"
+      )
 
-    results
+      {:ok, results}
+    end
   end
 
   # Parses timestamp and compares it with cutoff

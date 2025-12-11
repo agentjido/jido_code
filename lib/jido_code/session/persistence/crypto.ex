@@ -188,12 +188,19 @@ defmodule JidoCode.Session.Persistence.Crypto do
     end
   end
 
-  # Derives the signing key using PBKDF2
+  # Derives the signing key using PBKDF2 with multiple entropy sources
   defp derive_signing_key do
-    # Combine application salt with hostname for machine specificity
-    # This prevents sessions from being copied between machines
+    # Combine multiple entropy sources for stronger key derivation:
+    # 1. Application salt (compile-time constant)
+    # 2. Machine secret (per-machine random value)
+    # 3. Hostname (additional machine identifier)
+    #
+    # This prevents key prediction even if attacker knows the application salt
+    machine_secret = get_or_create_machine_secret()
     hostname = get_hostname()
-    salt = @app_salt <> hostname
+
+    # Combine all entropy sources into the salt
+    salt = @app_salt <> machine_secret <> hostname
 
     # Use PBKDF2 to derive a strong key (expensive operation - 100k iterations)
     :crypto.pbkdf2_hmac(
@@ -203,6 +210,81 @@ defmodule JidoCode.Session.Persistence.Crypto do
       @iterations,
       @key_length
     )
+  end
+
+  # Gets or creates the per-machine secret file
+  # Returns a random secret unique to this machine, persisted across restarts
+  defp get_or_create_machine_secret do
+    secret_path = machine_secret_path()
+
+    case File.read(secret_path) do
+      {:ok, secret} ->
+        # Validate secret format (should be 32 hex characters minimum)
+        if byte_size(secret) >= 32 do
+          secret
+        else
+          # Invalid/corrupted secret - regenerate
+          Logger.warning("Machine secret file corrupted, regenerating")
+          generate_and_save_machine_secret(secret_path)
+        end
+
+      {:error, :enoent} ->
+        # First run - generate new secret
+        Logger.info("Generating new machine secret for signing key derivation")
+        generate_and_save_machine_secret(secret_path)
+
+      {:error, reason} ->
+        # Permission or I/O error - log and use fallback
+        Logger.error("Failed to read machine secret: #{inspect(reason)}, using fallback")
+        # Use a fallback based on hostname + node name
+        # This is weaker but better than crashing
+        fallback_entropy()
+    end
+  end
+
+  # Generate and save a new machine secret
+  defp generate_and_save_machine_secret(secret_path) do
+    # Generate 32 bytes of random data (256 bits)
+    secret = :crypto.strong_rand_bytes(32) |> Base.encode16(case: :lower)
+
+    # Ensure parent directory exists
+    secret_dir = Path.dirname(secret_path)
+    File.mkdir_p!(secret_dir)
+
+    # Write secret file with restricted permissions
+    case File.write(secret_path, secret, [:binary]) do
+      :ok ->
+        # Set file permissions to 0600 (owner read/write only) on Unix systems
+        case :file.change_mode(secret_path, 0o600) do
+          :ok ->
+            Logger.info("Machine secret generated and saved to #{secret_path}")
+
+          {:error, reason} ->
+            Logger.warning("Could not set machine secret permissions: #{inspect(reason)}")
+        end
+
+        secret
+
+      {:error, reason} ->
+        Logger.error("Failed to save machine secret: #{inspect(reason)}")
+        # Fall back to in-memory random value (weaker, not persisted)
+        :crypto.strong_rand_bytes(32) |> Base.encode16(case: :lower)
+    end
+  end
+
+  # Get the path to the machine secret file
+  defp machine_secret_path do
+    # Store in ~/.jido_code/machine_secret
+    config_dir = Path.expand("~/.jido_code")
+    Path.join(config_dir, "machine_secret")
+  end
+
+  # Fallback entropy when machine secret file can't be read
+  # Uses hostname + node name as weaker entropy source
+  defp fallback_entropy do
+    hostname = get_hostname()
+    node_name = Atom.to_string(Node.self())
+    "#{hostname}-#{node_name}" |> :erlang.md5() |> Base.encode16(case: :lower)
   end
 
   # Gets the machine hostname

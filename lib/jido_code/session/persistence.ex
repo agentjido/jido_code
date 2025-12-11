@@ -1388,13 +1388,15 @@ defmodule JidoCode.Session.Persistence do
   def resume(session_id) when is_binary(session_id) do
     alias JidoCode.RateLimit
 
-    with :ok <- RateLimit.check_rate_limit(:resume, session_id),
+    with :ok <- RateLimit.check_global_rate_limit(:resume),
+         :ok <- RateLimit.check_rate_limit(:resume, session_id),
          {:ok, persisted} <- load(session_id),
          {:ok, cached_stats} <- validate_project_path(persisted.project_path),
          {:ok, session} <- rebuild_session(persisted),
          {:ok, _pid} <- start_session_processes(session),
          :ok <- restore_state_or_cleanup(session.id, persisted, cached_stats) do
-      # Record successful resume for rate limiting
+      # Record successful resume for rate limiting (both global and per-session)
+      RateLimit.record_global_attempt(:resume)
       RateLimit.record_attempt(:resume, session_id)
       {:ok, session}
     end

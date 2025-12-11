@@ -1390,10 +1390,10 @@ defmodule JidoCode.Session.Persistence do
 
     with :ok <- RateLimit.check_rate_limit(:resume, session_id),
          {:ok, persisted} <- load(session_id),
-         :ok <- validate_project_path(persisted.project_path),
+         {:ok, cached_stats} <- validate_project_path(persisted.project_path),
          {:ok, session} <- rebuild_session(persisted),
          {:ok, _pid} <- start_session_processes(session),
-         :ok <- restore_state_or_cleanup(session.id, persisted) do
+         :ok <- restore_state_or_cleanup(session.id, persisted, cached_stats) do
       # Record successful resume for rate limiting
       RateLimit.record_attempt(:resume, session_id)
       {:ok, session}
@@ -1401,7 +1401,8 @@ defmodule JidoCode.Session.Persistence do
   end
 
   # Validates that the project path still exists and is a directory
-  @spec validate_project_path(String.t()) :: :ok | {:error, atom()}
+  # Returns cached file stats for TOCTOU protection
+  @spec validate_project_path(String.t()) :: {:ok, map()} | {:error, atom()}
   defp validate_project_path(path) do
     cond do
       not File.exists?(path) ->
@@ -1411,7 +1412,21 @@ defmodule JidoCode.Session.Persistence do
         {:error, :project_path_not_directory}
 
       true ->
-        :ok
+        # Cache file stats for TOCTOU protection
+        # We'll verify these haven't changed during re-validation
+        case File.stat(path) do
+          {:ok, stat} ->
+            cached_stats = %{
+              inode: stat.inode,
+              uid: stat.uid,
+              gid: stat.gid,
+              mode: stat.mode
+            }
+            {:ok, cached_stats}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 
@@ -1450,9 +1465,9 @@ defmodule JidoCode.Session.Persistence do
 
   # Restores conversation and todos, or cleans up session on failure
   # Includes re-validation of project path to prevent TOCTOU attacks
-  @spec restore_state_or_cleanup(String.t(), map()) :: :ok | {:error, term()}
-  defp restore_state_or_cleanup(session_id, persisted) do
-    with :ok <- revalidate_project_path(persisted.project_path),
+  @spec restore_state_or_cleanup(String.t(), map(), map()) :: :ok | {:error, term()}
+  defp restore_state_or_cleanup(session_id, persisted, cached_stats) do
+    with :ok <- revalidate_project_path(persisted.project_path, cached_stats),
          :ok <- restore_conversation(session_id, persisted.conversation),
          :ok <- restore_todos(session_id, persisted.todos),
          :ok <- delete_persisted(session_id) do
@@ -1469,12 +1484,40 @@ defmodule JidoCode.Session.Persistence do
   # Re-validates project path after session start to prevent TOCTOU attacks
   # This catches cases where the path was swapped/modified between initial
   # validation and session startup
-  @spec revalidate_project_path(String.t()) :: :ok | {:error, term()}
-  defp revalidate_project_path(project_path) do
-    # Re-validate that path still exists and is a directory
-    # This prevents TOCTOU attacks where the path is swapped between
-    # initial validation and session start
-    validate_project_path(project_path)
+  #
+  # Compares current file stats with cached stats to detect chown/chmod attacks
+  @spec revalidate_project_path(String.t(), map()) :: :ok | {:error, term()}
+  defp revalidate_project_path(project_path, cached_stats) do
+    # Re-validate that path still exists and is a directory, and get current stats
+    case validate_project_path(project_path) do
+      {:ok, current_stats} ->
+        # Compare cached stats with current stats to detect tampering
+        cond do
+          current_stats.inode != cached_stats.inode ->
+            Logger.warning("TOCTOU attack detected: inode changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          current_stats.uid != cached_stats.uid ->
+            Logger.warning("TOCTOU attack detected: ownership changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          current_stats.gid != cached_stats.gid ->
+            Logger.warning("TOCTOU attack detected: group ownership changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          current_stats.mode != cached_stats.mode ->
+            Logger.warning("TOCTOU attack detected: permissions changed for #{project_path}")
+            {:error, :project_path_changed}
+
+          true ->
+            # Stats match - no tampering detected
+            :ok
+        end
+
+      {:error, reason} ->
+        # Path no longer exists or is no longer a directory
+        {:error, reason}
+    end
   end
 
   # Restores conversation messages to Session.State

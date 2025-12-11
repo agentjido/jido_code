@@ -219,6 +219,8 @@ defmodule JidoCode.Session.State do
   @doc """
   Gets the messages list for a session by session_id.
 
+  Returns all messages in chronological order (oldest first).
+
   ## Examples
 
       iex> {:ok, messages} = State.get_messages("session-123")
@@ -227,6 +229,64 @@ defmodule JidoCode.Session.State do
   @spec get_messages(String.t()) :: {:ok, [message()]} | {:error, :not_found}
   def get_messages(session_id) do
     call_state(session_id, :get_messages)
+  end
+
+  @doc """
+  Gets a paginated slice of messages for a session by session_id.
+
+  This is more efficient than `get_messages/1` for large conversation histories,
+  as it only reverses the requested slice instead of the entire list.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `offset` - Number of messages to skip from the start (oldest messages)
+  - `limit` - Maximum number of messages to return (or `:all` for no limit)
+
+  ## Returns
+
+  - `{:ok, messages, metadata}` - Successfully retrieved messages with pagination info
+  - `{:error, :not_found}` - Session not found
+
+  The metadata map contains:
+  - `total` - Total number of messages in the session
+  - `offset` - The offset used for this query
+  - `limit` - The limit used for this query
+  - `returned` - Number of messages actually returned
+  - `has_more` - Whether there are more messages beyond this page
+
+  ## Examples
+
+      # Get first 10 messages
+      iex> {:ok, messages, meta} = State.get_messages("session-123", 0, 10)
+      iex> meta.total
+      100
+      iex> meta.has_more
+      true
+
+      # Get next 10 messages
+      iex> {:ok, messages, meta} = State.get_messages("session-123", 10, 10)
+      iex> length(messages)
+      10
+
+      # Get all remaining messages
+      iex> {:ok, messages, meta} = State.get_messages("session-123", 20, :all)
+      iex> meta.has_more
+      false
+
+      # Offset beyond available messages
+      iex> {:ok, messages, meta} = State.get_messages("session-123", 1000, 10)
+      iex> messages
+      []
+      iex> meta.has_more
+      false
+  """
+  @spec get_messages(String.t(), non_neg_integer(), pos_integer() | :all) ::
+          {:ok, [message()], map()} | {:error, :not_found}
+  def get_messages(session_id, offset, limit)
+      when is_binary(session_id) and is_integer(offset) and offset >= 0 and
+             (is_integer(limit) and limit > 0 or limit == :all) do
+    call_state(session_id, {:get_messages_paginated, offset, limit})
   end
 
   @doc """
@@ -517,6 +577,51 @@ defmodule JidoCode.Session.State do
   def handle_call(:get_messages, _from, state) do
     # Messages stored in reverse order for O(1) prepend, reverse on read
     {:reply, {:ok, Enum.reverse(state.messages)}, state}
+  end
+
+  @impl true
+  def handle_call({:get_messages_paginated, offset, limit}, _from, state) do
+    # Performance optimization: only reverse the requested slice
+    # Messages stored in reverse chronological order: [newest, ..., oldest]
+    # We want to return in chronological order: [oldest, ..., newest]
+
+    total = length(state.messages)
+
+    # Calculate actual limit (handle :all)
+    actual_limit = if limit == :all, do: total, else: limit
+
+    # Calculate slice indices in the reverse-stored list
+    # For offset=0, limit=10 with 100 messages:
+    #   We want chronological indices 0-9 (msg_1 to msg_10)
+    #   In reverse list, these are at indices 90-99
+    #   start_index = 100 - 0 - 10 = 90
+    start_index = max(0, total - offset - actual_limit)
+
+    # Calculate how many messages we can actually return
+    # If offset >= total, this will be 0 (no messages available)
+    slice_length = min(actual_limit, max(0, total - offset))
+
+    # Take the slice and reverse it to chronological order
+    # This is O(slice_length) instead of O(total)
+    messages =
+      if slice_length > 0 do
+        state.messages
+        |> Enum.slice(start_index, slice_length)
+        |> Enum.reverse()
+      else
+        []
+      end
+
+    # Build pagination metadata
+    metadata = %{
+      total: total,
+      offset: offset,
+      limit: actual_limit,
+      returned: length(messages),
+      has_more: offset + length(messages) < total
+    }
+
+    {:reply, {:ok, messages, metadata}, state}
   end
 
   @impl true

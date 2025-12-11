@@ -156,7 +156,9 @@ defmodule JidoCode.Session.PersistenceConcurrentTest do
 
       # Some saves should succeed, others should return :save_in_progress
       successes = Enum.count(results, fn {_i, result} -> match?({:ok, _}, result) end)
-      in_progress = Enum.count(results, fn {_i, result} -> result == {:error, :save_in_progress} end)
+
+      in_progress =
+        Enum.count(results, fn {_i, result} -> result == {:error, :save_in_progress} end)
 
       # At least one save should succeed
       assert successes >= 1, "At least one save should succeed"

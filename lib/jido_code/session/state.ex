@@ -285,7 +285,7 @@ defmodule JidoCode.Session.State do
           {:ok, [message()], map()} | {:error, :not_found}
   def get_messages(session_id, offset, limit)
       when is_binary(session_id) and is_integer(offset) and offset >= 0 and
-             (is_integer(limit) and limit > 0 or limit == :all) do
+             ((is_integer(limit) and limit > 0) or limit == :all) do
     call_state(session_id, {:get_messages_paginated, offset, limit})
   end
 

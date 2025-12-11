@@ -616,12 +616,13 @@ defmodule JidoCode.Session.PersistenceTest do
     test "enforces max_sessions limit for new sessions" do
       # Clean up any existing session files from other tests
       sessions_dir = Persistence.sessions_dir()
+
       if File.exists?(sessions_dir) do
         File.rm_rf!(sessions_dir)
         File.mkdir_p!(sessions_dir)
       end
 
-      tmp_dir = System.tmp_dir!() |> Path.join("jido_test_#{:rand.uniform(100000)}")
+      tmp_dir = System.tmp_dir!() |> Path.join("jido_test_#{:rand.uniform(100_000)}")
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
       # Set low limit for testing
@@ -703,12 +704,13 @@ defmodule JidoCode.Session.PersistenceTest do
     test "allows updates to existing sessions even when at limit" do
       # Clean up any existing session files from other tests
       sessions_dir = Persistence.sessions_dir()
+
       if File.exists?(sessions_dir) do
         File.rm_rf!(sessions_dir)
         File.mkdir_p!(sessions_dir)
       end
 
-      tmp_dir = System.tmp_dir!() |> Path.join("jido_test_update_#{:rand.uniform(100000)}")
+      tmp_dir = System.tmp_dir!() |> Path.join("jido_test_update_#{:rand.uniform(100_000)}")
       File.mkdir_p!(tmp_dir)
       on_exit(fn -> File.rm_rf!(tmp_dir) end)
       # Set low limit
@@ -1268,9 +1270,11 @@ defmodule JidoCode.Session.PersistenceTest do
 
       # Register two active sessions - one matches ID, one matches project_path
       {:ok, active1} = Session.new(project_path: tmp_dir4)
-      active1_with_id = %{active1 | id: test_uuid(1)}  # Matches session1 by ID
+      # Matches session1 by ID
+      active1_with_id = %{active1 | id: test_uuid(1)}
 
-      {:ok, active2} = Session.new(project_path: tmp_dir3)  # Matches session3 by project_path
+      # Matches session3 by project_path
+      {:ok, active2} = Session.new(project_path: tmp_dir3)
 
       {:ok, _} = SessionRegistry.register(active1_with_id)
       {:ok, _} = SessionRegistry.register(active2)

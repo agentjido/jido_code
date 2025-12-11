@@ -721,11 +721,10 @@ defmodule JidoCode.Commands do
     list =
       sessions
       |> Enum.with_index(1)
-      |> Enum.map(fn {session, idx} ->
+      |> Enum.map_join("\n", fn {session, idx} ->
         time_ago = format_ago(session.closed_at)
         "  #{idx}. #{session.name} (#{session.project_path}) - closed #{time_ago}"
       end)
-      |> Enum.join("\n")
 
     footer = "\n\nUse /resume <number> to restore a session."
 
@@ -750,11 +749,11 @@ defmodule JidoCode.Commands do
             hours = div(diff, 3600)
             "#{hours} #{if hours == 1, do: "hour", else: "hours"} ago"
 
-          diff < 172800 ->
+          diff < 172_800 ->
             # Less than 2 days
             "yesterday"
 
-          diff < 604800 ->
+          diff < 604_800 ->
             # Less than 7 days
             days = div(diff, 86400)
             "#{days} days ago"

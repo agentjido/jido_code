@@ -372,35 +372,38 @@ defmodule JidoCode.Test.SessionTestHelpers do
     now = Keyword.get(opts, :timestamp, DateTime.utc_now())
     timestamp = DateTime.to_iso8601(now)
 
-    config = Keyword.get(opts, :config, %{
-      "provider" => "anthropic",
-      "model" => "claude-3-5-haiku-20241022",
-      "temperature" => 0.7,
-      "max_tokens" => 4096
-    })
+    config =
+      Keyword.get(opts, :config, %{
+        "provider" => "anthropic",
+        "model" => "claude-3-5-haiku-20241022",
+        "temperature" => 0.7,
+        "max_tokens" => 4096
+      })
 
-    conversation = Keyword.get(opts, :conversation, [
-      %{
-        "id" => "msg-1",
-        "role" => "user",
-        "content" => "Hello",
-        "timestamp" => timestamp
-      },
-      %{
-        "id" => "msg-2",
-        "role" => "assistant",
-        "content" => "Hi there!",
-        "timestamp" => timestamp
-      }
-    ])
+    conversation =
+      Keyword.get(opts, :conversation, [
+        %{
+          "id" => "msg-1",
+          "role" => "user",
+          "content" => "Hello",
+          "timestamp" => timestamp
+        },
+        %{
+          "id" => "msg-2",
+          "role" => "assistant",
+          "content" => "Hi there!",
+          "timestamp" => timestamp
+        }
+      ])
 
-    todos = Keyword.get(opts, :todos, [
-      %{
-        "content" => "Test task",
-        "status" => "pending",
-        "active_form" => "Testing task"
-      }
-    ])
+    todos =
+      Keyword.get(opts, :todos, [
+        %{
+          "content" => "Test task",
+          "status" => "pending",
+          "active_form" => "Testing task"
+        }
+      ])
 
     %{
       version: 1,

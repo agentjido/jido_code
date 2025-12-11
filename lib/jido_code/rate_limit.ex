@@ -65,17 +65,19 @@ defmodule JidoCode.RateLimit do
       iex> RateLimit.check_rate_limit(:resume, "abc-123")
       {:error, :rate_limit_exceeded, 30}
   """
-  @spec check_rate_limit(atom(), String.t()) :: :ok | {:error, :rate_limit_exceeded, pos_integer()}
+  @spec check_rate_limit(atom(), String.t()) ::
+          :ok | {:error, :rate_limit_exceeded, pos_integer()}
   def check_rate_limit(operation, key) when is_atom(operation) and is_binary(key) do
     limits = get_limits(operation)
     now = System.system_time(:second)
     lookup_key = {operation, key}
 
     # Get all timestamps for this key
-    timestamps = case :ets.lookup(@table_name, lookup_key) do
-      [{^lookup_key, ts}] -> ts
-      [] -> []
-    end
+    timestamps =
+      case :ets.lookup(@table_name, lookup_key) do
+        [{^lookup_key, ts}] -> ts
+        [] -> []
+      end
 
     # Filter to timestamps within the window
     window_start = now - limits.window_seconds
@@ -132,10 +134,11 @@ defmodule JidoCode.RateLimit do
       lookup_key = {:global, operation}
 
       # Get all timestamps for this global key
-      timestamps = case :ets.lookup(@table_name, lookup_key) do
-        [{^lookup_key, ts}] -> ts
-        [] -> []
-      end
+      timestamps =
+        case :ets.lookup(@table_name, lookup_key) do
+          [{^lookup_key, ts}] -> ts
+          [] -> []
+        end
 
       # Filter to timestamps within the window
       window_start = now - limits.window_seconds
@@ -177,14 +180,16 @@ defmodule JidoCode.RateLimit do
     limits = get_limits(operation)
 
     # Get current timestamps or initialize empty list
-    timestamps = case :ets.lookup(@table_name, lookup_key) do
-      [{^lookup_key, ts}] -> ts
-      [] -> []
-    end
+    timestamps =
+      case :ets.lookup(@table_name, lookup_key) do
+        [{^lookup_key, ts}] -> ts
+        [] -> []
+      end
 
     # Prepend new timestamp and bound list to prevent unbounded growth
     # Cap at 2x limit to maintain recent history while preventing memory leaks
     max_entries = limits.limit * 2
+
     updated_timestamps =
       [now | timestamps]
       |> Enum.take(max_entries)
@@ -223,13 +228,15 @@ defmodule JidoCode.RateLimit do
       lookup_key = {:global, operation}
 
       # Get current timestamps or initialize empty list
-      timestamps = case :ets.lookup(@table_name, lookup_key) do
-        [{^lookup_key, ts}] -> ts
-        [] -> []
-      end
+      timestamps =
+        case :ets.lookup(@table_name, lookup_key) do
+          [{^lookup_key, ts}] -> ts
+          [] -> []
+        end
 
       # Prepend new timestamp and bound list
       max_entries = limits.limit * 2
+
       updated_timestamps =
         [now | timestamps]
         |> Enum.take(max_entries)

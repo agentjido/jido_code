@@ -424,7 +424,9 @@ defmodule JidoCode.Tools.SecurityTest do
   describe "validate_path/3 - protected settings files" do
     test "blocks access to .jido_code/settings.json in project root" do
       assert {:error, :protected_settings_file} =
-               Security.validate_path(".jido_code/settings.json", @test_root, log_violations: false)
+               Security.validate_path(".jido_code/settings.json", @test_root,
+                 log_violations: false
+               )
     end
 
     test "blocks access to .jido_code/settings.json with absolute path" do
@@ -454,7 +456,9 @@ defmodule JidoCode.Tools.SecurityTest do
                Security.validate_path(".jido_code/cache.json", @test_root, log_violations: false)
 
       assert {:ok, _resolved} =
-               Security.validate_path(".jido_code/logs/app.log", @test_root, log_violations: false)
+               Security.validate_path(".jido_code/logs/app.log", @test_root,
+                 log_violations: false
+               )
     end
 
     test "allows access to files named settings.json elsewhere" do

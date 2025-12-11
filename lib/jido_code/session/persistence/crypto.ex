@@ -58,6 +58,7 @@ defmodule JidoCode.Session.Persistence.Crypto do
       :undefined ->
         :ets.new(@crypto_cache, [:set, :public, :named_table])
         :ok
+
       _ref ->
         :ok
     end
@@ -77,7 +78,9 @@ defmodule JidoCode.Session.Persistence.Crypto do
   @spec invalidate_key_cache() :: :ok
   def invalidate_key_cache do
     case :ets.whereis(@crypto_cache) do
-      :undefined -> :ok
+      :undefined ->
+        :ok
+
       _ref ->
         :ets.delete(@crypto_cache, :signing_key)
         :ok
@@ -174,11 +177,13 @@ defmodule JidoCode.Session.Persistence.Crypto do
       :undefined ->
         # Cache not initialized, derive key directly (testing scenario)
         derive_signing_key()
+
       _ref ->
         case :ets.lookup(@crypto_cache, :signing_key) do
           [{:signing_key, key}] ->
             # Cache hit - return cached key
             key
+
           [] ->
             # Cache miss - derive and cache the key
             key = derive_signing_key()

@@ -1,8 +1,8 @@
 defmodule JidoCode.Session.PersistenceTOCTOUTest do
   use ExUnit.Case, async: true
 
-  alias JidoCode.Session.Persistence
   alias JidoCode.Commands.ErrorSanitizer
+  alias JidoCode.Session.Persistence
 
   @moduletag :capture_log
 
@@ -10,7 +10,7 @@ defmodule JidoCode.Session.PersistenceTOCTOUTest do
     # Create test directory with known permissions
     test_dir =
       System.tmp_dir!()
-      |> Path.join("jido_code_toctou_test_#{:rand.uniform(999999)}")
+      |> Path.join("jido_code_toctou_test_#{:rand.uniform(999_999)}")
 
     File.mkdir_p!(test_dir)
 
@@ -38,7 +38,7 @@ defmodule JidoCode.Session.PersistenceTOCTOUTest do
 
   describe "validate_project_path behavior" do
     test "returns error for nonexistent path" do
-      nonexistent = "/tmp/jido_code_nonexistent_#{:rand.uniform(999999)}"
+      nonexistent = "/tmp/jido_code_nonexistent_#{:rand.uniform(999_999)}"
 
       # Create a minimal session file pointing to nonexistent path
       session_id = Uniq.UUID.uuid4()

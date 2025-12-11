@@ -204,9 +204,11 @@ defmodule JidoCode.Session.Persistence.CryptoTest do
 
       # Create signatures that differ in first, middle, and last character
       wrong_sig_first = String.replace_prefix(correct_sig, String.at(correct_sig, 0), "X")
+
       wrong_sig_middle =
         String.slice(correct_sig, 0, 20) <>
           "X" <> String.slice(correct_sig, 21..-1)
+
       wrong_sig_last = String.replace_suffix(correct_sig, String.at(correct_sig, -1), "X")
 
       # All wrong signatures should fail verification

@@ -1822,7 +1822,8 @@ defmodule JidoCode.CommandsTest do
       # Verify returns error about session limit
       assert {:error, reason} = result
       # Error message: "Maximum 10 sessions reached. Close a session first."
-      assert is_binary(reason) and (String.contains?(reason, "Maximum") or String.contains?(reason, "limit"))
+      assert is_binary(reason) and
+               (String.contains?(reason, "Maximum") or String.contains?(reason, "limit"))
     end
 
     test "returns error when project path deleted", %{tmp_base: tmp_base} do

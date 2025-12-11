@@ -50,7 +50,9 @@ defmodule JidoCode.Commands.ErrorSanitizerTest do
 
     test "sanitizes file operation errors stripping path information" do
       # Should not expose file paths to users
-      assert ErrorSanitizer.sanitize_error({:file_error, "/home/user/.jido_code/sessions/abc.json", :eacces}) ==
+      assert ErrorSanitizer.sanitize_error(
+               {:file_error, "/home/user/.jido_code/sessions/abc.json", :eacces}
+             ) ==
                "Permission denied."
 
       assert ErrorSanitizer.sanitize_error({:read_error, "/tmp/secret/file.txt", :enoent}) ==
@@ -87,7 +89,11 @@ defmodule JidoCode.Commands.ErrorSanitizerTest do
     test "logs detailed error internally and returns sanitized message" do
       log =
         capture_log(fn ->
-          result = ErrorSanitizer.log_and_sanitize({:file_error, "/secret/path.json", :eacces}, "read file")
+          result =
+            ErrorSanitizer.log_and_sanitize(
+              {:file_error, "/secret/path.json", :eacces},
+              "read file"
+            )
 
           # Should return sanitized message
           assert result == "Permission denied."
@@ -139,7 +145,9 @@ defmodule JidoCode.Commands.ErrorSanitizerTest do
 
       for path <- sensitive_paths do
         result = ErrorSanitizer.sanitize_error({:file_error, path, :eacces})
-        refute String.contains?(result, path), "Sanitized message contains sensitive path: #{path}"
+
+        refute String.contains?(result, path),
+               "Sanitized message contains sensitive path: #{path}"
       end
     end
 

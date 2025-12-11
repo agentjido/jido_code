@@ -1,10 +1,10 @@
 defmodule JidoCode.Tools.Handlers.TaskTest do
   use ExUnit.Case, async: false
 
-  alias JidoCode.Tools.Handlers.Task, as: TaskHandler
-  alias JidoCode.Tools.Definitions.Task, as: TaskDefinitions
-  alias JidoCode.Agents.TaskAgent
   alias JidoCode.AgentSupervisor
+  alias JidoCode.Agents.TaskAgent
+  alias JidoCode.Tools.Definitions.Task, as: TaskDefinitions
+  alias JidoCode.Tools.Handlers.Task, as: TaskHandler
   alias JidoCode.Tools.Registry
 
   # Provide explicit provider/model to bypass Config.get_llm_config()

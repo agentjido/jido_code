@@ -1,8 +1,8 @@
 defmodule JidoCode.Tools.Handlers.TodoTest do
   use ExUnit.Case, async: false
 
-  alias JidoCode.Tools.Handlers.Todo
   alias JidoCode.Session.State, as: SessionState
+  alias JidoCode.Tools.Handlers.Todo
 
   @moduletag :tmp_dir
 

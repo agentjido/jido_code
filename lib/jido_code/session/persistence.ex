@@ -283,7 +283,10 @@ defmodule JidoCode.Session.Persistence do
         end
 
       {:error, :save_in_progress} ->
-        Logger.debug("Save already in progress for session #{session_id}, skipping concurrent save")
+        Logger.debug(
+          "Save already in progress for session #{session_id}, skipping concurrent save"
+        )
+
         {:error, :save_in_progress}
     end
   end
@@ -341,9 +344,7 @@ defmodule JidoCode.Session.Persistence do
           if current_count >= max_sessions do
             require Logger
 
-            Logger.warning(
-              "Session limit reached: #{current_count}/#{max_sessions}"
-            )
+            Logger.warning("Session limit reached: #{current_count}/#{max_sessions}")
 
             # Check if auto-cleanup is enabled
             if get_auto_cleanup_enabled?() do
@@ -390,7 +391,7 @@ defmodule JidoCode.Session.Persistence do
   # When enabled, automatically deletes oldest sessions when limit reached
   # When disabled (default), returns :session_limit_reached error
   @doc false
-  def get_auto_cleanup_enabled?() do
+  def get_auto_cleanup_enabled? do
     Application.get_env(:jido_code, :persistence, [])
     |> Keyword.get(:auto_cleanup_on_limit, false)
   end
@@ -425,7 +426,11 @@ defmodule JidoCode.Session.Persistence do
 
           {:error, reason} = error ->
             require Logger
-            Logger.error("Auto-cleanup: Failed to delete session #{session.id}: #{inspect(reason)}")
+
+            Logger.error(
+              "Auto-cleanup: Failed to delete session #{session.id}: #{inspect(reason)}"
+            )
+
             error
         end
       end
@@ -679,42 +684,42 @@ defmodule JidoCode.Session.Persistence do
       # Process each session and collect results
       results =
         Enum.reduce(sessions, %{deleted: 0, skipped: 0, failed: 0, errors: []}, fn session, acc ->
-        case parse_and_compare_timestamp(session.closed_at, cutoff) do
-          :older ->
-            # Session is old enough to delete
-            case delete_persisted(session.id) do
-              :ok ->
-                Logger.debug("Deleted old session: #{session.id} (#{session.name})")
-                %{acc | deleted: acc.deleted + 1}
+          case parse_and_compare_timestamp(session.closed_at, cutoff) do
+            :older ->
+              # Session is old enough to delete
+              case delete_persisted(session.id) do
+                :ok ->
+                  Logger.debug("Deleted old session: #{session.id} (#{session.name})")
+                  %{acc | deleted: acc.deleted + 1}
 
-              {:error, :enoent} ->
-                # File already deleted - not an error, just skip
-                Logger.debug("Session already deleted: #{session.id}")
-                %{acc | skipped: acc.skipped + 1}
+                {:error, :enoent} ->
+                  # File already deleted - not an error, just skip
+                  Logger.debug("Session already deleted: #{session.id}")
+                  %{acc | skipped: acc.skipped + 1}
 
-              {:error, reason} ->
-                Logger.warning("Failed to delete session #{session.id}: #{inspect(reason)}")
+                {:error, reason} ->
+                  Logger.warning("Failed to delete session #{session.id}: #{inspect(reason)}")
 
-                %{
-                  acc
-                  | failed: acc.failed + 1,
-                    errors: [{session.id, reason} | acc.errors]
-                }
-            end
+                  %{
+                    acc
+                    | failed: acc.failed + 1,
+                      errors: [{session.id, reason} | acc.errors]
+                  }
+              end
 
-          :newer ->
-            # Session is too recent, skip it
-            %{acc | skipped: acc.skipped + 1}
+            :newer ->
+              # Session is too recent, skip it
+              %{acc | skipped: acc.skipped + 1}
 
-          {:error, reason} ->
-            # Invalid timestamp, skip and log
-            Logger.warning(
-              "Skipping session #{session.id} due to invalid timestamp: #{inspect(reason)}"
-            )
+            {:error, reason} ->
+              # Invalid timestamp, skip and log
+              Logger.warning(
+                "Skipping session #{session.id} due to invalid timestamp: #{inspect(reason)}"
+              )
 
-            %{acc | skipped: acc.skipped + 1}
-        end
-      end)
+              %{acc | skipped: acc.skipped + 1}
+          end
+        end)
 
       # Reverse errors list so it's in chronological order
       results = %{results | errors: Enum.reverse(results.errors)}
@@ -818,8 +823,9 @@ defmodule JidoCode.Session.Persistence do
         # Unsigned file (v1.0.0 compatibility)
         Logger.warning(
           "Loading unsigned session file (legacy v1.0.0 format). " <>
-          "File will be automatically signed on next save."
+            "File will be automatically signed on next save."
         )
+
         {:ok, data}
 
       {provided_signature, unsigned_data} ->
@@ -832,7 +838,10 @@ defmodule JidoCode.Session.Persistence do
             {:ok, unsigned_data}
 
           {:error, :signature_verification_failed} ->
-            Logger.error("Session file signature verification failed - file may have been tampered with")
+            Logger.error(
+              "Session file signature verification failed - file may have been tampered with"
+            )
+
             {:error, :signature_verification_failed}
         end
     end
@@ -944,238 +953,6 @@ defmodule JidoCode.Session.Persistence do
     end
   end
 
-  # Serialize a message to the persisted format
-  defp serialize_message(msg) do
-    %{
-      id: msg.id,
-      role: to_string(msg.role),
-      content: msg.content,
-      timestamp: format_datetime(msg.timestamp)
-    }
-  end
-
-  # Serialize a todo to the persisted format
-  defp serialize_todo(todo) do
-    %{
-      content: todo.content,
-      status: to_string(todo.status),
-      # Fall back to content if active_form not present
-      active_form: Map.get(todo, :active_form) || todo.content
-    }
-  end
-
-  # Serialize config, converting atoms to strings for JSON
-  defp serialize_config(config) when is_struct(config) do
-    config
-    |> Map.from_struct()
-    |> serialize_config()
-  end
-
-  defp serialize_config(config) when is_map(config) do
-    Map.new(config, fn
-      {key, value} when is_atom(value) -> {to_string(key), to_string(value)}
-      {key, value} when is_map(value) -> {to_string(key), serialize_config(value)}
-      {key, value} -> {to_string(key), value}
-    end)
-  end
-
-  defp serialize_config(other), do: other
-
-  # Format datetime to ISO 8601 string, handling nil
-  defp format_datetime(nil), do: DateTime.to_iso8601(DateTime.utc_now())
-  defp format_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
-
-  # Normalize map keys from strings to atoms for validation
-  # Only converts keys that correspond to known fields (session, message, todo)
-  defp normalize_keys(map) when is_map(map) do
-    # Known fields that should be normalized
-    # Includes session, message, and todo fields
-    known_fields = [
-      # Session fields
-      "version",
-      "id",
-      "name",
-      "project_path",
-      "config",
-      "created_at",
-      "updated_at",
-      "closed_at",
-      "conversation",
-      "todos",
-      # Message fields
-      "role",
-      "content",
-      "timestamp",
-      # Task list fields
-      "status",
-      "active_form"
-    ]
-
-    {normalized, unknown} =
-      Enum.reduce(map, {%{}, []}, fn
-        {key, value}, {acc, unknown_keys} when is_binary(key) ->
-          if key in known_fields do
-            {Map.put(acc, String.to_atom(key), value), unknown_keys}
-          else
-            {acc, [key | unknown_keys]}
-          end
-
-        {key, value}, {acc, unknown_keys} ->
-          {Map.put(acc, key, value), unknown_keys}
-      end)
-
-    # Log unknown keys for visibility (but don't warn for empty unknown list)
-    if unknown != [] do
-      Logger.warning("Unknown keys encountered and skipped: #{inspect(unknown)}")
-    end
-
-    normalized
-  end
-
-  # ============================================================================
-  # Session Deserialization Helpers
-  # ============================================================================
-
-  # Check schema version compatibility
-  defp check_schema_version(version) when is_integer(version) do
-    current = schema_version()
-
-    cond do
-      version > current ->
-        require Logger
-        Logger.warning("Unsupported schema version: #{version} (current: #{current})")
-        {:error, :unsupported_version}
-
-      version < 1 ->
-        require Logger
-        Logger.warning("Invalid schema version: #{version}")
-        {:error, :invalid_version}
-
-      true ->
-        {:ok, version}
-    end
-  end
-
-  defp check_schema_version(version) do
-    require Logger
-    Logger.warning("Invalid schema version type: #{inspect(version)}")
-    {:error, :invalid_version}
-  end
-
-  # Generic helper for deserializing lists with fail-fast behavior
-  # Reduces code duplication between deserialize_messages and deserialize_todos
-  defp deserialize_list(items, deserializer_fn, error_key) when is_list(items) do
-    items
-    |> Enum.reduce_while({:ok, []}, fn item, {:ok, acc} ->
-      case deserializer_fn.(item) do
-        {:ok, deserialized} -> {:cont, {:ok, [deserialized | acc]}}
-        {:error, reason} -> {:halt, {:error, {error_key, reason}}}
-      end
-    end)
-    |> case do
-      {:ok, items} -> {:ok, Enum.reverse(items)}
-      error -> error
-    end
-  end
-
-  defp deserialize_list(_, _, error_key), do: {:error, :"#{error_key}s_not_list"}
-
-  # Deserialize list of messages
-  defp deserialize_messages(messages) do
-    deserialize_list(messages, &deserialize_message/1, :invalid_message)
-  end
-
-  # Deserialize single message
-  defp deserialize_message(msg) do
-    with {:ok, validated} <- validate_message(msg),
-         {:ok, timestamp} <- parse_datetime_required(validated.timestamp),
-         {:ok, role} <- parse_role(validated.role) do
-      {:ok,
-       %{
-         id: validated.id,
-         role: role,
-         content: validated.content,
-         timestamp: timestamp
-       }}
-    end
-  end
-
-  # Deserialize list of todos
-  defp deserialize_todos(todos) do
-    deserialize_list(todos, &deserialize_todo/1, :invalid_todo)
-  end
-
-  # Deserialize single todo
-  defp deserialize_todo(todo) do
-    with {:ok, validated} <- validate_todo(todo),
-         {:ok, status} <- parse_status(validated.status) do
-      {:ok,
-       %{
-         content: validated.content,
-         status: status,
-         active_form: validated.active_form
-       }}
-    end
-  end
-
-  # Parse ISO 8601 timestamp (required field)
-  defp parse_datetime_required(nil), do: {:error, :missing_timestamp}
-
-  defp parse_datetime_required(iso_string) when is_binary(iso_string) do
-    case DateTime.from_iso8601(iso_string) do
-      {:ok, dt, _offset} ->
-        {:ok, dt}
-
-      {:error, reason} ->
-        # Log detailed error for debugging, return sanitized error
-        require Logger
-        Logger.debug("Failed to parse timestamp: #{inspect(iso_string)}, reason: #{inspect(reason)}")
-        {:error, :invalid_timestamp}
-    end
-  end
-
-  defp parse_datetime_required(other) do
-    require Logger
-    Logger.debug("Invalid timestamp type: #{inspect(other)}")
-    {:error, :invalid_timestamp}
-  end
-
-  # Parse message role string to atom
-  defp parse_role("user"), do: {:ok, :user}
-  defp parse_role("assistant"), do: {:ok, :assistant}
-  defp parse_role("system"), do: {:ok, :system}
-  defp parse_role("tool"), do: {:ok, :tool}
-
-  defp parse_role(other) do
-    require Logger
-    Logger.debug("Invalid role value: #{inspect(other)}")
-    {:error, :invalid_role}
-  end
-
-  # Parse todo status string to atom
-  defp parse_status("pending"), do: {:ok, :pending}
-  defp parse_status("in_progress"), do: {:ok, :in_progress}
-  defp parse_status("completed"), do: {:ok, :completed}
-
-  defp parse_status(other) do
-    require Logger
-    Logger.debug("Invalid status value: #{inspect(other)}")
-    {:error, :invalid_status}
-  end
-
-  # Deserialize config map (string keys to appropriate types)
-  defp deserialize_config(config) when is_map(config) do
-    # Config uses string keys - just ensure expected structure with defaults
-    %{
-      "provider" => Map.get(config, "provider", "anthropic"),
-      "model" => Map.get(config, "model", "claude-3-5-sonnet-20241022"),
-      "temperature" => Map.get(config, "temperature", 0.7),
-      "max_tokens" => Map.get(config, "max_tokens", 4096)
-    }
-  end
-
-  defp deserialize_config(_), do: %{}
-
   # ============================================================================
   # Session Resume
   # ============================================================================
@@ -1258,6 +1035,7 @@ defmodule JidoCode.Session.Persistence do
               gid: stat.gid,
               mode: stat.mode
             }
+
             {:ok, cached_stats}
 
           {:error, reason} ->

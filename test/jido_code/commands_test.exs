@@ -2,6 +2,8 @@ defmodule JidoCode.CommandsTest do
   # Not async because theme tests depend on shared TermUI.Theme server state
   use ExUnit.Case, async: false
 
+  import JidoCode.PersistenceTestHelpers
+
   alias Jido.AI.Keyring
   alias JidoCode.Commands
 
@@ -1893,57 +1895,8 @@ defmodule JidoCode.CommandsTest do
 
     # Helper functions
 
-    defp wait_for_supervisor(retries \\ 50) do
-      case Process.whereis(JidoCode.SessionSupervisor) do
-        nil when retries > 0 ->
-          Process.sleep(10)
-          wait_for_supervisor(retries - 1)
-
-        nil ->
-          raise "SessionSupervisor did not start within timeout"
-
-        _pid ->
-          :ok
-      end
-    end
-
-    defp create_and_close_session(name, project_path) do
-      # Create session
-      config = %{
-        provider: "anthropic",
-        model: "claude-3-5-haiku-20241022",
-        temperature: 0.7,
-        max_tokens: 4096
-      }
-
-      {:ok, session} =
-        JidoCode.SessionSupervisor.create_session(
-          project_path: project_path,
-          name: name,
-          config: config
-        )
-
-      # Add a message so session has content
-      message = %{
-        id: "test-msg-#{System.unique_integer([:positive])}",
-        role: :user,
-        content: "Test message",
-        timestamp: DateTime.utc_now()
-      }
-
-      JidoCode.Session.State.append_message(session.id, message)
-
-      # Close session (triggers auto-save)
-      :ok = JidoCode.SessionSupervisor.stop_session(session.id)
-
-      # Wait for file creation
-      session_file =
-        Path.join(JidoCode.Session.Persistence.sessions_dir(), "#{session.id}.json")
-
-      wait_for_persisted_file(session_file)
-
-      session
-    end
+    # Removed: wait_for_supervisor/1 now imported from PersistenceTestHelpers
+    # Removed: create_and_close_session/2 now imported from PersistenceTestHelpers
 
     test "delete command doesn't affect active sessions", %{tmp_base: tmp_base} do
       # Create and close session 1 (persisted)
@@ -2174,18 +2127,7 @@ defmodule JidoCode.CommandsTest do
       assert Enum.any?(messages, fn m -> m.content == "New message" end)
     end
 
-    defp wait_for_persisted_file(file_path, retries \\ 50) do
-      if File.exists?(file_path) do
-        :ok
-      else
-        if retries > 0 do
-          Process.sleep(10)
-          wait_for_persisted_file(file_path, retries - 1)
-        else
-          {:error, :timeout}
-        end
-      end
-    end
+    # Removed: wait_for_persisted_file/2 now imported from PersistenceTestHelpers
   end
 
   describe "/resume command - multiple sessions" do

@@ -458,10 +458,40 @@ defmodule JidoCode.Session.Persistence do
     alias JidoCode.Session.State
 
     with {:ok, state} <- State.get_state(session_id),
+         :ok <- check_session_count_limit(session_id),
          persisted = build_persisted_session(state),
          :ok <- write_session_file(session_id, persisted) do
       {:ok, session_file(session_id)}
     end
+  end
+
+  # Check if adding this session would exceed max_sessions limit
+  # Allows updates to existing sessions, only blocks new sessions
+  defp check_session_count_limit(session_id) do
+    max_sessions = get_max_sessions()
+    session_file = session_file(session_id)
+
+    # If file already exists, this is an update, not a new session
+    if File.exists?(session_file) do
+      :ok
+    else
+      # New session - check count
+      current_count = length(list_resumable())
+
+      if current_count >= max_sessions do
+        require Logger
+        Logger.warning("Session limit reached: #{current_count}/#{max_sessions}")
+        {:error, :session_limit_reached}
+      else
+        :ok
+      end
+    end
+  end
+
+  # Get max_sessions config value
+  defp get_max_sessions do
+    Application.get_env(:jido_code, :persistence, [])
+    |> Keyword.get(:max_sessions, 100)
   end
 
   @doc """

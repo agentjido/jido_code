@@ -131,6 +131,72 @@ defmodule JidoCode.RateLimit do
   end
 
   @doc """
+  Atomically checks rate limit and records attempt if allowed.
+
+  This is the recommended function to use as it prevents TOCTOU (Time-of-Check-Time-of-Use)
+  race conditions that can occur when check_rate_limit/2 and record_attempt/2 are called
+  separately.
+
+  ## Parameters
+
+  - `operation` - The operation type (`:resume`, etc.)
+  - `key` - The unique identifier (e.g., session_id)
+
+  ## Returns
+
+  - `:ok` - Operation allowed and attempt recorded
+  - `{:error, :rate_limit_exceeded, retry_after}` - Rate limit exceeded
+
+  ## Examples
+
+      iex> RateLimit.check_and_record_attempt(:resume, "abc-123")
+      :ok
+
+      iex> # After 5 attempts in quick succession...
+      iex> RateLimit.check_and_record_attempt(:resume, "abc-123")
+      {:error, :rate_limit_exceeded, 45}
+  """
+  @spec check_and_record_attempt(atom(), String.t()) ::
+          :ok | {:error, :rate_limit_exceeded, pos_integer()}
+  def check_and_record_attempt(operation, key) when is_atom(operation) and is_binary(key) do
+    limits = get_limits(operation)
+    now = System.system_time(:second)
+    lookup_key = {operation, key}
+
+    # Get current timestamps or initialize empty list
+    timestamps =
+      case :ets.lookup(@table_name, lookup_key) do
+        [{^lookup_key, ts}] -> ts
+        [] -> []
+      end
+
+    # Filter to timestamps within the window
+    window_start = now - limits.window_seconds
+    recent_timestamps = Enum.filter(timestamps, fn ts -> ts > window_start end)
+
+    # Check if limit exceeded
+    if length(recent_timestamps) >= limits.limit do
+      # Calculate retry-after time
+      oldest_recent = Enum.min(recent_timestamps)
+      retry_after = oldest_recent + limits.window_seconds - now
+
+      {:error, :rate_limit_exceeded, max(retry_after, 1)}
+    else
+      # Atomically record the attempt
+      # Prepend new timestamp and bound list
+      max_entries = limits.limit * 2
+
+      updated_timestamps =
+        [now | timestamps]
+        |> Enum.take(max_entries)
+
+      :ets.insert(@table_name, {lookup_key, updated_timestamps})
+
+      :ok
+    end
+  end
+
+  @doc """
   Resets rate limit for a specific key.
 
   Useful for testing or administrative overrides.

@@ -15,6 +15,7 @@ defmodule JidoCode.Integration.SessionPhase6Test do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
+  import JidoCode.PersistenceTestHelpers
 
   alias JidoCode.Session
   alias JidoCode.SessionRegistry
@@ -72,19 +73,7 @@ defmodule JidoCode.Integration.SessionPhase6Test do
   # Helper Functions
   # ============================================================================
 
-  defp wait_for_supervisor(retries \\ 50) do
-    case Process.whereis(SessionSupervisor) do
-      nil when retries > 0 ->
-        Process.sleep(10)
-        wait_for_supervisor(retries - 1)
-
-      nil ->
-        raise "SessionSupervisor did not start within timeout"
-
-      _pid ->
-        :ok
-    end
-  end
+  # Removed: wait_for_supervisor/1 now imported from PersistenceTestHelpers
 
   defp create_test_session(tmp_base, name \\ "Test Session") do
     project_path = Path.join(tmp_base, name |> String.downcase() |> String.replace(" ", "_"))
@@ -129,18 +118,9 @@ defmodule JidoCode.Integration.SessionPhase6Test do
     Session.State.update_todos(session_id, todos)
   end
 
-  defp wait_for_file(file_path, retries \\ 50) do
-    if File.exists?(file_path) do
-      :ok
-    else
-      if retries > 0 do
-        Process.sleep(10)
-        wait_for_file(file_path, retries - 1)
-      else
-        {:error, :timeout}
-      end
-    end
-  end
+  # Removed: wait_for_file/2 replaced with wait_for_persisted_file/2 from PersistenceTestHelpers
+  # All call sites below use wait_for_persisted_file/2 imported from helpers module
+  defp wait_for_file(file_path, retries \\ 50), do: wait_for_persisted_file(file_path, retries)
 
   # ============================================================================
   # Tests

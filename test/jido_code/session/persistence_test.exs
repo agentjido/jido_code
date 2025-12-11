@@ -611,6 +611,158 @@ defmodule JidoCode.Session.PersistenceTest do
 
       assert {:error, :not_found} = result
     end
+
+    @tag :llm
+    test "enforces max_sessions limit for new sessions" do
+      # Clean up any existing session files from other tests
+      sessions_dir = Persistence.sessions_dir()
+      if File.exists?(sessions_dir) do
+        File.rm_rf!(sessions_dir)
+        File.mkdir_p!(sessions_dir)
+      end
+
+      tmp_dir = System.tmp_dir!() |> Path.join("jido_test_#{:rand.uniform(100000)}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+      # Set low limit for testing
+      Application.put_env(:jido_code, :persistence, max_sessions: 3)
+
+      # Use ollama for tests to avoid external API dependencies
+      config = %{
+        provider: "ollama",
+        model: "qwen/qwen3-coder-30b",
+        temperature: 0.7,
+        max_tokens: 4096
+      }
+
+      # Create and close 3 sessions (fill the limit)
+      session_ids =
+        for i <- 1..3 do
+          project_path = Path.join(tmp_dir, "project_#{i}")
+          File.mkdir_p!(project_path)
+
+          {:ok, session} =
+            JidoCode.SessionSupervisor.create_session(
+              project_path: project_path,
+              name: "Session #{i}",
+              config: config
+            )
+
+          # Add message and save
+          message = %{
+            id: "msg-#{i}",
+            role: :user,
+            content: "Test",
+            timestamp: DateTime.utc_now()
+          }
+
+          JidoCode.Session.State.append_message(session.id, message)
+          assert {:ok, _path} = Persistence.save(session.id)
+
+          # Stop session
+          :ok = JidoCode.SessionSupervisor.stop_session(session.id)
+
+          session.id
+        end
+
+      # Try to create a 4th session (should be blocked)
+      project_path = Path.join(tmp_dir, "project_4")
+      File.mkdir_p!(project_path)
+
+      {:ok, session4} =
+        JidoCode.SessionSupervisor.create_session(
+          project_path: project_path,
+          name: "Session 4",
+          config: config
+        )
+
+      message = %{
+        id: "msg-4",
+        role: :user,
+        content: "Test",
+        timestamp: DateTime.utc_now()
+      }
+
+      JidoCode.Session.State.append_message(session4.id, message)
+
+      # This should fail due to session limit
+      assert {:error, :session_limit_reached} = Persistence.save(session4.id)
+
+      # Clean up
+      JidoCode.SessionSupervisor.stop_session(session4.id)
+
+      for session_id <- session_ids do
+        Persistence.delete_persisted(session_id)
+      end
+
+      # Reset config
+      Application.delete_env(:jido_code, :persistence)
+    end
+
+    @tag :llm
+    test "allows updates to existing sessions even when at limit" do
+      # Clean up any existing session files from other tests
+      sessions_dir = Persistence.sessions_dir()
+      if File.exists?(sessions_dir) do
+        File.rm_rf!(sessions_dir)
+        File.mkdir_p!(sessions_dir)
+      end
+
+      tmp_dir = System.tmp_dir!() |> Path.join("jido_test_update_#{:rand.uniform(100000)}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+      # Set low limit
+      Application.put_env(:jido_code, :persistence, max_sessions: 2)
+
+      # Use ollama for tests to avoid external API dependencies
+      config = %{
+        provider: "ollama",
+        model: "qwen/qwen3-coder-30b",
+        temperature: 0.7,
+        max_tokens: 4096
+      }
+
+      # Create and save 2 sessions
+      session_ids =
+        for i <- 1..2 do
+          project_path = Path.join(tmp_dir, "update_project_#{i}")
+          File.mkdir_p!(project_path)
+
+          {:ok, session} =
+            JidoCode.SessionSupervisor.create_session(
+              project_path: project_path,
+              name: "Session #{i}",
+              config: config
+            )
+
+          message = %{id: "msg-#{i}", role: :user, content: "Test", timestamp: DateTime.utc_now()}
+          JidoCode.Session.State.append_message(session.id, message)
+          assert {:ok, _path} = Persistence.save(session.id)
+
+          :ok = JidoCode.SessionSupervisor.stop_session(session.id)
+          session.id
+        end
+
+      # Resume first session
+      [first_id | _] = session_ids
+      assert {:ok, resumed} = Persistence.resume(first_id)
+
+      # Add another message
+      message = %{id: "msg-new", role: :user, content: "Update", timestamp: DateTime.utc_now()}
+      JidoCode.Session.State.append_message(resumed.id, message)
+
+      # This should succeed (updating existing session)
+      assert {:ok, _path} = Persistence.save(resumed.id)
+
+      # Clean up
+      JidoCode.SessionSupervisor.stop_session(resumed.id)
+
+      for session_id <- session_ids do
+        Persistence.delete_persisted(session_id)
+      end
+
+      Application.delete_env(:jido_code, :persistence)
+    end
   end
 
   describe "build_persisted_session/1" do

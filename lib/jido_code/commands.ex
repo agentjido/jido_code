@@ -584,6 +584,7 @@ defmodule JidoCode.Commands do
           {:session_action, tuple()} | {:ok, String.t()} | {:error, String.t()}
   def execute_resume(:list, _model) do
     alias JidoCode.Session.Persistence
+    alias JidoCode.Commands.ErrorSanitizer
 
     case Persistence.list_resumable() do
       {:ok, sessions} ->
@@ -594,12 +595,15 @@ defmodule JidoCode.Commands do
         {:error, "Permission denied: Unable to access sessions directory."}
 
       {:error, reason} ->
-        {:error, "Failed to list sessions: #{inspect(reason)}"}
+        # Log detailed error internally, return sanitized message to user
+        sanitized = ErrorSanitizer.log_and_sanitize(reason, "list sessions")
+        {:error, "Failed to list sessions: #{sanitized}"}
     end
   end
 
   def execute_resume({:restore, target}, _model) do
     alias JidoCode.Session.Persistence
+    alias JidoCode.Commands.ErrorSanitizer
 
     with {:ok, sessions} <- Persistence.list_resumable(),
          {:ok, session_id} <- resolve_resume_target(target, sessions) do
@@ -627,7 +631,9 @@ defmodule JidoCode.Commands do
           {:error, "Session file not found."}
 
         {:error, reason} ->
-          {:error, "Failed to resume session: #{inspect(reason)}"}
+          # Log detailed error internally, return sanitized message to user
+          sanitized = ErrorSanitizer.log_and_sanitize(reason, "resume session")
+          {:error, "Failed to resume session: #{sanitized}"}
       end
     else
       {:error, :eacces} ->
@@ -637,12 +643,15 @@ defmodule JidoCode.Commands do
         {:error, error_message}
 
       {:error, reason} ->
-        {:error, "Failed to list sessions: #{inspect(reason)}"}
+        # Log detailed error internally, return sanitized message to user
+        sanitized = ErrorSanitizer.log_and_sanitize(reason, "list sessions")
+        {:error, "Failed to list sessions: #{sanitized}"}
     end
   end
 
   def execute_resume({:delete, target}, _model) do
     alias JidoCode.Session.Persistence
+    alias JidoCode.Commands.ErrorSanitizer
 
     with {:ok, sessions} <- Persistence.list_resumable(),
          {:ok, session_id} <- resolve_resume_target(target, sessions) do
@@ -652,7 +661,9 @@ defmodule JidoCode.Commands do
           {:ok, "Deleted saved session."}
 
         {:error, reason} ->
-          {:error, "Failed to delete session: #{inspect(reason)}"}
+          # Log detailed error internally, return sanitized message to user
+          sanitized = ErrorSanitizer.log_and_sanitize(reason, "delete session")
+          {:error, "Failed to delete session: #{sanitized}"}
       end
     else
       {:error, :eacces} ->
@@ -662,12 +673,15 @@ defmodule JidoCode.Commands do
         {:error, error_message}
 
       {:error, reason} ->
-        {:error, "Failed to list sessions: #{inspect(reason)}"}
+        # Log detailed error internally, return sanitized message to user
+        sanitized = ErrorSanitizer.log_and_sanitize(reason, "list sessions")
+        {:error, "Failed to list sessions: #{sanitized}"}
     end
   end
 
   def execute_resume(:clear, _model) do
     alias JidoCode.Session.Persistence
+    alias JidoCode.Commands.ErrorSanitizer
 
     case Persistence.list_persisted() do
       {:ok, sessions} ->
@@ -688,7 +702,9 @@ defmodule JidoCode.Commands do
         {:error, "Permission denied: Unable to access sessions directory."}
 
       {:error, reason} ->
-        {:error, "Failed to list sessions: #{inspect(reason)}"}
+        # Log detailed error internally, return sanitized message to user
+        sanitized = ErrorSanitizer.log_and_sanitize(reason, "list sessions")
+        {:error, "Failed to clear sessions: #{sanitized}"}
     end
   end
 

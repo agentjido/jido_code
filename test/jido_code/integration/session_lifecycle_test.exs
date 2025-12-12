@@ -241,7 +241,7 @@ defmodule JidoCode.Integration.SessionLifecycleTest do
         config: config
       )
 
-    assert {:error, :session_limit_reached} = SessionSupervisor.start_session(session_11)
+    assert {:error, {:session_limit_reached, 10, 10}} = SessionSupervisor.start_session(session_11)
 
     # Step 3: Close one session
     first_id = hd(session_ids)

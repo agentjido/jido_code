@@ -152,7 +152,7 @@ defmodule JidoCode.SessionRegistryTest do
 
         assert {:ok, _} = SessionRegistry.register(session1)
         assert {:ok, _} = SessionRegistry.register(session2)
-        assert {:error, :session_limit_reached} = SessionRegistry.register(session3)
+        assert {:error, {:session_limit_reached, 2, 2}} = SessionRegistry.register(session3)
 
         assert SessionRegistry.count() == 2
       after
@@ -273,7 +273,7 @@ defmodule JidoCode.SessionRegistryTest do
 
       # 11th session should fail
       session11 = create_test_session(project_path: "/tmp/project-11")
-      assert {:error, :session_limit_reached} = SessionRegistry.register(session11)
+      assert {:error, {:session_limit_reached, 10, 10}} = SessionRegistry.register(session11)
     end
 
     test "does not increment count when registration fails" do
@@ -322,7 +322,7 @@ defmodule JidoCode.SessionRegistryTest do
 
       # Try to register with same ID - should hit limit first
       session = create_test_session(id: existing_id, project_path: "/tmp/project-11")
-      assert {:error, :session_limit_reached} = SessionRegistry.register(session)
+      assert {:error, {:session_limit_reached, 10, 10}} = SessionRegistry.register(session)
     end
 
     test "checks duplicate ID before duplicate path" do

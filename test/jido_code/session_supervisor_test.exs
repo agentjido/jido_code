@@ -194,7 +194,7 @@ defmodule JidoCode.SessionSupervisorTest do
       {:ok, _} = SessionSupervisor.start_session(s2, supervisor_module: SessionSupervisorStub)
 
       # Third should fail
-      assert {:error, :session_limit_reached} =
+      assert {:error, {:session_limit_reached, 2, 2}} =
                SessionSupervisor.start_session(s3, supervisor_module: SessionSupervisorStub)
     end
 
@@ -701,7 +701,7 @@ defmodule JidoCode.SessionSupervisorTest do
         )
 
       # Third should fail
-      assert {:error, :session_limit_reached} =
+      assert {:error, {:session_limit_reached, 2, 2}} =
                SessionSupervisor.create_session(
                  project_path: dir3,
                  supervisor_module: SessionSupervisorStub

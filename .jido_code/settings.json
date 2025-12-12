@@ -1,10 +1,10 @@
 {
-  "model": "claude-3-5-sonnet",
+  "model": "claude-3-5-haiku-20241022",
   "models": {
     "ollama": [
       "qwen3:32b"
     ]
   },
-  "provider": "lmstudio",
+  "provider": "anthropic",
   "theme": "dark"
 }

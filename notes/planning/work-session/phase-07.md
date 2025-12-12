@@ -229,15 +229,15 @@ Optimize save/load operations.
 Document the session system for users and developers.
 
 ### 7.5.1 User Documentation
-- [ ] **Task 7.5.1**
+- [x] **Task 7.5.1**
 
 Create user-facing documentation.
 
-- [ ] 7.5.1.1 Update CLAUDE.md with session documentation
-- [ ] 7.5.1.2 Document session commands with examples
-- [ ] 7.5.1.3 Document keyboard shortcuts
-- [ ] 7.5.1.4 Document session persistence behavior
-- [ ] 7.5.1.5 Add FAQ section for sessions
+- [x] 7.5.1.1 Update CLAUDE.md with session documentation
+- [x] 7.5.1.2 Document session commands with examples
+- [x] 7.5.1.3 Document keyboard shortcuts
+- [x] 7.5.1.4 Document session persistence behavior
+- [x] 7.5.1.5 Add FAQ section for sessions
 
 ### 7.5.2 Developer Documentation
 - [ ] **Task 7.5.2**

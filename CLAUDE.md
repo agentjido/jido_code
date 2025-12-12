@@ -8,9 +8,76 @@ JidoCode is an **Agentic Coding Assistant TUI** built in Elixir. It provides an 
 
 - **LLM Agent** - Jido-based agent with Chain-of-Thought reasoning
 - **TUI Interface** - Elm Architecture terminal UI via TermUI
+- **Work Sessions** - Multiple concurrent sessions with isolation and persistence
 - **Tool System** - File system, search, and shell tools with security sandbox
 - **Settings Management** - Two-level JSON configuration (global + local)
 - **Knowledge Graph** - RDF infrastructure for semantic code understanding (foundation)
+
+## Work Sessions
+
+JidoCode supports multiple concurrent work sessions, allowing you to work on different projects or contexts simultaneously without interference. Each session includes:
+
+- **Isolated Workspace** - Independent conversation history and project context
+- **Session Management** - Create, switch, rename, and close sessions
+- **Persistence** - Automatic save on close, resume anytime
+- **Keyboard Shortcuts** - Fast switching with Ctrl+1-0, Ctrl+Tab, Ctrl+W
+- **Session Limits** - Up to 10 active sessions, 1000 messages per session
+
+### Quick Start
+
+```bash
+# Create new session
+/session new ~/projects/myapp --name="My App"
+
+# Switch sessions
+Ctrl+1, Ctrl+2, Ctrl+3  # Direct switch
+Ctrl+Tab                # Cycle through sessions
+
+# Close and resume
+/session close          # Auto-saves session
+/resume                 # List saved sessions
+/resume 1               # Resume a session
+```
+
+### User Documentation
+
+For complete documentation on using sessions:
+
+- **[Session User Guide](guides/user/sessions.md)** - Complete guide to creating, managing, and switching sessions
+- **[Keyboard Shortcuts](guides/user/keyboard-shortcuts.md)** - All session keyboard shortcuts
+- **[Session FAQ](guides/user/session-faq.md)** - Common questions and troubleshooting
+
+### Developer Documentation
+
+For session architecture and implementation details:
+
+- **[Session Architecture](guides/developer/session-architecture.md)** - Complete architecture deep dive
+- **[Persistence Format](guides/developer/persistence-format.md)** - JSON schema and versioning
+- **[Adding Session Tools](guides/developer/adding-session-tools.md)** - Developing session-aware tools
+
+### Session Architecture Overview
+
+```
+SessionSupervisor (DynamicSupervisor)
+  ├─ SessionProcess (one per session)
+  │    ├─ Session.Supervisor
+  │    │    ├─ Session.State (GenServer - conversation history)
+  │    │    └─ Agents.LLMAgent (GenServer - AI agent)
+  │    └─ Session metadata (id, name, path, config)
+  ├─ SessionRegistry (ETS - session lookup)
+  └─ SessionProcessRegistry (Registry - PID tracking)
+```
+
+### Key Session Modules
+
+| Module | Purpose |
+|--------|---------|
+| `JidoCode.SessionSupervisor` | Manages lifecycle of all sessions |
+| `JidoCode.SessionRegistry` | ETS-based session registration and lookup |
+| `JidoCode.Session` | Session struct and creation logic |
+| `JidoCode.Session.Supervisor` | Per-session supervision tree |
+| `JidoCode.Session.State` | GenServer storing conversation history |
+| `JidoCode.Session.Persistence` | Save/load sessions to disk |
 
 ## Architecture
 

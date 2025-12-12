@@ -42,7 +42,7 @@ defmodule JidoCode.CommandsTest do
     end
 
     test "/config shows current configuration" do
-      config = %{provider: "anthropic", model: "claude-3-5-sonnet"}
+      config = %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
 
       {:ok, message, new_config} = Commands.execute("/config", config)
 
@@ -105,7 +105,7 @@ defmodule JidoCode.CommandsTest do
 
       assert message =~ "Model set to anthropic:claude-3-5-sonnet"
       assert new_config.provider == "anthropic"
-      assert new_config.model == "claude-3-5-sonnet"
+      assert new_config.model == "claude-3-5-haiku-20241022"
       cleanup_api_key("anthropic")
     end
 
@@ -117,7 +117,7 @@ defmodule JidoCode.CommandsTest do
 
       assert message =~ "Model set to claude-3-5-sonnet"
       assert new_config.provider == "anthropic"
-      assert new_config.model == "claude-3-5-sonnet"
+      assert new_config.model == "claude-3-5-haiku-20241022"
       cleanup_api_key("anthropic")
     end
 
@@ -496,7 +496,7 @@ defmodule JidoCode.CommandsTest do
       {:ok, message, new_config} = Commands.execute("/model claude-3-5-sonnet", config)
 
       assert message =~ "Model set to"
-      assert new_config.model == "claude-3-5-sonnet"
+      assert new_config.model == "claude-3-5-haiku-20241022"
       cleanup_api_key("anthropic")
     end
   end

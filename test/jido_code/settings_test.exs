@@ -72,7 +72,7 @@ defmodule JidoCode.SettingsTest do
     test "accepts valid models map" do
       settings = %{
         "models" => %{
-          "anthropic" => ["claude-3-5-sonnet", "claude-3-opus"],
+          "anthropic" => ["claude-3-5-haiku-20241022", "claude-3-opus"],
           "openai" => ["gpt-4o", "gpt-4-turbo"]
         }
       }
@@ -87,10 +87,10 @@ defmodule JidoCode.SettingsTest do
     test "accepts complete valid settings" do
       settings = %{
         "provider" => "anthropic",
-        "model" => "claude-3-5-sonnet",
+        "model" => "claude-3-5-haiku-20241022",
         "providers" => ["anthropic", "openai"],
         "models" => %{
-          "anthropic" => ["claude-3-5-sonnet"],
+          "anthropic" => ["claude-3-5-haiku-20241022"],
           "openai" => ["gpt-4o"]
         }
       }
@@ -198,10 +198,10 @@ defmodule JidoCode.SettingsTest do
     @tag :tmp_dir
     test "reads valid JSON file", %{tmp_dir: tmp_dir} do
       path = Path.join(tmp_dir, "valid.json")
-      content = ~s({"provider": "anthropic", "model": "claude-3-5-sonnet"})
+      content = ~s({"provider": "anthropic", "model": "claude-3-5-haiku-20241022"})
       File.write!(path, content)
 
-      assert {:ok, %{"provider" => "anthropic", "model" => "claude-3-5-sonnet"}} =
+      assert {:ok, %{"provider" => "anthropic", "model" => "claude-3-5-haiku-20241022"}} =
                Settings.read_file(path)
     end
 
@@ -496,14 +496,14 @@ defmodule JidoCode.SettingsTest do
       {:ok, settings} = Settings.read_file(path)
       models = Map.get(settings, "models", %{})
       provider_models = Map.get(models, "anthropic", [])
-      updated_provider_models = provider_models ++ ["claude-3-5-sonnet"]
+      updated_provider_models = provider_models ++ ["claude-3-5-haiku-20241022"]
       updated_models = Map.put(models, "anthropic", updated_provider_models)
       updated = Map.put(settings, "models", updated_models)
 
       File.write!(path, Jason.encode!(updated))
       {:ok, final} = Settings.read_file(path)
 
-      assert final["models"]["anthropic"] == ["claude-3-opus", "claude-3-5-sonnet"]
+      assert final["models"]["anthropic"] == ["claude-3-opus", "claude-3-5-haiku-20241022"]
     end
 
     @tag :tmp_dir
@@ -531,10 +531,10 @@ defmodule JidoCode.SettingsTest do
 
       original = %{
         "provider" => "anthropic",
-        "model" => "claude-3-5-sonnet",
+        "model" => "claude-3-5-haiku-20241022",
         "providers" => ["anthropic", "openai"],
         "models" => %{
-          "anthropic" => ["claude-3-opus", "claude-3-5-sonnet"],
+          "anthropic" => ["claude-3-opus", "claude-3-5-haiku-20241022"],
           "openai" => ["gpt-4o"]
         }
       }
@@ -547,9 +547,9 @@ defmodule JidoCode.SettingsTest do
 
       # Verify all data intact
       assert loaded["provider"] == "anthropic"
-      assert loaded["model"] == "claude-3-5-sonnet"
+      assert loaded["model"] == "claude-3-5-haiku-20241022"
       assert loaded["providers"] == ["anthropic", "openai"]
-      assert loaded["models"]["anthropic"] == ["claude-3-opus", "claude-3-5-sonnet"]
+      assert loaded["models"]["anthropic"] == ["claude-3-opus", "claude-3-5-haiku-20241022"]
       assert loaded["models"]["openai"] == ["gpt-4o"]
     end
 

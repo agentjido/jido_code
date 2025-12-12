@@ -9,7 +9,7 @@ defmodule JidoCode.Tools.Definitions.FileSystemTest do
 
   setup %{tmp_dir: tmp_dir} do
     # Clear and set up registry for each test
-    Registry.clear()
+    # Registry cleared at app startup - tools persist
 
     # Register all file system tools
     for tool <- Definitions.all() do

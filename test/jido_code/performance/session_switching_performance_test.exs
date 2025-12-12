@@ -194,7 +194,7 @@ defmodule JidoCode.Performance.SessionSwitchingTest do
         content: "Test message #{i} with some content to simulate realistic size"
       }
 
-      Session.State.add_message(session_id, message)
+      Session.State.append_message(session_id, message)
     end
   end
 end

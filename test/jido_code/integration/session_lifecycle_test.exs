@@ -105,8 +105,8 @@ defmodule JidoCode.Integration.SessionLifecycleTest do
     assert SessionRegistry.exists?(session_id)
 
     # Verify session processes started
-    assert {:ok, manager_pid} = Manager.whereis(session_id)
-    assert {:ok, state_pid} = State.whereis(session_id)
+    assert {:ok, manager_pid} = Session.Supervisor.get_manager(session_id)
+    assert {:ok, state_pid} = Session.Supervisor.get_state(session_id)
     assert Process.alive?(manager_pid)
     assert Process.alive?(state_pid)
 
@@ -339,7 +339,7 @@ defmodule JidoCode.Integration.SessionLifecycleTest do
     {:ok, session_id} = SessionSupervisor.start_session(session)
 
     # Get original Manager PID
-    {:ok, original_manager_pid} = Manager.whereis(session_id)
+    {:ok, original_manager_pid} = Session.Supervisor.get_manager(session_id)
     assert Process.alive?(original_manager_pid)
 
     # Add a message to verify state
@@ -357,7 +357,7 @@ defmodule JidoCode.Integration.SessionLifecycleTest do
     Process.sleep(100)
 
     # Verify Manager was restarted (new PID)
-    {:ok, new_manager_pid} = Manager.whereis(session_id)
+    {:ok, new_manager_pid} = Session.Supervisor.get_manager(session_id)
     assert Process.alive?(new_manager_pid)
     assert new_manager_pid != original_manager_pid
 
@@ -366,7 +366,7 @@ defmodule JidoCode.Integration.SessionLifecycleTest do
 
     # Note: State may or may not be preserved depending on supervision strategy
     # The important thing is that the session can continue functioning
-    assert {:ok, _state_pid} = State.whereis(session_id)
+    assert {:ok, _state_pid} = Session.Supervisor.get_state(session_id)
   end
 
   # ============================================================================

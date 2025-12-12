@@ -185,42 +185,42 @@ Update help text for session features.
 Ensure session system performs well under load.
 
 ### 7.4.1 Session Switching Performance
-- [ ] **Task 7.4.1**
+- [x] **Task 7.4.1**
 
 Optimize session switching.
 
-- [ ] 7.4.1.1 Profile session switch latency
-- [ ] 7.4.1.2 Target: < 50ms for switch operation
-- [ ] 7.4.1.3 Lazy load conversation history if needed
-- [ ] 7.4.1.4 Cache frequently accessed session data
-- [ ] 7.4.1.5 Write performance tests
+- [x] 7.4.1.1 Profile session switch latency
+- [x] 7.4.1.2 Target: < 50ms for switch operation
+- [x] 7.4.1.3 Lazy load conversation history if needed
+- [x] 7.4.1.4 Cache frequently accessed session data
+- [x] 7.4.1.5 Write performance tests
 
 ### 7.4.2 Memory Management
-- [ ] **Task 7.4.2**
+- [x] **Task 7.4.2**
 
 Optimize memory usage with multiple sessions.
 
-- [ ] 7.4.2.1 Profile memory with 10 active sessions
-- [ ] 7.4.2.2 Limit conversation history per session if needed
-- [ ] 7.4.2.3 Clean up resources on session close
-- [ ] 7.4.2.4 Verify no memory leaks on repeated create/close
-- [ ] 7.4.2.5 Write memory tests
+- [x] 7.4.2.1 Profile memory with 10 active sessions
+- [x] 7.4.2.2 Limit conversation history per session if needed
+- [x] 7.4.2.3 Clean up resources on session close
+- [x] 7.4.2.4 Verify no memory leaks on repeated create/close
+- [x] 7.4.2.5 Write memory tests
 
 ### 7.4.3 Persistence Performance
-- [ ] **Task 7.4.3**
+- [x] **Task 7.4.3**
 
 Optimize save/load operations.
 
-- [ ] 7.4.3.1 Profile save operation with large conversation
-- [ ] 7.4.3.2 Target: < 100ms for save operation
-- [ ] 7.4.3.3 Consider incremental saves for large sessions
-- [ ] 7.4.3.4 Optimize JSON encoding/decoding
-- [ ] 7.4.3.5 Write persistence performance tests
+- [x] 7.4.3.1 Profile save operation with large conversation
+- [x] 7.4.3.2 Target: < 100ms for save operation
+- [x] 7.4.3.3 Consider incremental saves for large sessions
+- [x] 7.4.3.4 Optimize JSON encoding/decoding
+- [x] 7.4.3.5 Write persistence performance tests
 
 **Unit Tests for Section 7.4:**
-- Session switch < 50ms
-- Memory stable with 10 sessions
-- Save < 100ms for typical session
+- ✅ Session switch < 50ms (tests created)
+- ✅ Memory stable with 10 sessions (tests created)
+- ✅ Save < 100ms for typical session (tests created)
 
 ---
 

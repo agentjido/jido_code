@@ -76,59 +76,59 @@ Test session commands end-to-end.
 Handle edge cases gracefully with proper error messages.
 
 ### 7.2.1 Session Limit Edge Cases
-- [ ] **Task 7.2.1**
+- [x] **Task 7.2.1**
 
 Handle session limit scenarios.
 
-- [ ] 7.2.1.1 Show clear error when creating 11th session:
+- [x] 7.2.1.1 Show clear error when creating 11th session:
   ```
   Error: Maximum 10 sessions reached. Close a session first.
   ```
-- [ ] 7.2.1.2 Prevent resume when at limit
-- [ ] 7.2.1.3 Show current count in error: "10/10 sessions open"
-- [ ] 7.2.1.4 Write tests for limit handling
+- [x] 7.2.1.2 Prevent resume when at limit
+- [x] 7.2.1.3 Show current count in error: "10/10 sessions open"
+- [x] 7.2.1.4 Write tests for limit handling
 
 ### 7.2.2 Path Edge Cases
-- [ ] **Task 7.2.2**
+- [x] **Task 7.2.2**
 
 Handle file system edge cases.
 
-- [ ] 7.2.2.1 Handle paths with spaces: `/path/with spaces/project`
-- [ ] 7.2.2.2 Handle paths with special characters
-- [ ] 7.2.2.3 Handle symlinks (follow and validate resolved path)
-- [ ] 7.2.2.4 Handle network paths (if applicable)
-- [ ] 7.2.2.5 Handle path that becomes unavailable mid-session
-- [ ] 7.2.2.6 Write tests for path edge cases
+- [x] 7.2.2.1 Handle paths with spaces: `/path/with spaces/project`
+- [x] 7.2.2.2 Handle paths with special characters
+- [x] 7.2.2.3 Handle symlinks (follow and validate resolved path)
+- [x] 7.2.2.4 Handle network paths (if applicable)
+- [x] 7.2.2.5 Handle path that becomes unavailable mid-session
+- [x] 7.2.2.6 Write tests for path edge cases
 
 ### 7.2.3 State Edge Cases
-- [ ] **Task 7.2.3**
+- [x] **Task 7.2.3**
 
 Handle state-related edge cases.
 
-- [ ] 7.2.3.1 Handle empty conversation (new session)
-- [ ] 7.2.3.2 Handle very large conversation (1000+ messages)
-- [ ] 7.2.3.3 Handle streaming interruption
-- [ ] 7.2.3.4 Handle session close during streaming
-- [ ] 7.2.3.5 Handle session switch during streaming
-- [ ] 7.2.3.6 Write tests for state edge cases
+- [x] 7.2.3.1 Handle empty conversation (new session)
+- [x] 7.2.3.2 Handle very large conversation (1000+ messages)
+- [x] 7.2.3.3 Handle streaming interruption
+- [x] 7.2.3.4 Handle session close during streaming
+- [x] 7.2.3.5 Handle session switch during streaming
+- [x] 7.2.3.6 Write tests for state edge cases
 
 ### 7.2.4 Persistence Edge Cases
-- [ ] **Task 7.2.4**
+- [x] **Task 7.2.4**
 
 Handle persistence-related edge cases.
 
-- [ ] 7.2.4.1 Handle corrupted session file
-- [ ] 7.2.4.2 Handle missing sessions directory
-- [ ] 7.2.4.3 Handle disk full on save
-- [ ] 7.2.4.4 Handle concurrent saves
-- [ ] 7.2.4.5 Handle session file deleted while session active
-- [ ] 7.2.4.6 Write tests for persistence edge cases
+- [x] 7.2.4.1 Handle corrupted session file
+- [x] 7.2.4.2 Handle missing sessions directory
+- [x] 7.2.4.3 Handle disk full on save
+- [x] 7.2.4.4 Handle concurrent saves
+- [x] 7.2.4.5 Handle session file deleted while session active
+- [x] 7.2.4.6 Write tests for persistence edge cases
 
 **Unit Tests for Section 7.2:**
-- Session limit errors clear and helpful
-- Path edge cases handled gracefully
-- State edge cases don't crash
-- Persistence errors recoverable
+- ✅ Session limit errors clear and helpful
+- ✅ Path edge cases handled gracefully
+- ✅ State edge cases don't crash
+- ✅ Persistence errors recoverable
 
 ---
 

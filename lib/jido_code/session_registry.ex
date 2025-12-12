@@ -168,7 +168,9 @@ defmodule JidoCode.SessionRegistry do
 
     cond do
       count() >= max_sessions() ->
-        {:error, :session_limit_reached}
+        current_count = count()
+        max = max_sessions()
+        {:error, {:session_limit_reached, current_count, max}}
 
       session_exists?(session.id) ->
         {:error, :session_exists}

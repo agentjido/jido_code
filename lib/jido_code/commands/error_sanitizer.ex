@@ -101,6 +101,10 @@ defmodule JidoCode.Commands.ErrorSanitizer do
   def sanitize_error(:project_path_changed), do: "Project path properties changed unexpectedly."
   def sanitize_error(:project_already_open), do: "Project already open in another session."
   def sanitize_error(:session_limit_reached), do: "Maximum sessions reached."
+
+  def sanitize_error({:session_limit_reached, current, max}),
+    do: "Maximum sessions reached (#{current}/#{max} sessions open). Close a session first."
+
   def sanitize_error(:save_in_progress), do: "Save operation already in progress."
 
   # Validation errors - generic to avoid exposing internal structure

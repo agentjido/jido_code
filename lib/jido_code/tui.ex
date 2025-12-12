@@ -1198,7 +1198,7 @@ defmodule JidoCode.TUI do
         session = Map.get(new_state.sessions, session_id)
         session_name = if session, do: session.name, else: session_id
 
-        final_state = add_session_message(new_state, "Switched to session: #{session_name}")
+        final_state = add_session_message(new_state, "Switched to: #{session_name}")
         {final_state, []}
 
       {:session_action, {:close_session, session_id, session_name}} ->

@@ -58,6 +58,7 @@ defmodule JidoCode.Commands do
   @help_text """
   Available commands:
 
+    Configuration:
     /help                    - Show this help message
     /config                  - Display current configuration
     /provider <name>         - Set LLM provider (clears model)
@@ -68,6 +69,8 @@ defmodule JidoCode.Commands do
     /providers               - List available providers
     /theme                   - List available themes
     /theme <name>            - Switch to a theme (dark, light, high_contrast)
+
+    Session Management:
     /session                 - Show session command help
     /session new [path]      - Create new session (--name=NAME for custom name)
     /session list            - List all sessions
@@ -78,8 +81,26 @@ defmodule JidoCode.Commands do
     /resume <target>         - Resume session by index or ID
     /resume delete <target>  - Delete session by index or ID
     /resume clear            - Delete all persisted sessions
+
+    Development:
     /sandbox-test            - Test the Luerl sandbox security (dev/test only)
     /shell <command> [args]  - Run a shell command (e.g., /shell ls -la)
+
+  Keyboard Shortcuts:
+    Ctrl+M                   - Model selection menu
+    Ctrl+1 to Ctrl+0         - Switch to session 1-10 (Ctrl+0 = session 10)
+    Ctrl+Tab                 - Next session
+    Ctrl+Shift+Tab           - Previous session
+    Ctrl+W                   - Close current session
+    Ctrl+N                   - New session dialog
+    Ctrl+R                   - Toggle reasoning panel
+
+  Examples:
+    /model anthropic:claude-3-5-sonnet-20241022
+    /session new ~/projects/myapp --name="My App"
+    /session switch 2
+    /resume 1
+    /shell mix test
   """
 
   @doc """
@@ -442,18 +463,32 @@ defmodule JidoCode.Commands do
   def execute_session(:help, _model) do
     help = """
     Session Commands:
-      /session new [path] [--name=NAME]  Create new session
-      /session list                       List all sessions
-      /session switch <index|id|name>     Switch to session
-      /session close [index|id]           Close session
-      /session rename <name>              Rename current session
+      /session new [path] [--name=NAME]   - Create new session (defaults to cwd)
+      /session list                       - List all sessions with indices
+      /session switch <index|id|name>     - Switch to session by index, ID, or name
+      /session close [index|id]           - Close session (defaults to current)
+      /session rename <name>              - Rename current session
 
     Keyboard Shortcuts:
-      Ctrl+1 to Ctrl+0  Switch to session 1-10
-      Ctrl+Tab          Next session
-      Ctrl+Shift+Tab    Previous session
-      Ctrl+W            Close current session
-      Ctrl+N            New session
+      Ctrl+1 to Ctrl+0                    - Switch to session 1-10 (Ctrl+0 = session 10)
+      Ctrl+Tab                            - Next session
+      Ctrl+Shift+Tab                      - Previous session
+      Ctrl+W                              - Close current session
+      Ctrl+N                              - New session dialog
+
+    Examples:
+      /session new ~/projects/myapp --name="My App"
+      /session new                        (uses current directory)
+      /session switch 2
+      /session switch my-app
+      /session rename "Backend API"
+      /session close 3
+
+    Notes:
+      - Maximum 10 sessions can be open simultaneously
+      - Sessions are automatically saved when closed
+      - Use /resume to restore closed sessions
+      - Session names must be 50 characters or less
     """
 
     {:ok, String.trim(help)}

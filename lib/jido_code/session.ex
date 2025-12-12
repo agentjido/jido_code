@@ -11,6 +11,18 @@ defmodule JidoCode.Session do
   Sessions are managed by the SessionRegistry and supervised by SessionSupervisor.
   Each session runs in isolation with its own Manager process for security enforcement.
 
+  ## Path Validation and Security
+
+  Session creation performs comprehensive path validation including:
+
+  - **Existence and Type** - Path must exist and be a directory
+  - **Safety Checks** - No path traversal (..), must be absolute, length limits
+  - **Symlink Security** - Symlinks are followed and validated for safety
+  - **Permission Checks** - User must have read, write, and execute permissions
+
+  These checks prevent common security issues and ensure clear error messages
+  upfront rather than confusing failures during file operations.
+
   ## Example
 
       iex> session = %JidoCode.Session{
@@ -32,7 +44,7 @@ defmodule JidoCode.Session do
 
   - `id` - RFC 4122 UUID v4 uniquely identifying the session
   - `name` - Display name shown in tabs (defaults to folder name)
-  - `project_path` - Absolute path to the project directory
+  - `project_path` - Absolute path to the project directory (validated for permissions)
   - `config` - LLM configuration map with provider, model, temperature, max_tokens
   - `created_at` - UTC timestamp when session was created
   - `updated_at` - UTC timestamp of last modification
@@ -96,6 +108,12 @@ defmodule JidoCode.Session do
   @doc """
   Creates a new session with the given options.
 
+  Validates the project path through multiple security and accessibility checks:
+  - Path safety (no traversal, absolute path)
+  - Path existence and type (must be a directory)
+  - Symlink safety (if symlink, target must be valid)
+  - **Permissions** (user must have read, write, and execute access)
+
   ## Options
 
   - `:project_path` (required) - Absolute path to the project directory
@@ -106,11 +124,26 @@ defmodule JidoCode.Session do
 
   - `{:ok, session}` - Successfully created session
   - `{:error, :missing_project_path}` - project_path option not provided
+  - `{:error, :invalid_project_path}` - project_path is not a string
   - `{:error, :path_not_found}` - project_path does not exist
   - `{:error, :path_not_directory}` - project_path is not a directory
-  - `{:error, :path_traversal_detected}` - path contains traversal sequences
-  - `{:error, :path_too_long}` - path exceeds maximum length
-  - `{:error, :symlink_escape}` - symlink target escapes allowed boundary
+  - `{:error, :path_traversal_detected}` - path contains traversal sequences (..)
+  - `{:error, :path_not_absolute}` - path is not absolute
+  - `{:error, :path_too_long}` - path exceeds 4096 bytes
+  - `{:error, :symlink_escape}` - symlink target contains traversal sequences
+  - `{:error, :path_permission_denied}` - insufficient read/write/execute permissions
+  - `{:error, :path_no_space}` - insufficient disk space for write test
+
+  ## Permission Validation
+
+  The session creation checks that the user has necessary permissions on the directory:
+
+  - **Read permission** - Required to list files and read content
+  - **Execute permission** - Required to traverse/access the directory
+  - **Write permission** - Required for tool operations (write_file, etc.)
+
+  Permission checks are performed upfront to provide clear error messages rather than
+  confusing failures during file operations.
 
   ## Examples
 
@@ -127,6 +160,9 @@ defmodule JidoCode.Session do
 
       iex> JidoCode.Session.new(project_path: "/nonexistent/path")
       {:error, :path_not_found}
+
+      iex> JidoCode.Session.new(project_path: "/root/protected")
+      {:error, :path_permission_denied}
   """
   @spec new(keyword()) :: {:ok, t()} | {:error, atom()}
   def new(opts) when is_list(opts) do
@@ -135,7 +171,8 @@ defmodule JidoCode.Session do
          :ok <- validate_path_safe(project_path),
          :ok <- validate_path_exists(project_path),
          :ok <- validate_path_is_directory(project_path),
-         :ok <- validate_symlink_safe(project_path) do
+         :ok <- validate_symlink_safe(project_path),
+         :ok <- validate_path_permissions(project_path) do
       now = DateTime.utc_now()
 
       session = %__MODULE__{
@@ -240,6 +277,63 @@ defmodule JidoCode.Session do
       {:error, _} ->
         # Other error reading link, path might not exist
         :ok
+    end
+  end
+
+  # Validate that the user has necessary permissions on the directory
+  #
+  # This check ensures the user has read, write, and execute permissions
+  # before creating a session. This prevents confusing errors later when
+  # file operations fail due to permission issues.
+  #
+  # Implementation approach:
+  # - Read + Execute: Tested via File.ls/1 (requires both to list directory)
+  # - Write: Tested by creating and deleting a temp file
+  #
+  # The temp file approach is safe because:
+  # - Uses System.unique_integer/1 to avoid collisions
+  # - Prefixed with .jido_code_permission_check_ for easy identification
+  # - Immediately deleted after successful creation
+  # - Empty file (no data written to disk)
+  defp validate_path_permissions(path) do
+    # Check read + execute permissions by attempting to list directory
+    case File.ls(path) do
+      {:ok, _} ->
+        # Successfully listed - read and execute permissions are OK
+        # Now check write permission by attempting to create a temp file
+        validate_write_permission(path)
+
+      {:error, :eacces} ->
+        {:error, :path_permission_denied}
+
+      {:error, :enoent} ->
+        # Should have been caught by validate_path_exists, but handle it anyway
+        {:error, :path_not_found}
+
+      {:error, _other} ->
+        {:error, :path_permission_denied}
+    end
+  end
+
+  # Validate write permission by attempting to create and delete a temp file
+  defp validate_write_permission(path) do
+    # Generate a unique temp filename
+    temp_file = Path.join(path, ".jido_code_permission_check_#{System.unique_integer([:positive])}")
+
+    case File.write(temp_file, "") do
+      :ok ->
+        # Write succeeded, clean up and return success
+        File.rm(temp_file)
+        :ok
+
+      {:error, :eacces} ->
+        {:error, :path_permission_denied}
+
+      {:error, :enospc} ->
+        {:error, :path_no_space}
+
+      {:error, _other} ->
+        {:error, :path_permission_denied}
     end
   end
 

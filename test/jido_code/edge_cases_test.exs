@@ -239,39 +239,36 @@ defmodule JidoCode.EdgeCasesTest do
     end
 
     test "rejects nonexistent paths with clear error" do
-      {:ok, session} =
-        Session.new(
-          name: "Nonexistent",
-          project_path: "/nonexistent/path",
-          config: SessionTestHelpers.valid_session_config()
-        )
+      # Session.new should reject nonexistent paths upfront
+      result = Session.new(
+        name: "Nonexistent",
+        project_path: "/nonexistent/path",
+        config: SessionTestHelpers.valid_session_config()
+      )
 
-      result = SessionSupervisor.start_session(session)
-      assert {:error, reason} = result
-      assert reason == :enoent or match?({:failed_to_start_child, _, :enoent}, reason)
+      assert {:error, :path_not_found} = result
 
       # Verify error is sanitized properly
-      sanitized = ErrorSanitizer.sanitize_error(:enoent)
-      assert sanitized == "Resource not found."
+      sanitized = ErrorSanitizer.sanitize_error(:path_not_found)
+      assert sanitized == "Path does not exist."
     end
 
     test "rejects file (not directory) with clear error", %{tmp_base: tmp_base} do
       file_path = Path.join(tmp_base, "not_a_directory.txt")
       File.write!(file_path, "content")
 
-      {:ok, session} =
-        Session.new(
-          name: "File Not Dir",
-          project_path: file_path,
-          config: SessionTestHelpers.valid_session_config()
-        )
+      # Session.new should reject files (non-directories) upfront
+      result = Session.new(
+        name: "File Not Dir",
+        project_path: file_path,
+        config: SessionTestHelpers.valid_session_config()
+      )
 
-      result = SessionSupervisor.start_session(session)
-      assert {:error, reason} = result
-      assert reason == :enotdir or match?({:failed_to_start_child, _, :enotdir}, reason)
+      assert {:error, :path_not_directory} = result
 
-      sanitized = ErrorSanitizer.sanitize_error(:enotdir)
-      assert sanitized == "Invalid path."
+      # Verify error is sanitized properly
+      sanitized = ErrorSanitizer.sanitize_error(:path_not_directory)
+      assert sanitized == "Path is not a directory."
     end
   end
 

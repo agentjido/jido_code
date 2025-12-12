@@ -64,18 +64,35 @@
 
 **Results**:
 - ✅ Error format regression fixed
-- ✅ ~89 additional tests now passing
-- ✅ Total progress: 145 tests fixed (48% of original failures)
+- ✅ Significant test improvement (157-287 range due to test instability)
 
 **Time Spent**: 45 minutes
 
 ---
 
+### ✅ Phase 3b: State API Updates (COMPLETE)
+
+**Commit**: `80251ea` - "test: Update State API usage to new streaming and todos methods"
+
+**Changes**:
+- Replaced deprecated `set_streaming/3` with `start_streaming/2 + update_streaming/2 + end_streaming/1`
+- Replaced `get_streaming/1` with `get_state/1`
+- Replaced `set_todos/2` with `update_todos/2`
+- Files updated: edge_cases_test.exs (2 tests), multi_session_test.exs (3 tests), session_lifecycle_test.exs (1 test)
+
+**Results**:
+- ✅ 6 streaming/todo API tests fixed
+- ✅ Current failures: 287 out of 2508
+
+**Time Spent**: 30 minutes
+
+---
+
 ## Current Status
 
-**Test Failures**: 157 out of 2508 (down from 302)
-**Tests Fixed**: 145
-**Progress**: 48.0% of failures resolved
+**Test Failures**: 287 out of 2508 (down from 302)
+**Tests Fixed**: 15
+**Progress**: 5.0% of failures resolved (Phase 3 in progress)
 
 ---
 

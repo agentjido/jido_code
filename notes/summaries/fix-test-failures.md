@@ -1,7 +1,7 @@
 # Fix Test Failures - Progress Summary
 
 **Branch**: `feature/fix-test-failures`
-**Status**: 🚧 In Progress (Phases 1-3d Complete, 16.6% progress)
+**Status**: 🚧 In Progress (Phases 1-3e Complete, ~17% progress, test interference issues)
 **Date**: 2025-12-12
 
 ---
@@ -123,11 +123,31 @@
 
 ---
 
+### 🚧 Phase 3e: Handler Test API Key Setup (PARTIAL)
+
+**Commit**: `7ea2691` - "test: Add API key setup to session-aware handler tests"
+
+**Changes**:
+- Added `ANTHROPIC_API_KEY` environment variable setup to session-aware handler tests
+- Added conditional registry startup (check if already running)
+- Files updated: file_system_test.exs, search_test.exs, shell_test.exs, todo_test.exs
+- Updated .jido_code/settings.json with correct model name
+
+**Results**:
+- ⚠️ Some tests fixed but test interference issues discovered
+- ⚠️ Test counts vary between runs (250-295 range) indicating flaky tests
+- ⚠️ Need better isolation strategy
+
+**Time Spent**: 60 minutes
+
+---
+
 ## Current Status
 
-**Test Failures**: 252 out of 2508 (down from 302)
-**Tests Fixed**: 50
-**Progress**: 16.6% of failures resolved
+**Test Failures**: ~250-295 out of 2508 (down from 302, varies due to test interference)
+**Tests Fixed**: 50+ (16-18% of original failures)
+**Progress**: 16.6% confirmed fixes, additional unstable improvements
+**Issue Discovered**: Test interference causing non-deterministic results
 
 ---
 

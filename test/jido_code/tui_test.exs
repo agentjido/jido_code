@@ -395,7 +395,7 @@ defmodule JidoCode.TUITest do
       assert get_input_value(new_model) == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).content =~ "Provider: anthropic"
-      assert hd(new_model.messages).content =~ "Model: claude-3-5-sonnet"
+      assert hd(new_model.messages).content =~ "Model: claude-3-5-haiku-20241022"
     end
 
     test "/provider command updates config and status" do
@@ -418,13 +418,13 @@ defmodule JidoCode.TUITest do
       setup_api_key("anthropic")
 
       model = %Model{
-        text_input: create_text_input("/model anthropic:claude-3-5-sonnet"),
+        text_input: create_text_input("/model anthropic:claude-3-5-haiku-20241022"),
         messages: [],
         config: %{provider: nil, model: nil},
         agent_status: :unconfigured
       }
 
-      {new_model, _} = TUI.update({:input_submitted, "/model anthropic:claude-3-5-sonnet"}, model)
+      {new_model, _} = TUI.update({:input_submitted, "/model anthropic:claude-3-5-haiku-20241022"}, model)
 
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == "claude-3-5-haiku-20241022"

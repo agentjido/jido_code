@@ -5,6 +5,6 @@
       "qwen3:32b"
     ]
   },
-  "provider": "anthropic",
+  "provider": "lmstudio",
   "theme": "dark"
 }

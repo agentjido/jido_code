@@ -242,31 +242,33 @@ defmodule JidoCode.Integration.MultiSessionTest do
     {session_b, _} = create_test_session(tmp_base, "session_b")
 
     # Set streaming state in session A
-    State.set_streaming(session_a, true, "Streaming content in A")
+    State.start_streaming(session_a, "msg-a")
+    State.update_streaming(session_a, "Streaming content in A")
 
     # Verify streaming state in A
-    {:ok, streaming_a} = State.get_streaming(session_a)
-    assert streaming_a.is_streaming == true
-    assert streaming_a.current_message == "Streaming content in A"
+    {:ok, state_a} = State.get_state(session_a)
+    assert state_a.is_streaming == true
+    assert state_a.streaming_message == "Streaming content in A"
 
     # Set different streaming state in session B
-    State.set_streaming(session_b, true, "Streaming content in B")
+    State.start_streaming(session_b, "msg-b")
+    State.update_streaming(session_b, "Streaming content in B")
 
     # Verify both sessions maintain their own streaming state
-    {:ok, streaming_a_check} = State.get_streaming(session_a)
-    {:ok, streaming_b_check} = State.get_streaming(session_b)
+    {:ok, state_a_check} = State.get_state(session_a)
+    {:ok, state_b_check} = State.get_state(session_b)
 
-    assert streaming_a_check.current_message == "Streaming content in A"
-    assert streaming_b_check.current_message == "Streaming content in B"
+    assert state_a_check.streaming_message == "Streaming content in A"
+    assert state_b_check.streaming_message == "Streaming content in B"
 
     # Stop streaming in A, verify B unaffected
-    State.set_streaming(session_a, false, nil)
+    State.end_streaming(session_a)
 
-    {:ok, final_a} = State.get_streaming(session_a)
-    {:ok, final_b} = State.get_streaming(session_b)
+    {:ok, state_a_final} = State.get_state(session_a)
+    {:ok, state_b_final} = State.get_state(session_b)
 
-    assert final_a.is_streaming == false
-    assert final_b.is_streaming == true
+    assert state_a_final.is_streaming == false
+    assert state_b_final.is_streaming == true
   end
 
   # ============================================================================
@@ -392,8 +394,8 @@ defmodule JidoCode.Integration.MultiSessionTest do
       %{content: "Task B1", status: :completed, active_form: "Task B1"}
     ]
 
-    State.set_todos(session_a, todos_a)
-    State.set_todos(session_b, todos_b)
+    State.update_todos(session_a, todos_a)
+    State.update_todos(session_b, todos_b)
 
     # Verify isolation
     {:ok, retrieved_a} = State.get_todos(session_a)

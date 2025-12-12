@@ -168,7 +168,7 @@ defmodule JidoCode.Integration.SessionLifecycleTest do
     })
 
     # Add todos
-    State.set_todos(session_id, [
+    State.update_todos(session_id, [
       %{content: "Task 1", status: :pending, active_form: "Task 1"},
       %{content: "Task 2", status: :completed, active_form: "Task 2"}
     ])

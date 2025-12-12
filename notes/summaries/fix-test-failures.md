@@ -1,19 +1,19 @@
 # Fix Test Failures - Progress Summary
 
 **Branch**: `feature/fix-test-failures`
-**Status**: 🚧 In Progress (Phases 1-2 Complete)
+**Status**: 🚧 In Progress (Phases 1-3d Complete, 16.6% progress)
 **Date**: 2025-12-12
 
 ---
 
 ## Progress Overview
 
-| Metric | Before | After Phases 1-3a | Target |
+| Metric | Before | After Phases 1-3d | Target |
 |--------|--------|-------------------|--------|
 | Total Tests | 2508 | 2508 | 2508 |
-| Failures | 302 | 157 | 0 |
-| Pass Rate | 88.0% | 93.7% | 100% |
-| Fixed | 0 | 145 | 302 |
+| Failures | 302 | 252 | 0 |
+| Pass Rate | 88.0% | 90.0% | 100% |
+| Fixed | 0 | 50 | 302 |
 
 ---
 
@@ -88,11 +88,46 @@
 
 ---
 
+### ✅ Phase 3c: Process Lookup API Updates (COMPLETE)
+
+**Commit**: `dce925c` - "test: Update deprecated Session.Supervisor process lookup APIs"
+
+**Changes**:
+- Replaced `Manager.whereis(id)` with `Session.Supervisor.get_manager(id)`
+- Replaced `State.whereis(id)` with `Session.Supervisor.get_state(id)`
+- Replaced `State.add_message(id, msg)` with `State.append_message(id, msg)`
+- Files updated: session_lifecycle_test.exs (4 usages), 3 performance test files
+
+**Results**:
+- ✅ 30 process lookup tests fixed
+- ✅ Current failures: 257 out of 2508
+
+**Time Spent**: 25 minutes
+
+---
+
+### ✅ Phase 3d: Model Name Validation Fixes (COMPLETE)
+
+**Commit**: `251ced9` - "test: Update remaining claude-3-5-sonnet references to valid model names"
+
+**Changes**:
+- Updated test commands and assertions to use valid `claude-3-5-haiku-20241022`
+- Files updated: commands_test.exs (5 tests), tui_test.exs (2 tests)
+- Fixed config display assertion mismatches
+
+**Results**:
+- ✅ 5 model validation tests fixed
+- ✅ Current failures: 252 out of 2508
+
+**Time Spent**: 20 minutes
+
+---
+
 ## Current Status
 
-**Test Failures**: 287 out of 2508 (down from 302)
-**Tests Fixed**: 15
-**Progress**: 5.0% of failures resolved (Phase 3 in progress)
+**Test Failures**: 252 out of 2508 (down from 302)
+**Tests Fixed**: 50
+**Progress**: 16.6% of failures resolved
 
 ---
 

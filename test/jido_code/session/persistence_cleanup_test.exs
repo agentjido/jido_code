@@ -26,7 +26,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       recent_id = create_persisted_session_at("Recent Session", days_ago(5))
 
       # Run cleanup with default 30 days
-      result = Persistence.cleanup(30)
+      {:ok, result} = Persistence.cleanup(30)
 
       assert result.deleted == 1
       assert result.skipped == 1
@@ -46,7 +46,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       recent_id = create_persisted_session_at("Recent", days_ago(3))
 
       # Cleanup with 7 day threshold
-      result = Persistence.cleanup(7)
+      {:ok, result} = Persistence.cleanup(7)
 
       assert result.deleted == 1
       assert result.skipped == 1
@@ -64,7 +64,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       _id2 = create_persisted_session_at("Old 2", days_ago(40))
 
       # Cleanup with 100 day threshold (nothing older)
-      result = Persistence.cleanup(100)
+      {:ok, result} = Persistence.cleanup(100)
 
       assert result.deleted == 0
       assert result.skipped == 2
@@ -73,7 +73,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
 
     test "returns zero counts when no sessions exist" do
       # No sessions created
-      result = Persistence.cleanup()
+      {:ok, result} = Persistence.cleanup()
 
       assert result.deleted == 0
       assert result.skipped == 0
@@ -86,8 +86,8 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       _id = create_persisted_session_at("Old", days_ago(40))
 
       # Run cleanup twice
-      result1 = Persistence.cleanup(30)
-      result2 = Persistence.cleanup(30)
+      {:ok, result1} = Persistence.cleanup(30)
+      {:ok, result2} = Persistence.cleanup(30)
 
       # First run deletes
       assert result1.deleted == 1
@@ -104,7 +104,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       invalid_id = create_persisted_session_with_bad_timestamp("Invalid", "not-a-timestamp")
 
       # Cleanup should work despite invalid timestamp
-      result = Persistence.cleanup(30)
+      {:ok, result} = Persistence.cleanup(30)
 
       # Valid session deleted, invalid skipped
       assert result.deleted == 1
@@ -131,7 +131,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       boundary_id = create_persisted_session_at("Boundary", exactly_30_days)
 
       # Session at exactly the cutoff WILL be deleted (cutoff uses <)
-      result = Persistence.cleanup(30)
+      {:ok, result} = Persistence.cleanup(30)
 
       assert result.deleted == 1
       assert result.skipped == 0
@@ -146,7 +146,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       past_id = create_persisted_session_at("Just Past", just_past)
 
       # Should be deleted
-      result = Persistence.cleanup(30)
+      {:ok, result} = Persistence.cleanup(30)
 
       assert result.deleted == 1
       assert result.skipped == 0
@@ -174,7 +174,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
         end
 
       # Run cleanup
-      result = Persistence.cleanup(30)
+      {:ok, result} = Persistence.cleanup(30)
 
       # All old ones deleted, recent ones kept
       assert result.deleted == 20
@@ -220,7 +220,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
       future_id = create_persisted_session_at("Future", future)
 
       # Should be skipped (not older than cutoff)
-      result = Persistence.cleanup(30)
+      {:ok, result} = Persistence.cleanup(30)
 
       assert result.deleted == 0
       assert result.skipped == 1
@@ -238,7 +238,7 @@ defmodule JidoCode.Session.PersistenceCleanupTest do
 
       # Run cleanup - list_persisted won't return deleted files, so cleanup
       # won't see this session at all (it's not in the directory anymore)
-      result = Persistence.cleanup(30)
+      {:ok, result} = Persistence.cleanup(30)
 
       # No sessions to process (file already gone before cleanup ran)
       assert result.deleted == 0

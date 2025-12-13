@@ -1,19 +1,19 @@
 # Fix Test Failures - Progress Summary
 
 **Branch**: `feature/fix-test-failures`
-**Status**: 🚧 In Progress (Phases 1-3e Complete, ~17% progress, test interference issues)
+**Status**: ⚠️ Blocked - Core GenServer Infrastructure Issues (Phases 1-4 complete)
 **Date**: 2025-12-12
 
 ---
 
 ## Progress Overview
 
-| Metric | Before | After Phases 1-3d | Target |
-|--------|--------|-------------------|--------|
+| Metric | Before | After Phases 1-4 | Target |
+|--------|--------|------------------|--------|
 | Total Tests | 2508 | 2508 | 2508 |
-| Failures | 302 | 252 | 0 |
-| Pass Rate | 88.0% | 90.0% | 100% |
-| Fixed | 0 | 50 | 302 |
+| Failures | 302 | 292 | 0 |
+| Pass Rate | 88.0% | 88.4% | 100% |
+| Fixed | 0 | 10 net | 302 |
 
 ---
 
@@ -142,12 +142,37 @@
 
 ---
 
+### 🚧 Phase 4: Global Infrastructure Cleanup (Option B - PARTIAL)
+
+**Commit**: `211e50a` - "test: Improve Tools.Registry cleanup strategy (Option B partial)"
+
+**Approach**: Fix global test infrastructure by reducing Registry.clear() calls
+
+**Changes**:
+- executor_test.exs: Removed Registry.clear(), made registration idempotent
+- registry_test.exs: Added try/catch to clear() for safety
+- 4 tool definition tests: Removed Registry.clear() calls
+- Strategy: Let Tools.Registry persist across tests, ignore re-registration errors
+
+**Results**:
+- ⚠️ Minimal improvement: 292 failures (vs ~295 before)
+- ⚠️ Root cause identified: Tools.Registry GenServer lifecycle issues
+  - 78 GenServer.call timeout failures on register operations
+  - GenServer appears to crash or hang under concurrent test load
+  - Suggests deeper infrastructure problem beyond cleanup strategy
+
+**Discovery**: Option B insufficient without fixing GenServer stability
+
+**Time Spent**: 75 minutes
+
+---
+
 ## Current Status
 
-**Test Failures**: ~250-295 out of 2508 (down from 302, varies due to test interference)
-**Tests Fixed**: 50+ (16-18% of original failures)
-**Progress**: 16.6% confirmed fixes, additional unstable improvements
-**Issue Discovered**: Test interference causing non-deterministic results
+**Test Failures**: 292 out of 2508 (down from 302)
+**Tests Fixed**: 10 confirmed (3% of original failures)
+**Progress**: Option B partially implemented but revealed deeper issues
+**Core Problem**: Tools.Registry GenServer unstable under test load
 
 ---
 

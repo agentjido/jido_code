@@ -9,7 +9,7 @@ defmodule JidoCode.Tools.Definitions.ShellTest do
 
   setup %{tmp_dir: tmp_dir} do
     # Clear and set up registry for each test
-    Registry.clear()
+    # Registry cleared at app startup - tools persist
 
     # Register all shell tools
     for tool <- Definitions.all() do

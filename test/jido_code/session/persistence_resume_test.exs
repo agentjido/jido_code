@@ -266,7 +266,7 @@ defmodule JidoCode.Session.PersistenceResumeTest do
       persisted = create_persisted_session(session_id, "11th Session", eleventh_dir)
       :ok = Persistence.write_session_file(session_id, persisted)
 
-      assert {:error, :session_limit_reached} = Persistence.resume(session_id)
+      assert {:error, {:session_limit_reached, 10, 10}} = Persistence.resume(session_id)
 
       # Cleanup
       Enum.each(session_ids, &SessionSupervisor.stop_session/1)

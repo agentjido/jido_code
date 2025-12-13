@@ -18,8 +18,17 @@ defmodule JidoCode.Tools.Handlers.SearchTest do
 
   describe "session-aware context" do
     setup %{tmp_dir: tmp_dir} do
+      # Set dummy API key for test
+      System.put_env("ANTHROPIC_API_KEY", "test-key-search-handler")
+
+      on_exit(fn ->
+        System.delete_env("ANTHROPIC_API_KEY")
+      end)
+
       # Start required registries if not already started
-      start_supervised!({Registry, keys: :unique, name: JidoCode.SessionProcessRegistry})
+      unless Process.whereis(JidoCode.SessionProcessRegistry) do
+        start_supervised!({Registry, keys: :unique, name: JidoCode.SessionProcessRegistry})
+      end
 
       # Create a session
       {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "search-session-test")

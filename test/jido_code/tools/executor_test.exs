@@ -24,10 +24,7 @@ defmodule JidoCode.Tools.ExecutorTest do
   end
 
   setup do
-    # Clear and set up registry for each test
-    Registry.clear()
-
-    # Register test tools
+    # Register test tools (idempotent - will skip if already registered)
     {:ok, read_file} =
       Tool.new(%{
         name: "read_file",
@@ -69,10 +66,11 @@ defmodule JidoCode.Tools.ExecutorTest do
         ]
       })
 
-    :ok = Registry.register(read_file)
-    :ok = Registry.register(write_file)
-    :ok = Registry.register(error_tool)
-    :ok = Registry.register(slow_tool)
+    # Register tools, ignoring if already registered
+    _ = Registry.register(read_file)
+    _ = Registry.register(write_file)
+    _ = Registry.register(error_tool)
+    _ = Registry.register(slow_tool)
 
     :ok
   end

@@ -397,7 +397,7 @@ defmodule JidoCode.Integration.SessionPhase1Test do
       # 11th should fail
       path11 = create_test_dir(tmp_base, "limit11_11")
 
-      assert {:error, :session_limit_reached} =
+      assert {:error, {:session_limit_reached, 10, 10}} =
                SessionSupervisor.create_session(project_path: path11)
 
       # Count should still be 10

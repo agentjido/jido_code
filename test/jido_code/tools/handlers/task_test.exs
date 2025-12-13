@@ -13,7 +13,7 @@ defmodule JidoCode.Tools.Handlers.TaskTest do
 
   setup do
     # Clear registry
-    Registry.clear()
+    # Registry cleared at app startup - tools persist
     :ok
   end
 

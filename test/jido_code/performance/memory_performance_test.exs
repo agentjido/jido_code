@@ -270,7 +270,7 @@ defmodule JidoCode.Performance.MemoryTest do
                  String.duplicate("Lorem ipsum dolor sit amet. ", 10)
       }
 
-      Session.State.add_message(session_id, message)
+      Session.State.append_message(session_id, message)
     end
   end
 end

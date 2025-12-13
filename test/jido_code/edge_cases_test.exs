@@ -357,10 +357,11 @@ defmodule JidoCode.EdgeCasesTest do
       {:ok, session_id} = SessionSupervisor.start_session(session)
 
       # Start streaming
-      State.set_streaming(session_id, true, "Streaming content")
+      State.start_streaming(session_id, "msg-1")
+      State.update_streaming(session_id, "Streaming content")
 
-      {:ok, streaming} = State.get_streaming(session_id)
-      assert streaming.is_streaming == true
+      {:ok, state} = State.get_state(session_id)
+      assert state.is_streaming == true
 
       # Close session while streaming
       SessionSupervisor.stop_session(session_id)
@@ -395,14 +396,15 @@ defmodule JidoCode.EdgeCasesTest do
       {:ok, id_b} = SessionSupervisor.start_session(session_b)
 
       # Start streaming in session A
-      State.set_streaming(id_a, true, "Content in A")
+      State.start_streaming(id_a, "msg-a")
+      State.update_streaming(id_a, "Content in A")
 
       # Simulate switch to session B (just verify it doesn't affect A's state)
-      {:ok, streaming_a} = State.get_streaming(id_a)
-      {:ok, streaming_b} = State.get_streaming(id_b)
+      {:ok, state_a} = State.get_state(id_a)
+      {:ok, state_b} = State.get_state(id_b)
 
-      assert streaming_a.is_streaming == true
-      assert streaming_b.is_streaming == false
+      assert state_a.is_streaming == true
+      assert state_b.is_streaming == false
     end
   end
 

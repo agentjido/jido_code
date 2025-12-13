@@ -42,12 +42,12 @@ defmodule JidoCode.CommandsTest do
     end
 
     test "/config shows current configuration" do
-      config = %{provider: "anthropic", model: "claude-3-5-sonnet"}
+      config = %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
 
       {:ok, message, new_config} = Commands.execute("/config", config)
 
       assert message =~ "Provider: anthropic"
-      assert message =~ "Model: claude-3-5-sonnet"
+      assert message =~ "Model: claude-3-5-haiku-20241022"
       assert new_config == %{}
     end
 
@@ -101,11 +101,11 @@ defmodule JidoCode.CommandsTest do
       setup_api_key("anthropic")
       config = %{provider: nil, model: nil}
 
-      {:ok, message, new_config} = Commands.execute("/model anthropic:claude-3-5-sonnet", config)
+      {:ok, message, new_config} = Commands.execute("/model anthropic:claude-3-5-haiku-20241022", config)
 
-      assert message =~ "Model set to anthropic:claude-3-5-sonnet"
+      assert message =~ "Model set to anthropic:claude-3-5-haiku-20241022"
       assert new_config.provider == "anthropic"
-      assert new_config.model == "claude-3-5-sonnet"
+      assert new_config.model == "claude-3-5-haiku-20241022"
       cleanup_api_key("anthropic")
     end
 
@@ -113,11 +113,11 @@ defmodule JidoCode.CommandsTest do
       setup_api_key("anthropic")
       config = %{provider: "anthropic", model: nil}
 
-      {:ok, message, new_config} = Commands.execute("/model claude-3-5-sonnet", config)
+      {:ok, message, new_config} = Commands.execute("/model claude-3-5-haiku-20241022", config)
 
-      assert message =~ "Model set to claude-3-5-sonnet"
+      assert message =~ "Model set to claude-3-5-haiku-20241022"
       assert new_config.provider == "anthropic"
-      assert new_config.model == "claude-3-5-sonnet"
+      assert new_config.model == "claude-3-5-haiku-20241022"
       cleanup_api_key("anthropic")
     end
 
@@ -493,10 +493,10 @@ defmodule JidoCode.CommandsTest do
       setup_api_key("anthropic")
       config = %{"provider" => "anthropic", "model" => nil}
 
-      {:ok, message, new_config} = Commands.execute("/model claude-3-5-sonnet", config)
+      {:ok, message, new_config} = Commands.execute("/model claude-3-5-haiku-20241022", config)
 
       assert message =~ "Model set to"
-      assert new_config.model == "claude-3-5-sonnet"
+      assert new_config.model == "claude-3-5-haiku-20241022"
       cleanup_api_key("anthropic")
     end
   end

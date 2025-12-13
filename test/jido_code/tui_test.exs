@@ -95,7 +95,7 @@ defmodule JidoCode.TUITest do
         text_input: create_text_input("test input"),
         messages: [%{role: :user, content: "hello", timestamp: DateTime.utc_now()}],
         agent_status: :idle,
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"},
         reasoning_steps: [%{step: "thinking", status: :active}],
         window: {120, 40}
       }
@@ -163,7 +163,7 @@ defmodule JidoCode.TUITest do
     end
 
     test "returns :idle when both provider and model are set" do
-      config = %{provider: "anthropic", model: "claude-3-5-sonnet"}
+      config = %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
       assert TUI.determine_status(config) == :idle
     end
   end
@@ -387,7 +387,7 @@ defmodule JidoCode.TUITest do
       model = %Model{
         text_input: create_text_input("/config"),
         messages: [],
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
       }
 
       {new_model, _} = TUI.update({:input_submitted, "/config"}, model)
@@ -395,7 +395,7 @@ defmodule JidoCode.TUITest do
       assert get_input_value(new_model) == ""
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).content =~ "Provider: anthropic"
-      assert hd(new_model.messages).content =~ "Model: claude-3-5-sonnet"
+      assert hd(new_model.messages).content =~ "Model: claude-3-5-haiku-20241022"
     end
 
     test "/provider command updates config and status" do
@@ -418,16 +418,16 @@ defmodule JidoCode.TUITest do
       setup_api_key("anthropic")
 
       model = %Model{
-        text_input: create_text_input("/model anthropic:claude-3-5-sonnet"),
+        text_input: create_text_input("/model anthropic:claude-3-5-haiku-20241022"),
         messages: [],
         config: %{provider: nil, model: nil},
         agent_status: :unconfigured
       }
 
-      {new_model, _} = TUI.update({:input_submitted, "/model anthropic:claude-3-5-sonnet"}, model)
+      {new_model, _} = TUI.update({:input_submitted, "/model anthropic:claude-3-5-haiku-20241022"}, model)
 
       assert new_model.config.provider == "anthropic"
-      assert new_model.config.model == "claude-3-5-sonnet"
+      assert new_model.config.model == "claude-3-5-haiku-20241022"
       # Now configured - status should be idle
       assert new_model.agent_status == :idle
 
@@ -859,7 +859,7 @@ defmodule JidoCode.TUITest do
       model = %Model{
         text_input: create_text_input(),
         agent_status: :idle,
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
       }
 
       view = TUI.view(model)
@@ -887,7 +887,7 @@ defmodule JidoCode.TUITest do
       model = %Model{
         text_input: create_text_input(),
         agent_status: :idle,
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"}
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
       }
 
       view = TUI.view(model)
@@ -900,7 +900,7 @@ defmodule JidoCode.TUITest do
       model = %Model{
         text_input: create_text_input(),
         agent_status: :idle,
-        config: %{provider: "anthropic", model: "claude-3-5-sonnet"},
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"},
         messages: []
       }
 

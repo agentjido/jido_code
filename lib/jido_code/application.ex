@@ -63,9 +63,6 @@ defmodule JidoCode.Application do
       # Registry for session process lookup (Session.Supervisor, Manager, State)
       {Registry, keys: :unique, name: JidoCode.SessionProcessRegistry},
 
-      # Tool registry for LLM function calling
-      JidoCode.Tools.Registry,
-
       # Lua sandbox for tool execution
       JidoCode.Tools.Manager,
 

@@ -131,21 +131,21 @@ Update `init/1` for multi-session model.
 - [x] 4.2.1.4 Write unit tests for init (12 tests, 0 failures)
 
 ### 4.2.2 PubSub Subscription Management
-- [ ] **Task 4.2.2**
+- [x] **Task 4.2.2** (completed 2025-12-15)
 
 Implement dynamic PubSub subscription for sessions.
 
-- [ ] 4.2.2.1 Implement `subscribe_to_session/1`:
+- [x] 4.2.2.1 Implement `subscribe_to_session/1`:
   ```elixir
-  defp subscribe_to_session(session_id) do
+  def subscribe_to_session(session_id) do
     topic = PubSubTopics.llm_stream(session_id)
     Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
   end
   ```
-- [ ] 4.2.2.2 Implement `unsubscribe_from_session/1`
-- [ ] 4.2.2.3 Subscribe when session added
-- [ ] 4.2.2.4 Unsubscribe when session removed
-- [ ] 4.2.2.5 Write unit tests for subscription management
+- [x] 4.2.2.2 Implement `unsubscribe_from_session/1`
+- [x] 4.2.2.3 Subscribe when session added
+- [x] 4.2.2.4 Unsubscribe when session removed
+- [x] 4.2.2.5 Write unit tests for subscription management (6 tests, 0 failures)
 
 ### 4.2.3 Message Routing
 - [ ] **Task 4.2.3**

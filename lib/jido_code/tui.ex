@@ -331,6 +331,9 @@ defmodule JidoCode.TUI do
     """
     @spec add_session(t(), JidoCode.Session.t()) :: t()
     def add_session(%__MODULE__{} = model, %JidoCode.Session{} = session) do
+      # Subscribe to the new session's events
+      JidoCode.TUI.subscribe_to_session(session.id)
+
       %{
         model
         | sessions: Map.put(model.sessions, session.id, session),
@@ -375,6 +378,9 @@ defmodule JidoCode.TUI do
     @spec add_session_to_tabs(t(), JidoCode.Session.t() | map()) :: t()
     def add_session_to_tabs(%__MODULE__{} = model, session) when is_map(session) do
       session_id = Map.get(session, :id) || Map.get(session, "id")
+
+      # Subscribe to the new session's events
+      JidoCode.TUI.subscribe_to_session(session_id)
 
       %{
         model
@@ -455,6 +461,9 @@ defmodule JidoCode.TUI do
     """
     @spec remove_session(t(), String.t()) :: t()
     def remove_session(%__MODULE__{} = model, session_id) do
+      # Unsubscribe from the session's events before removal
+      JidoCode.TUI.unsubscribe_from_session(session_id)
+
       # Remove from sessions map
       new_sessions = Map.delete(model.sessions, session_id)
 
@@ -1687,6 +1696,30 @@ defmodule JidoCode.TUI do
     JidoCode.SessionRegistry.list_all()
   end
 
+  # Subscribe to PubSub topic for a single session.
+  #
+  # Subscribes to the session's llm_stream topic to receive
+  # streaming messages, tool calls, and other session events.
+  #
+  # This function is public to be accessible from the nested Model module.
+  @spec subscribe_to_session(String.t()) :: :ok | {:error, term()}
+  def subscribe_to_session(session_id) do
+    topic = PubSubTopics.llm_stream(session_id)
+    Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+  end
+
+  # Unsubscribe from PubSub topic for a single session.
+  #
+  # Unsubscribes from the session's llm_stream topic to stop
+  # receiving events from that session.
+  #
+  # This function is public to be accessible from the nested Model module.
+  @spec unsubscribe_from_session(String.t()) :: :ok
+  def unsubscribe_from_session(session_id) do
+    topic = PubSubTopics.llm_stream(session_id)
+    Phoenix.PubSub.unsubscribe(JidoCode.PubSub, topic)
+  end
+
   # Subscribe to PubSub topics for all sessions.
   #
   # Subscribes to each session's llm_stream topic for receiving
@@ -1694,8 +1727,7 @@ defmodule JidoCode.TUI do
   @spec subscribe_to_all_sessions([Session.t()]) :: :ok
   defp subscribe_to_all_sessions(sessions) do
     Enum.each(sessions, fn session ->
-      topic = PubSubTopics.llm_stream(session.id)
-      Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+      subscribe_to_session(session.id)
     end)
   end
 

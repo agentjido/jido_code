@@ -2593,4 +2593,101 @@ defmodule JidoCode.TUITest do
       assert new_model == model
     end
   end
+
+  describe "PubSub subscription management" do
+    test "subscribe_to_session/1 subscribes to session's PubSub topic" do
+      session_id = "test-session"
+
+      TUI.subscribe_to_session(session_id)
+
+      # Verify subscription by broadcasting
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.#{session_id}", {:test_message, "hello"})
+      assert_receive {:test_message, "hello"}, 1000
+    end
+
+    test "unsubscribe_from_session/1 unsubscribes from session's PubSub topic" do
+      session_id = "test-session"
+
+      # First subscribe
+      TUI.subscribe_to_session(session_id)
+
+      # Then unsubscribe
+      TUI.unsubscribe_from_session(session_id)
+
+      # Broadcast should not be received
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.#{session_id}", {:test_message, "hello"})
+      refute_receive {:test_message, "hello"}, 500
+    end
+
+    test "add_session/2 subscribes to new session" do
+      session = %Session{
+        id: "new-session",
+        name: "New Session",
+        project_path: "/test",
+        config: %{},
+        created_at: DateTime.utc_now(),
+        updated_at: DateTime.utc_now()
+      }
+
+      model = %Model{text_input: create_text_input()}
+      _new_model = Model.add_session(model, session)
+
+      # Verify subscription
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.new-session", {:test_message, "subscribed"})
+      assert_receive {:test_message, "subscribed"}, 1000
+
+      # Cleanup
+      TUI.unsubscribe_from_session("new-session")
+    end
+
+    test "add_session_to_tabs/2 subscribes to new session" do
+      session = %{id: "new-session-tabs", name: "Test Session", project_path: "/test"}
+
+      model = %Model{text_input: create_text_input()}
+      _new_model = Model.add_session_to_tabs(model, session)
+
+      # Verify subscription
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.new-session-tabs", {:test_message, "subscribed"})
+      assert_receive {:test_message, "subscribed"}, 1000
+
+      # Cleanup
+      TUI.unsubscribe_from_session("new-session-tabs")
+    end
+
+    test "remove_session/2 unsubscribes from removed session" do
+      session = %{id: "remove-session", name: "Remove Me", project_path: "/test"}
+
+      model = %Model{text_input: create_text_input()}
+      model = Model.add_session_to_tabs(model, session)
+
+      # Verify subscribed
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session", {:test_before, "before"})
+      assert_receive {:test_before, "before"}, 1000
+
+      # Remove session
+      _new_model = Model.remove_session(model, "remove-session")
+
+      # Should not receive after removal
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session", {:test_after, "after"})
+      refute_receive {:test_after, "after"}, 500
+    end
+
+    test "remove_session_from_tabs/2 unsubscribes from removed session" do
+      session = %{id: "remove-session-tabs", name: "Remove Me", project_path: "/test"}
+
+      model = %Model{text_input: create_text_input()}
+      model = Model.add_session_to_tabs(model, session)
+
+      # Verify subscribed
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session-tabs", {:test_before, "before"})
+      assert_receive {:test_before, "before"}, 1000
+
+      # Remove session
+      _new_model = Model.remove_session_from_tabs(model, "remove-session-tabs")
+
+      # Should not receive after removal
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session-tabs", {:test_after, "after"})
+      refute_receive {:test_after, "after"}, 500
+    end
+  end
 end

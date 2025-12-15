@@ -5,6 +5,9 @@ defmodule JidoCode.Tools.HandlerHelpersTest do
   alias JidoCode.Tools.HandlerHelpers
 
   setup do
+    # Ensure application is started (SessionProcessRegistry is in supervision tree)
+    Application.ensure_all_started(:jido_code)
+
     # Suppress deprecation warnings for tests
     Application.put_env(:jido_code, :suppress_global_manager_warnings, true)
 

@@ -10,6 +10,9 @@ defmodule JidoCode.Tools.ManagerTest do
   # that's started by the application supervision tree.
 
   setup do
+    # Ensure application is started (Manager is in supervision tree)
+    Application.ensure_all_started(:jido_code)
+
     # Suppress deprecation warnings for most tests
     Application.put_env(:jido_code, :suppress_global_manager_warnings, true)
 

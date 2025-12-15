@@ -89,8 +89,8 @@ defmodule JidoCode.TUI do
           | {:tool_call, String.t(), map(), String.t(), String.t() | nil}
           | {:tool_result, Result.t(), String.t() | nil}
           | :toggle_tool_details
-          | {:stream_chunk, String.t()}
-          | {:stream_end, String.t()}
+          | {:stream_chunk, String.t(), String.t()}
+          | {:stream_end, String.t(), String.t()}
           | {:stream_error, term()}
 
   # Maximum number of messages to keep in the debug queue
@@ -915,11 +915,11 @@ defmodule JidoCode.TUI do
     do: MessageHandlers.handle_agent_response(content, state)
 
   # Streaming message handlers
-  def update({:stream_chunk, chunk}, state),
-    do: MessageHandlers.handle_stream_chunk(chunk, state)
+  def update({:stream_chunk, session_id, chunk}, state),
+    do: MessageHandlers.handle_stream_chunk(session_id, chunk, state)
 
-  def update({:stream_end, full_content}, state),
-    do: MessageHandlers.handle_stream_end(full_content, state)
+  def update({:stream_end, session_id, full_content}, state),
+    do: MessageHandlers.handle_stream_end(session_id, full_content, state)
 
   def update({:stream_error, reason}, state),
     do: MessageHandlers.handle_stream_error(reason, state)
@@ -993,13 +993,13 @@ defmodule JidoCode.TUI do
 
   # Tool call handling - add pending tool call to list
   # The session_id in the message is for routing identification; we pass it through
-  def update({:tool_call, tool_name, params, call_id, _session_id}, state),
-    do: MessageHandlers.handle_tool_call(tool_name, params, call_id, state)
+  def update({:tool_call, tool_name, params, call_id, session_id}, state),
+    do: MessageHandlers.handle_tool_call(session_id, tool_name, params, call_id, state)
 
   # Tool result handling - match result to pending call and update
   # The session_id in the message is for routing identification; we pass it through
-  def update({:tool_result, %Result{} = result, _session_id}, state),
-    do: MessageHandlers.handle_tool_result(result, state)
+  def update({:tool_result, %Result{} = result, session_id}, state),
+    do: MessageHandlers.handle_tool_result(session_id, result, state)
 
   # Theme change handling - triggers re-render with new theme colors
   def update({:theme_changed, _theme}, state) do

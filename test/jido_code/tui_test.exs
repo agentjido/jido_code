@@ -692,13 +692,13 @@ defmodule JidoCode.TUITest do
     test "stream_chunk appends to streaming_message" do
       model = %Model{text_input: create_text_input(), streaming_message: "", is_streaming: true}
 
-      {new_model, _} = TUI.update({:stream_chunk, "Hello "}, model)
+      {new_model, _} = TUI.update({:stream_chunk, "test-session", "Hello "}, model)
 
       assert new_model.streaming_message == "Hello "
       assert new_model.is_streaming == true
 
       # Append another chunk
-      {new_model2, _} = TUI.update({:stream_chunk, "world!"}, new_model)
+      {new_model2, _} = TUI.update({:stream_chunk, "test-session", "world!"}, new_model)
 
       assert new_model2.streaming_message == "Hello world!"
       assert new_model2.is_streaming == true
@@ -707,7 +707,7 @@ defmodule JidoCode.TUITest do
     test "stream_chunk starts with nil streaming_message" do
       model = %Model{text_input: create_text_input(), streaming_message: nil, is_streaming: false}
 
-      {new_model, _} = TUI.update({:stream_chunk, "Hello"}, model)
+      {new_model, _} = TUI.update({:stream_chunk, "test-session", "Hello"}, model)
 
       assert new_model.streaming_message == "Hello"
       assert new_model.is_streaming == true
@@ -722,7 +722,7 @@ defmodule JidoCode.TUITest do
         agent_status: :processing
       }
 
-      {new_model, _} = TUI.update({:stream_end, "Complete response"}, model)
+      {new_model, _} = TUI.update({:stream_end, "test-session", "Complete response"}, model)
 
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :assistant

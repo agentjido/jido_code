@@ -796,15 +796,15 @@ defmodule JidoCode.Agents.LLMAgent do
   defp broadcast_stream_chunk(topic, chunk, session_id) do
     # Update Session.State with chunk (skip if session_id is PID string)
     update_session_streaming(session_id, chunk)
-    # Also broadcast for TUI
-    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_chunk, chunk})
+    # Also broadcast for TUI (include session_id for routing)
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_chunk, session_id, chunk})
   end
 
   defp broadcast_stream_end(topic, full_content, session_id) do
     # Finalize message in Session.State (skip if session_id is PID string)
     end_session_streaming(session_id)
-    # Also broadcast for TUI
-    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, full_content})
+    # Also broadcast for TUI (include session_id for routing)
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, session_id, full_content})
   end
 
   defp broadcast_stream_error(topic, reason) do

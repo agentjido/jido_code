@@ -48,8 +48,8 @@ defmodule JidoCode.TUI.MessageHandlers do
   @doc """
   Handles a streaming chunk from the agent.
   """
-  @spec handle_stream_chunk(String.t(), Model.t()) :: {Model.t(), list()}
-  def handle_stream_chunk(chunk, state) do
+  @spec handle_stream_chunk(String.t(), String.t(), Model.t()) :: {Model.t(), list()}
+  def handle_stream_chunk(_session_id, chunk, state) do
     new_streaming_message = (state.streaming_message || "") <> chunk
     queue = queue_message(state.message_queue, {:stream_chunk, chunk})
 
@@ -85,8 +85,8 @@ defmodule JidoCode.TUI.MessageHandlers do
   @doc """
   Handles the end of a streaming response.
   """
-  @spec handle_stream_end(String.t(), Model.t()) :: {Model.t(), list()}
-  def handle_stream_end(_full_content, state) do
+  @spec handle_stream_end(String.t(), String.t(), Model.t()) :: {Model.t(), list()}
+  def handle_stream_end(_session_id, _full_content, state) do
     message = TUI.assistant_message(state.streaming_message || "")
     queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
 
@@ -217,8 +217,8 @@ defmodule JidoCode.TUI.MessageHandlers do
   @doc """
   Handles a new tool call being initiated.
   """
-  @spec handle_tool_call(String.t(), map(), String.t(), Model.t()) :: {Model.t(), list()}
-  def handle_tool_call(tool_name, params, call_id, state) do
+  @spec handle_tool_call(String.t(), String.t(), map(), String.t(), Model.t()) :: {Model.t(), list()}
+  def handle_tool_call(_session_id, tool_name, params, call_id, state) do
     tool_call_entry = %{
       call_id: call_id,
       tool_name: tool_name,
@@ -237,8 +237,8 @@ defmodule JidoCode.TUI.MessageHandlers do
   @doc """
   Handles a tool result.
   """
-  @spec handle_tool_result(Result.t(), Model.t()) :: {Model.t(), list()}
-  def handle_tool_result(%Result{} = result, state) do
+  @spec handle_tool_result(String.t(), Result.t(), Model.t()) :: {Model.t(), list()}
+  def handle_tool_result(_session_id, %Result{} = result, state) do
     updated_tool_calls =
       Enum.map(state.tool_calls, fn entry ->
         if entry.call_id == result.tool_call_id do

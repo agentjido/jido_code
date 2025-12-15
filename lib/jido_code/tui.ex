@@ -170,6 +170,12 @@ defmodule JidoCode.TUI do
             agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
 
+            # Sidebar state (Phase 4.5)
+            sidebar_visible: boolean(),
+            sidebar_width: pos_integer(),
+            sidebar_expanded: MapSet.t(String.t()),
+            sidebar_focused: boolean(),
+
             # Modals (shared across sessions)
             shell_dialog: map() | nil,
             shell_viewport: map() | nil,
@@ -207,6 +213,11 @@ defmodule JidoCode.TUI do
       show_tool_details: false,
       agent_status: :unconfigured,
       config: %{provider: nil, model: nil},
+      # Sidebar state (Phase 4.5)
+      sidebar_visible: true,
+      sidebar_width: 20,
+      sidebar_expanded: MapSet.new(),
+      sidebar_focused: false,
       # Modals (shared across sessions)
       shell_dialog: nil,
       shell_viewport: nil,
@@ -657,7 +668,12 @@ defmodule JidoCode.TUI do
       agent_name: :llm_agent,
       streaming_message: nil,
       is_streaming: false,
-      conversation_view: conversation_view_state
+      conversation_view: conversation_view_state,
+      # Sidebar state (Phase 4.5)
+      sidebar_visible: true,
+      sidebar_width: 20,
+      sidebar_expanded: MapSet.new(),
+      sidebar_focused: false
     }
   end
 

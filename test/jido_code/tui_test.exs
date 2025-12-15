@@ -122,6 +122,134 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  describe "Model sidebar state (Phase 4.5.3)" do
+    test "Model struct has sidebar_visible field" do
+      model = %Model{}
+      assert Map.has_key?(model, :sidebar_visible)
+    end
+
+    test "Model struct has sidebar_width field" do
+      model = %Model{}
+      assert Map.has_key?(model, :sidebar_width)
+    end
+
+    test "Model struct has sidebar_expanded field" do
+      model = %Model{}
+      assert Map.has_key?(model, :sidebar_expanded)
+    end
+
+    test "Model struct has sidebar_focused field" do
+      model = %Model{}
+      assert Map.has_key?(model, :sidebar_focused)
+    end
+
+    test "sidebar_visible defaults to true" do
+      model = %Model{}
+      assert model.sidebar_visible == true
+    end
+
+    test "sidebar_width defaults to 20" do
+      model = %Model{}
+      assert model.sidebar_width == 20
+    end
+
+    test "sidebar_expanded defaults to empty MapSet" do
+      model = %Model{}
+      assert model.sidebar_expanded == MapSet.new()
+    end
+
+    test "sidebar_focused defaults to false" do
+      model = %Model{}
+      assert model.sidebar_focused == false
+    end
+
+    test "can create Model with sidebar_visible false" do
+      model = %Model{sidebar_visible: false}
+      assert model.sidebar_visible == false
+    end
+
+    test "can create Model with custom sidebar_width" do
+      model = %Model{sidebar_width: 25}
+      assert model.sidebar_width == 25
+    end
+
+    test "can create Model with expanded sessions" do
+      expanded = MapSet.new(["s1", "s2"])
+      model = %Model{sidebar_expanded: expanded}
+      assert MapSet.member?(model.sidebar_expanded, "s1")
+      assert MapSet.member?(model.sidebar_expanded, "s2")
+    end
+
+    test "can create Model with sidebar_focused true" do
+      model = %Model{sidebar_focused: true}
+      assert model.sidebar_focused == true
+    end
+
+    test "can add session to sidebar_expanded" do
+      model = %Model{}
+      expanded = MapSet.put(model.sidebar_expanded, "s1")
+      model = %{model | sidebar_expanded: expanded}
+      assert MapSet.member?(model.sidebar_expanded, "s1")
+    end
+
+    test "can remove session from sidebar_expanded" do
+      expanded = MapSet.new(["s1", "s2"])
+      model = %Model{sidebar_expanded: expanded}
+
+      expanded = MapSet.delete(model.sidebar_expanded, "s1")
+      model = %{model | sidebar_expanded: expanded}
+
+      refute MapSet.member?(model.sidebar_expanded, "s1")
+      assert MapSet.member?(model.sidebar_expanded, "s2")
+    end
+
+    test "can toggle session expansion" do
+      model = %Model{}
+
+      # Expand
+      expanded = MapSet.put(model.sidebar_expanded, "s1")
+      model = %{model | sidebar_expanded: expanded}
+      assert MapSet.member?(model.sidebar_expanded, "s1")
+
+      # Collapse
+      expanded = MapSet.delete(model.sidebar_expanded, "s1")
+      model = %{model | sidebar_expanded: expanded}
+      refute MapSet.member?(model.sidebar_expanded, "s1")
+    end
+  end
+
+  describe "init/1 sidebar initialization (Phase 4.5.3)" do
+    test "init/1 sets sidebar_visible to true" do
+      model = TUI.init([])
+      assert model.sidebar_visible == true
+    end
+
+    test "init/1 sets sidebar_width to 20" do
+      model = TUI.init([])
+      assert model.sidebar_width == 20
+    end
+
+    test "init/1 sets sidebar_expanded to empty MapSet" do
+      model = TUI.init([])
+      assert model.sidebar_expanded == MapSet.new()
+    end
+
+    test "init/1 sets sidebar_focused to false" do
+      model = TUI.init([])
+      assert model.sidebar_focused == false
+    end
+
+    test "init/1 initializes all sidebar fields together" do
+      model = TUI.init([])
+
+      # All sidebar fields should be present with default values
+      assert model.sidebar_visible == true
+      assert model.sidebar_width == 20
+      assert model.sidebar_expanded == MapSet.new()
+      assert model.sidebar_focused == false
+    end
+  end
+
   describe "init/1" do
     test "returns a Model struct" do
       model = TUI.init([])

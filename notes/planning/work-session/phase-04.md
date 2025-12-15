@@ -404,16 +404,26 @@ Create session-specific sidebar that uses accordion to display sessions.
 - Known limitation: Minimum practical width is 20 chars (badge truncation issues below this)
 
 ### 4.5.3 Model Updates
-- [ ] **Task 4.5.3**
+- [x] **Task 4.5.3** (completed 2025-12-15)
 
 Add sidebar state to TUI Model for visibility, width, and expanded sections.
 
-- [ ] 4.5.3.1 Add `sidebar_visible` field to Model struct (default: true)
-- [ ] 4.5.3.2 Add `sidebar_width` field to Model struct (default: 20)
-- [ ] 4.5.3.3 Add `sidebar_expanded` field to Model struct (MapSet of session IDs)
-- [ ] 4.5.3.4 Add `sidebar_focused` field to Model struct for navigation
-- [ ] 4.5.3.5 Update Model typespec with new fields
-- [ ] 4.5.3.6 Update `init/1` to initialize sidebar state:
+- [x] 4.5.3.1 Add `sidebar_visible` field to Model struct (default: true)
+  - Added to defstruct with default value `true`
+  - Sidebar shown by default on wide terminals (will auto-hide in 4.5.4)
+- [x] 4.5.3.2 Add `sidebar_width` field to Model struct (default: 20)
+  - Added to defstruct with default value `20`
+  - Matches SessionSidebar default and fits session name + badge
+- [x] 4.5.3.3 Add `sidebar_expanded` field to Model struct (MapSet of session IDs)
+  - Added to defstruct with default value `MapSet.new()`
+  - Uses MapSet for O(1) membership checks
+- [x] 4.5.3.4 Add `sidebar_focused` field to Model struct for navigation
+  - Added to defstruct with default value `false`
+  - Input has focus by default
+- [x] 4.5.3.5 Update Model typespec with new fields
+  - Added sidebar fields to `@type t` in lib/jido_code/tui.ex (lines 173-177)
+  - Types: `boolean()`, `pos_integer()`, `MapSet.t(String.t())`, `boolean()`
+- [x] 4.5.3.6 Update `init/1` to initialize sidebar state:
   ```elixir
   %Model{
     # ... existing fields
@@ -423,7 +433,18 @@ Add sidebar state to TUI Model for visibility, width, and expanded sections.
     sidebar_focused: false
   }
   ```
-- [ ] 4.5.3.7 Write unit tests for model updates
+  - Implemented in lib/jido_code/tui.ex (lines 672-676)
+- [x] 4.5.3.7 Write unit tests for model updates
+  - Added 20 new tests in test/jido_code/tui_test.exs (lines 125-251)
+  - 15 tests for Model struct fields and operations
+  - 5 tests for init/1 sidebar initialization
+  - All tests passing
+
+**Implementation Notes**:
+- Files Modified: `lib/jido_code/tui.ex`, `test/jido_code/tui_test.exs`
+- Test Coverage: 20 new tests (256 total, up from 236)
+- All new sidebar tests passing
+- No breaking changes to existing functionality
 
 ### 4.5.4 Layout Integration
 - [ ] **Task 4.5.4**

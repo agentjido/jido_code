@@ -139,9 +139,9 @@ defmodule JidoCode.TUITest do
       assert Map.has_key?(model, :sidebar_expanded)
     end
 
-    test "Model struct has sidebar_focused field" do
+    test "Model struct has sidebar_selected_index field" do
       model = %Model{}
-      assert Map.has_key?(model, :sidebar_focused)
+      assert Map.has_key?(model, :sidebar_selected_index)
     end
 
     test "sidebar_visible defaults to true" do
@@ -159,9 +159,9 @@ defmodule JidoCode.TUITest do
       assert model.sidebar_expanded == MapSet.new()
     end
 
-    test "sidebar_focused defaults to false" do
+    test "sidebar_selected_index defaults to 0" do
       model = %Model{}
-      assert model.sidebar_focused == false
+      assert model.sidebar_selected_index == 0
     end
 
     test "can create Model with sidebar_visible false" do
@@ -181,9 +181,9 @@ defmodule JidoCode.TUITest do
       assert MapSet.member?(model.sidebar_expanded, "s2")
     end
 
-    test "can create Model with sidebar_focused true" do
-      model = %Model{sidebar_focused: true}
-      assert model.sidebar_focused == true
+    test "can create Model with custom sidebar_selected_index" do
+      model = %Model{sidebar_selected_index: 2}
+      assert model.sidebar_selected_index == 2
     end
 
     test "can add session to sidebar_expanded" do
@@ -235,9 +235,9 @@ defmodule JidoCode.TUITest do
       assert model.sidebar_expanded == MapSet.new()
     end
 
-    test "init/1 sets sidebar_focused to false" do
+    test "init/1 sets sidebar_selected_index to 0" do
       model = TUI.init([])
-      assert model.sidebar_focused == false
+      assert model.sidebar_selected_index == 0
     end
 
     test "init/1 initializes all sidebar fields together" do
@@ -247,7 +247,7 @@ defmodule JidoCode.TUITest do
       assert model.sidebar_visible == true
       assert model.sidebar_width == 20
       assert model.sidebar_expanded == MapSet.new()
-      assert model.sidebar_focused == false
+      assert model.sidebar_selected_index == 0
     end
   end
 
@@ -3273,5 +3273,214 @@ defmodule JidoCode.TUITest do
         assert length(result) == 3
         assert result == lines
       end
+  end
+
+  describe "keyboard shortcuts for sidebar (Task 4.5.5)" do
+    setup do
+      # Create a test model with multiple sessions
+      session1 = create_test_session(id: "session1", name: "Session 1")
+      session2 = create_test_session(id: "session2", name: "Session 2")
+      session3 = create_test_session(id: "session3", name: "Session 3")
+
+      # Create and initialize text input
+      text_input_props = TextInput.new(placeholder: "Test", width: 50, enter_submits: false)
+      {:ok, text_input_state} = TextInput.init(text_input_props)
+      text_input_state = TextInput.set_focused(text_input_state, true)
+
+      model = %Model{
+        sessions: %{
+          "session1" => session1,
+          "session2" => session2,
+          "session3" => session3
+        },
+        session_order: ["session1", "session2", "session3"],
+        active_session_id: "session1",
+        sidebar_visible: true,
+        sidebar_width: 20,
+        sidebar_expanded: MapSet.new(),
+        sidebar_selected_index: 0,
+        focus: :input,
+        text_input: text_input_state,
+        window: {100, 24}
+      }
+
+      {:ok, model: model}
+    end
+
+    # Ctrl+S Toggle Tests
+    test "Ctrl+S toggles sidebar_visible from true to false", %{model: model} do
+      assert model.sidebar_visible == true
+
+      {new_model, _cmds} = TUI.update(:toggle_sidebar, model)
+
+      assert new_model.sidebar_visible == false
+    end
+
+    test "Ctrl+S toggles sidebar_visible from false to true", %{model: model} do
+      model = %{model | sidebar_visible: false}
+      assert model.sidebar_visible == false
+
+      {new_model, _cmds} = TUI.update(:toggle_sidebar, model)
+
+      assert new_model.sidebar_visible == true
+    end
+
+    test "multiple Ctrl+S toggles work correctly", %{model: model} do
+      assert model.sidebar_visible == true
+
+      {model, _} = TUI.update(:toggle_sidebar, model)
+      assert model.sidebar_visible == false
+
+      {model, _} = TUI.update(:toggle_sidebar, model)
+      assert model.sidebar_visible == true
+
+      {model, _} = TUI.update(:toggle_sidebar, model)
+      assert model.sidebar_visible == false
+    end
+
+    # Sidebar Navigation Tests
+    test "Down arrow increments sidebar_selected_index", %{model: model} do
+      assert model.sidebar_selected_index == 0
+
+      {new_model, _cmds} = TUI.update({:sidebar_nav, :down}, model)
+
+      assert new_model.sidebar_selected_index == 1
+    end
+
+    test "Up arrow decrements sidebar_selected_index", %{model: model} do
+      model = %{model | sidebar_selected_index: 1}
+      assert model.sidebar_selected_index == 1
+
+      {new_model, _cmds} = TUI.update({:sidebar_nav, :up}, model)
+
+      assert new_model.sidebar_selected_index == 0
+    end
+
+    test "Down arrow wraps to 0 at end", %{model: model} do
+      model = %{model | sidebar_selected_index: 2}
+      assert model.sidebar_selected_index == 2
+
+      {new_model, _cmds} = TUI.update({:sidebar_nav, :down}, model)
+
+      assert new_model.sidebar_selected_index == 0
+    end
+
+    test "Up arrow wraps to max at start", %{model: model} do
+      assert model.sidebar_selected_index == 0
+
+      {new_model, _cmds} = TUI.update({:sidebar_nav, :up}, model)
+
+      assert new_model.sidebar_selected_index == 2
+    end
+
+    # Accordion Toggle Tests
+    test "Enter adds session to sidebar_expanded when collapsed", %{model: model} do
+      assert MapSet.size(model.sidebar_expanded) == 0
+
+      {new_model, _cmds} = TUI.update({:toggle_accordion, "session1"}, model)
+
+      assert MapSet.member?(new_model.sidebar_expanded, "session1")
+      assert MapSet.size(new_model.sidebar_expanded) == 1
+    end
+
+    test "Enter removes session from sidebar_expanded when expanded", %{model: model} do
+      model = %{model | sidebar_expanded: MapSet.new(["session1"])}
+      assert MapSet.member?(model.sidebar_expanded, "session1")
+
+      {new_model, _cmds} = TUI.update({:toggle_accordion, "session1"}, model)
+
+      refute MapSet.member?(new_model.sidebar_expanded, "session1")
+      assert MapSet.size(new_model.sidebar_expanded) == 0
+    end
+
+    test "Enter toggles work multiple times", %{model: model} do
+      assert MapSet.size(model.sidebar_expanded) == 0
+
+      {model, _} = TUI.update({:toggle_accordion, "session1"}, model)
+      assert MapSet.member?(model.sidebar_expanded, "session1")
+
+      {model, _} = TUI.update({:toggle_accordion, "session1"}, model)
+      refute MapSet.member?(model.sidebar_expanded, "session1")
+
+      {model, _} = TUI.update({:toggle_accordion, "session1"}, model)
+      assert MapSet.member?(model.sidebar_expanded, "session1")
+    end
+
+    # Focus Cycle Tests
+    test "Tab cycles focus forward through all states", %{model: model} do
+      model = %{model | focus: :input, sidebar_visible: true}
+      text_input = TextInput.set_focused(model.text_input, true)
+      model = %{model | text_input: text_input}
+
+      # input -> conversation
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :conversation
+      refute model.text_input.focused
+
+      # conversation -> sidebar
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :sidebar
+
+      # sidebar -> input
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :input
+      assert model.text_input.focused
+    end
+
+    test "Shift+Tab cycles focus backward through all states", %{model: model} do
+      model = %{model | focus: :input, sidebar_visible: true}
+      text_input = TextInput.set_focused(model.text_input, true)
+      model = %{model | text_input: text_input}
+
+      # input -> sidebar
+      {model, _} = TUI.update({:cycle_focus, :backward}, model)
+      assert model.focus == :sidebar
+      refute model.text_input.focused
+
+      # sidebar -> conversation
+      {model, _} = TUI.update({:cycle_focus, :backward}, model)
+      assert model.focus == :conversation
+
+      # conversation -> input
+      {model, _} = TUI.update({:cycle_focus, :backward}, model)
+      assert model.focus == :input
+      assert model.text_input.focused
+    end
+
+    test "Tab skips sidebar when sidebar_visible is false", %{model: model} do
+      model = %{model | focus: :input, sidebar_visible: false}
+      text_input = TextInput.set_focused(model.text_input, true)
+      model = %{model | text_input: text_input}
+
+      # input -> conversation (skips sidebar)
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :conversation
+
+      # conversation -> input (skips sidebar)
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :input
+    end
+
+    test "focus changes update text_input focused state", %{model: model} do
+      model = %{model | focus: :input}
+      text_input = TextInput.set_focused(model.text_input, true)
+      model = %{model | text_input: text_input}
+      assert model.text_input.focused
+
+      # Moving to conversation unfocuses text_input
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :conversation
+      refute model.text_input.focused
+
+      # Moving to sidebar keeps text_input unfocused
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :sidebar
+      refute model.text_input.focused
+
+      # Moving back to input refocuses text_input
+      {model, _} = TUI.update({:cycle_focus, :forward}, model)
+      assert model.focus == :input
+      assert model.text_input.focused
+    end
   end
 end

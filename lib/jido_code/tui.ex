@@ -150,7 +150,7 @@ defmodule JidoCode.TUI do
     @type queued_message :: {term(), DateTime.t()}
 
     @typedoc "Focus states for keyboard navigation"
-    @type focus :: :input | :conversation | :tabs
+    @type focus :: :input | :conversation | :tabs | :sidebar
 
     @typedoc "Map of session_id to Session struct"
     @type session_map :: %{optional(String.t()) => JidoCode.Session.t()}
@@ -175,7 +175,7 @@ defmodule JidoCode.TUI do
             sidebar_visible: boolean(),
             sidebar_width: pos_integer(),
             sidebar_expanded: MapSet.t(String.t()),
-            sidebar_focused: boolean(),
+            sidebar_selected_index: non_neg_integer(),
 
             # Modals (shared across sessions)
             shell_dialog: map() | nil,
@@ -218,7 +218,7 @@ defmodule JidoCode.TUI do
       sidebar_visible: true,
       sidebar_width: 20,
       sidebar_expanded: MapSet.new(),
-      sidebar_focused: false,
+      sidebar_selected_index: 0,
       # Modals (shared across sessions)
       shell_dialog: nil,
       shell_viewport: nil,
@@ -674,7 +674,7 @@ defmodule JidoCode.TUI do
       sidebar_visible: true,
       sidebar_width: 20,
       sidebar_expanded: MapSet.new(),
-      sidebar_focused: false
+      sidebar_selected_index: 0
     }
   end
 
@@ -724,6 +724,15 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Ctrl+S to toggle sidebar visibility
+  def event_to_msg(%Event.Key{key: "s", modifiers: modifiers} = event, _state) do
+    if :ctrl in modifiers do
+      {:msg, :toggle_sidebar}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
   # Ctrl+W to close current session
   def event_to_msg(%Event.Key{key: "w", modifiers: modifiers} = event, _state) do
     if :ctrl in modifiers do
@@ -753,6 +762,26 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Up arrow when sidebar focused - navigate to previous session
+  def event_to_msg(%Event.Key{key: :up}, %Model{focus: :sidebar} = _state) do
+    {:msg, {:sidebar_nav, :up}}
+  end
+
+  # Down arrow when sidebar focused - navigate to next session
+  def event_to_msg(%Event.Key{key: :down}, %Model{focus: :sidebar} = _state) do
+    {:msg, {:sidebar_nav, :down}}
+  end
+
+  # Enter key when sidebar focused - toggle accordion section
+  def event_to_msg(%Event.Key{key: :enter}, %Model{focus: :sidebar} = state) do
+    if state.sidebar_selected_index < length(state.session_order) do
+      session_id = Enum.at(state.session_order, state.sidebar_selected_index)
+      {:msg, {:toggle_accordion, session_id}}
+    else
+      :ignore
+    end
+  end
+
   # Enter key - forward to modal if open, otherwise submit current input
   def event_to_msg(%Event.Key{key: :enter} = event, state) do
     cond do
@@ -774,6 +803,15 @@ defmodule JidoCode.TUI do
       state.pick_list -> {:msg, {:pick_list_event, event}}
       state.shell_dialog -> {:msg, {:input_event, event}}
       true -> {:msg, {:input_event, event}}
+    end
+  end
+
+  # Tab key - cycle focus forward or backward
+  def event_to_msg(%Event.Key{key: :tab, modifiers: modifiers}, _state) do
+    if :shift in modifiers do
+      {:msg, {:cycle_focus, :backward}}
+    else
+      {:msg, {:cycle_focus, :forward}}
     end
   end
 
@@ -1001,6 +1039,98 @@ defmodule JidoCode.TUI do
 
   def update(:toggle_tool_details, state),
     do: MessageHandlers.handle_toggle_tool_details(state)
+
+  # Toggle sidebar visibility (Ctrl+S)
+  def update(:toggle_sidebar, state) do
+    new_state = %{state | sidebar_visible: not state.sidebar_visible}
+    {new_state, []}
+  end
+
+  # Navigate sidebar up/down
+  def update({:sidebar_nav, :up}, state) do
+    max_index = length(state.session_order) - 1
+
+    new_index =
+      if state.sidebar_selected_index == 0 do
+        max_index  # Wrap to bottom
+      else
+        state.sidebar_selected_index - 1
+      end
+
+    new_state = %{state | sidebar_selected_index: new_index}
+    {new_state, []}
+  end
+
+  def update({:sidebar_nav, :down}, state) do
+    max_index = length(state.session_order) - 1
+
+    new_index =
+      if state.sidebar_selected_index >= max_index do
+        0  # Wrap to top
+      else
+        state.sidebar_selected_index + 1
+      end
+
+    new_state = %{state | sidebar_selected_index: new_index}
+    {new_state, []}
+  end
+
+  # Toggle accordion section expansion
+  def update({:toggle_accordion, session_id}, state) do
+    expanded =
+      if MapSet.member?(state.sidebar_expanded, session_id) do
+        MapSet.delete(state.sidebar_expanded, session_id)
+      else
+        MapSet.put(state.sidebar_expanded, session_id)
+      end
+
+    new_state = %{state | sidebar_expanded: expanded}
+    {new_state, []}
+  end
+
+  # Cycle focus forward (Tab)
+  def update({:cycle_focus, :forward}, state) do
+    new_focus =
+      case state.focus do
+        :input -> :conversation
+        :conversation -> if state.sidebar_visible, do: :sidebar, else: :input
+        :sidebar -> :input
+        _ -> :input
+      end
+
+    # Update text input focus state
+    text_input =
+      if new_focus == :input do
+        TextInput.set_focused(state.text_input, true)
+      else
+        TextInput.set_focused(state.text_input, false)
+      end
+
+    new_state = %{state | focus: new_focus, text_input: text_input}
+    {new_state, []}
+  end
+
+  # Cycle focus backward (Shift+Tab)
+  def update({:cycle_focus, :backward}, state) do
+    new_focus =
+      case state.focus do
+        :input -> if state.sidebar_visible, do: :sidebar, else: :conversation
+        :conversation -> :input
+        :sidebar -> :conversation
+        _ -> :input
+      end
+
+    # Update text input focus state
+    text_input =
+      if new_focus == :input do
+        TextInput.set_focused(state.text_input, true)
+      else
+        TextInput.set_focused(state.text_input, false)
+      end
+
+    new_state = %{state | focus: new_focus, text_input: text_input}
+    {new_state, []}
+  end
 
   # Close active session (Ctrl+W)
   def update(:close_active_session, state) do

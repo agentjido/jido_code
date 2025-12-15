@@ -162,6 +162,7 @@ defmodule JidoCode.TUI do
 
             # UI state
             text_input: map(),
+            tabs_widget: map() | nil,
             focus: focus(),
             window: {non_neg_integer(), non_neg_integer()},
             show_reasoning: boolean(),
@@ -198,6 +199,7 @@ defmodule JidoCode.TUI do
       active_session_id: nil,
       # UI state
       text_input: nil,
+      tabs_widget: nil,
       # Focus state for keyboard navigation (used in Phase 4.5)
       focus: :input,
       window: {80, 24},

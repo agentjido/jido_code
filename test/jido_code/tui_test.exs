@@ -265,6 +265,72 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  describe "ViewHelpers.truncate/2" do
+    alias JidoCode.TUI.ViewHelpers
+
+    test "returns text unchanged when shorter than max_length" do
+      assert ViewHelpers.truncate("short", 10) == "short"
+    end
+
+    test "returns text unchanged when equal to max_length" do
+      assert ViewHelpers.truncate("exactly10c", 10) == "exactly10c"
+    end
+
+    test "truncates text and adds ellipsis when longer than max_length" do
+      assert ViewHelpers.truncate("this is a long text", 10) == "this is..."
+    end
+
+    test "truncates at max_length - 3 to account for ellipsis" do
+      result = ViewHelpers.truncate("1234567890", 7)
+      assert result == "1234..."
+      assert String.length(result) == 7
+    end
+
+    test "handles empty string" do
+      assert ViewHelpers.truncate("", 10) == ""
+    end
+
+    test "handles unicode characters correctly" do
+      # Unicode characters should be counted correctly
+      assert ViewHelpers.truncate("hello 世界", 10) == "hello 世界"
+      assert ViewHelpers.truncate("hello 世界 more text", 10) == "hello 世..."
+    end
+  end
+
+  describe "ViewHelpers.format_tab_label/2" do
+    alias JidoCode.TUI.ViewHelpers
+    alias JidoCode.Session
+
+    test "formats label with index 1-9" do
+      session = %Session{id: "s1", name: "my-project"}
+      assert ViewHelpers.format_tab_label(session, 1) == "1:my-project"
+      assert ViewHelpers.format_tab_label(session, 5) == "5:my-project"
+      assert ViewHelpers.format_tab_label(session, 9) == "9:my-project"
+    end
+
+    test "formats index 10 as '0'" do
+      session = %Session{id: "s10", name: "tenth-session"}
+      assert ViewHelpers.format_tab_label(session, 10) == "0:tenth-session"
+    end
+
+    test "truncates long session names" do
+      session = %Session{id: "s1", name: "this-is-a-very-long-session-name"}
+      label = ViewHelpers.format_tab_label(session, 1)
+      # Format is "1:" + truncated name (15 chars max: 12 chars + "...")
+      assert label == "1:this-is-a-ve..."
+    end
+
+    test "does not truncate short session names" do
+      session = %Session{id: "s1", name: "short"}
+      assert ViewHelpers.format_tab_label(session, 3) == "3:short"
+    end
+
+    test "handles session name exactly 15 characters" do
+      session = %Session{id: "s1", name: "exactly-15-char"}
+      assert ViewHelpers.format_tab_label(session, 2) == "2:exactly-15-char"
+    end
+  end
+
   describe "determine_status/1" do
     test "returns :unconfigured when provider is nil" do
       config = %{provider: nil, model: "gpt-4"}

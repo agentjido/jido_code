@@ -695,4 +695,60 @@ defmodule JidoCode.TUI.ViewHelpers do
         ])
     end
   end
+
+  # ============================================================================
+  # Tab Rendering Helpers (Task 4.3.1)
+  # ============================================================================
+
+  @doc """
+  Truncates text to max_length, adding ellipsis if needed.
+
+  If the text is longer than max_length, it is truncated to max_length - 3
+  and "..." is appended. Text shorter than or equal to max_length is returned
+  unchanged.
+
+  ## Examples
+
+      iex> truncate("short", 10)
+      "short"
+
+      iex> truncate("this is a long text", 10)
+      "this is..."
+  """
+  @spec truncate(String.t(), pos_integer()) :: String.t()
+  def truncate(text, max_length) do
+    if String.length(text) <= max_length do
+      text
+    else
+      String.slice(text, 0, max_length - 3) <> "..."
+    end
+  end
+
+  @doc """
+  Formats a tab label showing index and session name.
+
+  Tab indices 1-9 are displayed as-is. Index 10 is displayed as "0" to match
+  the Ctrl+0 keyboard shortcut. Session names are truncated to 15 characters
+  with ellipsis if needed.
+
+  ## Examples
+
+      iex> session = %Session{id: "s1", name: "my-project"}
+      iex> format_tab_label(session, 1)
+      "1:my-project"
+
+      iex> session = %Session{id: "s10", name: "tenth-session"}
+      iex> format_tab_label(session, 10)
+      "0:tenth-session"
+
+      iex> session = %Session{id: "s1", name: "this-is-a-very-long-name"}
+      iex> format_tab_label(session, 1)
+      "1:this-is-a-ver..."
+  """
+  @spec format_tab_label(JidoCode.Session.t(), pos_integer()) :: String.t()
+  def format_tab_label(session, index) do
+    display_index = if index == 10, do: 0, else: index
+    name = truncate(session.name, 15)
+    "#{display_index}:#{name}"
+  end
 end

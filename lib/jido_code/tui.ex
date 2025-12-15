@@ -1537,16 +1537,25 @@ defmodule JidoCode.TUI do
         end
       else
         # Standard layout without reasoning panel
-        # Layout: status bar | separator | main UI | separator | text input | separator | key controls
-        stack(:vertical, [
-          ViewHelpers.render_status_bar(state),
-          ViewHelpers.render_separator(state),
-          render_conversation_area(state),
-          ViewHelpers.render_separator(state),
-          ViewHelpers.render_input_bar(state),
-          ViewHelpers.render_separator(state),
-          ViewHelpers.render_help_bar(state)
-        ])
+        # Layout: tabs (if sessions) | separator | status bar | separator | main UI | separator | text input | separator | key controls
+        tabs_elements =
+          case ViewHelpers.render_tabs(state) do
+            nil -> []
+            tabs -> [tabs, ViewHelpers.render_separator(state)]
+          end
+
+        stack(:vertical,
+          tabs_elements ++
+            [
+              ViewHelpers.render_status_bar(state),
+              ViewHelpers.render_separator(state),
+              render_conversation_area(state),
+              ViewHelpers.render_separator(state),
+              ViewHelpers.render_input_bar(state),
+              ViewHelpers.render_separator(state),
+              ViewHelpers.render_help_bar(state)
+            ]
+        )
       end
 
     ViewHelpers.render_with_border(state, content)
@@ -1554,32 +1563,50 @@ defmodule JidoCode.TUI do
 
   defp render_main_content_with_sidebar(state) do
     # Side-by-side layout for wide terminals
-    stack(:vertical, [
-      ViewHelpers.render_status_bar(state),
-      ViewHelpers.render_separator(state),
-      stack(:horizontal, [
-        render_conversation_area(state),
-        ViewHelpers.render_reasoning(state)
-      ]),
-      ViewHelpers.render_separator(state),
-      ViewHelpers.render_input_bar(state),
-      ViewHelpers.render_separator(state),
-      ViewHelpers.render_help_bar(state)
-    ])
+    tabs_elements =
+      case ViewHelpers.render_tabs(state) do
+        nil -> []
+        tabs -> [tabs, ViewHelpers.render_separator(state)]
+      end
+
+    stack(:vertical,
+      tabs_elements ++
+        [
+          ViewHelpers.render_status_bar(state),
+          ViewHelpers.render_separator(state),
+          stack(:horizontal, [
+            render_conversation_area(state),
+            ViewHelpers.render_reasoning(state)
+          ]),
+          ViewHelpers.render_separator(state),
+          ViewHelpers.render_input_bar(state),
+          ViewHelpers.render_separator(state),
+          ViewHelpers.render_help_bar(state)
+        ]
+    )
   end
 
   defp render_main_content_with_drawer(state) do
     # Stacked layout with reasoning drawer for narrow terminals
-    stack(:vertical, [
-      ViewHelpers.render_status_bar(state),
-      ViewHelpers.render_separator(state),
-      render_conversation_area(state),
-      ViewHelpers.render_reasoning_compact(state),
-      ViewHelpers.render_separator(state),
-      ViewHelpers.render_input_bar(state),
-      ViewHelpers.render_separator(state),
-      ViewHelpers.render_help_bar(state)
-    ])
+    tabs_elements =
+      case ViewHelpers.render_tabs(state) do
+        nil -> []
+        tabs -> [tabs, ViewHelpers.render_separator(state)]
+      end
+
+    stack(:vertical,
+      tabs_elements ++
+        [
+          ViewHelpers.render_status_bar(state),
+          ViewHelpers.render_separator(state),
+          render_conversation_area(state),
+          ViewHelpers.render_reasoning_compact(state),
+          ViewHelpers.render_separator(state),
+          ViewHelpers.render_input_bar(state),
+          ViewHelpers.render_separator(state),
+          ViewHelpers.render_help_bar(state)
+        ]
+    )
   end
 
   # Render conversation using ConversationView widget if available, otherwise fallback to ViewHelpers

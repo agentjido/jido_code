@@ -751,4 +751,58 @@ defmodule JidoCode.TUI.ViewHelpers do
     name = truncate(session.name, 15)
     "#{display_index}:#{name}"
   end
+
+  @doc """
+  Renders the tab bar showing all sessions.
+
+  Returns nil if there are no sessions. Otherwise renders a horizontal row
+  of tabs with the active tab highlighted.
+
+  ## Examples
+
+      iex> model = %Model{sessions: %{}, session_order: []}
+      iex> render_tabs(model)
+      nil
+
+      iex> model = %Model{
+      ...>   sessions: %{"s1" => %Session{id: "s1", name: "project"}},
+      ...>   session_order: ["s1"],
+      ...>   active_session_id: "s1"
+      ...> }
+      iex> render_tabs(model)
+      # Returns tab bar view
+  """
+  @spec render_tabs(Model.t()) :: TermUI.View.t() | nil
+  def render_tabs(%Model{sessions: sessions}) when map_size(sessions) == 0, do: nil
+  def render_tabs(%Model{sessions: sessions, session_order: order, active_session_id: active_id}) do
+    tabs =
+      order
+      |> Enum.with_index(1)
+      |> Enum.map(fn {session_id, index} ->
+        session = Map.get(sessions, session_id)
+        label = format_tab_label(session, index)
+        is_active = session_id == active_id
+        render_single_tab(label, is_active)
+      end)
+
+    # Render tabs horizontally with separators
+    tab_elements =
+      tabs
+      |> Enum.intersperse(text(" │ ", Style.new(fg: Theme.get_color(:secondary) || :bright_black)))
+
+    stack(:horizontal, tab_elements)
+  end
+
+  # Renders a single tab with appropriate styling
+  @spec render_single_tab(String.t(), boolean()) :: TermUI.View.t()
+  defp render_single_tab(label, is_active) do
+    style =
+      if is_active do
+        Style.new(fg: Theme.get_color(:primary) || :cyan, attrs: [:bold, :underline])
+      else
+        Style.new(fg: Theme.get_color(:secondary) || :bright_black)
+      end
+
+    text(" #{label} ", style)
+  end
 end

@@ -331,6 +331,66 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  describe "ViewHelpers.render_tabs/1" do
+    alias JidoCode.TUI.ViewHelpers
+    alias JidoCode.TUI.Model
+    alias JidoCode.Session
+
+    test "returns nil when sessions map is empty" do
+      model = %Model{sessions: %{}, session_order: [], active_session_id: nil}
+      assert ViewHelpers.render_tabs(model) == nil
+    end
+
+    test "renders single tab" do
+      session = %Session{id: "s1", name: "project"}
+      model = %Model{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = ViewHelpers.render_tabs(model)
+      assert result != nil
+      # Result is a TermUI view node, we can't easily test its content
+      # Just verify it returns something non-nil
+    end
+
+    test "renders multiple tabs" do
+      s1 = %Session{id: "s1", name: "project-one"}
+      s2 = %Session{id: "s2", name: "project-two"}
+      s3 = %Session{id: "s3", name: "project-three"}
+
+      model = %Model{
+        sessions: %{"s1" => s1, "s2" => s2, "s3" => s3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s2"
+      }
+
+      result = ViewHelpers.render_tabs(model)
+      assert result != nil
+    end
+
+    test "handles 10th session with 0 index" do
+      sessions =
+        Enum.reduce(1..10, %{}, fn i, acc ->
+          id = "s#{i}"
+          Map.put(acc, id, %Session{id: id, name: "session-#{i}"})
+        end)
+
+      order = Enum.map(1..10, fn i -> "s#{i}" end)
+
+      model = %Model{
+        sessions: sessions,
+        session_order: order,
+        active_session_id: "s10"
+      }
+
+      result = ViewHelpers.render_tabs(model)
+      assert result != nil
+      # The 10th tab should use format_tab_label which shows "0:"
+    end
+  end
+
   describe "determine_status/1" do
     test "returns :unconfigured when provider is nil" do
       config = %{provider: nil, model: "gpt-4"}

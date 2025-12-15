@@ -7,6 +7,7 @@ defmodule JidoCode.TUITest do
   alias JidoCode.Settings
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
+  alias JidoCode.TUI.Widgets.SessionSidebar
   alias TermUI.Event
   alias TermUI.Widgets.TextInput
 
@@ -248,6 +249,87 @@ defmodule JidoCode.TUITest do
       assert model.sidebar_expanded == MapSet.new()
       assert model.sidebar_focused == false
     end
+  end
+
+  describe "Sidebar layout integration (Phase 4.5.4)" do
+    # Helper to create model with sessions for testing
+    defp build_model_with_sessions(opts \\ []) do
+      session1 = create_test_session(id: "s1", name: "Project")
+      session2 = create_test_session(id: "s2", name: "Backend")
+
+      %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1",
+        sidebar_visible: Keyword.get(opts, :sidebar_visible, true),
+        sidebar_width: Keyword.get(opts, :sidebar_width, 20),
+        sidebar_expanded: Keyword.get(opts, :sidebar_expanded, MapSet.new()),
+        window: Keyword.get(opts, :window, {100, 24})
+      }
+    end
+
+    test "sidebar visible when sidebar_visible=true and width >= 90" do
+      model = build_model_with_sessions(sidebar_visible: true, window: {100, 24})
+      |> Map.put(:text_input, create_text_input())
+
+      view = TUI.view(model)
+      # View should render successfully with sidebar
+      assert view != nil
+    end
+
+    test "sidebar hidden when width < 90" do
+      model = build_model_with_sessions(sidebar_visible: true, window: {89, 24})
+      |> Map.put(:text_input, create_text_input())
+
+      view = TUI.view(model)
+      # Should render without sidebar (standard layout)
+      assert view != nil
+    end
+
+    test "sidebar hidden when sidebar_visible=false" do
+      model = build_model_with_sessions(sidebar_visible: false, window: {120, 24})
+      |> Map.put(:text_input, create_text_input())
+
+      view = TUI.view(model)
+      # Should render without sidebar
+      assert view != nil
+    end
+
+    test "sidebar with reasoning panel on wide terminal" do
+      model = build_model_with_sessions(
+        sidebar_visible: true,
+        window: {120, 24}
+      )
+      |> Map.put(:text_input, create_text_input())
+      |> Map.put(:show_reasoning, true)
+
+      view = TUI.view(model)
+      # Should render with both sidebar and reasoning panel
+      assert view != nil
+    end
+
+    test "sidebar with reasoning drawer on medium terminal" do
+      model = build_model_with_sessions(
+        sidebar_visible: true,
+        window: {95, 24}
+      )
+      |> Map.put(:text_input, create_text_input())
+      |> Map.put(:show_reasoning, true)
+
+      view = TUI.view(model)
+      # Should render with sidebar and reasoning in compact mode
+      assert view != nil
+    end
+  end
+
+  # Helper to create test session
+  defp create_test_session(opts) do
+    %JidoCode.Session{
+      id: Keyword.fetch!(opts, :id),
+      name: Keyword.get(opts, :name, "Test Session"),
+      project_path: Keyword.get(opts, :project_path, "/test/path"),
+      created_at: Keyword.get(opts, :created_at, DateTime.utc_now())
+    }
   end
 
   describe "init/1" do

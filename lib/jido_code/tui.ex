@@ -51,6 +51,7 @@ defmodule JidoCode.TUI do
   alias JidoCode.TUI.MessageHandlers
   alias JidoCode.TUI.ViewHelpers
   alias JidoCode.TUI.Widgets.ConversationView
+  alias JidoCode.TUI.Widgets.SessionSidebar
   alias TermUI.Event
   alias TermUI.Renderer.Style
   alias TermUI.Widget.PickList
@@ -1574,37 +1575,46 @@ defmodule JidoCode.TUI do
   defp render_main_view(state) do
     {width, _height} = state.window
 
+    # Determine if sidebar should be visible (responsive + user preference)
+    show_sidebar = state.sidebar_visible and width >= 90
+
     content =
-      if state.show_reasoning do
-        # Show reasoning panel
-        if width >= 100 do
-          # Wide terminal: side-by-side layout
-          render_main_content_with_sidebar(state)
-        else
-          # Narrow terminal: stacked layout with compact reasoning
-          render_main_content_with_drawer(state)
-        end
-      else
-        # Standard layout without reasoning panel
-        # Layout: tabs (if sessions) | separator | status bar | separator | main UI | separator | text input | separator | key controls
-        tabs_elements =
-          case ViewHelpers.render_tabs(state) do
-            nil -> []
-            tabs -> [tabs, ViewHelpers.render_separator(state)]
+      cond do
+        # Sidebar visible
+        show_sidebar ->
+          render_with_session_sidebar(state)
+
+        # No sidebar, but reasoning panel visible
+        state.show_reasoning ->
+          if width >= 100 do
+            # Wide terminal: reasoning sidebar layout (existing)
+            render_main_content_with_sidebar(state)
+          else
+            # Narrow terminal: reasoning drawer layout (existing)
+            render_main_content_with_drawer(state)
           end
 
-        stack(:vertical,
-          tabs_elements ++
-            [
-              ViewHelpers.render_status_bar(state),
-              ViewHelpers.render_separator(state),
-              render_session_content(state),
-              ViewHelpers.render_separator(state),
-              ViewHelpers.render_input_bar(state),
-              ViewHelpers.render_separator(state),
-              ViewHelpers.render_help_bar(state)
-            ]
-        )
+        # Standard layout (no sidebar, no reasoning)
+        true ->
+          # Layout: tabs (if sessions) | separator | status bar | separator | main UI | separator | text input | separator | key controls
+          tabs_elements =
+            case ViewHelpers.render_tabs(state) do
+              nil -> []
+              tabs -> [tabs, ViewHelpers.render_separator(state)]
+            end
+
+          stack(:vertical,
+            tabs_elements ++
+              [
+                ViewHelpers.render_status_bar(state),
+                ViewHelpers.render_separator(state),
+                render_session_content(state),
+                ViewHelpers.render_separator(state),
+                ViewHelpers.render_input_bar(state),
+                ViewHelpers.render_separator(state),
+                ViewHelpers.render_help_bar(state)
+              ]
+          )
       end
 
     ViewHelpers.render_with_border(state, content)
@@ -1650,6 +1660,113 @@ defmodule JidoCode.TUI do
           ViewHelpers.render_separator(state),
           render_session_content(state),
           ViewHelpers.render_reasoning_compact(state),
+          ViewHelpers.render_separator(state),
+          ViewHelpers.render_input_bar(state),
+          ViewHelpers.render_separator(state),
+          ViewHelpers.render_help_bar(state)
+        ]
+    )
+  end
+
+  # ============================================================================
+  # Session Sidebar Layout (Phase 4.5.4)
+  # ============================================================================
+
+  # Calculate available width for main content area when sidebar may be visible
+  @doc false
+  @spec calculate_main_width(Model.t()) :: pos_integer()
+  defp calculate_main_width(state) do
+    {width, _height} = state.window
+    content_width = max(width - 2, 1)  # Subtract borders
+
+    if state.sidebar_visible and width >= 90 do
+      # Sidebar visible: subtract sidebar width + separator (1 char)
+      max(content_width - state.sidebar_width - 1, 20)
+    else
+      # Sidebar hidden: use full content width
+      content_width
+    end
+  end
+
+  # Build SessionSidebar widget from model state
+  @doc false
+  @spec build_session_sidebar(Model.t()) :: SessionSidebar.t()
+  defp build_session_sidebar(state) do
+    # Convert sessions map to list in display order
+    sessions =
+      Enum.map(state.session_order, fn id ->
+        Map.get(state.sessions, id)
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    SessionSidebar.new(
+      sessions: sessions,
+      order: state.session_order,
+      active_id: state.active_session_id,
+      expanded: state.sidebar_expanded,
+      width: state.sidebar_width
+    )
+  end
+
+  # Render vertical separator (│) between sidebar and main content
+  @doc false
+  @spec render_vertical_separator(Model.t()) :: TermUI.View.t()
+  defp render_vertical_separator(_state) do
+    separator_style = Style.new(fg: :bright_black)
+    text("│", separator_style)
+  end
+
+  # Render layout with sidebar visible
+  defp render_with_session_sidebar(state) do
+    # Build sidebar widget from model state
+    sidebar = build_session_sidebar(state)
+
+    # Build tabs (for main area only)
+    tabs_elements =
+      case ViewHelpers.render_tabs(state) do
+        nil -> []
+        tabs -> [tabs, ViewHelpers.render_separator(state)]
+      end
+
+    # Build main content area
+    main_content =
+      if state.show_reasoning do
+        # Reasoning panel visible - check width for layout mode
+        main_width = calculate_main_width(state)
+
+        if main_width >= 60 do
+          # Wide enough for reasoning sidebar in main area
+          stack(:horizontal, [
+            render_session_content(state),
+            ViewHelpers.render_reasoning(state)
+          ])
+        else
+          # Too narrow - use compact reasoning drawer
+          stack(:vertical, [
+            render_session_content(state),
+            ViewHelpers.render_reasoning_compact(state)
+          ])
+        end
+      else
+        # No reasoning panel
+        render_session_content(state)
+      end
+
+    # Horizontal split: sidebar | separator | main content
+    content_row =
+      stack(:horizontal, [
+        SessionSidebar.render(sidebar, state.sidebar_width),
+        render_vertical_separator(state),
+        main_content
+      ])
+
+    # Full vertical stack
+    stack(:vertical,
+      tabs_elements ++
+        [
+          ViewHelpers.render_status_bar(state),
+          ViewHelpers.render_separator(state),
+          content_row,
           ViewHelpers.render_separator(state),
           ViewHelpers.render_input_bar(state),
           ViewHelpers.render_separator(state),

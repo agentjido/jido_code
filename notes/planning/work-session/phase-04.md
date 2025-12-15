@@ -336,36 +336,33 @@ Update status bar to show active session info.
 Add a collapsible left sidebar displaying all work sessions in an accordion format. The sidebar will be 20-25 characters wide, toggleable with Ctrl+S, and integrate seamlessly with existing layouts. This provides quick visual access to all sessions and their contextual information.
 
 ### 4.5.1 Accordion Component
-- [ ] **Task 4.5.1**
+- [x] **Task 4.5.1** (completed 2025-12-15)
 
 Build reusable accordion widget with expand/collapse functionality.
 
-- [ ] 4.5.1.1 Create `JidoCode.TUI.Widgets.Accordion` module
-- [ ] 4.5.1.2 Implement `Accordion` struct (sections, active_ids, style):
-  ```elixir
-  defmodule JidoCode.TUI.Widgets.Accordion do
-    defstruct [
-      sections: [],        # List of Section structs
-      active_ids: [],      # List of expanded section IDs
-      style: nil
-    ]
+- [x] 4.5.1.1 Create `JidoCode.TUI.Widgets.Accordion` module
+- [x] 4.5.1.2 Implement `Accordion` struct (sections, active_ids, style):
+  - Implemented with MapSet for active_ids (O(1) lookup)
+  - Full section struct with id, title, content, badge, icons
+  - Style configuration for title, badge, content, icon styling
+  - Configurable indent (default: 2 spaces)
+- [x] 4.5.1.3 Implement `render/2` function with expand/collapse logic
+  - Renders empty state for no sections
+  - Shows appropriate icon (▶ collapsed, ▼ expanded)
+  - Handles badge display with truncation
+  - Indents content when expanded
+- [x] 4.5.1.4 Add indentation for nested content (2 spaces)
+- [x] 4.5.1.5 Support badge display (message counts, status indicators)
+- [x] 4.5.1.6 Write unit tests for accordion component (82 tests, 0 failures)
 
-    defmodule Section do
-      defstruct [
-        id: nil,
-        title: "",
-        content: [],       # List of TermUI elements
-        badge: nil,
-        icon_open: "▼",
-        icon_closed: "▶"
-      ]
-    end
-  end
-  ```
-- [ ] 4.5.1.3 Implement `render/2` function with expand/collapse logic
-- [ ] 4.5.1.4 Add indentation for nested content (2 spaces)
-- [ ] 4.5.1.5 Support badge display (message counts, status indicators)
-- [ ] 4.5.1.6 Write unit tests for accordion component
+**Implementation Notes**:
+- Module: `lib/jido_code/tui/widgets/accordion.ex` (507 lines)
+- Tests: `test/jido_code/tui/widgets/accordion_test.exs` (82 tests)
+- Full API: new, expand, collapse, toggle, expand_all, collapse_all
+- Section management: add_section, remove_section, update_section
+- Accessors: expanded?, get_section, section_count, expanded_count, section_ids
+- Comprehensive documentation with @moduledoc and @doc for all public functions
+- Uses TermUI primitives (text, stack, Style) for rendering
 
 ### 4.5.2 Session Sidebar Component
 - [ ] **Task 4.5.2**

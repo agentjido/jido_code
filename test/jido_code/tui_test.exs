@@ -2,6 +2,8 @@ defmodule JidoCode.TUITest do
   use ExUnit.Case, async: false
 
   alias Jido.AI.Keyring
+  alias JidoCode.Session
+  alias JidoCode.SessionRegistry
   alias JidoCode.Settings
   alias JidoCode.TUI
   alias JidoCode.TUI.Model
@@ -78,6 +80,18 @@ defmodule JidoCode.TUITest do
     TextInput.get_value(model.text_input)
   end
 
+  # Helper to create a test Session struct
+  defp create_test_session(id, name, project_path) do
+    %Session{
+      id: id,
+      name: name,
+      project_path: project_path,
+      config: %{provider: "anthropic", model: "claude-3-5-sonnet-20241022"},
+      created_at: DateTime.utc_now(),
+      updated_at: DateTime.utc_now()
+    }
+  end
+
   describe "Model struct" do
     test "has correct default values" do
       model = %Model{text_input: create_text_input()}
@@ -143,6 +157,111 @@ defmodule JidoCode.TUITest do
     test "initializes with empty reasoning steps" do
       model = TUI.init([])
       assert model.reasoning_steps == []
+    end
+
+    test "loads sessions from SessionRegistry" do
+      # Create test sessions in registry
+      session1 = create_test_session("s1", "Session 1", "/path1")
+      session2 = create_test_session("s2", "Session 2", "/path2")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+
+      model = TUI.init([])
+
+      # Should have both sessions in model
+      assert map_size(model.sessions) == 2
+      assert Map.has_key?(model.sessions, "s1")
+      assert Map.has_key?(model.sessions, "s2")
+
+      # Cleanup
+      SessionRegistry.unregister("s1")
+      SessionRegistry.unregister("s2")
+    end
+
+    test "builds session_order from registry sessions" do
+      session1 = create_test_session("s1", "Session 1", "/path1")
+      session2 = create_test_session("s2", "Session 2", "/path2")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+
+      model = TUI.init([])
+
+      # session_order should contain both IDs in registry order
+      assert length(model.session_order) == 2
+      assert "s1" in model.session_order
+      assert "s2" in model.session_order
+
+      # Cleanup
+      SessionRegistry.unregister("s1")
+      SessionRegistry.unregister("s2")
+    end
+
+    test "sets active_session_id to first session" do
+      session1 = create_test_session("s1", "Session 1", "/path1")
+      session2 = create_test_session("s2", "Session 2", "/path2")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+
+      model = TUI.init([])
+
+      # First session in order should be active
+      first_id = List.first(model.session_order)
+      assert model.active_session_id == first_id
+
+      # Cleanup
+      SessionRegistry.unregister("s1")
+      SessionRegistry.unregister("s2")
+    end
+
+    test "handles empty SessionRegistry (no sessions)" do
+      # Ensure registry is empty
+      SessionRegistry.list_all()
+      |> Enum.each(&SessionRegistry.unregister(&1.id))
+
+      model = TUI.init([])
+
+      # Should have empty sessions
+      assert model.sessions == %{}
+      assert model.session_order == []
+      assert model.active_session_id == nil
+    end
+
+    test "subscribes to each session's PubSub topic" do
+      session1 = create_test_session("s1", "Session 1", "/path1")
+      session2 = create_test_session("s2", "Session 2", "/path2")
+
+      {:ok, _} = SessionRegistry.register(session1)
+      {:ok, _} = SessionRegistry.register(session2)
+
+      _model = TUI.init([])
+
+      # Verify subscriptions by broadcasting to each session's topic
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.s1", {:test_s1, "hello"})
+      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.s2", {:test_s2, "world"})
+
+      assert_receive {:test_s1, "hello"}, 1000
+      assert_receive {:test_s2, "world"}, 1000
+
+      # Cleanup
+      SessionRegistry.unregister("s1")
+      SessionRegistry.unregister("s2")
+    end
+
+    test "handles single session in registry" do
+      session = create_test_session("s1", "Solo Session", "/path1")
+      {:ok, _} = SessionRegistry.register(session)
+
+      model = TUI.init([])
+
+      assert map_size(model.sessions) == 1
+      assert model.session_order == ["s1"]
+      assert model.active_session_id == "s1"
+
+      # Cleanup
+      SessionRegistry.unregister("s1")
     end
   end
 

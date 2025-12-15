@@ -547,6 +547,12 @@ defmodule JidoCode.TUI do
     # Subscribe to theme changes for live updates
     TermUI.Theme.subscribe()
 
+    # Load existing sessions from registry and subscribe to their topics
+    sessions = load_sessions_from_registry()
+    session_order = Enum.map(sessions, & &1.id)
+    active_id = List.first(session_order)
+    subscribe_to_all_sessions(sessions)
+
     # Load configuration from settings
     config = load_config()
 
@@ -588,6 +594,11 @@ defmodule JidoCode.TUI do
     {:ok, conversation_view_state} = ConversationView.init(conversation_view_props)
 
     %Model{
+      # Multi-session fields
+      sessions: Map.new(sessions, &{&1.id, &1}),
+      session_order: session_order,
+      active_session_id: active_id,
+      # Existing fields
       text_input: text_input_state,
       messages: [],
       agent_status: status,
@@ -1666,6 +1677,27 @@ defmodule JidoCode.TUI do
   # ============================================================================
   # Private Helpers
   # ============================================================================
+
+  # Load all active sessions from SessionRegistry.
+  #
+  # Returns list of Session structs sorted by creation time (oldest first).
+  # If the registry is empty or not initialized, returns an empty list.
+  @spec load_sessions_from_registry() :: [Session.t()]
+  defp load_sessions_from_registry do
+    JidoCode.SessionRegistry.list_all()
+  end
+
+  # Subscribe to PubSub topics for all sessions.
+  #
+  # Subscribes to each session's llm_stream topic for receiving
+  # streaming messages, tool calls, and other session events.
+  @spec subscribe_to_all_sessions([Session.t()]) :: :ok
+  defp subscribe_to_all_sessions(sessions) do
+    Enum.each(sessions, fn session ->
+      topic = PubSubTopics.llm_stream(session.id)
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
+    end)
+  end
 
   @spec load_config() :: %{provider: String.t() | nil, model: String.t() | nil}
   defp load_config do

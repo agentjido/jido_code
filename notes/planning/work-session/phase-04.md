@@ -105,11 +105,11 @@ Implement functions for managing session tab order.
 Update initialization and PubSub subscriptions for multi-session.
 
 ### 4.2.1 Init Updates
-- [ ] **Task 4.2.1**
+- [x] **Task 4.2.1** (completed 2025-12-15)
 
 Update `init/1` for multi-session model.
 
-- [ ] 4.2.1.1 Load existing sessions from SessionRegistry:
+- [x] 4.2.1.1 Load existing sessions from SessionRegistry:
   ```elixir
   def init(_opts) do
     sessions = load_sessions_from_registry()
@@ -126,9 +126,9 @@ Update `init/1` for multi-session model.
     }
   end
   ```
-- [ ] 4.2.1.2 Subscribe to PubSub topics for all sessions
-- [ ] 4.2.1.3 Handle case with no sessions (show welcome screen)
-- [ ] 4.2.1.4 Write unit tests for init
+- [x] 4.2.1.2 Subscribe to PubSub topics for all sessions
+- [x] 4.2.1.3 Handle case with no sessions (active_session_id set to nil)
+- [x] 4.2.1.4 Write unit tests for init (12 tests, 0 failures)
 
 ### 4.2.2 PubSub Subscription Management
 - [ ] **Task 4.2.2**

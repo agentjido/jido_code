@@ -4,18 +4,15 @@ defmodule JidoCode.RateLimitTest do
   alias JidoCode.RateLimit
 
   setup do
-    # Start RateLimit GenServer if not already running
-    case Process.whereis(RateLimit) do
-      nil -> start_supervised!(RateLimit)
-      _pid -> :ok
-    end
+    # Ensure application is started (RateLimit GenServer is in supervision tree)
+    Application.ensure_all_started(:jido_code)
 
     # Reset rate limits before each test
     on_exit(fn ->
       RateLimit.reset(:test_operation, "test-key")
       RateLimit.reset(:resume, "session-123")
 
-      # Reset global rate limits
+      # Reset global rate limits (table exists after app start)
       :ets.delete(:jido_code_rate_limits, {:global, :resume})
       :ets.delete(:jido_code_rate_limits, {:global, :test_operation})
       :ets.delete(:jido_code_rate_limits, {:global, :unconfigured_operation})

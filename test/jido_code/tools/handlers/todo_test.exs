@@ -7,6 +7,9 @@ defmodule JidoCode.Tools.Handlers.TodoTest do
   @moduletag :tmp_dir
 
   setup do
+    # Ensure application is started (PubSub and other infrastructure)
+    Application.ensure_all_started(:jido_code)
+
     # Subscribe to PubSub to verify broadcasts
     Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events")
     :ok

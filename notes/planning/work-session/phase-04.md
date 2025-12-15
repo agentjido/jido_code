@@ -217,14 +217,22 @@ Handle tab 10 with special "0" indicator.
 - [ ] 4.3.2.4 Write unit tests for 10th tab labeling
 
 ### 4.3.3 Tab Status Indicators
-- [ ] **Task 4.3.3**
+- [x] **Task 4.3.3** (completed 2025-12-15)
 
 Add status indicators to tabs.
 
-- [ ] 4.3.3.1 Show spinner/indicator when session is processing
-- [ ] 4.3.3.2 Show error indicator on agent error
-- [ ] 4.3.3.3 Query agent status via Session.AgentAPI.get_status/1
-- [ ] 4.3.3.4 Write unit tests for status indicators
+- [x] 4.3.3.1 Show spinner/indicator when session is processing (⟳)
+- [x] 4.3.3.2 Show error indicator on agent error (✗)
+- [x] 4.3.3.3 Query agent status via Session.AgentAPI.get_status/1
+- [x] 4.3.3.4 Write unit tests for status indicators (2 basic tests)
+
+**Implementation Notes**:
+- Added `Model.get_session_status/1` to query Session.AgentAPI
+- Status indicators: ⟳ (processing), ✓ (idle), ✗ (error), ○ (unconfigured)
+- Error tabs always show red color
+- Active processing tabs show yellow color
+- Updated `render_single_tab/3` to include status parameter
+- Added `build_tab_style/2` for status-aware styling
 
 **Unit Tests for Section 4.3:**
 - Test `render_tabs/1` creates tab elements

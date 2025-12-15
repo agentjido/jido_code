@@ -391,6 +391,19 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  describe "Model.get_session_status/1" do
+    test "returns :unconfigured for nonexistent session" do
+      # Session that doesn't exist should return unconfigured
+      assert TUI.Model.get_session_status("nonexistent-session-id") == :unconfigured
+    end
+
+    test "returns an agent_status atom" do
+      # Should return one of the valid status atoms
+      result = TUI.Model.get_session_status("test-session")
+      assert result in [:idle, :processing, :error, :unconfigured]
+    end
+  end
+
   describe "determine_status/1" do
     test "returns :unconfigured when provider is nil" do
       config = %{provider: nil, model: "gpt-4"}

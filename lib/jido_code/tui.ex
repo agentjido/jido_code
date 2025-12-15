@@ -277,6 +277,39 @@ defmodule JidoCode.TUI do
     end
 
     @doc """
+    Returns the agent status for a session.
+
+    Queries Session.AgentAPI to determine if the session's agent is:
+    - `:idle` - Agent is ready for new requests
+    - `:processing` - Agent is actively processing a request
+    - `:error` - Agent is not responding or crashed
+    - `:unconfigured` - Session has no agent
+
+    ## Parameters
+    - `session_id` - The session identifier
+
+    ## Returns
+    - `agent_status()` atom
+
+    ## Examples
+
+        iex> Model.get_session_status("session-123")
+        :idle
+
+        iex> Model.get_session_status("nonexistent")
+        :unconfigured
+    """
+    @spec get_session_status(String.t()) :: agent_status()
+    def get_session_status(session_id) do
+      case JidoCode.Session.AgentAPI.get_status(session_id) do
+        {:ok, %{ready: true}} -> :idle
+        {:ok, %{ready: false}} -> :processing
+        {:error, :agent_not_found} -> :unconfigured
+        {:error, _} -> :error
+      end
+    end
+
+    @doc """
     Returns the session at the given tab index (1-based).
 
     Tab indices 1-9 correspond to Ctrl+1 through Ctrl+9.

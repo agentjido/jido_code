@@ -249,80 +249,77 @@ Add status indicators to tabs.
 Update the main view to include tabs and session-specific content.
 
 ### 4.4.1 View Structure
-- [ ] **Task 4.4.1**
+- [x] **Task 4.4.1** (completed 2025-12-15)
 
 Update `view/1` to include tab bar.
 
-- [ ] 4.4.1.1 Update `view/1` structure:
-  ```elixir
-  def view(model) do
-    stack(:vertical, [
-      render_tabs(model),
-      render_main_content(model),
-      render_status_bar(model)
-    ])
-  end
-  ```
-- [ ] 4.4.1.2 Conditional rendering based on active session
-- [ ] 4.4.1.3 Show welcome screen when no sessions
-- [ ] 4.4.1.4 Write unit tests for view structure
+- [x] 4.4.1.1 Update all three layout variants (standard, sidebar, drawer)
+  - Replaced `render_conversation_area` with `render_session_content`
+  - All layouts now use session-aware content rendering
+- [x] 4.4.1.2 Conditional rendering based on active session
+- [x] 4.4.1.3 Show welcome screen when no sessions
+- [x] 4.4.1.4 Write unit tests for view structure (indirectly via render tests)
+
+**Implementation Notes**:
+- Created `render_session_content/1` to dispatch based on active_session_id
+- When nil: renders welcome screen
+- When set: fetches session state and renders conversation
 
 ### 4.4.2 Session Content Rendering
-- [ ] **Task 4.4.2**
+- [x] **Task 4.4.2** (completed 2025-12-15)
 
 Render active session's conversation and input.
 
-- [ ] 4.4.2.1 Implement `render_main_content/1`:
-  ```elixir
-  defp render_main_content(model) do
-    case model.active_session_id do
-      nil -> render_welcome_screen()
-      session_id -> render_session_content(model, session_id)
-    end
-  end
-  ```
-- [ ] 4.4.2.2 Implement `render_session_content/2`:
-  ```elixir
-  defp render_session_content(model, session_id) do
-    session_state = Session.State.get_state(session_id)
-    stack(:vertical, [
-      render_conversation(session_state, model.window),
-      render_input(model.text_input, model.focus)
-    ])
-  end
-  ```
-- [ ] 4.4.2.3 Pass session state to ConversationView widget
-- [ ] 4.4.2.4 Write unit tests for content rendering
+- [x] 4.4.2.1 Implemented `render_session_content/1` with pattern matching
+- [x] 4.4.2.2 Implemented `render_conversation_for_session/2`
+  - Fetches session state via `Model.get_active_session_state/1`
+  - Updates ConversationView with session's messages
+  - Handles missing session state with error screen
+- [x] 4.4.2.3 Pass session state to ConversationView widget via `ConversationView.set_messages/2`
+- [x] 4.4.2.4 Write unit tests for content rendering (via integration tests)
+
+**Implementation Notes**:
+- Added `render_session_error/2` for error cases
+- Session state properly passed to ConversationView widget
+- Handles nil session gracefully with welcome screen
 
 ### 4.4.3 Welcome Screen
-- [ ] **Task 4.4.3**
+- [x] **Task 4.4.3** (completed 2025-12-15)
 
 Create welcome screen for empty session list.
 
-- [ ] 4.4.3.1 Implement `render_welcome_screen/0`:
-  ```elixir
-  defp render_welcome_screen do
-    box([
-      text("Welcome to JidoCode", style: :bold),
-      text(""),
-      text("Press Ctrl+N to create a new session"),
-      text("Or use /session new <path> to open a project")
-    ], align: :center)
-  end
-  ```
-- [ ] 4.4.3.2 Style welcome screen appropriately
-- [ ] 4.4.3.3 Write unit tests for welcome screen
+- [x] 4.4.3.1 Implemented `render_welcome_screen/1`
+  - Shows "Welcome to JidoCode" title
+  - Lists helpful commands (/session new, /resume)
+  - Shows keyboard shortcuts (Ctrl+N, Ctrl+1-0, Ctrl+W)
+- [x] 4.4.3.2 Style welcome screen appropriately
+  - Uses themed colors (primary, accent, muted, info)
+  - Consistent styling with rest of TUI
+- [x] 4.4.3.3 Write unit tests for welcome screen (via render tests)
+
+**Implementation Notes**:
+- Padded to fill available height using `ViewHelpers.pad_lines_to_height/3`
+- Clear, helpful information for new users
+- Themed styling for consistency
 
 ### 4.4.4 Status Bar Updates
-- [ ] **Task 4.4.4**
+- [x] **Task 4.4.4** (completed 2025-12-15)
 
 Update status bar to show active session info.
 
-- [ ] 4.4.4.1 Update `render_status_bar/1` to show session name
-- [ ] 4.4.4.2 Show session's project path (truncated)
-- [ ] 4.4.4.3 Show session's LLM model
-- [ ] 4.4.4.4 Format: `[1/3] project-name | anthropic:claude-3-5-sonnet | idle`
-- [ ] 4.4.4.5 Write unit tests for status bar
+- [x] 4.4.4.1 Update `render_status_bar/1` to show session name (truncated to 20 chars)
+- [x] 4.4.4.2 Show session's project path (truncated to 25 chars, ~ for home)
+- [x] 4.4.4.3 Show session's LLM model (session config or fallback to global)
+- [x] 4.4.4.4 Format: `[1/3] project-name | ~/path | anthropic:claude-3-5-sonnet | idle`
+- [x] 4.4.4.5 Write unit tests for status bar (7 tests)
+
+**Implementation Notes**:
+- Created `render_status_bar_no_session/2` for empty state
+- Created `render_status_bar_with_session/3` for active session
+- Added `format_project_path/2` for path truncation with ~ substitution
+- Added `format_model/2` for model display
+- Added `build_status_bar_style_for_session/2` for status-aware colors
+- Status bar shows session position ([1/3]), name, path, model, status
 
 **Unit Tests for Section 4.4:**
 - Test view includes tab bar

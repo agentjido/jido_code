@@ -1582,7 +1582,7 @@ defmodule JidoCode.TUI do
             [
               ViewHelpers.render_status_bar(state),
               ViewHelpers.render_separator(state),
-              render_conversation_area(state),
+              render_session_content(state),
               ViewHelpers.render_separator(state),
               ViewHelpers.render_input_bar(state),
               ViewHelpers.render_separator(state),
@@ -1608,7 +1608,7 @@ defmodule JidoCode.TUI do
           ViewHelpers.render_status_bar(state),
           ViewHelpers.render_separator(state),
           stack(:horizontal, [
-            render_conversation_area(state),
+            render_session_content(state),
             ViewHelpers.render_reasoning(state)
           ]),
           ViewHelpers.render_separator(state),
@@ -1632,7 +1632,7 @@ defmodule JidoCode.TUI do
         [
           ViewHelpers.render_status_bar(state),
           ViewHelpers.render_separator(state),
-          render_conversation_area(state),
+          render_session_content(state),
           ViewHelpers.render_reasoning_compact(state),
           ViewHelpers.render_separator(state),
           ViewHelpers.render_input_bar(state),
@@ -1656,6 +1656,105 @@ defmodule JidoCode.TUI do
     else
       ViewHelpers.render_conversation(state)
     end
+  end
+
+  # Render session-specific content (conversation or welcome screen)
+  @doc false
+  @spec render_session_content(Model.t()) :: TermUI.View.t()
+  defp render_session_content(%Model{active_session_id: nil} = state) do
+    # No active session - show welcome screen
+    render_welcome_screen(state)
+  end
+
+  defp render_session_content(%Model{active_session_id: session_id} = state) do
+    # Fetch session state from Session.State GenServer
+    case Model.get_active_session_state(state) do
+      nil ->
+        # Session state not found - show error message
+        render_session_error(state, session_id)
+
+      session_state ->
+        # Render conversation using session's state
+        render_conversation_for_session(state, session_state)
+    end
+  end
+
+  # Render conversation for a specific session
+  defp render_conversation_for_session(state, session_state) do
+    if state.conversation_view do
+      # Update ConversationView with session's messages
+      updated_view =
+        ConversationView.set_messages(
+          state.conversation_view,
+          Map.get(session_state, :messages, [])
+        )
+
+      {width, height} = state.window
+      available_height = max(height - 8, 1)
+      content_width = max(width - 2, 1)
+      area = %{x: 0, y: 0, width: content_width, height: available_height}
+
+      ConversationView.render(updated_view, area)
+    else
+      # Fallback to ViewHelpers (shouldn't happen in normal operation)
+      ViewHelpers.render_conversation(state)
+    end
+  end
+
+  # Show welcome screen when no sessions exist
+  defp render_welcome_screen(state) do
+    {width, height} = state.window
+    content_width = max(width - 2, 1)
+    available_height = max(height - 8, 1)
+
+    # Styling
+    title_style = Style.new(fg: TermUI.Theme.get_color(:primary) || :cyan, attrs: [:bold])
+    accent_style = Style.new(fg: TermUI.Theme.get_color(:accent) || :magenta)
+    muted_style = Style.new(fg: TermUI.Theme.get_semantic(:muted) || :bright_black)
+    info_style = Style.new(fg: TermUI.Theme.get_semantic(:info) || :white)
+
+    lines = [
+      text("", nil),
+      text("Welcome to JidoCode", title_style),
+      text("", nil),
+      text("No active sessions. Create a new session to get started:", info_style),
+      text("", nil),
+      text("Commands:", accent_style),
+      text("  /session new <path>        Create session for project", muted_style),
+      text("  /session new .             Create session for current directory", muted_style),
+      text("  /resume                    List and resume saved sessions", muted_style),
+      text("", nil),
+      text("Keyboard Shortcuts:", accent_style),
+      text("  Ctrl+N                     Create new session (future)", muted_style),
+      text("  Ctrl+1 - Ctrl+0            Switch between sessions", muted_style),
+      text("  Ctrl+W                     Close current session", muted_style),
+      text("", nil)
+    ]
+
+    # Pad to fill available height
+    padded_lines = ViewHelpers.pad_lines_to_height(lines, available_height, content_width)
+
+    stack(:vertical, padded_lines)
+  end
+
+  # Show error when session state cannot be found
+  defp render_session_error(state, session_id) do
+    {width, height} = state.window
+    content_width = max(width - 2, 1)
+    available_height = max(height - 8, 1)
+
+    error_style = Style.new(fg: TermUI.Theme.get_semantic(:error) || :red)
+    muted_style = Style.new(fg: TermUI.Theme.get_semantic(:muted) || :bright_black)
+
+    lines = [
+      text("Session Error", error_style),
+      text("", nil),
+      text("Session #{session_id} state not found.", muted_style),
+      text("Try closing and reopening the session.", muted_style)
+    ]
+
+    padded_lines = ViewHelpers.pad_lines_to_height(lines, available_height, content_width)
+    stack(:vertical, padded_lines)
   end
 
   defp overlay_shell_dialog(state, main_view) do

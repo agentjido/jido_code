@@ -261,16 +261,98 @@ defmodule JidoCode.TUI.ViewHelpers do
     {width, _height} = state.window
     content_width = max(width - 2, 1)
 
+    case Model.get_active_session(state) do
+      nil ->
+        # No active session - show simplified status
+        render_status_bar_no_session(state, content_width)
+
+      session ->
+        # Active session - show full session info
+        render_status_bar_with_session(state, session, content_width)
+    end
+  end
+
+  # Status bar when no active session
+  defp render_status_bar_no_session(state, content_width) do
     config_text = format_config(state.config)
     status_text = format_status(state.agent_status)
+
+    full_text = "No active session | #{config_text} | #{status_text}"
+    padded_text = pad_or_truncate(full_text, content_width)
+
+    bar_style = build_status_bar_style(state)
+    text(padded_text, bar_style)
+  end
+
+  # Status bar with active session info
+  defp render_status_bar_with_session(state, session, content_width) do
+    # Session count and position
+    session_count = Model.session_count(state)
+    session_index = Enum.find_index(state.session_order, &(&1 == session.id))
+    position_text = "[#{session_index + 1}/#{session_count}]"
+
+    # Session name (truncated)
+    session_name = truncate(session.name, 20)
+
+    # Project path (truncated, show last 2 segments)
+    path_text = format_project_path(session.project_path, 25)
+
+    # Model info from session config or global config
+    session_config = Map.get(session, :config, %{})
+    provider = Map.get(session_config, :provider) || state.config.provider
+    model = Map.get(session_config, :model) || state.config.model
+    model_text = format_model(provider, model)
+
+    # Agent status for this session
+    session_status = Model.get_session_status(session.id)
+    status_text = format_status(session_status)
+
+    # CoT indicator
     cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
 
-    full_text = "#{config_text} | #{status_text}#{cot_indicator}"
-    # Pad or truncate to fill the content width exactly
-    padded_text = pad_or_truncate(full_text, content_width)
-    bar_style = build_status_bar_style(state)
+    # Build full text: "[1/3] project-name | ~/path/to/project | anthropic:claude-3-5-sonnet | Idle"
+    full_text =
+      "#{position_text} #{session_name} | #{path_text} | #{model_text} | #{status_text}#{cot_indicator}"
 
+    padded_text = pad_or_truncate(full_text, content_width)
+
+    bar_style = build_status_bar_style_for_session(state, session_status)
     text(padded_text, bar_style)
+  end
+
+  @doc """
+  Formats a project path for display, replacing home directory with ~ and truncating if needed.
+  """
+  def format_project_path(path, max_length) do
+    # Replace home directory with ~
+    home_dir = System.user_home!()
+    display_path = String.replace_prefix(path, home_dir, "~")
+
+    # Truncate from start if too long
+    if String.length(display_path) > max_length do
+      "..." <> String.slice(display_path, -(max_length - 3)..-1//1)
+    else
+      display_path
+    end
+  end
+
+  # Format model text
+  defp format_model(nil, _), do: "No provider"
+  defp format_model(_, nil), do: "No model"
+  defp format_model(provider, model), do: "#{provider}:#{model}"
+
+  # Build status bar style based on session status
+  defp build_status_bar_style_for_session(state, session_status) do
+    fg_color =
+      cond do
+        session_status == :error -> Theme.get_semantic(:error) || :red
+        session_status == :unconfigured -> Theme.get_semantic(:error) || :red
+        session_status == :processing -> Theme.get_semantic(:warning) || :yellow
+        has_active_reasoning?(state) -> Theme.get_color(:accent) || :magenta
+        true -> Theme.get_color(:foreground) || :white
+      end
+
+    Style.new(fg: fg_color, bg: :black)
   end
 
   @doc """
@@ -377,7 +459,11 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   # Pad lines list with empty lines to fill the target height
-  defp pad_lines_to_height(lines, target_height, content_width) do
+  @doc """
+  Pads a list of view elements to reach a target height by adding empty lines.
+  If the list exceeds the target height, truncates it.
+  """
+  def pad_lines_to_height(lines, target_height, content_width) do
     current_count = length(lines)
 
     if current_count >= target_height do

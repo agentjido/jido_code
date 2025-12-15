@@ -39,12 +39,10 @@ defmodule JidoCode.TUI do
   require Logger
 
   alias Jido.AI.Keyring
-  alias JidoCode.Agents.LLMAgent
-  alias JidoCode.AgentSupervisor
   alias JidoCode.Commands
   alias JidoCode.Config.ProviderKeys
   alias JidoCode.PubSubTopics
-  alias JidoCode.Reasoning.QueryClassifier
+  alias JidoCode.Session
   alias JidoCode.Settings
   alias JidoCode.Tools.Result
   alias JidoCode.TUI.Clipboard
@@ -1584,96 +1582,104 @@ defmodule JidoCode.TUI do
   end
 
   defp do_dispatch_to_agent(text, state) do
-    # Add user message to conversation
-    user_msg = user_message(text)
+    case state.active_session_id do
+      nil ->
+        do_show_no_session_error(state)
 
-    # Classify query for CoT (for future use)
-    _use_cot = QueryClassifier.should_use_cot?(text)
+      session_id ->
+        # Sync user message to ConversationView for display
+        new_conversation_view =
+          if state.conversation_view do
+            ConversationView.add_message(state.conversation_view, %{
+              id: generate_message_id(),
+              role: :user,
+              content: text,
+              timestamp: DateTime.utc_now()
+            })
+          else
+            state.conversation_view
+          end
 
-    # Sync user message to ConversationView
+        # Send message to active session's agent
+        # User message is stored in Session.State automatically by AgentAPI
+        case Session.AgentAPI.send_message_stream(session_id, text) do
+          :ok ->
+            # Update UI state to show processing
+            updated_state = %{
+              state
+              | agent_status: :processing,
+                scroll_offset: 0,
+                streaming_message: "",
+                is_streaming: true,
+                conversation_view: new_conversation_view
+            }
+
+            {updated_state, []}
+
+          {:error, reason} ->
+            do_show_agent_error(state, reason, new_conversation_view)
+        end
+    end
+  end
+
+  defp do_show_no_session_error(state) do
+    error_content = """
+    No active session. Create a session first with:
+      /session new <path> --name="Session Name"
+
+    Or switch to an existing session with:
+      /session switch <index>
+    """
+
+    error_msg = system_message(error_content)
+
+    # Add to ConversationView
     new_conversation_view =
       if state.conversation_view do
         ConversationView.add_message(state.conversation_view, %{
           id: generate_message_id(),
-          role: :user,
-          content: text,
+          role: :system,
+          content: error_content,
           timestamp: DateTime.utc_now()
         })
       else
         state.conversation_view
       end
 
-    # Look up and dispatch to agent with streaming
-    case AgentSupervisor.lookup_agent(state.agent_name) do
-      {:ok, agent_pid} ->
-        # Subscribe to session-specific topic if not already subscribed
-        new_state = ensure_session_subscription(state, agent_pid)
+    new_state = %{
+      state
+      | messages: [error_msg | state.messages],
+        conversation_view: new_conversation_view
+    }
 
-        # Dispatch async with streaming - agent will broadcast chunks via PubSub
-        LLMAgent.chat_stream(agent_pid, text)
-
-        updated_state = %{
-          new_state
-          | messages: [user_msg | new_state.messages],
-            agent_status: :processing,
-            scroll_offset: 0,
-            streaming_message: "",
-            is_streaming: true,
-            conversation_view: new_conversation_view
-        }
-
-        {updated_state, []}
-
-      {:error, :not_found} ->
-        error_msg =
-          system_message(
-            "LLM agent not running. Start with: JidoCode.AgentSupervisor.start_agent(%{name: :llm_agent, module: JidoCode.Agents.LLMAgent, args: []})"
-          )
-
-        # Also add error message to ConversationView
-        cv_with_error =
-          if new_conversation_view do
-            ConversationView.add_message(new_conversation_view, %{
-              id: generate_message_id(),
-              role: :system,
-              content: error_msg.content,
-              timestamp: DateTime.utc_now()
-            })
-          else
-            new_conversation_view
-          end
-
-        new_state = %{
-          state
-          | messages: [error_msg, user_msg | state.messages],
-            agent_status: :error,
-            conversation_view: cv_with_error
-        }
-
-        {new_state, []}
-    end
+    {new_state, []}
   end
 
-  # Subscribe to the agent's session-specific topic if not already subscribed
-  defp ensure_session_subscription(state, agent_pid) do
-    case LLMAgent.get_session_info(agent_pid) do
-      {:ok, _session_id, topic} ->
-        if state.session_topic != topic do
-          # Unsubscribe from old topic if we had one
-          if state.session_topic do
-            Phoenix.PubSub.unsubscribe(JidoCode.PubSub, state.session_topic)
-          end
+  defp do_show_agent_error(state, reason, conversation_view) do
+    error_content = "Failed to send message to session agent: #{inspect(reason)}"
+    error_msg = system_message(error_content)
 
-          # Subscribe to new session topic
-          Phoenix.PubSub.subscribe(JidoCode.PubSub, topic)
-          %{state | session_topic: topic}
-        else
-          state
-        end
+    # Add to ConversationView
+    new_conversation_view =
+      if conversation_view do
+        ConversationView.add_message(conversation_view, %{
+          id: generate_message_id(),
+          role: :system,
+          content: error_content,
+          timestamp: DateTime.utc_now()
+        })
+      else
+        conversation_view
+      end
 
-      _ ->
-        state
-    end
+    new_state = %{
+      state
+      | messages: [error_msg | state.messages],
+        agent_status: :error,
+        conversation_view: new_conversation_view
+    }
+
+    {new_state, []}
   end
 
   @doc """

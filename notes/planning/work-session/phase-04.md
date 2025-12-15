@@ -365,18 +365,43 @@ Build reusable accordion widget with expand/collapse functionality.
 - Uses TermUI primitives (text, stack, Style) for rendering
 
 ### 4.5.2 Session Sidebar Component
-- [ ] **Task 4.5.2**
+- [x] **Task 4.5.2** (completed 2025-12-15)
 
 Create session-specific sidebar that uses accordion to display sessions.
 
-- [ ] 4.5.2.1 Create `JidoCode.TUI.Widgets.SessionSidebar` module
-- [ ] 4.5.2.2 Implement `SessionSidebar` struct (sessions, order, active, expanded, width)
-- [ ] 4.5.2.3 Implement `render/2` function with header and accordion
-- [ ] 4.5.2.4 Build accordion sections from session list
-- [ ] 4.5.2.5 Add session badges (message count, status indicators)
-- [ ] 4.5.2.6 Implement session details rendering (Info, Files, Tools sections - minimal/empty for now)
-- [ ] 4.5.2.7 Add active session indicator (→ prefix)
-- [ ] 4.5.2.8 Write unit tests for session sidebar
+- [x] 4.5.2.1 Create `JidoCode.TUI.Widgets.SessionSidebar` module
+- [x] 4.5.2.2 Implement `SessionSidebar` struct (sessions, order, active, expanded, width)
+- [x] 4.5.2.3 Implement `render/2` function with header and accordion
+  - Renders "SESSIONS" header with cyan/bold styling
+  - Builds accordion from session list in display order
+  - Uses Accordion widget for expand/collapse functionality
+- [x] 4.5.2.4 Build accordion sections from session list
+  - One section per session
+  - Skips missing sessions gracefully
+- [x] 4.5.2.5 Add session badges (message count, status indicators)
+  - Format: "(msgs: N) [icon]"
+  - Uses pagination metadata for efficient message count
+  - Status icons: ✓ (idle), ⟳ (processing), ✗ (error), ○ (unconfigured)
+- [x] 4.5.2.6 Implement session details rendering (Info, Files, Tools sections - minimal/empty for now)
+  - Info section: Created time (relative) and project path (with ~ substitution)
+  - Files section: "(empty)" placeholder
+  - Tools section: "(empty)" placeholder
+- [x] 4.5.2.7 Add active session indicator (→ prefix)
+  - Active session gets "→ " prefix in title
+  - Inactive sessions have no prefix
+- [x] 4.5.2.8 Write unit tests for session sidebar (47 tests, 0 failures)
+
+**Implementation Notes**:
+- Module: `lib/jido_code/tui/widgets/session_sidebar.ex` (410 lines)
+- Tests: `test/jido_code/tui/widgets/session_sidebar_test.exs` (47 tests)
+- Pure rendering component (not StatefulComponent)
+- Integrates with Accordion widget from Task 4.5.1
+- Name truncation: 15 chars (consistent with tabs)
+- Message count via `Session.State.get_messages/3` pagination metadata (efficient)
+- Status via `Session.AgentAPI.get_status/1` (reuses tab indicator logic)
+- Accessor functions: expanded?, session_count, has_active_session?
+- Comprehensive documentation with examples
+- Known limitation: Minimum practical width is 20 chars (badge truncation issues below this)
 
 ### 4.5.3 Model Updates
 - [ ] **Task 4.5.3**

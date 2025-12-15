@@ -340,6 +340,64 @@ defmodule JidoCode.TUI do
     end
 
     @doc """
+    Adds a session to the tab list without forcing it to be active.
+
+    This function differs from `add_session/2` in that it only sets the new
+    session as active if no other session is currently active. This is useful
+    when loading multiple sessions at startup or when creating background sessions.
+
+    ## Behavior
+
+    1. Adds the session to the sessions map
+    2. Appends the session ID to session_order
+    3. Sets as active ONLY if `active_session_id` is currently `nil`
+
+    ## Examples
+
+        # First session becomes active
+        iex> model = %Model{}
+        iex> session1 = %Session{id: "s1", name: "project1"}
+        iex> model = Model.add_session_to_tabs(model, session1)
+        iex> model.active_session_id
+        "s1"
+
+        # Second session does NOT become active
+        iex> session2 = %Session{id: "s2", name: "project2"}
+        iex> model = Model.add_session_to_tabs(model, session2)
+        iex> model.active_session_id
+        "s1"
+
+    ## See Also
+
+    - `add_session/2` - Always sets new session as active
+    - `switch_session/2` - Explicitly switch to a session
+    """
+    @spec add_session_to_tabs(t(), JidoCode.Session.t() | map()) :: t()
+    def add_session_to_tabs(%__MODULE__{} = model, session) when is_map(session) do
+      session_id = Map.get(session, :id) || Map.get(session, "id")
+
+      %{
+        model
+        | sessions: Map.put(model.sessions, session_id, session),
+          session_order: model.session_order ++ [session_id],
+          active_session_id: model.active_session_id || session_id
+      }
+    end
+
+    @doc """
+    Removes a session from the tab list.
+
+    This is an alias for `remove_session/2` that follows the naming convention
+    from Phase 4.1.3 of the work-session plan.
+
+    See `remove_session/2` for full documentation.
+    """
+    @spec remove_session_from_tabs(t(), String.t()) :: t()
+    def remove_session_from_tabs(%__MODULE__{} = model, session_id) do
+      remove_session(model, session_id)
+    end
+
+    @doc """
     Switches to a different session by ID.
 
     Only switches if the session exists in the sessions map.

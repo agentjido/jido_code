@@ -2308,4 +2308,170 @@ defmodule JidoCode.TUITest do
       assert new_model.messages == []
     end
   end
+
+  describe "Model.add_session_to_tabs/2" do
+    test "adds first session and sets it as active" do
+      model = %Model{}
+      session = %{id: "s1", name: "project1", project_path: "/path1"}
+
+      new_model = Model.add_session_to_tabs(model, session)
+
+      assert new_model.sessions == %{"s1" => session}
+      assert new_model.session_order == ["s1"]
+      assert new_model.active_session_id == "s1"
+    end
+
+    test "adds second session without changing active session" do
+      session1 = %{id: "s1", name: "project1", project_path: "/path1"}
+      model = %Model{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      session2 = %{id: "s2", name: "project2", project_path: "/path2"}
+      new_model = Model.add_session_to_tabs(model, session2)
+
+      assert map_size(new_model.sessions) == 2
+      assert new_model.sessions["s2"] == session2
+      assert new_model.session_order == ["s1", "s2"]
+      assert new_model.active_session_id == "s1"
+    end
+
+    test "adds third session preserving order and active" do
+      session1 = %{id: "s1", name: "p1", project_path: "/p1"}
+      session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s2"
+      }
+
+      session3 = %{id: "s3", name: "p3", project_path: "/p3"}
+      new_model = Model.add_session_to_tabs(model, session3)
+
+      assert map_size(new_model.sessions) == 3
+      assert new_model.session_order == ["s1", "s2", "s3"]
+      assert new_model.active_session_id == "s2"
+    end
+
+    test "adds session when active_session_id is nil" do
+      session1 = %{id: "s1", name: "p1", project_path: "/p1"}
+      model = %Model{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+      new_model = Model.add_session_to_tabs(model, session2)
+
+      assert new_model.sessions["s2"] == session2
+      assert new_model.active_session_id == "s2"
+    end
+  end
+
+  describe "Model.remove_session_from_tabs/2" do
+    test "removes session from single-session model" do
+      session = %{id: "s1", name: "project", project_path: "/path"}
+      model = %Model{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      new_model = Model.remove_session_from_tabs(model, "s1")
+
+      assert new_model.sessions == %{}
+      assert new_model.session_order == []
+      assert new_model.active_session_id == nil
+    end
+
+    test "removes non-active session without changing active" do
+      session1 = %{id: "s1", name: "p1", project_path: "/p1"}
+      session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      new_model = Model.remove_session_from_tabs(model, "s2")
+
+      assert new_model.sessions == %{"s1" => session1}
+      assert new_model.session_order == ["s1"]
+      assert new_model.active_session_id == "s1"
+    end
+
+    test "removes active session and switches to previous" do
+      session1 = %{id: "s1", name: "p1", project_path: "/p1"}
+      session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s2"
+      }
+
+      new_model = Model.remove_session_from_tabs(model, "s2")
+
+      assert new_model.sessions == %{"s1" => session1}
+      assert new_model.session_order == ["s1"]
+      assert new_model.active_session_id == "s1"
+    end
+
+    test "removes active session and switches to next when at beginning" do
+      session1 = %{id: "s1", name: "p1", project_path: "/p1"}
+      session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      new_model = Model.remove_session_from_tabs(model, "s1")
+
+      assert new_model.sessions == %{"s2" => session2}
+      assert new_model.session_order == ["s2"]
+      assert new_model.active_session_id == "s2"
+    end
+
+    test "removes middle session from three sessions" do
+      session1 = %{id: "s1", name: "p1", project_path: "/p1"}
+      session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+      session3 = %{id: "s3", name: "p3", project_path: "/p3"}
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s2"
+      }
+
+      new_model = Model.remove_session_from_tabs(model, "s2")
+
+      assert map_size(new_model.sessions) == 2
+      assert new_model.session_order == ["s1", "s3"]
+      # Should switch to previous (s1)
+      assert new_model.active_session_id == "s1"
+    end
+
+    test "removing non-existent session is no-op" do
+      session = %{id: "s1", name: "p1", project_path: "/p1"}
+      model = %Model{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      new_model = Model.remove_session_from_tabs(model, "nonexistent")
+
+      assert new_model == model
+    end
+
+    test "handles empty model gracefully" do
+      model = %Model{}
+
+      new_model = Model.remove_session_from_tabs(model, "s1")
+
+      assert new_model == model
+    end
+  end
 end

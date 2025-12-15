@@ -70,11 +70,11 @@ Add helper functions for accessing active session state.
 - [x] 4.1.2.4 Write unit tests for session access helpers (13 new tests, 26 total)
 
 ### 4.1.3 Session Order Management
-- [ ] **Task 4.1.3**
+- [x] **Task 4.1.3** (completed 2025-12-15)
 
 Implement functions for managing session tab order.
 
-- [ ] 4.1.3.1 Implement `add_session_to_tabs/2`:
+- [x] 4.1.3.1 Implement `add_session_to_tabs/2`:
   ```elixir
   def add_session_to_tabs(model, session) do
     %{model |
@@ -84,10 +84,10 @@ Implement functions for managing session tab order.
     }
   end
   ```
-- [ ] 4.1.3.2 Implement `remove_session_from_tabs/2`
-- [ ] 4.1.3.3 Handle active session removal (switch to adjacent tab)
+- [x] 4.1.3.2 Implement `remove_session_from_tabs/2`
+- [x] 4.1.3.3 Handle active session removal (switch to adjacent tab)
 - [ ] 4.1.3.4 Implement `reorder_sessions/2` for drag-drop (future)
-- [ ] 4.1.3.5 Write unit tests for tab management
+- [x] 4.1.3.5 Write unit tests for tab management
 
 **Unit Tests for Section 4.1:**
 - Test Model struct has session tracking fields

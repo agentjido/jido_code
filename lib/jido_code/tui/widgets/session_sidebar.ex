@@ -132,14 +132,17 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
     # Build header
     header = render_header(render_width)
 
+    # Build header separator
+    separator = render_header_separator(render_width)
+
     # Build accordion from sessions
     accordion = build_accordion(sidebar)
 
     # Render accordion
     accordion_view = Accordion.render(accordion, render_width)
 
-    # Stack header and accordion
-    stack(:vertical, [header, accordion_view])
+    # Stack header, separator, and accordion
+    stack(:vertical, [header, separator, accordion_view])
   end
 
   @doc false
@@ -152,6 +155,14 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
     padded = String.pad_trailing(header_text, width)
 
     text(padded, header_style)
+  end
+
+  @doc false
+  @spec render_header_separator(pos_integer()) :: TermUI.View.t()
+  defp render_header_separator(width) do
+    separator_style = Style.new(fg: :bright_black)
+    separator_line = String.duplicate("─", width)
+    text(separator_line, separator_style)
   end
 
   # ============================================================================

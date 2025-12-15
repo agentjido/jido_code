@@ -688,20 +688,17 @@ Route input events to active session's agent.
 - [x] 4.7.1.3 Integration testing (manual - unit tests deferred)
 
 ### 4.7.2 Scroll Event Routing
-- [ ] **Task 4.7.2**
+- [x] **Task 4.7.2** ✅
 
 Route scroll events to active session's conversation view.
 
-- [ ] 4.7.2.1 Update scroll handlers to update Session.State:
-  ```elixir
-  def update({:scroll, direction}, model) do
-    session_id = model.active_session_id
-    Session.State.scroll_by(session_id, scroll_amount(direction))
-    model
-  end
-  ```
-- [ ] 4.7.2.2 Handle scroll when no active session
-- [ ] 4.7.2.3 Write unit tests for scroll routing
+**Implementation**: Added `refresh_conversation_view_for_session/2` helper that fetches messages from the active session and updates `conversation_view` using `ConversationView.set_messages/2`. Called during session switch (both keyboard shortcuts and command handler).
+
+**Key Finding**: Scroll events already work correctly via `ConversationView.handle_event/2`. The issue was that `conversation_view` wasn't being refreshed when switching sessions, so it continued to show the old session's messages.
+
+- [x] 4.7.2.1 Refresh conversation_view on session switch
+- [x] 4.7.2.2 Handle scroll when no active session (already handled via guard clause)
+- [ ] 4.7.2.3 Unit tests for scroll routing (deferred to Phase 4.8)
 
 ### 4.7.3 PubSub Event Handling
 - [ ] **Task 4.7.3**

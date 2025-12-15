@@ -1164,6 +1164,7 @@ defmodule JidoCode.TUI do
           new_state =
             state
             |> Model.switch_session(session.id)
+            |> refresh_conversation_view_for_session(session.id)
             |> add_session_message("Switched to: #{session.name}")
 
           {new_state, []}
@@ -1449,8 +1450,11 @@ defmodule JidoCode.TUI do
         {final_state, []}
 
       {:session_action, {:switch_session, session_id}} ->
-        # Switch to the specified session
-        new_state = Model.switch_session(state, session_id)
+        # Switch to the specified session and refresh conversation view
+        new_state =
+          state
+          |> Model.switch_session(session_id)
+          |> refresh_conversation_view_for_session(session_id)
 
         # Get session name for the message
         session = Map.get(new_state.sessions, session_id)
@@ -1536,6 +1540,29 @@ defmodule JidoCode.TUI do
 
     # Add confirmation message
     add_session_message(new_state, "Closed session: #{session_name}")
+  end
+
+  # Helper to refresh conversation_view with a session's messages
+  # Used when switching sessions to ensure the correct messages are displayed
+  defp refresh_conversation_view_for_session(state, session_id) do
+    case Session.State.get_messages(session_id) do
+      {:ok, messages} ->
+        # Create fresh conversation view with session's messages
+        # Reset scroll position to bottom (latest messages)
+        new_conversation_view =
+          if state.conversation_view do
+            ConversationView.set_messages(state.conversation_view, messages)
+          else
+            state.conversation_view
+          end
+
+        %{state | conversation_view: new_conversation_view}
+
+      {:error, _reason} ->
+        # Couldn't fetch messages, keep existing view
+        # This shouldn't happen in normal operation
+        state
+    end
   end
 
   # Handle chat message submission

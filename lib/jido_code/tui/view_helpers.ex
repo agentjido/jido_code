@@ -43,6 +43,14 @@ defmodule JidoCode.TUI.ViewHelpers do
     vertical: "│"
   }
 
+  # Status indicator characters for tab rendering
+  @status_indicators %{
+    processing: "⟳",  # Rotating arrow (U+27F3)
+    idle: "✓",        # Check mark (U+2713)
+    error: "✗",       # X mark (U+2717)
+    unconfigured: "○" # Empty circle (U+25CB)
+  }
+
   # ============================================================================
   # Border / Frame
   # ============================================================================
@@ -782,7 +790,9 @@ defmodule JidoCode.TUI.ViewHelpers do
         session = Map.get(sessions, session_id)
         label = format_tab_label(session, index)
         is_active = session_id == active_id
-        render_single_tab(label, is_active)
+        # Query session status for indicator
+        status = Model.get_session_status(session_id)
+        render_single_tab(label, is_active, status)
       end)
 
     # Render tabs horizontally with separators
@@ -793,16 +803,42 @@ defmodule JidoCode.TUI.ViewHelpers do
     stack(:horizontal, tab_elements)
   end
 
-  # Renders a single tab with appropriate styling
-  @spec render_single_tab(String.t(), boolean()) :: TermUI.View.t()
-  defp render_single_tab(label, is_active) do
-    style =
+  # Renders a single tab with appropriate styling and status indicator
+  @spec render_single_tab(String.t(), boolean(), Model.agent_status()) :: TermUI.View.t()
+  defp render_single_tab(label, is_active, status) do
+    # Get status indicator character
+    indicator = Map.get(@status_indicators, status, "?")
+
+    # Build label with status: "⟳ 1:project"
+    full_label = "#{indicator} #{label}"
+
+    # Apply styling based on active state and status
+    style = build_tab_style(is_active, status)
+
+    text(" #{full_label} ", style)
+  end
+
+  # Builds tab style based on active state and status
+  @spec build_tab_style(boolean(), Model.agent_status()) :: Style.t()
+  defp build_tab_style(is_active, status) do
+    base_style =
       if is_active do
         Style.new(fg: Theme.get_color(:primary) || :cyan, attrs: [:bold, :underline])
       else
         Style.new(fg: Theme.get_color(:secondary) || :bright_black)
       end
 
-    text(" #{label} ", style)
+    # Override color for error status (always red)
+    # Override color for active+processing (yellow for attention)
+    case status do
+      :error ->
+        %{base_style | fg: Theme.get_semantic(:error) || :red}
+
+      :processing when is_active ->
+        %{base_style | fg: Theme.get_semantic(:warning) || :yellow}
+
+      _ ->
+        base_style
+    end
   end
 end

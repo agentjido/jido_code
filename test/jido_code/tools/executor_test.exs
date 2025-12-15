@@ -24,6 +24,12 @@ defmodule JidoCode.Tools.ExecutorTest do
   end
 
   setup do
+    # Ensure application is started (Manager and registries)
+    Application.ensure_all_started(:jido_code)
+
+    # Clear registry for each test
+    Registry.clear()
+
     # Register test tools (idempotent - will skip if already registered)
     {:ok, read_file} =
       Tool.new(%{

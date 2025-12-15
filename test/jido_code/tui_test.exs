@@ -2829,4 +2829,239 @@ defmodule JidoCode.TUITest do
       refute_receive {:test_after, "after"}, 500
     end
   end
+
+  # Section 4.4: View Integration Tests
+  describe "format_project_path/2" do
+    alias JidoCode.TUI.ViewHelpers
+
+    test "replaces home directory with ~" do
+        home_dir = System.user_home!()
+        path = Path.join(home_dir, "projects/myapp")
+
+        result = ViewHelpers.format_project_path(path, 50)
+
+        assert String.starts_with?(result, "~/")
+        refute String.contains?(result, home_dir)
+      end
+
+      test "truncates long paths from start" do
+        home_dir = System.user_home!()
+        path = Path.join(home_dir, "very/long/path/to/some/deeply/nested/project")
+
+        result = ViewHelpers.format_project_path(path, 25)
+
+        assert String.starts_with?(result, "...")
+        assert String.length(result) == 25
+      end
+
+      test "keeps short paths unchanged (with ~ substitution)" do
+        home_dir = System.user_home!()
+        path = Path.join(home_dir, "code")
+
+        result = ViewHelpers.format_project_path(path, 50)
+
+        assert result == "~/code"
+      end
+
+      test "handles non-home paths" do
+        path = "/opt/project"
+
+        result = ViewHelpers.format_project_path(path, 50)
+
+        assert result == "/opt/project"
+      end
+  end
+
+  describe "status bar with sessions" do
+    alias JidoCode.TUI.ViewHelpers
+
+    test "shows 'No active session' when no session" do
+        model = %Model{
+          active_session_id: nil,
+          sessions: %{},
+          session_order: [],
+          window: {80, 24},
+          config: %{provider: :anthropic, model: "claude-3-5-sonnet"},
+          agent_status: :idle,
+          text_input: create_text_input()
+        }
+
+        result = ViewHelpers.render_status_bar(model)
+
+        # Should contain "No active session" text
+        assert %{type: :text} = result
+        assert String.contains?(result.content, "No active session")
+      end
+
+      test "shows session position and count" do
+        session1 = %{id: "s1", name: "Session 1", project_path: "/test/path1", config: %{}}
+        session2 = %{id: "s2", name: "Session 2", project_path: "/test/path2", config: %{}}
+
+        model = %Model{
+          active_session_id: "s2",
+          sessions: %{"s1" => session1, "s2" => session2},
+          session_order: ["s1", "s2"],
+          window: {80, 24},
+          config: %{provider: :anthropic, model: "claude-3-5-sonnet"},
+          agent_status: :idle,
+          text_input: create_text_input()
+        }
+
+        result = ViewHelpers.render_status_bar(model)
+
+        # Should contain [2/2] for second of two sessions
+        assert %{type: :text} = result
+        assert String.contains?(result.content, "[2/2]")
+      end
+
+      test "shows truncated session name" do
+        session = %{
+          id: "s1",
+          name: "Very Long Session Name That Should Be Truncated",
+          project_path: "/test",
+          config: %{}
+        }
+
+        model = %Model{
+          active_session_id: "s1",
+          sessions: %{"s1" => session},
+          session_order: ["s1"],
+          window: {80, 24},
+          config: %{provider: :anthropic, model: "claude-3-5-sonnet"},
+          agent_status: :idle,
+          text_input: create_text_input()
+        }
+
+        result = ViewHelpers.render_status_bar(model)
+
+        # Session name should be truncated (max 20 chars in implementation)
+        assert %{type: :text} = result
+        # Should contain truncated name with ellipsis
+        assert String.contains?(result.content, "Very Long Session...")
+      end
+
+      test "shows project path with ~ substitution" do
+        home_dir = System.user_home!()
+        path = Path.join(home_dir, "projects/test")
+
+        session = %{
+          id: "s1",
+          name: "Test",
+          project_path: path,
+          config: %{}
+        }
+
+        model = %Model{
+          active_session_id: "s1",
+          sessions: %{"s1" => session},
+          session_order: ["s1"],
+          window: {80, 24},
+          config: %{provider: :anthropic, model: "claude-3-5-sonnet"},
+          agent_status: :idle,
+          text_input: create_text_input()
+        }
+
+        result = ViewHelpers.render_status_bar(model)
+
+        # Should contain ~ for home directory
+        assert %{type: :text} = result
+        assert String.contains?(result.content, "~/")
+      end
+
+      test "shows provider:model from session config" do
+        session = %{
+          id: "s1",
+          name: "Test",
+          project_path: "/test",
+          config: %{provider: :openai, model: "gpt-4"}
+        }
+
+        model = %Model{
+          active_session_id: "s1",
+          sessions: %{"s1" => session},
+          session_order: ["s1"],
+          window: {80, 24},
+          config: %{provider: :anthropic, model: "claude-3-5-sonnet"},
+          agent_status: :idle,
+          text_input: create_text_input()
+        }
+
+        result = ViewHelpers.render_status_bar(model)
+
+        # Should show session's model config, not global
+        assert %{type: :text} = result
+        assert String.contains?(result.content, "openai:gpt-4")
+      end
+
+      test "falls back to global config when session has no config" do
+        session = %{
+          id: "s1",
+          name: "Test",
+          project_path: "/test",
+          config: %{}
+        }
+
+        model = %Model{
+          active_session_id: "s1",
+          sessions: %{"s1" => session},
+          session_order: ["s1"],
+          window: {80, 24},
+          config: %{provider: :anthropic, model: "claude-3-5-sonnet"},
+          agent_status: :idle,
+          text_input: create_text_input()
+        }
+
+        result = ViewHelpers.render_status_bar(model)
+
+        # Should show global config
+        assert %{type: :text} = result
+        assert String.contains?(result.content, "anthropic:claude-3-5-sonnet")
+      end
+  end
+
+  describe "pad_lines_to_height/3" do
+    alias JidoCode.TUI.ViewHelpers
+
+    test "pads short list to target height" do
+        # Mock view elements
+        lines = [%{type: :text, content: "Line 1"}, %{type: :text, content: "Line 2"}]
+
+        result = ViewHelpers.pad_lines_to_height(lines, 5, 80)
+
+        assert length(result) == 5
+        # First 2 should be original lines
+        assert Enum.at(result, 0) == Enum.at(lines, 0)
+        assert Enum.at(result, 1) == Enum.at(lines, 1)
+      end
+
+      test "truncates long list to target height" do
+        lines = [
+          %{type: :text, content: "Line 1"},
+          %{type: :text, content: "Line 2"},
+          %{type: :text, content: "Line 3"},
+          %{type: :text, content: "Line 4"},
+          %{type: :text, content: "Line 5"}
+        ]
+
+        result = ViewHelpers.pad_lines_to_height(lines, 3, 80)
+
+        assert length(result) == 3
+        assert Enum.at(result, 0) == Enum.at(lines, 0)
+        assert Enum.at(result, 1) == Enum.at(lines, 1)
+        assert Enum.at(result, 2) == Enum.at(lines, 2)
+      end
+
+      test "returns list unchanged when at target height" do
+        lines = [
+          %{type: :text, content: "Line 1"},
+          %{type: :text, content: "Line 2"},
+          %{type: :text, content: "Line 3"}
+        ]
+
+        result = ViewHelpers.pad_lines_to_height(lines, 3, 80)
+
+        assert length(result) == 3
+        assert result == lines
+      end
+  end
 end

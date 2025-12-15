@@ -320,8 +320,10 @@ defmodule JidoCode.TUI.ViewHelpers do
     text(padded_text, bar_style)
   end
 
-  # Format project path to show last N characters with ~/ for home
-  defp format_project_path(path, max_length) do
+  @doc """
+  Formats a project path for display, replacing home directory with ~ and truncating if needed.
+  """
+  def format_project_path(path, max_length) do
     # Replace home directory with ~
     home_dir = System.user_home!()
     display_path = String.replace_prefix(path, home_dir, "~")

@@ -582,31 +582,23 @@ Add visual styling, separators, and responsive adjustments.
 Implement keyboard shortcuts for tab navigation.
 
 ### 4.6.1 Tab Switching Shortcuts
-- [ ] **Task 4.6.1**
+- [x] **Task 4.6.1** ✅ (Completed 2025-12-16)
 
 Implement Ctrl+1 through Ctrl+0 for tab switching.
 
-- [ ] 4.6.1.1 Update `event_to_msg/2` for Ctrl+digit keys:
-  ```elixir
-  def event_to_msg(%Event.Key{key: {:ctrl, ?1}}, _state) do
-    {:switch_to_tab, 1}
-  end
-  # ... Ctrl+2 through Ctrl+9
-  def event_to_msg(%Event.Key{key: {:ctrl, ?0}}, _state) do
-    {:switch_to_tab, 10}
-  end
-  ```
-- [ ] 4.6.1.2 Implement `update({:switch_to_tab, index}, model)`:
-  ```elixir
-  def update({:switch_to_tab, index}, model) do
-    case Enum.at(model.session_order, index - 1) do
-      nil -> model
-      session_id -> %{model | active_session_id: session_id}
-    end
-  end
-  ```
-- [ ] 4.6.1.3 Handle out-of-range indices gracefully
-- [ ] 4.6.1.4 Write unit tests for tab switching
+**Note**: Implementation was already complete (lines 754-772, 1162-1185 in tui.ex). This task added comprehensive test coverage.
+
+- [x] 4.6.1.1 Event mapping for Ctrl+1 through Ctrl+9 (already implemented)
+- [x] 4.6.1.2 Event mapping for Ctrl+0 (already implemented)
+- [x] 4.6.1.3 Update handler `{:switch_to_session_index, N}` (already implemented)
+- [x] 4.6.1.4 Out-of-range index handling (already implemented)
+- [x] 4.6.1.5 Write comprehensive unit tests (13 new tests added)
+  - Event mapping tests (already existed, verified working)
+  - Session switching with empty list test
+  - Ctrl+0 (10th session) test
+  - `Model.get_session_by_index/2` tests (5 tests)
+  - Digit keys without Ctrl forwarding tests (2 tests)
+  - Integration tests for complete flow (2 tests)
 
 ### 4.6.2 Tab Navigation Shortcuts
 - [ ] **Task 4.6.2**

@@ -2775,6 +2775,232 @@ defmodule JidoCode.TUITest do
       # Should NOT add a message (no change)
       assert new_model.messages == []
     end
+
+    test "handles empty session list gracefully" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil,
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _commands} = TUI.update({:switch_to_session_index, 1}, model)
+
+      # Should remain empty
+      assert new_model.active_session_id == nil
+      # Should have error message
+      assert length(new_model.messages) > 0
+      [msg] = new_model.messages
+      assert msg.content =~ "No session at index 1"
+    end
+
+    test "handles Ctrl+0 (10th session) when it exists" do
+      # Create 10 sessions
+      sessions =
+        Enum.reduce(1..10, {%{}, []}, fn i, {sess_map, order} ->
+          id = "session-#{i}"
+          session = %{id: id, name: "Session #{i}", project_path: "/path#{i}"}
+          {Map.put(sess_map, id, session), order ++ [id]}
+        end)
+
+      {session_map, session_order} = sessions
+
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: session_map,
+        session_order: session_order,
+        active_session_id: "session-1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _commands} = TUI.update({:switch_to_session_index, 10}, model)
+
+      # Should switch to 10th session
+      assert new_model.active_session_id == "session-10"
+    end
+  end
+
+  # ============================================================================
+  # Model.get_session_by_index/2 Tests
+  # Tests the helper function that looks up sessions by 1-based tab index
+  # ============================================================================
+
+  describe "Model.get_session_by_index/2" do
+    test "returns session at valid index (1-based)" do
+      session1 = %{id: "s1", name: "Project 1", project_path: "/path1"}
+      session2 = %{id: "s2", name: "Project 2", project_path: "/path2"}
+      session3 = %{id: "s3", name: "Project 3", project_path: "/path3"}
+
+      model = %Model{
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"]
+      }
+
+      assert Model.get_session_by_index(model, 1) == session1
+      assert Model.get_session_by_index(model, 2) == session2
+      assert Model.get_session_by_index(model, 3) == session3
+    end
+
+    test "returns nil for out-of-range index" do
+      session1 = %{id: "s1", name: "Project 1", project_path: "/path1"}
+
+      model = %Model{
+        sessions: %{"s1" => session1},
+        session_order: ["s1"]
+      }
+
+      assert Model.get_session_by_index(model, 0) == nil
+      assert Model.get_session_by_index(model, 2) == nil
+      assert Model.get_session_by_index(model, 11) == nil
+      assert Model.get_session_by_index(model, -1) == nil
+    end
+
+    test "returns nil for empty session list" do
+      model = %Model{sessions: %{}, session_order: []}
+
+      assert Model.get_session_by_index(model, 1) == nil
+      assert Model.get_session_by_index(model, 5) == nil
+      assert Model.get_session_by_index(model, 10) == nil
+    end
+
+    test "handles index 10 (Ctrl+0) correctly" do
+      # Create 10 sessions
+      sessions =
+        Enum.reduce(1..10, {%{}, []}, fn i, {sess_map, order} ->
+          id = "s#{i}"
+          session = %{id: id, name: "Project #{i}", project_path: "/path#{i}"}
+          {Map.put(sess_map, id, session), order ++ [id]}
+        end)
+
+      {session_map, session_order} = sessions
+
+      model = %Model{
+        sessions: session_map,
+        session_order: session_order
+      }
+
+      # Index 10 should return the 10th session
+      session10 = Model.get_session_by_index(model, 10)
+      assert session10.id == "s10"
+      assert session10.name == "Project 10"
+    end
+
+    test "handles sessions beyond index 10 (not accessible via Ctrl)" do
+      # Even if somehow we have more than 10 sessions, index 11+ should return nil
+      # because get_session_by_index only accepts 1-10
+      sessions =
+        Enum.reduce(1..11, {%{}, []}, fn i, {sess_map, order} ->
+          id = "s#{i}"
+          session = %{id: id, name: "Project #{i}", project_path: "/path#{i}"}
+          {Map.put(sess_map, id, session), order ++ [id]}
+        end)
+
+      {session_map, session_order} = sessions
+
+      model = %Model{
+        sessions: session_map,
+        session_order: session_order
+      }
+
+      # Index 11 should return nil (out of @max_tabs range)
+      assert Model.get_session_by_index(model, 11) == nil
+    end
+  end
+
+  # ============================================================================
+  # Digit Key Event Tests
+  # Tests that digit keys without Ctrl modifier are forwarded to input
+  # ============================================================================
+
+  describe "digit keys without Ctrl modifier" do
+    test "digit keys 0-9 without Ctrl are forwarded to input" do
+      model = %Model{text_input: create_text_input()}
+
+      for key <- ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] do
+        event = Event.key(key, modifiers: [])
+        assert TUI.event_to_msg(event, model) == {:msg, {:input_event, event}}
+      end
+    end
+
+    test "digit keys with other modifiers (not Ctrl) are forwarded to input" do
+      model = %Model{text_input: create_text_input()}
+
+      event_shift = Event.key("1", modifiers: [:shift])
+      assert TUI.event_to_msg(event_shift, model) == {:msg, {:input_event, event_shift}}
+
+      event_alt = Event.key("2", modifiers: [:alt])
+      assert TUI.event_to_msg(event_alt, model) == {:msg, {:input_event, event_alt}}
+    end
+  end
+
+  # ============================================================================
+  # Tab Switching Integration Test
+  # Tests the complete flow from keyboard event to state update
+  # ============================================================================
+
+  describe "tab switching integration (complete flow)" do
+    test "Ctrl+2 switches to second tab and shows message" do
+      # Setup: 3 sessions, currently on first
+      session1 = %{id: "s1", name: "Project 1", project_path: "/path1"}
+      session2 = %{id: "s2", name: "Project 2", project_path: "/path2"}
+      session3 = %{id: "s3", name: "Project 3", project_path: "/path3"}
+
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      # Simulate Ctrl+2 key press
+      event = Event.key("2", modifiers: [:ctrl])
+      {:msg, msg} = TUI.event_to_msg(event, model)
+
+      # Verify event was mapped correctly
+      assert msg == {:switch_to_session_index, 2}
+
+      # Process the message
+      {new_model, _cmds} = TUI.update(msg, model)
+
+      # Verify: switched to session 2
+      assert new_model.active_session_id == "s2"
+      # Verify: message was added
+      assert length(new_model.messages) > 0
+    end
+
+    test "Ctrl+5 on 3-session setup shows error without crashing" do
+      session1 = %{id: "s1", name: "Project 1", project_path: "/path1"}
+      session2 = %{id: "s2", name: "Project 2", project_path: "/path2"}
+      session3 = %{id: "s3", name: "Project 3", project_path: "/path3"}
+
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      # Simulate Ctrl+5 key press (out of range)
+      event = Event.key("5", modifiers: [:ctrl])
+      {:msg, msg} = TUI.event_to_msg(event, model)
+
+      # Process the message
+      {new_model, _cmds} = TUI.update(msg, model)
+
+      # Verify: still on session 1
+      assert new_model.active_session_id == "s1"
+      # Verify: error message added
+      assert length(new_model.messages) > 0
+      [error_msg] = new_model.messages
+      assert error_msg.content =~ "No session at index 5"
+    end
   end
 
   describe "Model.add_session_to_tabs/2" do

@@ -130,22 +130,17 @@ Integrate save with session close flow.
 - [x] 6.2.2.4 Write integration tests for auto-save
 
 ### 6.2.3 Manual Save Command
-- [ ] **Task 6.2.3**
+- [x] **Task 6.2.3** (completed 2025-12-16)
 
 Implement `/session save` command (optional).
 
-- [ ] 6.2.3.1 Add `save` subcommand to session commands
-- [ ] 6.2.3.2 Implement `execute_session({:save, target}, model)`:
-  ```elixir
-  def execute_session({:save, target}, model) do
-    session_id = target || model.active_session_id
-    case Persistence.save(session_id) do
-      {:ok, path} -> {:ok, "Session saved to: #{path}", :no_change}
-      {:error, reason} -> {:error, "Failed to save: #{reason}"}
-    end
-  end
-  ```
-- [ ] 6.2.3.3 Write unit tests for save command
+- [x] 6.2.3.1 Add `save` subcommand to session commands
+- [x] 6.2.3.2 Implement `execute_session({:save, target}, model)` with:
+  - Optional target parameter (index/name/ID, defaults to active)
+  - Calls `Persistence.save/1` for actual save operation
+  - Returns success message with file path
+  - Comprehensive error handling for all failure cases
+- [x] 6.2.3.3 Write unit tests for save command (10 new tests)
 
 **Unit Tests for Section 6.2:**
 - Test `save/1` creates JSON file

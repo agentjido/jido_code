@@ -77,6 +77,7 @@ defmodule JidoCode.Commands do
     /session switch <target> - Switch to session by index, ID, or name
     /session close [target]  - Close session (default: active)
     /session rename <name>   - Rename current session
+    /session save [target]   - Save session to disk (default: active)
     /resume                  - List resumable sessions
     /resume <target>         - Resume session by index or ID
     /resume delete <target>  - Delete session by index or ID
@@ -256,6 +257,13 @@ defmodule JidoCode.Commands do
   end
 
   defp parse_session_args("list"), do: :list
+
+  defp parse_session_args("save" <> rest) do
+    case String.trim(rest) do
+      "" -> {:save, nil}
+      target -> {:save, target}
+    end
+  end
 
   defp parse_session_args("switch " <> target) do
     {:switch, String.trim(target)}
@@ -468,6 +476,7 @@ defmodule JidoCode.Commands do
       /session switch <index|id|name>     - Switch to session by index, ID, or name
       /session close [index|id]           - Close session (defaults to current)
       /session rename <name>              - Rename current session
+      /session save [index|id|name]       - Save session to disk (defaults to current)
 
     Keyboard Shortcuts:
       Ctrl+1 to Ctrl+0                    - Switch to session 1-10 (Ctrl+0 = session 10)
@@ -593,6 +602,57 @@ defmodule JidoCode.Commands do
         {:error, reason} ->
           {:error, reason}
       end
+    end
+  end
+
+  def execute_session({:save, target}, model) do
+    alias JidoCode.Session.Persistence
+
+    # Determine which session to save
+    session_order = Map.get(model, :session_order, [])
+    active_id = Map.get(model, :active_session_id)
+
+    # If no target, save active session
+    effective_target = target || active_id
+
+    cond do
+      session_order == [] ->
+        {:error, "No sessions to save."}
+
+      effective_target == nil ->
+        {:error, "No active session to save. Specify a session to save."}
+
+      true ->
+        # Resolve target to session ID
+        case resolve_session_target(effective_target, model) do
+          {:ok, session_id} ->
+            # Attempt to save the session
+            case Persistence.save(session_id) do
+              {:ok, path} ->
+                sessions = Map.get(model, :sessions, %{})
+                session = Map.get(sessions, session_id)
+
+                session_name =
+                  if session, do: Map.get(session, :name, session_id), else: session_id
+
+                {:ok, "Session '#{session_name}' saved to:\n#{path}"}
+
+              {:error, :not_found} ->
+                {:error, "Session not found. It may have been closed."}
+
+              {:error, :save_in_progress} ->
+                {:error, "Session is currently being saved. Please try again."}
+
+              {:error, reason} when is_binary(reason) ->
+                {:error, "Failed to save session: #{reason}"}
+
+              {:error, reason} ->
+                {:error, "Failed to save session: #{inspect(reason)}"}
+            end
+
+          {:error, reason} ->
+            format_resolution_error(reason, target)
+        end
     end
   end
 

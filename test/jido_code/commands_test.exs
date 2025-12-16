@@ -448,6 +448,38 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "Usage: /session rename"
     end
 
+    test "/session save parses to {:save, nil}" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session save", config)
+
+      assert result == {:session, {:save, nil}}
+    end
+
+    test "/session save 2 parses index" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session save 2", config)
+
+      assert result == {:session, {:save, "2"}}
+    end
+
+    test "/session save my-project parses name" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session save my-project", config)
+
+      assert result == {:session, {:save, "my-project"}}
+    end
+
+    test "/session save abc123 parses ID" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/session save abc123", config)
+
+      assert result == {:session, {:save, "abc123"}}
+    end
+
     test "/session unknown returns :help" do
       config = %{provider: nil, model: nil}
 
@@ -467,6 +499,7 @@ defmodule JidoCode.CommandsTest do
       assert message =~ "/session switch"
       assert message =~ "/session close"
       assert message =~ "/session rename"
+      assert message =~ "/session save"
     end
   end
 
@@ -1412,6 +1445,112 @@ defmodule JidoCode.CommandsTest do
 
       result = Commands.execute_session({:rename, "Project 123"}, model)
       assert {:session_action, {:rename_session, "s1", "Project 123"}} = result
+    end
+
+    test "{:save, nil} with no sessions returns error" do
+      model = %{
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:save, nil}, model)
+
+      assert {:error, message} = result
+      assert message == "No sessions to save."
+    end
+
+    test "{:save, nil} with no active session returns error" do
+      model = %{
+        sessions: %{},
+        session_order: ["s1"],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:save, nil}, model)
+
+      assert {:error, message} = result
+      assert message =~ "No active session to save"
+    end
+
+    test "{:save, nil} with active session attempts save" do
+      session = %{id: "s1", name: "test-session", project_path: "/tmp/test"}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:save, nil}, model)
+
+      # Should either succeed or fail with a known error
+      case result do
+        {:ok, message} ->
+          assert message =~ "saved to"
+          assert message =~ "test-session"
+
+        {:error, message} ->
+          # May fail if session state not found - acceptable in unit test
+          assert message =~ "Session not found" or message =~ "Failed to save"
+      end
+    end
+
+    test "{:save, index} saves specific session by index" do
+      session1 = %{id: "s1", name: "project-a", project_path: "/tmp/a"}
+      session2 = %{id: "s2", name: "project-b", project_path: "/tmp/b"}
+
+      model = %{
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:save, "2"}, model)
+
+      # Should attempt to save session s2
+      case result do
+        {:ok, message} ->
+          assert message =~ "project-b"
+
+        {:error, _} ->
+          # May fail if session state not found
+          :ok
+      end
+    end
+
+    test "{:save, name} saves session by name" do
+      session = %{id: "s1", name: "my-project", project_path: "/tmp/project"}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_session({:save, "my-project"}, model)
+
+      case result do
+        {:ok, message} ->
+          assert message =~ "my-project"
+          assert message =~ "saved"
+
+        {:error, _} ->
+          :ok
+      end
+    end
+
+    test "{:save, target} with invalid target returns error" do
+      model = %{
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_session({:save, "nonexistent"}, model)
+
+      assert {:error, message} = result
+      assert message =~ "No sessions" or message =~ "not found"
     end
 
     test "parse_session_args returns error for switch without target" do

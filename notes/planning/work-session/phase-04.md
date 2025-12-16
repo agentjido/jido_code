@@ -641,14 +641,23 @@ Implement Ctrl+W for closing active session.
   - Integration tests (2 tests)
 
 ### 4.6.4 New Session Shortcut
-- [ ] **Task 4.6.4**
+- [x] **Task 4.6.4** ✅ (Completed 2025-12-16)
 
 Implement Ctrl+N for creating new session.
 
-- [ ] 4.6.4.1 Implement Ctrl+N handler returning `:new_session_dialog`
-- [ ] 4.6.4.2 Show dialog/input for project path
-- [ ] 4.6.4.3 Alternative: Create session for current directory
-- [ ] 4.6.4.4 Write unit tests for new session shortcut
+**Design Decision**: Implemented direct session creation for current directory (no dialog), following the pattern of all other keyboard shortcuts being immediate actions.
+
+- [x] 4.6.4.1 Ctrl+N event handler (implemented, lines 754-761 in tui.ex)
+- [x] 4.6.4.2 Dialog for project path (decision: skipped in favor of immediate action)
+- [x] 4.6.4.3 Create session for current directory (implemented, lines 1183-1197)
+  - Uses `File.cwd()` to get current working directory
+  - Delegates to `handle_session_command({:new, %{path: nil}})`
+  - Reuses existing `/session new` logic from Commands module
+- [x] 4.6.4.4 Write comprehensive unit tests (8 new tests added, all passing)
+  - Event mapping tests (2 tests)
+  - Update handler success cases (2 tests)
+  - Edge case tests (2 tests) - File.cwd() failure, session limit
+  - Integration tests (2 tests)
 
 **Unit Tests for Section 4.6:**
 - Test Ctrl+1 switches to first tab

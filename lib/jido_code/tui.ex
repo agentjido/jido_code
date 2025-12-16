@@ -751,6 +751,15 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Ctrl+N to create new session
+  def event_to_msg(%Event.Key{key: "n", modifiers: modifiers} = event, _state) do
+    if :ctrl in modifiers do
+      {:msg, :create_new_session}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
   # Ctrl+1 through Ctrl+9 to switch to session by index
   def event_to_msg(%Event.Key{key: key, modifiers: modifiers} = event, _state)
       when key in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] do
@@ -1168,6 +1177,22 @@ defmodule JidoCode.TUI do
 
         final_state = do_close_session(state, session_id, session_name)
         {final_state, []}
+    end
+  end
+
+  # Create new session (Ctrl+N)
+  def update(:create_new_session, state) do
+    # Get current working directory
+    case File.cwd() do
+      {:ok, path} ->
+        # Use Commands.execute_session to create session for current directory
+        # Path: nil means use current directory (handled by resolve_session_path)
+        handle_session_command({:new, %{path: nil, name: nil}}, state)
+
+      {:error, reason} ->
+        # File.cwd() failure is rare but handle gracefully
+        new_state = add_session_message(state, "Failed to get current directory: #{inspect(reason)}")
+        {new_state, []}
     end
   end
 

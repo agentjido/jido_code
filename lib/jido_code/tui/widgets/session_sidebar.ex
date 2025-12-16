@@ -59,14 +59,22 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
           order: [String.t()],
           active_id: String.t() | nil,
           expanded: MapSet.t(String.t()),
-          width: pos_integer()
+          width: pos_integer(),
+          # Activity tracking (Phase 4.7.3)
+          streaming_sessions: MapSet.t(String.t()),
+          unread_counts: %{String.t() => non_neg_integer()},
+          active_tools: %{String.t() => non_neg_integer()}
         }
 
   defstruct sessions: [],
             order: [],
             active_id: nil,
             expanded: MapSet.new(),
-            width: 20
+            width: 20,
+            # Activity tracking (Phase 4.7.3)
+            streaming_sessions: MapSet.new(),
+            unread_counts: %{},
+            active_tools: %{}
 
   # Status icon mapping (from Task 4.3.3)
   @status_icons %{
@@ -90,6 +98,9 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
     * `:active_id` - ID of the active session (default: nil)
     * `:expanded` - MapSet of expanded session IDs (default: empty)
     * `:width` - Sidebar width in characters (default: 20)
+    * `:streaming_sessions` - MapSet of session IDs currently streaming (default: empty)
+    * `:unread_counts` - Map of session_id => unread count (default: %{})
+    * `:active_tools` - Map of session_id => active tool count (default: %{})
 
   ## Examples
 
@@ -104,7 +115,11 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
       order: Keyword.get(opts, :order, []),
       active_id: Keyword.get(opts, :active_id),
       expanded: Keyword.get(opts, :expanded, MapSet.new()),
-      width: Keyword.get(opts, :width, 20)
+      width: Keyword.get(opts, :width, 20),
+      # Activity tracking (Phase 4.7.3)
+      streaming_sessions: Keyword.get(opts, :streaming_sessions, MapSet.new()),
+      unread_counts: Keyword.get(opts, :unread_counts, %{}),
+      active_tools: Keyword.get(opts, :active_tools, %{})
     }
   end
 
@@ -220,29 +235,56 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
   # ============================================================================
 
   @doc """
-  Builds the session title with active indicator.
+  Builds the session title with active indicator and activity badges.
 
   Active session gets "→ " prefix, others have no prefix.
-  Session name is truncated to 15 characters for consistency with tabs.
+  Activity indicators show streaming, unread count, and active tool count.
+  Session name is truncated to fit available space.
+
+  ## Activity Badges
+
+  - `[...]` - Session is currently streaming a response
+  - `[N]` - N unread messages
+  - `⚙N` - N tools currently executing
 
   ## Examples
 
       iex> build_title(sidebar, %{id: "123", name: "My Project"})
       "→ My Project"
 
-      iex> build_title(sidebar, %{id: "456", name: "Very Long Session Name Here"})
-      "Very Long Ses…"
+      iex> build_title(sidebar_with_unread, %{id: "456", name: "Backend"})
+      "[3] Backend"
+
+      iex> build_title(sidebar_streaming, %{id: "789", name: "Frontend"})
+      "[...] Frontend"
 
   """
   @spec build_title(t(), Session.t()) :: String.t()
   def build_title(sidebar, session) do
-    # Add active indicator if this is the active session
+    # Active indicator
     prefix = if session.id == sidebar.active_id, do: "→ ", else: ""
+
+    # Activity indicators (Phase 4.7.3)
+    streaming_indicator =
+      if MapSet.member?(sidebar.streaming_sessions, session.id), do: "[...] ", else: ""
+
+    unread_badge =
+      case Map.get(sidebar.unread_counts, session.id, 0) do
+        0 -> ""
+        count -> "[#{count}] "
+      end
+
+    tools_badge =
+      case Map.get(sidebar.active_tools, session.id, 0) do
+        0 -> ""
+        count -> "⚙#{count} "
+      end
 
     # Truncate session name to 15 chars (matching tab truncation)
     truncated_name = truncate(session.name, 15)
 
-    "#{prefix}#{truncated_name}"
+    # Combined format: "→ [...] [3] ⚙2 Session Name"
+    "#{prefix}#{streaming_indicator}#{unread_badge}#{tools_badge}#{truncated_name}"
   end
 
   @doc false

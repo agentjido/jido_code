@@ -47,9 +47,22 @@ defmodule JidoCode.TUI.MessageHandlers do
 
   @doc """
   Handles a streaming chunk from the agent.
+
+  Two-tier update system (Phase 4.7.3):
+  - Active session: Full UI update (conversation_view, streaming_message, etc.)
+  - Inactive session: Sidebar-only update (streaming indicator, last_activity)
   """
   @spec handle_stream_chunk(String.t(), String.t(), Model.t()) :: {Model.t(), list()}
-  def handle_stream_chunk(_session_id, chunk, state) do
+  def handle_stream_chunk(session_id, chunk, state) do
+    if session_id == state.active_session_id do
+      handle_active_stream_chunk(session_id, chunk, state)
+    else
+      handle_inactive_stream_chunk(session_id, chunk, state)
+    end
+  end
+
+  # Active session: Full UI update
+  defp handle_active_stream_chunk(session_id, chunk, state) do
     new_streaming_message = (state.streaming_message || "") <> chunk
     queue = queue_message(state.message_queue, {:stream_chunk, chunk})
 
@@ -71,12 +84,34 @@ defmodule JidoCode.TUI.MessageHandlers do
         state.conversation_view
       end
 
+    # Track streaming activity
+    new_streaming_sessions = MapSet.put(state.streaming_sessions, session_id)
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
     new_state = %{
       state
       | streaming_message: new_streaming_message,
         is_streaming: true,
         message_queue: queue,
-        conversation_view: new_conversation_view
+        conversation_view: new_conversation_view,
+        streaming_sessions: new_streaming_sessions,
+        last_activity: new_last_activity
+    }
+
+    {new_state, []}
+  end
+
+  # Inactive session: Sidebar-only update
+  defp handle_inactive_stream_chunk(session_id, _chunk, state) do
+    # Mark session as streaming (for sidebar indicator)
+    new_streaming_sessions = MapSet.put(state.streaming_sessions, session_id)
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
+    # Minimal state update - no conversation_view changes
+    new_state = %{
+      state
+      | streaming_sessions: new_streaming_sessions,
+        last_activity: new_last_activity
     }
 
     {new_state, []}
@@ -84,9 +119,22 @@ defmodule JidoCode.TUI.MessageHandlers do
 
   @doc """
   Handles the end of a streaming response.
+
+  Two-tier update system (Phase 4.7.3):
+  - Active session: Complete message, finalize conversation_view, clear streaming indicator
+  - Inactive session: Clear streaming indicator, increment unread count
   """
   @spec handle_stream_end(String.t(), String.t(), Model.t()) :: {Model.t(), list()}
-  def handle_stream_end(_session_id, _full_content, state) do
+  def handle_stream_end(session_id, full_content, state) do
+    if session_id == state.active_session_id do
+      handle_active_stream_end(session_id, full_content, state)
+    else
+      handle_inactive_stream_end(session_id, state)
+    end
+  end
+
+  # Active session: Complete message and update UI
+  defp handle_active_stream_end(session_id, _full_content, state) do
     message = TUI.assistant_message(state.streaming_message || "")
     queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
 
@@ -98,6 +146,10 @@ defmodule JidoCode.TUI.MessageHandlers do
         state.conversation_view
       end
 
+    # Clear streaming indicator
+    new_streaming_sessions = MapSet.delete(state.streaming_sessions, session_id)
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
     new_state = %{
       state
       | messages: [message | state.messages],
@@ -105,7 +157,30 @@ defmodule JidoCode.TUI.MessageHandlers do
         is_streaming: false,
         agent_status: :idle,
         message_queue: queue,
-        conversation_view: new_conversation_view
+        conversation_view: new_conversation_view,
+        streaming_sessions: new_streaming_sessions,
+        last_activity: new_last_activity
+    }
+
+    {new_state, []}
+  end
+
+  # Inactive session: Stop streaming, increment unread count
+  defp handle_inactive_stream_end(session_id, state) do
+    # Stop streaming indicator
+    new_streaming_sessions = MapSet.delete(state.streaming_sessions, session_id)
+
+    # Increment unread count (new message arrived in background)
+    current_count = Map.get(state.unread_counts, session_id, 0)
+    new_unread_counts = Map.put(state.unread_counts, session_id, current_count + 1)
+
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
+    new_state = %{
+      state
+      | streaming_sessions: new_streaming_sessions,
+        unread_counts: new_unread_counts,
+        last_activity: new_last_activity
     }
 
     {new_state, []}
@@ -216,9 +291,22 @@ defmodule JidoCode.TUI.MessageHandlers do
 
   @doc """
   Handles a new tool call being initiated.
+
+  Two-tier update system (Phase 4.7.3):
+  - Active session: Full update (add to tool_calls list), increment tool count
+  - Inactive session: Increment tool count for sidebar badge
   """
   @spec handle_tool_call(String.t(), String.t(), map(), String.t(), Model.t()) :: {Model.t(), list()}
-  def handle_tool_call(_session_id, tool_name, params, call_id, state) do
+  def handle_tool_call(session_id, tool_name, params, call_id, state) do
+    if session_id == state.active_session_id do
+      handle_active_tool_call(session_id, tool_name, params, call_id, state)
+    else
+      handle_inactive_tool_call(session_id, state)
+    end
+  end
+
+  # Active session: Full update
+  defp handle_active_tool_call(session_id, tool_name, params, call_id, state) do
     tool_call_entry = %{
       call_id: call_id,
       tool_name: tool_name,
@@ -229,16 +317,55 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     queue = queue_message(state.message_queue, {:tool_call, tool_name, params, call_id})
 
-    new_state = %{state | tool_calls: [tool_call_entry | state.tool_calls], message_queue: queue}
+    # Track active tools
+    current_count = Map.get(state.active_tools, session_id, 0)
+    new_active_tools = Map.put(state.active_tools, session_id, current_count + 1)
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
+    new_state = %{
+      state
+      | tool_calls: [tool_call_entry | state.tool_calls],
+        message_queue: queue,
+        active_tools: new_active_tools,
+        last_activity: new_last_activity
+    }
+
+    {new_state, []}
+  end
+
+  # Inactive session: Increment tool count for badge
+  defp handle_inactive_tool_call(session_id, state) do
+    current_count = Map.get(state.active_tools, session_id, 0)
+    new_active_tools = Map.put(state.active_tools, session_id, current_count + 1)
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
+    new_state = %{
+      state
+      | active_tools: new_active_tools,
+        last_activity: new_last_activity
+    }
 
     {new_state, []}
   end
 
   @doc """
   Handles a tool result.
+
+  Two-tier update system (Phase 4.7.3):
+  - Active session: Full update (update tool_calls list), decrement tool count
+  - Inactive session: Decrement tool count for sidebar badge
   """
   @spec handle_tool_result(String.t(), Result.t(), Model.t()) :: {Model.t(), list()}
-  def handle_tool_result(_session_id, %Result{} = result, state) do
+  def handle_tool_result(session_id, %Result{} = result, state) do
+    if session_id == state.active_session_id do
+      handle_active_tool_result(session_id, result, state)
+    else
+      handle_inactive_tool_result(session_id, state)
+    end
+  end
+
+  # Active session: Full update
+  defp handle_active_tool_result(session_id, result, state) do
     updated_tool_calls =
       Enum.map(state.tool_calls, fn entry ->
         if entry.call_id == result.tool_call_id do
@@ -250,7 +377,33 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     queue = queue_message(state.message_queue, {:tool_result, result})
 
-    new_state = %{state | tool_calls: updated_tool_calls, message_queue: queue}
+    # Decrement active tools
+    current_count = Map.get(state.active_tools, session_id, 0)
+    new_active_tools = Map.put(state.active_tools, session_id, max(0, current_count - 1))
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
+    new_state = %{
+      state
+      | tool_calls: updated_tool_calls,
+        message_queue: queue,
+        active_tools: new_active_tools,
+        last_activity: new_last_activity
+    }
+
+    {new_state, []}
+  end
+
+  # Inactive session: Decrement tool count
+  defp handle_inactive_tool_result(session_id, state) do
+    current_count = Map.get(state.active_tools, session_id, 0)
+    new_active_tools = Map.put(state.active_tools, session_id, max(0, current_count - 1))
+    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+
+    new_state = %{
+      state
+      | active_tools: new_active_tools,
+        last_activity: new_last_activity
+    }
 
     {new_state, []}
   end

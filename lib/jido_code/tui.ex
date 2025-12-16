@@ -175,6 +175,12 @@ defmodule JidoCode.TUI do
             sidebar_expanded: MapSet.t(String.t()),
             sidebar_selected_index: non_neg_integer(),
 
+            # Sidebar activity tracking (Phase 4.7.3)
+            streaming_sessions: MapSet.t(String.t()),
+            unread_counts: %{String.t() => non_neg_integer()},
+            active_tools: %{String.t() => non_neg_integer()},
+            last_activity: %{String.t() => DateTime.t()},
+
             # Modals (shared across sessions)
             shell_dialog: map() | nil,
             shell_viewport: map() | nil,
@@ -217,6 +223,11 @@ defmodule JidoCode.TUI do
       sidebar_width: 20,
       sidebar_expanded: MapSet.new(),
       sidebar_selected_index: 0,
+      # Sidebar activity tracking (Phase 4.7.3)
+      streaming_sessions: MapSet.new(),
+      unread_counts: %{},
+      active_tools: %{},
+      last_activity: %{},
       # Modals (shared across sessions)
       shell_dialog: nil,
       shell_viewport: nil,
@@ -1165,6 +1176,7 @@ defmodule JidoCode.TUI do
             state
             |> Model.switch_session(session.id)
             |> refresh_conversation_view_for_session(session.id)
+            |> clear_session_activity(session.id)
             |> add_session_message("Switched to: #{session.name}")
 
           {new_state, []}
@@ -1455,6 +1467,7 @@ defmodule JidoCode.TUI do
           state
           |> Model.switch_session(session_id)
           |> refresh_conversation_view_for_session(session_id)
+          |> clear_session_activity(session_id)
 
         # Get session name for the message
         session = Map.get(new_state.sessions, session_id)
@@ -1563,6 +1576,12 @@ defmodule JidoCode.TUI do
         # This shouldn't happen in normal operation
         state
     end
+  end
+
+  # Helper to clear session activity indicators when switching to a session
+  # Clears unread count since user is now viewing the session
+  defp clear_session_activity(state, session_id) do
+    %{state | unread_counts: Map.delete(state.unread_counts, session_id)}
   end
 
   # Handle chat message submission
@@ -1867,7 +1886,11 @@ defmodule JidoCode.TUI do
       order: state.session_order,
       active_id: state.active_session_id,
       expanded: state.sidebar_expanded,
-      width: state.sidebar_width
+      width: state.sidebar_width,
+      # Activity tracking (Phase 4.7.3)
+      streaming_sessions: state.streaming_sessions,
+      unread_counts: state.unread_counts,
+      active_tools: state.active_tools
     )
   end
 

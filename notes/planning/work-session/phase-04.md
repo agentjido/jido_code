@@ -619,23 +619,26 @@ Implement Ctrl+Tab and Ctrl+Shift+Tab for cycling.
   - Regression tests for focus cycling (2 tests)
 
 ### 4.6.3 Session Close Shortcut
-- [ ] **Task 4.6.3**
+- [x] **Task 4.6.3** ✅ (Completed 2025-12-16)
 
 Implement Ctrl+W for closing active session.
 
-- [ ] 4.6.3.1 Implement Ctrl+W handler:
-  ```elixir
-  def event_to_msg(%Event.Key{key: {:ctrl, ?w}}, _state) do
-    :close_active_session
-  end
-  ```
-- [ ] 4.6.3.2 Implement `update(:close_active_session, model)`:
-  - Show confirmation if session has unsaved state (future)
-  - Call SessionSupervisor.stop_session/1
-  - Remove from model
-  - Switch to adjacent tab
-- [ ] 4.6.3.3 Prevent closing last session (or show welcome screen)
-- [ ] 4.6.3.4 Write unit tests for session close
+**Note**: Implementation was already complete (lines 745-752, 1156-1172, 1619-1633 in tui.ex). This task added comprehensive test coverage.
+
+- [x] 4.6.3.1 Ctrl+W event handler (already implemented, lines 745-752)
+- [x] 4.6.3.2 Update handler `update(:close_active_session, model)` (already implemented, lines 1156-1172):
+  - [x] Calls SessionSupervisor.stop_session/1
+  - [x] Removes from model via Model.remove_session/2
+  - [x] Switches to adjacent tab automatically
+  - [x] Confirmation dialog deferred to future (not blocking)
+- [x] 4.6.3.3 Last session handling (welcome screen shown when active_session_id = nil)
+- [x] 4.6.3.4 Write comprehensive unit tests (14 new tests added, all passing)
+  - Event mapping tests (2 tests)
+  - Update handler normal cases (3 tests)
+  - Last session handling (2 tests)
+  - Edge case tests (3 tests)
+  - Model.remove_session tests (2 tests)
+  - Integration tests (2 tests)
 
 ### 4.6.4 New Session Shortcut
 - [ ] **Task 4.6.4**

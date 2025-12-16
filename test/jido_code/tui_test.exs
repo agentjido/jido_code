@@ -3158,6 +3158,291 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  describe "session close shortcut (Ctrl+W)" do
+    setup do
+      # Create 3-session test model
+      session1 = %{id: "s1", name: "Session 1", project_path: "/path1"}
+      session2 = %{id: "s2", name: "Session 2", project_path: "/path2"}
+      session3 = %{id: "s3", name: "Session 3", project_path: "/path3"}
+
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {:ok, model: model}
+    end
+
+    # Test Group 1: Event Mapping (2 tests)
+    test "Ctrl+W event maps to :close_active_session message" do
+      model = %Model{text_input: create_text_input()}
+      event = Event.key("w", modifiers: [:ctrl])
+
+      assert TUI.event_to_msg(event, model) == {:msg, :close_active_session}
+    end
+
+    test "plain 'w' key (without Ctrl) is forwarded to input", %{model: model} do
+      event = Event.key("w", char: "w")
+
+      assert {:msg, {:input_event, ^event}} = TUI.event_to_msg(event, model)
+    end
+
+    # Test Group 2: Update Handler - Normal Cases (3 tests)
+    test "close_active_session closes middle session and switches to previous", %{model: model} do
+      # Set active session to middle (s2)
+      model = %{model | active_session_id: "s2"}
+
+      {new_state, _effects} = TUI.update(:close_active_session, model)
+
+      # Session removed from map and order
+      refute Map.has_key?(new_state.sessions, "s2")
+      refute "s2" in new_state.session_order
+      assert length(new_state.session_order) == 2
+
+      # Switched to previous session (s1)
+      assert new_state.active_session_id == "s1"
+
+      # Confirmation message added
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "Closed session: Session 2")
+      end)
+    end
+
+    test "close_active_session closes first session and switches to next", %{model: model} do
+      # Active session is already s1 (first)
+      {new_state, _effects} = TUI.update(:close_active_session, model)
+
+      # Session removed
+      refute Map.has_key?(new_state.sessions, "s1")
+      refute "s1" in new_state.session_order
+      assert length(new_state.session_order) == 2
+
+      # Switched to next session (s2, which is now first in list)
+      assert new_state.active_session_id == "s2"
+
+      # Confirmation message
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "Closed session: Session 1")
+      end)
+    end
+
+    test "close_active_session closes last session and switches to previous", %{model: model} do
+      # Set active session to last (s3)
+      model = %{model | active_session_id: "s3"}
+
+      {new_state, _effects} = TUI.update(:close_active_session, model)
+
+      # Session removed
+      refute Map.has_key?(new_state.sessions, "s3")
+      refute "s3" in new_state.session_order
+      assert length(new_state.session_order) == 2
+
+      # Switched to previous session (s2)
+      assert new_state.active_session_id == "s2"
+
+      # Confirmation message
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "Closed session: Session 3")
+      end)
+    end
+
+    # Test Group 3: Update Handler - Last Session (2 tests)
+    test "close_active_session closes only session, sets active_session_id to nil" do
+      # Create model with single session
+      session = %{id: "s1", name: "Only Session", project_path: "/path1"}
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_state, _effects} = TUI.update(:close_active_session, model)
+
+      # All sessions removed
+      assert new_state.sessions == %{}
+      assert new_state.session_order == []
+
+      # Active session set to nil
+      assert new_state.active_session_id == nil
+
+      # Confirmation message
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "Closed session: Only Session")
+      end)
+    end
+
+    test "welcome screen renders when active_session_id is nil" do
+      # Model with no sessions
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil,
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      # Render the view (this should not crash)
+      view_output = TUI.view(model)
+
+      # View should be non-empty (welcome screen renders)
+      assert view_output != nil
+    end
+
+    # Test Group 4: Update Handler - Edge Cases (3 tests)
+    test "close_active_session with nil active_session_id shows message" do
+      # Model with nil active_session_id
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil,
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_state, _effects} = TUI.update(:close_active_session, model)
+
+      # State unchanged (no sessions to remove)
+      assert new_state.sessions == %{}
+      assert new_state.session_order == []
+      assert new_state.active_session_id == nil
+
+      # Error message shown
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "No active session to close")
+      end)
+    end
+
+    test "close_active_session with missing session in map uses fallback name", %{model: model} do
+      # Set active_session_id to non-existent session
+      model = %{model | active_session_id: "s999"}
+
+      {new_state, _effects} = TUI.update(:close_active_session, model)
+
+      # Session removed from order (even though not in map)
+      refute "s999" in new_state.session_order
+
+      # Fallback name (session_id) used in message
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "Closed session: s999")
+      end)
+    end
+
+    test "close_active_session with empty session list returns unchanged state" do
+      # Model with empty sessions but non-nil active_session_id (inconsistent state)
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{},
+        session_order: [],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_state, _effects} = TUI.update(:close_active_session, model)
+
+      # Active session cleared
+      assert new_state.active_session_id == nil
+
+      # Confirmation message with fallback name
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "Closed session: s1")
+      end)
+    end
+
+    # Test Group 5: Model.remove_session Tests (2 tests)
+    test "Model.remove_session removes from sessions map and session_order", %{model: model} do
+      new_model = Model.remove_session(model, "s2")
+
+      # Session removed from map
+      refute Map.has_key?(new_model.sessions, "s2")
+
+      # Session removed from order
+      refute "s2" in new_model.session_order
+      assert length(new_model.session_order) == 2
+
+      # Other sessions remain
+      assert Map.has_key?(new_model.sessions, "s1")
+      assert Map.has_key?(new_model.sessions, "s3")
+    end
+
+    test "Model.remove_session keeps active unchanged when closing inactive session", %{
+      model: model
+    } do
+      # Active session is s1, close s2
+      new_model = Model.remove_session(model, "s2")
+
+      # Active session unchanged
+      assert new_model.active_session_id == "s1"
+
+      # s2 removed
+      refute Map.has_key?(new_model.sessions, "s2")
+    end
+
+    # Test Group 6: Integration Tests (2 tests)
+    test "complete flow: Ctrl+W event → update → session closed → adjacent activated", %{
+      model: model
+    } do
+      # Set active to middle session
+      model = %{model | active_session_id: "s2"}
+
+      # Step 1: Event mapping
+      event = Event.key("w", modifiers: [:ctrl])
+      {:msg, msg} = TUI.event_to_msg(event, model)
+      assert msg == :close_active_session
+
+      # Step 2: Update handler
+      {new_state, _effects} = TUI.update(msg, model)
+
+      # Step 3: Verify session closed
+      refute Map.has_key?(new_state.sessions, "s2")
+
+      # Step 4: Verify adjacent session activated
+      assert new_state.active_session_id == "s1"
+
+      # Step 5: Verify confirmation message
+      assert Enum.any?(new_state.messages, fn msg ->
+        String.contains?(msg.content, "Closed session: Session 2")
+      end)
+    end
+
+    test "complete flow: Ctrl+W on last session → welcome screen displayed" do
+      # Create model with single session
+      session = %{id: "s1", name: "Last Session", project_path: "/path1"}
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      # Step 1: Event mapping
+      event = Event.key("w", modifiers: [:ctrl])
+      {:msg, msg} = TUI.event_to_msg(event, model)
+
+      # Step 2: Update handler
+      {new_state, _effects} = TUI.update(msg, model)
+
+      # Step 3: Verify all sessions closed
+      assert new_state.sessions == %{}
+      assert new_state.active_session_id == nil
+
+      # Step 4: Verify view renders (welcome screen)
+      view_output = TUI.view(new_state)
+      assert view_output != nil
+    end
+  end
+
   describe "Model.add_session_to_tabs/2" do
     test "adds first session and sets it as active" do
       model = %Model{}

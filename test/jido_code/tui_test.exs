@@ -3003,6 +3003,161 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  # ============================================================================
+  # Tab Cycling Tests (Ctrl+Tab and Ctrl+Shift+Tab)
+  # Tests for Task 4.6.2 - forward and backward session cycling
+  # ============================================================================
+
+  describe "tab cycling shortcuts (Ctrl+Tab and Ctrl+Shift+Tab)" do
+    setup do
+      # Create 3-session test model
+      session1 = %{id: "s1", name: "Project 1", project_path: "/path1"}
+      session2 = %{id: "s2", name: "Project 2", project_path: "/path2"}
+      session3 = %{id: "s3", name: "Project 3", project_path: "/path3"}
+
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {:ok, model: model}
+    end
+
+    # Test 1-2: Event mapping
+    test "Ctrl+Tab event maps to :next_tab message" do
+      event = Event.key(:tab, modifiers: [:ctrl])
+      {:msg, msg} = TUI.event_to_msg(event, %Model{})
+      assert msg == :next_tab
+    end
+
+    test "Ctrl+Shift+Tab event maps to :prev_tab message" do
+      event = Event.key(:tab, modifiers: [:ctrl, :shift])
+      {:msg, msg} = TUI.event_to_msg(event, %Model{})
+      assert msg == :prev_tab
+    end
+
+    # Test 3-5: Forward cycling
+    test "Ctrl+Tab cycles forward from first to second session", %{model: model} do
+      {new_model, _cmds} = TUI.update(:next_tab, model)
+      assert new_model.active_session_id == "s2"
+    end
+
+    test "Ctrl+Tab cycles forward from second to third session", %{model: model} do
+      model = %{model | active_session_id: "s2"}
+      {new_model, _cmds} = TUI.update(:next_tab, model)
+      assert new_model.active_session_id == "s3"
+    end
+
+    test "Ctrl+Tab wraps from last to first session", %{model: model} do
+      model = %{model | active_session_id: "s3"}
+      {new_model, _cmds} = TUI.update(:next_tab, model)
+      assert new_model.active_session_id == "s1"
+    end
+
+    # Test 6-8: Backward cycling
+    test "Ctrl+Shift+Tab cycles backward from first to last session", %{model: model} do
+      {new_model, _cmds} = TUI.update(:prev_tab, model)
+      assert new_model.active_session_id == "s3"
+    end
+
+    test "Ctrl+Shift+Tab cycles backward from third to second session", %{model: model} do
+      model = %{model | active_session_id: "s3"}
+      {new_model, _cmds} = TUI.update(:prev_tab, model)
+      assert new_model.active_session_id == "s2"
+    end
+
+    test "Ctrl+Shift+Tab cycles backward from second to first session", %{model: model} do
+      model = %{model | active_session_id: "s2"}
+      {new_model, _cmds} = TUI.update(:prev_tab, model)
+      assert new_model.active_session_id == "s1"
+    end
+
+    # Test 9-11: Edge cases
+    test "Ctrl+Tab with single session stays on current session" do
+      session = %{id: "s1", name: "Only Session", project_path: "/path"}
+
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _cmds} = TUI.update(:next_tab, model)
+      assert new_model.active_session_id == "s1"
+    end
+
+    test "Ctrl+Shift+Tab with single session stays on current session" do
+      session = %{id: "s1", name: "Only Session", project_path: "/path"}
+
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1",
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _cmds} = TUI.update(:prev_tab, model)
+      assert new_model.active_session_id == "s1"
+    end
+
+    test "Ctrl+Tab with empty session list returns unchanged state" do
+      model = %Model{
+        text_input: create_text_input(),
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil,
+        messages: [],
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {new_model, _cmds} = TUI.update(:next_tab, model)
+      assert new_model.active_session_id == nil
+    end
+
+    # Test 12: Integration test
+    test "complete flow: Ctrl+Tab event -> state update -> session switch", %{model: model} do
+      # Simulate Ctrl+Tab key press
+      event = Event.key(:tab, modifiers: [:ctrl])
+      {:msg, msg} = TUI.event_to_msg(event, model)
+
+      # Verify event mapped correctly
+      assert msg == :next_tab
+
+      # Process the message
+      {new_model, _cmds} = TUI.update(msg, model)
+
+      # Verify session switched
+      assert new_model.active_session_id == "s2"
+
+      # Verify message added
+      assert length(new_model.messages) > 0
+    end
+
+    # Test 13-14: Focus cycling regression tests
+    test "Tab (without Ctrl) still cycles focus forward" do
+      model = %Model{focus: :input, text_input: create_text_input()}
+      event = Event.key(:tab, modifiers: [])
+      {:msg, msg} = TUI.event_to_msg(event, model)
+      assert msg == {:cycle_focus, :forward}
+    end
+
+    test "Shift+Tab (without Ctrl) still cycles focus backward" do
+      model = %Model{focus: :input, text_input: create_text_input()}
+      event = Event.key(:tab, modifiers: [:shift])
+      {:msg, msg} = TUI.event_to_msg(event, model)
+      assert msg == {:cycle_focus, :backward}
+    end
+  end
+
   describe "Model.add_session_to_tabs/2" do
     test "adds first session and sets it as active" do
       model = %Model{}

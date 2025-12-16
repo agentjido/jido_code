@@ -815,12 +815,24 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Tab key - cycle focus forward or backward
+  # Tab key - Ctrl+Tab cycles sessions, Tab/Shift+Tab cycles focus
   def event_to_msg(%Event.Key{key: :tab, modifiers: modifiers}, _state) do
-    if :shift in modifiers do
-      {:msg, {:cycle_focus, :backward}}
-    else
-      {:msg, {:cycle_focus, :forward}}
+    cond do
+      # Ctrl+Shift+Tab → previous session
+      :ctrl in modifiers and :shift in modifiers ->
+        {:msg, :prev_tab}
+
+      # Ctrl+Tab → next session
+      :ctrl in modifiers ->
+        {:msg, :next_tab}
+
+      # Shift+Tab → focus backward
+      :shift in modifiers ->
+        {:msg, {:cycle_focus, :backward}}
+
+      # Tab → focus forward
+      true ->
+        {:msg, {:cycle_focus, :forward}}
     end
   end
 
@@ -1180,6 +1192,71 @@ defmodule JidoCode.TUI do
             |> add_session_message("Switched to: #{session.name}")
 
           {new_state, []}
+        end
+    end
+  end
+
+  # Cycle to next session (Ctrl+Tab)
+  def update(:next_tab, state) do
+    case state.session_order do
+      # No sessions (should not happen in practice)
+      [] ->
+        {state, []}
+
+      # Single session - stay on current
+      [_single] ->
+        {state, []}
+
+      # Multiple sessions - cycle forward
+      order ->
+        case Enum.find_index(order, &(&1 == state.active_session_id)) do
+          nil ->
+            # Active session not in order list (should not happen)
+            {state, []}
+
+          current_idx ->
+            # Calculate next index with wrap-around
+            next_idx = rem(current_idx + 1, length(order))
+            next_id = Enum.at(order, next_idx)
+            next_session = Map.get(state.sessions, next_id)
+
+            new_state =
+              state
+              |> Model.switch_session(next_id)
+              |> refresh_conversation_view_for_session(next_id)
+              |> clear_session_activity(next_id)
+              |> add_session_message("Switched to: #{next_session.name}")
+
+            {new_state, []}
+        end
+    end
+  end
+
+  # Cycle to previous session (Ctrl+Shift+Tab)
+  def update(:prev_tab, state) do
+    case state.session_order do
+      [] -> {state, []}
+      [_single] -> {state, []}
+
+      order ->
+        case Enum.find_index(order, &(&1 == state.active_session_id)) do
+          nil -> {state, []}
+
+          current_idx ->
+            # Calculate previous index with wrap-around
+            # Add length before modulo to handle negative wrap
+            prev_idx = rem(current_idx - 1 + length(order), length(order))
+            prev_id = Enum.at(order, prev_idx)
+            prev_session = Map.get(state.sessions, prev_id)
+
+            new_state =
+              state
+              |> Model.switch_session(prev_id)
+              |> refresh_conversation_view_for_session(prev_id)
+              |> clear_session_activity(prev_id)
+              |> add_session_message("Switched to: #{prev_session.name}")
+
+            {new_state, []}
         end
     end
   end

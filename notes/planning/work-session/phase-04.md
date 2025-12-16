@@ -601,28 +601,22 @@ Implement Ctrl+1 through Ctrl+0 for tab switching.
   - Integration tests for complete flow (2 tests)
 
 ### 4.6.2 Tab Navigation Shortcuts
-- [ ] **Task 4.6.2**
+- [x] **Task 4.6.2** ✅ (Completed 2025-12-16)
 
 Implement Ctrl+Tab and Ctrl+Shift+Tab for cycling.
 
-- [ ] 4.6.2.1 Implement Ctrl+Tab for next tab:
-  ```elixir
-  def event_to_msg(%Event.Key{key: {:ctrl, :tab}}, _state) do
-    :next_tab
-  end
-  ```
-- [ ] 4.6.2.2 Implement `update(:next_tab, model)`:
-  ```elixir
-  def update(:next_tab, model) do
-    current_idx = Enum.find_index(model.session_order, &(&1 == model.active_session_id))
-    next_idx = rem(current_idx + 1, length(model.session_order))
-    next_id = Enum.at(model.session_order, next_idx)
-    %{model | active_session_id: next_id}
-  end
-  ```
-- [ ] 4.6.2.3 Implement Ctrl+Shift+Tab for previous tab
-- [ ] 4.6.2.4 Handle single/empty session list
-- [ ] 4.6.2.5 Write unit tests for tab cycling
+- [x] 4.6.2.1 Implement Ctrl+Tab event handler for :next_tab
+- [x] 4.6.2.2 Implement update(:next_tab, model) with wrap-around cycling
+- [x] 4.6.2.3 Implement Ctrl+Shift+Tab event handler for :prev_tab
+- [x] 4.6.2.4 Implement update(:prev_tab, model) with backward wrap-around
+- [x] 4.6.2.5 Handle single/empty session list edge cases
+- [x] 4.6.2.6 Write 14 comprehensive unit tests (all passing)
+  - Event mapping tests (2 tests)
+  - Forward cycling tests (3 tests)
+  - Backward cycling tests (3 tests)
+  - Edge case tests (3 tests)
+  - Integration test (1 test)
+  - Regression tests for focus cycling (2 tests)
 
 ### 4.6.3 Session Close Shortcut
 - [ ] **Task 4.6.3**

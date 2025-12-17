@@ -31,7 +31,10 @@ defmodule JidoCode.TUI.ViewHelpers do
     bottom_left: "╚",
     bottom_right: "╝",
     horizontal: "═",
-    vertical: "║"
+    vertical: "║",
+    # T-connectors for single-line horizontal meeting double-line vertical
+    t_left: "╟",
+    t_right: "╢"
   }
 
   @modal_border_chars %{
@@ -67,6 +70,7 @@ defmodule JidoCode.TUI.ViewHelpers do
     border_style = Style.new(fg: Theme.get_color(:secondary) || :bright_black)
 
     # Content area is inside the border (width - 2 for side borders, height - 2 for top/bottom)
+    # Individual elements handle their own padding; separators span full width
     content_height = max(height - 2, 1)
     content_width = max(width - 2, 1)
 
@@ -216,10 +220,15 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   # Renders all middle rows (between top and bottom border)
-  # Each row has: left border | content/padding | right border
+  # Each row has: left border | content | right border
+  # Individual content elements handle their own padding; separators span full width
   defp render_middle_rows(content, content_width, content_height, border_style) do
-    left_border = text(@border_chars.vertical, border_style)
-    right_border = text(@border_chars.vertical, border_style)
+    # Create multi-line border strings that span the full height
+    left_border_str = (@border_chars.vertical <> "\n") |> String.duplicate(content_height) |> String.trim_trailing("\n")
+    right_border_str = (@border_chars.vertical <> "\n") |> String.duplicate(content_height) |> String.trim_trailing("\n")
+
+    left_border = text(left_border_str, border_style)
+    right_border = text(right_border_str, border_style)
 
     # Create a box for the content area with fixed dimensions
     content_box = box([content], width: content_width, height: content_height)
@@ -234,17 +243,20 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders a horizontal separator line using single-line box characters.
-  Connects to the outer double-line border.
+  Connects to the outer double-line border using T-connectors.
   """
   @spec render_separator(Model.t()) :: TermUI.View.t()
   def render_separator(state) do
     {width, _height} = state.window
-    content_width = max(width - 2, 1)
+    # Full width between borders (width - 2 for the side borders)
+    inner_width = max(width - 2, 1)
+    # Horizontal line width (excluding T-connectors)
+    line_width = max(inner_width - 2, 0)
 
     separator_style = Style.new(fg: Theme.get_color(:secondary) || :bright_black)
 
-    # Use single-line horizontal character for the separator
-    separator_line = String.duplicate("─", content_width)
+    # Use T-connectors at edges to connect to the double-line vertical border
+    separator_line = @border_chars.t_left <> String.duplicate("─", line_width) <> @border_chars.t_right
     text(separator_line, separator_style)
   end
 
@@ -254,12 +266,13 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders the top status bar with provider/model info and agent status.
-  Pads or truncates to fit the available width (window width - 2 for borders).
+  Includes 1-char padding on each side. Content width is window width - 4.
   """
   @spec render_status_bar(Model.t()) :: TermUI.View.t()
   def render_status_bar(state) do
     {width, _height} = state.window
-    content_width = max(width - 2, 1)
+    # Content width excludes borders (2) and padding (2)
+    content_width = max(width - 4, 1)
 
     case Model.get_active_session(state) do
       nil ->
@@ -281,7 +294,8 @@ defmodule JidoCode.TUI.ViewHelpers do
     padded_text = pad_or_truncate(full_text, content_width)
 
     bar_style = build_status_bar_style(state)
-    text(padded_text, bar_style)
+    # Add 1-char padding on each side
+    stack(:horizontal, [text(" "), text(padded_text, bar_style), text(" ")])
   end
 
   # Status bar with active session info
@@ -298,7 +312,7 @@ defmodule JidoCode.TUI.ViewHelpers do
     path_text = format_project_path(session.project_path, 25)
 
     # Model info from session config or global config
-    session_config = Map.get(session, :config, %{})
+    session_config = Map.get(session, :config) || %{}
     provider = Map.get(session_config, :provider) || state.config.provider
     model = Map.get(session_config, :model) || state.config.model
     model_text = format_model(provider, model)
@@ -317,7 +331,8 @@ defmodule JidoCode.TUI.ViewHelpers do
     padded_text = pad_or_truncate(full_text, content_width)
 
     bar_style = build_status_bar_style_for_session(state, session_status)
-    text(padded_text, bar_style)
+    # Add 1-char padding on each side
+    stack(:horizontal, [text(" "), text(padded_text, bar_style), text(" ")])
   end
 
   @doc """
@@ -357,12 +372,13 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   @doc """
   Renders the bottom help bar with keyboard shortcuts.
-  Pads or truncates to fit the available width (window width - 2 for borders).
+  Includes 1-char padding on each side. Content width is window width - 4.
   """
   @spec render_help_bar(Model.t()) :: TermUI.View.t()
   def render_help_bar(state) do
     {width, _height} = state.window
-    content_width = max(width - 2, 1)
+    # Content width excludes borders (2) and padding (2)
+    content_width = max(width - 4, 1)
 
     reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
     tools_hint = if state.show_tool_details, do: "Ctrl+T: Hide", else: "Ctrl+T: Tools"
@@ -371,7 +387,8 @@ defmodule JidoCode.TUI.ViewHelpers do
     padded_text = pad_or_truncate(hints, content_width)
     bar_style = Style.new(fg: Theme.get_color(:foreground) || :white, bg: :black)
 
-    text(padded_text, bar_style)
+    # Add 1-char padding on each side
+    stack(:horizontal, [text(" "), text(padded_text, bar_style), text(" ")])
   end
 
   # Pad with spaces or truncate text to exact width
@@ -423,6 +440,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   @doc """
   Renders the conversation area with messages, tool calls, and streaming content.
   Fills the available height between status bar and input/help bars.
+  Includes 1-char padding on each side.
   """
   @spec render_conversation(Model.t()) :: TermUI.View.t()
   def render_conversation(state) do
@@ -430,7 +448,8 @@ defmodule JidoCode.TUI.ViewHelpers do
 
     # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
     available_height = max(height - 8, 1)
-    content_width = max(width - 2, 1)
+    # Content width excludes borders (2) and padding (2)
+    content_width = max(width - 4, 1)
     has_content = state.messages != [] or state.tool_calls != [] or state.is_streaming
 
     lines =
@@ -443,7 +462,13 @@ defmodule JidoCode.TUI.ViewHelpers do
     # Pad with empty lines to fill the available height
     padded_lines = pad_lines_to_height(lines, available_height, content_width)
 
-    stack(:vertical, padded_lines)
+    # Wrap each line with 1-char padding on each side
+    padded_lines_with_margin =
+      Enum.map(padded_lines, fn line ->
+        stack(:horizontal, [text(" "), line, text(" ")])
+      end)
+
+    stack(:vertical, padded_lines_with_margin)
   end
 
   defp render_empty_conversation_lines(content_width) do
@@ -622,21 +647,26 @@ defmodule JidoCode.TUI.ViewHelpers do
   @doc """
   Renders the input bar using the TextInput widget.
   Shows a prompt indicator followed by the input area.
+  Includes 1-char padding on each side.
   """
   @spec render_input_bar(Model.t()) :: TermUI.View.t()
   def render_input_bar(state) do
     {width, _height} = state.window
-    content_width = max(width - 4, 20)
+    # Content width excludes borders (2), padding (2), and prompt "> " (2)
+    input_width = max(width - 6, 20)
 
     prompt_style = Style.new(fg: Theme.get_color(:secondary) || :green)
 
     # Render TextInput widget
-    input_area = %{width: content_width, height: 1}
+    input_area = %{width: input_width, height: 1}
     text_input_node = TextInput.render(state.text_input, input_area)
 
+    # Add 1-char padding on left, prompt, input, padding on right
     stack(:horizontal, [
+      text(" "),
       text("> ", prompt_style),
-      text_input_node
+      text_input_node,
+      text(" ")
     ])
   end
 
@@ -886,7 +916,8 @@ defmodule JidoCode.TUI.ViewHelpers do
       tabs
       |> Enum.intersperse(text(" │ ", Style.new(fg: Theme.get_color(:secondary) || :bright_black)))
 
-    stack(:horizontal, tab_elements)
+    # Add 1-char padding on each side
+    stack(:horizontal, [text(" ") | tab_elements] ++ [text(" ")])
   end
 
   # Renders a single tab with appropriate styling and status indicator

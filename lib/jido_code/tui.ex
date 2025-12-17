@@ -646,7 +646,8 @@ defmodule JidoCode.TUI do
     # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
     {width, height} = window
     conversation_height = max(height - 8, 1)
-    conversation_width = max(width - 2, 1)
+    # Content width excludes borders (2) and padding (2)
+    conversation_width = max(width - 4, 1)
 
     conversation_view_props =
       ConversationView.new(
@@ -992,7 +993,8 @@ defmodule JidoCode.TUI do
 
     # Update ConversationView dimensions on resize
     conversation_height = max(height - 8, 1)
-    conversation_width = max(width - 2, 1)
+    # Content width excludes borders (2) and padding (2)
+    conversation_width = max(width - 4, 1)
 
     new_conversation_view =
       if state.conversation_view do
@@ -2063,22 +2065,6 @@ defmodule JidoCode.TUI do
     )
   end
 
-  # Render conversation using ConversationView widget if available, otherwise fallback to ViewHelpers
-  defp render_conversation_area(state) do
-    if state.conversation_view do
-      {width, height} = state.window
-
-      # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
-      available_height = max(height - 8, 1)
-      content_width = max(width - 2, 1)
-
-      area = %{x: 0, y: 0, width: content_width, height: available_height}
-      ConversationView.render(state.conversation_view, area)
-    else
-      ViewHelpers.render_conversation(state)
-    end
-  end
-
   # Render session-specific content (conversation or welcome screen)
   @doc false
   @spec render_session_content(Model.t()) :: TermUI.View.t()
@@ -2112,10 +2098,13 @@ defmodule JidoCode.TUI do
 
       {width, height} = state.window
       available_height = max(height - 8, 1)
-      content_width = max(width - 2, 1)
+      # Content width excludes borders (2) and padding (2)
+      content_width = max(width - 4, 1)
       area = %{x: 0, y: 0, width: content_width, height: available_height}
 
-      ConversationView.render(updated_view, area)
+      content = ConversationView.render(updated_view, area)
+      # Add 1-char padding on each side
+      stack(:horizontal, [text(" "), content, text(" ")])
     else
       # Fallback to ViewHelpers (shouldn't happen in normal operation)
       ViewHelpers.render_conversation(state)
@@ -2125,7 +2114,8 @@ defmodule JidoCode.TUI do
   # Show welcome screen when no sessions exist
   defp render_welcome_screen(state) do
     {width, height} = state.window
-    content_width = max(width - 2, 1)
+    # Content width excludes borders (2) and padding (2)
+    content_width = max(width - 4, 1)
     available_height = max(height - 8, 1)
 
     # Styling
@@ -2155,13 +2145,20 @@ defmodule JidoCode.TUI do
     # Pad to fill available height
     padded_lines = ViewHelpers.pad_lines_to_height(lines, available_height, content_width)
 
-    stack(:vertical, padded_lines)
+    # Add 1-char padding on each side
+    padded_lines_with_margin =
+      Enum.map(padded_lines, fn line ->
+        stack(:horizontal, [text(" "), line, text(" ")])
+      end)
+
+    stack(:vertical, padded_lines_with_margin)
   end
 
   # Show error when session state cannot be found
   defp render_session_error(state, session_id) do
     {width, height} = state.window
-    content_width = max(width - 2, 1)
+    # Content width excludes borders (2) and padding (2)
+    content_width = max(width - 4, 1)
     available_height = max(height - 8, 1)
 
     error_style = Style.new(fg: TermUI.Theme.get_semantic(:error) || :red)
@@ -2175,7 +2172,14 @@ defmodule JidoCode.TUI do
     ]
 
     padded_lines = ViewHelpers.pad_lines_to_height(lines, available_height, content_width)
-    stack(:vertical, padded_lines)
+
+    # Add 1-char padding on each side
+    padded_lines_with_margin =
+      Enum.map(padded_lines, fn line ->
+        stack(:horizontal, [text(" "), line, text(" ")])
+      end)
+
+    stack(:vertical, padded_lines_with_margin)
   end
 
   defp overlay_shell_dialog(state, main_view) do

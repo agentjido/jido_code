@@ -127,28 +127,45 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     * `area` - Render area with x, y, width, height
 
   """
-  @spec render(t(), map()) :: TermUI.View.t()
-  def render(%__MODULE__{} = state, area) do
+  @spec render(t(), map(), keyword()) :: TermUI.View.t()
+  def render(%__MODULE__{} = state, area, opts \\ []) do
     # Rebuild component states with current data
     state = state |> build_sidebar_state() |> build_tabs_state()
 
-    # Render sidebar content
+    # Get optional views
+    # input_view goes inside tabs (per-session), help_view at bottom of whole layout
+    input_view = Keyword.get(opts, :input_view)
+    help_view = Keyword.get(opts, :help_view)
+    show_divider = Keyword.get(opts, :show_divider, true)
+
+    # Calculate heights for bottom bar (only help, input is inside tabs)
+    help_height = if help_view, do: 1, else: 0
+    main_height = area.height - help_height
+
+    # Render sidebar content (with full height)
     sidebar_width = round(area.width * state.sidebar_proportion)
-    sidebar_view = render_sidebar(state, sidebar_width)
+    sidebar_view = render_sidebar(state, sidebar_width, main_height)
 
-    # Render tabs content
-    tabs_width = area.width - sidebar_width - 1
-    tabs_view = render_tabs_pane(state, tabs_width, area.height)
+    # Render tabs content (status bar + conversation + input)
+    divider_width = if show_divider, do: 1, else: 0
+    tabs_width = area.width - sidebar_width - divider_width
+    tabs_view = render_tabs_pane(state, tabs_width, main_height, input_view)
 
-    # Render vertical divider
-    divider_view = render_divider(area.height)
+    # Compose horizontal layout (sidebar + tabs)
+    main_content =
+      if show_divider do
+        divider_view = render_divider(main_height)
+        stack(:horizontal, [sidebar_view, divider_view, tabs_view])
+      else
+        stack(:horizontal, [sidebar_view, tabs_view])
+      end
 
-    # Compose horizontal layout
-    stack(:horizontal, [
-      sidebar_view,
-      divider_view,
-      tabs_view
-    ])
+    # Add help bar at bottom of whole layout
+    if help_view do
+      stack(:vertical, [main_content, help_view])
+    else
+      main_content
+    end
   end
 
   @doc """
@@ -475,14 +492,21 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   # Private: Rendering Helpers
   # ============================================================================
 
-  defp render_sidebar(state, width) do
+  defp render_sidebar(state, width, height \\ nil) do
     # Render header as a folder tab
     header_view = render_sidebar_header(width)
 
     # Render simple session list (no accordion - content is in tabs)
     session_list = render_session_list(state, width)
 
-    stack(:vertical, [header_view, session_list])
+    content = stack(:vertical, [header_view, session_list])
+
+    # Wrap in box to fill height if specified
+    if height do
+      box([content], width: width, height: height)
+    else
+      content
+    end
   end
 
   defp render_session_list(state, width) do
@@ -538,7 +562,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     label_padded = " " <> title <> " "
     bottom_content = "│" <> label_padded <> "╰"
     remaining = max(width - String.length(bottom_content), 0)
-    bottom_line = bottom_content <> String.duplicate("─", remaining)
+    _bottom_line = bottom_content <> String.duplicate("─", remaining)
 
     stack(:vertical, [
       text(top_line <> padding, border_style),
@@ -550,9 +574,32 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     ])
   end
 
-  defp render_tabs_pane(state, width, height) do
+  defp render_tabs_pane(state, width, height, input_view \\ nil) do
     if state.tabs_state do
-      FolderTabs.render_with_content(state.tabs_state, width: width, height: height - 2)
+      # Render folder tabs (tab bar only - 2 rows)
+      tab_bar = FolderTabs.render(state.tabs_state)
+
+      # Get selected tab's status and content
+      status_text = FolderTabs.get_selected_status(state.tabs_state) || ""
+      content = FolderTabs.get_selected_content(state.tabs_state)
+
+      # Build status bar (top, after tab bar)
+      status_style = Style.new(fg: :black, bg: :white)
+      status_bar = text(String.pad_trailing(status_text, width), status_style)
+
+      # Calculate content height (total - tab_bar(2) - status(1) - input(1 if present))
+      input_height = if input_view, do: 1, else: 0
+      content_height = max(height - 3 - input_height, 1)
+
+      # Build content area - conversation view (fills remaining space)
+      content_view = if content, do: content, else: empty()
+      content_box = box([content_view], width: width, height: content_height)
+
+      # Layout: tab_bar | status_bar | conversation | input (per-session)
+      elements = [tab_bar, status_bar, content_box]
+      elements = if input_view, do: elements ++ [input_view], else: elements
+
+      stack(:vertical, elements)
     else
       empty()
     end

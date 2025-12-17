@@ -1874,17 +1874,18 @@ defmodule JidoCode.TUI do
 
     # Use new MainLayout (SplitPane with sidebar + tabs)
     layout = build_main_layout(state)
-    area = %{x: 0, y: 0, width: width, height: max(height - 3, 10)}
+    area = %{x: 0, y: 0, width: width, height: height}
 
-    # Render main layout content
-    main_content = MainLayout.render(layout, area)
+    # Render input bar and help bar to pass into tabs
+    input_view = ViewHelpers.render_input_bar(state)
+    help_view = ViewHelpers.render_help_bar(state)
 
-    # Add input bar at bottom (no outer border)
-    stack(:vertical, [
-      main_content,
-      ViewHelpers.render_input_bar(state),
-      ViewHelpers.render_help_bar(state)
-    ])
+    # Render main layout with input/help inside tabs (no divider)
+    MainLayout.render(layout, area,
+      input_view: input_view,
+      help_view: help_view,
+      show_divider: false
+    )
   end
 
   # Legacy render function (kept for reference during transition)

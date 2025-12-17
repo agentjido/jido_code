@@ -240,15 +240,25 @@ Create user-facing documentation.
 - [x] 7.5.1.5 Add FAQ section for sessions
 
 ### 7.5.2 Developer Documentation
-- [ ] **Task 7.5.2**
+- [x] **Task 7.5.2**
 
 Create developer documentation.
 
-- [ ] 7.5.2.1 Document session architecture in code
-- [ ] 7.5.2.2 Document supervision tree changes
-- [ ] 7.5.2.3 Document persistence format and versioning
-- [ ] 7.5.2.4 Document adding new session-aware tools
-- [ ] 7.5.2.5 Add architecture diagram to notes/
+- [x] 7.5.2.1 Document session architecture in code
+  - Created `guides/developer/session-architecture.md` with complete architecture overview
+  - Covers: Components, supervision tree, lifecycle, state management, event routing
+- [x] 7.5.2.2 Document supervision tree changes
+  - Included comprehensive supervision tree diagrams in session-architecture.md
+  - Documents SessionSupervisor → Session.Supervisor → State + Agent hierarchy
+- [x] 7.5.2.3 Document persistence format and versioning
+  - Created `guides/developer/persistence-format.md` with JSON schema documentation
+  - Covers: Schema version 1, field descriptions, migration strategy, security
+- [x] 7.5.2.4 Document adding new session-aware tools
+  - Created `guides/developer/adding-session-tools.md` with complete tool development guide
+  - Covers: Context usage, security boundaries, PubSub broadcasting, testing
+- [x] 7.5.2.5 Add architecture diagram to notes/
+  - Created `notes/architecture/multi-session-architecture.md` with visual diagrams
+  - Includes: System architecture, supervision tree, lifecycle flow, PubSub flow, data flow
 
 ### 7.5.3 Module Documentation
 - [ ] **Task 7.5.3**

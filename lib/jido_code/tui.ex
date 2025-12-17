@@ -982,6 +982,11 @@ defmodule JidoCode.TUI do
   end
 
   def update(:quit, state) do
+    # Clear terminal and disable mouse tracking before quitting
+    # This ensures clean exit even if Runtime cleanup is incomplete
+    IO.write("\e[?1006l\e[?1003l\e[?1002l\e[?1000l")  # Disable mouse modes
+    IO.write("\e[?25h")  # Show cursor
+    IO.write("\e[2J\e[H")  # Clear screen and move to top-left
     {state, [:quit]}
   end
 
@@ -1865,6 +1870,25 @@ defmodule JidoCode.TUI do
   end
 
   defp render_main_view(state) do
+    {width, height} = state.window
+
+    # Use new MainLayout (SplitPane with sidebar + tabs)
+    layout = build_main_layout(state)
+    area = %{x: 0, y: 0, width: width, height: max(height - 3, 10)}
+
+    # Render main layout content
+    main_content = MainLayout.render(layout, area)
+
+    # Add input bar at bottom (no outer border)
+    stack(:vertical, [
+      main_content,
+      ViewHelpers.render_input_bar(state),
+      ViewHelpers.render_help_bar(state)
+    ])
+  end
+
+  # Legacy render function (kept for reference during transition)
+  defp _render_main_view_legacy(state) do
     {width, _height} = state.window
 
     # Determine if sidebar should be visible (responsive + user preference)

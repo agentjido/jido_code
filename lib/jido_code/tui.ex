@@ -49,6 +49,7 @@ defmodule JidoCode.TUI do
   alias JidoCode.TUI.MessageHandlers
   alias JidoCode.TUI.ViewHelpers
   alias JidoCode.TUI.Widgets.ConversationView
+  alias JidoCode.TUI.Widgets.MainLayout
   alias JidoCode.TUI.Widgets.SessionSidebar
   alias TermUI.Event
   alias TermUI.Renderer.Style
@@ -186,6 +187,9 @@ defmodule JidoCode.TUI do
             shell_viewport: map() | nil,
             pick_list: map() | nil,
 
+            # Main layout state (SplitPane with sidebar + tabs)
+            main_layout: JidoCode.TUI.Widgets.MainLayout.t() | nil,
+
             # Legacy per-session fields (for backwards compatibility)
             # These will be migrated to Session.State in Phase 4.2
             messages: [message()],
@@ -232,6 +236,8 @@ defmodule JidoCode.TUI do
       shell_dialog: nil,
       shell_viewport: nil,
       pick_list: nil,
+      # Main layout state (SplitPane with sidebar + tabs)
+      main_layout: nil,
       # Legacy per-session fields (for backwards compatibility)
       # These will be migrated to Session.State in Phase 4.2
       messages: [],
@@ -2004,6 +2010,68 @@ defmodule JidoCode.TUI do
   defp render_vertical_separator(_state) do
     separator_style = Style.new(fg: :bright_black)
     text("│", separator_style)
+  end
+
+  # Build MainLayout widget from model state
+  @doc false
+  @spec build_main_layout(Model.t()) :: MainLayout.t()
+  defp build_main_layout(state) do
+    # Convert sessions to MainLayout format
+    session_data =
+      Map.new(state.session_order, fn id ->
+        session = Map.get(state.sessions, id)
+
+        if session do
+          {id,
+           %{
+             id: id,
+             name: session.name,
+             project_path: session.project_path,
+             created_at: session.created_at,
+             status: get_session_status(id),
+             message_count: get_message_count(id),
+             content: get_conversation_content(state, id)
+           }}
+        else
+          {id, %{id: id, name: "Unknown", project_path: "", created_at: DateTime.utc_now()}}
+        end
+      end)
+
+    MainLayout.new(
+      sessions: session_data,
+      session_order: state.session_order,
+      active_session_id: state.active_session_id,
+      sidebar_expanded: state.sidebar_expanded,
+      sidebar_proportion: 0.20
+    )
+  end
+
+  defp get_session_status(session_id) do
+    case Session.AgentAPI.get_status(session_id) do
+      {:ok, %{ready: true}} -> :idle
+      {:ok, %{ready: false}} -> :processing
+      {:error, _} -> :unconfigured
+    end
+  end
+
+  defp get_message_count(session_id) do
+    case Session.State.get_messages(session_id, 0, 1) do
+      {:ok, _messages, %{total: total}} -> total
+      _ -> 0
+    end
+  end
+
+  defp get_conversation_content(state, session_id) do
+    # If this is the active session and we have a conversation view, use it
+    if session_id == state.active_session_id && state.conversation_view do
+      {width, height} = state.window
+      available_height = max(height - 10, 1)
+      content_width = max(width - round(width * 0.20) - 5, 30)
+      area = %{x: 0, y: 0, width: content_width, height: available_height}
+      ConversationView.render(state.conversation_view, area)
+    else
+      nil
+    end
   end
 
   # Render layout with sidebar visible

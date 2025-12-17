@@ -17,19 +17,17 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
 
   ## Visual Layout
 
-      ┌──────────────────┬─────────────────────────────────────┐
-      │ SESSIONS         │╭───────────╮╭───────────╮           │
-      │ ──────────────── ││ Session 1 ╰│ Session 2 │           │
-      │                  │┌───────────────────────────────────┐│
-      │ ▼ → Session 1    ││ Status Bar                        ││
-      │     Info         │├───────────────────────────────────┤│
-      │       Created... ││                                   ││
-      │     Files        ││   Conversation View               ││
-      │       (empty)    ││                                   ││
-      │                  │├───────────────────────────────────┤│
-      │ ▶ Session 2      ││ Controls                          ││
-      │                  │└───────────────────────────────────┘│
-      └──────────────────┴─────────────────────────────────────┘
+      ╭──────────╮
+      │ JidoCode ╰───────│╭───────────╮╭───────────╮
+      → Session 1        ││ Session 1 ╰│ Session 2 │
+        Session 2        ││ Status Bar                        │
+                         │├───────────────────────────────────┤
+                         ││                                   │
+                         ││   Conversation View               │
+                         ││                                   │
+                         │├───────────────────────────────────┤
+                         ││ Controls                          │
+                         │└───────────────────────────────────┘
 
   """
 
@@ -413,26 +411,9 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     "(#{count}) #{icon}"
   end
 
-  defp build_sidebar_content(session_data) do
-    info_style = Style.new(fg: :white)
-    muted_style = Style.new(fg: :bright_black)
-    label_style = Style.new(fg: :cyan)
-
-    created = Map.get(session_data, :created_at)
-    created_text = if created, do: format_relative_time(created), else: "Unknown"
-
-    path = Map.get(session_data, :project_path, "")
-    path_text = format_path(path)
-
-    [
-      text("Info", label_style),
-      text("  Created: #{created_text}", info_style),
-      text("  Path: #{path_text}", info_style),
-      text("Files", label_style),
-      text("  (empty)", muted_style),
-      text("Tools", label_style),
-      text("  (empty)", muted_style)
-    ]
+  defp build_sidebar_content(_session_data) do
+    # Sidebar only shows session names - all content is in tabs
+    []
   end
 
   defp build_tabs_state(state) do
@@ -495,20 +476,78 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   # ============================================================================
 
   defp render_sidebar(state, width) do
-    header_style = Style.new(fg: :cyan, attrs: [:bold])
-    separator_style = Style.new(fg: :bright_black)
+    # Render header as a folder tab
+    header_view = render_sidebar_header(width)
 
-    header = text(String.pad_trailing("SESSIONS", width), header_style)
-    separator = text(String.duplicate("─", width), separator_style)
+    # Render simple session list (no accordion - content is in tabs)
+    session_list = render_session_list(state, width)
 
-    accordion_view =
-      if state.sidebar_state do
-        Accordion.render(state.sidebar_state, width)
+    stack(:vertical, [header_view, session_list])
+  end
+
+  defp render_session_list(state, width) do
+    if state.session_order == [] do
+      muted_style = Style.new(fg: :bright_black)
+      text(String.pad_trailing("  No sessions", width), muted_style)
+    else
+      session_items =
+        Enum.map(state.session_order, fn session_id ->
+          session_data = Map.get(state.sessions, session_id, %{})
+          render_session_item(state, session_id, session_data, width)
+        end)
+
+      stack(:vertical, session_items)
+    end
+  end
+
+  defp render_session_item(state, session_id, session_data, width) do
+    is_active = session_id == state.active_session_id
+    name = Map.get(session_data, :name, "Session")
+    truncated = truncate(name, width - 4)
+
+    # Style based on active state
+    style =
+      if is_active do
+        Style.new(fg: :white, attrs: [:bold])
       else
-        empty()
+        Style.new(fg: :bright_black)
       end
 
-    stack(:vertical, [header, separator, accordion_view])
+    # Active indicator
+    prefix = if is_active, do: "→ ", else: "  "
+    line = prefix <> truncated
+
+    text(String.pad_trailing(line, width), style)
+  end
+
+  # Render "JidoCode" header as a folder tab style
+  defp render_sidebar_header(width) do
+    title = "JidoCode"
+    title_len = String.length(title)
+
+    # Folder tab style
+    header_style = Style.new(fg: :cyan, attrs: [:bold])
+    border_style = Style.new(fg: :bright_black)
+
+    # Top row: ╭─────────╮
+    inner_width = min(title_len + 2, width - 2)
+    top_line = "╭" <> String.duplicate("─", inner_width) <> "╮"
+    padding = String.duplicate(" ", max(width - String.length(top_line), 0))
+
+    # Bottom row: │ JidoCode │ followed by ─ to fill width
+    label_padded = " " <> title <> " "
+    bottom_content = "│" <> label_padded <> "╰"
+    remaining = max(width - String.length(bottom_content), 0)
+    bottom_line = bottom_content <> String.duplicate("─", remaining)
+
+    stack(:vertical, [
+      text(top_line <> padding, border_style),
+      stack(:horizontal, [
+        text("│", border_style),
+        text(label_padded, header_style),
+        text("╰" <> String.duplicate("─", remaining), border_style)
+      ])
+    ])
   end
 
   defp render_tabs_pane(state, width, height) do

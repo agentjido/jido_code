@@ -492,7 +492,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   # Private: Rendering Helpers
   # ============================================================================
 
-  defp render_sidebar(state, width, height \\ nil) do
+  defp render_sidebar(state, width, height) do
     # Render header as a folder tab
     header_view = render_sidebar_header(width)
 
@@ -574,7 +574,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     ])
   end
 
-  defp render_tabs_pane(state, width, height, input_view \\ nil) do
+  defp render_tabs_pane(state, width, height, input_view) do
     if state.tabs_state do
       # Render folder tabs (tab bar only - 2 rows)
       tab_bar = FolderTabs.render(state.tabs_state)
@@ -631,27 +631,4 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp status_icon(:error), do: "✗"
   defp status_icon(_), do: "○"
 
-  defp format_relative_time(datetime) do
-    now = DateTime.utc_now()
-    diff = DateTime.diff(now, datetime, :second)
-
-    cond do
-      diff < 60 -> "#{diff}s ago"
-      diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86400 -> "#{div(diff, 3600)}h ago"
-      true -> "#{div(diff, 86400)}d ago"
-    end
-  end
-
-  defp format_path(path) when is_binary(path) do
-    home = System.user_home!()
-
-    if String.starts_with?(path, home) do
-      String.replace_prefix(path, home, "~")
-    else
-      path
-    end
-  end
-
-  defp format_path(_), do: ""
 end

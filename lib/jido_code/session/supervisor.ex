@@ -133,10 +133,11 @@ defmodule JidoCode.Session.Supervisor do
 
     # Convert string provider to atom for LLMAgent
     # Session stores provider as string, LLMAgent expects atom
+    # Using to_atom since provider names come from a known set (anthropic, openai, ollama, etc.)
     provider =
       cond do
         is_atom(config.provider) -> config.provider
-        is_binary(config.provider) -> String.to_existing_atom(config.provider)
+        is_binary(config.provider) -> String.to_atom(config.provider)
         true -> :anthropic
       end
 

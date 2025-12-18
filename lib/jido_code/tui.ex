@@ -151,6 +151,7 @@ defmodule JidoCode.TUI do
     @type session_ui_state :: %{
             text_input: map() | nil,
             conversation_view: map() | nil,
+            accordion: JidoCode.TUI.Widgets.Accordion.t() | nil,
             scroll_offset: non_neg_integer(),
             streaming_message: String.t() | nil,
             is_streaming: boolean(),
@@ -656,9 +657,21 @@ defmodule JidoCode.TUI do
 
       {:ok, conversation_view_state} = JidoCode.TUI.Widgets.ConversationView.init(conversation_view_props)
 
+      # Create Accordion for this session's sidebar sections
+      accordion =
+        JidoCode.TUI.Widgets.Accordion.new(
+          sections: [
+            %{id: :info, title: "Info", content: []},
+            %{id: :files, title: "Files", content: []},
+            %{id: :tools, title: "Tools", content: []}
+          ],
+          active_ids: [:info]
+        )
+
       %{
         text_input: text_input_state,
         conversation_view: conversation_view_state,
+        accordion: accordion,
         scroll_offset: 0,
         streaming_message: nil,
         is_streaming: false,
@@ -772,6 +785,19 @@ defmodule JidoCode.TUI do
       case get_active_ui_state(model) do
         nil -> nil
         ui_state -> ui_state.conversation_view
+      end
+    end
+
+    @doc """
+    Gets the accordion for the active session.
+
+    Returns nil if no active session or if the session has no UI state.
+    """
+    @spec get_active_accordion(t()) :: JidoCode.TUI.Widgets.Accordion.t() | nil
+    def get_active_accordion(model) do
+      case get_active_ui_state(model) do
+        nil -> nil
+        ui_state -> ui_state.accordion
       end
     end
 

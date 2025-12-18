@@ -63,7 +63,9 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
           # Activity tracking (Phase 4.7.3)
           streaming_sessions: MapSet.t(String.t()),
           unread_counts: %{String.t() => non_neg_integer()},
-          active_tools: %{String.t() => non_neg_integer()}
+          active_tools: %{String.t() => non_neg_integer()},
+          # Per-session accordion state (Phase 4.7.4)
+          session_accordions: %{String.t() => Accordion.t()}
         }
 
   defstruct sessions: [],
@@ -74,7 +76,9 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
             # Activity tracking (Phase 4.7.3)
             streaming_sessions: MapSet.new(),
             unread_counts: %{},
-            active_tools: %{}
+            active_tools: %{},
+            # Per-session accordion state (Phase 4.7.4)
+            session_accordions: %{}
 
   # Status icon mapping (from Task 4.3.3)
   @status_icons %{
@@ -101,6 +105,7 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
     * `:streaming_sessions` - MapSet of session IDs currently streaming (default: empty)
     * `:unread_counts` - Map of session_id => unread count (default: %{})
     * `:active_tools` - Map of session_id => active tool count (default: %{})
+    * `:session_accordions` - Map of session_id => Accordion state (default: %{})
 
   ## Examples
 
@@ -119,7 +124,9 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
       # Activity tracking (Phase 4.7.3)
       streaming_sessions: Keyword.get(opts, :streaming_sessions, MapSet.new()),
       unread_counts: Keyword.get(opts, :unread_counts, %{}),
-      active_tools: Keyword.get(opts, :active_tools, %{})
+      active_tools: Keyword.get(opts, :active_tools, %{}),
+      # Per-session accordion state (Phase 4.7.4)
+      session_accordions: Keyword.get(opts, :session_accordions, %{})
     }
   end
 
@@ -217,8 +224,8 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
     # Build badge (message count + status)
     badge = build_badge(session.id)
 
-    # Build content (minimal session details)
-    content = build_session_details(session)
+    # Build content using per-session accordion if available
+    content = build_session_details(sidebar, session)
 
     %{
       id: session.id,
@@ -357,22 +364,36 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
   end
 
   # ============================================================================
-  # Session Details Rendering (Minimal/Empty)
+  # Session Details Rendering
   # ============================================================================
 
   @doc """
-  Builds minimal session details content.
+  Builds session details content using the per-session accordion.
 
-  Includes placeholder sections:
+  Uses the session's accordion from session_accordions if available,
+  with dynamic content for each section:
   - **Info**: Created time and project path
-  - **Files**: Empty placeholder
-  - **Tools**: Empty placeholder
+  - **Files**: Empty placeholder (future: file list)
+  - **Tools**: Empty placeholder (future: tool list)
 
-  Content deferred to future enhancements per user scope decision.
-
+  Falls back to static content if no accordion is available.
   """
-  @spec build_session_details(Session.t()) :: [TermUI.View.t()]
-  def build_session_details(session) do
+  @spec build_session_details(t(), Session.t()) :: [TermUI.View.t()]
+  def build_session_details(sidebar, session) do
+    case Map.get(sidebar.session_accordions, session.id) do
+      nil ->
+        # Fallback to static content if no accordion
+        build_static_session_details(session)
+
+      accordion ->
+        # Use the per-session accordion with dynamic content
+        build_accordion_session_details(accordion, session)
+    end
+  end
+
+  @doc false
+  @spec build_static_session_details(Session.t()) :: [TermUI.View.t()]
+  defp build_static_session_details(session) do
     info_style = Style.new(fg: :white)
     muted_style = Style.new(fg: :bright_black)
     label_style = Style.new(fg: :cyan)
@@ -395,6 +416,50 @@ defmodule JidoCode.TUI.Widgets.SessionSidebar do
       text("Tools", label_style),
       text("  (empty)", muted_style)
     ]
+  end
+
+  @doc false
+  @spec build_accordion_session_details(Accordion.t(), Session.t()) :: [TermUI.View.t()]
+  defp build_accordion_session_details(accordion, session) do
+    info_style = Style.new(fg: :white)
+    muted_style = Style.new(fg: :bright_black)
+
+    # Build dynamic content for each section based on accordion state
+    # Update the accordion's section content with session-specific data
+    updated_accordion =
+      accordion
+      |> update_info_section(session, info_style)
+      |> update_files_section(muted_style)
+      |> update_tools_section(muted_style)
+
+    # Render the accordion as a flat list of views
+    # We return the rendered views as content for the parent accordion
+    [Accordion.render(updated_accordion, 18)]
+  end
+
+  @doc false
+  defp update_info_section(accordion, session, style) do
+    created_text = format_created_time(session.created_at)
+    path_text = format_project_path(session.project_path)
+
+    content = [
+      text("Created: #{created_text}", style),
+      text("Path: #{path_text}", style)
+    ]
+
+    Accordion.update_section(accordion, :info, %{content: content})
+  end
+
+  @doc false
+  defp update_files_section(accordion, style) do
+    content = [text("(empty)", style)]
+    Accordion.update_section(accordion, :files, %{content: content})
+  end
+
+  @doc false
+  defp update_tools_section(accordion, style) do
+    content = [text("(empty)", style)]
+    Accordion.update_section(accordion, :tools, %{content: content})
   end
 
   @doc false

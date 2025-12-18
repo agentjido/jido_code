@@ -1879,11 +1879,10 @@ defmodule JidoCode.TUI do
     input_view = ViewHelpers.render_input_bar(state)
     help_view = ViewHelpers.render_help_bar(state)
 
-    # Render main layout with input/help inside tabs (no divider)
+    # Render main layout with input/help inside tabs
     MainLayout.render(layout, area,
       input_view: input_view,
-      help_view: help_view,
-      show_divider: false
+      help_view: help_view
     )
   end
 

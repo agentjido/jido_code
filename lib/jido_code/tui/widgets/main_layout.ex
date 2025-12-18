@@ -38,6 +38,16 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   # alias JidoCode.Session
   alias TermUI.Renderer.Style
 
+  # Single-line box drawing characters for sidebar border
+  @border %{
+    top_left: "┌",
+    top_right: "┐",
+    bottom_left: "└",
+    bottom_right: "┘",
+    horizontal: "─",
+    vertical: "│"
+  }
+
   # ============================================================================
   # Type Definitions
   # ============================================================================
@@ -136,29 +146,27 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     # input_view goes inside tabs (per-session), help_view at bottom of whole layout
     input_view = Keyword.get(opts, :input_view)
     help_view = Keyword.get(opts, :help_view)
-    show_divider = Keyword.get(opts, :show_divider, true)
 
     # Calculate heights for bottom bar (only help, input is inside tabs)
     help_height = if help_view, do: 1, else: 0
     main_height = area.height - help_height
+
+    # Gap between sidebar and tabs (always 1 character)
+    gap_width = 1
 
     # Render sidebar content (with full height)
     sidebar_width = round(area.width * state.sidebar_proportion)
     sidebar_view = render_sidebar(state, sidebar_width, main_height)
 
     # Render tabs content (status bar + conversation + input)
-    divider_width = if show_divider, do: 1, else: 0
-    tabs_width = area.width - sidebar_width - divider_width
+    tabs_width = area.width - sidebar_width - gap_width
     tabs_view = render_tabs_pane(state, tabs_width, main_height, input_view)
 
-    # Compose horizontal layout (sidebar + tabs)
-    main_content =
-      if show_divider do
-        divider_view = render_divider(main_height)
-        stack(:horizontal, [sidebar_view, divider_view, tabs_view])
-      else
-        stack(:horizontal, [sidebar_view, tabs_view])
-      end
+    # Render gap (empty space between panes)
+    gap_view = render_gap(main_height)
+
+    # Compose horizontal layout (sidebar + gap + tabs)
+    main_content = stack(:horizontal, [sidebar_view, gap_view, tabs_view])
 
     # Add help bar at bottom of whole layout
     if help_view do
@@ -493,20 +501,37 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   # ============================================================================
 
   defp render_sidebar(state, width, height) do
-    # Render header as a folder tab
-    header_view = render_sidebar_header(width)
+    border_style = Style.new(fg: :bright_black)
 
-    # Render simple session list (no accordion - content is in tabs)
-    session_list = render_session_list(state, width)
+    # Content dimensions (inside the border)
+    inner_width = max(width - 2, 1)
+    inner_height = max(height - 2, 1)
 
+    # Render header and session list with inner width
+    header_view = render_sidebar_header(inner_width)
+    session_list = render_session_list(state, inner_width)
     content = stack(:vertical, [header_view, session_list])
 
-    # Wrap in box to fill height if specified
-    if height do
-      box([content], width: width, height: height)
-    else
-      content
-    end
+    # Wrap content in a box to fill the inner height
+    content_box = box([content], width: inner_width, height: inner_height)
+
+    # Build border components
+    top_border = text(@border.top_left <> String.duplicate(@border.horizontal, inner_width) <> @border.top_right, border_style)
+    bottom_border = text(@border.bottom_left <> String.duplicate(@border.horizontal, inner_width) <> @border.bottom_right, border_style)
+
+    # Build middle section with side borders
+    left_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
+    right_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
+
+    middle_row = stack(:horizontal, [
+      text(left_border_str, border_style),
+      content_box,
+      text(right_border_str, border_style)
+    ])
+
+    # Stack all parts and wrap in box with explicit dimensions
+    bordered = stack(:vertical, [top_border, middle_row, bottom_border])
+    box([bordered], width: width, height: height)
   end
 
   defp render_session_list(state, width) do
@@ -544,72 +569,92 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     text(String.pad_trailing(line, width), style)
   end
 
-  # Render "JidoCode" header as a folder tab style
+  # Render sidebar header (2 lines + separator)
   defp render_sidebar_header(width) do
     title = "JidoCode"
-    title_len = String.length(title)
-
-    # Folder tab style
     header_style = Style.new(fg: :cyan, attrs: [:bold])
-    border_style = Style.new(fg: :bright_black)
+    separator_style = Style.new(fg: :bright_black)
 
-    # Top row: ╭─────────╮
-    inner_width = min(title_len + 2, width - 2)
-    top_line = "╭" <> String.duplicate("─", inner_width) <> "╮"
-    padding = String.duplicate(" ", max(width - String.length(top_line), 0))
+    # Line 1: Title
+    line1 = String.pad_trailing(" " <> title, width)
 
-    # Bottom row: │ JidoCode │ followed by ─ to fill width
-    label_padded = " " <> title <> " "
-    bottom_content = "│" <> label_padded <> "╰"
-    remaining = max(width - String.length(bottom_content), 0)
-    _bottom_line = bottom_content <> String.duplicate("─", remaining)
+    # Line 2: Empty line
+    line2 = String.duplicate(" ", width)
+
+    # Horizontal separator
+    separator = String.duplicate(@border.horizontal, width)
 
     stack(:vertical, [
-      text(top_line <> padding, border_style),
-      stack(:horizontal, [
-        text("│", border_style),
-        text(label_padded, header_style),
-        text("╰" <> String.duplicate("─", remaining), border_style)
-      ])
+      text(line1, header_style),
+      text(line2, nil),
+      text(separator, separator_style)
     ])
   end
 
   defp render_tabs_pane(state, width, height, input_view) do
-    if state.tabs_state do
-      # Render folder tabs (tab bar only - 2 rows)
-      tab_bar = FolderTabs.render(state.tabs_state)
+    border_style = Style.new(fg: :bright_black)
 
-      # Get selected tab's status and content
-      status_text = FolderTabs.get_selected_status(state.tabs_state) || ""
-      content = FolderTabs.get_selected_content(state.tabs_state)
+    # Content dimensions (inside the border)
+    inner_width = max(width - 2, 1)
+    inner_height = max(height - 2, 1)
 
-      # Build status bar (top, after tab bar)
-      status_style = Style.new(fg: :black, bg: :white)
-      status_bar = text(String.pad_trailing(status_text, width), status_style)
+    # Build inner content
+    inner_content =
+      if state.tabs_state do
+        # Render folder tabs (tab bar only - 2 rows)
+        tab_bar = FolderTabs.render(state.tabs_state)
 
-      # Calculate content height (total - tab_bar(2) - status(1) - input(1 if present))
-      input_height = if input_view, do: 1, else: 0
-      content_height = max(height - 3 - input_height, 1)
+        # Get selected tab's status and content
+        status_text = FolderTabs.get_selected_status(state.tabs_state) || ""
+        content = FolderTabs.get_selected_content(state.tabs_state)
 
-      # Build content area - conversation view (fills remaining space)
-      content_view = if content, do: content, else: empty()
-      content_box = box([content_view], width: width, height: content_height)
+        # Build status bar (top, after tab bar)
+        status_style = Style.new(fg: :black, bg: :white)
+        status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
 
-      # Layout: tab_bar | status_bar | conversation | input (per-session)
-      elements = [tab_bar, status_bar, content_box]
-      elements = if input_view, do: elements ++ [input_view], else: elements
+        # Calculate content height (inner - tab_bar(2) - status(1) - input(1 if present))
+        input_height = if input_view, do: 1, else: 0
+        content_height = max(inner_height - 3 - input_height, 1)
 
-      stack(:vertical, elements)
-    else
-      empty()
-    end
+        # Build content area - conversation view (fills remaining space)
+        content_view = if content, do: content, else: empty()
+        content_box = box([content_view], width: inner_width, height: content_height)
+
+        # Layout: tab_bar | status_bar | conversation | input (per-session)
+        elements = [tab_bar, status_bar, content_box]
+        elements = if input_view, do: elements ++ [input_view], else: elements
+
+        stack(:vertical, elements)
+      else
+        empty()
+      end
+
+    # Wrap inner content in a box to fill the inner height
+    inner_box = box([inner_content], width: inner_width, height: inner_height)
+
+    # Build border components
+    top_border = text(@border.top_left <> String.duplicate(@border.horizontal, inner_width) <> @border.top_right, border_style)
+    bottom_border = text(@border.bottom_left <> String.duplicate(@border.horizontal, inner_width) <> @border.bottom_right, border_style)
+
+    # Build middle section with side borders
+    left_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
+    right_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
+
+    middle_row = stack(:horizontal, [
+      text(left_border_str, border_style),
+      inner_box,
+      text(right_border_str, border_style)
+    ])
+
+    # Stack all parts and wrap in box with explicit dimensions
+    bordered = stack(:vertical, [top_border, middle_row, bottom_border])
+    box([bordered], width: width, height: height)
   end
 
-  defp render_divider(height) do
-    divider_style = Style.new(fg: :bright_black)
-    divider_char = "│"
-    divider_line = String.duplicate(divider_char <> "\n", height) |> String.trim_trailing("\n")
-    text(divider_line, divider_style)
+  defp render_gap(height) do
+    # Single column of spaces to create gap between panes
+    gap_line = String.duplicate(" \n", height) |> String.trim_trailing("\n")
+    text(gap_line, nil)
   end
 
   # ============================================================================

@@ -503,35 +503,23 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp render_sidebar(state, width, height) do
     border_style = Style.new(fg: :bright_black)
 
-    # Content dimensions (inside the border)
-    inner_width = max(width - 2, 1)
+    # Content dimensions (inside top/bottom borders)
     inner_height = max(height - 2, 1)
 
-    # Render header and session list with inner width
-    header_view = render_sidebar_header(inner_width)
-    session_list = render_session_list(state, inner_width)
+    # Render header and session list
+    header_view = render_sidebar_header(width)
+    session_list = render_session_list(state, width)
     content = stack(:vertical, [header_view, session_list])
 
-    # Wrap content in a box to fill the inner height
-    content_box = box([content], width: inner_width, height: inner_height)
+    # Wrap content in box to fill inner height
+    content_box = box([content], width: width, height: inner_height)
 
-    # Build border components
-    top_border = text(@border.top_left <> String.duplicate(@border.horizontal, inner_width) <> @border.top_right, border_style)
-    bottom_border = text(@border.bottom_left <> String.duplicate(@border.horizontal, inner_width) <> @border.bottom_right, border_style)
+    # Top and bottom borders only
+    top_border = text(String.duplicate(@border.horizontal, width), border_style)
+    bottom_border = text(String.duplicate(@border.horizontal, width), border_style)
 
-    # Build middle section with side borders
-    left_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
-    right_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
-
-    middle_row = stack(:horizontal, [
-      text(left_border_str, border_style),
-      content_box,
-      text(right_border_str, border_style)
-    ])
-
-    # Stack all parts and wrap in box with explicit dimensions
-    bordered = stack(:vertical, [top_border, middle_row, bottom_border])
-    box([bordered], width: width, height: height)
+    # Stack: top border, content, bottom border
+    stack(:vertical, [top_border, content_box, bottom_border])
   end
 
   defp render_session_list(state, width) do
@@ -594,8 +582,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp render_tabs_pane(state, width, height, input_view) do
     border_style = Style.new(fg: :bright_black)
 
-    # Content dimensions (inside the border)
-    inner_width = max(width - 2, 1)
+    # Content dimensions (inside top/bottom borders)
     inner_height = max(height - 2, 1)
 
     # Build inner content
@@ -609,16 +596,16 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
         content = FolderTabs.get_selected_content(state.tabs_state)
 
         # Build status bar (top, after tab bar)
-        status_style = Style.new(fg: :black, bg: :white)
-        status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
+        status_style = Style.new(fg: :bright_black)
+        status_bar = text(String.pad_trailing(status_text, width), status_style)
 
-        # Calculate content height (inner - tab_bar(2) - status(1) - input(1 if present))
+        # Calculate content height (inner - tab_bar(3) - status(1) - input(1 if present))
         input_height = if input_view, do: 1, else: 0
-        content_height = max(inner_height - 3 - input_height, 1)
+        content_height = max(inner_height - 4 - input_height, 1)
 
         # Build content area - conversation view (fills remaining space)
         content_view = if content, do: content, else: empty()
-        content_box = box([content_view], width: inner_width, height: content_height)
+        content_box = box([content_view], width: width, height: content_height)
 
         # Layout: tab_bar | status_bar | conversation | input (per-session)
         elements = [tab_bar, status_bar, content_box]
@@ -629,26 +616,15 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
         empty()
       end
 
-    # Wrap inner content in a box to fill the inner height
-    inner_box = box([inner_content], width: inner_width, height: inner_height)
+    # Wrap content in box to fill inner height
+    content_box = box([inner_content], width: width, height: inner_height)
 
-    # Build border components
-    top_border = text(@border.top_left <> String.duplicate(@border.horizontal, inner_width) <> @border.top_right, border_style)
-    bottom_border = text(@border.bottom_left <> String.duplicate(@border.horizontal, inner_width) <> @border.bottom_right, border_style)
+    # Top and bottom borders only
+    top_border = text(String.duplicate(@border.horizontal, width), border_style)
+    bottom_border = text(String.duplicate(@border.horizontal, width), border_style)
 
-    # Build middle section with side borders
-    left_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
-    right_border_str = String.duplicate(@border.vertical <> "\n", inner_height) |> String.trim_trailing("\n")
-
-    middle_row = stack(:horizontal, [
-      text(left_border_str, border_style),
-      inner_box,
-      text(right_border_str, border_style)
-    ])
-
-    # Stack all parts and wrap in box with explicit dimensions
-    bordered = stack(:vertical, [top_border, middle_row, bottom_border])
-    box([bordered], width: width, height: height)
+    # Stack: top border, content, bottom border
+    stack(:vertical, [top_border, content_box, bottom_border])
   end
 
   defp render_gap(height) do

@@ -76,8 +76,20 @@ defmodule JidoCode.TUITest do
   end
 
   # Helper to get text value from TextInput state
+  # Uses per-session UI state if available, falls back to legacy text_input
   defp get_input_value(model) do
-    TextInput.get_value(model.text_input)
+    case Model.get_active_text_input(model) do
+      nil ->
+        # Fallback for tests that don't set up sessions
+        if model.text_input do
+          TextInput.get_value(model.text_input)
+        else
+          ""
+        end
+
+      text_input ->
+        TextInput.get_value(text_input)
+    end
   end
 
   # Helper to create a test Session struct

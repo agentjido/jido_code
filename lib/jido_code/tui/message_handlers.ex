@@ -63,42 +63,48 @@ defmodule JidoCode.TUI.MessageHandlers do
 
   # Active session: Full UI update
   defp handle_active_stream_chunk(session_id, chunk, state) do
-    new_streaming_message = (state.streaming_message || "") <> chunk
     queue = queue_message(state.message_queue, {:stream_chunk, chunk})
 
-    # Sync with ConversationView if available
-    new_conversation_view =
-      if state.conversation_view do
-        # Start streaming if this is the first chunk
-        cv_state =
-          if state.streaming_message == nil or state.streaming_message == "" do
-            {cv, _id} = ConversationView.start_streaming(state.conversation_view, :assistant)
-            cv
+    # Update active session's UI state: conversation view, streaming message, is_streaming
+    new_state =
+      Model.update_active_ui_state(state, fn ui ->
+        new_streaming_message = (ui.streaming_message || "") <> chunk
+
+        # Start streaming in conversation view if this is the first chunk
+        new_conversation_view =
+          if ui.conversation_view do
+            cv_state =
+              if ui.streaming_message == nil or ui.streaming_message == "" do
+                {cv, _id} = ConversationView.start_streaming(ui.conversation_view, :assistant)
+                cv
+              else
+                ui.conversation_view
+              end
+
+            ConversationView.append_chunk(cv_state, chunk)
           else
-            state.conversation_view
+            ui.conversation_view
           end
 
-        # Append the chunk
-        ConversationView.append_chunk(cv_state, chunk)
-      else
-        state.conversation_view
-      end
+        %{ui |
+          conversation_view: new_conversation_view,
+          streaming_message: new_streaming_message,
+          is_streaming: true
+        }
+      end)
 
-    # Track streaming activity
-    new_streaming_sessions = MapSet.put(state.streaming_sessions, session_id)
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+    # Track streaming activity (kept at model level for sidebar indicators)
+    new_streaming_sessions = MapSet.put(new_state.streaming_sessions, session_id)
+    new_last_activity = Map.put(new_state.last_activity, session_id, DateTime.utc_now())
 
-    new_state = %{
-      state
-      | streaming_message: new_streaming_message,
-        is_streaming: true,
-        message_queue: queue,
-        conversation_view: new_conversation_view,
+    final_state = %{
+      new_state
+      | message_queue: queue,
         streaming_sessions: new_streaming_sessions,
         last_activity: new_last_activity
     }
 
-    {new_state, []}
+    {final_state, []}
   end
 
   # Inactive session: Sidebar-only update
@@ -135,34 +141,45 @@ defmodule JidoCode.TUI.MessageHandlers do
 
   # Active session: Complete message and update UI
   defp handle_active_stream_end(session_id, _full_content, state) do
-    message = TUI.assistant_message(state.streaming_message || "")
-    queue = queue_message(state.message_queue, {:stream_end, state.streaming_message})
+    # Get streaming message from active session's UI state
+    ui_state = Model.get_active_ui_state(state)
+    streaming_message = if ui_state, do: ui_state.streaming_message || "", else: ""
 
-    # Sync with ConversationView if available
-    new_conversation_view =
-      if state.conversation_view do
-        ConversationView.end_streaming(state.conversation_view)
-      else
-        state.conversation_view
-      end
+    message = TUI.assistant_message(streaming_message)
+    queue = queue_message(state.message_queue, {:stream_end, streaming_message})
 
-    # Clear streaming indicator
-    new_streaming_sessions = MapSet.delete(state.streaming_sessions, session_id)
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+    # Update active session's UI state: end streaming, clear streaming message
+    new_state =
+      Model.update_active_ui_state(state, fn ui ->
+        new_conversation_view =
+          if ui.conversation_view do
+            ConversationView.end_streaming(ui.conversation_view)
+          else
+            ui.conversation_view
+          end
 
-    new_state = %{
-      state
-      | messages: [message | state.messages],
-        streaming_message: nil,
-        is_streaming: false,
-        agent_status: :idle,
+        # Add message to session's messages and clear streaming state
+        %{ui |
+          conversation_view: new_conversation_view,
+          streaming_message: nil,
+          is_streaming: false,
+          messages: [message | ui.messages]
+        }
+      end)
+
+    # Clear streaming indicator (kept at model level for sidebar indicators)
+    new_streaming_sessions = MapSet.delete(new_state.streaming_sessions, session_id)
+    new_last_activity = Map.put(new_state.last_activity, session_id, DateTime.utc_now())
+
+    final_state = %{
+      new_state
+      | agent_status: :idle,
         message_queue: queue,
-        conversation_view: new_conversation_view,
         streaming_sessions: new_streaming_sessions,
         last_activity: new_last_activity
     }
 
-    {new_state, []}
+    {final_state, []}
   end
 
   # Inactive session: Stop streaming, increment unread count
@@ -265,8 +282,14 @@ defmodule JidoCode.TUI.MessageHandlers do
   @spec handle_reasoning_step(map(), Model.t()) :: {Model.t(), list()}
   def handle_reasoning_step(step, state) do
     queue = queue_message(state.message_queue, {:reasoning_step, step})
-    # Prepend for O(1) - reverse when displaying
-    {%{state | reasoning_steps: [step | state.reasoning_steps], message_queue: queue}, []}
+
+    # Add reasoning step to active session's UI state
+    new_state =
+      Model.update_active_ui_state(state, fn ui ->
+        %{ui | reasoning_steps: [step | ui.reasoning_steps]}
+      end)
+
+    {%{new_state | message_queue: queue}, []}
   end
 
   @doc """
@@ -274,7 +297,12 @@ defmodule JidoCode.TUI.MessageHandlers do
   """
   @spec handle_clear_reasoning_steps(Model.t()) :: {Model.t(), list()}
   def handle_clear_reasoning_steps(state) do
-    {%{state | reasoning_steps: []}, []}
+    new_state =
+      Model.update_active_ui_state(state, fn ui ->
+        %{ui | reasoning_steps: []}
+      end)
+
+    {new_state, []}
   end
 
   @doc """
@@ -317,15 +345,20 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     queue = queue_message(state.message_queue, {:tool_call, tool_name, params, call_id})
 
-    # Track active tools
-    current_count = Map.get(state.active_tools, session_id, 0)
-    new_active_tools = Map.put(state.active_tools, session_id, current_count + 1)
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+    # Add tool call to active session's UI state
+    updated_state =
+      Model.update_active_ui_state(state, fn ui ->
+        %{ui | tool_calls: [tool_call_entry | ui.tool_calls]}
+      end)
+
+    # Track active tools (kept at model level for sidebar indicators)
+    current_count = Map.get(updated_state.active_tools, session_id, 0)
+    new_active_tools = Map.put(updated_state.active_tools, session_id, current_count + 1)
+    new_last_activity = Map.put(updated_state.last_activity, session_id, DateTime.utc_now())
 
     new_state = %{
-      state
-      | tool_calls: [tool_call_entry | state.tool_calls],
-        message_queue: queue,
+      updated_state
+      | message_queue: queue,
         active_tools: new_active_tools,
         last_activity: new_last_activity
     }
@@ -366,26 +399,31 @@ defmodule JidoCode.TUI.MessageHandlers do
 
   # Active session: Full update
   defp handle_active_tool_result(session_id, result, state) do
-    updated_tool_calls =
-      Enum.map(state.tool_calls, fn entry ->
-        if entry.call_id == result.tool_call_id do
-          %{entry | result: result}
-        else
-          entry
-        end
-      end)
-
     queue = queue_message(state.message_queue, {:tool_result, result})
 
-    # Decrement active tools
-    current_count = Map.get(state.active_tools, session_id, 0)
-    new_active_tools = Map.put(state.active_tools, session_id, max(0, current_count - 1))
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+    # Update tool call result in active session's UI state
+    updated_state =
+      Model.update_active_ui_state(state, fn ui ->
+        updated_tool_calls =
+          Enum.map(ui.tool_calls, fn entry ->
+            if entry.call_id == result.tool_call_id do
+              %{entry | result: result}
+            else
+              entry
+            end
+          end)
+
+        %{ui | tool_calls: updated_tool_calls}
+      end)
+
+    # Decrement active tools (kept at model level for sidebar indicators)
+    current_count = Map.get(updated_state.active_tools, session_id, 0)
+    new_active_tools = Map.put(updated_state.active_tools, session_id, max(0, current_count - 1))
+    new_last_activity = Map.put(updated_state.last_activity, session_id, DateTime.utc_now())
 
     new_state = %{
-      state
-      | tool_calls: updated_tool_calls,
-        message_queue: queue,
+      updated_state
+      | message_queue: queue,
         active_tools: new_active_tools,
         last_activity: new_last_activity
     }

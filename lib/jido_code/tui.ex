@@ -147,6 +147,18 @@ defmodule JidoCode.TUI do
 
     @type queued_message :: {term(), DateTime.t()}
 
+    @typedoc "Per-session UI state stored in the TUI process"
+    @type session_ui_state :: %{
+            text_input: map() | nil,
+            conversation_view: map() | nil,
+            scroll_offset: non_neg_integer(),
+            streaming_message: String.t() | nil,
+            is_streaming: boolean(),
+            reasoning_steps: [reasoning_step()],
+            tool_calls: [tool_call_entry()],
+            messages: [message()]
+          }
+
     @typedoc "Focus states for keyboard navigation"
     @type focus :: :input | :conversation | :tabs | :sidebar
 
@@ -395,9 +407,12 @@ defmodule JidoCode.TUI do
       # Subscribe to the new session's events
       JidoCode.TUI.subscribe_to_session(session.id)
 
+      # Add UI state to the session data
+      session_with_ui = Map.put(session, :ui_state, default_ui_state(model.window))
+
       %{
         model
-        | sessions: Map.put(model.sessions, session.id, session),
+        | sessions: Map.put(model.sessions, session.id, session_with_ui),
           session_order: model.session_order ++ [session.id],
           active_session_id: session.id
       }
@@ -443,9 +458,12 @@ defmodule JidoCode.TUI do
       # Subscribe to the new session's events
       JidoCode.TUI.subscribe_to_session(session_id)
 
+      # Add UI state to the session data
+      session_with_ui = Map.put(session, :ui_state, default_ui_state(model.window))
+
       %{
         model
-        | sessions: Map.put(model.sessions, session_id, session),
+        | sessions: Map.put(model.sessions, session_id, session_with_ui),
           session_order: model.session_order ++ [session_id],
           active_session_id: model.active_session_id || session_id
       }
@@ -597,6 +615,178 @@ defmodule JidoCode.TUI do
           %{model | sessions: new_sessions}
       end
     end
+
+    # =========================================================================
+    # Per-Session UI State Helpers
+    # =========================================================================
+
+    @doc """
+    Creates default UI state for a new session.
+
+    ## Parameters
+      - window: Tuple of {width, height} for viewport sizing
+
+    ## Returns
+      A session_ui_state map with initialized fields.
+    """
+    @spec default_ui_state({non_neg_integer(), non_neg_integer()}) :: session_ui_state()
+    def default_ui_state({width, height}) do
+      # Create TextInput for this session
+      text_input_props =
+        TermUI.Widgets.TextInput.new(
+          placeholder: "Type a message...",
+          width: max(width - 4, 20),
+          enter_submits: false
+        )
+
+      {:ok, text_input_state} = TermUI.Widgets.TextInput.init(text_input_props)
+
+      # Create ConversationView for this session
+      # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
+      conversation_height = max(height - 8, 1)
+      conversation_width = max(width - 4, 1)
+
+      conversation_view_props =
+        JidoCode.TUI.Widgets.ConversationView.new(
+          messages: [],
+          viewport_width: conversation_width,
+          viewport_height: conversation_height,
+          on_copy: &JidoCode.TUI.Clipboard.copy_to_clipboard/1
+        )
+
+      {:ok, conversation_view_state} = JidoCode.TUI.Widgets.ConversationView.init(conversation_view_props)
+
+      %{
+        text_input: text_input_state,
+        conversation_view: conversation_view_state,
+        scroll_offset: 0,
+        streaming_message: nil,
+        is_streaming: false,
+        reasoning_steps: [],
+        tool_calls: [],
+        messages: []
+      }
+    end
+
+    @doc """
+    Gets the UI state for a specific session.
+
+    Returns nil if the session doesn't exist or has no UI state.
+
+    ## Examples
+
+        iex> Model.get_session_ui_state(model, "session-123")
+        %{text_input: ..., conversation_view: ..., ...}
+    """
+    @spec get_session_ui_state(t(), String.t()) :: session_ui_state() | nil
+    def get_session_ui_state(%__MODULE__{sessions: sessions}, session_id) do
+      case Map.get(sessions, session_id) do
+        nil -> nil
+        session_data -> Map.get(session_data, :ui_state)
+      end
+    end
+
+    @doc """
+    Gets the UI state for the active session.
+
+    Returns nil if no active session or if the session has no UI state.
+
+    ## Examples
+
+        iex> Model.get_active_ui_state(model)
+        %{text_input: ..., conversation_view: ..., ...}
+    """
+    @spec get_active_ui_state(t()) :: session_ui_state() | nil
+    def get_active_ui_state(%__MODULE__{active_session_id: nil}), do: nil
+
+    def get_active_ui_state(%__MODULE__{active_session_id: id} = model) do
+      get_session_ui_state(model, id)
+    end
+
+    @doc """
+    Updates the UI state for a specific session.
+
+    Takes a function that receives the current UI state and returns the new UI state.
+    If the session doesn't exist, returns the model unchanged.
+
+    ## Examples
+
+        iex> Model.update_session_ui_state(model, "session-123", fn ui ->
+        ...>   %{ui | scroll_offset: ui.scroll_offset + 1}
+        ...> end)
+    """
+    @spec update_session_ui_state(t(), String.t(), (session_ui_state() -> session_ui_state())) ::
+            t()
+    def update_session_ui_state(%__MODULE__{sessions: sessions} = model, session_id, fun) do
+      case Map.get(sessions, session_id) do
+        nil ->
+          model
+
+        session_data ->
+          current_ui = Map.get(session_data, :ui_state) || default_ui_state(model.window)
+          new_ui = fun.(current_ui)
+          updated_session = Map.put(session_data, :ui_state, new_ui)
+          %{model | sessions: Map.put(sessions, session_id, updated_session)}
+      end
+    end
+
+    @doc """
+    Updates the UI state for the active session.
+
+    Convenience function that calls update_session_ui_state with the active session ID.
+    If no session is active, returns the model unchanged.
+
+    ## Examples
+
+        iex> Model.update_active_ui_state(model, fn ui ->
+        ...>   %{ui | is_streaming: true}
+        ...> end)
+    """
+    @spec update_active_ui_state(t(), (session_ui_state() -> session_ui_state())) :: t()
+    def update_active_ui_state(%__MODULE__{active_session_id: nil} = model, _fun), do: model
+
+    def update_active_ui_state(%__MODULE__{active_session_id: id} = model, fun) do
+      update_session_ui_state(model, id, fun)
+    end
+
+    @doc """
+    Gets the text input state for the active session.
+
+    Returns nil if no active session or if the session has no UI state.
+    """
+    @spec get_active_text_input(t()) :: map() | nil
+    def get_active_text_input(model) do
+      case get_active_ui_state(model) do
+        nil -> nil
+        ui_state -> ui_state.text_input
+      end
+    end
+
+    @doc """
+    Gets the conversation view for the active session.
+
+    Returns nil if no active session or if the session has no UI state.
+    """
+    @spec get_active_conversation_view(t()) :: map() | nil
+    def get_active_conversation_view(model) do
+      case get_active_ui_state(model) do
+        nil -> nil
+        ui_state -> ui_state.conversation_view
+      end
+    end
+
+    @doc """
+    Checks if the active session is currently streaming.
+
+    Returns false if no active session.
+    """
+    @spec active_session_streaming?(t()) :: boolean()
+    def active_session_streaming?(model) do
+      case get_active_ui_state(model) do
+        nil -> false
+        ui_state -> ui_state.is_streaming
+      end
+    end
   end
 
   # ============================================================================
@@ -664,9 +854,16 @@ defmodule JidoCode.TUI do
 
     {:ok, conversation_view_state} = ConversationView.init(conversation_view_props)
 
+    # Add UI state to each loaded session
+    sessions_with_ui =
+      Map.new(sessions, fn session ->
+        session_with_ui = Map.put(session, :ui_state, Model.default_ui_state(window))
+        {session.id, session_with_ui}
+      end)
+
     %Model{
       # Multi-session fields
-      sessions: Map.new(sessions, &{&1.id, &1}),
+      sessions: sessions_with_ui,
       session_order: session_order,
       active_session_id: active_id,
       # Existing fields
@@ -816,7 +1013,9 @@ defmodule JidoCode.TUI do
         {:msg, {:input_event, event}}
 
       true ->
-        value = TextInput.get_value(state.text_input)
+        # Get value from active session's text input
+        text_input = Model.get_active_text_input(state)
+        value = if text_input, do: TextInput.get_value(text_input), else: ""
         {:msg, {:input_submitted, value}}
     end
   end
@@ -951,10 +1150,23 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Forward keyboard events to TextInput widget
+  # Forward keyboard events to active session's TextInput widget
   def update({:input_event, event}, state) do
-    {:ok, new_text_input} = TextInput.handle_event(event, state.text_input)
-    {%{state | text_input: new_text_input}, []}
+    case Model.get_active_text_input(state) do
+      nil ->
+        # No active session, ignore input
+        {state, []}
+
+      text_input ->
+        {:ok, new_text_input} = TextInput.handle_event(event, text_input)
+
+        new_state =
+          Model.update_active_ui_state(state, fn ui ->
+            %{ui | text_input: new_text_input}
+          end)
+
+        {new_state, []}
+    end
   end
 
   # Handle submitted text from TextInput (via on_submit callback)
@@ -968,15 +1180,25 @@ defmodule JidoCode.TUI do
 
       # Command input - starts with /
       String.starts_with?(text, "/") ->
-        # Clear input after command and ensure it stays focused
-        new_text_input = state.text_input |> TextInput.clear() |> TextInput.set_focused(true)
-        do_handle_command(text, %{state | text_input: new_text_input})
+        # Clear active session's input after command and ensure it stays focused
+        cleared_state =
+          Model.update_active_ui_state(state, fn ui ->
+            new_text_input = ui.text_input |> TextInput.clear() |> TextInput.set_focused(true)
+            %{ui | text_input: new_text_input}
+          end)
+
+        do_handle_command(text, cleared_state)
 
       # Chat input - requires configured provider/model
       true ->
-        # Clear input after submit
-        new_text_input = TextInput.clear(state.text_input)
-        do_handle_chat_submit(text, %{state | text_input: new_text_input})
+        # Clear active session's input after submit
+        cleared_state =
+          Model.update_active_ui_state(state, fn ui ->
+            new_text_input = TextInput.clear(ui.text_input)
+            %{ui | text_input: new_text_input}
+          end)
+
+        do_handle_chat_submit(text, cleared_state)
     end
   end
 
@@ -990,55 +1212,72 @@ defmodule JidoCode.TUI do
   end
 
   def update({:resize, width, height}, state) do
-    # Update TextInput width on resize
-    {cur_width, _} = state.window
-    new_width = max(width - 4, 20)
-
-    new_text_input =
-      if width != cur_width do
-        %{state.text_input | width: new_width}
-      else
-        state.text_input
-      end
-
-    # Update ConversationView dimensions on resize
+    {cur_width, cur_height} = state.window
+    new_input_width = max(width - 4, 20)
     conversation_height = max(height - 8, 1)
-    # Content width excludes borders (2) and padding (2)
     conversation_width = max(width - 4, 1)
 
-    new_conversation_view =
-      if state.conversation_view do
-        ConversationView.set_viewport_size(
-          state.conversation_view,
-          conversation_width,
-          conversation_height
-        )
+    # Update all sessions' UI state if window size changed
+    new_sessions =
+      if width != cur_width or height != cur_height do
+        Map.new(state.sessions, fn {session_id, session} ->
+          case Map.get(session, :ui_state) do
+            nil ->
+              {session_id, session}
+
+            ui_state ->
+              # Update text input width
+              new_text_input =
+                if ui_state.text_input do
+                  %{ui_state.text_input | width: new_input_width}
+                else
+                  ui_state.text_input
+                end
+
+              # Update conversation view dimensions
+              new_conversation_view =
+                if ui_state.conversation_view do
+                  ConversationView.set_viewport_size(
+                    ui_state.conversation_view,
+                    conversation_width,
+                    conversation_height
+                  )
+                else
+                  ui_state.conversation_view
+                end
+
+              updated_ui = %{ui_state | text_input: new_text_input, conversation_view: new_conversation_view}
+              {session_id, Map.put(session, :ui_state, updated_ui)}
+          end
+        end)
       else
-        state.conversation_view
+        state.sessions
       end
 
-    {%{
-       state
-       | window: {width, height},
-         text_input: new_text_input,
-         conversation_view: new_conversation_view
-     }, []}
+    {%{state | window: {width, height}, sessions: new_sessions}, []}
   end
 
-  # ConversationView event handling - delegate keyboard and mouse events
-  def update({:conversation_event, event}, state) when state.conversation_view != nil do
-    case ConversationView.handle_event(event, state.conversation_view) do
-      {:ok, new_conversation_view} ->
-        {%{state | conversation_view: new_conversation_view}, []}
-
-      _ ->
+  # ConversationView event handling - delegate keyboard and mouse events to active session's view
+  def update({:conversation_event, event}, state) do
+    case Model.get_active_conversation_view(state) do
+      nil ->
+        # No active session or conversation view, ignore
         {state, []}
-    end
-  end
 
-  def update({:conversation_event, _event}, state) do
-    # No conversation_view initialized, ignore
-    {state, []}
+      conversation_view ->
+        case ConversationView.handle_event(event, conversation_view) do
+          {:ok, new_conversation_view} ->
+            new_state =
+              Model.update_active_ui_state(state, fn ui ->
+                %{ui | conversation_view: new_conversation_view}
+              end)
+
+            {new_state, []}
+
+          _ ->
+            {state, []}
+        end
+    end
   end
 
   # PubSub message handlers - delegated to MessageHandlers module
@@ -1140,15 +1379,21 @@ defmodule JidoCode.TUI do
         _ -> :input
       end
 
-    # Update text input focus state
-    text_input =
-      if new_focus == :input do
-        TextInput.set_focused(state.text_input, true)
-      else
-        TextInput.set_focused(state.text_input, false)
-      end
+    # Update active session's text input focus state
+    focused = new_focus == :input
 
-    new_state = %{state | focus: new_focus, text_input: text_input}
+    new_state =
+      Model.update_active_ui_state(%{state | focus: new_focus}, fn ui ->
+        new_text_input =
+          if ui.text_input do
+            TextInput.set_focused(ui.text_input, focused)
+          else
+            ui.text_input
+          end
+
+        %{ui | text_input: new_text_input}
+      end)
+
     {new_state, []}
   end
 
@@ -1162,15 +1407,21 @@ defmodule JidoCode.TUI do
         _ -> :input
       end
 
-    # Update text input focus state
-    text_input =
-      if new_focus == :input do
-        TextInput.set_focused(state.text_input, true)
-      else
-        TextInput.set_focused(state.text_input, false)
-      end
+    # Update active session's text input focus state
+    focused = new_focus == :input
 
-    new_state = %{state | focus: new_focus, text_input: text_input}
+    new_state =
+      Model.update_active_ui_state(%{state | focus: new_focus}, fn ui ->
+        new_text_input =
+          if ui.text_input do
+            TextInput.set_focused(ui.text_input, focused)
+          else
+            ui.text_input
+          end
+
+        %{ui | text_input: new_text_input}
+      end)
+
     {new_state, []}
   end
 
@@ -1226,6 +1477,7 @@ defmodule JidoCode.TUI do
             |> Model.switch_session(session.id)
             |> refresh_conversation_view_for_session(session.id)
             |> clear_session_activity(session.id)
+            |> focus_active_session_input()
             |> add_session_message("Switched to: #{session.name}")
 
           {new_state, []}
@@ -1262,6 +1514,7 @@ defmodule JidoCode.TUI do
               |> Model.switch_session(next_id)
               |> refresh_conversation_view_for_session(next_id)
               |> clear_session_activity(next_id)
+              |> focus_active_session_input()
               |> add_session_message("Switched to: #{next_session.name}")
 
             {new_state, []}
@@ -1291,6 +1544,7 @@ defmodule JidoCode.TUI do
               |> Model.switch_session(prev_id)
               |> refresh_conversation_view_for_session(prev_id)
               |> clear_session_activity(prev_id)
+              |> focus_active_session_input()
               |> add_session_message("Switched to: #{prev_session.name}")
 
             {new_state, []}
@@ -1445,25 +1699,29 @@ defmodule JidoCode.TUI do
         # Determine new status based on config
         new_status = determine_status(updated_config)
 
-        # Sync system message to ConversationView
-        new_conversation_view =
-          if state.conversation_view do
-            ConversationView.add_message(state.conversation_view, %{
-              id: generate_message_id(),
-              role: :system,
-              content: message,
-              timestamp: DateTime.utc_now()
-            })
-          else
-            state.conversation_view
-          end
+        # Sync system message to active session's ConversationView
+        updated_state =
+          Model.update_active_ui_state(state, fn ui ->
+            if ui.conversation_view do
+              new_conversation_view =
+                ConversationView.add_message(ui.conversation_view, %{
+                  id: generate_message_id(),
+                  role: :system,
+                  content: message,
+                  timestamp: DateTime.utc_now()
+                })
+
+              %{ui | conversation_view: new_conversation_view}
+            else
+              ui
+            end
+          end)
 
         new_state = %{
-          state
-          | messages: [system_msg | state.messages],
+          updated_state
+          | messages: [system_msg | updated_state.messages],
             config: updated_config,
-            agent_status: new_status,
-            conversation_view: new_conversation_view
+            agent_status: new_status
         }
 
         {new_state, []}
@@ -1531,25 +1789,25 @@ defmodule JidoCode.TUI do
       {:error, error_message} ->
         error_msg = system_message(error_message)
 
-        # Sync error message to ConversationView
-        new_conversation_view =
-          if state.conversation_view do
-            ConversationView.add_message(state.conversation_view, %{
-              id: generate_message_id(),
-              role: :system,
-              content: error_message,
-              timestamp: DateTime.utc_now()
-            })
-          else
-            state.conversation_view
-          end
+        # Sync error message to active session's ConversationView
+        updated_state =
+          Model.update_active_ui_state(state, fn ui ->
+            if ui.conversation_view do
+              new_conversation_view =
+                ConversationView.add_message(ui.conversation_view, %{
+                  id: generate_message_id(),
+                  role: :system,
+                  content: error_message,
+                  timestamp: DateTime.utc_now()
+                })
 
-        new_state = %{
-          state
-          | messages: [error_msg | state.messages],
-            conversation_view: new_conversation_view
-        }
+              %{ui | conversation_view: new_conversation_view}
+            else
+              ui
+            end
+          end)
 
+        new_state = %{updated_state | messages: [error_msg | updated_state.messages]}
         {new_state, []}
 
       {:session, subcommand} ->
@@ -1567,7 +1825,10 @@ defmodule JidoCode.TUI do
     case Commands.execute_session(subcommand, state) do
       {:session_action, {:add_session, session}} ->
         # Add session to model and subscribe to its PubSub topic
-        new_state = Model.add_session(state, session)
+        new_state =
+          state
+          |> Model.add_session(session)
+          |> focus_active_session_input()
 
         # Subscribe to session-specific events
         Phoenix.PubSub.subscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session.id))
@@ -1582,6 +1843,7 @@ defmodule JidoCode.TUI do
           |> Model.switch_session(session_id)
           |> refresh_conversation_view_for_session(session_id)
           |> clear_session_activity(session_id)
+          |> focus_active_session_input()
 
         # Get session name for the message
         session = Map.get(new_state.sessions, session_id)
@@ -1614,7 +1876,10 @@ defmodule JidoCode.TUI do
     case Commands.execute_resume(subcommand, state) do
       {:session_action, {:add_session, session}} ->
         # Session resumed - add to model and subscribe
-        new_state = Model.add_session(state, session)
+        new_state =
+          state
+          |> Model.add_session(session)
+          |> focus_active_session_input()
 
         # Subscribe to session-specific events
         Phoenix.PubSub.subscribe(JidoCode.PubSub, PubSubTopics.llm_stream(session.id))
@@ -1638,19 +1903,25 @@ defmodule JidoCode.TUI do
   defp add_session_message(state, content) do
     msg = system_message(content)
 
-    new_conversation_view =
-      if state.conversation_view do
-        ConversationView.add_message(state.conversation_view, %{
-          id: generate_message_id(),
-          role: :system,
-          content: content,
-          timestamp: DateTime.utc_now()
-        })
-      else
-        state.conversation_view
-      end
+    # Add message to active session's conversation view
+    new_state =
+      Model.update_active_ui_state(state, fn ui ->
+        if ui.conversation_view do
+          new_conversation_view =
+            ConversationView.add_message(ui.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: content,
+              timestamp: DateTime.utc_now()
+            })
 
-    %{state | messages: [msg | state.messages], conversation_view: new_conversation_view}
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
+      end)
+
+    %{new_state | messages: [msg | new_state.messages]}
   end
 
   # Helper to close a session with proper cleanup order
@@ -1669,21 +1940,22 @@ defmodule JidoCode.TUI do
     add_session_message(new_state, "Closed session: #{session_name}")
   end
 
-  # Helper to refresh conversation_view with a session's messages
-  # Used when switching sessions to ensure the correct messages are displayed
+  # Helper to refresh a session's conversation_view with messages from Session.State
+  # Used when switching sessions to ensure the messages are loaded
   defp refresh_conversation_view_for_session(state, session_id) do
     case Session.State.get_messages(session_id) do
       {:ok, messages} ->
-        # Create fresh conversation view with session's messages
-        # Reset scroll position to bottom (latest messages)
-        new_conversation_view =
-          if state.conversation_view do
-            ConversationView.set_messages(state.conversation_view, messages)
-          else
-            state.conversation_view
-          end
+        # Update the session's conversation view with its messages
+        Model.update_session_ui_state(state, session_id, fn ui ->
+          new_conversation_view =
+            if ui.conversation_view do
+              ConversationView.set_messages(ui.conversation_view, messages)
+            else
+              ui.conversation_view
+            end
 
-        %{state | conversation_view: new_conversation_view}
+          %{ui | conversation_view: new_conversation_view, messages: messages}
+        end)
 
       {:error, _reason} ->
         # Couldn't fetch messages, keep existing view
@@ -1696,6 +1968,25 @@ defmodule JidoCode.TUI do
   # Clears unread count since user is now viewing the session
   defp clear_session_activity(state, session_id) do
     %{state | unread_counts: Map.delete(state.unread_counts, session_id)}
+  end
+
+  # Helper to set focus on the active session's text input when focus is on input
+  # Used after switching sessions to ensure the new session's input is focused
+  defp focus_active_session_input(state) do
+    if state.focus == :input do
+      Model.update_active_ui_state(state, fn ui ->
+        new_text_input =
+          if ui.text_input do
+            TextInput.set_focused(ui.text_input, true)
+          else
+            ui.text_input
+          end
+
+        %{ui | text_input: new_text_input}
+      end)
+    else
+      state
+    end
   end
 
   # Handle chat message submission
@@ -1719,25 +2010,25 @@ defmodule JidoCode.TUI do
 
     error_msg = system_message(error_content)
 
-    # Sync error message to ConversationView
-    new_conversation_view =
-      if state.conversation_view do
-        ConversationView.add_message(state.conversation_view, %{
-          id: generate_message_id(),
-          role: :system,
-          content: error_content,
-          timestamp: DateTime.utc_now()
-        })
-      else
-        state.conversation_view
-      end
+    # Sync error message to active session's ConversationView
+    updated_state =
+      Model.update_active_ui_state(state, fn ui ->
+        if ui.conversation_view do
+          new_conversation_view =
+            ConversationView.add_message(ui.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: error_content,
+              timestamp: DateTime.utc_now()
+            })
 
-    new_state = %{
-      state
-      | messages: [error_msg | state.messages],
-        conversation_view: new_conversation_view
-    }
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
+      end)
 
+    new_state = %{updated_state | messages: [error_msg | updated_state.messages]}
     {new_state, []}
   end
 
@@ -1747,37 +2038,45 @@ defmodule JidoCode.TUI do
         do_show_no_session_error(state)
 
       session_id ->
-        # Sync user message to ConversationView for display
-        new_conversation_view =
-          if state.conversation_view do
-            ConversationView.add_message(state.conversation_view, %{
-              id: generate_message_id(),
-              role: :user,
-              content: text,
-              timestamp: DateTime.utc_now()
-            })
-          else
-            state.conversation_view
-          end
+        # Sync user message to active session's ConversationView for display
+        state_with_message =
+          Model.update_active_ui_state(state, fn ui ->
+            if ui.conversation_view do
+              new_conversation_view =
+                ConversationView.add_message(ui.conversation_view, %{
+                  id: generate_message_id(),
+                  role: :user,
+                  content: text,
+                  timestamp: DateTime.utc_now()
+                })
+
+              %{ui | conversation_view: new_conversation_view}
+            else
+              ui
+            end
+          end)
 
         # Send message to active session's agent
         # User message is stored in Session.State automatically by AgentAPI
         case Session.AgentAPI.send_message_stream(session_id, text) do
           :ok ->
-            # Update UI state to show processing
+            # Update active session's UI state to show streaming
+            state_streaming =
+              Model.update_active_ui_state(state_with_message, fn ui ->
+                %{ui | streaming_message: "", is_streaming: true}
+              end)
+
+            # Update model-level state
             updated_state = %{
-              state
+              state_streaming
               | agent_status: :processing,
-                scroll_offset: 0,
-                streaming_message: "",
-                is_streaming: true,
-                conversation_view: new_conversation_view
+                scroll_offset: 0
             }
 
             {updated_state, []}
 
           {:error, reason} ->
-            do_show_agent_error(state, reason, new_conversation_view)
+            do_show_agent_error(state_with_message, reason)
         end
     end
   end
@@ -1793,50 +2092,54 @@ defmodule JidoCode.TUI do
 
     error_msg = system_message(error_content)
 
-    # Add to ConversationView
-    new_conversation_view =
-      if state.conversation_view do
-        ConversationView.add_message(state.conversation_view, %{
-          id: generate_message_id(),
-          role: :system,
-          content: error_content,
-          timestamp: DateTime.utc_now()
-        })
-      else
-        state.conversation_view
-      end
+    # Add to active session's ConversationView
+    updated_state =
+      Model.update_active_ui_state(state, fn ui ->
+        if ui.conversation_view do
+          new_conversation_view =
+            ConversationView.add_message(ui.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: error_content,
+              timestamp: DateTime.utc_now()
+            })
 
-    new_state = %{
-      state
-      | messages: [error_msg | state.messages],
-        conversation_view: new_conversation_view
-    }
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
+      end)
 
+    new_state = %{updated_state | messages: [error_msg | updated_state.messages]}
     {new_state, []}
   end
 
-  defp do_show_agent_error(state, reason, conversation_view) do
+  defp do_show_agent_error(state, reason) do
     error_content = "Failed to send message to session agent: #{inspect(reason)}"
     error_msg = system_message(error_content)
 
-    # Add to ConversationView
-    new_conversation_view =
-      if conversation_view do
-        ConversationView.add_message(conversation_view, %{
-          id: generate_message_id(),
-          role: :system,
-          content: error_content,
-          timestamp: DateTime.utc_now()
-        })
-      else
-        conversation_view
-      end
+    # Add to active session's ConversationView
+    updated_state =
+      Model.update_active_ui_state(state, fn ui ->
+        if ui.conversation_view do
+          new_conversation_view =
+            ConversationView.add_message(ui.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: error_content,
+              timestamp: DateTime.utc_now()
+            })
+
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
+      end)
 
     new_state = %{
-      state
-      | messages: [error_msg | state.messages],
-        agent_status: :error,
-        conversation_view: new_conversation_view
+      updated_state
+      | messages: [error_msg | updated_state.messages],
+        agent_status: :error
     }
 
     {new_state, []}
@@ -1936,15 +2239,20 @@ defmodule JidoCode.TUI do
   end
 
   defp get_conversation_content(state, session_id) do
-    # If this is the active session and we have a conversation view, use it
-    if session_id == state.active_session_id && state.conversation_view do
-      {width, height} = state.window
-      available_height = max(height - 10, 1)
-      content_width = max(width - round(width * 0.20) - 5, 30)
-      area = %{x: 0, y: 0, width: content_width, height: available_height}
-      ConversationView.render(state.conversation_view, area)
-    else
-      nil
+    # Get the session's conversation view from its UI state
+    case Model.get_session_ui_state(state, session_id) do
+      nil ->
+        nil
+
+      ui_state when ui_state.conversation_view != nil ->
+        {width, height} = state.window
+        available_height = max(height - 10, 1)
+        content_width = max(width - round(width * 0.20) - 5, 30)
+        area = %{x: 0, y: 0, width: content_width, height: available_height}
+        ConversationView.render(ui_state.conversation_view, area)
+
+      _ ->
+        nil
     end
   end
 

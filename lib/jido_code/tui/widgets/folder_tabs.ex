@@ -40,12 +40,13 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
 
   alias TermUI.Renderer.Style
 
-  # Box drawing characters for folder tabs
+  # Box drawing characters for rounded tabs
   @top_left "╭"
   @top_right "╮"
+  @bottom_left "╰"
+  @bottom_right "╯"
   @vertical "│"
   @horizontal "─"
-  @curve_down_right "╰"
 
   # Close button character
   @close_button "×"
@@ -124,10 +125,11 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
     if tabs == [] do
       empty()
     else
-      {top_row, bottom_row} = build_tab_rows(tabs, state)
+      {top_row, middle_row, bottom_row} = build_tab_rows(tabs, state)
 
       stack(:vertical, [
         stack(:horizontal, top_row),
+        stack(:horizontal, middle_row),
         stack(:horizontal, bottom_row)
       ])
     end
@@ -541,10 +543,10 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
   defp build_tab_rows(tabs, state) do
     tab_count = length(tabs)
 
-    {top_elements, bottom_elements} =
+    {top_elements, middle_elements, bottom_elements} =
       tabs
       |> Enum.with_index()
-      |> Enum.reduce({[], []}, fn {tab, index}, {top_acc, bottom_acc} ->
+      |> Enum.reduce({[], [], []}, fn {tab, index}, {top_acc, mid_acc, bottom_acc} ->
         is_selected = tab.id == state.selected
         is_last = index == tab_count - 1
         is_disabled = Map.get(tab, :disabled, false)
@@ -557,43 +559,44 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
         close_width = if is_closeable, do: 2, else: 0
         tab_width = max(label_width + 4 + close_width, state.min_tab_width)
 
-        {top_part, bottom_part} =
+        {top_part, middle_part, bottom_part} =
           render_single_tab(tab.label, tab_width, is_last, is_closeable, style, state.close_style)
 
-        {top_acc ++ [top_part], bottom_acc ++ [bottom_part]}
+        # Add space between tabs (except after last)
+        space = if is_last, do: [], else: [text(" ", nil)]
+
+        {top_acc ++ [top_part] ++ space, mid_acc ++ [middle_part] ++ space, bottom_acc ++ [bottom_part] ++ space}
       end)
 
-    {top_elements, bottom_elements}
+    {top_elements, middle_elements, bottom_elements}
   end
 
-  defp render_single_tab(label, width, is_last, is_closeable, style, close_style) do
-    # Top row: ╭───────╮ (for all tabs, the ╮ overlaps with next tab's │)
+  defp render_single_tab(label, width, _is_last, is_closeable, style, close_style) do
+    # Simple rounded box style: ╭───────╮ on top, ╰───────╯ on bottom
     inner_width = width - 2
     top_line = @top_left <> String.duplicate(@horizontal, inner_width) <> @top_right
+    bottom_line = @bottom_left <> String.duplicate(@horizontal, inner_width) <> @bottom_right
 
-    # Bottom row: │ Label × ╰ (with close button) or │ Label ╰ (without)
-    # For last tab: │ Label × │ or │ Label │
+    # Build label with padding
     {label_part, _close_part} = build_label_with_close(label, inner_width, is_closeable)
 
-    right_char = if is_last, do: @vertical, else: @curve_down_right
-
-    # Build bottom row elements
+    # Top element: ╭───────╮
     top_element = text(top_line, style)
 
+    # Bottom element: │ Label │ (with optional close button)
     bottom_element =
       if is_closeable do
-        # Combine: │ + label + close_button + right_char
         stack(:horizontal, [
           text(@vertical <> label_part, style),
           text(@close_button, close_style),
-          text(" " <> right_char, style)
+          text(" " <> @vertical, style)
         ])
       else
-        bottom_line = @vertical <> label_part <> right_char
-        text(bottom_line, style)
+        text(@vertical <> label_part <> @vertical, style)
       end
 
-    {top_element, bottom_element}
+    # Return 3-row structure but we'll flatten in build_tab_rows
+    {top_element, bottom_element, text(bottom_line, style)}
   end
 
   defp build_label_with_close(label, inner_width, is_closeable) do

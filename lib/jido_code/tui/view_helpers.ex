@@ -418,8 +418,11 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   defp has_active_reasoning?(state) do
-    state.reasoning_steps != [] and
-      Enum.any?(state.reasoning_steps, fn step ->
+    ui_state = Model.get_active_ui_state(state)
+    reasoning_steps = if ui_state, do: ui_state.reasoning_steps, else: []
+
+    reasoning_steps != [] and
+      Enum.any?(reasoning_steps, fn step ->
         Map.get(step, :status) == :active
       end)
   end
@@ -445,12 +448,18 @@ defmodule JidoCode.TUI.ViewHelpers do
   @spec render_conversation(Model.t()) :: TermUI.View.t()
   def render_conversation(state) do
     {width, height} = state.window
+    ui_state = Model.get_active_ui_state(state)
 
     # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
     available_height = max(height - 8, 1)
     # Content width excludes borders (2) and padding (2)
     content_width = max(width - 4, 1)
-    has_content = state.messages != [] or state.tool_calls != [] or state.is_streaming
+
+    # Check if there's content using session's UI state
+    messages = if ui_state, do: ui_state.messages, else: []
+    tool_calls = if ui_state, do: ui_state.tool_calls, else: []
+    is_streaming = if ui_state, do: ui_state.is_streaming, else: false
+    has_content = messages != [] or tool_calls != [] or is_streaming
 
     lines =
       if has_content do
@@ -502,19 +511,25 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   # Returns a list of render nodes (lines) for the conversation content
   defp render_conversation_lines(state, available_height, width) do
+    ui_state = Model.get_active_ui_state(state)
+    messages = if ui_state, do: ui_state.messages, else: []
+    tool_calls = if ui_state, do: ui_state.tool_calls, else: []
+    is_streaming = if ui_state, do: ui_state.is_streaming, else: false
+    streaming_message = if ui_state, do: ui_state.streaming_message, else: nil
+
     # Messages are stored in reverse order (newest first), so reverse for display
-    message_lines = Enum.flat_map(Enum.reverse(state.messages), &format_message(&1, width))
+    message_lines = Enum.flat_map(Enum.reverse(messages), &format_message(&1, width))
 
     # Tool calls are stored in reverse order (newest first), so reverse for display
     tool_call_lines =
-      state.tool_calls
+      tool_calls
       |> Enum.reverse()
       |> Enum.flat_map(&format_tool_call_entry(&1, state.show_tool_details))
 
     # Build streaming message line if streaming
     streaming_lines =
-      if state.is_streaming and state.streaming_message != nil do
-        format_streaming_message(state.streaming_message, width)
+      if is_streaming and streaming_message != nil do
+        format_streaming_message(streaming_message, width)
       else
         []
       end
@@ -657,9 +672,18 @@ defmodule JidoCode.TUI.ViewHelpers do
 
     prompt_style = Style.new(fg: Theme.get_color(:secondary) || :green)
 
-    # Render TextInput widget
+    # Get text input from active session's UI state
+    text_input = Model.get_active_text_input(state)
+
+    # Render TextInput widget (or empty space if no active session)
     input_area = %{width: input_width, height: 1}
-    text_input_node = TextInput.render(state.text_input, input_area)
+
+    text_input_node =
+      if text_input do
+        TextInput.render(text_input, input_area)
+      else
+        text(String.duplicate(" ", input_width))
+      end
 
     # Add 1-char padding on left, prompt, input, padding on right
     stack(:horizontal, [
@@ -684,7 +708,10 @@ defmodule JidoCode.TUI.ViewHelpers do
   """
   @spec render_reasoning(Model.t()) :: TermUI.View.t()
   def render_reasoning(state) do
-    case state.reasoning_steps do
+    ui_state = Model.get_active_ui_state(state)
+    reasoning_steps = if ui_state, do: ui_state.reasoning_steps, else: []
+
+    case reasoning_steps do
       [] -> render_empty_reasoning()
       steps -> render_reasoning_steps(steps)
     end

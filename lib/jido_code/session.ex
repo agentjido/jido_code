@@ -68,6 +68,15 @@ defmodule JidoCode.Session do
         }
 
   @typedoc """
+  Connection status of the LLM agent for this session.
+
+  - `:disconnected` - LLM agent not started (no credentials or not attempted)
+  - `:connected` - LLM agent running and ready
+  - `:error` - LLM agent failed to start (credentials invalid, network error, etc.)
+  """
+  @type connection_status :: :disconnected | :connected | :error
+
+  @typedoc """
   A work session representing an isolated project context.
   """
   @type t :: %__MODULE__{
@@ -75,6 +84,7 @@ defmodule JidoCode.Session do
           name: String.t(),
           project_path: String.t(),
           config: config(),
+          connection_status: connection_status(),
           created_at: DateTime.t(),
           updated_at: DateTime.t()
         }
@@ -85,7 +95,8 @@ defmodule JidoCode.Session do
     :project_path,
     :config,
     :created_at,
-    :updated_at
+    :updated_at,
+    connection_status: :disconnected
   ]
 
   # Default LLM configuration when Settings doesn't provide one

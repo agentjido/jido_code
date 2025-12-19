@@ -704,6 +704,8 @@ defmodule JidoCode.TUI do
         )
 
       {:ok, text_input_state} = TermUI.Widgets.TextInput.init(text_input_props)
+      # Set focused so text input accepts keyboard input
+      text_input_state = TermUI.Widgets.TextInput.set_focused(text_input_state, true)
 
       # Create ConversationView for this session
       # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
@@ -2350,27 +2352,34 @@ defmodule JidoCode.TUI do
             end
           end)
 
-        # Send message to active session's agent
+        # Ensure agent is connected (lazy startup), then send message
         # User message is stored in Session.State automatically by AgentAPI
-        case Session.AgentAPI.send_message_stream(session_id, text) do
-          :ok ->
-            # Update active session's UI state to show streaming
-            state_streaming =
-              Model.update_active_ui_state(state_with_message, fn ui ->
-                %{ui | streaming_message: "", is_streaming: true}
-              end)
+        case Session.AgentAPI.ensure_connected(session_id) do
+          {:ok, _pid} ->
+            # Agent is connected, send the message
+            case Session.AgentAPI.send_message_stream(session_id, text) do
+              :ok ->
+                # Update active session's UI state to show streaming
+                state_streaming =
+                  Model.update_active_ui_state(state_with_message, fn ui ->
+                    %{ui | streaming_message: "", is_streaming: true}
+                  end)
 
-            # Update model-level state
-            updated_state = %{
-              state_streaming
-              | agent_status: :processing,
-                scroll_offset: 0
-            }
+                # Update model-level state
+                updated_state = %{
+                  state_streaming
+                  | agent_status: :processing,
+                    scroll_offset: 0
+                }
 
-            {updated_state, []}
+                {updated_state, []}
+
+              {:error, reason} ->
+                do_show_agent_error(state_with_message, reason)
+            end
 
           {:error, reason} ->
-            do_show_agent_error(state_with_message, reason)
+            do_show_connection_error(state_with_message, reason)
         end
     end
   end
@@ -2410,6 +2419,57 @@ defmodule JidoCode.TUI do
 
   defp do_show_agent_error(state, reason) do
     error_content = "Failed to send message to session agent: #{inspect(reason)}"
+    error_msg = system_message(error_content)
+
+    # Add to active session's ConversationView
+    updated_state =
+      Model.update_active_ui_state(state, fn ui ->
+        if ui.conversation_view do
+          new_conversation_view =
+            ConversationView.add_message(ui.conversation_view, %{
+              id: generate_message_id(),
+              role: :system,
+              content: error_content,
+              timestamp: DateTime.utc_now()
+            })
+
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
+      end)
+
+    new_state = %{
+      updated_state
+      | messages: [error_msg | updated_state.messages],
+        agent_status: :error
+    }
+
+    {new_state, []}
+  end
+
+  defp do_show_connection_error(state, reason) do
+    error_content =
+      case reason do
+        :session_not_found ->
+          "Session not found. The session may have been closed."
+
+        error_string when is_binary(error_string) ->
+          """
+          Failed to connect to LLM provider:
+          #{error_string}
+
+          Please check your API key configuration with /settings or environment variables.
+          """
+
+        other ->
+          """
+          Failed to connect to LLM provider: #{inspect(other)}
+
+          Please check your API key configuration with /settings or environment variables.
+          """
+      end
+
     error_msg = system_message(error_content)
 
     # Add to active session's ConversationView

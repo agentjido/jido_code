@@ -36,7 +36,7 @@ defmodule JidoCode.SessionTest do
       fields = Session.__struct__() |> Map.keys() |> Enum.sort()
 
       expected_fields =
-        [:__struct__, :config, :created_at, :id, :name, :project_path, :updated_at]
+        [:__struct__, :config, :connection_status, :created_at, :id, :name, :project_path, :updated_at]
         |> Enum.sort()
 
       assert fields == expected_fields

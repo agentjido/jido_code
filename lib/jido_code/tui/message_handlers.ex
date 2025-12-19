@@ -107,20 +107,47 @@ defmodule JidoCode.TUI.MessageHandlers do
     {final_state, []}
   end
 
-  # Inactive session: Sidebar-only update
-  defp handle_inactive_stream_chunk(session_id, _chunk, state) do
-    # Mark session as streaming (for sidebar indicator)
-    new_streaming_sessions = MapSet.put(state.streaming_sessions, session_id)
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+  # Inactive session: Update session's ConversationView without full UI refresh
+  defp handle_inactive_stream_chunk(session_id, chunk, state) do
+    # Update the inactive session's UI state (accumulate chunks for when user switches)
+    new_state =
+      Model.update_session_ui_state(state, session_id, fn ui ->
+        new_streaming_message = (ui.streaming_message || "") <> chunk
 
-    # Minimal state update - no conversation_view changes
-    new_state = %{
-      state
+        # Start streaming in conversation view if this is the first chunk
+        new_conversation_view =
+          if ui.conversation_view do
+            cv_state =
+              if ui.streaming_message == nil or ui.streaming_message == "" do
+                {cv, _id} = ConversationView.start_streaming(ui.conversation_view, :assistant)
+                cv
+              else
+                ui.conversation_view
+              end
+
+            ConversationView.append_chunk(cv_state, chunk)
+          else
+            ui.conversation_view
+          end
+
+        %{ui |
+          conversation_view: new_conversation_view,
+          streaming_message: new_streaming_message,
+          is_streaming: true
+        }
+      end)
+
+    # Track streaming activity (kept at model level for sidebar indicators)
+    new_streaming_sessions = MapSet.put(new_state.streaming_sessions, session_id)
+    new_last_activity = Map.put(new_state.last_activity, session_id, DateTime.utc_now())
+
+    final_state = %{
+      new_state
       | streaming_sessions: new_streaming_sessions,
         last_activity: new_last_activity
     }
 
-    {new_state, []}
+    {final_state, []}
   end
 
   @doc """
@@ -182,25 +209,50 @@ defmodule JidoCode.TUI.MessageHandlers do
     {final_state, []}
   end
 
-  # Inactive session: Stop streaming, increment unread count
+  # Inactive session: Finalize message in session's ConversationView, increment unread count
   defp handle_inactive_stream_end(session_id, state) do
-    # Stop streaming indicator
-    new_streaming_sessions = MapSet.delete(state.streaming_sessions, session_id)
+    # Get streaming message from the inactive session's UI state
+    session_ui = Model.get_session_ui_state(state, session_id)
+    streaming_message = if session_ui, do: session_ui.streaming_message || "", else: ""
+
+    message = TUI.assistant_message(streaming_message)
+
+    # Update the inactive session's UI state: finalize ConversationView, add message
+    new_state =
+      Model.update_session_ui_state(state, session_id, fn ui ->
+        new_conversation_view =
+          if ui.conversation_view do
+            ConversationView.end_streaming(ui.conversation_view)
+          else
+            ui.conversation_view
+          end
+
+        # Add message to session's messages and clear streaming state
+        %{ui |
+          conversation_view: new_conversation_view,
+          streaming_message: nil,
+          is_streaming: false,
+          messages: [message | ui.messages]
+        }
+      end)
+
+    # Clear streaming indicator (kept at model level for sidebar indicators)
+    new_streaming_sessions = MapSet.delete(new_state.streaming_sessions, session_id)
 
     # Increment unread count (new message arrived in background)
-    current_count = Map.get(state.unread_counts, session_id, 0)
-    new_unread_counts = Map.put(state.unread_counts, session_id, current_count + 1)
+    current_count = Map.get(new_state.unread_counts, session_id, 0)
+    new_unread_counts = Map.put(new_state.unread_counts, session_id, current_count + 1)
 
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+    new_last_activity = Map.put(new_state.last_activity, session_id, DateTime.utc_now())
 
-    new_state = %{
-      state
+    final_state = %{
+      new_state
       | streaming_sessions: new_streaming_sessions,
         unread_counts: new_unread_counts,
         last_activity: new_last_activity
     }
 
-    {new_state, []}
+    {final_state, []}
   end
 
   @doc """

@@ -65,16 +65,17 @@ defmodule JidoCode.TUI.MessageHandlers do
   defp handle_active_stream_chunk(session_id, chunk, state) do
     queue = queue_message(state.message_queue, {:stream_chunk, chunk})
 
-    # Update active session's UI state: conversation view, streaming message, is_streaming
+    # Update active session's UI state: conversation view, streaming message, is_streaming, agent_activity
     new_state =
       Model.update_active_ui_state(state, fn ui ->
         new_streaming_message = (ui.streaming_message || "") <> chunk
+        is_first_chunk = ui.streaming_message == nil or ui.streaming_message == ""
 
         # Start streaming in conversation view if this is the first chunk
         new_conversation_view =
           if ui.conversation_view do
             cv_state =
-              if ui.streaming_message == nil or ui.streaming_message == "" do
+              if is_first_chunk do
                 {cv, _id} = ConversationView.start_streaming(ui.conversation_view, :assistant)
                 cv
               else
@@ -86,10 +87,19 @@ defmodule JidoCode.TUI.MessageHandlers do
             ui.conversation_view
           end
 
+        # Set agent_activity to thinking on first chunk (default to :chat, can be enhanced later)
+        new_activity =
+          if is_first_chunk do
+            {:thinking, :chat}
+          else
+            ui.agent_activity
+          end
+
         %{ui |
           conversation_view: new_conversation_view,
           streaming_message: new_streaming_message,
-          is_streaming: true
+          is_streaming: true,
+          agent_activity: new_activity
         }
       end)
 
@@ -113,12 +123,13 @@ defmodule JidoCode.TUI.MessageHandlers do
     new_state =
       Model.update_session_ui_state(state, session_id, fn ui ->
         new_streaming_message = (ui.streaming_message || "") <> chunk
+        is_first_chunk = ui.streaming_message == nil or ui.streaming_message == ""
 
         # Start streaming in conversation view if this is the first chunk
         new_conversation_view =
           if ui.conversation_view do
             cv_state =
-              if ui.streaming_message == nil or ui.streaming_message == "" do
+              if is_first_chunk do
                 {cv, _id} = ConversationView.start_streaming(ui.conversation_view, :assistant)
                 cv
               else
@@ -130,10 +141,19 @@ defmodule JidoCode.TUI.MessageHandlers do
             ui.conversation_view
           end
 
+        # Set agent_activity to thinking on first chunk
+        new_activity =
+          if is_first_chunk do
+            {:thinking, :chat}
+          else
+            ui.agent_activity
+          end
+
         %{ui |
           conversation_view: new_conversation_view,
           streaming_message: new_streaming_message,
-          is_streaming: true
+          is_streaming: true,
+          agent_activity: new_activity
         }
       end)
 
@@ -175,7 +195,7 @@ defmodule JidoCode.TUI.MessageHandlers do
     message = TUI.assistant_message(streaming_message)
     queue = queue_message(state.message_queue, {:stream_end, streaming_message})
 
-    # Update active session's UI state: end streaming, clear streaming message
+    # Update active session's UI state: end streaming, clear streaming message, set idle
     new_state =
       Model.update_active_ui_state(state, fn ui ->
         new_conversation_view =
@@ -190,7 +210,8 @@ defmodule JidoCode.TUI.MessageHandlers do
           conversation_view: new_conversation_view,
           streaming_message: nil,
           is_streaming: false,
-          messages: [message | ui.messages]
+          messages: [message | ui.messages],
+          agent_activity: :idle
         }
       end)
 
@@ -217,7 +238,7 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     message = TUI.assistant_message(streaming_message)
 
-    # Update the inactive session's UI state: finalize ConversationView, add message
+    # Update the inactive session's UI state: finalize ConversationView, add message, set idle
     new_state =
       Model.update_session_ui_state(state, session_id, fn ui ->
         new_conversation_view =
@@ -232,7 +253,8 @@ defmodule JidoCode.TUI.MessageHandlers do
           conversation_view: new_conversation_view,
           streaming_message: nil,
           is_streaming: false,
-          messages: [message | ui.messages]
+          messages: [message | ui.messages],
+          agent_activity: :idle
         }
       end)
 
@@ -381,7 +403,7 @@ defmodule JidoCode.TUI.MessageHandlers do
     if session_id == state.active_session_id do
       handle_active_tool_call(session_id, tool_name, params, call_id, state)
     else
-      handle_inactive_tool_call(session_id, state)
+      handle_inactive_tool_call(session_id, tool_name, state)
     end
   end
 
@@ -397,10 +419,13 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     queue = queue_message(state.message_queue, {:tool_call, tool_name, params, call_id})
 
-    # Add tool call to active session's UI state
+    # Add tool call to active session's UI state and set agent_activity
     updated_state =
       Model.update_active_ui_state(state, fn ui ->
-        %{ui | tool_calls: [tool_call_entry | ui.tool_calls]}
+        %{ui |
+          tool_calls: [tool_call_entry | ui.tool_calls],
+          agent_activity: {:tool_executing, tool_name}
+        }
       end)
 
     # Track active tools (kept at model level for sidebar indicators)
@@ -418,14 +443,20 @@ defmodule JidoCode.TUI.MessageHandlers do
     {new_state, []}
   end
 
-  # Inactive session: Increment tool count for badge
-  defp handle_inactive_tool_call(session_id, state) do
-    current_count = Map.get(state.active_tools, session_id, 0)
-    new_active_tools = Map.put(state.active_tools, session_id, current_count + 1)
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+  # Inactive session: Increment tool count for badge and set agent_activity
+  defp handle_inactive_tool_call(session_id, tool_name, state) do
+    # Update session's agent_activity
+    updated_state =
+      Model.update_session_ui_state(state, session_id, fn ui ->
+        %{ui | agent_activity: {:tool_executing, tool_name}}
+      end)
+
+    current_count = Map.get(updated_state.active_tools, session_id, 0)
+    new_active_tools = Map.put(updated_state.active_tools, session_id, current_count + 1)
+    new_last_activity = Map.put(updated_state.last_activity, session_id, DateTime.utc_now())
 
     new_state = %{
-      state
+      updated_state
       | active_tools: new_active_tools,
         last_activity: new_last_activity
     }
@@ -453,7 +484,7 @@ defmodule JidoCode.TUI.MessageHandlers do
   defp handle_active_tool_result(session_id, result, state) do
     queue = queue_message(state.message_queue, {:tool_result, result})
 
-    # Update tool call result in active session's UI state
+    # Update tool call result in active session's UI state and set agent_activity
     updated_state =
       Model.update_active_ui_state(state, fn ui ->
         updated_tool_calls =
@@ -465,7 +496,16 @@ defmodule JidoCode.TUI.MessageHandlers do
             end
           end)
 
-        %{ui | tool_calls: updated_tool_calls}
+        # After tool completes, set activity based on streaming state
+        # If still streaming, go back to thinking; otherwise idle
+        new_activity =
+          if ui.is_streaming do
+            {:thinking, :chat}
+          else
+            :idle
+          end
+
+        %{ui | tool_calls: updated_tool_calls, agent_activity: new_activity}
       end)
 
     # Decrement active tools (kept at model level for sidebar indicators)
@@ -483,14 +523,27 @@ defmodule JidoCode.TUI.MessageHandlers do
     {new_state, []}
   end
 
-  # Inactive session: Decrement tool count
+  # Inactive session: Decrement tool count and set agent_activity
   defp handle_inactive_tool_result(session_id, state) do
-    current_count = Map.get(state.active_tools, session_id, 0)
-    new_active_tools = Map.put(state.active_tools, session_id, max(0, current_count - 1))
-    new_last_activity = Map.put(state.last_activity, session_id, DateTime.utc_now())
+    # Update session's agent_activity based on streaming state
+    updated_state =
+      Model.update_session_ui_state(state, session_id, fn ui ->
+        new_activity =
+          if ui.is_streaming do
+            {:thinking, :chat}
+          else
+            :idle
+          end
+
+        %{ui | agent_activity: new_activity}
+      end)
+
+    current_count = Map.get(updated_state.active_tools, session_id, 0)
+    new_active_tools = Map.put(updated_state.active_tools, session_id, max(0, current_count - 1))
+    new_last_activity = Map.put(updated_state.last_activity, session_id, DateTime.utc_now())
 
     new_state = %{
-      state
+      updated_state
       | active_tools: new_active_tools,
         last_activity: new_last_activity
     }

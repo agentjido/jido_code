@@ -145,6 +145,54 @@ defmodule JidoCode.TUI do
 
     @type agent_status :: :idle | :processing | :error | :unconfigured
 
+    @typedoc """
+    Thinking mode sub-types representing JidoAI runners.
+
+    Maps to actual JidoAI runner implementations:
+    - `:chat` - Direct LLM call (no special reasoning)
+    - `:chain_of_thought` - Step-by-step reasoning (8-15% accuracy improvement)
+    - `:react` - Reasoning + Acting, interleaved with tool execution (+27.4% on HotpotQA)
+    - `:tree_of_thoughts` - Multi-branch reasoning exploration (+70% on complex tasks)
+    - `:self_consistency` - Multiple reasoning paths with voting (+17.9% on GSM8K)
+    - `:program_of_thought` - Generate programs to solve problems
+    - `:gepa` - Genetic-Pareto evolutionary prompt optimization/rewording
+    """
+    @type thinking_mode ::
+            :chat
+            | :chain_of_thought
+            | :react
+            | :tree_of_thoughts
+            | :self_consistency
+            | :program_of_thought
+            | :gepa
+
+    @typedoc """
+    Detailed agent activity status.
+
+    Provides granular tracking of what the agent is currently doing:
+    - `:idle` - Agent is ready for new requests
+    - `:unconfigured` - Agent not configured (no provider/model)
+    - `{:thinking, mode}` - LLM is processing with specified thinking mode (JidoAI runner)
+    - `{:tool_executing, tool_name}` - Executing a specific tool
+    - `{:error, reason}` - Error state with reason
+
+    ## Examples
+
+        :idle
+        {:thinking, :chat}
+        {:thinking, :chain_of_thought}
+        {:thinking, :react}
+        {:thinking, :tree_of_thoughts}
+        {:tool_executing, "read_file"}
+        {:error, :timeout}
+    """
+    @type agent_activity ::
+            :idle
+            | :unconfigured
+            | {:thinking, thinking_mode()}
+            | {:tool_executing, tool_name :: String.t()}
+            | {:error, reason :: term()}
+
     @type queued_message :: {term(), DateTime.t()}
 
     @typedoc "Per-session UI state stored in the TUI process"
@@ -157,7 +205,8 @@ defmodule JidoCode.TUI do
             is_streaming: boolean(),
             reasoning_steps: [reasoning_step()],
             tool_calls: [tool_call_entry()],
-            messages: [message()]
+            messages: [message()],
+            agent_activity: agent_activity()
           }
 
     @typedoc "Focus states for keyboard navigation"
@@ -677,7 +726,8 @@ defmodule JidoCode.TUI do
         is_streaming: false,
         reasoning_steps: [],
         tool_calls: [],
-        messages: []
+        messages: [],
+        agent_activity: :idle
       }
     end
 
@@ -799,6 +849,57 @@ defmodule JidoCode.TUI do
         nil -> nil
         ui_state -> ui_state.accordion
       end
+    end
+
+    @doc """
+    Gets the agent activity for the active session.
+
+    Returns `:idle` if no active session or if the session has no UI state.
+
+    ## Examples
+
+        Model.get_active_agent_activity(model)
+        # => :idle
+        # => {:thinking, :chat}
+        # => {:thinking, :chain_of_thought}
+        # => {:tool_executing, "read_file"}
+    """
+    @spec get_active_agent_activity(t()) :: agent_activity()
+    def get_active_agent_activity(model) do
+      case get_active_ui_state(model) do
+        nil -> :idle
+        ui_state -> ui_state.agent_activity || :idle
+      end
+    end
+
+    @doc """
+    Sets the agent activity for the active session.
+
+    ## Examples
+
+        Model.set_active_agent_activity(model, {:thinking, :chat})
+        Model.set_active_agent_activity(model, {:tool_executing, "read_file"})
+        Model.set_active_agent_activity(model, :idle)
+    """
+    @spec set_active_agent_activity(t(), agent_activity()) :: t()
+    def set_active_agent_activity(model, activity) do
+      update_active_ui_state(model, fn ui ->
+        %{ui | agent_activity: activity}
+      end)
+    end
+
+    @doc """
+    Sets the agent activity for a specific session.
+
+    ## Examples
+
+        Model.set_session_agent_activity(model, session_id, {:thinking, :react})
+    """
+    @spec set_session_agent_activity(t(), String.t(), agent_activity()) :: t()
+    def set_session_agent_activity(model, session_id, activity) do
+      update_session_ui_state(model, session_id, fn ui ->
+        %{ui | agent_activity: activity}
+      end)
     end
 
     @doc """

@@ -408,7 +408,9 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
           badge: build_sidebar_badge(session_data),
           content: build_sidebar_content(session_data),
           icon_open: "▼",
-          icon_closed: "▶"
+          icon_closed: "▶",
+          activity_icon: Map.get(session_data, :activity_icon),
+          activity_style: Map.get(session_data, :activity_style)
         }
       end)
 

@@ -52,7 +52,9 @@ defmodule JidoCode.TUI.Widgets.Accordion do
           content: [TermUI.View.t()],
           badge: String.t() | nil,
           icon_open: String.t(),
-          icon_closed: String.t()
+          icon_closed: String.t(),
+          activity_icon: String.t() | nil,
+          activity_style: Style.t() | nil
         }
 
   @typedoc "Style configuration for accordion components"
@@ -209,43 +211,63 @@ defmodule JidoCode.TUI.Widgets.Accordion do
     title_style = accordion.style.title_style || Style.new(fg: :white)
     badge_style = accordion.style.badge_style || Style.new(fg: :yellow)
 
-    # Format: "▶ Title (badge)"
-    title_text = "#{icon} #{section.title}"
+    # Extract activity icon info
+    activity_icon = Map.get(section, :activity_icon)
+    activity_style = Map.get(section, :activity_style) || title_style
 
-    title_part =
-      if section.badge do
-        badge_text = " (#{section.badge})"
-        # Calculate max title length to fit width
-        max_title_len = width - String.length(icon) - String.length(badge_text) - 2
+    # Calculate activity icon width (icon + space if present)
+    activity_width = if activity_icon, do: String.length(activity_icon) + 1, else: 0
 
-        truncated_title =
-          if String.length(section.title) > max_title_len do
-            String.slice(section.title, 0, max_title_len - 3) <> "..."
-          else
-            section.title
-          end
+    # Format: "▶ [activity] Title (badge)"
+    if section.badge do
+      badge_text = " (#{section.badge})"
+      # Calculate max title length to fit width
+      max_title_len = width - String.length(icon) - String.length(badge_text) - activity_width - 2
 
+      truncated_title =
+        if String.length(section.title) > max_title_len do
+          String.slice(section.title, 0, max(max_title_len - 3, 0)) <> "..."
+        else
+          section.title
+        end
+
+      if activity_icon do
+        stack(:horizontal, [
+          text("#{icon} ", title_style),
+          text("#{activity_icon} ", activity_style),
+          text(truncated_title, title_style),
+          text(badge_text, badge_style)
+        ])
+      else
         formatted_title = "#{icon} #{truncated_title}"
 
         stack(:horizontal, [
           text(formatted_title, title_style),
           text(badge_text, badge_style)
         ])
+      end
+    else
+      # No badge, truncate to width
+      title_text = "#{icon} #{section.title}"
+      max_len = width - activity_width - 1
+
+      truncated =
+        if String.length(title_text) > max_len do
+          String.slice(title_text, 0, max(max_len - 3, 0)) <> "..."
+        else
+          title_text
+        end
+
+      if activity_icon do
+        stack(:horizontal, [
+          text("#{icon} ", title_style),
+          text("#{activity_icon} ", activity_style),
+          text(String.trim_leading(truncated, "#{icon} "), title_style)
+        ])
       else
-        # No badge, truncate to width
-        max_len = width - 1
-
-        truncated =
-          if String.length(title_text) > max_len do
-            String.slice(title_text, 0, max_len - 3) <> "..."
-          else
-            title_text
-          end
-
         text(truncated, title_style)
       end
-
-    title_part
+    end
   end
 
   @doc false

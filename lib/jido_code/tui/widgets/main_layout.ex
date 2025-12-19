@@ -34,7 +34,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   import TermUI.Component.Helpers
 
   alias TermUI.Widgets.SplitPane, as: SP
-  alias JidoCode.TUI.Widgets.{FolderTabs, Accordion}
+  alias JidoCode.TUI.Widgets.{FolderTabs, Accordion, Frame}
   # alias JidoCode.Session
   alias TermUI.Renderer.Style
 
@@ -586,7 +586,8 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp render_tabs_pane(state, width, height, input_view) do
     border_style = Style.new(fg: :bright_black)
 
-    # Content dimensions (inside top/bottom borders)
+    # Content dimensions (inside frame borders)
+    inner_width = max(width - 2, 1)
     inner_height = max(height - 2, 1)
 
     # Build inner content
@@ -601,7 +602,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
 
         # Build status bar (top, after tab bar)
         status_style = Style.new(fg: :bright_black)
-        status_bar = text(String.pad_trailing(status_text, width), status_style)
+        status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
 
         # Calculate content height (inner - tab_bar(3) - status(1) - input(1 if present))
         input_height = if input_view, do: 1, else: 0
@@ -609,7 +610,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
 
         # Build content area - conversation view (fills remaining space)
         content_view = if content, do: content, else: empty()
-        content_box = box([content_view], width: width, height: content_height)
+        content_box = box([content_view], width: inner_width, height: content_height)
 
         # Layout: tab_bar | status_bar | conversation | input (per-session)
         elements = [tab_bar, status_bar, content_box]
@@ -620,15 +621,13 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
         empty()
       end
 
-    # Wrap content in box to fill inner height
-    content_box = box([inner_content], width: width, height: inner_height)
-
-    # Top and bottom borders only
-    top_border = text(String.duplicate(@border.horizontal, width), border_style)
-    bottom_border = text(String.duplicate(@border.horizontal, width), border_style)
-
-    # Stack: top border, content, bottom border
-    stack(:vertical, [top_border, content_box, bottom_border])
+    # Use Frame widget to draw borders around the content
+    Frame.render(
+      content: inner_content,
+      width: width,
+      height: height,
+      style: border_style
+    )
   end
 
   defp render_gap(height) do

@@ -193,6 +193,19 @@ defmodule JidoCode.TUI do
             | {:tool_executing, tool_name :: String.t()}
             | {:error, reason :: term()}
 
+    @typedoc """
+    Indicates the session is blocked waiting for user input.
+
+    - `nil` - Not waiting for input, session can proceed
+    - `:clarification` - LLM asked a question, waiting for user response
+    - `:permission` - Tool execution requires user approval
+    - `:confirmation` - Action requires user confirmation before proceeding
+
+    This is tracked separately from `agent_activity` to allow both states:
+    e.g., agent is idle but awaiting clarification input.
+    """
+    @type awaiting_input :: nil | :clarification | :permission | :confirmation
+
     @type queued_message :: {term(), DateTime.t()}
 
     @typedoc "Per-session UI state stored in the TUI process"
@@ -206,7 +219,8 @@ defmodule JidoCode.TUI do
             reasoning_steps: [reasoning_step()],
             tool_calls: [tool_call_entry()],
             messages: [message()],
-            agent_activity: agent_activity()
+            agent_activity: agent_activity(),
+            awaiting_input: awaiting_input()
           }
 
     @typedoc "Focus states for keyboard navigation"
@@ -727,7 +741,8 @@ defmodule JidoCode.TUI do
         reasoning_steps: [],
         tool_calls: [],
         messages: [],
-        agent_activity: :idle
+        agent_activity: :idle,
+        awaiting_input: nil
       }
     end
 
@@ -873,6 +888,23 @@ defmodule JidoCode.TUI do
     end
 
     @doc """
+    Gets the agent activity for a specific session.
+
+    ## Examples
+
+        Model.get_session_agent_activity(model, session_id)
+        # => :idle
+        # => {:thinking, :chat}
+    """
+    @spec get_session_agent_activity(t(), String.t()) :: agent_activity()
+    def get_session_agent_activity(model, session_id) do
+      case get_session_ui_state(model, session_id) do
+        nil -> :idle
+        ui_state -> ui_state.agent_activity || :idle
+      end
+    end
+
+    @doc """
     Sets the agent activity for the active session.
 
     ## Examples
@@ -900,6 +932,141 @@ defmodule JidoCode.TUI do
       update_session_ui_state(model, session_id, fn ui ->
         %{ui | agent_activity: activity}
       end)
+    end
+
+    @doc """
+    Converts agent activity to a display icon and style for tab headers.
+
+    Returns `{icon, style}` tuple, or `{nil, nil}` for idle/unconfigured states.
+
+    ## Examples
+
+        Model.activity_icon_for(:idle)
+        # => {nil, nil}
+
+        Model.activity_icon_for({:thinking, :chat})
+        # => {"⚙", %Style{fg: :yellow}}
+
+        Model.activity_icon_for({:tool_executing, "read_file"})
+        # => {"⚙", %Style{fg: :cyan}}
+    """
+    @spec activity_icon_for(agent_activity()) :: {String.t() | nil, Style.t() | nil}
+    def activity_icon_for(:idle), do: {nil, nil}
+    def activity_icon_for(:unconfigured), do: {nil, nil}
+
+    def activity_icon_for({:thinking, _mode}) do
+      {"⚙", Style.new(fg: :yellow)}
+    end
+
+    def activity_icon_for({:tool_executing, _tool_name}) do
+      {"⚙", Style.new(fg: :cyan)}
+    end
+
+    def activity_icon_for({:error, _reason}) do
+      {"⚠", Style.new(fg: :red)}
+    end
+
+    def activity_icon_for(_), do: {nil, nil}
+
+    # -------------------------------------------------------------------------
+    # Awaiting Input Accessors
+    # -------------------------------------------------------------------------
+
+    @doc """
+    Gets the awaiting_input state for the active session.
+
+    ## Examples
+
+        Model.get_active_awaiting_input(model)
+        # => nil
+        # => :clarification
+        # => :permission
+    """
+    @spec get_active_awaiting_input(t()) :: awaiting_input()
+    def get_active_awaiting_input(model) do
+      case get_active_ui_state(model) do
+        nil -> nil
+        ui_state -> ui_state.awaiting_input
+      end
+    end
+
+    @doc """
+    Gets the awaiting_input state for a specific session.
+
+    ## Examples
+
+        Model.get_session_awaiting_input(model, session_id)
+        # => nil
+        # => :permission
+    """
+    @spec get_session_awaiting_input(t(), String.t()) :: awaiting_input()
+    def get_session_awaiting_input(model, session_id) do
+      case get_session_ui_state(model, session_id) do
+        nil -> nil
+        ui_state -> ui_state.awaiting_input
+      end
+    end
+
+    @doc """
+    Sets the awaiting_input state for the active session.
+
+    ## Examples
+
+        Model.set_active_awaiting_input(model, :clarification)
+        Model.set_active_awaiting_input(model, :permission)
+        Model.set_active_awaiting_input(model, nil)  # Clear waiting state
+    """
+    @spec set_active_awaiting_input(t(), awaiting_input()) :: t()
+    def set_active_awaiting_input(model, awaiting) do
+      update_active_ui_state(model, fn ui ->
+        %{ui | awaiting_input: awaiting}
+      end)
+    end
+
+    @doc """
+    Sets the awaiting_input state for a specific session.
+
+    ## Examples
+
+        Model.set_session_awaiting_input(model, session_id, :permission)
+    """
+    @spec set_session_awaiting_input(t(), String.t(), awaiting_input()) :: t()
+    def set_session_awaiting_input(model, session_id, awaiting) do
+      update_session_ui_state(model, session_id, fn ui ->
+        %{ui | awaiting_input: awaiting}
+      end)
+    end
+
+    @doc """
+    Converts awaiting_input state to a display icon and style for tab headers.
+
+    Returns `{icon, style}` tuple, or `{nil, nil}` when not waiting.
+    The awaiting icon takes precedence over activity icon when displayed.
+
+    ## Examples
+
+        Model.awaiting_input_icon_for(nil)
+        # => {nil, nil}
+
+        Model.awaiting_input_icon_for(:clarification)
+        # => {"?", %Style{fg: :magenta}}
+
+        Model.awaiting_input_icon_for(:permission)
+        # => {"⚡", %Style{fg: :yellow}}
+    """
+    @spec awaiting_input_icon_for(awaiting_input()) :: {String.t() | nil, Style.t() | nil}
+    def awaiting_input_icon_for(nil), do: {nil, nil}
+
+    def awaiting_input_icon_for(:clarification) do
+      {"?", Style.new(fg: :magenta, attrs: [:bold])}
+    end
+
+    def awaiting_input_icon_for(:permission) do
+      {"⚡", Style.new(fg: :yellow, attrs: [:bold])}
+    end
+
+    def awaiting_input_icon_for(:confirmation) do
+      {"!", Style.new(fg: :cyan, attrs: [:bold])}
     end
 
     @doc """
@@ -2326,6 +2493,9 @@ defmodule JidoCode.TUI do
         session = Map.get(state.sessions, id)
 
         if session do
+          # Get the tab icon - awaiting_input takes precedence over activity
+          {icon, icon_style} = get_session_tab_icon(state, id)
+
           {id,
            %{
              id: id,
@@ -2334,7 +2504,9 @@ defmodule JidoCode.TUI do
              created_at: session.created_at,
              status: get_session_status(id),
              message_count: get_message_count(id),
-             content: get_conversation_content(state, id)
+             content: get_conversation_content(state, id),
+             activity_icon: icon,
+             activity_style: icon_style
            }}
         else
           {id, %{id: id, name: "Unknown", project_path: "", created_at: DateTime.utc_now()}}
@@ -2380,6 +2552,22 @@ defmodule JidoCode.TUI do
 
       _ ->
         nil
+    end
+  end
+
+  # Determines the tab icon for a session.
+  # awaiting_input takes precedence over agent_activity.
+  defp get_session_tab_icon(state, session_id) do
+    awaiting = Model.get_session_awaiting_input(state, session_id)
+
+    case Model.awaiting_input_icon_for(awaiting) do
+      {nil, nil} ->
+        # No awaiting input, fall back to activity icon
+        activity = Model.get_session_agent_activity(state, session_id)
+        Model.activity_icon_for(activity)
+
+      icon_and_style ->
+        icon_and_style
     end
   end
 

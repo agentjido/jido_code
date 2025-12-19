@@ -58,7 +58,9 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
           disabled: boolean() | nil,
           content: TermUI.View.t() | nil,
           status: String.t() | nil,
-          controls: String.t() | nil
+          controls: String.t() | nil,
+          activity_icon: String.t() | nil,
+          activity_style: Style.t() | nil
         }
 
   @type t :: %{
@@ -223,6 +225,18 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
   @spec update_tab_controls(t(), term(), String.t()) :: t()
   def update_tab_controls(state, tab_id, controls) do
     update_tab_field(state, tab_id, :controls, controls)
+  end
+
+  @doc """
+  Updates the activity indicator of a tab by ID.
+
+  Set both icon and style to nil to hide the activity indicator.
+  """
+  @spec update_tab_activity(t(), term(), String.t() | nil, Style.t() | nil) :: t()
+  def update_tab_activity(state, tab_id, icon, style) do
+    state
+    |> update_tab_field(tab_id, :activity_icon, icon)
+    |> update_tab_field(tab_id, :activity_style, style)
   end
 
   @doc """
@@ -515,8 +529,10 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
       Enum.reduce(state.tabs, {[], 0}, fn tab, {acc, offset} ->
         label_width = String.length(tab.label)
         is_closeable = Map.get(tab, :closeable, false)
+        activity_icon = Map.get(tab, :activity_icon)
         close_width = if is_closeable, do: 2, else: 0
-        tab_width = max(label_width + 4 + close_width, state.min_tab_width)
+        activity_width = if activity_icon, do: 2, else: 0
+        tab_width = max(label_width + 4 + close_width + activity_width, state.min_tab_width)
 
         # Close button position (if closeable)
         # Close button is at: offset + 1 (border) + inner_width - 2 (before curve)
@@ -551,16 +567,29 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
         is_last = index == tab_count - 1
         is_disabled = Map.get(tab, :disabled, false)
         is_closeable = Map.get(tab, :closeable, false)
+        activity_icon = Map.get(tab, :activity_icon)
+        activity_style = Map.get(tab, :activity_style)
 
         style = determine_style(is_selected, is_disabled, state)
 
-        # Calculate tab width (label + padding + close button if closeable)
+        # Calculate tab width (label + padding + close button if closeable + activity icon if present)
         label_width = String.length(tab.label)
         close_width = if is_closeable, do: 2, else: 0
-        tab_width = max(label_width + 4 + close_width, state.min_tab_width)
+        # Activity icon takes 2 chars (icon + space)
+        activity_width = if activity_icon, do: 2, else: 0
+        tab_width = max(label_width + 4 + close_width + activity_width, state.min_tab_width)
 
         {top_part, middle_part, bottom_part} =
-          render_single_tab(tab.label, tab_width, is_last, is_closeable, style, state.close_style)
+          render_single_tab(
+            tab.label,
+            tab_width,
+            is_last,
+            is_closeable,
+            style,
+            state.close_style,
+            activity_icon,
+            activity_style
+          )
 
         # Add space between tabs (except after last)
         space = if is_last, do: [], else: [text(" ", nil)]
@@ -571,42 +600,69 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
     {top_elements, middle_elements, bottom_elements}
   end
 
-  defp render_single_tab(label, width, _is_last, is_closeable, style, close_style) do
+  defp render_single_tab(label, width, _is_last, is_closeable, style, close_style, activity_icon \\ nil, activity_style \\ nil) do
     # Simple rounded box style: ╭───────╮ on top, ╰───────╯ on bottom
     inner_width = width - 2
     top_line = @top_left <> String.duplicate(@horizontal, inner_width) <> @top_right
     bottom_line = @bottom_left <> String.duplicate(@horizontal, inner_width) <> @bottom_right
 
-    # Build label with padding
-    {label_part, _close_part} = build_label_with_close(label, inner_width, is_closeable)
+    # Build label with padding (accounting for activity icon space)
+    has_activity = activity_icon != nil
+    {label_part, _close_part} = build_label_with_close(label, inner_width, is_closeable, has_activity)
 
     # Top element: ╭───────╮
     top_element = text(top_line, style)
 
-    # Bottom element: │ Label │ (with optional close button)
+    # Bottom element: │ [icon] Label │ (with optional activity icon and close button)
     bottom_element =
-      if is_closeable do
-        stack(:horizontal, [
-          text(@vertical <> label_part, style),
-          text(@close_button, close_style),
-          text(" " <> @vertical, style)
-        ])
-      else
-        text(@vertical <> label_part <> @vertical, style)
+      cond do
+        # Has both activity icon and close button
+        has_activity and is_closeable ->
+          stack(:horizontal, [
+            text(@vertical, style),
+            text(activity_icon <> " ", activity_style || style),
+            text(label_part, style),
+            text(@close_button, close_style),
+            text(" " <> @vertical, style)
+          ])
+
+        # Has activity icon only
+        has_activity ->
+          stack(:horizontal, [
+            text(@vertical, style),
+            text(activity_icon <> " ", activity_style || style),
+            text(label_part <> @vertical, style)
+          ])
+
+        # Has close button only
+        is_closeable ->
+          stack(:horizontal, [
+            text(@vertical <> label_part, style),
+            text(@close_button, close_style),
+            text(" " <> @vertical, style)
+          ])
+
+        # Neither
+        true ->
+          text(@vertical <> label_part <> @vertical, style)
       end
 
     # Return 3-row structure but we'll flatten in build_tab_rows
     {top_element, bottom_element, text(bottom_line, style)}
   end
 
-  defp build_label_with_close(label, inner_width, is_closeable) do
+  defp build_label_with_close(label, inner_width, is_closeable, has_activity \\ false) do
+    # Activity icon takes 2 chars (icon + space), handled separately in render
+    activity_width = if has_activity, do: 2, else: 0
+
     if is_closeable do
       # Reserve 2 chars for "× " at the end
-      available_width = inner_width - 2
+      available_width = inner_width - 2 - activity_width
       padded_label = pad_label_left(label, available_width)
       {padded_label, @close_button}
     else
-      padded_label = center_label(label, inner_width)
+      available_width = inner_width - activity_width
+      padded_label = center_label(label, available_width)
       {padded_label, ""}
     end
   end

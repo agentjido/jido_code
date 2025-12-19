@@ -452,7 +452,9 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
           closeable: length(state.session_order) > 1,
           status: build_tab_status(session_data),
           content: Map.get(session_data, :content),
-          controls: "Ctrl+W Close | Ctrl+Tab Next | /help"
+          controls: "Ctrl+W Close | Ctrl+Tab Next | /help",
+          activity_icon: Map.get(session_data, :activity_icon),
+          activity_style: Map.get(session_data, :activity_style)
         }
       end)
 

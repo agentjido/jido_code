@@ -107,10 +107,11 @@ defmodule JidoCode.Session.SupervisorTest do
       # Check supervisor info
       info = Supervisor.count_children(pid)
       assert is_map(info)
-      # Now has 3 children: Manager, State, and Agent
-      assert info.active == 3
-      assert info.specs == 3
-      assert info.workers == 3
+      # Has 2 children initially: Manager and State
+      # Agent is started lazily on first message
+      assert info.active == 2
+      assert info.specs == 2
+      assert info.workers == 2
 
       # Cleanup
       Supervisor.stop(pid)
@@ -181,26 +182,23 @@ defmodule JidoCode.Session.SupervisorTest do
 
   describe "integration with SessionSupervisor" do
     setup %{tmp_dir: tmp_dir, config: config} do
-      # Also start SessionSupervisor and SessionRegistry for integration test
-      if pid = Process.whereis(JidoCode.SessionSupervisor) do
-        Supervisor.stop(pid)
-      end
+      # Use the existing SessionSupervisor from application.ex
+      # If it's not running, start it (may have been stopped by another test)
+      sup_pid =
+        case Process.whereis(JidoCode.SessionSupervisor) do
+          nil ->
+            {:ok, pid} = JidoCode.SessionSupervisor.start_link([])
+            pid
 
-      {:ok, sup_pid} = JidoCode.SessionSupervisor.start_link([])
+          pid ->
+            pid
+        end
 
       JidoCode.SessionRegistry.create_table()
       JidoCode.SessionRegistry.clear()
 
       on_exit(fn ->
         JidoCode.SessionRegistry.clear()
-
-        if Process.alive?(sup_pid) do
-          try do
-            Supervisor.stop(sup_pid)
-          catch
-            :exit, _ -> :ok
-          end
-        end
       end)
 
       {:ok, sup_pid: sup_pid, tmp_dir: tmp_dir, config: config}
@@ -354,6 +352,9 @@ defmodule JidoCode.Session.SupervisorTest do
     test "returns Agent pid for running session", %{tmp_dir: tmp_dir, config: config} do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
+
+      # Agent is started lazily, so start it first
+      {:ok, _agent_pid} = SessionSupervisor.start_agent(session)
 
       assert {:ok, pid} = SessionSupervisor.get_agent(session.id)
       assert is_pid(pid)

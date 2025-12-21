@@ -1836,6 +1836,13 @@ defmodule JidoCode.CommandsTest do
       # Clear registry
       JidoCode.SessionRegistry.clear()
 
+      # Clear any persisted session files from previous tests
+      sessions_dir = JidoCode.Session.Persistence.sessions_dir()
+
+      if File.exists?(sessions_dir) do
+        File.rm_rf!(sessions_dir)
+      end
+
       # Create temp directory for test projects
       tmp_base = Path.join(System.tmp_dir!(), "resume_test_#{:rand.uniform(100_000)}")
       File.mkdir_p!(tmp_base)
@@ -2177,7 +2184,7 @@ defmodule JidoCode.CommandsTest do
       ])
 
       # Run cleanup (30 days)
-      result = JidoCode.Session.Persistence.cleanup(30)
+      {:ok, result} = JidoCode.Session.Persistence.cleanup(30)
 
       # Verify old session deleted
       assert result.deleted == 1
@@ -2255,7 +2262,7 @@ defmodule JidoCode.CommandsTest do
       })
 
       # Run cleanup - should delete OLD file
-      result = JidoCode.Session.Persistence.cleanup(30)
+      {:ok, result} = JidoCode.Session.Persistence.cleanup(30)
 
       # Old file should be deleted (it's >30 days old)
       assert result.deleted == 1

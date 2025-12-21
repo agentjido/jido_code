@@ -8,6 +8,9 @@ defmodule JidoCode.Tools.Handlers.SearchTest do
 
   # Set up Manager with tmp_dir as project root for sandboxed operations
   setup %{tmp_dir: tmp_dir} do
+    # Ensure infrastructure is running (may have been stopped by another test)
+    JidoCode.Test.SessionTestHelpers.ensure_infrastructure()
+
     JidoCode.TestHelpers.ManagerIsolation.set_project_root(tmp_dir)
     :ok
   end

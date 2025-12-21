@@ -53,7 +53,6 @@ defmodule JidoCode.TUI do
   alias TermUI.Event
   alias TermUI.Renderer.Style
   alias TermUI.Widget.PickList
-  alias TermUI.Widgets.TextInput
   alias TermUI.Widgets.Viewport
 
   # ============================================================================
@@ -210,7 +209,6 @@ defmodule JidoCode.TUI do
 
     @typedoc "Per-session UI state stored in the TUI process"
     @type session_ui_state :: %{
-            text_input: map() | nil,
             conversation_view: map() | nil,
             accordion: JidoCode.TUI.Widgets.Accordion.t() | nil,
             scroll_offset: non_neg_integer(),
@@ -236,7 +234,6 @@ defmodule JidoCode.TUI do
             active_session_id: String.t() | nil,
 
             # UI state
-            text_input: map(),
             tabs_widget: map() | nil,
             focus: focus(),
             window: {non_neg_integer(), non_neg_integer()},
@@ -288,7 +285,6 @@ defmodule JidoCode.TUI do
       session_order: [],
       active_session_id: nil,
       # UI state
-      text_input: nil,
       tabs_widget: nil,
       # Focus state for keyboard navigation (used in Phase 4.5)
       focus: :input,
@@ -695,21 +691,9 @@ defmodule JidoCode.TUI do
     """
     @spec default_ui_state({non_neg_integer(), non_neg_integer()}) :: session_ui_state()
     def default_ui_state({width, height}) do
-      # Create TextInput for this session
-      text_input_props =
-        TermUI.Widgets.TextInput.new(
-          placeholder: "Type a message...",
-          width: max(width - 4, 20),
-          enter_submits: false
-        )
-
-      {:ok, text_input_state} = TermUI.Widgets.TextInput.init(text_input_props)
-      # Set focused so text input accepts keyboard input
-      text_input_state = TermUI.Widgets.TextInput.set_focused(text_input_state, true)
-
-      # Create ConversationView for this session
-      # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
-      conversation_height = max(height - 8, 1)
+      # Create ConversationView for this session with integrated TextInput
+      # Available height: total height - 2 (borders) - 1 (status bar) - 3 (tab bar)
+      conversation_height = max(height - 6, 1)
       conversation_width = max(width - 4, 1)
 
       conversation_view_props =
@@ -717,7 +701,9 @@ defmodule JidoCode.TUI do
           messages: [],
           viewport_width: conversation_width,
           viewport_height: conversation_height,
-          on_copy: &JidoCode.TUI.Clipboard.copy_to_clipboard/1
+          on_copy: &Clipboard.copy_to_clipboard/1,
+          input_placeholder: "Type a message...",
+          max_input_lines: 5
         )
 
       {:ok, conversation_view_state} = JidoCode.TUI.Widgets.ConversationView.init(conversation_view_props)
@@ -734,7 +720,6 @@ defmodule JidoCode.TUI do
         )
 
       %{
-        text_input: text_input_state,
         conversation_view: conversation_view_state,
         accordion: accordion,
         scroll_offset: 0,
@@ -756,7 +741,7 @@ defmodule JidoCode.TUI do
     ## Examples
 
         iex> Model.get_session_ui_state(model, "session-123")
-        %{text_input: ..., conversation_view: ..., ...}
+        %{conversation_view: ..., ...}
     """
     @spec get_session_ui_state(t(), String.t()) :: session_ui_state() | nil
     def get_session_ui_state(%__MODULE__{sessions: sessions}, session_id) do
@@ -774,7 +759,7 @@ defmodule JidoCode.TUI do
     ## Examples
 
         iex> Model.get_active_ui_state(model)
-        %{text_input: ..., conversation_view: ..., ...}
+        %{conversation_view: ..., ...}
     """
     @spec get_active_ui_state(t()) :: session_ui_state() | nil
     def get_active_ui_state(%__MODULE__{active_session_id: nil}), do: nil
@@ -830,15 +815,15 @@ defmodule JidoCode.TUI do
     end
 
     @doc """
-    Gets the text input state for the active session.
+    Gets the text input value for the active session.
 
-    Returns nil if no active session or if the session has no UI state.
+    Returns empty string if no active session or conversation view.
     """
-    @spec get_active_text_input(t()) :: map() | nil
-    def get_active_text_input(model) do
-      case get_active_ui_state(model) do
-        nil -> nil
-        ui_state -> ui_state.text_input
+    @spec get_active_input_value(t()) :: String.t()
+    def get_active_input_value(model) do
+      case get_active_conversation_view(model) do
+        nil -> ""
+        conversation_view -> JidoCode.TUI.Widgets.ConversationView.get_input_value(conversation_view)
       end
     end
 
@@ -1117,38 +1102,6 @@ defmodule JidoCode.TUI do
 
     # Get actual terminal dimensions (Terminal is started by Runtime before init)
     window = get_terminal_dimensions()
-    {width, _height} = window
-
-    # Initialize TextInput widget for chat input
-    # Note: We handle Enter explicitly in event_to_msg rather than using on_submit callback
-    # because the callback would capture the wrong process pid
-    text_input_props =
-      TextInput.new(
-        placeholder: "Type a message...",
-        width: max(width - 4, 20),
-        enter_submits: false
-      )
-
-    {:ok, text_input_state} = TextInput.init(text_input_props)
-    # Set focused by default
-    text_input_state = TextInput.set_focused(text_input_state, true)
-
-    # Initialize ConversationView widget
-    # Available height: total height - 2 (borders) - 1 (status bar) - 3 (separators) - 1 (input bar) - 1 (help bar)
-    {width, height} = window
-    conversation_height = max(height - 8, 1)
-    # Content width excludes borders (2) and padding (2)
-    conversation_width = max(width - 4, 1)
-
-    conversation_view_props =
-      ConversationView.new(
-        messages: [],
-        viewport_width: conversation_width,
-        viewport_height: conversation_height,
-        on_copy: &Clipboard.copy_to_clipboard/1
-      )
-
-    {:ok, conversation_view_state} = ConversationView.init(conversation_view_props)
 
     # Add UI state to each loaded session
     sessions_with_ui =
@@ -1163,7 +1116,6 @@ defmodule JidoCode.TUI do
       session_order: session_order,
       active_session_id: active_id,
       # Existing fields
-      text_input: text_input_state,
       messages: [],
       agent_status: status,
       config: config,
@@ -1177,7 +1129,6 @@ defmodule JidoCode.TUI do
       agent_name: :llm_agent,
       streaming_message: nil,
       is_streaming: false,
-      conversation_view: conversation_view_state,
       # Sidebar state (Phase 4.5)
       sidebar_visible: true,
       sidebar_width: 20,
@@ -1202,7 +1153,7 @@ defmodule JidoCode.TUI do
   - Ctrl+R → :toggle_reasoning
   - Ctrl+T → :toggle_tool_details
   - Up/Down arrows → scroll messages
-  - Other key events → forwarded to TextInput widget
+  - Other key events → forwarded to ConversationView (which has integrated TextInput)
   """
   @impl true
   # Ctrl+C to quit
@@ -1309,9 +1260,8 @@ defmodule JidoCode.TUI do
         {:msg, {:input_event, event}}
 
       true ->
-        # Get value from active session's text input
-        text_input = Model.get_active_text_input(state)
-        value = if text_input, do: TextInput.get_value(text_input), else: ""
+        # Get value from active session's conversation view input
+        value = Model.get_active_input_value(state)
         {:msg, {:input_submitted, value}}
     end
   end
@@ -1379,7 +1329,7 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Forward all other key events - to pick_list if open, otherwise to TextInput widget
+  # Forward all other key events - to pick_list if open, otherwise to ConversationView
   def event_to_msg(%Event.Key{} = event, state) do
     if state.pick_list do
       {:msg, {:pick_list_event, event}}
@@ -1396,8 +1346,8 @@ defmodule JidoCode.TUI do
   Updates state based on messages.
 
   Handles:
-  - `{:input_event, event}` - Forward keyboard events to TextInput widget
-  - `{:input_submitted, value}` - Handle submitted text from TextInput
+  - `{:input_event, event}` - Forward keyboard events to ConversationView
+  - `{:input_submitted, value}` - Handle submitted text
   - `:quit` - Return quit command
   - `{:resize, width, height}` - Update window dimensions
   - `{:scroll, :up/:down}` - Scroll message history
@@ -1446,26 +1396,30 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Forward keyboard events to active session's TextInput widget
+  # Forward keyboard events to active session's ConversationView (which has integrated TextInput)
   def update({:input_event, event}, state) do
-    case Model.get_active_text_input(state) do
+    case Model.get_active_conversation_view(state) do
       nil ->
         # No active session, ignore input
         {state, []}
 
-      text_input ->
-        {:ok, new_text_input} = TextInput.handle_event(event, text_input)
+      conversation_view ->
+        case ConversationView.handle_event(event, conversation_view) do
+          {:ok, new_conversation_view} ->
+            new_state =
+              Model.update_active_ui_state(state, fn ui ->
+                %{ui | conversation_view: new_conversation_view}
+              end)
 
-        new_state =
-          Model.update_active_ui_state(state, fn ui ->
-            %{ui | text_input: new_text_input}
-          end)
+            {new_state, []}
 
-        {new_state, []}
+          _ ->
+            {state, []}
+        end
     end
   end
 
-  # Handle submitted text from TextInput (via on_submit callback)
+  # Handle submitted text from ConversationView's TextInput
   def update({:input_submitted, value}, state) do
     text = String.trim(value)
 
@@ -1479,8 +1433,9 @@ defmodule JidoCode.TUI do
         # Clear active session's input after command and ensure it stays focused
         cleared_state =
           Model.update_active_ui_state(state, fn ui ->
-            new_text_input = ui.text_input |> TextInput.clear() |> TextInput.set_focused(true)
-            %{ui | text_input: new_text_input}
+            new_conversation_view = ConversationView.clear_input(ui.conversation_view)
+            new_conversation_view = ConversationView.focus_input(new_conversation_view)
+            %{ui | conversation_view: new_conversation_view}
           end)
 
         do_handle_command(text, cleared_state)
@@ -1490,8 +1445,8 @@ defmodule JidoCode.TUI do
         # Clear active session's input after submit
         cleared_state =
           Model.update_active_ui_state(state, fn ui ->
-            new_text_input = TextInput.clear(ui.text_input)
-            %{ui | text_input: new_text_input}
+            new_conversation_view = ConversationView.clear_input(ui.conversation_view)
+            %{ui | conversation_view: new_conversation_view}
           end)
 
         do_handle_chat_submit(text, cleared_state)
@@ -1509,8 +1464,8 @@ defmodule JidoCode.TUI do
 
   def update({:resize, width, height}, state) do
     {cur_width, cur_height} = state.window
-    new_input_width = max(width - 4, 20)
-    conversation_height = max(height - 8, 1)
+    # ConversationView now handles its own input sizing
+    conversation_height = max(height - 6, 1)
     conversation_width = max(width - 4, 1)
 
     # Update all sessions' UI state if window size changed
@@ -1522,15 +1477,7 @@ defmodule JidoCode.TUI do
               {session_id, session}
 
             ui_state ->
-              # Update text input width
-              new_text_input =
-                if ui_state.text_input do
-                  %{ui_state.text_input | width: new_input_width}
-                else
-                  ui_state.text_input
-                end
-
-              # Update conversation view dimensions
+              # Update conversation view dimensions (includes integrated text input)
               new_conversation_view =
                 if ui_state.conversation_view do
                   ConversationView.set_viewport_size(
@@ -1542,7 +1489,7 @@ defmodule JidoCode.TUI do
                   ui_state.conversation_view
                 end
 
-              updated_ui = %{ui_state | text_input: new_text_input, conversation_view: new_conversation_view}
+              updated_ui = %{ui_state | conversation_view: new_conversation_view}
               {session_id, Map.put(session, :ui_state, updated_ui)}
           end
         end)
@@ -1675,19 +1622,24 @@ defmodule JidoCode.TUI do
         _ -> :input
       end
 
-    # Update active session's text input focus state
+    # Update active session's ConversationView input focus state
     focused = new_focus == :input
 
     new_state =
       Model.update_active_ui_state(%{state | focus: new_focus}, fn ui ->
-        new_text_input =
-          if ui.text_input do
-            TextInput.set_focused(ui.text_input, focused)
-          else
-            ui.text_input
-          end
+        if ui.conversation_view do
+          new_conversation_view =
+            if focused do
+              ConversationView.focus_input(ui.conversation_view)
+            else
+              # Unfocus input by setting internal focus to messages
+              %{ui.conversation_view | input_focused: false}
+            end
 
-        %{ui | text_input: new_text_input}
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
       end)
 
     {new_state, []}
@@ -1703,19 +1655,24 @@ defmodule JidoCode.TUI do
         _ -> :input
       end
 
-    # Update active session's text input focus state
+    # Update active session's ConversationView input focus state
     focused = new_focus == :input
 
     new_state =
       Model.update_active_ui_state(%{state | focus: new_focus}, fn ui ->
-        new_text_input =
-          if ui.text_input do
-            TextInput.set_focused(ui.text_input, focused)
-          else
-            ui.text_input
-          end
+        if ui.conversation_view do
+          new_conversation_view =
+            if focused do
+              ConversationView.focus_input(ui.conversation_view)
+            else
+              # Unfocus input by setting internal focus to messages
+              %{ui.conversation_view | input_focused: false}
+            end
 
-        %{ui | text_input: new_text_input}
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
       end)
 
     {new_state, []}
@@ -2266,19 +2223,17 @@ defmodule JidoCode.TUI do
     %{state | unread_counts: Map.delete(state.unread_counts, session_id)}
   end
 
-  # Helper to set focus on the active session's text input when focus is on input
+  # Helper to set focus on the active session's ConversationView input when focus is on input
   # Used after switching sessions to ensure the new session's input is focused
   defp focus_active_session_input(state) do
     if state.focus == :input do
       Model.update_active_ui_state(state, fn ui ->
-        new_text_input =
-          if ui.text_input do
-            TextInput.set_focused(ui.text_input, true)
-          else
-            ui.text_input
-          end
-
-        %{ui | text_input: new_text_input}
+        if ui.conversation_view do
+          new_conversation_view = ConversationView.focus_input(ui.conversation_view)
+          %{ui | conversation_view: new_conversation_view}
+        else
+          ui
+        end
       end)
     else
       state
@@ -2532,13 +2487,12 @@ defmodule JidoCode.TUI do
     layout = build_main_layout(state)
     area = %{x: 0, y: 0, width: width, height: height}
 
-    # Render input bar and help bar to pass into tabs
-    input_view = ViewHelpers.render_input_bar(state)
+    # Render help bar to pass into tabs
+    # Note: input is now integrated into ConversationView
     help_view = ViewHelpers.render_help_bar(state)
 
-    # Render main layout with input/help inside tabs
+    # Render main layout
     MainLayout.render(layout, area,
-      input_view: input_view,
       help_view: help_view
     )
   end

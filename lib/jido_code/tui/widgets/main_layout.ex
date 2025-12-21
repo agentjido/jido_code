@@ -143,11 +143,11 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     state = state |> build_sidebar_state() |> build_tabs_state()
 
     # Get optional views
-    # help_view at bottom of whole layout
-    # Note: input is now integrated into ConversationView
+    # input_view goes inside tabs (per-session), help_view at bottom of whole layout
+    input_view = Keyword.get(opts, :input_view)
     help_view = Keyword.get(opts, :help_view)
 
-    # Calculate heights for bottom bar (only help)
+    # Calculate heights for bottom bar (only help, input is inside tabs)
     help_height = if help_view, do: 1, else: 0
     main_height = area.height - help_height
 
@@ -158,9 +158,9 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     sidebar_width = round(area.width * state.sidebar_proportion)
     sidebar_view = render_sidebar(state, sidebar_width, main_height)
 
-    # Render tabs content (status bar + conversation with integrated input)
+    # Render tabs content (status bar + conversation + input)
     tabs_width = area.width - sidebar_width - gap_width
-    tabs_view = render_tabs_pane(state, tabs_width, main_height)
+    tabs_view = render_tabs_pane(state, tabs_width, main_height, input_view)
 
     # Render gap (empty space between panes)
     gap_view = render_gap(main_height)
@@ -583,7 +583,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     ])
   end
 
-  defp render_tabs_pane(state, width, height) do
+  defp render_tabs_pane(state, width, height, input_view) do
     border_style = Style.new(fg: :bright_black)
 
     # Content dimensions (inside frame borders)
@@ -593,7 +593,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     # Build inner content
     inner_content =
       if state.tabs_state do
-        # Render folder tabs (tab bar only - 3 rows)
+        # Render folder tabs (tab bar only - 2 rows)
         tab_bar = FolderTabs.render(state.tabs_state)
 
         # Get selected tab's status and content
@@ -604,17 +604,19 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
         status_style = Style.new(fg: :bright_black)
         status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
 
-        # Calculate content height (inner - tab_bar(3) - status(1))
-        # ConversationView handles its own input internally
-        content_height = max(inner_height - 4, 1)
+        # Calculate content height (inner - tab_bar(3) - status(1) - input(1 if present))
+        input_height = if input_view, do: 1, else: 0
+        content_height = max(inner_height - 4 - input_height, 1)
 
         # Build content area - conversation view (fills remaining space)
-        # ConversationView now includes the text input internally
         content_view = if content, do: content, else: empty()
         content_box = box([content_view], width: inner_width, height: content_height)
 
-        # Layout: tab_bar | status_bar | conversation (with integrated input)
-        stack(:vertical, [tab_bar, status_bar, content_box])
+        # Layout: tab_bar | status_bar | conversation | input (per-session)
+        elements = [tab_bar, status_bar, content_box]
+        elements = if input_view, do: elements ++ [input_view], else: elements
+
+        stack(:vertical, elements)
       else
         empty()
       end

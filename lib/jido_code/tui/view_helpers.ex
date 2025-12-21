@@ -22,6 +22,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   alias JidoCode.TUI.Model
   alias TermUI.Renderer.Style
   alias TermUI.Theme
+  alias TermUI.Widgets.TextInput
 
   # Double-line box drawing characters
   @border_chars %{
@@ -653,6 +654,45 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   defp tool_result_style(:timeout),
     do: {"⏱", Style.new(fg: Theme.get_semantic(:warning) || :yellow)}
+
+  # ============================================================================
+  # Input Bar
+  # ============================================================================
+
+  @doc """
+  Renders the input bar using the TextInput widget.
+  Shows a prompt indicator followed by the input area.
+  Includes 1-char padding on each side.
+  """
+  @spec render_input_bar(Model.t()) :: TermUI.View.t()
+  def render_input_bar(state) do
+    {width, _height} = state.window
+    # Content width excludes borders (2), padding (2), and prompt "> " (2)
+    input_width = max(width - 6, 20)
+
+    prompt_style = Style.new(fg: Theme.get_color(:secondary) || :green)
+
+    # Get text input from active session's UI state
+    text_input = Model.get_active_text_input(state)
+
+    # Render TextInput widget (or empty space if no active session)
+    input_area = %{width: input_width, height: 1}
+
+    text_input_node =
+      if text_input do
+        TextInput.render(text_input, input_area)
+      else
+        text(String.duplicate(" ", input_width))
+      end
+
+    # Add 1-char padding on left, prompt, input, padding on right
+    stack(:horizontal, [
+      text(" "),
+      text("> ", prompt_style),
+      text_input_node,
+      text(" ")
+    ])
+  end
 
   # ============================================================================
   # Reasoning Panel

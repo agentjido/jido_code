@@ -22,35 +22,28 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
     state
   end
 
-  # Helper to extract messages area from render result
-  # The render now returns: stack(:vertical, [messages_area, separator, input_node])
-  # Where messages_area is: stack(:horizontal, [content_stack, scrollbar])
-  defp get_messages_area(%TermUI.Component.RenderNode{
-         type: :stack,
-         direction: :vertical,
-         children: [messages_area | _]
-       }) do
-    messages_area
-  end
-
-  defp get_messages_area(result), do: result
-
   # Helper to extract content stack from render result
-  # First get the messages_area, then extract content from it
-  defp get_content_stack(result) do
-    messages_area = get_messages_area(result)
-
-    case messages_area do
-      %TermUI.Component.RenderNode{type: :stack, direction: :horizontal, children: [content | _]} ->
-        content
-
-      _ ->
-        result
-    end
+  # render/2 returns: stack(:horizontal, [content_stack, scrollbar]) for messages
+  # or just text node for empty messages
+  defp get_content_stack(%TermUI.Component.RenderNode{
+         type: :stack,
+         direction: :horizontal,
+         children: [content | _]
+       }) do
+    content
   end
+
+  defp get_content_stack(result), do: result
+
+  # For backwards compatibility - messages_area is just the result itself now
+  defp get_messages_area(result), do: result
 
   # Helper to flatten nested stacks into a list of text nodes
   defp flatten_nodes(%TermUI.Component.RenderNode{type: :stack, children: children}) do
+    Enum.flat_map(children, &flatten_nodes/1)
+  end
+
+  defp flatten_nodes(%TermUI.Component.RenderNode{type: :box, children: children}) do
     Enum.flat_map(children, &flatten_nodes/1)
   end
 
@@ -1014,26 +1007,17 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
   end
 
   describe "render/2" do
-    # Note: render/2 now returns: stack(:vertical, [messages_area, separator, input_node])
-    # where messages_area is: stack(:horizontal, [content_stack, scrollbar])
+    # Note: render/2 returns simple structure:
+    # - For empty messages: text("No messages yet", ...)
+    # - For messages: stack(:horizontal, [content_stack, scrollbar])
     test "returns placeholder for empty messages" do
       state = init_state()
       area = %{x: 0, y: 0, width: 80, height: 24}
 
       result = ConversationView.render(state, area)
 
-      # Result is now a vertical stack with [messages_area, separator, input]
-      assert %TermUI.Component.RenderNode{type: :stack, direction: :vertical} = result
-
-      # Get messages_area and check for placeholder inside content
-      messages_area = get_messages_area(result)
-      all_nodes = flatten_nodes(messages_area)
-
-      placeholder = Enum.find(all_nodes, fn node ->
-        node.content == "No messages yet"
-      end)
-
-      assert placeholder != nil
+      # Result is a simple text node for empty messages
+      assert %TermUI.Component.RenderNode{type: :text, content: "No messages yet"} = result
     end
 
     test "renders messages with scrollbar in horizontal stack" do
@@ -1043,14 +1027,9 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
 
       result = ConversationView.render(state, area)
 
-      # Result is a vertical stack: [messages_area, separator, input]
-      assert %TermUI.Component.RenderNode{type: :stack, direction: :vertical} = result
-      assert length(result.children) == 3
-
-      # messages_area should be a horizontal stack: [content, scrollbar]
-      messages_area = get_messages_area(result)
-      assert %TermUI.Component.RenderNode{type: :stack, direction: :horizontal} = messages_area
-      assert length(messages_area.children) == 2
+      # Result is a horizontal stack: [content, scrollbar]
+      assert %TermUI.Component.RenderNode{type: :stack, direction: :horizontal} = result
+      assert length(result.children) == 2
     end
 
     test "renders message content as vertical stack" do
@@ -1493,9 +1472,8 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       result = ConversationView.render(state, area)
       content_stack = get_content_stack(result)
 
-      # Content stack should have messages_height children
-      # messages_height = area.height - input_height(1) - separator(1) = 22
-      assert length(content_stack.children) == 22
+      # Content stack should have area.height children (full height)
+      assert length(content_stack.children) == 24
     end
 
     test "updates viewport dimensions from area" do
@@ -1507,11 +1485,10 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       # We verify by checking the scrollbar height
       result = ConversationView.render(state, area)
 
-      # Get messages_area from the vertical stack result
-      messages_area = get_messages_area(result)
-      assert %TermUI.Component.RenderNode{type: :stack, children: [_, scrollbar]} = messages_area
-      # scrollbar height = area.height - input_height(1) - separator(1) = 28
-      assert length(scrollbar.children) == 28
+      # Result is a horizontal stack: [content, scrollbar]
+      assert %TermUI.Component.RenderNode{type: :stack, children: [_, scrollbar]} = result
+      # scrollbar height = area.height (full height)
+      assert length(scrollbar.children) == 30
     end
   end
 

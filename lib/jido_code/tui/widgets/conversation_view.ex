@@ -1,18 +1,17 @@
 defmodule JidoCode.TUI.Widgets.ConversationView do
   @moduledoc """
-  ConversationView widget for displaying scrollable chat conversations with integrated input.
+  ConversationView widget for displaying scrollable chat conversations.
 
   A purpose-built widget for displaying chat conversations with message-aware
-  rendering, role-based styling, mouse-interactive scrollbar, collapsible
-  long messages, and an integrated multi-line text input.
+  rendering, role-based styling, mouse-interactive scrollbar, and collapsible
+  long messages.
 
   ## Usage
 
       ConversationView.new(
         messages: [],
         max_collapsed_lines: 15,
-        show_timestamps: true,
-        on_submit: fn text -> send_message(text) end
+        show_timestamps: true
       )
 
   ## Features
@@ -24,12 +23,10 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   - Mouse wheel and scrollbar drag support
   - Streaming message support with auto-scroll
   - Copy functionality for focused message
-  - Integrated multi-line text input with dynamic height
-  - Input auto-grows, messages area shrinks to accommodate
 
   ## Keyboard Controls
 
-  - Up/Down: Scroll by line (when input not focused)
+  - Up/Down: Scroll by line
   - PageUp/PageDown: Scroll by page
   - Home/End: Jump to top/bottom
   - Ctrl+Up/Down: Move message focus
@@ -37,13 +34,9 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   - e: Expand all messages
   - c: Collapse all messages
   - y: Copy focused message
-  - Enter: Submit message (in input)
-  - Ctrl+Enter: New line in input
   """
 
   use TermUI.StatefulComponent
-
-  alias TermUI.Widgets.TextInput
 
   # ============================================================================
   # Type Definitions
@@ -79,7 +72,6 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
           expanded: MapSet.t(String.t()),
           # Focus state
           cursor_message_idx: non_neg_integer(),
-          input_focused: boolean(),
           # Mouse drag state
           dragging: boolean(),
           drag_start_y: non_neg_integer() | nil,
@@ -87,9 +79,6 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
           # Streaming state
           streaming_id: String.t() | nil,
           was_at_bottom: boolean(),
-          # Text input state
-          text_input: map(),
-          max_input_lines: pos_integer(),
           # Configuration
           max_collapsed_lines: pos_integer(),
           show_timestamps: boolean(),
@@ -98,7 +87,9 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
           scroll_lines: pos_integer(),
           role_styles: %{role() => role_style()},
           on_copy: (String.t() -> any()) | nil,
-          on_submit: (String.t() -> any()) | nil
+          # TextInput integration
+          text_input: map() | nil,
+          input_focused: boolean()
         }
 
   @default_role_styles %{
@@ -119,14 +110,17 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   - `:messages` - Initial messages (default: [])
   - `:max_collapsed_lines` - Lines before truncation (default: 15)
   - `:show_timestamps` - Show [HH:MM] prefix (default: true)
-  - `:scrollbar_width` - Scrollbar column width (default: 1)
+  - `:scrollbar_width` - Scrollbar column width (default: 2)
   - `:indent` - Content indent spaces (default: 2)
   - `:scroll_lines` - Lines to scroll per wheel event (default: 3)
   - `:role_styles` - Per-role styling configuration
   - `:on_copy` - Clipboard callback function
-  - `:on_submit` - Callback when message is submitted (required for input)
-  - `:max_input_lines` - Maximum visible input lines before scrolling (default: 5)
+  - `:on_submit` - Callback when input is submitted
+  - `:text_input` - TextInput widget state (default: nil, created automatically if input_placeholder is set)
+  - `:input_focused` - Whether input has focus (default: true)
   - `:input_placeholder` - Placeholder text for input (default: "Type a message...")
+  - `:max_input_lines` - Maximum visible lines for input (default: 5)
+  - `:viewport_width` - Viewport width for TextInput (default: 80)
   """
   @spec new(keyword()) :: map()
   def new(opts \\ []) do
@@ -140,8 +134,11 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       role_styles: Keyword.get(opts, :role_styles, @default_role_styles),
       on_copy: Keyword.get(opts, :on_copy),
       on_submit: Keyword.get(opts, :on_submit),
+      text_input: Keyword.get(opts, :text_input),
+      input_focused: Keyword.get(opts, :input_focused, true),
+      input_placeholder: Keyword.get(opts, :input_placeholder, "Type a message..."),
       max_input_lines: Keyword.get(opts, :max_input_lines, 5),
-      input_placeholder: Keyword.get(opts, :input_placeholder, "Type a message...")
+      viewport_width: Keyword.get(opts, :viewport_width, 80)
     }
   end
 
@@ -151,21 +148,32 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
 
   @impl true
   def init(props) do
+    alias TermUI.Widgets.TextInput
+
     messages = props.messages
 
-    # Initialize TextInput with multiline support
-    text_input_props = TextInput.new(
-      value: "",
-      placeholder: props.input_placeholder,
-      width: 80,
-      multiline: true,
-      max_visible_lines: props.max_input_lines,
-      enter_submits: true
-    )
+    # Initialize TextInput - use provided one or create new with multiline support
+    text_input =
+      case props.text_input do
+        nil ->
+          # Create a new TextInput with the provided options
+          text_input_props =
+            TextInput.new(
+              value: "",
+              placeholder: props.input_placeholder,
+              width: props.viewport_width,
+              multiline: true,
+              max_visible_lines: props.max_input_lines,
+              focused: true
+            )
 
-    {:ok, text_input_state} = TextInput.init(text_input_props)
-    # Start with input focused
-    text_input_state = TextInput.set_focused(text_input_state, true)
+          # TextInput.init returns {:ok, state}, so we need to extract the state
+          {:ok, text_input_state} = TextInput.init(text_input_props)
+          text_input_state
+
+        existing ->
+          existing
+      end
 
     state = %{
       # Messages
@@ -173,13 +181,12 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       # Scroll state
       scroll_offset: 0,
       viewport_height: 20,
-      viewport_width: 80,
-      total_lines: calculate_total_lines(messages, props.max_collapsed_lines, MapSet.new(), 80),
+      viewport_width: props.viewport_width,
+      total_lines: calculate_total_lines(messages, props.max_collapsed_lines, MapSet.new(), props.viewport_width),
       # Expansion state
       expanded: MapSet.new(),
       # Focus state
       cursor_message_idx: 0,
-      input_focused: true,
       # Mouse drag state
       dragging: false,
       drag_start_y: nil,
@@ -187,9 +194,6 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       # Streaming state
       streaming_id: nil,
       was_at_bottom: true,
-      # Text input state
-      text_input: text_input_state,
-      max_input_lines: props.max_input_lines,
       # Configuration (from props)
       max_collapsed_lines: props.max_collapsed_lines,
       show_timestamps: props.show_timestamps,
@@ -198,80 +202,21 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       scroll_lines: props.scroll_lines,
       role_styles: props.role_styles,
       on_copy: props.on_copy,
-      on_submit: props.on_submit
+      # TextInput integration
+      text_input: text_input,
+      input_focused: props.input_focused
     }
 
     {:ok, state}
   end
 
   # ============================================================================
-  # Keyboard Event Handling
+  # Keyboard Event Handling (Section 9.4)
   # ============================================================================
 
-  @impl true
-  # Enter key - handle submission when input is focused
-  def handle_event(%TermUI.Event.Key{key: :enter} = event, %{input_focused: true} = state) do
-    # Get current input value
-    input_value = TextInput.get_value(state.text_input)
-
-    if String.trim(input_value) != "" do
-      # Submit the message
-      if state.on_submit, do: state.on_submit.(input_value)
-
-      # Clear the input
-      new_text_input = TextInput.clear(state.text_input)
-      {:ok, %{state | text_input: new_text_input}}
-    else
-      # Empty input, pass to TextInput (will be ignored)
-      {:ok, text_input} = TextInput.handle_event(event, state.text_input)
-      {:ok, %{state | text_input: text_input}}
-    end
-  end
-
-  # Escape key - toggle focus between input and messages
-  def handle_event(%TermUI.Event.Key{key: :escape}, state) do
-    new_input_focused = not state.input_focused
-    new_text_input = TextInput.set_focused(state.text_input, new_input_focused)
-    {:ok, %{state | input_focused: new_input_focused, text_input: new_text_input}}
-  end
-
-  # When input is focused, route most events to TextInput
-  def handle_event(%TermUI.Event.Key{} = event, %{input_focused: true} = state) do
-    # PageUp/PageDown still scroll messages even when input focused
-    case event do
-      %{key: :page_up} ->
-        {:ok, scroll_by(state, -state.viewport_height)}
-
-      %{key: :page_down} ->
-        {:ok, scroll_by(state, state.viewport_height)}
-
-      # Ctrl+Home/End scroll to top/bottom
-      %{key: :home, modifiers: modifiers} ->
-        if :ctrl in modifiers do
-          {:ok, scroll_to(state, :top)}
-        else
-          {:ok, text_input} = TextInput.handle_event(event, state.text_input)
-          {:ok, %{state | text_input: text_input}}
-        end
-
-      %{key: :end, modifiers: modifiers} ->
-        if :ctrl in modifiers do
-          {:ok, scroll_to(state, :bottom)}
-        else
-          {:ok, text_input} = TextInput.handle_event(event, state.text_input)
-          {:ok, %{state | text_input: text_input}}
-        end
-
-      # All other keys go to TextInput
-      _ ->
-        {:ok, text_input} = TextInput.handle_event(event, state.text_input)
-        {:ok, %{state | text_input: text_input}}
-    end
-  end
-
-  # When messages are focused, handle scroll and message navigation
   # Scroll Navigation
 
+  @impl true
   def handle_event(%TermUI.Event.Key{key: :up, modifiers: []}, state) do
     {:ok, scroll_by(state, -1)}
   end
@@ -395,102 +340,75 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
 
   @impl true
   def render(state, area) do
-    # Calculate input height based on current line count
-    input_line_count = TextInput.get_line_count(state.text_input)
-    input_height = min(input_line_count, state.max_input_lines)
-
-    # Calculate messages area height (total - input - 1 for separator)
-    messages_height = max(1, area.height - input_height - 1)
-
-    # Update viewport dimensions with adjusted height
+    # Update viewport dimensions from area
     state = %{
       state
-      | viewport_height: messages_height,
+      | viewport_height: area.height,
         viewport_width: area.width
     }
 
     # Calculate content width (excluding scrollbar)
     content_width = max(10, area.width - state.scrollbar_width)
 
-    # Render messages area
-    messages_area =
-      if Enum.empty?(state.messages) do
-        # Placeholder when no messages
-        placeholder = text("No messages yet", Style.new(fg: :white, attrs: [:dim]))
-        padding_count = max(0, messages_height - 1)
-        padding = for _ <- 1..padding_count, do: text("", nil)
-        messages_with_padding = [placeholder | padding]
-        scrollbar = render_scrollbar(state, messages_height)
-        stack(:horizontal, [stack(:vertical, messages_with_padding), scrollbar])
-      else
-        # Calculate visible range for virtual rendering
-        visible_range = calculate_visible_range(state)
+    # If no messages, show placeholder
+    if Enum.empty?(state.messages) do
+      text("No messages yet", Style.new(fg: :white, attrs: [:dim]))
+    else
+      # Calculate visible range for virtual rendering
+      visible_range = calculate_visible_range(state)
 
-        # Render only visible messages
-        visible_messages =
-          state.messages
-          |> Enum.with_index()
-          |> Enum.filter(fn {_msg, idx} ->
-            idx >= visible_range.start_msg_idx and idx <= visible_range.end_msg_idx
-          end)
+      # Render only visible messages
+      visible_messages =
+        state.messages
+        |> Enum.with_index()
+        |> Enum.filter(fn {_msg, idx} ->
+          idx >= visible_range.start_msg_idx and idx <= visible_range.end_msg_idx
+        end)
 
-        # Render message nodes with clipping
-        message_nodes =
-          visible_messages
-          |> Enum.flat_map(fn {msg, idx} ->
-            nodes = render_message(state, msg, idx, content_width)
+      # Render message nodes with clipping
+      message_nodes =
+        visible_messages
+        |> Enum.flat_map(fn {msg, idx} ->
+          nodes = render_message(state, msg, idx, content_width)
 
-            # Apply clipping for first/last visible messages
-            cond do
-              idx == visible_range.start_msg_idx and visible_range.start_line_offset > 0 ->
-                # Skip lines from start of first message
-                Enum.drop(nodes, visible_range.start_line_offset)
+          # Apply clipping for first/last visible messages
+          cond do
+            idx == visible_range.start_msg_idx and visible_range.start_line_offset > 0 ->
+              # Skip lines from start of first message
+              Enum.drop(nodes, visible_range.start_line_offset)
 
-              idx == visible_range.end_msg_idx and
-                idx == visible_range.start_msg_idx and
-                  visible_range.start_line_offset > 0 ->
-                # Both start and end are same message - handle both clips
-                nodes
-                |> Enum.drop(visible_range.start_line_offset)
-                |> Enum.take(messages_height)
+            idx == visible_range.end_msg_idx and
+              idx == visible_range.start_msg_idx and
+                visible_range.start_line_offset > 0 ->
+              # Both start and end are same message - handle both clips
+              nodes
+              |> Enum.drop(visible_range.start_line_offset)
+              |> Enum.take(state.viewport_height)
 
-              true ->
-                nodes
-            end
-          end)
-          |> Enum.take(messages_height)
-
-        # Pad with empty lines if content < viewport height
-        padding_count = max(0, messages_height - length(message_nodes))
-
-        padded_nodes =
-          if padding_count > 0 do
-            padding = for _ <- 1..padding_count, do: text("", nil)
-            message_nodes ++ padding
-          else
-            message_nodes
+            true ->
+              nodes
           end
+        end)
+        |> Enum.take(state.viewport_height)
 
-        # Render scrollbar
-        scrollbar = render_scrollbar(state, messages_height)
+      # Pad with empty lines if content < viewport height
+      padding_count = max(0, state.viewport_height - length(message_nodes))
 
-        # Combine content and scrollbar in horizontal stack
-        content_stack = stack(:vertical, padded_nodes)
-        stack(:horizontal, [content_stack, scrollbar])
-      end
+      padded_nodes =
+        if padding_count > 0 do
+          padding = for _ <- 1..padding_count, do: text("", nil)
+          message_nodes ++ padding
+        else
+          message_nodes
+        end
 
-    # Render separator line
-    separator_style = Style.new(fg: :bright_black)
-    separator = text(String.duplicate("─", area.width), separator_style)
+      # Render scrollbar
+      scrollbar = render_scrollbar(state, area.height)
 
-    # Render text input
-    # Update input width to match content area
-    text_input_with_width = %{state.text_input | width: content_width}
-    input_area = %{width: content_width, height: input_height}
-    input_node = TextInput.render(text_input_with_width, input_area)
-
-    # Stack: messages | separator | input
-    stack(:vertical, [messages_area, separator, input_node])
+      # Combine content and scrollbar in horizontal stack
+      content_stack = stack(:vertical, padded_nodes)
+      stack(:horizontal, [content_stack, scrollbar])
+    end
   end
 
   # ============================================================================
@@ -830,46 +748,37 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   end
 
   # ============================================================================
-  # Public API - Text Input
+  # Public API - TextInput Integration
   # ============================================================================
 
   @doc """
-  Gets the current input value.
+  Sets the TextInput widget state.
+
+  Pass nil to remove the input.
   """
-  @spec get_input_value(state()) :: String.t()
-  def get_input_value(state) do
-    TextInput.get_value(state.text_input)
+  @spec set_text_input(state(), map() | nil) :: state()
+  def set_text_input(state, text_input) do
+    %{state | text_input: text_input}
   end
 
   @doc """
-  Sets the input value.
+  Gets the current TextInput widget state.
   """
-  @spec set_input_value(state(), String.t()) :: state()
-  def set_input_value(state, value) do
-    new_text_input = TextInput.set_value(state.text_input, value)
-    %{state | text_input: new_text_input}
+  @spec get_text_input(state()) :: map() | nil
+  def get_text_input(state) do
+    state.text_input
   end
 
   @doc """
-  Clears the input.
+  Sets whether the input has focus.
   """
-  @spec clear_input(state()) :: state()
-  def clear_input(state) do
-    new_text_input = TextInput.clear(state.text_input)
-    %{state | text_input: new_text_input}
+  @spec set_input_focused(state(), boolean()) :: state()
+  def set_input_focused(state, focused) do
+    %{state | input_focused: focused}
   end
 
   @doc """
-  Sets focus to the input field.
-  """
-  @spec focus_input(state()) :: state()
-  def focus_input(state) do
-    new_text_input = TextInput.set_focused(state.text_input, true)
-    %{state | text_input: new_text_input, input_focused: true}
-  end
-
-  @doc """
-  Returns whether the input is focused.
+  Returns whether the input has focus.
   """
   @spec input_focused?(state()) :: boolean()
   def input_focused?(state) do
@@ -877,11 +786,46 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   end
 
   @doc """
-  Updates the on_submit callback.
+  Gets the current input value from the TextInput widget.
+
+  Returns empty string if no text_input is set.
   """
-  @spec set_on_submit(state(), (String.t() -> any()) | nil) :: state()
-  def set_on_submit(state, callback) do
-    %{state | on_submit: callback}
+  @spec get_input_value(state()) :: String.t()
+  def get_input_value(state) do
+    alias TermUI.Widgets.TextInput
+
+    case state.text_input do
+      nil -> ""
+      text_input -> TextInput.get_value(text_input)
+    end
+  end
+
+  @doc """
+  Sets the input value in the TextInput widget.
+
+  No-op if no text_input is set.
+  """
+  @spec set_input_value(state(), String.t()) :: state()
+  def set_input_value(state, value) do
+    alias TermUI.Widgets.TextInput
+
+    case state.text_input do
+      nil ->
+        state
+
+      text_input ->
+        %{state | text_input: TextInput.set_value(text_input, value)}
+    end
+  end
+
+  @doc """
+  Clears the input value.
+
+  No-op if no text_input is set.
+  """
+  @spec clear_input(state()) :: state()
+  def clear_input(state) do
+    set_input_value(state, "")
   end
 
   # ============================================================================

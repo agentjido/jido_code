@@ -2656,7 +2656,12 @@ defmodule JidoCode.TUI do
       ui_state when ui_state.conversation_view != nil ->
         {width, height} = state.window
         available_height = max(height - 10, 1)
-        content_width = max(width - round(width * 0.20) - 5, 30)
+
+        # Calculate content width based on actual sidebar state
+        # Subtract sidebar width only if visible, plus frame borders (2) and gap (1)
+        sidebar_space = if state.sidebar_visible, do: state.sidebar_width + 3, else: 0
+        content_width = max(width - sidebar_space - 2, 30)
+
         area = %{x: 0, y: 0, width: content_width, height: available_height}
         ConversationView.render(ui_state.conversation_view, area)
 

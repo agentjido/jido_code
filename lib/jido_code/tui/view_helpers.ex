@@ -382,7 +382,7 @@ defmodule JidoCode.TUI.ViewHelpers do
 
     reasoning_hint = if state.show_reasoning, do: "Ctrl+R: Hide", else: "Ctrl+R: Reasoning"
     tools_hint = if state.show_tool_details, do: "Ctrl+T: Hide", else: "Ctrl+T: Tools"
-    hints = "#{reasoning_hint} | #{tools_hint} | Ctrl+M: Model | Ctrl+C: Quit"
+    hints = "#{reasoning_hint} | #{tools_hint} | Ctrl+M: Model | Ctrl+D: Quit"
 
     padded_text = pad_or_truncate(hints, content_width)
     bar_style = Style.new(fg: Theme.get_color(:foreground) || :white, bg: :black)

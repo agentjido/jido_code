@@ -714,9 +714,9 @@ defmodule JidoCode.TUITest do
   end
 
   describe "event_to_msg/2" do
-    test "Ctrl+C returns {:msg, :quit}" do
+    test "Ctrl+D returns {:msg, :quit}" do
       model = %Model{}
-      event = Event.key("c", modifiers: [:ctrl])
+      event = Event.key("d", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :quit}
     end

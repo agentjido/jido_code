@@ -66,7 +66,7 @@ defmodule JidoCode.TUI do
   #   {:key_input, char}     - Printable character typed
   #   {:key_input, :backspace} - Backspace pressed
   #   {:submit}              - Enter key pressed
-  #   :quit                  - Ctrl+C pressed
+  #   :quit                  - Ctrl+D pressed
   #
   # PubSub messages (from agent):
   #   {:agent_response, content}  - Agent response received
@@ -1224,15 +1224,16 @@ defmodule JidoCode.TUI do
   Converts terminal events to TUI messages.
 
   Handles keyboard events:
-  - Ctrl+C → :quit
+  - Ctrl+D → :quit
   - Ctrl+R → :toggle_reasoning
   - Ctrl+T → :toggle_tool_details
   - Up/Down arrows → scroll messages
   - Other key events → forwarded to TextInput widget
   """
   @impl true
-  # Ctrl+C to quit
-  def event_to_msg(%Event.Key{key: "c", modifiers: modifiers} = event, _state) do
+  # Ctrl+D to quit (EOF/exit - common in Unix shells)
+  # Note: Ctrl+C is handled by Erlang runtime, Ctrl+Q is XON flow control
+  def event_to_msg(%Event.Key{key: "d", modifiers: modifiers} = event, _state) do
     if :ctrl in modifiers do
       {:msg, :quit}
     else

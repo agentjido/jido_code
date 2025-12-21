@@ -42,19 +42,43 @@ defmodule JidoCode.TUI.Widgets.Frame do
 
   @charsets %{
     single: %{
-      tl: "┌", tr: "┐", bl: "└", br: "┘",
-      h: "─", v: "│",
-      t_down: "┬", t_up: "┴", t_right: "├", t_left: "┤", cross: "┼"
+      tl: "┌",
+      tr: "┐",
+      bl: "└",
+      br: "┘",
+      h: "─",
+      v: "│",
+      t_down: "┬",
+      t_up: "┴",
+      t_right: "├",
+      t_left: "┤",
+      cross: "┼"
     },
     double: %{
-      tl: "╔", tr: "╗", bl: "╚", br: "╝",
-      h: "═", v: "║",
-      t_down: "╦", t_up: "╩", t_right: "╠", t_left: "╣", cross: "╬"
+      tl: "╔",
+      tr: "╗",
+      bl: "╚",
+      br: "╝",
+      h: "═",
+      v: "║",
+      t_down: "╦",
+      t_up: "╩",
+      t_right: "╠",
+      t_left: "╣",
+      cross: "╬"
     },
     rounded: %{
-      tl: "╭", tr: "╮", bl: "╰", br: "╯",
-      h: "─", v: "│",
-      t_down: "┬", t_up: "┴", t_right: "├", t_left: "┤", cross: "┼"
+      tl: "╭",
+      tr: "╮",
+      bl: "╰",
+      br: "╯",
+      h: "─",
+      v: "│",
+      t_down: "┬",
+      t_up: "┴",
+      t_right: "├",
+      t_left: "┤",
+      cross: "┼"
     }
   }
 
@@ -154,11 +178,11 @@ defmodule JidoCode.TUI.Widgets.Frame do
   end
 
   # Render a column of vertical border characters
+  # Uses a single text node with newlines instead of individual nodes per line
+  # to avoid performance issues on large terminals
   defp render_vertical_border_column(chars, height, style) do
-    lines =
-      1..height
-      |> Enum.map(fn _ -> text(chars.v, style) end)
-
-    stack(:vertical, lines)
+    # Create a single multi-line string with the vertical border character
+    border_lines = List.duplicate(chars.v, height) |> Enum.join("\n")
+    text(border_lines, style)
   end
 end

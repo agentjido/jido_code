@@ -1543,9 +1543,16 @@ defmodule JidoCode.TUI do
   def update(:quit, state) do
     # Clear terminal and disable mouse tracking before quitting
     # This ensures clean exit even if Runtime cleanup is incomplete
-    IO.write("\e[?1006l\e[?1003l\e[?1002l\e[?1000l")  # Disable mouse modes
-    IO.write("\e[?25h")  # Show cursor
-    IO.write("\e[2J\e[H")  # Clear screen and move to top-left
+    # Disable all mouse tracking modes (SGR extended, all motion, button, normal)
+    IO.write("\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?9l")
+    # Show cursor
+    IO.write("\e[?25h")
+    # Exit alternate screen buffer if used
+    IO.write("\e[?1049l")
+    # Clear screen and move to top-left
+    IO.write("\e[2J\e[H")
+    # Reset terminal attributes to normal
+    IO.write("\e[0m")
     {state, [:quit]}
   end
 

@@ -507,23 +507,21 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp render_sidebar(state, width, height) do
     border_style = Style.new(fg: :bright_black)
 
-    # Content dimensions (inside top/bottom borders)
-    inner_height = max(height - 2, 1)
+    # Content dimensions (inside frame borders)
+    inner_width = max(width - 2, 1)
 
     # Render header and session list
-    header_view = render_sidebar_header(width)
-    session_list = render_session_list(state, width)
+    header_view = render_sidebar_header(inner_width)
+    session_list = render_session_list(state, inner_width)
     content = stack(:vertical, [header_view, session_list])
 
-    # Wrap content in box to fill inner height
-    content_box = box([content], width: width, height: inner_height)
-
-    # Top and bottom borders only
-    top_border = text(String.duplicate(@border.horizontal, width), border_style)
-    bottom_border = text(String.duplicate(@border.horizontal, width), border_style)
-
-    # Stack: top border, content, bottom border
-    stack(:vertical, [top_border, content_box, bottom_border])
+    # Use Frame widget for complete border
+    Frame.render(
+      content: content,
+      width: width,
+      height: height,
+      style: border_style
+    )
   end
 
   defp render_session_list(state, width) do
@@ -654,5 +652,4 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp status_icon(:processing), do: "⟳"
   defp status_icon(:error), do: "✗"
   defp status_icon(_), do: "○"
-
 end

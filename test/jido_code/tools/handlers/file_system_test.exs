@@ -34,7 +34,8 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       end)
 
       # Start required registries if not already started
-      unless Process.whereis(JidoCode.SessionProcessRegistry) do
+      # Use GenServer.whereis for Registry names instead of Process.whereis
+      unless GenServer.whereis(JidoCode.SessionProcessRegistry) do
         start_supervised!({Registry, keys: :unique, name: JidoCode.SessionProcessRegistry})
       end
 

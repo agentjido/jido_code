@@ -594,13 +594,23 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
         # Add space between tabs (except after last)
         space = if is_last, do: [], else: [text(" ", nil)]
 
-        {top_acc ++ [top_part] ++ space, mid_acc ++ [middle_part] ++ space, bottom_acc ++ [bottom_part] ++ space}
+        {top_acc ++ [top_part] ++ space, mid_acc ++ [middle_part] ++ space,
+         bottom_acc ++ [bottom_part] ++ space}
       end)
 
     {top_elements, middle_elements, bottom_elements}
   end
 
-  defp render_single_tab(label, width, _is_last, is_closeable, style, close_style, activity_icon \\ nil, activity_style \\ nil) do
+  defp render_single_tab(
+         label,
+         width,
+         _is_last,
+         is_closeable,
+         style,
+         close_style,
+         activity_icon,
+         activity_style
+       ) do
     # Simple rounded box style: ╭───────╮ on top, ╰───────╯ on bottom
     inner_width = width - 2
     top_line = @top_left <> String.duplicate(@horizontal, inner_width) <> @top_right
@@ -608,7 +618,9 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
 
     # Build label with padding (accounting for activity icon space)
     has_activity = activity_icon != nil
-    {label_part, _close_part} = build_label_with_close(label, inner_width, is_closeable, has_activity)
+
+    {label_part, _close_part} =
+      build_label_with_close(label, inner_width, is_closeable, has_activity)
 
     # Top element: ╭───────╮
     top_element = text(top_line, style)
@@ -651,7 +663,7 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
     {top_element, bottom_element, text(bottom_line, style)}
   end
 
-  defp build_label_with_close(label, inner_width, is_closeable, has_activity \\ false) do
+  defp build_label_with_close(label, inner_width, is_closeable, has_activity) do
     # Activity icon takes 2 chars (icon + space), handled separately in render
     activity_width = if has_activity, do: 2, else: 0
 
@@ -825,7 +837,7 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
   defp render_padded_content(nil, width, _height, padding) do
     # Empty content - just show padding
     padding_str = String.duplicate(" ", padding)
-    inner_width = width - (padding * 2)
+    inner_width = width - padding * 2
     empty_line = padding_str <> String.duplicate(" ", inner_width) <> padding_str
     text(empty_line)
   end

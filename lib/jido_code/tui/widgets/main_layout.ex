@@ -507,21 +507,23 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp render_sidebar(state, width, height) do
     border_style = Style.new(fg: :bright_black)
 
-    # Content dimensions (inside frame borders)
-    inner_width = max(width - 2, 1)
+    # Content dimensions (inside top/bottom borders)
+    inner_height = max(height - 2, 1)
 
     # Render header and session list
-    header_view = render_sidebar_header(inner_width)
-    session_list = render_session_list(state, inner_width)
+    header_view = render_sidebar_header(width)
+    session_list = render_session_list(state, width)
     content = stack(:vertical, [header_view, session_list])
 
-    # Use Frame widget for complete border
-    Frame.render(
-      content: content,
-      width: width,
-      height: height,
-      style: border_style
-    )
+    # Wrap content in box to fill inner height
+    content_box = box([content], width: width, height: inner_height)
+
+    # Top and bottom borders only
+    top_border = text(String.duplicate(@border.horizontal, width), border_style)
+    bottom_border = text(String.duplicate(@border.horizontal, width), border_style)
+
+    # Stack: top border, content, bottom border
+    stack(:vertical, [top_border, content_box, bottom_border])
   end
 
   defp render_session_list(state, width) do
@@ -584,48 +586,56 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp render_tabs_pane(state, width, height, input_view) do
     border_style = Style.new(fg: :bright_black)
 
-    # Content dimensions (inside frame borders)
-    inner_width = max(width - 2, 1)
-    inner_height = max(height - 2, 1)
+    if state.tabs_state do
+      # Render folder tabs (tab bar only - 3 rows) - outside the frame
+      tab_bar = FolderTabs.render(state.tabs_state)
+      tab_bar_height = 3
 
-    # Build inner content
-    inner_content =
-      if state.tabs_state do
-        # Render folder tabs (tab bar only - 2 rows)
-        tab_bar = FolderTabs.render(state.tabs_state)
+      # Frame dimensions (below tab bar)
+      frame_height = max(height - tab_bar_height, 3)
+      inner_width = max(width - 2, 1)
+      inner_height = max(frame_height - 2, 1)
 
-        # Get selected tab's status and content
-        status_text = FolderTabs.get_selected_status(state.tabs_state) || ""
-        content = FolderTabs.get_selected_content(state.tabs_state)
+      # Get selected tab's status and content
+      status_text = FolderTabs.get_selected_status(state.tabs_state) || ""
+      content = FolderTabs.get_selected_content(state.tabs_state)
 
-        # Build status bar (top, after tab bar)
-        status_style = Style.new(fg: :bright_black)
-        status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
+      # Build status bar (top of frame content)
+      status_style = Style.new(fg: :bright_black)
+      status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
 
-        # Calculate content height (inner - tab_bar(3) - status(1) - input(1 if present))
-        input_height = if input_view, do: 1, else: 0
-        content_height = max(inner_height - 4 - input_height, 1)
+      # Calculate content height (inner - status(1) - input(1 if present))
+      input_height = if input_view, do: 1, else: 0
+      content_height = max(inner_height - 1 - input_height, 1)
 
-        # Build content area - conversation view (fills remaining space)
-        content_view = if content, do: content, else: empty()
-        content_box = box([content_view], width: inner_width, height: content_height)
+      # Build content area - conversation view (fills remaining space)
+      content_view = if content, do: content, else: empty()
+      content_box = box([content_view], width: inner_width, height: content_height)
 
-        # Layout: tab_bar | status_bar | conversation | input (per-session)
-        elements = [tab_bar, status_bar, content_box]
-        elements = if input_view, do: elements ++ [input_view], else: elements
+      # Layout inside frame: status_bar | conversation | input
+      frame_elements = [status_bar, content_box]
+      frame_elements = if input_view, do: frame_elements ++ [input_view], else: frame_elements
+      frame_content = stack(:vertical, frame_elements)
 
-        stack(:vertical, elements)
-      else
-        empty()
-      end
+      # Frame around content (not including tab bar)
+      content_frame = Frame.render(
+        content: frame_content,
+        width: width,
+        height: frame_height,
+        style: border_style
+      )
 
-    # Use Frame widget to draw borders around the content
-    Frame.render(
-      content: inner_content,
-      width: width,
-      height: height,
-      style: border_style
-    )
+      # Stack: tab_bar above frame
+      stack(:vertical, [tab_bar, content_frame])
+    else
+      # No tabs - just render empty frame
+      Frame.render(
+        content: empty(),
+        width: width,
+        height: height,
+        style: border_style
+      )
+    end
   end
 
   defp render_gap(height) do
@@ -652,4 +662,5 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp status_icon(:processing), do: "⟳"
   defp status_icon(:error), do: "✗"
   defp status_icon(_), do: "○"
+
 end

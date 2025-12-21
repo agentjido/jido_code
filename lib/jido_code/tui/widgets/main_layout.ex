@@ -561,7 +561,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     text(String.pad_trailing(line, width), style)
   end
 
-  # Render sidebar header (2 lines + separator)
+  # Render sidebar header (2 lines to match tab height)
   defp render_sidebar_header(width) do
     title = "JidoCode"
     header_style = Style.new(fg: :cyan, attrs: [:bold])
@@ -570,15 +570,11 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     # Line 1: Title
     line1 = String.pad_trailing(" " <> title, width)
 
-    # Line 2: Empty line
-    line2 = String.duplicate(" ", width)
-
-    # Horizontal separator
+    # Line 2: Horizontal separator
     separator = String.duplicate(@border.horizontal, width)
 
     stack(:vertical, [
       text(line1, header_style),
-      text(line2, nil),
       text(separator, separator_style)
     ])
   end
@@ -604,16 +600,19 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
       status_style = Style.new(fg: :bright_black)
       status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
 
-      # Calculate content height (inner - status(1) - input(1 if present))
+      # Calculate content height (inner - status(1) - empty_line(1) - input(1 if present))
       input_height = if input_view, do: 1, else: 0
-      content_height = max(inner_height - 1 - input_height, 1)
+      content_height = max(inner_height - 2 - input_height, 1)
 
       # Build content area - conversation view (fills remaining space)
       content_view = if content, do: content, else: empty()
       content_box = box([content_view], width: inner_width, height: content_height)
 
-      # Layout inside frame: status_bar | conversation | input
-      frame_elements = [status_bar, content_box]
+      # Empty line between status bar and content
+      empty_line = text(String.duplicate(" ", inner_width), nil)
+
+      # Layout inside frame: status_bar | empty_line | conversation | input
+      frame_elements = [status_bar, empty_line, content_box]
       frame_elements = if input_view, do: frame_elements ++ [input_view], else: frame_elements
       frame_content = stack(:vertical, frame_elements)
 
@@ -622,7 +621,8 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
         content: frame_content,
         width: width,
         height: frame_height,
-        style: border_style
+        style: border_style,
+        charset: :rounded
       )
 
       # Stack: tab_bar above frame

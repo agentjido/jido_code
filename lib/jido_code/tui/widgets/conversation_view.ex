@@ -406,8 +406,10 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       scrollbar = render_scrollbar(state, area.height)
 
       # Combine content and scrollbar in horizontal stack
+      # Wrap content in a box with explicit width to fill the available space
       content_stack = stack(:vertical, padded_nodes)
-      stack(:horizontal, [content_stack, scrollbar])
+      content_box = box([content_stack], width: content_width, height: area.height)
+      stack(:horizontal, [content_box, scrollbar])
     end
   end
 

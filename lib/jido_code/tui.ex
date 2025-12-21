@@ -2657,10 +2657,15 @@ defmodule JidoCode.TUI do
         {width, height} = state.window
         available_height = max(height - 10, 1)
 
-        # Calculate content width based on actual sidebar state
-        # Subtract sidebar width only if visible, plus frame borders (2) and gap (1)
-        sidebar_space = if state.sidebar_visible, do: state.sidebar_width + 3, else: 0
-        content_width = max(width - sidebar_space - 2, 30)
+        # Calculate content width matching MainLayout's calculation exactly:
+        # MainLayout uses: tabs_width = width - sidebar_width - gap_width
+        # Then: inner_width = tabs_width - 2 (for Frame borders)
+        sidebar_proportion = 0.20
+        sidebar_width = if state.sidebar_visible, do: round(width * sidebar_proportion), else: 0
+        gap_width = if state.sidebar_visible, do: 1, else: 0
+        tabs_width = width - sidebar_width - gap_width
+        # inner_width accounts for Frame borders (2 chars total)
+        content_width = max(tabs_width - 2, 30)
 
         area = %{x: 0, y: 0, width: content_width, height: available_height}
         ConversationView.render(ui_state.conversation_view, area)

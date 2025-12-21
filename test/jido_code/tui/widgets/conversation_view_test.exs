@@ -23,14 +23,21 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
   end
 
   # Helper to extract content stack from render result
-  # render/2 returns: stack(:horizontal, [content_stack, scrollbar]) for messages
+  # render/2 returns: stack(:horizontal, [box([content_stack]), scrollbar]) for messages
   # or just text node for empty messages
   defp get_content_stack(%TermUI.Component.RenderNode{
          type: :stack,
          direction: :horizontal,
-         children: [content | _]
+         children: [content_box | _]
        }) do
-    content
+    # Content is wrapped in a box, extract the inner content_stack
+    case content_box do
+      %TermUI.Component.RenderNode{type: :box, children: [content_stack | _]} ->
+        content_stack
+
+      _ ->
+        content_box
+    end
   end
 
   defp get_content_stack(result), do: result

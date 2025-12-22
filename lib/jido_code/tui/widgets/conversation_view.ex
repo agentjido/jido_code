@@ -182,7 +182,13 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       scroll_offset: 0,
       viewport_height: 20,
       viewport_width: props.viewport_width,
-      total_lines: calculate_total_lines(messages, props.max_collapsed_lines, MapSet.new(), props.viewport_width),
+      total_lines:
+        calculate_total_lines(
+          messages,
+          props.max_collapsed_lines,
+          MapSet.new(),
+          props.viewport_width
+        ),
       # Expansion state
       expanded: MapSet.new(),
       # Focus state

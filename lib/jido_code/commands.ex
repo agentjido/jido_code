@@ -519,7 +519,8 @@ defmodule JidoCode.Commands do
         {:error, "Maximum 10 sessions reached. Close a session first."}
 
       {:error, {:session_limit_reached, current, max}} ->
-        {:error, "Maximum sessions reached (#{current}/#{max} sessions open). Close a session first."}
+        {:error,
+         "Maximum sessions reached (#{current}/#{max} sessions open). Close a session first."}
 
       {:error, :project_already_open} ->
         {:error, "Project already open in another session."}
@@ -723,7 +724,8 @@ defmodule JidoCode.Commands do
           {:error, "Maximum 10 sessions reached. Close a session first."}
 
         {:error, {:session_limit_reached, current, max}} ->
-          {:error, "Maximum sessions reached (#{current}/#{max} sessions open). Close a session first."}
+          {:error,
+           "Maximum sessions reached (#{current}/#{max} sessions open). Close a session first."}
 
         {:error, {:rate_limit_exceeded, retry_after}} ->
           {:error, "Rate limit exceeded. Try again in #{retry_after} seconds."}

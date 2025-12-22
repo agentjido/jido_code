@@ -95,11 +95,12 @@ defmodule JidoCode.TUI.MessageHandlers do
             ui.agent_activity
           end
 
-        %{ui |
-          conversation_view: new_conversation_view,
-          streaming_message: new_streaming_message,
-          is_streaming: true,
-          agent_activity: new_activity
+        %{
+          ui
+          | conversation_view: new_conversation_view,
+            streaming_message: new_streaming_message,
+            is_streaming: true,
+            agent_activity: new_activity
         }
       end)
 
@@ -149,11 +150,12 @@ defmodule JidoCode.TUI.MessageHandlers do
             ui.agent_activity
           end
 
-        %{ui |
-          conversation_view: new_conversation_view,
-          streaming_message: new_streaming_message,
-          is_streaming: true,
-          agent_activity: new_activity
+        %{
+          ui
+          | conversation_view: new_conversation_view,
+            streaming_message: new_streaming_message,
+            is_streaming: true,
+            agent_activity: new_activity
         }
       end)
 
@@ -206,12 +208,13 @@ defmodule JidoCode.TUI.MessageHandlers do
           end
 
         # Add message to session's messages and clear streaming state
-        %{ui |
-          conversation_view: new_conversation_view,
-          streaming_message: nil,
-          is_streaming: false,
-          messages: [message | ui.messages],
-          agent_activity: :idle
+        %{
+          ui
+          | conversation_view: new_conversation_view,
+            streaming_message: nil,
+            is_streaming: false,
+            messages: [message | ui.messages],
+            agent_activity: :idle
         }
       end)
 
@@ -249,12 +252,13 @@ defmodule JidoCode.TUI.MessageHandlers do
           end
 
         # Add message to session's messages and clear streaming state
-        %{ui |
-          conversation_view: new_conversation_view,
-          streaming_message: nil,
-          is_streaming: false,
-          messages: [message | ui.messages],
-          agent_activity: :idle
+        %{
+          ui
+          | conversation_view: new_conversation_view,
+            streaming_message: nil,
+            is_streaming: false,
+            messages: [message | ui.messages],
+            agent_activity: :idle
         }
       end)
 
@@ -398,7 +402,8 @@ defmodule JidoCode.TUI.MessageHandlers do
   - Active session: Full update (add to tool_calls list), increment tool count
   - Inactive session: Increment tool count for sidebar badge
   """
-  @spec handle_tool_call(String.t(), String.t(), map(), String.t(), Model.t()) :: {Model.t(), list()}
+  @spec handle_tool_call(String.t(), String.t(), map(), String.t(), Model.t()) ::
+          {Model.t(), list()}
   def handle_tool_call(session_id, tool_name, params, call_id, state) do
     if session_id == state.active_session_id do
       handle_active_tool_call(session_id, tool_name, params, call_id, state)
@@ -422,9 +427,10 @@ defmodule JidoCode.TUI.MessageHandlers do
     # Add tool call to active session's UI state and set agent_activity
     updated_state =
       Model.update_active_ui_state(state, fn ui ->
-        %{ui |
-          tool_calls: [tool_call_entry | ui.tool_calls],
-          agent_activity: {:tool_executing, tool_name}
+        %{
+          ui
+          | tool_calls: [tool_call_entry | ui.tool_calls],
+            agent_activity: {:tool_executing, tool_name}
         }
       end)
 

@@ -720,7 +720,8 @@ defmodule JidoCode.TUI do
           on_copy: &JidoCode.TUI.Clipboard.copy_to_clipboard/1
         )
 
-      {:ok, conversation_view_state} = JidoCode.TUI.Widgets.ConversationView.init(conversation_view_props)
+      {:ok, conversation_view_state} =
+        JidoCode.TUI.Widgets.ConversationView.init(conversation_view_props)
 
       # Create Accordion for this session's sidebar sections
       accordion =
@@ -863,8 +864,11 @@ defmodule JidoCode.TUI do
     @spec get_active_input_value(t()) :: String.t()
     def get_active_input_value(model) do
       case get_active_conversation_view(model) do
-        nil -> ""
-        conversation_view -> JidoCode.TUI.Widgets.ConversationView.get_input_value(conversation_view)
+        nil ->
+          ""
+
+        conversation_view ->
+          JidoCode.TUI.Widgets.ConversationView.get_input_value(conversation_view)
       end
     end
 
@@ -1592,7 +1596,12 @@ defmodule JidoCode.TUI do
                   ui_state.conversation_view
                 end
 
-              updated_ui = %{ui_state | text_input: new_text_input, conversation_view: new_conversation_view}
+              updated_ui = %{
+                ui_state
+                | text_input: new_text_input,
+                  conversation_view: new_conversation_view
+              }
+
               {session_id, Map.put(session, :ui_state, updated_ui)}
           end
         end)
@@ -1679,7 +1688,8 @@ defmodule JidoCode.TUI do
 
     new_index =
       if state.sidebar_selected_index == 0 do
-        max_index  # Wrap to bottom
+        # Wrap to bottom
+        max_index
       else
         state.sidebar_selected_index - 1
       end
@@ -1693,7 +1703,8 @@ defmodule JidoCode.TUI do
 
     new_index =
       if state.sidebar_selected_index >= max_index do
-        0  # Wrap to top
+        # Wrap to top
+        0
       else
         state.sidebar_selected_index + 1
       end
@@ -1800,7 +1811,9 @@ defmodule JidoCode.TUI do
 
       {:error, reason} ->
         # File.cwd() failure is rare but handle gracefully
-        new_state = add_session_message(state, "Failed to get current directory: #{inspect(reason)}")
+        new_state =
+          add_session_message(state, "Failed to get current directory: #{inspect(reason)}")
+
         {new_state, []}
     end
   end
@@ -1871,12 +1884,16 @@ defmodule JidoCode.TUI do
   # Cycle to previous session (Ctrl+Shift+Tab)
   def update(:prev_tab, state) do
     case state.session_order do
-      [] -> {state, []}
-      [_single] -> {state, []}
+      [] ->
+        {state, []}
+
+      [_single] ->
+        {state, []}
 
       order ->
         case Enum.find_index(order, &(&1 == state.active_session_id)) do
-          nil -> {state, []}
+          nil ->
+            {state, []}
 
           current_idx ->
             # Calculate previous index with wrap-around

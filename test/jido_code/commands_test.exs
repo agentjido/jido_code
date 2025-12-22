@@ -101,7 +101,8 @@ defmodule JidoCode.CommandsTest do
       setup_api_key("anthropic")
       config = %{provider: nil, model: nil}
 
-      {:ok, message, new_config} = Commands.execute("/model anthropic:claude-3-5-haiku-20241022", config)
+      {:ok, message, new_config} =
+        Commands.execute("/model anthropic:claude-3-5-haiku-20241022", config)
 
       assert message =~ "Model set to anthropic:claude-3-5-haiku-20241022"
       assert new_config.provider == "anthropic"

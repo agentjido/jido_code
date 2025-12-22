@@ -117,7 +117,10 @@ defmodule JidoCode.Session.SupervisorTest do
       Supervisor.stop(pid)
     end
 
-    test "starts Manager and State children (Agent is started lazily)", %{tmp_dir: tmp_dir, config: config} do
+    test "starts Manager and State children (Agent is started lazily)", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
 
       {:ok, pid} = SessionSupervisor.start_link(session: session)
@@ -361,7 +364,10 @@ defmodule JidoCode.Session.SupervisorTest do
       assert Process.alive?(pid)
     end
 
-    test "returns same pid as direct Registry lookup (after lazy start)", %{tmp_dir: tmp_dir, config: config} do
+    test "returns same pid as direct Registry lookup (after lazy start)", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -378,7 +384,10 @@ defmodule JidoCode.Session.SupervisorTest do
       assert {:error, :not_found} = SessionSupervisor.get_agent("unknown-session-id")
     end
 
-    test "returns error when agent not started (lazy startup)", %{tmp_dir: tmp_dir, config: config} do
+    test "returns error when agent not started (lazy startup)", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -386,7 +395,10 @@ defmodule JidoCode.Session.SupervisorTest do
       assert {:error, :not_found} = SessionSupervisor.get_agent(session.id)
     end
 
-    test "returns error after session stopped (with lazy started agent)", %{tmp_dir: tmp_dir, config: config} do
+    test "returns error after session stopped (with lazy started agent)", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -408,7 +420,10 @@ defmodule JidoCode.Session.SupervisorTest do
   end
 
   describe "get_manager/1, get_state/1, and get_agent/1 return different pids" do
-    test "Manager and State are different processes (Agent is lazy)", %{tmp_dir: tmp_dir, config: config} do
+    test "Manager and State are different processes (Agent is lazy)", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -421,7 +436,10 @@ defmodule JidoCode.Session.SupervisorTest do
       assert manager_pid != state_pid
     end
 
-    test "Agent can be started lazily and is different from Manager/State", %{tmp_dir: tmp_dir, config: config} do
+    test "Agent can be started lazily and is different from Manager/State", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -627,7 +645,10 @@ defmodule JidoCode.Session.SupervisorTest do
       assert SessionSupervisor.agent_running?(session.id)
     end
 
-    test "start_agent/1 returns already_started if agent is running", %{tmp_dir: tmp_dir, config: config} do
+    test "start_agent/1 returns already_started if agent is running", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
 
@@ -651,7 +672,10 @@ defmodule JidoCode.Session.SupervisorTest do
       refute SessionSupervisor.agent_running?(session.id)
     end
 
-    test "stop_agent/1 returns not_running if agent is not started", %{tmp_dir: tmp_dir, config: config} do
+    test "stop_agent/1 returns not_running if agent is not started", %{
+      tmp_dir: tmp_dir,
+      config: config
+    } do
       {:ok, session} = create_session(tmp_dir, config)
       {:ok, _sup_pid} = SessionSupervisor.start_link(session: session)
 

@@ -1214,7 +1214,10 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
 
       # Get messages_area (horizontal stack with [content, scrollbar])
       messages_area = get_messages_area(result)
-      assert %TermUI.Component.RenderNode{type: :stack, children: [_content, scrollbar]} = messages_area
+
+      assert %TermUI.Component.RenderNode{type: :stack, children: [_content, scrollbar]} =
+               messages_area
+
       assert %TermUI.Component.RenderNode{type: :stack, direction: :vertical} = scrollbar
     end
   end
@@ -1752,7 +1755,14 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       # Create many messages
       messages = Enum.map(1..20, &make_message("#{&1}", :user, "Message #{&1}"))
       state = init_state(messages: messages)
-      state = %{state | viewport_height: 5, cursor_message_idx: 0, scroll_offset: 0, input_focused: false}
+
+      state = %{
+        state
+        | viewport_height: 5,
+          cursor_message_idx: 0,
+          scroll_offset: 0,
+          input_focused: false
+      }
 
       # Move focus down several times
       event = %TermUI.Event.Key{key: :down, modifiers: [:ctrl]}

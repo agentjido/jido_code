@@ -372,7 +372,8 @@ defmodule JidoCode.TUI.ModelTest do
       }
 
       # Add ui_state to match what would be in a real model
-      existing_session_with_ui = Map.put(existing_session, :ui_state, Model.default_ui_state({80, 24}))
+      existing_session_with_ui =
+        Map.put(existing_session, :ui_state, Model.default_ui_state({80, 24}))
 
       model = %Model{
         sessions: %{"s1" => existing_session_with_ui},

@@ -329,7 +329,8 @@ defmodule JidoCode.Session do
   # Validate write permission by attempting to create and delete a temp file
   defp validate_write_permission(path) do
     # Generate a unique temp filename
-    temp_file = Path.join(path, ".jido_code_permission_check_#{System.unique_integer([:positive])}")
+    temp_file =
+      Path.join(path, ".jido_code_permission_check_#{System.unique_integer([:positive])}")
 
     case File.write(temp_file, "") do
       :ok ->

@@ -194,6 +194,7 @@ defmodule JidoCode.TUITest do
     test "input is managed through ConversationView in session UI state" do
       # Create a session with UI state that includes ConversationView
       session = create_test_session("test-id", "Test", "/tmp")
+
       ui_state = %{
         conversation_view: create_conversation_view("test input"),
         accordion: nil,
@@ -206,6 +207,7 @@ defmodule JidoCode.TUITest do
         agent_activity: :idle,
         awaiting_input: nil
       }
+
       session_with_ui = Map.put(session, :ui_state, ui_state)
 
       model = %Model{
@@ -388,11 +390,12 @@ defmodule JidoCode.TUITest do
     end
 
     test "sidebar with reasoning panel on wide terminal" do
-      model = build_model_with_sessions(
-        sidebar_visible: true,
-        window: {120, 24}
-      )
-      |> Map.put(:show_reasoning, true)
+      model =
+        build_model_with_sessions(
+          sidebar_visible: true,
+          window: {120, 24}
+        )
+        |> Map.put(:show_reasoning, true)
 
       view = TUI.view(model)
       # Should render with both sidebar and reasoning panel
@@ -400,11 +403,12 @@ defmodule JidoCode.TUITest do
     end
 
     test "sidebar with reasoning drawer on medium terminal" do
-      model = build_model_with_sessions(
-        sidebar_visible: true,
-        window: {95, 24}
-      )
-      |> Map.put(:show_reasoning, true)
+      model =
+        build_model_with_sessions(
+          sidebar_visible: true,
+          window: {95, 24}
+        )
+        |> Map.put(:show_reasoning, true)
 
       view = TUI.view(model)
       # Should render with sidebar and reasoning in compact mode
@@ -630,6 +634,7 @@ defmodule JidoCode.TUITest do
 
     test "renders single tab" do
       session = %Session{id: "s1", name: "project"}
+
       model = %Model{
         sessions: %{"s1" => session},
         session_order: ["s1"],
@@ -976,7 +981,8 @@ defmodule JidoCode.TUITest do
         agent_status: :unconfigured
       }
 
-      {new_model, _} = TUI.update({:input_submitted, "/model anthropic:claude-3-5-haiku-20241022"}, model)
+      {new_model, _} =
+        TUI.update({:input_submitted, "/model anthropic:claude-3-5-haiku-20241022"}, model)
 
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == "claude-3-5-haiku-20241022"
@@ -1143,10 +1149,12 @@ defmodule JidoCode.TUITest do
       model = create_model_with_input()
 
       # First send a chunk to set up streaming state
-      {model_streaming, _} = TUI.update({:stream_chunk, "test-session", "Complete response"}, model)
+      {model_streaming, _} =
+        TUI.update({:stream_chunk, "test-session", "Complete response"}, model)
 
       # Now end the stream
-      {new_model, _} = TUI.update({:stream_end, "test-session", "Complete response"}, model_streaming)
+      {new_model, _} =
+        TUI.update({:stream_end, "test-session", "Complete response"}, model_streaming)
 
       assert length(get_session_messages(new_model)) == 1
       assert hd(get_session_messages(new_model)).role == :assistant
@@ -1625,7 +1633,6 @@ defmodule JidoCode.TUITest do
     end
   end
 
-
   describe "Model scroll_offset field" do
     test "has default value of 0" do
       model = %Model{}
@@ -1748,7 +1755,6 @@ defmodule JidoCode.TUITest do
     end
   end
 
-
   # ============================================================================
   # Tool Call Display Tests
   # ============================================================================
@@ -1815,7 +1821,10 @@ defmodule JidoCode.TUITest do
 
       # Pass "test-session" as session_id to match the active session
       {new_model, _} =
-        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123", "test-session"}, model)
+        TUI.update(
+          {:tool_call, "read_file", %{"path" => "test.ex"}, "call_123", "test-session"},
+          model
+        )
 
       assert length(get_tool_calls(new_model)) == 1
       entry = hd(get_tool_calls(new_model))
@@ -1835,7 +1844,10 @@ defmodule JidoCode.TUITest do
 
       # Add second tool call
       {new_model, _} =
-        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_2", "test-session"}, model1)
+        TUI.update(
+          {:tool_call, "read_file", %{"path" => "test.ex"}, "call_2", "test-session"},
+          model1
+        )
 
       # Tool calls are stored in reverse order (newest first)
       assert length(get_tool_calls(new_model)) == 2
@@ -1864,7 +1876,10 @@ defmodule JidoCode.TUITest do
 
       # First add a tool call - use "test-session" as session_id
       {model_with_call, _} =
-        TUI.update({:tool_call, "read_file", %{"path" => "test.ex"}, "call_123", "test-session"}, model)
+        TUI.update(
+          {:tool_call, "read_file", %{"path" => "test.ex"}, "call_123", "test-session"},
+          model
+        )
 
       result = Result.ok("call_123", "read_file", "file contents", 45)
 
@@ -2062,7 +2077,6 @@ defmodule JidoCode.TUITest do
       refute result_text =~ "[...]"
     end
   end
-
 
   # ============================================================================
   # Session Keyboard Shortcuts Tests (B3)
@@ -2643,14 +2657,14 @@ defmodule JidoCode.TUITest do
 
     # Test 13-14: Focus cycling regression tests
     test "Tab (without Ctrl) still cycles focus forward" do
-      model = %Model{focus: :input, }
+      model = %Model{focus: :input}
       event = Event.key(:tab, modifiers: [])
       {:msg, msg} = TUI.event_to_msg(event, model)
       assert msg == {:cycle_focus, :forward}
     end
 
     test "Shift+Tab (without Ctrl) still cycles focus backward" do
-      model = %Model{focus: :input, }
+      model = %Model{focus: :input}
       event = Event.key(:tab, modifiers: [:shift])
       {:msg, msg} = TUI.event_to_msg(event, model)
       assert msg == {:cycle_focus, :backward}
@@ -2706,8 +2720,8 @@ defmodule JidoCode.TUITest do
 
       # Confirmation message added
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Closed session: Session 2")
-      end)
+               String.contains?(msg.content, "Closed session: Session 2")
+             end)
     end
 
     test "close_active_session closes first session and switches to next", %{model: model} do
@@ -2724,8 +2738,8 @@ defmodule JidoCode.TUITest do
 
       # Confirmation message
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Closed session: Session 1")
-      end)
+               String.contains?(msg.content, "Closed session: Session 1")
+             end)
     end
 
     test "close_active_session closes last session and switches to previous", %{model: model} do
@@ -2744,14 +2758,15 @@ defmodule JidoCode.TUITest do
 
       # Confirmation message
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Closed session: Session 3")
-      end)
+               String.contains?(msg.content, "Closed session: Session 3")
+             end)
     end
 
     # Test Group 3: Update Handler - Last Session (2 tests)
     test "close_active_session closes only session, sets active_session_id to nil" do
       # Create model with single session
       session = %{id: "s1", name: "Only Session", project_path: "/path1"}
+
       model = %Model{
         sessions: %{"s1" => session},
         session_order: ["s1"],
@@ -2771,8 +2786,8 @@ defmodule JidoCode.TUITest do
 
       # Confirmation message
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Closed session: Only Session")
-      end)
+               String.contains?(msg.content, "Closed session: Only Session")
+             end)
     end
 
     test "welcome screen renders when active_session_id is nil" do
@@ -2812,8 +2827,8 @@ defmodule JidoCode.TUITest do
 
       # Error message shown
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "No active session to close")
-      end)
+               String.contains?(msg.content, "No active session to close")
+             end)
     end
 
     test "close_active_session with missing session in map uses fallback name", %{model: model} do
@@ -2827,8 +2842,8 @@ defmodule JidoCode.TUITest do
 
       # Fallback name (session_id) used in message
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Closed session: s999")
-      end)
+               String.contains?(msg.content, "Closed session: s999")
+             end)
     end
 
     test "close_active_session with empty session list returns unchanged state" do
@@ -2848,8 +2863,8 @@ defmodule JidoCode.TUITest do
 
       # Confirmation message with fallback name
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Closed session: s1")
-      end)
+               String.contains?(msg.content, "Closed session: s1")
+             end)
     end
 
     # Test Group 5: Model.remove_session Tests (2 tests)
@@ -2904,13 +2919,14 @@ defmodule JidoCode.TUITest do
 
       # Step 5: Verify confirmation message
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Closed session: Session 2")
-      end)
+               String.contains?(msg.content, "Closed session: Session 2")
+             end)
     end
 
     test "complete flow: Ctrl+W on last session → welcome screen displayed" do
       # Create model with single session
       session = %{id: "s1", name: "Last Session", project_path: "/path1"}
+
       model = %Model{
         sessions: %{"s1" => session},
         session_order: ["s1"],
@@ -3020,13 +3036,16 @@ defmodule JidoCode.TUITest do
       # full SessionSupervisor running.
       #
       # See: test/jido_code/session_supervisor_test.exs for limit tests
-      sessions = Enum.map(1..10, fn i ->
-        ui_state = Model.default_ui_state({80, 24})
-        {
-          "s#{i}",
-          %{id: "s#{i}", name: "Session #{i}", project_path: "/path#{i}", ui_state: ui_state}
-        }
-      end) |> Map.new()
+      sessions =
+        Enum.map(1..10, fn i ->
+          ui_state = Model.default_ui_state({80, 24})
+
+          {
+            "s#{i}",
+            %{id: "s#{i}", name: "Session #{i}", project_path: "/path#{i}", ui_state: ui_state}
+          }
+        end)
+        |> Map.new()
 
       session_order = Enum.map(1..10, &"s#{&1}")
 
@@ -3043,12 +3062,12 @@ defmodule JidoCode.TUITest do
       # Should show an error message (system messages are at model level)
       # Message could be about session limit, creation failure, or duplicate project
       assert Enum.any?(new_state.messages, fn msg ->
-        String.contains?(msg.content, "Failed") or
-        String.contains?(msg.content, "Maximum") or
-        String.contains?(msg.content, "sessions") or
-        String.contains?(msg.content, "limit") or
-        String.contains?(msg.content, "already open")
-      end)
+               String.contains?(msg.content, "Failed") or
+                 String.contains?(msg.content, "Maximum") or
+                 String.contains?(msg.content, "sessions") or
+                 String.contains?(msg.content, "limit") or
+                 String.contains?(msg.content, "already open")
+             end)
     end
 
     # Test Group 4: Integration Tests (2 tests)
@@ -3099,6 +3118,7 @@ defmodule JidoCode.TUITest do
 
     test "adds second session without changing active session" do
       session1 = %{id: "s1", name: "project1", project_path: "/path1"}
+
       model = %Model{
         sessions: %{"s1" => session1},
         session_order: ["s1"],
@@ -3121,6 +3141,7 @@ defmodule JidoCode.TUITest do
     test "adds third session preserving order and active" do
       session1 = %{id: "s1", name: "p1", project_path: "/p1"}
       session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
         session_order: ["s1", "s2"],
@@ -3137,6 +3158,7 @@ defmodule JidoCode.TUITest do
 
     test "adds session when active_session_id is nil" do
       session1 = %{id: "s1", name: "p1", project_path: "/p1"}
+
       model = %Model{
         sessions: %{"s1" => session1},
         session_order: ["s1"],
@@ -3158,6 +3180,7 @@ defmodule JidoCode.TUITest do
   describe "Model.remove_session_from_tabs/2" do
     test "removes session from single-session model" do
       session = %{id: "s1", name: "project", project_path: "/path"}
+
       model = %Model{
         sessions: %{"s1" => session},
         session_order: ["s1"],
@@ -3174,6 +3197,7 @@ defmodule JidoCode.TUITest do
     test "removes non-active session without changing active" do
       session1 = %{id: "s1", name: "p1", project_path: "/p1"}
       session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
         session_order: ["s1", "s2"],
@@ -3190,6 +3214,7 @@ defmodule JidoCode.TUITest do
     test "removes active session and switches to previous" do
       session1 = %{id: "s1", name: "p1", project_path: "/p1"}
       session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
         session_order: ["s1", "s2"],
@@ -3206,6 +3231,7 @@ defmodule JidoCode.TUITest do
     test "removes active session and switches to next when at beginning" do
       session1 = %{id: "s1", name: "p1", project_path: "/p1"}
       session2 = %{id: "s2", name: "p2", project_path: "/p2"}
+
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2},
         session_order: ["s1", "s2"],
@@ -3223,6 +3249,7 @@ defmodule JidoCode.TUITest do
       session1 = %{id: "s1", name: "p1", project_path: "/p1"}
       session2 = %{id: "s2", name: "p2", project_path: "/p2"}
       session3 = %{id: "s3", name: "p3", project_path: "/p3"}
+
       model = %Model{
         sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
         session_order: ["s1", "s2", "s3"],
@@ -3239,6 +3266,7 @@ defmodule JidoCode.TUITest do
 
     test "removing non-existent session is no-op" do
       session = %{id: "s1", name: "p1", project_path: "/p1"}
+
       model = %Model{
         sessions: %{"s1" => session},
         session_order: ["s1"],
@@ -3266,7 +3294,12 @@ defmodule JidoCode.TUITest do
       TUI.subscribe_to_session(session_id)
 
       # Verify subscription by broadcasting
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.#{session_id}", {:test_message, "hello"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.#{session_id}",
+        {:test_message, "hello"}
+      )
+
       assert_receive {:test_message, "hello"}, 1000
     end
 
@@ -3280,7 +3313,12 @@ defmodule JidoCode.TUITest do
       TUI.unsubscribe_from_session(session_id)
 
       # Broadcast should not be received
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.#{session_id}", {:test_message, "hello"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.#{session_id}",
+        {:test_message, "hello"}
+      )
+
       refute_receive {:test_message, "hello"}, 500
     end
 
@@ -3298,7 +3336,12 @@ defmodule JidoCode.TUITest do
       _new_model = Model.add_session(model, session)
 
       # Verify subscription
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.new-session", {:test_message, "subscribed"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.new-session",
+        {:test_message, "subscribed"}
+      )
+
       assert_receive {:test_message, "subscribed"}, 1000
 
       # Cleanup
@@ -3312,7 +3355,12 @@ defmodule JidoCode.TUITest do
       _new_model = Model.add_session_to_tabs(model, session)
 
       # Verify subscription
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.new-session-tabs", {:test_message, "subscribed"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.new-session-tabs",
+        {:test_message, "subscribed"}
+      )
+
       assert_receive {:test_message, "subscribed"}, 1000
 
       # Cleanup
@@ -3326,14 +3374,24 @@ defmodule JidoCode.TUITest do
       model = Model.add_session_to_tabs(model, session)
 
       # Verify subscribed
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session", {:test_before, "before"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.remove-session",
+        {:test_before, "before"}
+      )
+
       assert_receive {:test_before, "before"}, 1000
 
       # Remove session
       _new_model = Model.remove_session(model, "remove-session")
 
       # Should not receive after removal
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session", {:test_after, "after"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.remove-session",
+        {:test_after, "after"}
+      )
+
       refute_receive {:test_after, "after"}, 500
     end
 
@@ -3344,14 +3402,24 @@ defmodule JidoCode.TUITest do
       model = Model.add_session_to_tabs(model, session)
 
       # Verify subscribed
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session-tabs", {:test_before, "before"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.remove-session-tabs",
+        {:test_before, "before"}
+      )
+
       assert_receive {:test_before, "before"}, 1000
 
       # Remove session
       _new_model = Model.remove_session_from_tabs(model, "remove-session-tabs")
 
       # Should not receive after removal
-      Phoenix.PubSub.broadcast(JidoCode.PubSub, "tui.events.remove-session-tabs", {:test_after, "after"})
+      Phoenix.PubSub.broadcast(
+        JidoCode.PubSub,
+        "tui.events.remove-session-tabs",
+        {:test_after, "after"}
+      )
+
       refute_receive {:test_after, "after"}, 500
     end
   end
@@ -3361,88 +3429,87 @@ defmodule JidoCode.TUITest do
     alias JidoCode.TUI.ViewHelpers
 
     test "replaces home directory with ~" do
-        home_dir = System.user_home!()
-        path = Path.join(home_dir, "projects/myapp")
+      home_dir = System.user_home!()
+      path = Path.join(home_dir, "projects/myapp")
 
-        result = ViewHelpers.format_project_path(path, 50)
+      result = ViewHelpers.format_project_path(path, 50)
 
-        assert String.starts_with?(result, "~/")
-        refute String.contains?(result, home_dir)
-      end
+      assert String.starts_with?(result, "~/")
+      refute String.contains?(result, home_dir)
+    end
 
-      test "truncates long paths from start" do
-        home_dir = System.user_home!()
-        path = Path.join(home_dir, "very/long/path/to/some/deeply/nested/project")
+    test "truncates long paths from start" do
+      home_dir = System.user_home!()
+      path = Path.join(home_dir, "very/long/path/to/some/deeply/nested/project")
 
-        result = ViewHelpers.format_project_path(path, 25)
+      result = ViewHelpers.format_project_path(path, 25)
 
-        assert String.starts_with?(result, "...")
-        assert String.length(result) == 25
-      end
+      assert String.starts_with?(result, "...")
+      assert String.length(result) == 25
+    end
 
-      test "keeps short paths unchanged (with ~ substitution)" do
-        home_dir = System.user_home!()
-        path = Path.join(home_dir, "code")
+    test "keeps short paths unchanged (with ~ substitution)" do
+      home_dir = System.user_home!()
+      path = Path.join(home_dir, "code")
 
-        result = ViewHelpers.format_project_path(path, 50)
+      result = ViewHelpers.format_project_path(path, 50)
 
-        assert result == "~/code"
-      end
+      assert result == "~/code"
+    end
 
-      test "handles non-home paths" do
-        path = "/opt/project"
+    test "handles non-home paths" do
+      path = "/opt/project"
 
-        result = ViewHelpers.format_project_path(path, 50)
+      result = ViewHelpers.format_project_path(path, 50)
 
-        assert result == "/opt/project"
-      end
+      assert result == "/opt/project"
+    end
   end
-
 
   describe "pad_lines_to_height/3" do
     alias JidoCode.TUI.ViewHelpers
 
     test "pads short list to target height" do
-        # Mock view elements
-        lines = [%{type: :text, content: "Line 1"}, %{type: :text, content: "Line 2"}]
+      # Mock view elements
+      lines = [%{type: :text, content: "Line 1"}, %{type: :text, content: "Line 2"}]
 
-        result = ViewHelpers.pad_lines_to_height(lines, 5, 80)
+      result = ViewHelpers.pad_lines_to_height(lines, 5, 80)
 
-        assert length(result) == 5
-        # First 2 should be original lines
-        assert Enum.at(result, 0) == Enum.at(lines, 0)
-        assert Enum.at(result, 1) == Enum.at(lines, 1)
-      end
+      assert length(result) == 5
+      # First 2 should be original lines
+      assert Enum.at(result, 0) == Enum.at(lines, 0)
+      assert Enum.at(result, 1) == Enum.at(lines, 1)
+    end
 
-      test "truncates long list to target height" do
-        lines = [
-          %{type: :text, content: "Line 1"},
-          %{type: :text, content: "Line 2"},
-          %{type: :text, content: "Line 3"},
-          %{type: :text, content: "Line 4"},
-          %{type: :text, content: "Line 5"}
-        ]
+    test "truncates long list to target height" do
+      lines = [
+        %{type: :text, content: "Line 1"},
+        %{type: :text, content: "Line 2"},
+        %{type: :text, content: "Line 3"},
+        %{type: :text, content: "Line 4"},
+        %{type: :text, content: "Line 5"}
+      ]
 
-        result = ViewHelpers.pad_lines_to_height(lines, 3, 80)
+      result = ViewHelpers.pad_lines_to_height(lines, 3, 80)
 
-        assert length(result) == 3
-        assert Enum.at(result, 0) == Enum.at(lines, 0)
-        assert Enum.at(result, 1) == Enum.at(lines, 1)
-        assert Enum.at(result, 2) == Enum.at(lines, 2)
-      end
+      assert length(result) == 3
+      assert Enum.at(result, 0) == Enum.at(lines, 0)
+      assert Enum.at(result, 1) == Enum.at(lines, 1)
+      assert Enum.at(result, 2) == Enum.at(lines, 2)
+    end
 
-      test "returns list unchanged when at target height" do
-        lines = [
-          %{type: :text, content: "Line 1"},
-          %{type: :text, content: "Line 2"},
-          %{type: :text, content: "Line 3"}
-        ]
+    test "returns list unchanged when at target height" do
+      lines = [
+        %{type: :text, content: "Line 1"},
+        %{type: :text, content: "Line 2"},
+        %{type: :text, content: "Line 3"}
+      ]
 
-        result = ViewHelpers.pad_lines_to_height(lines, 3, 80)
+      result = ViewHelpers.pad_lines_to_height(lines, 3, 80)
 
-        assert length(result) == 3
-        assert result == lines
-      end
+      assert length(result) == 3
+      assert result == lines
+    end
   end
 
   describe "keyboard shortcuts for sidebar (Task 4.5.5)" do

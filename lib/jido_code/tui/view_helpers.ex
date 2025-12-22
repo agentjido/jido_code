@@ -48,10 +48,14 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   # Status indicator characters for tab rendering
   @status_indicators %{
-    processing: "⟳",  # Rotating arrow (U+27F3)
-    idle: "✓",        # Check mark (U+2713)
-    error: "✗",       # X mark (U+2717)
-    unconfigured: "○" # Empty circle (U+25CB)
+    # Rotating arrow (U+27F3)
+    processing: "⟳",
+    # Check mark (U+2713)
+    idle: "✓",
+    # X mark (U+2717)
+    error: "✗",
+    # Empty circle (U+25CB)
+    unconfigured: "○"
   }
 
   # ============================================================================
@@ -224,8 +228,15 @@ defmodule JidoCode.TUI.ViewHelpers do
   # Individual content elements handle their own padding; separators span full width
   defp render_middle_rows(content, content_width, content_height, border_style) do
     # Create multi-line border strings that span the full height
-    left_border_str = (@border_chars.vertical <> "\n") |> String.duplicate(content_height) |> String.trim_trailing("\n")
-    right_border_str = (@border_chars.vertical <> "\n") |> String.duplicate(content_height) |> String.trim_trailing("\n")
+    left_border_str =
+      (@border_chars.vertical <> "\n")
+      |> String.duplicate(content_height)
+      |> String.trim_trailing("\n")
+
+    right_border_str =
+      (@border_chars.vertical <> "\n")
+      |> String.duplicate(content_height)
+      |> String.trim_trailing("\n")
 
     left_border = text(left_border_str, border_style)
     right_border = text(right_border_str, border_style)
@@ -256,7 +267,9 @@ defmodule JidoCode.TUI.ViewHelpers do
     separator_style = Style.new(fg: Theme.get_color(:secondary) || :bright_black)
 
     # Use T-connectors at edges to connect to the double-line vertical border
-    separator_line = @border_chars.t_left <> String.duplicate("─", line_width) <> @border_chars.t_right
+    separator_line =
+      @border_chars.t_left <> String.duplicate("─", line_width) <> @border_chars.t_right
+
     text(separator_line, separator_style)
   end
 
@@ -925,6 +938,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   """
   @spec render_tabs(Model.t()) :: TermUI.View.t() | nil
   def render_tabs(%Model{sessions: sessions}) when map_size(sessions) == 0, do: nil
+
   def render_tabs(%Model{sessions: sessions, session_order: order, active_session_id: active_id}) do
     tabs =
       order
@@ -941,7 +955,9 @@ defmodule JidoCode.TUI.ViewHelpers do
     # Render tabs horizontally with separators
     tab_elements =
       tabs
-      |> Enum.intersperse(text(" │ ", Style.new(fg: Theme.get_color(:secondary) || :bright_black)))
+      |> Enum.intersperse(
+        text(" │ ", Style.new(fg: Theme.get_color(:secondary) || :bright_black))
+      )
 
     # Add 1-char padding on each side
     stack(:horizontal, [text(" ") | tab_elements] ++ [text(" ")])

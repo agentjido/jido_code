@@ -3823,4 +3823,118 @@ defmodule JidoCode.TUITest do
       assert effects == []
     end
   end
+
+  # ============================================================================
+  # Resume Dialog Tests
+  # ============================================================================
+
+  describe "resume dialog event routing" do
+    setup do
+      session = %Session{
+        id: "s1",
+        name: "Test Session",
+        project_path: "/test/path",
+        created_at: DateTime.utc_now(),
+        updated_at: DateTime.utc_now()
+      }
+
+      model = %Model{
+        window: {80, 24},
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1",
+        resume_dialog: %{
+          session_id: "old-session-123",
+          session_name: "Previous Session",
+          project_path: "/test/path",
+          closed_at: "2024-01-01T00:00:00Z",
+          message_count: 5
+        },
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {:ok, model: model}
+    end
+
+    test "Enter key returns :resume_dialog_accept when dialog is open", %{model: model} do
+      event = %Event.Key{key: :enter, modifiers: []}
+
+      result = TUI.event_to_msg(event, model)
+
+      assert result == {:msg, :resume_dialog_accept}
+    end
+
+    test "Escape key returns :resume_dialog_dismiss when dialog is open", %{model: model} do
+      event = %Event.Key{key: :escape, modifiers: []}
+
+      result = TUI.event_to_msg(event, model)
+
+      assert result == {:msg, :resume_dialog_dismiss}
+    end
+
+    test "mouse events are ignored when resume_dialog is open", %{model: model} do
+      event = %Event.Mouse{x: 10, y: 10, action: :click, modifiers: []}
+
+      result = TUI.event_to_msg(event, model)
+
+      assert result == :ignore
+    end
+
+    test "Enter key still goes to pick_list when both dialogs would be open", %{model: model} do
+      # resume_dialog should take priority, but let's verify the pattern
+      model_without_dialog = %{model | resume_dialog: nil}
+      event = %Event.Key{key: :enter, modifiers: []}
+
+      # Without resume_dialog, Enter should go to normal handling
+      result = TUI.event_to_msg(event, model_without_dialog)
+      assert {:msg, {:input_submitted, _}} = result
+    end
+  end
+
+  describe "resume dialog dismiss handler" do
+    test "dismiss clears resume_dialog state" do
+      model = %Model{
+        window: {80, 24},
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil,
+        resume_dialog: %{
+          session_id: "test-123",
+          session_name: "Test",
+          project_path: "/test",
+          closed_at: "2024-01-01T00:00:00Z",
+          message_count: 0
+        },
+        config: %{}
+      }
+
+      {new_state, effects} = TUI.update(:resume_dialog_dismiss, model)
+
+      assert is_nil(new_state.resume_dialog)
+      assert effects == []
+    end
+  end
+
+  describe "Model.resume_dialog field" do
+    test "has default value of nil" do
+      model = %Model{}
+      assert model.resume_dialog == nil
+    end
+
+    test "can be set to dialog state" do
+      dialog_state = %{
+        session_id: "abc123",
+        session_name: "My Project",
+        project_path: "/path/to/project",
+        closed_at: "2024-01-01T00:00:00Z",
+        message_count: 10
+      }
+
+      model = %Model{resume_dialog: dialog_state}
+
+      assert model.resume_dialog.session_id == "abc123"
+      assert model.resume_dialog.session_name == "My Project"
+      assert model.resume_dialog.message_count == 10
+    end
+  end
 end

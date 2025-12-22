@@ -262,6 +262,7 @@ defmodule JidoCode.TUI do
             shell_dialog: map() | nil,
             shell_viewport: map() | nil,
             pick_list: map() | nil,
+            resume_dialog: map() | nil,
 
             # Main layout state (SplitPane with sidebar + tabs)
             main_layout: JidoCode.TUI.Widgets.MainLayout.t() | nil,
@@ -312,6 +313,7 @@ defmodule JidoCode.TUI do
       shell_dialog: nil,
       shell_viewport: nil,
       pick_list: nil,
+      resume_dialog: nil,
       # Main layout state (SplitPane with sidebar + tabs)
       main_layout: nil,
       # Legacy per-session fields (for backwards compatibility)
@@ -1188,6 +1190,9 @@ defmodule JidoCode.TUI do
         {session.id, session_with_ui}
       end)
 
+    # Check for a resumable session for the current directory
+    resume_dialog = check_for_resumable_session()
+
     %Model{
       # Multi-session fields
       sessions: sessions_with_ui,
@@ -1213,8 +1218,39 @@ defmodule JidoCode.TUI do
       sidebar_visible: true,
       sidebar_width: 20,
       sidebar_expanded: MapSet.new(),
-      sidebar_selected_index: 0
+      sidebar_selected_index: 0,
+      # Resume dialog (if a resumable session was found)
+      resume_dialog: resume_dialog
     }
+  end
+
+  # Check if there's a persisted session for the current working directory
+  defp check_for_resumable_session do
+    alias JidoCode.Session.Persistence
+
+    case File.cwd() do
+      {:ok, cwd} ->
+        case Persistence.find_by_project_path(cwd) do
+          {:ok, nil} ->
+            nil
+
+          {:ok, session_metadata} ->
+            # Build dialog state with session info
+            %{
+              session_id: session_metadata.id,
+              session_name: session_metadata.name,
+              project_path: session_metadata.project_path,
+              closed_at: session_metadata.closed_at,
+              message_count: session_metadata[:message_count] || 0
+            }
+
+          {:error, _reason} ->
+            nil
+        end
+
+      {:error, _} ->
+        nil
+    end
   end
 
   # Get terminal dimensions, falling back to defaults if unavailable
@@ -1334,6 +1370,9 @@ defmodule JidoCode.TUI do
   # Enter key - forward to modal if open, otherwise submit current input
   def event_to_msg(%Event.Key{key: :enter} = event, state) do
     cond do
+      state.resume_dialog ->
+        {:msg, :resume_dialog_accept}
+
       state.pick_list ->
         {:msg, {:pick_list_event, event}}
 
@@ -1351,6 +1390,7 @@ defmodule JidoCode.TUI do
   # Escape key - forward to modal if open
   def event_to_msg(%Event.Key{key: :escape} = event, state) do
     cond do
+      state.resume_dialog -> {:msg, :resume_dialog_dismiss}
       state.pick_list -> {:msg, {:pick_list_event, event}}
       state.shell_dialog -> {:msg, {:input_event, event}}
       true -> {:msg, {:input_event, event}}
@@ -1405,6 +1445,7 @@ defmodule JidoCode.TUI do
   # Mouse events - route based on click region
   def event_to_msg(%Event.Mouse{} = event, state) do
     cond do
+      state.resume_dialog -> :ignore
       state.pick_list -> :ignore
       state.shell_dialog -> :ignore
       true -> route_mouse_event(event, state)
@@ -1816,6 +1857,45 @@ defmodule JidoCode.TUI do
       end)
 
     {new_state, []}
+  end
+
+  # Resume dialog - accept (Enter) - restore the previous session
+  def update(:resume_dialog_accept, %{resume_dialog: dialog} = state) when not is_nil(dialog) do
+    alias JidoCode.Session.Persistence
+
+    session_id = dialog.session_id
+
+    case Persistence.resume(session_id) do
+      {:ok, session} ->
+        # Add the restored session to the model
+        subscribe_to_session(session.id)
+        session_with_ui = Map.put(session, :ui_state, Model.default_ui_state(state.window))
+        new_state = Model.add_session(state, session_with_ui)
+        new_state = Model.switch_session(new_state, session.id)
+        new_state = refresh_conversation_view_for_session(new_state, session.id)
+        new_state = add_session_message(new_state, "Resumed session: #{session.name}")
+
+        {%{new_state | resume_dialog: nil}, []}
+
+      {:error, reason} ->
+        # Resume failed, dismiss dialog and show error
+        error_msg =
+          case reason do
+            :not_found -> "Session no longer exists."
+            :project_path_not_found -> "Project directory no longer exists."
+            :project_already_open -> "This project is already open in another session."
+            _ -> "Failed to resume session: #{inspect(reason)}"
+          end
+
+        new_state = add_session_message(state, error_msg)
+        {%{new_state | resume_dialog: nil}, []}
+    end
+  end
+
+  # Resume dialog - dismiss (Esc) - start fresh session
+  def update(:resume_dialog_dismiss, %{resume_dialog: dialog} = state) when not is_nil(dialog) do
+    # Just dismiss the dialog - the init already created a fresh session or will do so
+    {%{state | resume_dialog: nil}, []}
   end
 
   # Close active session (Ctrl+W)
@@ -2731,8 +2811,11 @@ defmodule JidoCode.TUI do
     # Always show main view - status bar displays "No provider" / "No model" when unconfigured
     main_view = render_main_view(state)
 
-    # Overlay modals if present (pick_list takes priority over shell_dialog)
+    # Overlay modals if present (priority: resume_dialog > pick_list > shell_dialog)
     cond do
+      state.resume_dialog ->
+        overlay_resume_dialog(state, main_view)
+
       state.pick_list ->
         overlay_pick_list(state, main_view)
 
@@ -2859,6 +2942,87 @@ defmodule JidoCode.TUI do
         icon_and_style
     end
   end
+
+  defp overlay_resume_dialog(state, main_view) do
+    {width, height} = state.window
+    dialog = state.resume_dialog
+
+    # Calculate modal dimensions - centered, fixed size
+    modal_width = min(60, width - 4)
+    modal_height = 10
+
+    # Format the closed time
+    time_ago = format_time_ago(dialog.closed_at)
+
+    # Build dialog content
+    title = text("Resume Previous Session?", Style.new(fg: :cyan, attrs: [:bold]))
+
+    session_info =
+      stack(:vertical, [
+        text("", nil),
+        text("  Session: #{dialog.session_name}", Style.new(fg: :white)),
+        text("  Closed: #{time_ago}", Style.new(fg: :bright_black)),
+        text("", nil)
+      ])
+
+    buttons =
+      stack(:horizontal, [
+        text("  [Enter] Resume", Style.new(fg: :green, attrs: [:bold])),
+        text("    ", nil),
+        text("[Esc] New Session", Style.new(fg: :yellow))
+      ])
+
+    dialog_content =
+      stack(:vertical, [
+        title,
+        session_info,
+        buttons
+      ])
+
+    # Build the dialog box with border
+    dialog_box = ViewHelpers.render_dialog_box(dialog_content, modal_width, modal_height)
+
+    # Calculate position to center the dialog
+    dialog_x = div(width - modal_width, 2)
+    dialog_y = div(height - modal_height, 2)
+
+    # Return list of nodes - main view renders first, then overlay renders on top
+    [
+      main_view,
+      %{
+        type: :overlay,
+        content: dialog_box,
+        x: dialog_x,
+        y: dialog_y,
+        z: 100,
+        width: modal_width,
+        height: modal_height,
+        bg: Style.new(bg: :black)
+      }
+    ]
+  end
+
+  # Formats a timestamp as relative time for the resume dialog
+  defp format_time_ago(iso_timestamp) when is_binary(iso_timestamp) do
+    case DateTime.from_iso8601(iso_timestamp) do
+      {:ok, dt, _} ->
+        diff = DateTime.diff(DateTime.utc_now(), dt, :second)
+
+        cond do
+          diff < 60 -> "just now"
+          diff < 3600 -> "#{div(diff, 60)} min ago"
+          diff < 86400 -> "#{div(diff, 3600)} hours ago"
+          diff < 172_800 -> "yesterday"
+          diff < 604_800 -> "#{div(diff, 86400)} days ago"
+          true -> String.slice(iso_timestamp, 0, 10)
+        end
+
+      {:error, _} ->
+        "unknown"
+    end
+  end
+
+  defp format_time_ago(_), do: "unknown"
 
   defp overlay_shell_dialog(state, main_view) do
     {width, height} = state.window

@@ -617,6 +617,40 @@ defmodule JidoCode.Session.Persistence do
   end
 
   @doc """
+  Finds a persisted session by project path.
+
+  Returns the most recently closed session for the given project path,
+  if one exists and is resumable (not currently active).
+
+  ## Parameters
+
+  - `project_path` - The absolute path to the project directory
+
+  ## Returns
+
+  - `{:ok, session_metadata}` - Found a resumable session for this path
+  - `{:ok, nil}` - No resumable session found for this path
+  - `{:error, reason}` - Failed to list sessions
+
+  ## Examples
+
+      iex> Persistence.find_by_project_path("/home/user/my-project")
+      {:ok, %{id: "abc123", name: "my-project", project_path: "/home/user/my-project", ...}}
+
+      iex> Persistence.find_by_project_path("/home/user/new-project")
+      {:ok, nil}
+  """
+  @spec find_by_project_path(String.t()) :: {:ok, map() | nil} | {:error, term()}
+  def find_by_project_path(project_path) do
+    with {:ok, sessions} <- list_resumable() do
+      # Find the first (most recent) session matching this path
+      # list_resumable already sorts by closed_at descending
+      session = Enum.find(sessions, fn s -> s.project_path == project_path end)
+      {:ok, session}
+    end
+  end
+
+  @doc """
   Cleans up old persisted session files.
 
   Deletes session files that are older than the specified maximum age (in days).

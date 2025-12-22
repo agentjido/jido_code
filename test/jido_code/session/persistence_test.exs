@@ -1734,6 +1734,123 @@ defmodule JidoCode.Session.PersistenceTest do
     }
   end
 
+  describe "find_by_project_path/1" do
+    setup do
+      # Ensure sessions directory exists
+      :ok = Persistence.ensure_sessions_dir()
+      sessions_dir = Persistence.sessions_dir()
+
+      # Create unique test session IDs
+      test_ids = [
+        "find-path-test-#{:rand.uniform(999_999)}-1",
+        "find-path-test-#{:rand.uniform(999_999)}-2",
+        "find-path-test-#{:rand.uniform(999_999)}-3",
+        "find-path-test-#{:rand.uniform(999_999)}-4"
+      ]
+
+      on_exit(fn ->
+        # Clean up test files
+        for id <- test_ids do
+          file = Path.join(sessions_dir, "#{id}.json")
+          File.rm(file)
+        end
+      end)
+
+      {:ok, sessions_dir: sessions_dir, test_ids: test_ids}
+    end
+
+    test "returns {:ok, nil} when no persisted sessions match path" do
+      # Use a unique path that won't match any real sessions
+      assert {:ok, nil} = Persistence.find_by_project_path("/nonexistent/unique/path/#{:rand.uniform(999_999)}")
+    end
+
+    test "returns {:ok, nil} when path doesn't match any session", %{sessions_dir: sessions_dir, test_ids: test_ids} do
+      [test_id | _] = test_ids
+
+      # Create a persisted session with a different path
+      session = %{
+        version: 1,
+        id: test_id,
+        name: "Other Project",
+        project_path: "/other/project/#{:rand.uniform(999_999)}",
+        config: %{},
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        closed_at: "2024-01-01T00:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      file_path = Path.join(sessions_dir, "#{session.id}.json")
+      File.write!(file_path, Jason.encode!(session))
+
+      assert {:ok, nil} = Persistence.find_by_project_path("/different/path/#{:rand.uniform(999_999)}")
+    end
+
+    test "returns {:ok, session} when path matches", %{sessions_dir: sessions_dir, test_ids: test_ids} do
+      [_, test_id | _] = test_ids
+      target_path = "/my/project/find-test-#{:rand.uniform(999_999)}"
+
+      session = %{
+        version: 1,
+        id: test_id,
+        name: "My Project",
+        project_path: target_path,
+        config: %{},
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        closed_at: "2024-01-01T00:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      file_path = Path.join(sessions_dir, "#{session.id}.json")
+      File.write!(file_path, Jason.encode!(session))
+
+      assert {:ok, found} = Persistence.find_by_project_path(target_path)
+      assert found.id == session.id
+      assert found.project_path == target_path
+    end
+
+    test "returns most recent session when multiple match same path", %{sessions_dir: sessions_dir, test_ids: test_ids} do
+      [_, _, test_id1, test_id2] = test_ids
+      target_path = "/shared/project/find-test-#{:rand.uniform(999_999)}"
+
+      older_session = %{
+        version: 1,
+        id: test_id1,
+        name: "Older Session",
+        project_path: target_path,
+        config: %{},
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
+        closed_at: "2024-01-01T00:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      newer_session = %{
+        version: 1,
+        id: test_id2,
+        name: "Newer Session",
+        project_path: target_path,
+        config: %{},
+        created_at: "2024-01-02T00:00:00Z",
+        updated_at: "2024-01-02T00:00:00Z",
+        closed_at: "2024-01-02T12:00:00Z",
+        conversation: [],
+        todos: []
+      }
+
+      File.write!(Path.join(sessions_dir, "#{older_session.id}.json"), Jason.encode!(older_session))
+      File.write!(Path.join(sessions_dir, "#{newer_session.id}.json"), Jason.encode!(newer_session))
+
+      assert {:ok, found} = Persistence.find_by_project_path(target_path)
+      # Should return the newer session (sorted by closed_at descending)
+      assert found.id == newer_session.id
+    end
+  end
+
   defp valid_message do
     %{
       id: "msg-1",

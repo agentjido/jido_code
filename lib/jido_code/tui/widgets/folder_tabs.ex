@@ -126,12 +126,11 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
     if tabs == [] do
       empty()
     else
-      {top_row, middle_row, bottom_row} = build_tab_rows(tabs, state)
+      {top_row, middle_row, _bottom_row} = build_tab_rows(tabs, state)
 
       stack(:vertical, [
         stack(:horizontal, top_row),
-        stack(:horizontal, middle_row),
-        stack(:horizontal, bottom_row)
+        stack(:horizontal, middle_row)
       ])
     end
   end
@@ -781,7 +780,7 @@ defmodule JidoCode.TUI.Widgets.FolderTabs do
   end
 
   defp default_close_style do
-    Style.new(fg: :red, attrs: [:bold])
+    Style.new(fg: :white)
   end
 
   defp update_tab_field(state, tab_id, field, value) do

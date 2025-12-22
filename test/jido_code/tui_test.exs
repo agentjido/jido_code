@@ -719,9 +719,9 @@ defmodule JidoCode.TUITest do
   end
 
   describe "event_to_msg/2" do
-    test "Ctrl+D returns {:msg, :quit}" do
+    test "Ctrl+X returns {:msg, :quit}" do
       model = %Model{}
-      event = Event.key("d", modifiers: [:ctrl])
+      event = Event.key("x", modifiers: [:ctrl])
 
       assert TUI.event_to_msg(event, model) == {:msg, :quit}
     end
@@ -806,12 +806,30 @@ defmodule JidoCode.TUITest do
       assert TUI.event_to_msg(nil, model) == :ignore
     end
 
-    test "routes mouse events to conversation_event" do
-      model = %Model{}
+    test "routes mouse events based on click region" do
+      # Model with default window size (80x24) and sidebar visible
+      model = %Model{window: {80, 24}, sidebar_visible: true}
 
-      # Mouse events are now routed to conversation for scroll handling
-      result = TUI.event_to_msg(Event.mouse(:click, :left, 10, 10), model)
+      # sidebar_width = round(80 * 0.20) = 16, tabs_start_x = 16 + 1 = 17
+      # tab_bar_height = 2
+
+      # Click in sidebar area (x < 16)
+      result = TUI.event_to_msg(Event.mouse(:click, :left, 10, 5), model)
+      assert {:msg, {:sidebar_click, 10, 5}} = result
+
+      # Click in tab bar area (x >= 17, y < 2)
+      result = TUI.event_to_msg(Event.mouse(:click, :left, 25, 1), model)
+      assert {:msg, {:tab_click, 8, 1}} = result  # relative_x = 25 - 17 = 8
+
+      # Click in content area (x >= 17, y >= 2)
+      result = TUI.event_to_msg(Event.mouse(:click, :left, 30, 10), model)
       assert {:msg, {:conversation_event, %TermUI.Event.Mouse{}}} = result
+
+      # When sidebar is hidden, clicks in former sidebar area go to tabs or content
+      model_hidden_sidebar = %{model | sidebar_visible: false}
+      # tabs_start_x = 0 when sidebar hidden, click at y < 2 goes to tab_click
+      result = TUI.event_to_msg(Event.mouse(:click, :left, 10, 0), model_hidden_sidebar)
+      assert {:msg, {:tab_click, 10, 0}} = result
     end
   end
 
@@ -3680,6 +3698,129 @@ defmodule JidoCode.TUITest do
       # conversation -> input (skips sidebar)
       {model, _} = TUI.update({:cycle_focus, :forward}, model)
       assert model.focus == :input
+    end
+  end
+
+  # ===========================================================================
+  # Mouse Click Handling Tests
+  # ===========================================================================
+
+  describe "mouse click handling - tab_click" do
+    setup do
+      session1 = %Session{
+        id: "s1",
+        name: "Session 1",
+        project_path: "/tmp/project1",
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %Session{
+        id: "s2",
+        name: "Session 2",
+        project_path: "/tmp/project2",
+        created_at: DateTime.utc_now()
+      }
+
+      session3 = %Session{
+        id: "s3",
+        name: "Session 3",
+        project_path: "/tmp/project3",
+        created_at: DateTime.utc_now()
+      }
+
+      model = %Model{
+        window: {80, 24},
+        sidebar_visible: true,
+        sessions: %{"s1" => session1, "s2" => session2, "s3" => session3},
+        session_order: ["s1", "s2", "s3"],
+        active_session_id: "s1",
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {:ok, model: model}
+    end
+
+    test "tab_click with no tabs_state returns unchanged state", %{model: model} do
+      # Empty session order means no tabs
+      model = %{model | session_order: [], sessions: %{}}
+
+      {new_state, effects} = TUI.update({:tab_click, 10, 1}, model)
+
+      assert new_state.session_order == []
+      assert effects == []
+    end
+
+    test "tab_click on unclickable area returns unchanged state", %{model: model} do
+      # Click at x=200, which is beyond any tab
+      {new_state, effects} = TUI.update({:tab_click, 200, 1}, model)
+
+      assert new_state.active_session_id == "s1"
+      assert effects == []
+    end
+  end
+
+  describe "mouse click handling - sidebar_click" do
+    setup do
+      session1 = %Session{
+        id: "s1",
+        name: "Session 1",
+        project_path: "/tmp/project1",
+        created_at: DateTime.utc_now()
+      }
+
+      session2 = %Session{
+        id: "s2",
+        name: "Session 2",
+        project_path: "/tmp/project2",
+        created_at: DateTime.utc_now()
+      }
+
+      model = %Model{
+        window: {80, 24},
+        sidebar_visible: true,
+        sessions: %{"s1" => session1, "s2" => session2},
+        session_order: ["s1", "s2"],
+        active_session_id: "s1",
+        config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
+      }
+
+      {:ok, model: model}
+    end
+
+    test "sidebar_click on header area (y < 2) returns unchanged state", %{model: model} do
+      # Click in header area (y = 0 or 1)
+      {new_state, effects} = TUI.update({:sidebar_click, 5, 0}, model)
+
+      assert new_state.active_session_id == "s1"
+      assert effects == []
+
+      {new_state, effects} = TUI.update({:sidebar_click, 5, 1}, model)
+
+      assert new_state.active_session_id == "s1"
+      assert effects == []
+    end
+
+    test "sidebar_click on second session switches to it", %{model: model} do
+      # Header is 2 lines, so y=2 is first session, y=3 is second session
+      {new_state, _effects} = TUI.update({:sidebar_click, 5, 3}, model)
+
+      assert new_state.active_session_id == "s2"
+    end
+
+    test "sidebar_click on already active session returns unchanged state", %{model: model} do
+      # Click on first session (y=2), which is already active
+      {new_state, effects} = TUI.update({:sidebar_click, 5, 2}, model)
+
+      assert new_state.active_session_id == "s1"
+      assert effects == []
+    end
+
+    test "sidebar_click beyond session list returns unchanged state", %{model: model} do
+      # Click at y=10, which is beyond the 2 sessions (header=2, session1=y2, session2=y3)
+      {new_state, effects} = TUI.update({:sidebar_click, 5, 10}, model)
+
+      assert new_state.active_session_id == "s1"
+      assert effects == []
     end
   end
 end

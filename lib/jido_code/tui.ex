@@ -49,6 +49,7 @@ defmodule JidoCode.TUI do
   alias JidoCode.TUI.MessageHandlers
   alias JidoCode.TUI.ViewHelpers
   alias JidoCode.TUI.Widgets.ConversationView
+  alias JidoCode.TUI.Widgets.FolderTabs
   alias JidoCode.TUI.Widgets.MainLayout
   alias TermUI.Event
   alias TermUI.Renderer.Style
@@ -66,7 +67,7 @@ defmodule JidoCode.TUI do
   #   {:key_input, char}     - Printable character typed
   #   {:key_input, :backspace} - Backspace pressed
   #   {:submit}              - Enter key pressed
-  #   :quit                  - Ctrl+D pressed
+  #   :quit                  - Ctrl+X pressed
   #
   # PubSub messages (from agent):
   #   {:agent_response, content}  - Agent response received
@@ -983,8 +984,8 @@ defmodule JidoCode.TUI do
         # => {"⚙", %Style{fg: :cyan}}
     """
     @spec activity_icon_for(agent_activity()) :: {String.t() | nil, Style.t() | nil}
-    def activity_icon_for(:idle), do: {nil, nil}
-    def activity_icon_for(:unconfigured), do: {nil, nil}
+    def activity_icon_for(:idle), do: {"⚙", Style.new(fg: :bright_black)}
+    def activity_icon_for(:unconfigured), do: {"⚙", Style.new(fg: :bright_black)}
 
     def activity_icon_for({:thinking, _mode}) do
       {"⚙", Style.new(fg: :yellow)}
@@ -998,7 +999,7 @@ defmodule JidoCode.TUI do
       {"⚠", Style.new(fg: :red)}
     end
 
-    def activity_icon_for(_), do: {nil, nil}
+    def activity_icon_for(_), do: {"⚙", Style.new(fg: :bright_black)}
 
     # -------------------------------------------------------------------------
     # Awaiting Input Accessors
@@ -1228,16 +1229,16 @@ defmodule JidoCode.TUI do
   Converts terminal events to TUI messages.
 
   Handles keyboard events:
-  - Ctrl+D → :quit
+  - Ctrl+X → :quit
   - Ctrl+R → :toggle_reasoning
   - Ctrl+T → :toggle_tool_details
   - Up/Down arrows → scroll messages
   - Other key events → forwarded to TextInput widget
   """
   @impl true
-  # Ctrl+D to quit (EOF/exit - common in Unix shells)
-  # Note: Ctrl+C is handled by Erlang runtime, Ctrl+Q is XON flow control
-  def event_to_msg(%Event.Key{key: "d", modifiers: modifiers} = event, _state) do
+  # Ctrl+X to quit
+  # Note: Ctrl+C is handled by Erlang runtime, Ctrl+D is EOF (not passed through by IO.getn)
+  def event_to_msg(%Event.Key{key: "x", modifiers: modifiers} = event, _state) do
     if :ctrl in modifiers do
       {:msg, :quit}
     else
@@ -1401,12 +1402,12 @@ defmodule JidoCode.TUI do
     {:msg, {:resize, width, height}}
   end
 
-  # Mouse events - route to ConversationView when not in modal
+  # Mouse events - route based on click region
   def event_to_msg(%Event.Mouse{} = event, state) do
     cond do
       state.pick_list -> :ignore
       state.shell_dialog -> :ignore
-      true -> {:msg, {:conversation_event, event}}
+      true -> route_mouse_event(event, state)
     end
   end
 
@@ -1421,6 +1422,34 @@ defmodule JidoCode.TUI do
 
   def event_to_msg(_event, _state) do
     :ignore
+  end
+
+  # Route mouse events to appropriate handler based on click position
+  defp route_mouse_event(%Event.Mouse{x: x, y: y} = event, state) do
+    {width, _height} = state.window
+    sidebar_proportion = 0.20
+    sidebar_width = if state.sidebar_visible, do: round(width * sidebar_proportion), else: 0
+    gap_width = if state.sidebar_visible, do: 1, else: 0
+    tabs_start_x = sidebar_width + gap_width
+
+    # Tab bar is 2 rows (0 and 1)
+    tab_bar_height = 2
+
+    cond do
+      # Click in sidebar area
+      state.sidebar_visible and x < sidebar_width ->
+        {:msg, {:sidebar_click, x, y}}
+
+      # Click in tab bar area (rows 0-1, to the right of sidebar)
+      x >= tabs_start_x and y < tab_bar_height ->
+        # Adjust x to be relative to tabs pane
+        relative_x = x - tabs_start_x
+        {:msg, {:tab_click, relative_x, y}}
+
+      # Click in content area - route to ConversationView
+      true ->
+        {:msg, {:conversation_event, event}}
+    end
   end
 
   @doc """
@@ -1815,6 +1844,45 @@ defmodule JidoCode.TUI do
           add_session_message(state, "Failed to get current directory: #{inspect(reason)}")
 
         {new_state, []}
+    end
+  end
+
+  # Mouse click on tab bar
+  def update({:tab_click, x, y}, state) do
+    # Use FolderTabs.handle_click to determine action
+    # We need to get the tabs_state from the layout
+    case get_tabs_state(state) do
+      nil ->
+        {state, []}
+
+      tabs_state ->
+        case FolderTabs.handle_click(tabs_state, x, y) do
+          {:select, tab_id} ->
+            # Switch to clicked tab
+            switch_to_session_by_id(state, tab_id)
+
+          {:close, tab_id} ->
+            # Close clicked tab
+            close_session_by_id(state, tab_id)
+
+          :none ->
+            {state, []}
+        end
+    end
+  end
+
+  # Mouse click on sidebar
+  def update({:sidebar_click, _x, y}, state) do
+    # Calculate which session was clicked based on y position
+    # Sidebar header is 2 lines, then each session is 1 line
+    header_height = 2
+    session_index = y - header_height
+
+    if session_index >= 0 and session_index < length(state.session_order) do
+      session_id = Enum.at(state.session_order, session_index)
+      switch_to_session_by_id(state, session_id)
+    else
+      {state, []}
     end
   end
 
@@ -2349,6 +2417,83 @@ defmodule JidoCode.TUI do
       end)
     else
       state
+    end
+  end
+
+  # Build tabs state for mouse click handling
+  # This mirrors the tab building logic in MainLayout
+  defp get_tabs_state(state) do
+    tabs =
+      Enum.map(state.session_order, fn session_id ->
+        session_data = Map.get(state.sessions, session_id, %{})
+
+        %{
+          id: session_id,
+          label: truncate_name(Map.get(session_data, :name, "Session"), 15),
+          closeable: length(state.session_order) > 1
+        }
+      end)
+
+    if tabs == [] do
+      nil
+    else
+      FolderTabs.new(
+        tabs: tabs,
+        selected: state.active_session_id || List.first(state.session_order)
+      )
+    end
+  end
+
+  defp truncate_name(text, max_length) do
+    if String.length(text) > max_length do
+      String.slice(text, 0, max_length - 1) <> "…"
+    else
+      text
+    end
+  end
+
+  # Switch to session by ID (used by mouse click handlers)
+  defp switch_to_session_by_id(state, session_id) do
+    session = Map.get(state.sessions, session_id)
+
+    cond do
+      session == nil ->
+        {state, []}
+
+      session_id == state.active_session_id ->
+        # Already on this session
+        {state, []}
+
+      true ->
+        new_state =
+          state
+          |> Model.switch_session(session_id)
+          |> refresh_conversation_view_for_session(session_id)
+          |> clear_session_activity(session_id)
+          |> focus_active_session_input()
+          |> add_session_message("Switched to: #{session.name}")
+
+        {new_state, []}
+    end
+  end
+
+  # Close session by ID (used by mouse click on close button)
+  defp close_session_by_id(state, session_id) do
+    session = Map.get(state.sessions, session_id)
+
+    cond do
+      session == nil ->
+        {state, []}
+
+      length(state.session_order) <= 1 ->
+        # Can't close the only session
+        new_state = add_session_message(state, "Cannot close the only session.")
+        {new_state, []}
+
+      true ->
+        session_name = session.name
+        final_state = do_close_session(state, session_id, session_name)
+        {final_state, []}
     end
   end
 

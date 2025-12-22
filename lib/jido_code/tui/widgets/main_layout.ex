@@ -583,9 +583,9 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     border_style = Style.new(fg: :bright_black)
 
     if state.tabs_state do
-      # Render folder tabs (tab bar only - 3 rows) - outside the frame
+      # Render folder tabs (tab bar only - 2 rows) - outside the frame
       tab_bar = FolderTabs.render(state.tabs_state)
-      tab_bar_height = 3
+      tab_bar_height = 2
 
       # Frame dimensions (below tab bar)
       frame_height = max(height - tab_bar_height, 3)
@@ -600,19 +600,16 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
       status_style = Style.new(fg: :bright_black)
       status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
 
-      # Calculate content height (inner - status(1) - empty_line(1) - input(1 if present))
+      # Calculate content height (inner - status(1) - input(1 if present))
       input_height = if input_view, do: 1, else: 0
-      content_height = max(inner_height - 2 - input_height, 1)
+      content_height = max(inner_height - 1 - input_height, 1)
 
       # Build content area - conversation view (fills remaining space)
       content_view = if content, do: content, else: empty()
       content_box = box([content_view], width: inner_width, height: content_height)
 
-      # Empty line between status bar and content
-      empty_line = text(String.duplicate(" ", inner_width), nil)
-
-      # Layout inside frame: status_bar | empty_line | conversation | input
-      frame_elements = [status_bar, empty_line, content_box]
+      # Layout inside frame: status_bar | conversation | input
+      frame_elements = [status_bar, content_box]
       frame_elements = if input_view, do: frame_elements ++ [input_view], else: frame_elements
       frame_content = stack(:vertical, frame_elements)
 

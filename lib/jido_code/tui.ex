@@ -2171,16 +2171,38 @@ defmodule JidoCode.TUI do
       {:ok, message, new_config} ->
         system_msg = system_message(message)
 
+        # Use new_config value if key exists (even if nil), otherwise keep existing
         updated_config = %{
-          provider: new_config[:provider] || state.config.provider,
-          model: new_config[:model] || state.config.model
+          provider: if(Map.has_key?(new_config, :provider), do: new_config[:provider], else: state.config.provider),
+          model: if(Map.has_key?(new_config, :model), do: new_config[:model], else: state.config.model)
         }
 
         new_status = determine_status(updated_config)
 
+        # Update active session's config if provider/model changed
+        state_with_session_config = update_active_session_config(state, new_config)
+
+        # Sync system message to active session's ConversationView
+        updated_state =
+          Model.update_active_ui_state(state_with_session_config, fn ui ->
+            if ui.conversation_view do
+              new_conversation_view =
+                ConversationView.add_message(ui.conversation_view, %{
+                  id: generate_message_id(),
+                  role: :system,
+                  content: message,
+                  timestamp: DateTime.utc_now()
+                })
+
+              %{ui | conversation_view: new_conversation_view}
+            else
+              ui
+            end
+          end)
+
         new_state = %{
-          state
-          | messages: [system_msg | state.messages],
+          updated_state
+          | messages: [system_msg | updated_state.messages],
             config: updated_config,
             agent_status: new_status
         }
@@ -2189,11 +2211,70 @@ defmodule JidoCode.TUI do
 
       {:error, error_message} ->
         error_msg = system_message(error_message)
-        new_state = %{state | messages: [error_msg | state.messages]}
+
+        # Sync error message to active session's ConversationView
+        updated_state =
+          Model.update_active_ui_state(state, fn ui ->
+            if ui.conversation_view do
+              new_conversation_view =
+                ConversationView.add_message(ui.conversation_view, %{
+                  id: generate_message_id(),
+                  role: :system,
+                  content: error_message,
+                  timestamp: DateTime.utc_now()
+                })
+
+              %{ui | conversation_view: new_conversation_view}
+            else
+              ui
+            end
+          end)
+
+        new_state = %{updated_state | messages: [error_msg | updated_state.messages]}
         {new_state, cmds}
 
       _ ->
         {state, cmds}
+    end
+  end
+
+  # Update active session's config when provider/model changes
+  defp update_active_session_config(state, new_config) do
+    if state.active_session_id && map_size(new_config) > 0 do
+      case Map.get(state.sessions, state.active_session_id) do
+        nil ->
+          state
+
+        session ->
+          # Build config update from new_config
+          config_update =
+            %{}
+            |> maybe_put_config(:provider, new_config)
+            |> maybe_put_config(:model, new_config)
+
+          if map_size(config_update) > 0 do
+            case Session.update_config(session, config_update) do
+              {:ok, updated_session} ->
+                updated_sessions = Map.put(state.sessions, state.active_session_id, updated_session)
+                %{state | sessions: updated_sessions}
+
+              {:error, _} ->
+                state
+            end
+          else
+            state
+          end
+      end
+    else
+      state
+    end
+  end
+
+  defp maybe_put_config(acc, key, new_config) do
+    if Map.has_key?(new_config, key) do
+      Map.put(acc, key, new_config[key])
+    else
+      acc
     end
   end
 
@@ -2204,11 +2285,12 @@ defmodule JidoCode.TUI do
         system_msg = system_message(message)
 
         # Merge new config with existing config
+        # Use new_config value if key exists (even if nil), otherwise keep existing
         updated_config =
           if map_size(new_config) > 0 do
             %{
-              provider: new_config[:provider] || state.config.provider,
-              model: new_config[:model] || state.config.model
+              provider: if(Map.has_key?(new_config, :provider), do: new_config[:provider], else: state.config.provider),
+              model: if(Map.has_key?(new_config, :model), do: new_config[:model], else: state.config.model)
             }
           else
             state.config
@@ -2217,9 +2299,12 @@ defmodule JidoCode.TUI do
         # Determine new status based on config
         new_status = determine_status(updated_config)
 
+        # Update active session's config if provider/model changed
+        state_with_session_config = update_active_session_config(state, new_config)
+
         # Sync system message to active session's ConversationView
         updated_state =
-          Model.update_active_ui_state(state, fn ui ->
+          Model.update_active_ui_state(state_with_session_config, fn ui ->
             if ui.conversation_view do
               new_conversation_view =
                 ConversationView.add_message(ui.conversation_view, %{
@@ -2858,6 +2943,11 @@ defmodule JidoCode.TUI do
           # Get the tab icon - awaiting_input takes precedence over activity
           {icon, icon_style} = get_session_tab_icon(state, id)
 
+          # Get provider/model from session config (session config is authoritative)
+          session_config = Map.get(session, :config) || %{}
+          provider = Map.get(session_config, :provider)
+          model = Map.get(session_config, :model)
+
           {id,
            %{
              id: id,
@@ -2868,7 +2958,9 @@ defmodule JidoCode.TUI do
              message_count: get_message_count(id),
              content: get_conversation_content(state, id),
              activity_icon: icon,
-             activity_style: icon_style
+             activity_style: icon_style,
+             provider: provider,
+             model: model
            }}
         else
           {id, %{id: id, name: "Unknown", project_path: "", created_at: DateTime.utc_now()}}

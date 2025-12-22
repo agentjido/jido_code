@@ -423,11 +423,10 @@ defmodule JidoCode.SessionTest do
       assert :invalid_provider in reasons
     end
 
-    test "returns error for nil provider", %{valid_session: session} do
+    test "accepts nil provider (not configured yet)", %{valid_session: session} do
       config = Map.delete(session.config, :provider)
       session = %{session | config: config}
-      assert {:error, reasons} = Session.validate(session)
-      assert :invalid_provider in reasons
+      assert {:ok, _} = Session.validate(session)
     end
 
     test "returns error for empty model", %{valid_session: session} do
@@ -436,11 +435,10 @@ defmodule JidoCode.SessionTest do
       assert :invalid_model in reasons
     end
 
-    test "returns error for nil model", %{valid_session: session} do
+    test "accepts nil model (not configured yet)", %{valid_session: session} do
       config = Map.delete(session.config, :model)
       session = %{session | config: config}
-      assert {:error, reasons} = Session.validate(session)
-      assert :invalid_model in reasons
+      assert {:ok, _} = Session.validate(session)
     end
 
     test "returns error for temperature below 0.0", %{valid_session: session} do

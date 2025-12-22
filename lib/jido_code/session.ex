@@ -446,7 +446,9 @@ defmodule JidoCode.Session do
   defp valid_id?(id), do: is_binary(id) and byte_size(id) > 0
   defp valid_name?(name), do: is_binary(name) and byte_size(name) > 0
   defp valid_name_length?(name), do: String.length(name) <= @max_name_length
+  defp valid_provider?(nil), do: true
   defp valid_provider?(p), do: is_binary(p) and byte_size(p) > 0
+  defp valid_model?(nil), do: true
   defp valid_model?(m), do: is_binary(m) and byte_size(m) > 0
 
   defp valid_temperature?(t) do

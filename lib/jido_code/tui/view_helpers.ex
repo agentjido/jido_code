@@ -54,8 +54,8 @@ defmodule JidoCode.TUI.ViewHelpers do
     idle: "✓",
     # X mark (U+2717)
     error: "✗",
-    # Empty circle (U+25CB)
-    unconfigured: "○"
+    # Use same as idle when unconfigured
+    unconfigured: "✓"
   }
 
   # ============================================================================
@@ -365,16 +365,17 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   # Format model text
-  defp format_model(nil, _), do: "No provider"
-  defp format_model(_, nil), do: "No model"
-  defp format_model(provider, model), do: "#{provider}:#{model}"
+  defp format_model(provider, model) do
+    provider_text = if provider, do: "#{provider}", else: "none"
+    model_text = if model, do: "#{model}", else: "none"
+    "provider: #{provider_text} model: #{model_text}"
+  end
 
   # Build status bar style based on session status
   defp build_status_bar_style_for_session(state, session_status) do
     fg_color =
       cond do
         session_status == :error -> Theme.get_semantic(:error) || :red
-        session_status == :unconfigured -> Theme.get_semantic(:error) || :red
         session_status == :processing -> Theme.get_semantic(:warning) || :yellow
         has_active_reasoning?(state) -> Theme.get_color(:accent) || :magenta
         true -> Theme.get_color(:foreground) || :white
@@ -419,9 +420,6 @@ defmodule JidoCode.TUI.ViewHelpers do
     fg_color =
       cond do
         state.agent_status == :error -> Theme.get_semantic(:error) || :red
-        state.agent_status == :unconfigured -> Theme.get_semantic(:error) || :red
-        state.config.provider == nil -> Theme.get_semantic(:error) || :red
-        state.config.model == nil -> Theme.get_semantic(:warning) || :yellow
         state.agent_status == :processing -> Theme.get_semantic(:warning) || :yellow
         has_active_reasoning?(state) -> Theme.get_color(:accent) || :magenta
         true -> Theme.get_color(:foreground) || :white
@@ -443,11 +441,13 @@ defmodule JidoCode.TUI.ViewHelpers do
   defp format_status(:idle), do: "Idle"
   defp format_status(:processing), do: "Streaming..."
   defp format_status(:error), do: "Error"
-  defp format_status(:unconfigured), do: "Not Configured"
+  defp format_status(:unconfigured), do: "Idle"
 
-  defp format_config(%{provider: nil}), do: "No provider"
-  defp format_config(%{model: nil, provider: p}), do: "#{p} (no model)"
-  defp format_config(%{provider: p, model: m}), do: "#{p}:#{m}"
+  defp format_config(config) do
+    provider = config[:provider] || "none"
+    model = config[:model] || "none"
+    "provider: #{provider} model: #{model}"
+  end
 
   # ============================================================================
   # Conversation Area

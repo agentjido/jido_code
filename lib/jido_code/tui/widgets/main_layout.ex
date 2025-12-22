@@ -478,10 +478,22 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   end
 
   defp build_tab_status(session_data) do
+    provider = Map.get(session_data, :provider)
+    model = Map.get(session_data, :model)
     status = Map.get(session_data, :status, :idle)
-    status_text = Atom.to_string(status) |> String.capitalize()
-    "Status: #{status_text}"
+
+    provider_text = if provider, do: "#{provider}", else: "none"
+    model_text = if model, do: "#{model}", else: "none"
+    status_text = format_status(status)
+
+    "provider: #{provider_text} | model: #{model_text} | #{status_text}"
   end
+
+  defp format_status(:idle), do: "Idle"
+  defp format_status(:processing), do: "Processing"
+  defp format_status(:error), do: "Error"
+  defp format_status(:unconfigured), do: "Idle"
+  defp format_status(other), do: Atom.to_string(other) |> String.capitalize()
 
   defp build_split_state(state) do
     # Build SplitPane state for resizable layout

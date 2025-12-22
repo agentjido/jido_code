@@ -1425,7 +1425,9 @@ defmodule JidoCode.TUI do
   end
 
   # Route mouse events to appropriate handler based on click position
-  defp route_mouse_event(%Event.Mouse{x: x, y: y} = event, state) do
+  # Only handle actual clicks (:click or :press), not hover/move events
+  defp route_mouse_event(%Event.Mouse{x: x, y: y, action: action} = event, state)
+       when action in [:click, :press] do
     {width, _height} = state.window
     sidebar_proportion = 0.20
     sidebar_width = if state.sidebar_visible, do: round(width * sidebar_proportion), else: 0
@@ -1450,6 +1452,11 @@ defmodule JidoCode.TUI do
       true ->
         {:msg, {:conversation_event, event}}
     end
+  end
+
+  # All other mouse events (scroll, drag, release, move) go to ConversationView
+  defp route_mouse_event(%Event.Mouse{} = event, _state) do
+    {:msg, {:conversation_event, event}}
   end
 
   @doc """

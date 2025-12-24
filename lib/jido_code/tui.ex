@@ -1390,6 +1390,15 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Ctrl+V to paste from clipboard
+  def event_to_msg(%Event.Key{key: "v", modifiers: modifiers} = event, _state) do
+    if :ctrl in modifiers do
+      {:msg, :paste_from_clipboard}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
   # Ctrl+1 through Ctrl+9 to switch to session by index
   def event_to_msg(%Event.Key{key: key, modifiers: modifiers} = event, _state)
       when key in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] do
@@ -1995,6 +2004,49 @@ defmodule JidoCode.TUI do
 
         {new_state, []}
     end
+  end
+
+  # Paste from clipboard (Ctrl+V)
+  def update(:paste_from_clipboard, state) do
+    case Clipboard.paste_from_clipboard() do
+      {:ok, text} when text != "" ->
+        # Insert the pasted text into the active session's text input at cursor position
+        new_state =
+          Model.update_active_ui_state(state, fn ui ->
+            if ui.text_input do
+              new_text_input = insert_text_at_cursor(ui.text_input, text)
+              %{ui | text_input: new_text_input}
+            else
+              ui
+            end
+          end)
+
+        {new_state, []}
+
+      {:ok, ""} ->
+        # Empty clipboard, do nothing
+        {state, []}
+
+      {:error, _reason} ->
+        # Clipboard not available or error, fail silently
+        {state, []}
+    end
+  end
+
+  # Insert text at cursor position in TextInput
+  defp insert_text_at_cursor(text_input, text_to_insert) do
+    current_value = TextInput.get_value(text_input)
+    cursor_pos = Map.get(text_input, :cursor_col, String.length(current_value))
+
+    # Split at cursor and insert
+    {before, after_cursor} = String.split_at(current_value, cursor_pos)
+    new_value = before <> text_to_insert <> after_cursor
+    new_cursor = cursor_pos + String.length(text_to_insert)
+
+    # Update the text input state
+    text_input
+    |> TextInput.set_value(new_value)
+    |> Map.put(:cursor_col, new_cursor)
   end
 
   # Mouse click on tab bar

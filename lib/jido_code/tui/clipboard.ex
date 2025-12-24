@@ -3,19 +3,22 @@ defmodule JidoCode.TUI.Clipboard do
   Cross-platform clipboard integration for the TUI.
 
   Detects available clipboard commands based on the operating system and provides
-  a `copy_to_clipboard/1` function that pipes text to the system clipboard.
+  functions to copy text to and paste text from the system clipboard.
 
   ## Supported Platforms
 
-  - macOS: `pbcopy`
+  - macOS: `pbcopy` / `pbpaste`
   - Linux X11: `xclip` or `xsel`
-  - Linux Wayland: `wl-copy`
-  - WSL/Windows: `clip.exe`
+  - Linux Wayland: `wl-copy` / `wl-paste`
+  - WSL/Windows: `clip.exe` / `powershell.exe Get-Clipboard`
 
   ## Usage
 
       iex> JidoCode.TUI.Clipboard.copy_to_clipboard("Hello, World!")
       :ok
+
+      iex> JidoCode.TUI.Clipboard.paste_from_clipboard()
+      {:ok, "Hello, World!"}
 
       iex> JidoCode.TUI.Clipboard.available?()
       true
@@ -23,7 +26,8 @@ defmodule JidoCode.TUI.Clipboard do
 
   require Logger
 
-  @clipboard_commands [
+  # Copy commands (write to clipboard)
+  @clipboard_copy_commands [
     # macOS
     {"pbcopy", []},
     # Linux Wayland
@@ -36,12 +40,26 @@ defmodule JidoCode.TUI.Clipboard do
     {"clip.exe", []}
   ]
 
+  # Paste commands (read from clipboard)
+  @clipboard_paste_commands [
+    # macOS
+    {"pbpaste", []},
+    # Linux Wayland
+    {"wl-paste", ["--no-newline"]},
+    # Linux X11 - xclip
+    {"xclip", ["-selection", "clipboard", "-o"]},
+    # Linux X11 - xsel
+    {"xsel", ["--clipboard", "--output"]},
+    # WSL/Windows - use PowerShell Get-Clipboard
+    {"powershell.exe", ["-command", "Get-Clipboard"]}
+  ]
+
   # Cache the detected command at compile time for performance
   # This will be re-evaluated at runtime on first call
   @detected_command :not_checked
 
   @doc """
-  Returns the detected clipboard command and arguments, or nil if none available.
+  Returns the detected clipboard copy command and arguments, or nil if none available.
 
   The result is cached after first detection.
 
@@ -55,10 +73,10 @@ defmodule JidoCode.TUI.Clipboard do
   """
   @spec detect_clipboard_command() :: {String.t(), [String.t()]} | nil
   def detect_clipboard_command do
-    case :persistent_term.get({__MODULE__, :clipboard_command}, @detected_command) do
+    case :persistent_term.get({__MODULE__, :clipboard_copy_command}, @detected_command) do
       :not_checked ->
-        command = do_detect_clipboard_command()
-        :persistent_term.put({__MODULE__, :clipboard_command}, command)
+        command = do_detect_command(@clipboard_copy_commands)
+        :persistent_term.put({__MODULE__, :clipboard_copy_command}, command)
         command
 
       cached ->
@@ -67,7 +85,33 @@ defmodule JidoCode.TUI.Clipboard do
   end
 
   @doc """
-  Returns true if a clipboard command is available.
+  Returns the detected clipboard paste command and arguments, or nil if none available.
+
+  The result is cached after first detection.
+
+  ## Examples
+
+      iex> JidoCode.TUI.Clipboard.detect_paste_command()
+      {"pbpaste", []}
+
+      iex> JidoCode.TUI.Clipboard.detect_paste_command()
+      nil
+  """
+  @spec detect_paste_command() :: {String.t(), [String.t()]} | nil
+  def detect_paste_command do
+    case :persistent_term.get({__MODULE__, :clipboard_paste_command}, @detected_command) do
+      :not_checked ->
+        command = do_detect_command(@clipboard_paste_commands)
+        :persistent_term.put({__MODULE__, :clipboard_paste_command}, command)
+        command
+
+      cached ->
+        cached
+    end
+  end
+
+  @doc """
+  Returns true if a clipboard command is available for copying.
 
   ## Examples
 
@@ -77,6 +121,19 @@ defmodule JidoCode.TUI.Clipboard do
   @spec available?() :: boolean()
   def available? do
     detect_clipboard_command() != nil
+  end
+
+  @doc """
+  Returns true if a clipboard paste command is available.
+
+  ## Examples
+
+      iex> JidoCode.TUI.Clipboard.paste_available?()
+      true
+  """
+  @spec paste_available?() :: boolean()
+  def paste_available? do
+    detect_paste_command() != nil
   end
 
   @doc """
@@ -108,11 +165,36 @@ defmodule JidoCode.TUI.Clipboard do
     {:error, :invalid_text}
   end
 
+  @doc """
+  Pastes text from the system clipboard.
+
+  Returns `{:ok, text}` on success, `{:error, reason}` on failure.
+
+  ## Examples
+
+      iex> JidoCode.TUI.Clipboard.paste_from_clipboard()
+      {:ok, "Hello!"}
+
+      iex> JidoCode.TUI.Clipboard.paste_from_clipboard()
+      {:error, :clipboard_unavailable}
+  """
+  @spec paste_from_clipboard() :: {:ok, String.t()} | {:error, atom() | String.t()}
+  def paste_from_clipboard do
+    case detect_paste_command() do
+      nil ->
+        Logger.warning("No clipboard paste command available")
+        {:error, :clipboard_unavailable}
+
+      {command, args} ->
+        do_paste(command, args)
+    end
+  end
+
   # Private functions
 
-  @spec do_detect_clipboard_command() :: {String.t(), [String.t()]} | nil
-  defp do_detect_clipboard_command do
-    Enum.find(@clipboard_commands, fn {command, _args} ->
+  @spec do_detect_command([{String.t(), [String.t()]}]) :: {String.t(), [String.t()]} | nil
+  defp do_detect_command(commands) do
+    Enum.find(commands, fn {command, _args} ->
       command_available?(command)
     end)
   end
@@ -155,6 +237,31 @@ defmodule JidoCode.TUI.Clipboard do
     end
   end
 
+  @spec do_paste(String.t(), [String.t()]) :: {:ok, String.t()} | {:error, atom() | String.t()}
+  defp do_paste(command, args) do
+    case System.find_executable(command) do
+      nil ->
+        {:error, :command_not_found}
+
+      executable ->
+        try do
+          case System.cmd(executable, args, stderr_to_stdout: true) do
+            {output, 0} ->
+              # Trim trailing newline that some clipboard tools add
+              {:ok, String.trim_trailing(output, "\n")}
+
+            {error, status} ->
+              Logger.warning("Clipboard paste failed with status #{status}: #{error}")
+              {:error, "exit status #{status}"}
+          end
+        rescue
+          e ->
+            Logger.warning("Clipboard paste failed: #{inspect(e)}")
+            {:error, :paste_failed}
+        end
+    end
+  end
+
   @doc """
   Clears the cached clipboard command detection.
 
@@ -162,7 +269,8 @@ defmodule JidoCode.TUI.Clipboard do
   """
   @spec clear_cache() :: :ok
   def clear_cache do
-    :persistent_term.erase({__MODULE__, :clipboard_command})
+    :persistent_term.erase({__MODULE__, :clipboard_copy_command})
+    :persistent_term.erase({__MODULE__, :clipboard_paste_command})
     :ok
   rescue
     ArgumentError -> :ok

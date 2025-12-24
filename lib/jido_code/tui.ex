@@ -1399,6 +1399,15 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Ctrl+Y to copy selected text from conversation view
+  def event_to_msg(%Event.Key{key: "y", modifiers: modifiers} = event, _state) do
+    if :ctrl in modifiers do
+      {:msg, :copy_selected_text}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
   # Ctrl+1 through Ctrl+9 to switch to session by index
   def event_to_msg(%Event.Key{key: key, modifiers: modifiers} = event, _state)
       when key in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] do
@@ -2033,20 +2042,30 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Insert text at cursor position in TextInput
-  defp insert_text_at_cursor(text_input, text_to_insert) do
-    current_value = TextInput.get_value(text_input)
-    cursor_pos = Map.get(text_input, :cursor_col, String.length(current_value))
+  # Copy selected text from conversation view (Ctrl+Y)
+  def update(:copy_selected_text, state) do
+    case Model.get_active_conversation_view(state) do
+      nil ->
+        {state, []}
 
-    # Split at cursor and insert
-    {before, after_cursor} = String.split_at(current_value, cursor_pos)
-    new_value = before <> text_to_insert <> after_cursor
-    new_cursor = cursor_pos + String.length(text_to_insert)
+      conversation_view ->
+        text = ConversationView.get_selected_text(conversation_view)
 
-    # Update the text input state
-    text_input
-    |> TextInput.set_value(new_value)
-    |> Map.put(:cursor_col, new_cursor)
+        if text != "" do
+          Clipboard.copy_to_clipboard(text)
+          # Clear selection after copy
+          new_conversation_view = ConversationView.clear_selection(conversation_view)
+
+          new_state =
+            Model.update_active_ui_state(state, fn ui ->
+              %{ui | conversation_view: new_conversation_view}
+            end)
+
+          {new_state, []}
+        else
+          {state, []}
+        end
+    end
   end
 
   # Mouse click on tab bar
@@ -2208,6 +2227,22 @@ defmodule JidoCode.TUI do
     {state, []}
   end
 
+  # Insert text at cursor position in TextInput
+  defp insert_text_at_cursor(text_input, text_to_insert) do
+    current_value = TextInput.get_value(text_input)
+    cursor_pos = Map.get(text_input, :cursor_col, String.length(current_value))
+
+    # Split at cursor and insert
+    {before, after_cursor} = String.split_at(current_value, cursor_pos)
+    new_value = before <> text_to_insert <> after_cursor
+    new_cursor = cursor_pos + String.length(text_to_insert)
+
+    # Update the text input state
+    text_input
+    |> TextInput.set_value(new_value)
+    |> Map.put(:cursor_col, new_cursor)
+  end
+
   # ============================================================================
   # Message Builder Helpers
   # ============================================================================
@@ -2288,8 +2323,13 @@ defmodule JidoCode.TUI do
 
         # Use new_config value if key exists (even if nil), otherwise keep existing
         updated_config = %{
-          provider: if(Map.has_key?(new_config, :provider), do: new_config[:provider], else: state.config.provider),
-          model: if(Map.has_key?(new_config, :model), do: new_config[:model], else: state.config.model)
+          provider:
+            if(Map.has_key?(new_config, :provider),
+              do: new_config[:provider],
+              else: state.config.provider
+            ),
+          model:
+            if(Map.has_key?(new_config, :model), do: new_config[:model], else: state.config.model)
         }
 
         new_status = determine_status(updated_config)
@@ -2371,7 +2411,9 @@ defmodule JidoCode.TUI do
           if map_size(config_update) > 0 do
             case Session.update_config(session, config_update) do
               {:ok, updated_session} ->
-                updated_sessions = Map.put(state.sessions, state.active_session_id, updated_session)
+                updated_sessions =
+                  Map.put(state.sessions, state.active_session_id, updated_session)
+
                 %{state | sessions: updated_sessions}
 
               {:error, _} ->
@@ -2405,8 +2447,16 @@ defmodule JidoCode.TUI do
         updated_config =
           if map_size(new_config) > 0 do
             %{
-              provider: if(Map.has_key?(new_config, :provider), do: new_config[:provider], else: state.config.provider),
-              model: if(Map.has_key?(new_config, :model), do: new_config[:model], else: state.config.model)
+              provider:
+                if(Map.has_key?(new_config, :provider),
+                  do: new_config[:provider],
+                  else: state.config.provider
+                ),
+              model:
+                if(Map.has_key?(new_config, :model),
+                  do: new_config[:model],
+                  else: state.config.model
+                )
             }
           else
             state.config

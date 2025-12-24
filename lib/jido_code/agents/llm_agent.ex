@@ -506,7 +506,8 @@ defmodule JidoCode.Agents.LLMAgent do
               ai_pid: ai_pid,
               config: config,
               session_id: actual_session_id,
-              topic: build_topic(actual_session_id)
+              topic: build_topic(actual_session_id),
+              is_processing: false
             }
 
             {:ok, state}
@@ -537,6 +538,12 @@ defmodule JidoCode.Agents.LLMAgent do
   def handle_info({:EXIT, _pid, _reason}, state) do
     # Ignore other exits
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:stream_complete, state) do
+    # Reset processing state when stream completes (success or failure)
+    {:noreply, %{state | is_processing: false}}
   end
 
   @impl true
@@ -576,8 +583,12 @@ defmodule JidoCode.Agents.LLMAgent do
 
   @impl true
   def handle_call(:get_status, _from, state) do
+    # ready is false when processing or when agent is not alive
+    agent_alive = is_pid(state.ai_pid) and Process.alive?(state.ai_pid)
+    ready = agent_alive and not state.is_processing
+
     status = %{
-      ready: is_pid(state.ai_pid) and Process.alive?(state.ai_pid),
+      ready: ready,
       config: state.config,
       session_id: state.session_id,
       topic: state.topic
@@ -627,23 +638,28 @@ defmodule JidoCode.Agents.LLMAgent do
     topic = state.topic
     config = state.config
     session_id = state.session_id
+    agent_pid = self()
 
     # ARCH-1 Fix: Use Task.Supervisor for monitored async streaming
     Task.Supervisor.start_child(JidoCode.TaskSupervisor, fn ->
       try do
         do_chat_stream_with_timeout(config, message, topic, timeout, session_id)
+        # Notify agent that streaming is complete
+        send(agent_pid, :stream_complete)
       catch
         :exit, {:timeout, _} ->
           Logger.warning("Stream timed out after #{timeout}ms")
           broadcast_stream_error(topic, :timeout)
+          send(agent_pid, :stream_complete)
 
         kind, reason ->
           Logger.error("Stream failed: #{kind} - #{inspect(reason)}")
           broadcast_stream_error(topic, {kind, reason})
+          send(agent_pid, :stream_complete)
       end
     end)
 
-    {:noreply, state}
+    {:noreply, %{state | is_processing: true}}
   end
 
   @impl true

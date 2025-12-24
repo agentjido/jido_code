@@ -486,14 +486,15 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     model_text = if model, do: "#{model}", else: "none"
     status_text = format_status(status)
 
-    "provider: #{provider_text} | model: #{model_text} | #{status_text}"
+    # ⬢ = provider, ◆ = model
+    "⬢ #{provider_text} | ◆ #{model_text} | #{status_text}"
   end
 
-  defp format_status(:idle), do: "Idle"
-  defp format_status(:processing), do: "Processing"
-  defp format_status(:error), do: "Error"
-  defp format_status(:unconfigured), do: "Idle"
-  defp format_status(other), do: Atom.to_string(other) |> String.capitalize()
+  defp format_status(:idle), do: "⚙  Idle"
+  defp format_status(:processing), do: "⚙  Processing"
+  defp format_status(:error), do: "⚙  Error"
+  defp format_status(:unconfigured), do: "⚙  Idle"
+  defp format_status(other), do: "⚙  " <> (Atom.to_string(other) |> String.capitalize())
 
   defp build_split_state(state) do
     # Build SplitPane state for resizable layout

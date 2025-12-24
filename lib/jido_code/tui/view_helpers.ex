@@ -368,7 +368,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   defp format_model(provider, model) do
     provider_text = if provider, do: "#{provider}", else: "none"
     model_text = if model, do: "#{model}", else: "none"
-    "provider: #{provider_text} model: #{model_text}"
+    "⬢ #{provider_text} | ◆ #{model_text}"
   end
 
   # Build status bar style based on session status
@@ -438,15 +438,15 @@ defmodule JidoCode.TUI.ViewHelpers do
       end)
   end
 
-  defp format_status(:idle), do: "Idle"
-  defp format_status(:processing), do: "Streaming..."
-  defp format_status(:error), do: "Error"
-  defp format_status(:unconfigured), do: "Idle"
+  defp format_status(:idle), do: "⚙  Idle"
+  defp format_status(:processing), do: "⚙  Streaming..."
+  defp format_status(:error), do: "⚙  Error"
+  defp format_status(:unconfigured), do: "⚙  Idle"
 
   defp format_config(config) do
     provider = config[:provider] || "none"
     model = config[:model] || "none"
-    "provider: #{provider} model: #{model}"
+    "⬢ #{provider} | ◆ #{model}"
   end
 
   # ============================================================================

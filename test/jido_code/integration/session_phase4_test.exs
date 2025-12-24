@@ -119,7 +119,6 @@ defmodule JidoCode.Integration.SessionPhase4Test do
       last_activity: %{},
       # Other required fields
       messages: [],
-      agent_status: :idle,
       config: %{provider: "anthropic", model: "claude-3-5-sonnet-20241022"},
       sidebar_expanded: MapSet.new(),
       sidebar_width: 20

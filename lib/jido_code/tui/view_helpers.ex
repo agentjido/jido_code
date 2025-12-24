@@ -301,7 +301,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   # Status bar when no active session
   defp render_status_bar_no_session(state, content_width) do
     config_text = format_config(state.config)
-    status_text = format_status(state.agent_status)
+    status_text = format_status(Model.get_active_agent_status(state))
 
     full_text = "No active session | #{config_text} | #{status_text}"
     padded_text = pad_or_truncate(full_text, content_width)
@@ -417,10 +417,12 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   defp build_status_bar_style(state) do
+    agent_status = Model.get_active_agent_status(state)
+
     fg_color =
       cond do
-        state.agent_status == :error -> Theme.get_semantic(:error) || :red
-        state.agent_status == :processing -> Theme.get_semantic(:warning) || :yellow
+        agent_status == :error -> Theme.get_semantic(:error) || :red
+        agent_status == :processing -> Theme.get_semantic(:warning) || :yellow
         has_active_reasoning?(state) -> Theme.get_color(:accent) || :magenta
         true -> Theme.get_color(:foreground) || :white
       end
@@ -831,7 +833,7 @@ defmodule JidoCode.TUI.ViewHelpers do
   """
   @spec render_config_info(Model.t()) :: TermUI.View.t()
   def render_config_info(state) do
-    case state.agent_status do
+    case Model.get_active_agent_status(state) do
       :unconfigured ->
         warning_style = Style.new(fg: Theme.get_semantic(:warning) || :yellow, attrs: [:bold])
         muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)

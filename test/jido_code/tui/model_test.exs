@@ -63,7 +63,7 @@ defmodule JidoCode.TUI.ModelTest do
       assert model.window == {80, 24}
       assert model.show_reasoning == false
       assert model.show_tool_details == false
-      assert model.agent_status == :unconfigured
+      # agent_status is now per-session in ui_state, not on Model
       assert model.config == %{provider: nil, model: nil}
     end
 

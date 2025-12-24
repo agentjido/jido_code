@@ -82,6 +82,25 @@ defmodule JidoCode.TUITest do
     end
   end
 
+  # Helper to create a TextInput state for testing
+  defp create_text_input(value \\ "") do
+    props =
+      TermUI.Widgets.TextInput.new(
+        placeholder: "Type a message...",
+        width: 76,
+        enter_submits: false
+      )
+
+    {:ok, state} = TermUI.Widgets.TextInput.init(props)
+    state = TermUI.Widgets.TextInput.set_focused(state, true)
+
+    if value != "" do
+      %{state | value: value, cursor_col: String.length(value)}
+    else
+      state
+    end
+  end
+
   # Helper to get text value from ConversationView's TextInput
   defp get_input_value(model) do
     Model.get_active_input_value(model)
@@ -153,7 +172,8 @@ defmodule JidoCode.TUITest do
       tool_calls: [],
       messages: [],
       agent_activity: :idle,
-      awaiting_input: nil
+      awaiting_input: nil,
+      agent_status: :idle
     }
 
     session_with_ui = Map.put(session, :ui_state, ui_state)
@@ -165,12 +185,38 @@ defmodule JidoCode.TUITest do
     }
   end
 
+  defp create_model_with_session(session) do
+    ui_state = %{
+      conversation_view: create_conversation_view(""),
+      accordion: nil,
+      scroll_offset: 0,
+      streaming_message: nil,
+      is_streaming: false,
+      reasoning_steps: [],
+      tool_calls: [],
+      messages: [],
+      agent_activity: :idle,
+      awaiting_input: nil,
+      agent_status: :idle,
+      text_input: create_text_input()
+    }
+
+    session_with_ui = Map.put(session, :ui_state, ui_state)
+
+    %Model{
+      sessions: %{session.id => session_with_ui},
+      session_order: [session.id],
+      active_session_id: session.id
+    }
+  end
+
   describe "Model struct" do
     test "has correct default values" do
       model = %Model{}
 
       assert model.messages == []
-      assert model.agent_status == :unconfigured
+      # agent_status is now per-session in ui_state, defaults to :idle when no session
+      assert Model.get_active_agent_status(model) == :idle
       assert model.config == %{provider: nil, model: nil}
       assert model.reasoning_steps == []
       assert model.window == {80, 24}
@@ -179,14 +225,12 @@ defmodule JidoCode.TUITest do
     test "can be created with custom values" do
       model = %Model{
         messages: [%{role: :user, content: "hello", timestamp: DateTime.utc_now()}],
-        agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"},
         reasoning_steps: [%{step: "thinking", status: :active}],
         window: {120, 40}
       }
 
       assert length(model.messages) == 1
-      assert model.agent_status == :idle
       assert model.config.provider == "anthropic"
       assert model.window == {120, 40}
     end
@@ -440,12 +484,12 @@ defmodule JidoCode.TUITest do
       assert_receive {:test_message, "hello"}, 1000
     end
 
-    test "sets agent_status to :unconfigured when no provider" do
+    test "sets agent_status to :idle when no active session" do
       # Ensure no settings file exists (use empty settings)
       model = TUI.init([])
 
-      # Without settings file, provider and model will be nil
-      assert model.agent_status == :unconfigured
+      # Without active session, agent_status defaults to :idle
+      assert Model.get_active_agent_status(model) == :idle
     end
 
     test "initializes with empty messages list" do
@@ -974,18 +1018,17 @@ defmodule JidoCode.TUITest do
     test "/provider command updates config and status" do
       setup_api_key("anthropic")
 
-      model = %Model{
-        messages: [],
-        config: %{provider: nil, model: nil},
-        agent_status: :unconfigured
-      }
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+      model = %{model | config: %{provider: nil, model: nil}}
 
       {new_model, _} = TUI.update({:input_submitted, "/provider anthropic"}, model)
 
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == nil
       # Still unconfigured because model is nil
-      assert new_model.agent_status == :unconfigured
+      assert Model.get_active_agent_status(new_model) == :unconfigured
 
       cleanup_api_key("anthropic")
     end
@@ -993,11 +1036,10 @@ defmodule JidoCode.TUITest do
     test "/model provider:model command updates config and status" do
       setup_api_key("anthropic")
 
-      model = %Model{
-        messages: [],
-        config: %{provider: nil, model: nil},
-        agent_status: :unconfigured
-      }
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+      model = %{model | config: %{provider: nil, model: nil}}
 
       {new_model, _} =
         TUI.update({:input_submitted, "/model anthropic:claude-3-5-haiku-20241022"}, model)
@@ -1005,7 +1047,7 @@ defmodule JidoCode.TUITest do
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == "claude-3-5-haiku-20241022"
       # Now configured - status should be idle
-      assert new_model.agent_status == :idle
+      assert Model.get_active_agent_status(new_model) == :idle
 
       cleanup_api_key("anthropic")
     end
@@ -1054,10 +1096,14 @@ defmodule JidoCode.TUITest do
           args: [provider: :anthropic, model: "claude-3-5-haiku-latest"]
         })
 
-      model = %Model{
-        messages: [],
-        config: %{provider: "anthropic", model: "claude-3-5-haiku-latest"},
-        agent_name: :test_llm_agent
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+
+      model = %{
+        model
+        | config: %{provider: "anthropic", model: "claude-3-5-haiku-latest"},
+          agent_name: :test_llm_agent
       }
 
       {new_model, _} = TUI.update({:input_submitted, "hello"}, model)
@@ -1066,7 +1112,7 @@ defmodule JidoCode.TUITest do
       assert length(new_model.messages) == 1
       assert hd(new_model.messages).role == :user
       assert hd(new_model.messages).content == "hello"
-      assert new_model.agent_status == :processing
+      assert Model.get_active_agent_status(new_model) == :processing
 
       # Cleanup
       JidoCode.AgentSupervisor.stop_agent(:test_llm_agent)
@@ -1119,23 +1165,28 @@ defmodule JidoCode.TUITest do
     end
 
     test "agent_response sets status to idle" do
-      model = %Model{messages: [], agent_status: :processing}
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+      model = Model.set_active_agent_status(model, :processing)
 
       {new_model, _} = TUI.update({:agent_response, "Done!"}, model)
 
-      assert new_model.agent_status == :idle
+      assert Model.get_active_agent_status(new_model) == :idle
     end
 
     test "unhandled messages are logged but do not change state" do
       # After message type normalization, :llm_response is no longer supported
       # It should go to the catch-all handler and not change state
-      model = %Model{messages: [], agent_status: :processing}
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+      model = Model.set_active_agent_status(model, :processing)
 
       {new_model, _} = TUI.update({:llm_response, "Hello from LLM!"}, model)
 
       # State should remain unchanged - message goes to catch-all
       assert new_model.messages == []
-      assert new_model.agent_status == :processing
+      assert Model.get_active_agent_status(new_model) == :processing
     end
 
     # Streaming tests - use create_model_with_input for proper session setup
@@ -1182,12 +1233,18 @@ defmodule JidoCode.TUITest do
     end
 
     test "stream_error shows error message and clears streaming" do
-      model = %Model{
-        messages: [],
-        streaming_message: "Partial",
-        is_streaming: true,
-        agent_status: :processing
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+
+      model = %{
+        model
+        | messages: [],
+          streaming_message: "Partial",
+          is_streaming: true
       }
+
+      model = Model.set_active_agent_status(model, :processing)
 
       {new_model, _} = TUI.update({:stream_error, :connection_failed}, model)
 
@@ -1197,34 +1254,41 @@ defmodule JidoCode.TUITest do
       assert hd(new_model.messages).content =~ "connection_failed"
       assert new_model.streaming_message == nil
       assert new_model.is_streaming == false
-      assert new_model.agent_status == :error
+      assert Model.get_active_agent_status(new_model) == :error
     end
 
     test "handles status_update" do
-      model = %Model{agent_status: :idle}
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
 
       {new_model, _} = TUI.update({:status_update, :processing}, model)
 
-      assert new_model.agent_status == :processing
+      assert Model.get_active_agent_status(new_model) == :processing
     end
 
     test "handles agent_status as alias for status_update" do
-      model = %Model{agent_status: :idle}
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
 
       {new_model, _} = TUI.update({:agent_status, :processing}, model)
 
-      assert new_model.agent_status == :processing
+      assert Model.get_active_agent_status(new_model) == :processing
     end
 
     test "handles config_change with atom keys" do
-      model = %Model{config: %{provider: nil, model: nil}}
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+      model = %{model | config: %{provider: nil, model: nil}}
 
       {new_model, _} =
         TUI.update({:config_change, %{provider: "anthropic", model: "claude"}}, model)
 
       assert new_model.config.provider == "anthropic"
       assert new_model.config.model == "claude"
-      assert new_model.agent_status == :idle
+      assert Model.get_active_agent_status(new_model) == :idle
     end
 
     test "handles config_change with string keys" do
@@ -1238,13 +1302,16 @@ defmodule JidoCode.TUITest do
     end
 
     test "handles config_changed as alias for config_change" do
-      model = %Model{config: %{provider: nil, model: nil}}
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
+      model = %{model | config: %{provider: nil, model: nil}}
 
       {new_model, _} = TUI.update({:config_changed, %{provider: "openai", model: "gpt-4"}}, model)
 
       assert new_model.config.provider == "openai"
       assert new_model.config.model == "gpt-4"
-      assert new_model.agent_status == :idle
+      assert Model.get_active_agent_status(new_model) == :idle
     end
 
     test "handles reasoning_step" do
@@ -1360,11 +1427,13 @@ defmodule JidoCode.TUITest do
     end
 
     test "full message flow: status transitions" do
-      model = TUI.init([])
+      # Create model with a session for agent_status tracking
+      session = create_test_session("test-session", "Test", "/tmp")
+      model = create_model_with_session(session)
 
       # Start processing
       {model, _} = TUI.update({:agent_status, :processing}, model)
-      assert model.agent_status == :processing
+      assert Model.get_active_agent_status(model) == :processing
 
       # Complete with response
       {model, _} = TUI.update({:agent_response, "Done!"}, model)
@@ -1372,7 +1441,7 @@ defmodule JidoCode.TUITest do
 
       # Back to idle
       {model, _} = TUI.update({:agent_status, :idle}, model)
-      assert model.agent_status == :idle
+      assert Model.get_active_agent_status(model) == :idle
     end
 
     test "full message flow: reasoning steps accumulation" do
@@ -1427,7 +1496,6 @@ defmodule JidoCode.TUITest do
   describe "view/1" do
     test "returns a render tree" do
       model = %Model{
-        agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"}
       }
 
@@ -1440,7 +1508,6 @@ defmodule JidoCode.TUITest do
 
     test "main view has children when configured" do
       model = %Model{
-        agent_status: :idle,
         config: %{provider: "anthropic", model: "claude-3-5-haiku-20241022"},
         messages: []
       }

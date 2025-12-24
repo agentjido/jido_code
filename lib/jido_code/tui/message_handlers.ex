@@ -35,12 +35,9 @@ defmodule JidoCode.TUI.MessageHandlers do
     message = TUI.assistant_message(content)
     queue = queue_message(state.message_queue, {:agent_response, content})
 
-    new_state = %{
-      state
-      | messages: [message | state.messages],
-        message_queue: queue,
-        agent_status: :idle
-    }
+    new_state =
+      %{state | messages: [message | state.messages], message_queue: queue}
+      |> Model.set_active_agent_status(:idle)
 
     {new_state, []}
   end
@@ -222,13 +219,14 @@ defmodule JidoCode.TUI.MessageHandlers do
     new_streaming_sessions = MapSet.delete(new_state.streaming_sessions, session_id)
     new_last_activity = Map.put(new_state.last_activity, session_id, DateTime.utc_now())
 
-    final_state = %{
-      new_state
-      | agent_status: :idle,
-        message_queue: queue,
-        streaming_sessions: new_streaming_sessions,
-        last_activity: new_last_activity
-    }
+    final_state =
+      %{
+        new_state
+        | message_queue: queue,
+          streaming_sessions: new_streaming_sessions,
+          last_activity: new_last_activity
+      }
+      |> Model.set_active_agent_status(:idle)
 
     {final_state, []}
   end
@@ -305,15 +303,16 @@ defmodule JidoCode.TUI.MessageHandlers do
         state.conversation_view
       end
 
-    new_state = %{
-      state
-      | messages: [error_msg | state.messages],
-        streaming_message: nil,
-        is_streaming: false,
-        agent_status: :error,
-        message_queue: queue,
-        conversation_view: new_conversation_view
-    }
+    new_state =
+      %{
+        state
+        | messages: [error_msg | state.messages],
+          streaming_message: nil,
+          is_streaming: false,
+          message_queue: queue,
+          conversation_view: new_conversation_view
+      }
+      |> Model.set_active_agent_status(:error)
 
     {new_state, []}
   end
@@ -328,7 +327,8 @@ defmodule JidoCode.TUI.MessageHandlers do
   @spec handle_status_update(Model.agent_status(), Model.t()) :: {Model.t(), list()}
   def handle_status_update(status, state) do
     queue = queue_message(state.message_queue, {:status_update, status})
-    {%{state | agent_status: status, message_queue: queue}, []}
+    new_state = Model.set_active_agent_status(%{state | message_queue: queue}, status)
+    {new_state, []}
   end
 
   # ============================================================================
@@ -347,7 +347,8 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     new_status = TUI.determine_status(new_config)
     queue = queue_message(state.message_queue, {:config_change, config})
-    {%{state | config: new_config, agent_status: new_status, message_queue: queue}, []}
+    new_state = Model.set_active_agent_status(%{state | config: new_config, message_queue: queue}, new_status)
+    {new_state, []}
   end
 
   # ============================================================================

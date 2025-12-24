@@ -221,7 +221,8 @@ defmodule JidoCode.TUI do
             tool_calls: [tool_call_entry()],
             messages: [message()],
             agent_activity: agent_activity(),
-            awaiting_input: awaiting_input()
+            awaiting_input: awaiting_input(),
+            agent_status: agent_status()
           }
 
     @typedoc "Focus states for keyboard navigation"
@@ -243,7 +244,6 @@ defmodule JidoCode.TUI do
             window: {non_neg_integer(), non_neg_integer()},
             show_reasoning: boolean(),
             show_tool_details: boolean(),
-            agent_status: agent_status(),
             config: %{provider: String.t() | nil, model: String.t() | nil},
 
             # Sidebar state (Phase 4.5)
@@ -297,7 +297,6 @@ defmodule JidoCode.TUI do
       window: {80, 24},
       show_reasoning: false,
       show_tool_details: false,
-      agent_status: :unconfigured,
       config: %{provider: nil, model: nil},
       # Sidebar state (Phase 4.5)
       sidebar_visible: true,
@@ -748,7 +747,8 @@ defmodule JidoCode.TUI do
         tool_calls: [],
         messages: [],
         agent_activity: :idle,
-        awaiting_input: nil
+        awaiting_input: nil,
+        agent_status: :idle
       }
     end
 
@@ -970,6 +970,73 @@ defmodule JidoCode.TUI do
     end
 
     @doc """
+    Gets the agent status for the active session.
+
+    Returns `:idle` if no active session or if the session has no UI state.
+
+    ## Examples
+
+        Model.get_active_agent_status(model)
+        # => :idle
+        # => :processing
+        # => :error
+    """
+    @spec get_active_agent_status(t()) :: agent_status()
+    def get_active_agent_status(model) do
+      case get_active_ui_state(model) do
+        nil -> :idle
+        ui_state -> ui_state.agent_status || :idle
+      end
+    end
+
+    @doc """
+    Gets the agent status for a specific session.
+
+    ## Examples
+
+        Model.get_session_agent_status(model, session_id)
+        # => :idle
+        # => :processing
+    """
+    @spec get_session_agent_status(t(), String.t()) :: agent_status()
+    def get_session_agent_status(model, session_id) do
+      case get_session_ui_state(model, session_id) do
+        nil -> :idle
+        ui_state -> ui_state.agent_status || :idle
+      end
+    end
+
+    @doc """
+    Sets the agent status for the active session.
+
+    ## Examples
+
+        Model.set_active_agent_status(model, :processing)
+        Model.set_active_agent_status(model, :idle)
+        Model.set_active_agent_status(model, :error)
+    """
+    @spec set_active_agent_status(t(), agent_status()) :: t()
+    def set_active_agent_status(model, status) do
+      update_active_ui_state(model, fn ui ->
+        %{ui | agent_status: status}
+      end)
+    end
+
+    @doc """
+    Sets the agent status for a specific session.
+
+    ## Examples
+
+        Model.set_session_agent_status(model, session_id, :processing)
+    """
+    @spec set_session_agent_status(t(), String.t(), agent_status()) :: t()
+    def set_session_agent_status(model, session_id, status) do
+      update_session_ui_state(model, session_id, fn ui ->
+        %{ui | agent_status: status}
+      end)
+    end
+
+    @doc """
     Converts agent activity to a display icon and style for tab headers.
 
     Returns `{icon, style}` tuple, or `{nil, nil}` for idle/unconfigured states.
@@ -1145,9 +1212,6 @@ defmodule JidoCode.TUI do
     # Load configuration from settings
     config = load_config()
 
-    # Determine initial status based on config
-    status = determine_status(config)
-
     # Get actual terminal dimensions (Terminal is started by Runtime before init)
     window = get_terminal_dimensions()
     {width, _height} = window
@@ -1201,7 +1265,6 @@ defmodule JidoCode.TUI do
       # Existing fields
       text_input: text_input_state,
       messages: [],
-      agent_status: status,
       config: config,
       reasoning_steps: [],
       tool_calls: [],
@@ -2200,12 +2263,13 @@ defmodule JidoCode.TUI do
             end
           end)
 
-        new_state = %{
-          updated_state
-          | messages: [system_msg | updated_state.messages],
-            config: updated_config,
-            agent_status: new_status
-        }
+        new_state =
+          %{
+            updated_state
+            | messages: [system_msg | updated_state.messages],
+              config: updated_config
+          }
+          |> Model.set_active_agent_status(new_status)
 
         {new_state, cmds}
 
@@ -2320,12 +2384,13 @@ defmodule JidoCode.TUI do
             end
           end)
 
-        new_state = %{
-          updated_state
-          | messages: [system_msg | updated_state.messages],
-            config: updated_config,
-            agent_status: new_status
-        }
+        new_state =
+          %{
+            updated_state
+            | messages: [system_msg | updated_state.messages],
+              config: updated_config
+          }
+          |> Model.set_active_agent_status(new_status)
 
         {new_state, []}
 
@@ -2749,12 +2814,10 @@ defmodule JidoCode.TUI do
                     %{ui | streaming_message: "", is_streaming: true}
                   end)
 
-                # Update model-level state
-                updated_state = %{
-                  state_streaming
-                  | agent_status: :processing,
-                    scroll_offset: 0
-                }
+                # Update agent status for active session
+                updated_state =
+                  %{state_streaming | scroll_offset: 0}
+                  |> Model.set_active_agent_status(:processing)
 
                 {updated_state, []}
 
@@ -2823,11 +2886,9 @@ defmodule JidoCode.TUI do
         end
       end)
 
-    new_state = %{
-      updated_state
-      | messages: [error_msg | updated_state.messages],
-        agent_status: :error
-    }
+    new_state =
+      %{updated_state | messages: [error_msg | updated_state.messages]}
+      |> Model.set_active_agent_status(:error)
 
     {new_state, []}
   end
@@ -2874,11 +2935,9 @@ defmodule JidoCode.TUI do
         end
       end)
 
-    new_state = %{
-      updated_state
-      | messages: [error_msg | updated_state.messages],
-        agent_status: :error
-    }
+    new_state =
+      %{updated_state | messages: [error_msg | updated_state.messages]}
+      |> Model.set_active_agent_status(:error)
 
     {new_state, []}
   end

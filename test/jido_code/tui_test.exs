@@ -863,7 +863,8 @@ defmodule JidoCode.TUITest do
 
       # Click in tab bar area (x >= 17, y < 2)
       result = TUI.event_to_msg(Event.mouse(:click, :left, 25, 1), model)
-      assert {:msg, {:tab_click, 8, 1}} = result  # relative_x = 25 - 17 = 8
+      # relative_x = 25 - 17 = 8
+      assert {:msg, {:tab_click, 8, 1}} = result
 
       # Click in content area (x >= 17, y >= 2)
       result = TUI.event_to_msg(Event.mouse(:click, :left, 30, 10), model)

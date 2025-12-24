@@ -736,7 +736,8 @@ defmodule JidoCode.TUI.ViewHelpers do
     mode_display = text(mode_text, mode_style)
 
     # Calculate padding to fill width
-    used_width = 7 + String.length(mode_text)  # "Mode: " (6) + space (1)
+    # "Mode: " (6) + space (1)
+    used_width = 7 + String.length(mode_text)
     padding_width = max(content_width - used_width, 0)
     padding = text(String.duplicate(" ", padding_width))
 

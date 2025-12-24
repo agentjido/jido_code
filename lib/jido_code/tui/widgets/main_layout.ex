@@ -630,17 +630,21 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
       # Layout inside frame: status_bar | separator | conversation | input | mode_bar
       frame_elements = [status_bar, separator, content_box]
       frame_elements = if input_view, do: frame_elements ++ [input_view], else: frame_elements
-      frame_elements = if mode_bar_view, do: frame_elements ++ [mode_bar_view], else: frame_elements
+
+      frame_elements =
+        if mode_bar_view, do: frame_elements ++ [mode_bar_view], else: frame_elements
+
       frame_content = stack(:vertical, frame_elements)
 
       # Frame around content (not including tab bar)
-      content_frame = Frame.render(
-        content: frame_content,
-        width: width,
-        height: frame_height,
-        style: border_style,
-        charset: :rounded
-      )
+      content_frame =
+        Frame.render(
+          content: frame_content,
+          width: width,
+          height: frame_height,
+          style: border_style,
+          charset: :rounded
+        )
 
       # Stack: tab_bar above frame
       stack(:vertical, [tab_bar, content_frame])
@@ -679,5 +683,4 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
   defp status_icon(:processing), do: "⟳"
   defp status_icon(:error), do: "✗"
   defp status_icon(_), do: "○"
-
 end

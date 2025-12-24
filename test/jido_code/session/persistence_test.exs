@@ -1761,10 +1761,16 @@ defmodule JidoCode.Session.PersistenceTest do
 
     test "returns {:ok, nil} when no persisted sessions match path" do
       # Use a unique path that won't match any real sessions
-      assert {:ok, nil} = Persistence.find_by_project_path("/nonexistent/unique/path/#{:rand.uniform(999_999)}")
+      assert {:ok, nil} =
+               Persistence.find_by_project_path(
+                 "/nonexistent/unique/path/#{:rand.uniform(999_999)}"
+               )
     end
 
-    test "returns {:ok, nil} when path doesn't match any session", %{sessions_dir: sessions_dir, test_ids: test_ids} do
+    test "returns {:ok, nil} when path doesn't match any session", %{
+      sessions_dir: sessions_dir,
+      test_ids: test_ids
+    } do
       [test_id | _] = test_ids
 
       # Create a persisted session with a different path
@@ -1784,10 +1790,14 @@ defmodule JidoCode.Session.PersistenceTest do
       file_path = Path.join(sessions_dir, "#{session.id}.json")
       File.write!(file_path, Jason.encode!(session))
 
-      assert {:ok, nil} = Persistence.find_by_project_path("/different/path/#{:rand.uniform(999_999)}")
+      assert {:ok, nil} =
+               Persistence.find_by_project_path("/different/path/#{:rand.uniform(999_999)}")
     end
 
-    test "returns {:ok, session} when path matches", %{sessions_dir: sessions_dir, test_ids: test_ids} do
+    test "returns {:ok, session} when path matches", %{
+      sessions_dir: sessions_dir,
+      test_ids: test_ids
+    } do
       [_, test_id | _] = test_ids
       target_path = "/my/project/find-test-#{:rand.uniform(999_999)}"
 
@@ -1812,7 +1822,10 @@ defmodule JidoCode.Session.PersistenceTest do
       assert found.project_path == target_path
     end
 
-    test "returns most recent session when multiple match same path", %{sessions_dir: sessions_dir, test_ids: test_ids} do
+    test "returns most recent session when multiple match same path", %{
+      sessions_dir: sessions_dir,
+      test_ids: test_ids
+    } do
       [_, _, test_id1, test_id2] = test_ids
       target_path = "/shared/project/find-test-#{:rand.uniform(999_999)}"
 
@@ -1842,8 +1855,15 @@ defmodule JidoCode.Session.PersistenceTest do
         todos: []
       }
 
-      File.write!(Path.join(sessions_dir, "#{older_session.id}.json"), Jason.encode!(older_session))
-      File.write!(Path.join(sessions_dir, "#{newer_session.id}.json"), Jason.encode!(newer_session))
+      File.write!(
+        Path.join(sessions_dir, "#{older_session.id}.json"),
+        Jason.encode!(older_session)
+      )
+
+      File.write!(
+        Path.join(sessions_dir, "#{newer_session.id}.json"),
+        Jason.encode!(newer_session)
+      )
 
       assert {:ok, found} = Persistence.find_by_project_path(target_path)
       # Should return the newer session (sorted by closed_at descending)

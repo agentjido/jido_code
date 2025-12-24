@@ -347,7 +347,13 @@ defmodule JidoCode.TUI.MessageHandlers do
 
     new_status = TUI.determine_status(new_config)
     queue = queue_message(state.message_queue, {:config_change, config})
-    new_state = Model.set_active_agent_status(%{state | config: new_config, message_queue: queue}, new_status)
+
+    new_state =
+      Model.set_active_agent_status(
+        %{state | config: new_config, message_queue: queue},
+        new_status
+      )
+
     {new_state, []}
   end
 

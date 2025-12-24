@@ -612,16 +612,20 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
       status_style = Style.new(fg: :bright_black)
       status_bar = text(String.pad_trailing(status_text, inner_width), status_style)
 
-      # Calculate content height (inner - status(1) - input(1 if present))
+      # Build separator bar below status
+      separator_style = Style.new(fg: :bright_black)
+      separator = text(String.duplicate("─", inner_width), separator_style)
+
+      # Calculate content height (inner - status(1) - separator(1) - input(1 if present))
       input_height = if input_view, do: 1, else: 0
-      content_height = max(inner_height - 1 - input_height, 1)
+      content_height = max(inner_height - 2 - input_height, 1)
 
       # Build content area - conversation view (fills remaining space)
       content_view = if content, do: content, else: empty()
       content_box = box([content_view], width: inner_width, height: content_height)
 
-      # Layout inside frame: status_bar | conversation | input
-      frame_elements = [status_bar, content_box]
+      # Layout inside frame: status_bar | separator | conversation | input
+      frame_elements = [status_bar, separator, content_box]
       frame_elements = if input_view, do: frame_elements ++ [input_view], else: frame_elements
       frame_content = stack(:vertical, frame_elements)
 

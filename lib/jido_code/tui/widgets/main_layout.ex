@@ -143,8 +143,9 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     state = state |> build_sidebar_state() |> build_tabs_state()
 
     # Get optional views
-    # input_view goes inside tabs (per-session), help_view at bottom of whole layout
+    # input_view and mode_bar_view go inside tabs (per-session), help_view at bottom of whole layout
     input_view = Keyword.get(opts, :input_view)
+    mode_bar_view = Keyword.get(opts, :mode_bar_view)
     help_view = Keyword.get(opts, :help_view)
 
     # Calculate heights for bottom bar (only help, input is inside tabs)
@@ -158,9 +159,9 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     sidebar_width = round(area.width * state.sidebar_proportion)
     sidebar_view = render_sidebar(state, sidebar_width, main_height)
 
-    # Render tabs content (status bar + conversation + input)
+    # Render tabs content (status bar + conversation + input + mode bar)
     tabs_width = area.width - sidebar_width - gap_width
-    tabs_view = render_tabs_pane(state, tabs_width, main_height, input_view)
+    tabs_view = render_tabs_pane(state, tabs_width, main_height, input_view, mode_bar_view)
 
     # Render gap (empty space between panes)
     gap_view = render_gap(main_height)
@@ -592,7 +593,7 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
     ])
   end
 
-  defp render_tabs_pane(state, width, height, input_view) do
+  defp render_tabs_pane(state, width, height, input_view, mode_bar_view) do
     border_style = Style.new(fg: :bright_black)
 
     if state.tabs_state do
@@ -617,17 +618,19 @@ defmodule JidoCode.TUI.Widgets.MainLayout do
       separator_style = Style.new(fg: :bright_black)
       separator = text(String.duplicate("─", inner_width), separator_style)
 
-      # Calculate content height (inner - status(1) - separator(1) - input(1 if present))
+      # Calculate content height (inner - status(1) - separator(1) - input(1) - mode_bar(1) if present)
       input_height = if input_view, do: 1, else: 0
-      content_height = max(inner_height - 2 - input_height, 1)
+      mode_bar_height = if mode_bar_view, do: 1, else: 0
+      content_height = max(inner_height - 2 - input_height - mode_bar_height, 1)
 
       # Build content area - conversation view (fills remaining space)
       content_view = if content, do: content, else: empty()
       content_box = box([content_view], width: inner_width, height: content_height)
 
-      # Layout inside frame: status_bar | separator | conversation | input
+      # Layout inside frame: status_bar | separator | conversation | input | mode_bar
       frame_elements = [status_bar, separator, content_box]
       frame_elements = if input_view, do: frame_elements ++ [input_view], else: frame_elements
+      frame_elements = if mode_bar_view, do: frame_elements ++ [mode_bar_view], else: frame_elements
       frame_content = stack(:vertical, frame_elements)
 
       # Frame around content (not including tab bar)

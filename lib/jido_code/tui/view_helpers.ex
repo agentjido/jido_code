@@ -710,6 +710,66 @@ defmodule JidoCode.TUI.ViewHelpers do
   end
 
   # ============================================================================
+  # Mode Bar
+  # ============================================================================
+
+  @doc """
+  Renders the mode bar showing the current agent mode.
+  Displays below the input bar with the active thinking/reasoning mode.
+  """
+  @spec render_mode_bar(Model.t()) :: TermUI.View.t()
+  def render_mode_bar(state) do
+    {width, _height} = state.window
+    # Content width excludes borders (2) and padding (2)
+    content_width = max(width - 4, 20)
+
+    # Get current mode from agent_activity
+    mode = get_display_mode(state)
+    mode_text = format_mode_name(mode)
+
+    # Style for mode bar
+    label_style = Style.new(fg: :bright_black)
+    mode_style = Style.new(fg: Theme.get_color(:accent) || :cyan)
+
+    # Format: " Mode: chat                    "
+    label = text("Mode: ", label_style)
+    mode_display = text(mode_text, mode_style)
+
+    # Calculate padding to fill width
+    used_width = 7 + String.length(mode_text)  # "Mode: " (6) + space (1)
+    padding_width = max(content_width - used_width, 0)
+    padding = text(String.duplicate(" ", padding_width))
+
+    # Add 1-char padding on each side
+    stack(:horizontal, [
+      text(" "),
+      label,
+      mode_display,
+      padding,
+      text(" ")
+    ])
+  end
+
+  # Get the display mode from agent activity or default to chat
+  defp get_display_mode(state) do
+    case Model.get_active_agent_activity(state) do
+      {:thinking, mode} -> mode
+      _ -> :chat
+    end
+  end
+
+  # Format mode name for display
+  defp format_mode_name(:chat), do: "chat"
+  defp format_mode_name(:chain_of_thought), do: "chain-of-thought"
+  defp format_mode_name(:react), do: "react"
+  defp format_mode_name(:tree_of_thoughts), do: "tree-of-thoughts"
+  defp format_mode_name(:self_consistency), do: "self-consistency"
+  defp format_mode_name(:program_of_thought), do: "program-of-thought"
+  defp format_mode_name(:gepa), do: "gepa"
+  defp format_mode_name(other) when is_atom(other), do: Atom.to_string(other)
+  defp format_mode_name(_other), do: "unknown"
+
+  # ============================================================================
   # Reasoning Panel
   # ============================================================================
 

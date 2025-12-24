@@ -2978,13 +2978,15 @@ defmodule JidoCode.TUI do
     layout = build_main_layout(state)
     area = %{x: 0, y: 0, width: width, height: height}
 
-    # Render input bar and help bar to pass into tabs
+    # Render input bar, mode bar, and help bar to pass into tabs
     input_view = ViewHelpers.render_input_bar(state)
+    mode_bar_view = ViewHelpers.render_mode_bar(state)
     help_view = ViewHelpers.render_help_bar(state)
 
-    # Render main layout with input/help inside tabs
+    # Render main layout with input/mode/help inside tabs
     MainLayout.render(layout, area,
       input_view: input_view,
+      mode_bar_view: mode_bar_view,
       help_view: help_view
     )
   end

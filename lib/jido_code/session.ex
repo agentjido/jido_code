@@ -5,6 +5,7 @@ defmodule JidoCode.Session do
   A session encapsulates all context for working on a specific project:
   - Project directory and sandbox boundary
   - LLM configuration (provider, model, parameters)
+  - Programming language (auto-detected or manually set)
   - Conversation history and task list (via Session.State)
   - Creation and update timestamps
 
@@ -46,9 +47,12 @@ defmodule JidoCode.Session do
   - `name` - Display name shown in tabs (defaults to folder name)
   - `project_path` - Absolute path to the project directory (validated for permissions)
   - `config` - LLM configuration map with provider, model, temperature, max_tokens
+  - `language` - Programming language atom (auto-detected or manually set, defaults to :elixir)
   - `created_at` - UTC timestamp when session was created
   - `updated_at` - UTC timestamp of last modification
   """
+
+  alias JidoCode.Language
 
   require Logger
 
@@ -84,6 +88,7 @@ defmodule JidoCode.Session do
           name: String.t(),
           project_path: String.t(),
           config: config(),
+          language: Language.language(),
           connection_status: connection_status(),
           created_at: DateTime.t(),
           updated_at: DateTime.t()
@@ -96,6 +101,7 @@ defmodule JidoCode.Session do
     :config,
     :created_at,
     :updated_at,
+    language: :elixir,
     connection_status: :disconnected
   ]
 
@@ -185,12 +191,14 @@ defmodule JidoCode.Session do
          :ok <- validate_symlink_safe(project_path),
          :ok <- validate_path_permissions(project_path) do
       now = DateTime.utc_now()
+      expanded_path = Path.expand(project_path)
 
       session = %__MODULE__{
         id: generate_id(),
         name: opts[:name] || Path.basename(project_path),
-        project_path: Path.expand(project_path),
+        project_path: expanded_path,
         config: opts[:config] || load_default_config(),
+        language: Language.detect(expanded_path),
         created_at: now,
         updated_at: now
       }
@@ -656,6 +664,46 @@ defmodule JidoCode.Session do
   end
 
   def rename(%__MODULE__{}, _), do: {:error, :invalid_name}
+
+  @doc """
+  Sets the programming language for a session.
+
+  Validates and normalizes the language value before setting.
+  Accepts language atoms (`:python`), strings (`"python"`), or aliases (`"py"`).
+  The `updated_at` timestamp is set to the current UTC time.
+
+  ## Parameters
+
+  - `session` - The session to update
+  - `language` - Language atom, string, or alias to set
+
+  ## Returns
+
+  - `{:ok, updated_session}` - Successfully updated session
+  - `{:error, :invalid_language}` - language is not a supported value
+
+  ## Examples
+
+      iex> {:ok, session} = JidoCode.Session.new(project_path: "/tmp")
+      iex> {:ok, updated} = JidoCode.Session.set_language(session, :python)
+      iex> updated.language
+      :python
+
+      iex> {:ok, session} = JidoCode.Session.new(project_path: "/tmp")
+      iex> {:ok, updated} = JidoCode.Session.set_language(session, "js")
+      iex> updated.language
+      :javascript
+  """
+  @spec set_language(t(), Language.language() | String.t()) :: {:ok, t()} | {:error, :invalid_language}
+  def set_language(%__MODULE__{} = session, language) do
+    case Language.normalize(language) do
+      {:ok, normalized} ->
+        {:ok, touch(session, %{language: normalized})}
+
+      {:error, :invalid_language} ->
+        {:error, :invalid_language}
+    end
+  end
 
   # Helper to update session fields and touch updated_at timestamp (S1)
   defp touch(session, changes) do

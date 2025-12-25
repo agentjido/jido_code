@@ -42,6 +42,7 @@ defmodule JidoCode.SessionTest do
           :connection_status,
           :created_at,
           :id,
+          :language,
           :name,
           :project_path,
           :updated_at

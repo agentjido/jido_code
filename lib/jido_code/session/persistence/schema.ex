@@ -33,6 +33,7 @@ defmodule JidoCode.Session.Persistence.Schema do
   - `name` - User-visible session name
   - `project_path` - Absolute path to the project directory
   - `config` - LLM configuration (provider, model, temperature, etc.)
+  - `language` - (optional) Programming language (e.g., "elixir", "python")
   - `created_at` - ISO 8601 timestamp when session was first created
   - `updated_at` - ISO 8601 timestamp of last activity
   - `closed_at` - ISO 8601 timestamp when session was saved/closed

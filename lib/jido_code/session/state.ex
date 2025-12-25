@@ -525,6 +525,41 @@ defmodule JidoCode.Session.State do
     call_state(session_id, {:update_session_config, config})
   end
 
+  @doc """
+  Updates the session's programming language.
+
+  This sets the language for the session using `Session.set_language/2`,
+  which validates and normalizes the language value.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `language` - Language atom, string, or alias (e.g., `:python`, `"python"`, `"py"`)
+
+  ## Returns
+
+  - `{:ok, session}` - Successfully updated session with new language
+  - `{:error, :not_found}` - Session not found
+  - `{:error, :invalid_language}` - Language is not a supported value
+
+  ## Examples
+
+      iex> {:ok, session} = State.update_language("session-123", :python)
+      iex> session.language
+      :python
+
+      iex> {:ok, session} = State.update_language("session-123", "js")
+      iex> session.language
+      :javascript
+
+      iex> {:error, :not_found} = State.update_language("unknown", :python)
+  """
+  @spec update_language(String.t(), JidoCode.Language.language() | String.t()) ::
+          {:ok, Session.t()} | {:error, :not_found | :invalid_language}
+  def update_language(session_id, language) when is_binary(session_id) do
+    call_state(session_id, {:update_language, language})
+  end
+
   # ============================================================================
   # Private Helpers
   # ============================================================================
@@ -738,6 +773,18 @@ defmodule JidoCode.Session.State do
 
       {:error, reasons} ->
         {:reply, {:error, reasons}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:update_language, language}, _from, state) do
+    case Session.set_language(state.session, language) do
+      {:ok, updated_session} ->
+        new_state = %{state | session: updated_session}
+        {:reply, {:ok, updated_session}, new_state}
+
+      {:error, :invalid_language} ->
+        {:reply, {:error, :invalid_language}, state}
     end
   end
 

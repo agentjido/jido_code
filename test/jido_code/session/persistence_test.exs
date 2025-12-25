@@ -1695,6 +1695,7 @@ defmodule JidoCode.Session.PersistenceTest do
         name: "Test Session",
         project_path: "/tmp/test-project",
         config: %{provider: :anthropic, model: "test-model", temperature: 0.7},
+        language: :elixir,
         created_at: ~U[2024-01-01 00:00:00Z],
         updated_at: ~U[2024-01-01 12:00:00Z]
       },

@@ -326,6 +326,10 @@ defmodule JidoCode.TUI.ViewHelpers do
     # Project path (truncated, show last 2 segments)
     path_text = format_project_path(session.project_path, 25)
 
+    # Programming language (with icon)
+    language = Map.get(session, :language, :elixir)
+    language_text = JidoCode.Language.display_name(language)
+
     # Model info from session config or global config
     session_config = Map.get(session, :config) || %{}
     provider = Map.get(session_config, :provider) || state.config.provider
@@ -344,9 +348,9 @@ defmodule JidoCode.TUI.ViewHelpers do
     # CoT indicator
     cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
 
-    # Build full text: "[1/3] project-name | ~/path | model | usage | status"
+    # Build full text: "[1/3] project-name | ~/path | Language | model | usage | status"
     full_text =
-      "#{position_text} #{session_name} | #{path_text} | #{model_text} | #{usage_text} | #{status_text}#{cot_indicator}"
+      "#{position_text} #{session_name} | #{path_text} | #{language_text} | #{model_text} | #{usage_text} | #{status_text}#{cot_indicator}"
 
     padded_text = pad_or_truncate(full_text, content_width)
 

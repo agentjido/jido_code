@@ -54,6 +54,7 @@ defmodule JidoCode.Session.Persistence.Serialization do
       name: session.name,
       project_path: session.project_path,
       config: serialize_config(session.config),
+      language: to_string(session.language),
       created_at: format_datetime(session.created_at),
       updated_at: format_datetime(session.updated_at),
       closed_at: DateTime.to_iso8601(DateTime.utc_now()),
@@ -211,6 +212,7 @@ defmodule JidoCode.Session.Persistence.Serialization do
         name: validated.name,
         project_path: validated.project_path,
         config: deserialize_config(validated.config),
+        language: parse_language(validated),
         created_at: created_at,
         updated_at: updated_at,
         conversation: messages,
@@ -389,6 +391,32 @@ defmodule JidoCode.Session.Persistence.Serialization do
   defp parse_status(other) do
     Logger.debug("Invalid status value: #{inspect(other)}")
     {:error, :invalid_status}
+  end
+
+  # Parse language from validated session, handling legacy sessions without language
+  # Falls back to :elixir for compatibility
+  defp parse_language(validated) do
+    language = Map.get(validated, :language) || Map.get(validated, "language")
+
+    case language do
+      nil ->
+        # Legacy session without language, default to elixir
+        :elixir
+
+      lang when is_binary(lang) ->
+        # Try to normalize, fall back to elixir if invalid
+        case JidoCode.Language.normalize(lang) do
+          {:ok, normalized} -> normalized
+          {:error, _} -> :elixir
+        end
+
+      lang when is_atom(lang) ->
+        # Already an atom, validate it
+        if JidoCode.Language.valid?(lang), do: lang, else: :elixir
+
+      _ ->
+        :elixir
+    end
   end
 
   # Deserialize config map (string keys to appropriate types)

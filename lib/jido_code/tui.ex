@@ -690,6 +690,32 @@ defmodule JidoCode.TUI do
       end
     end
 
+    @doc """
+    Updates a session in the model using a transformation function.
+
+    ## Parameters
+      - model: The current model state
+      - session_id: The ID of the session to update
+      - fun: A function that takes the session and returns the updated session
+
+    ## Returns
+      The updated model with the modified session.
+    """
+    @spec update_session(t(), String.t(), (map() -> map())) :: t()
+    def update_session(%__MODULE__{} = model, session_id, fun) when is_function(fun, 1) do
+      case Map.get(model.sessions, session_id) do
+        nil ->
+          # Session not found, return unchanged
+          model
+
+        session ->
+          # Apply the transformation function
+          updated_session = fun.(session)
+          new_sessions = Map.put(model.sessions, session_id, updated_session)
+          %{model | sessions: new_sessions}
+      end
+    end
+
     # =========================================================================
     # Per-Session UI State Helpers
     # =========================================================================
@@ -2632,6 +2658,10 @@ defmodule JidoCode.TUI do
       {:resume, subcommand} ->
         # Handle resume commands
         handle_resume_command(subcommand, state)
+
+      {:language, subcommand} ->
+        # Handle language commands
+        handle_language_command(subcommand, state)
     end
   end
 
@@ -2709,6 +2739,43 @@ defmodule JidoCode.TUI do
 
       {:error, error_message} ->
         # Error during resume
+        new_state = add_session_message(state, error_message)
+        {new_state, []}
+    end
+  end
+
+  # Handle language command execution and results
+  defp handle_language_command(subcommand, state) do
+    case Commands.execute_language(subcommand, state) do
+      {:language_action, {:set, session_id, language}} ->
+        # Update the language in Session.State and local model
+        case JidoCode.Session.State.update_language(session_id, language) do
+          {:ok, updated_session} ->
+            # Update local model's session record
+            new_state = Model.update_session(state, session_id, fn session ->
+              %{session | language: updated_session.language}
+            end)
+
+            display_name = JidoCode.Language.display_name(language)
+            final_state = add_session_message(new_state, "Language set to: #{display_name}")
+            {final_state, []}
+
+          {:error, :not_found} ->
+            new_state = add_session_message(state, "Session not found.")
+            {new_state, []}
+
+          {:error, :invalid_language} ->
+            new_state = add_session_message(state, "Invalid language.")
+            {new_state, []}
+        end
+
+      {:ok, message} ->
+        # Show current language
+        new_state = add_session_message(state, message)
+        {new_state, []}
+
+      {:error, error_message} ->
+        # Error during language command
         new_state = add_session_message(state, error_message)
         {new_state, []}
     end

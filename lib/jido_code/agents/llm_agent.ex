@@ -642,6 +642,9 @@ defmodule JidoCode.Agents.LLMAgent do
 
     # ARCH-1 Fix: Use Task.Supervisor for monitored async streaming
     Task.Supervisor.start_child(JidoCode.TaskSupervisor, fn ->
+      # Trap exits to prevent ReqLLM's internal cleanup tasks from crashing us
+      Process.flag(:trap_exit, true)
+
       try do
         do_chat_stream_with_timeout(config, message, topic, timeout, session_id)
         # Notify agent that streaming is complete
@@ -656,6 +659,13 @@ defmodule JidoCode.Agents.LLMAgent do
           Logger.error("Stream failed: #{kind} - #{inspect(reason)}")
           broadcast_stream_error(topic, {kind, reason})
           send(agent_pid, :stream_complete)
+      end
+
+      # Drain any EXIT messages from ReqLLM cleanup tasks
+      receive do
+        {:EXIT, _pid, _reason} -> :ok
+      after
+        100 -> :ok
       end
     end)
 
@@ -816,11 +826,11 @@ defmodule JidoCode.Agents.LLMAgent do
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_chunk, session_id, chunk})
   end
 
-  defp broadcast_stream_end(topic, full_content, session_id) do
+  defp broadcast_stream_end(topic, full_content, session_id, metadata) do
     # Finalize message in Session.State (skip if session_id is PID string)
     end_session_streaming(session_id)
-    # Also broadcast for TUI (include session_id for routing)
-    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, session_id, full_content})
+    # Also broadcast for TUI (include session_id, content, and metadata for routing)
+    Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, session_id, full_content, metadata})
   end
 
   defp broadcast_stream_error(topic, reason) do
@@ -900,33 +910,120 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp process_stream(stream, topic, session_id) do
-    # Accumulate full content while streaming chunks
+  defp process_stream(stream_response, topic, session_id) do
+    # Extract inner stream and metadata_task from StreamResponse
+    {actual_stream, metadata_task} =
+      case stream_response do
+        %ReqLLM.StreamResponse{stream: inner, metadata_task: task} when inner != nil ->
+          {inner, task}
+
+        %ReqLLM.StreamResponse{metadata_task: task} ->
+          Logger.warning("LLMAgent: StreamResponse has nil stream field")
+          {[], task}
+
+        other ->
+          # Not a StreamResponse, just a raw stream
+          {other, nil}
+      end
+
+    # Accumulate full content while streaming chunks (catch handles ReqLLM process cleanup race conditions)
     full_content =
-      Enum.reduce_while(stream, "", fn chunk, acc ->
-        case extract_chunk_content(chunk) do
-          {:ok, content} ->
-            broadcast_stream_chunk(topic, content, session_id)
-            {:cont, acc <> content}
+      try do
+        Enum.reduce_while(actual_stream, "", fn chunk, acc ->
+          case extract_chunk_content(chunk) do
+            {:ok, content} ->
+              # Only broadcast non-empty content
+              if content != "" do
+                broadcast_stream_chunk(topic, content, session_id)
+              end
 
-          {:finish, content} ->
-            # Last chunk with finish_reason
-            if content != "" do
-              broadcast_stream_chunk(topic, content, session_id)
-            end
+              {:cont, acc <> content}
 
-            {:halt, acc <> content}
-        end
-      end)
+            {:finish, content} ->
+              if content != "" do
+                broadcast_stream_chunk(topic, content, session_id)
+              end
+
+              {:halt, acc <> content}
+          end
+        end)
+      rescue
+        e in Protocol.UndefinedError ->
+          Logger.error("LLMAgent: Protocol error during enumeration: #{inspect(e)}")
+          broadcast_stream_error(topic, e)
+          ""
+
+        e ->
+          Logger.error("LLMAgent: Error during enumeration: #{inspect(e)}")
+          broadcast_stream_error(topic, e)
+          ""
+      catch
+        :exit, {:noproc, _} ->
+          # StreamServer died - this is expected at end of stream due to ReqLLM cleanup
+          Logger.debug("LLMAgent: Stream server terminated (normal cleanup)")
+          ""
+
+        :exit, reason ->
+          Logger.warning("LLMAgent: Stream exited: #{inspect(reason)}")
+          ""
+      end
+
+    # Await metadata from the stream (usage info, finish_reason, etc.)
+    # This keeps the StreamServer alive until metadata is collected
+    metadata = await_stream_metadata(metadata_task)
+
+    # Log usage information if available
+    if metadata[:usage] do
+      Logger.info("LLMAgent: Token usage - #{inspect(metadata[:usage])}")
+    end
 
     # Broadcast stream completion and finalize in Session.State
-    broadcast_stream_end(topic, full_content, session_id)
+    broadcast_stream_end(topic, full_content, session_id, metadata)
   rescue
     error ->
       Logger.error("Stream processing error: #{inspect(error)}")
       broadcast_stream_error(topic, error)
   end
 
+  # Await metadata from the stream's metadata task
+  # Returns empty map if task is nil or fails
+  defp await_stream_metadata(nil), do: %{}
+
+  defp await_stream_metadata(task) do
+    try do
+      # Await with reasonable timeout (10 seconds)
+      Task.await(task, 10_000)
+    catch
+      :exit, {:timeout, _} ->
+        Logger.warning("LLMAgent: Metadata task timed out")
+        %{}
+
+      :exit, reason ->
+        Logger.debug("LLMAgent: Metadata task exited: #{inspect(reason)}")
+        %{}
+    end
+  end
+
+  # ReqLLM.StreamChunk format - content type with text field
+  defp extract_chunk_content(%ReqLLM.StreamChunk{type: :content, text: text}) do
+    {:ok, text || ""}
+  end
+
+  # ReqLLM.StreamChunk format - meta type signals end of stream
+  defp extract_chunk_content(%ReqLLM.StreamChunk{type: :meta, metadata: metadata}) do
+    if Map.get(metadata, :finish_reason) do
+      {:finish, ""}
+    else
+      {:ok, ""}
+    end
+  end
+
+  # ReqLLM.StreamChunk format - thinking/tool_call types (skip for now)
+  defp extract_chunk_content(%ReqLLM.StreamChunk{type: _type}) do
+    {:ok, ""}
+  end
+
+  # Legacy format - content with finish_reason
   defp extract_chunk_content(%{content: content, finish_reason: nil}) do
     {:ok, content || ""}
   end
@@ -935,6 +1032,7 @@ defmodule JidoCode.Agents.LLMAgent do
     {:finish, content || ""}
   end
 
+  # Legacy format - delta content
   defp extract_chunk_content(%{delta: %{content: content}} = chunk) do
     finish_reason = Map.get(chunk, :finish_reason)
 
@@ -950,8 +1048,8 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   defp extract_chunk_content(chunk) do
-    # Unknown chunk format - try to extract content
-    content = Map.get(chunk, :content) || Map.get(chunk, "content") || ""
+    # Unknown chunk format - try to extract content or text
+    content = Map.get(chunk, :content) || Map.get(chunk, :text) || Map.get(chunk, "content") || ""
     {:ok, content}
   end
 

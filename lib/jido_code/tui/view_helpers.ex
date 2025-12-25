@@ -313,6 +313,8 @@ defmodule JidoCode.TUI.ViewHelpers do
 
   # Status bar with active session info
   defp render_status_bar_with_session(state, session, content_width) do
+    alias JidoCode.TUI.MessageHandlers
+
     # Session count and position
     session_count = Model.session_count(state)
     session_index = Enum.find_index(state.session_order, &(&1 == session.id))
@@ -330,6 +332,11 @@ defmodule JidoCode.TUI.ViewHelpers do
     model = Map.get(session_config, :model) || state.config.model
     model_text = format_model(provider, model)
 
+    # Get cumulative usage from session UI state
+    ui_state = Model.get_active_ui_state(state)
+    usage = if ui_state, do: Map.get(ui_state, :usage), else: nil
+    usage_text = MessageHandlers.format_usage_compact(usage)
+
     # Agent status for this session
     session_status = Model.get_session_status(session.id)
     status_text = format_status(session_status)
@@ -337,9 +344,9 @@ defmodule JidoCode.TUI.ViewHelpers do
     # CoT indicator
     cot_indicator = if has_active_reasoning?(state), do: " [CoT]", else: ""
 
-    # Build full text: "[1/3] project-name | ~/path/to/project | anthropic:claude-3-5-sonnet | Idle"
+    # Build full text: "[1/3] project-name | ~/path | model | usage | status"
     full_text =
-      "#{position_text} #{session_name} | #{path_text} | #{model_text} | #{status_text}#{cot_indicator}"
+      "#{position_text} #{session_name} | #{path_text} | #{model_text} | #{usage_text} | #{status_text}#{cot_indicator}"
 
     padded_text = pad_or_truncate(full_text, content_width)
 
@@ -585,7 +592,7 @@ defmodule JidoCode.TUI.ViewHelpers do
     end)
   end
 
-  defp format_message(%{role: role, content: content, timestamp: timestamp}, width) do
+  defp format_message(%{role: role, content: content, timestamp: timestamp} = message, width) do
     ts = TUI.format_timestamp(timestamp)
     prefix = role_prefix(role)
     style = role_style(role)
@@ -594,16 +601,27 @@ defmodule JidoCode.TUI.ViewHelpers do
     content_width = max(width - prefix_len, 20)
     lines = TUI.wrap_text(content, content_width)
 
-    lines
-    |> Enum.with_index()
-    |> Enum.map(fn {line, index} ->
-      if index == 0 do
-        text("#{ts} #{prefix}#{line}", style)
-      else
-        padding = String.duplicate(" ", prefix_len)
-        text("#{padding}#{line}", style)
-      end
-    end)
+    message_lines =
+      lines
+      |> Enum.with_index()
+      |> Enum.map(fn {line, index} ->
+        if index == 0 do
+          text("#{ts} #{prefix}#{line}", style)
+        else
+          padding = String.duplicate(" ", prefix_len)
+          text("#{padding}#{line}", style)
+        end
+      end)
+
+    # Add usage line above assistant messages if usage data is present
+    case {role, Map.get(message, :usage)} do
+      {:assistant, usage} when is_map(usage) ->
+        usage_line = render_usage_line(usage)
+        [usage_line | message_lines]
+
+      _ ->
+        message_lines
+    end
   end
 
   # Fallback for messages without timestamp (legacy format)
@@ -618,6 +636,14 @@ defmodule JidoCode.TUI.ViewHelpers do
   defp role_style(:user), do: Style.new(fg: Theme.get_semantic(:info) || :cyan)
   defp role_style(:assistant), do: Style.new(fg: Theme.get_color(:foreground) || :white)
   defp role_style(:system), do: Style.new(fg: Theme.get_semantic(:warning) || :yellow)
+
+  # Renders a usage line for display above assistant messages
+  defp render_usage_line(usage) do
+    alias JidoCode.TUI.MessageHandlers
+    usage_text = MessageHandlers.format_usage_detailed(usage)
+    muted_style = Style.new(fg: Theme.get_semantic(:muted) || :bright_black)
+    text(usage_text, muted_style)
+  end
 
   # ============================================================================
   # Tool Calls

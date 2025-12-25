@@ -38,6 +38,7 @@ defmodule JidoCode.Session.Persistence.Schema do
   - `closed_at` - ISO 8601 timestamp when session was saved/closed
   - `conversation` - List of conversation messages
   - `todos` - List of todo items
+  - `cumulative_usage` - (optional) Total token usage for this session
   """
   @type persisted_session :: %{
           version: pos_integer(),
@@ -50,6 +51,21 @@ defmodule JidoCode.Session.Persistence.Schema do
           closed_at: String.t(),
           conversation: [persisted_message()],
           todos: [persisted_todo()]
+        }
+
+  @typedoc """
+  Token usage statistics for persistence.
+
+  Contains:
+
+  - `input_tokens` - Total input tokens consumed
+  - `output_tokens` - Total output tokens consumed
+  - `total_cost` - Estimated total cost in dollars
+  """
+  @type persisted_usage :: %{
+          input_tokens: non_neg_integer(),
+          output_tokens: non_neg_integer(),
+          total_cost: float()
         }
 
   @typedoc """

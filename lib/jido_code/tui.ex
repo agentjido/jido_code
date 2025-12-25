@@ -91,6 +91,7 @@ defmodule JidoCode.TUI do
           | :toggle_tool_details
           | {:stream_chunk, String.t(), String.t()}
           | {:stream_end, String.t(), String.t()}
+          | {:stream_end, String.t(), String.t(), map()}
           | {:stream_error, term()}
 
   # Maximum number of messages to keep in the debug queue
@@ -222,7 +223,14 @@ defmodule JidoCode.TUI do
             messages: [message()],
             agent_activity: agent_activity(),
             awaiting_input: awaiting_input(),
-            agent_status: agent_status()
+            agent_status: agent_status(),
+            usage:
+              %{
+                input_tokens: non_neg_integer(),
+                output_tokens: non_neg_integer(),
+                total_cost: float()
+              }
+              | nil
           }
 
     @typedoc "Focus states for keyboard navigation"
@@ -748,7 +756,8 @@ defmodule JidoCode.TUI do
         messages: [],
         agent_activity: :idle,
         awaiting_input: nil,
-        agent_status: :idle
+        agent_status: :idle,
+        usage: nil
       }
     end
 
@@ -1325,6 +1334,38 @@ defmodule JidoCode.TUI do
   end
 
   @doc """
+  Handles PubSub messages received from agents.
+
+  This callback is called by TermUI Runtime when a process message is received
+  that isn't a terminal event. We use it to receive PubSub broadcasts from
+  LLMAgent streaming operations.
+  """
+  def handle_info({:stream_chunk, session_id, chunk}, state) do
+    update({:stream_chunk, session_id, chunk}, state)
+  end
+
+  def handle_info({:stream_end, session_id, full_content, metadata}, state) do
+    update({:stream_end, session_id, full_content, metadata}, state)
+  end
+
+  # Backwards compatibility for stream_end without metadata
+  def handle_info({:stream_end, session_id, full_content}, state) do
+    update({:stream_end, session_id, full_content, %{}}, state)
+  end
+
+  def handle_info({:stream_error, reason}, state) do
+    update({:stream_error, reason}, state)
+  end
+
+  def handle_info({:theme_changed, theme}, state) do
+    update({:theme_changed, theme}, state)
+  end
+
+  def handle_info(_msg, state) do
+    {state, []}
+  end
+
+  @doc """
   Converts terminal events to TUI messages.
 
   Handles keyboard events:
@@ -1802,8 +1843,12 @@ defmodule JidoCode.TUI do
   def update({:stream_chunk, session_id, chunk}, state),
     do: MessageHandlers.handle_stream_chunk(session_id, chunk, state)
 
+  def update({:stream_end, session_id, full_content, metadata}, state),
+    do: MessageHandlers.handle_stream_end(session_id, full_content, metadata, state)
+
+  # Backwards compatibility for stream_end without metadata
   def update({:stream_end, session_id, full_content}, state),
-    do: MessageHandlers.handle_stream_end(session_id, full_content, state)
+    do: MessageHandlers.handle_stream_end(session_id, full_content, %{}, state)
 
   def update({:stream_error, reason}, state),
     do: MessageHandlers.handle_stream_error(reason, state)

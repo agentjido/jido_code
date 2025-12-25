@@ -1871,6 +1871,264 @@ defmodule JidoCode.Session.PersistenceTest do
     end
   end
 
+  describe "message usage serialization" do
+    test "serializes message without usage" do
+      # Use build_persisted_session/1 to test serialization
+      alias JidoCode.Session.Persistence.Serialization
+
+      state = %{
+        session: %JidoCode.Session{
+          id: "test-123",
+          name: "Test",
+          project_path: "/test",
+          config: %{},
+          created_at: DateTime.utc_now(),
+          updated_at: DateTime.utc_now()
+        },
+        messages: [
+          %{
+            id: "msg-1",
+            role: :user,
+            content: "Hello",
+            timestamp: DateTime.utc_now()
+          }
+        ],
+        todos: []
+      }
+
+      persisted = Serialization.build_persisted_session(state)
+      [msg | _] = persisted.conversation
+
+      refute Map.has_key?(msg, :usage)
+    end
+
+    test "serializes message with usage" do
+      alias JidoCode.Session.Persistence.Serialization
+
+      state = %{
+        session: %JidoCode.Session{
+          id: "test-123",
+          name: "Test",
+          project_path: "/test",
+          config: %{},
+          created_at: DateTime.utc_now(),
+          updated_at: DateTime.utc_now()
+        },
+        messages: [
+          %{
+            id: "msg-1",
+            role: :assistant,
+            content: "Hello back!",
+            timestamp: DateTime.utc_now(),
+            usage: %{input_tokens: 100, output_tokens: 200, total_cost: 0.0015}
+          }
+        ],
+        todos: []
+      }
+
+      persisted = Serialization.build_persisted_session(state)
+      [msg | _] = persisted.conversation
+
+      assert msg.usage.input_tokens == 100
+      assert msg.usage.output_tokens == 200
+      assert msg.usage.total_cost == 0.0015
+    end
+
+    test "deserializes message with usage" do
+      alias JidoCode.Session.Persistence.Serialization
+
+      data = %{
+        "version" => 1,
+        "id" => "test-123",
+        "name" => "Test",
+        "project_path" => "/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T00:00:00Z",
+        "closed_at" => "2024-01-01T00:00:00Z",
+        "conversation" => [
+          %{
+            "id" => "msg-1",
+            "role" => "assistant",
+            "content" => "Hello",
+            "timestamp" => "2024-01-01T00:00:00Z",
+            "usage" => %{
+              "input_tokens" => 150,
+              "output_tokens" => 300,
+              "total_cost" => 0.002
+            }
+          }
+        ],
+        "todos" => []
+      }
+
+      {:ok, session} = Serialization.deserialize_session(data)
+      [msg | _] = session.conversation
+
+      assert msg.usage.input_tokens == 150
+      assert msg.usage.output_tokens == 300
+      assert msg.usage.total_cost == 0.002
+    end
+
+    test "deserializes message without usage (legacy format)" do
+      alias JidoCode.Session.Persistence.Serialization
+
+      data = %{
+        "version" => 1,
+        "id" => "test-123",
+        "name" => "Test",
+        "project_path" => "/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T00:00:00Z",
+        "closed_at" => "2024-01-01T00:00:00Z",
+        "conversation" => [
+          %{
+            "id" => "msg-1",
+            "role" => "user",
+            "content" => "Hello",
+            "timestamp" => "2024-01-01T00:00:00Z"
+          }
+        ],
+        "todos" => []
+      }
+
+      {:ok, session} = Serialization.deserialize_session(data)
+      [msg | _] = session.conversation
+
+      refute Map.has_key?(msg, :usage)
+    end
+  end
+
+  describe "session cumulative usage" do
+    test "calculates cumulative usage from messages" do
+      alias JidoCode.Session.Persistence.Serialization
+
+      state = %{
+        session: %JidoCode.Session{
+          id: "test-123",
+          name: "Test",
+          project_path: "/test",
+          config: %{},
+          created_at: DateTime.utc_now(),
+          updated_at: DateTime.utc_now()
+        },
+        messages: [
+          %{
+            id: "msg-1",
+            role: :user,
+            content: "Hello",
+            timestamp: DateTime.utc_now()
+          },
+          %{
+            id: "msg-2",
+            role: :assistant,
+            content: "Hi!",
+            timestamp: DateTime.utc_now(),
+            usage: %{input_tokens: 50, output_tokens: 100, total_cost: 0.001}
+          },
+          %{
+            id: "msg-3",
+            role: :user,
+            content: "More",
+            timestamp: DateTime.utc_now()
+          },
+          %{
+            id: "msg-4",
+            role: :assistant,
+            content: "Response",
+            timestamp: DateTime.utc_now(),
+            usage: %{input_tokens: 75, output_tokens: 150, total_cost: 0.0015}
+          }
+        ],
+        todos: []
+      }
+
+      persisted = Serialization.build_persisted_session(state)
+
+      assert persisted.cumulative_usage.input_tokens == 125
+      assert persisted.cumulative_usage.output_tokens == 250
+      assert persisted.cumulative_usage.total_cost == 0.0025
+    end
+
+    test "omits cumulative usage when no messages have usage" do
+      alias JidoCode.Session.Persistence.Serialization
+
+      state = %{
+        session: %JidoCode.Session{
+          id: "test-123",
+          name: "Test",
+          project_path: "/test",
+          config: %{},
+          created_at: DateTime.utc_now(),
+          updated_at: DateTime.utc_now()
+        },
+        messages: [
+          %{
+            id: "msg-1",
+            role: :user,
+            content: "Hello",
+            timestamp: DateTime.utc_now()
+          }
+        ],
+        todos: []
+      }
+
+      persisted = Serialization.build_persisted_session(state)
+
+      refute Map.has_key?(persisted, :cumulative_usage)
+    end
+
+    test "deserializes session with cumulative usage" do
+      alias JidoCode.Session.Persistence.Serialization
+
+      data = %{
+        "version" => 1,
+        "id" => "test-123",
+        "name" => "Test",
+        "project_path" => "/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T00:00:00Z",
+        "closed_at" => "2024-01-01T00:00:00Z",
+        "conversation" => [],
+        "todos" => [],
+        "cumulative_usage" => %{
+          "input_tokens" => 500,
+          "output_tokens" => 1000,
+          "total_cost" => 0.01
+        }
+      }
+
+      {:ok, session} = Serialization.deserialize_session(data)
+
+      assert session.cumulative_usage.input_tokens == 500
+      assert session.cumulative_usage.output_tokens == 1000
+      assert session.cumulative_usage.total_cost == 0.01
+    end
+
+    test "deserializes session without cumulative usage (legacy format)" do
+      alias JidoCode.Session.Persistence.Serialization
+
+      data = %{
+        "version" => 1,
+        "id" => "test-123",
+        "name" => "Test",
+        "project_path" => "/test",
+        "config" => %{},
+        "created_at" => "2024-01-01T00:00:00Z",
+        "updated_at" => "2024-01-01T00:00:00Z",
+        "closed_at" => "2024-01-01T00:00:00Z",
+        "conversation" => [],
+        "todos" => []
+      }
+
+      {:ok, session} = Serialization.deserialize_session(data)
+
+      refute Map.has_key?(session, :cumulative_usage)
+    end
+  end
+
   defp valid_message do
     %{
       id: "msg-1",

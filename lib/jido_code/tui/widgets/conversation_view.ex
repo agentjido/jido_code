@@ -100,7 +100,11 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
           on_copy: (String.t() -> any()) | nil,
           # TextInput integration
           text_input: map() | nil,
-          input_focused: boolean()
+          input_focused: boolean(),
+          # Interactive element focus (code blocks)
+          interactive_mode: boolean(),
+          focused_element_id: String.t() | nil,
+          interactive_elements: [map()]
         }
 
   @default_role_styles %{
@@ -225,7 +229,11 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       on_copy: props.on_copy,
       # TextInput integration
       text_input: text_input,
-      input_focused: props.input_focused
+      input_focused: props.input_focused,
+      # Interactive element focus (code blocks)
+      interactive_mode: false,
+      focused_element_id: nil,
+      interactive_elements: []
     }
 
     {:ok, state}
@@ -317,6 +325,26 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
         callback.(content)
         {:ok, state}
     end
+  end
+
+  # Interactive Element Navigation (Tab to cycle through code blocks)
+
+  def handle_event(%TermUI.Event.Key{key: :tab}, state) do
+    {:ok, cycle_interactive_focus(state, :forward)}
+  end
+
+  def handle_event(%TermUI.Event.Key{key: :tab, modifiers: [:shift]}, state) do
+    {:ok, cycle_interactive_focus(state, :backward)}
+  end
+
+  # Escape exits interactive mode
+  def handle_event(%TermUI.Event.Key{key: :escape}, state) when state.interactive_mode do
+    {:ok, %{state | interactive_mode: false, focused_element_id: nil}}
+  end
+
+  # Enter or 'C' copies focused code block (capital C to distinguish from collapse)
+  def handle_event(%TermUI.Event.Key{key: :enter}, state) when state.interactive_mode do
+    {:ok, copy_focused_element(state)}
   end
 
   # ============================================================================
@@ -1088,6 +1116,105 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   end
 
   # ============================================================================
+  # Public API - Interactive Element Navigation
+  # ============================================================================
+
+  @doc """
+  Cycles focus through interactive elements (code blocks).
+
+  Direction can be :forward or :backward.
+  - First Tab: enters interactive mode and focuses first element
+  - Subsequent Tabs: cycle through elements
+  - Escape: exits interactive mode
+
+  Elements are computed on-demand from assistant messages.
+  """
+  @spec cycle_interactive_focus(state(), :forward | :backward) :: state()
+  def cycle_interactive_focus(state, direction) do
+    # Compute elements on-demand from current messages
+    elements =
+      if state.interactive_mode do
+        # Already have elements cached
+        state.interactive_elements
+      else
+        # Compute fresh elements when entering interactive mode
+        compute_interactive_elements(state)
+      end
+
+    cond do
+      # No elements to focus
+      Enum.empty?(elements) ->
+        state
+
+      # Not in interactive mode - enter it and focus first/last element
+      not state.interactive_mode ->
+        first_element = if direction == :forward, do: hd(elements), else: List.last(elements)
+        %{state | interactive_mode: true, focused_element_id: first_element.id, interactive_elements: elements}
+
+      # In interactive mode - cycle to next/previous
+      true ->
+        current_idx = Enum.find_index(elements, &(&1.id == state.focused_element_id)) || 0
+
+        next_idx =
+          case direction do
+            :forward -> rem(current_idx + 1, length(elements))
+            :backward -> rem(current_idx - 1 + length(elements), length(elements))
+          end
+
+        next_element = Enum.at(elements, next_idx)
+        %{state | focused_element_id: next_element.id}
+    end
+  end
+
+  # Compute interactive elements from all assistant messages
+  defp compute_interactive_elements(state) do
+    alias JidoCode.TUI.Markdown
+
+    content_width = max(1, state.viewport_width - state.scrollbar_width - state.indent)
+
+    state.messages
+    |> Enum.filter(&(&1.role == :assistant))
+    |> Enum.flat_map(fn msg ->
+      %{elements: elements} = Markdown.render_with_elements(msg.content, content_width)
+      elements
+    end)
+  end
+
+  @doc """
+  Returns the currently focused interactive element, or nil if none.
+  """
+  @spec get_focused_element(state()) :: map() | nil
+  def get_focused_element(state) do
+    if state.interactive_mode and state.focused_element_id do
+      Enum.find(state.interactive_elements, &(&1.id == state.focused_element_id))
+    else
+      nil
+    end
+  end
+
+  @doc """
+  Copies the focused element's content using the on_copy callback.
+
+  Returns state unchanged if no callback or no focused element.
+  """
+  @spec copy_focused_element(state()) :: state()
+  def copy_focused_element(state) do
+    with element when not is_nil(element) <- get_focused_element(state),
+         callback when is_function(callback, 1) <- state.on_copy do
+      callback.(element.content)
+    end
+
+    # Exit interactive mode after copying
+    %{state | interactive_mode: false, focused_element_id: nil}
+  end
+
+  @doc """
+  Returns whether interactive mode is active.
+  """
+  @spec interactive_mode?(state()) :: boolean()
+  def interactive_mode?(state), do: state.interactive_mode
+
+  # ============================================================================
   # Public API - Viewport Calculation
   # ============================================================================
 
@@ -1529,8 +1656,15 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
   defp render_markdown_content(state, message, _idx, content_width, is_streaming) do
     alias JidoCode.TUI.Markdown
 
-    # Get styled lines from markdown processor
-    styled_lines = Markdown.render(message.content, content_width)
+    # Get styled lines from markdown processor, with focus highlighting if in interactive mode
+    opts =
+      if state.interactive_mode and state.focused_element_id do
+        [focused_element_id: state.focused_element_id]
+      else
+        []
+      end
+
+    %{lines: styled_lines} = Markdown.render_with_elements(message.content, content_width, opts)
 
     # Never truncate LLM responses (assistant messages) - only tool results should be truncated
     # Users can scroll to see full content

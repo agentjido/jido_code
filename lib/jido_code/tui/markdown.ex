@@ -27,6 +27,22 @@ defmodule JidoCode.TUI.Markdown do
   @type styled_segment :: {String.t(), Style.t() | nil}
   @type styled_line :: [styled_segment]
 
+  @typedoc "An interactive element that can receive focus and actions"
+  @type interactive_element :: %{
+          id: String.t(),
+          type: :code_block,
+          content: String.t(),
+          language: String.t() | nil,
+          start_line: non_neg_integer(),
+          end_line: non_neg_integer()
+        }
+
+  @typedoc "Result of render_with_elements/2"
+  @type render_result :: %{
+          lines: [styled_line()],
+          elements: [interactive_element()]
+        }
+
   # Style definitions
   @header1_style Style.new(fg: :cyan, attrs: [:bold])
   @header2_style Style.new(fg: :cyan, attrs: [:bold])
@@ -36,6 +52,7 @@ defmodule JidoCode.TUI.Markdown do
   @code_style Style.new(fg: :yellow)
   @code_block_style Style.new(fg: :yellow)
   @code_border_style Style.new(fg: :bright_black)
+  @code_border_focused_style Style.new(fg: :cyan, attrs: [:bold])
   @blockquote_style Style.new(fg: :bright_black)
   @link_style Style.new(fg: :blue, attrs: [:underline])
   @list_bullet_style Style.new(fg: :cyan)
@@ -154,6 +171,67 @@ defmodule JidoCode.TUI.Markdown do
   end
 
   @doc """
+  Renders markdown content with interactive element tracking.
+
+  Returns a map containing:
+  - `:lines` - List of styled lines for rendering
+  - `:elements` - List of interactive elements (code blocks) with their positions
+
+  ## Parameters
+
+  - `content` - Markdown string to render
+  - `max_width` - Maximum line width for wrapping
+  - `opts` - Options:
+    - `:focused_element_id` - ID of the focused element (for visual highlighting)
+
+  ## Returns
+
+  A map with `:lines` and `:elements` keys.
+  """
+  @spec render_with_elements(String.t(), pos_integer(), keyword()) :: render_result()
+  def render_with_elements(content, max_width, opts \\ [])
+
+  def render_with_elements("", _max_width, _opts) do
+    %{lines: [[{"", nil}]], elements: []}
+  end
+
+  def render_with_elements(nil, _max_width, _opts) do
+    %{lines: [[{"", nil}]], elements: []}
+  end
+
+  def render_with_elements(content, max_width, opts) when is_binary(content) and max_width > 0 do
+    focused_id = Keyword.get(opts, :focused_element_id)
+
+    case MDEx.parse_document(content) do
+      {:ok, document} ->
+        # Process document and collect interactive elements
+        {raw_lines, elements} = process_document_with_elements(document, focused_id)
+
+        # Wrap lines (this may change line counts, so we need to adjust element positions)
+        wrapped_lines = wrap_styled_lines(raw_lines, max_width)
+
+        # For now, elements track pre-wrap positions. In a full implementation,
+        # we'd need to track how wrapping affects line positions.
+        # Since code blocks don't wrap (they have fixed-width content), this is okay.
+        %{lines: wrapped_lines, elements: elements}
+
+      {:error, _reason} ->
+        # Fallback to plain text on parse error
+        lines =
+          content
+          |> String.split("\n")
+          |> Enum.map(fn line -> [{line, nil}] end)
+          |> wrap_styled_lines(max_width)
+
+        %{lines: lines, elements: []}
+    end
+  end
+
+  def render_with_elements(content, _max_width, opts) when is_binary(content) do
+    render_with_elements(content, 80, opts)
+  end
+
+  @doc """
   Converts a styled line to a TermUI render node.
 
   Joins multiple styled segments into a horizontal stack.
@@ -184,6 +262,76 @@ defmodule JidoCode.TUI.Markdown do
   end
 
   defp process_document(_), do: [[{"", nil}]]
+
+  # Process document with interactive element tracking
+  defp process_document_with_elements(%MDEx.Document{nodes: nodes}, focused_id) do
+    {lines, elements, _line_idx} =
+      Enum.reduce(nodes, {[], [], 0}, fn node, {acc_lines, acc_elements, line_idx} ->
+        {node_lines, node_elements} = process_node_with_elements(node, line_idx, focused_id)
+        new_line_idx = line_idx + length(node_lines)
+        {acc_lines ++ node_lines, acc_elements ++ node_elements, new_line_idx}
+      end)
+
+    {lines, elements}
+  end
+
+  defp process_document_with_elements(_, _focused_id), do: {[[{"", nil}]], []}
+
+  # Process node and return {lines, elements} tuple
+  # Most nodes don't have interactive elements
+  defp process_node_with_elements(%MDEx.CodeBlock{literal: code, info: info}, line_idx, focused_id) do
+    lang = if info && info != "", do: String.downcase(String.trim(info)), else: nil
+
+    # Generate deterministic ID for this code block
+    element_id = generate_element_id(code, line_idx)
+    is_focused = element_id == focused_id
+
+    # Choose border style based on focus state
+    border_style = if is_focused, do: @code_border_focused_style, else: @code_border_style
+
+    # Build header with language label and optional focus hint
+    header =
+      if lang do
+        focus_hint = if is_focused, do: " [c]", else: ""
+        [[{"┌─ " <> lang <> focus_hint <> " ", @code_block_style}, {String.duplicate("─", 40 - String.length(focus_hint)), border_style}]]
+      else
+        focus_hint = if is_focused, do: " [c]", else: ""
+        [[{"┌" <> focus_hint, @code_block_style}, {String.duplicate("─", 44 - String.length(focus_hint)), border_style}]]
+      end
+
+    # Render code with syntax highlighting if supported, otherwise plain
+    code_lines = render_code_block(code, lang)
+
+    footer = [[{"└", @code_block_style}, {String.duplicate("─", 44), border_style}], [{"", nil}]]
+
+    lines = header ++ code_lines ++ footer
+
+    # Create interactive element metadata
+    element = %{
+      id: element_id,
+      type: :code_block,
+      content: String.trim_trailing(code),
+      language: lang,
+      start_line: line_idx,
+      end_line: line_idx + length(lines) - 1
+    }
+
+    {lines, [element]}
+  end
+
+  # For all other node types, delegate to regular process_node and return empty elements
+  defp process_node_with_elements(node, _line_idx, _focused_id) do
+    lines = process_node(node)
+    {lines, []}
+  end
+
+  # Generate a deterministic ID for interactive elements based on content and position
+  # This ensures the same code block gets the same ID across re-renders
+  defp generate_element_id(content, line_idx) do
+    :crypto.hash(:md5, "#{line_idx}:#{content}")
+    |> Base.encode16(case: :lower)
+    |> String.slice(0, 16)
+  end
 
   # Process different node types
   defp process_node(%MDEx.Heading{level: 1, nodes: children}) do

@@ -262,4 +262,83 @@ defmodule JidoCode.TUI.MarkdownTest do
       assert length(result) >= 2
     end
   end
+
+  describe "render_with_elements/2" do
+    test "returns empty elements for plain text" do
+      result = Markdown.render_with_elements("Hello world", 80)
+
+      assert %{lines: lines, elements: elements} = result
+      assert length(lines) >= 1
+      assert elements == []
+    end
+
+    test "returns code block elements with metadata" do
+      markdown = """
+      Some text
+
+      ```elixir
+      def hello, do: :world
+      ```
+
+      More text
+      """
+
+      result = Markdown.render_with_elements(markdown, 80)
+
+      assert %{lines: _lines, elements: elements} = result
+      assert length(elements) == 1
+
+      [element] = elements
+      assert element.type == :code_block
+      assert element.language == "elixir"
+      assert element.content == "def hello, do: :world"
+      assert is_binary(element.id)
+      assert element.start_line >= 0
+      assert element.end_line > element.start_line
+    end
+
+    test "returns multiple code block elements" do
+      markdown = """
+      ```python
+      print("hello")
+      ```
+
+      Some text
+
+      ```javascript
+      console.log("world")
+      ```
+      """
+
+      result = Markdown.render_with_elements(markdown, 80)
+
+      assert %{elements: elements} = result
+      assert length(elements) == 2
+
+      [first, second] = elements
+      assert first.language == "python"
+      assert second.language == "javascript"
+      # Second block should start after first block ends
+      assert second.start_line > first.end_line
+    end
+
+    test "generates deterministic IDs for code blocks" do
+      markdown = """
+      ```elixir
+      def hello, do: :world
+      ```
+      """
+
+      result1 = Markdown.render_with_elements(markdown, 80)
+      result2 = Markdown.render_with_elements(markdown, 80)
+
+      # Same content should produce same IDs
+      assert hd(result1.elements).id == hd(result2.elements).id
+    end
+
+    test "handles empty and nil content" do
+      assert %{lines: _, elements: []} = Markdown.render_with_elements("", 80)
+      assert %{lines: _, elements: []} = Markdown.render_with_elements(nil, 80)
+    end
+  end
 end

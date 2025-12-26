@@ -2256,4 +2256,176 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert new_state == state
     end
   end
+
+  # ============================================================================
+  # Interactive Element Navigation Tests
+  # ============================================================================
+
+  describe "interactive element navigation" do
+    test "Tab enters interactive mode when code blocks exist" do
+      markdown_with_code = """
+      Here's some code:
+
+      ```elixir
+      def hello, do: :world
+      ```
+      """
+
+      messages = [make_message("1", :assistant, markdown_with_code)]
+      state = init_state(messages: messages)
+
+      # Initially not in interactive mode
+      refute state.interactive_mode
+
+      # Press Tab
+      event = %TermUI.Event.Key{key: :tab}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # Should now be in interactive mode with focused element
+      assert new_state.interactive_mode
+      assert new_state.focused_element_id != nil
+      assert length(new_state.interactive_elements) == 1
+    end
+
+    test "Tab does nothing when no code blocks exist" do
+      messages = [make_message("1", :assistant, "Just plain text, no code")]
+      state = init_state(messages: messages)
+
+      event = %TermUI.Event.Key{key: :tab}
+      {:ok, new_state} = ConversationView.handle_event(event, state)
+
+      # Should remain out of interactive mode
+      refute new_state.interactive_mode
+    end
+
+    test "Tab cycles through multiple code blocks" do
+      markdown_with_multiple = """
+      First block:
+
+      ```elixir
+      def first, do: 1
+      ```
+
+      Second block:
+
+      ```elixir
+      def second, do: 2
+      ```
+      """
+
+      messages = [make_message("1", :assistant, markdown_with_multiple)]
+      state = init_state(messages: messages)
+
+      # Enter interactive mode
+      event = %TermUI.Event.Key{key: :tab}
+      {:ok, state1} = ConversationView.handle_event(event, state)
+      assert state1.interactive_mode
+      first_id = state1.focused_element_id
+
+      # Tab again to move to next element
+      {:ok, state2} = ConversationView.handle_event(event, state1)
+      second_id = state2.focused_element_id
+
+      # Should have moved to different element
+      assert first_id != second_id
+
+      # Tab again should cycle back to first
+      {:ok, state3} = ConversationView.handle_event(event, state2)
+      assert state3.focused_element_id == first_id
+    end
+
+    test "Escape exits interactive mode" do
+      markdown_with_code = """
+      ```elixir
+      def hello, do: :world
+      ```
+      """
+
+      messages = [make_message("1", :assistant, markdown_with_code)]
+      state = init_state(messages: messages)
+
+      # Enter interactive mode
+      tab_event = %TermUI.Event.Key{key: :tab}
+      {:ok, state1} = ConversationView.handle_event(tab_event, state)
+      assert state1.interactive_mode
+
+      # Press Escape
+      esc_event = %TermUI.Event.Key{key: :escape}
+      {:ok, state2} = ConversationView.handle_event(esc_event, state1)
+
+      # Should exit interactive mode
+      refute state2.interactive_mode
+      assert state2.focused_element_id == nil
+    end
+
+    test "get_focused_element returns focused element when in interactive mode" do
+      markdown_with_code = """
+      ```elixir
+      def hello, do: :world
+      ```
+      """
+
+      messages = [make_message("1", :assistant, markdown_with_code)]
+      state = init_state(messages: messages)
+
+      # Not in interactive mode - no focused element
+      assert ConversationView.get_focused_element(state) == nil
+
+      # Enter interactive mode
+      event = %TermUI.Event.Key{key: :tab}
+      {:ok, state1} = ConversationView.handle_event(event, state)
+
+      # Should return the focused element
+      element = ConversationView.get_focused_element(state1)
+      assert element != nil
+      assert element.type == :code_block
+      assert element.content == "def hello, do: :world"
+    end
+
+    test "Enter copies focused element and exits interactive mode" do
+      markdown_with_code = """
+      ```elixir
+      def hello, do: :world
+      ```
+      """
+
+      # Use a callback to capture copied content
+      messages = [make_message("1", :assistant, markdown_with_code)]
+
+      state =
+        init_state(
+          messages: messages,
+          on_copy: fn text ->
+            send(self(), {:copied, text})
+          end
+        )
+
+      # Enter interactive mode
+      tab_event = %TermUI.Event.Key{key: :tab}
+      {:ok, state1} = ConversationView.handle_event(tab_event, state)
+      assert state1.interactive_mode
+
+      # Press Enter to copy
+      enter_event = %TermUI.Event.Key{key: :enter}
+      {:ok, state2} = ConversationView.handle_event(enter_event, state1)
+
+      # Should have copied and exited interactive mode
+      refute state2.interactive_mode
+
+      # Verify callback was called
+      assert_receive {:copied, "def hello, do: :world"}
+    end
+
+    test "interactive_mode?/1 returns correct boolean" do
+      messages = [make_message("1", :assistant, "```elixir\ncode\n```")]
+      state = init_state(messages: messages)
+
+      refute ConversationView.interactive_mode?(state)
+
+      event = %TermUI.Event.Key{key: :tab}
+      {:ok, state1} = ConversationView.handle_event(event, state)
+
+      assert ConversationView.interactive_mode?(state1)
+    end
+  end
 end

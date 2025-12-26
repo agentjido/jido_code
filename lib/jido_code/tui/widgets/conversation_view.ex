@@ -1469,16 +1469,11 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
 
   # Render plain text content (for user and system messages)
   defp render_plain_content(state, message, idx, content_width, role_style, is_streaming) do
-    # Wrap and potentially truncate content
+    # Wrap content (no truncation - only tool results should be truncated)
     wrapped_lines = wrap_text(message.content, content_width)
 
-    # Don't truncate while streaming - only truncate completed messages
-    {display_lines, truncated?} =
-      if is_streaming do
-        {wrapped_lines, false}
-      else
-        truncate_content(wrapped_lines, state.max_collapsed_lines, state.expanded, message.id)
-      end
+    # Never truncate conversation messages - users can scroll to see full content
+    {display_lines, truncated?} = {wrapped_lines, false}
 
     # Add streaming cursor if this is the streaming message
     display_lines =
@@ -1537,21 +1532,9 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
     # Get styled lines from markdown processor
     styled_lines = Markdown.render(message.content, content_width)
 
-    # Check if message is expanded
-    is_expanded = MapSet.member?(state.expanded, message.id)
-
-    # Don't truncate while streaming - only truncate completed messages
-    {display_lines, truncated?} =
-      cond do
-        is_streaming ->
-          {styled_lines, false}
-
-        not is_expanded and length(styled_lines) > state.max_collapsed_lines ->
-          {Enum.take(styled_lines, state.max_collapsed_lines - 1), true}
-
-        true ->
-          {styled_lines, false}
-      end
+    # Never truncate LLM responses (assistant messages) - only tool results should be truncated
+    # Users can scroll to see full content
+    {display_lines, truncated?} = {styled_lines, false}
 
     # Convert styled lines to render nodes
     indent_str = String.duplicate(" ", state.indent)

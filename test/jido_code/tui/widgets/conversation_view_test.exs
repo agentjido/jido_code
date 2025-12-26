@@ -1100,8 +1100,8 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert String.starts_with?(content, "  ")
     end
 
-    test "renders truncation indicator for long messages" do
-      # Create a message with many lines
+    test "does not truncate conversation messages (only tool results are truncated)" do
+      # Create a message with many lines - should NOT be truncated
       long_content = Enum.map_join(1..20, "\n", fn i -> "Line #{i}" end)
       messages = [make_message("1", :user, long_content)]
       state = init_state(messages: messages, max_collapsed_lines: 5)
@@ -1110,34 +1110,32 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       result = ConversationView.render(state, area)
       all_nodes = flatten_nodes(result)
 
-      # Find truncation indicator
-      indicator =
-        Enum.find(all_nodes, fn node ->
-          String.contains?(node.content || "", "more lines")
-        end)
-
-      assert indicator != nil
-      assert indicator.content =~ "┄┄┄"
-      assert indicator.content =~ "more lines"
-    end
-
-    test "does not render truncation indicator for expanded messages" do
-      long_content = Enum.map_join(1..20, "\n", fn i -> "Line #{i}" end)
-      messages = [make_message("1", :user, long_content)]
-      state = init_state(messages: messages, max_collapsed_lines: 5)
-      state = ConversationView.toggle_expand(state, "1")
-      area = %{x: 0, y: 0, width: 80, height: 24}
-
-      result = ConversationView.render(state, area)
-      all_nodes = flatten_nodes(result)
-
-      # Should not have truncation indicator
+      # Should NOT have truncation indicator - conversation messages are never truncated
       indicator =
         Enum.find(all_nodes, fn node ->
           String.contains?(node.content || "", "more lines")
         end)
 
       assert indicator == nil
+    end
+
+    test "renders all lines for long messages without truncation" do
+      long_content = Enum.map_join(1..20, "\n", fn i -> "Line #{i}" end)
+      messages = [make_message("1", :user, long_content)]
+      state = init_state(messages: messages, max_collapsed_lines: 5)
+      area = %{x: 0, y: 0, width: 80, height: 24}
+
+      result = ConversationView.render(state, area)
+      all_nodes = flatten_nodes(result)
+
+      # All 20 lines should be present (no truncation)
+      line_nodes =
+        Enum.filter(all_nodes, fn node ->
+          (node.content || "") =~ ~r/Line \d+/
+        end)
+
+      # Should have all 20 lines
+      assert length(line_nodes) == 20
     end
 
     test "renders multiple messages" do

@@ -2449,4 +2449,175 @@ defmodule JidoCode.CommandsTest do
     # Reuse helper functions from /resume command integration describe block
     # (create_and_close_session, wait_for_persisted_file, wait_for_supervisor)
   end
+
+  describe "/language command parsing" do
+    test "/language returns {:language, :show}" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/language", config)
+
+      assert result == {:language, :show}
+    end
+
+    test "/language <lang> returns {:language, {:set, lang}}" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/language elixir", config)
+
+      assert result == {:language, {:set, "elixir"}}
+    end
+
+    test "/language with alias returns {:language, {:set, alias}}" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/language js", config)
+
+      assert result == {:language, {:set, "js"}}
+    end
+
+    test "/language with uppercase returns {:language, {:set, uppercase}}" do
+      config = %{provider: nil, model: nil}
+
+      result = Commands.execute("/language Python", config)
+
+      assert result == {:language, {:set, "Python"}}
+    end
+
+    test "/help includes language command" do
+      config = %{provider: nil, model: nil}
+
+      {:ok, message, _} = Commands.execute("/help", config)
+
+      assert message =~ "/language"
+    end
+  end
+
+  describe "execute_language/2" do
+    test ":show with no active session returns error" do
+      model = %{
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_language(:show, model)
+
+      assert {:error, message} = result
+      assert message =~ "No active session"
+    end
+
+    test ":show with active session returns language info" do
+      session = %{
+        id: "s1",
+        name: "test",
+        language: :python
+      }
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_language(:show, model)
+
+      assert {:ok, message} = result
+      assert message =~ "Python"
+      assert message =~ "python"
+      assert message =~ "🐍"
+    end
+
+    test ":show with active session defaults to elixir" do
+      session = %{
+        id: "s1",
+        name: "test"
+        # language not set
+      }
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_language(:show, model)
+
+      assert {:ok, message} = result
+      assert message =~ "Elixir"
+      assert message =~ "elixir"
+      assert message =~ "💧"
+    end
+
+    test "{:set, lang} with no active session returns error" do
+      model = %{
+        sessions: %{},
+        session_order: [],
+        active_session_id: nil
+      }
+
+      result = Commands.execute_language({:set, "python"}, model)
+
+      assert {:error, message} = result
+      assert message =~ "No active session"
+    end
+
+    test "{:set, lang} with valid language returns action" do
+      session = %{id: "s1", name: "test", language: :elixir}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_language({:set, "python"}, model)
+
+      assert {:language_action, {:set, "s1", :python}} = result
+    end
+
+    test "{:set, lang} normalizes alias" do
+      session = %{id: "s1", name: "test", language: :elixir}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_language({:set, "js"}, model)
+
+      assert {:language_action, {:set, "s1", :javascript}} = result
+    end
+
+    test "{:set, lang} normalizes case" do
+      session = %{id: "s1", name: "test", language: :elixir}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_language({:set, "RUST"}, model)
+
+      assert {:language_action, {:set, "s1", :rust}} = result
+    end
+
+    test "{:set, lang} with invalid language returns error" do
+      session = %{id: "s1", name: "test", language: :elixir}
+
+      model = %{
+        sessions: %{"s1" => session},
+        session_order: ["s1"],
+        active_session_id: "s1"
+      }
+
+      result = Commands.execute_language({:set, "invalid"}, model)
+
+      assert {:error, message} = result
+      assert message =~ "Unknown language"
+      assert message =~ "invalid"
+      assert message =~ "elixir"
+    end
+  end
 end

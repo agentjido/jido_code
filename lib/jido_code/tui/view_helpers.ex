@@ -744,8 +744,9 @@ defmodule JidoCode.TUI.ViewHelpers do
   # ============================================================================
 
   @doc """
-  Renders the mode bar showing the current agent mode.
-  Displays below the input bar with the active thinking/reasoning mode.
+  Renders the mode bar showing the current agent mode and language.
+  Displays below the input bar with the active thinking/reasoning mode on the left
+  and the current programming language on the right.
   """
   @spec render_mode_bar(Model.t()) :: TermUI.View.t()
   def render_mode_bar(state) do
@@ -757,28 +758,48 @@ defmodule JidoCode.TUI.ViewHelpers do
     mode = get_display_mode(state)
     mode_text = format_mode_name(mode)
 
+    # Get language from active session
+    language = get_session_language(state)
+    language_icon = JidoCode.Language.icon(language)
+    language_name = JidoCode.Language.display_name(language)
+    language_text = "#{language_icon} #{language_name}"
+
     # Style for mode bar
     label_style = Style.new(fg: :bright_black)
     mode_style = Style.new(fg: Theme.get_color(:accent) || :cyan)
+    language_style = Style.new(fg: Theme.get_color(:accent) || :cyan)
 
-    # Format: " Mode: chat                    "
-    label = text("Mode: ", label_style)
+    # Left side: "Mode: chat"
+    mode_label = text("Mode: ", label_style)
     mode_display = text(mode_text, mode_style)
 
-    # Calculate padding to fill width
-    # "Mode: " (6) + space (1)
-    used_width = 7 + String.length(mode_text)
-    padding_width = max(content_width - used_width, 0)
+    # Right side: "💧 Elixir"
+    language_display = text(language_text, language_style)
+
+    # Calculate padding to fill width between mode and language
+    # "Mode: " (6) + mode_text + language_text + 2 (side padding)
+    left_width = 6 + String.length(mode_text)
+    right_width = String.length(language_text)
+    padding_width = max(content_width - left_width - right_width, 1)
     padding = text(String.duplicate(" ", padding_width))
 
-    # Add 1-char padding on each side
+    # Layout: " Mode: chat          💧 Elixir "
     stack(:horizontal, [
       text(" "),
-      label,
+      mode_label,
       mode_display,
       padding,
+      language_display,
       text(" ")
     ])
+  end
+
+  # Get the language from the active session, defaulting to :elixir
+  defp get_session_language(state) do
+    case Model.get_active_session(state) do
+      nil -> JidoCode.Language.default()
+      session -> Map.get(session, :language, JidoCode.Language.default())
+    end
   end
 
   # Get the display mode from agent activity or default to chat

@@ -1,0 +1,538 @@
+defmodule JidoCode.TUI.Markdown do
+  @moduledoc """
+  Markdown processor for rendering styled text in the TUI.
+
+  Converts markdown content to styled segments that can be rendered
+  by TermUI components. Handles common markdown elements:
+
+  - Headers (# H1, ## H2, etc.)
+  - Bold (**text**)
+  - Italic (*text*)
+  - Inline code (`code`)
+  - Code blocks (```language ... ```)
+  - Lists (- item, * item, 1. item)
+  - Blockquotes (> quote)
+  - Links ([text](url))
+
+  ## Usage
+
+      iex> lines = Markdown.render("**bold** and *italic*", 80)
+      iex> # Returns list of styled lines for rendering
+
+  """
+
+  alias TermUI.Renderer.Style
+
+  # Type definitions
+  @type styled_segment :: {String.t(), Style.t() | nil}
+  @type styled_line :: [styled_segment]
+
+  # Style definitions
+  @header1_style Style.new(fg: :cyan, attrs: [:bold])
+  @header2_style Style.new(fg: :cyan, attrs: [:bold])
+  @header3_style Style.new(fg: :white, attrs: [:bold])
+  @bold_style Style.new(attrs: [:bold])
+  @italic_style Style.new(attrs: [:italic])
+  @code_style Style.new(fg: :yellow)
+  @code_block_style Style.new(fg: :yellow)
+  @blockquote_style Style.new(fg: :bright_black)
+  @link_style Style.new(fg: :blue, attrs: [:underline])
+  @list_bullet_style Style.new(fg: :cyan)
+
+  @doc """
+  Renders markdown content as a list of styled lines.
+
+  Each line is a list of styled segments that can be combined
+  into TermUI render nodes.
+
+  ## Parameters
+
+  - `content` - Markdown string to render
+  - `max_width` - Maximum line width for wrapping
+
+  ## Returns
+
+  List of styled lines, where each line is a list of `{text, style}` tuples.
+  """
+  @spec render(String.t(), pos_integer()) :: [styled_line()]
+  def render("", _max_width), do: [[{"", nil}]]
+  def render(nil, _max_width), do: [[{"", nil}]]
+
+  def render(content, max_width) when is_binary(content) and max_width > 0 do
+    case MDEx.parse_document(content) do
+      {:ok, document} ->
+        document
+        |> process_document()
+        |> wrap_styled_lines(max_width)
+
+      {:error, _reason} ->
+        # Fallback to plain text on parse error
+        content
+        |> String.split("\n")
+        |> Enum.map(fn line -> [{line, nil}] end)
+        |> wrap_styled_lines(max_width)
+    end
+  end
+
+  def render(content, _max_width) when is_binary(content) do
+    render(content, 80)
+  end
+
+  @doc """
+  Converts a styled line to a TermUI render node.
+
+  Joins multiple styled segments into a horizontal stack.
+  """
+  @spec render_line(styled_line()) :: TermUI.Component.RenderNode.t()
+  def render_line([]), do: TermUI.Component.RenderNode.text("", nil)
+
+  def render_line([{text, style}]) do
+    TermUI.Component.RenderNode.text(text, style)
+  end
+
+  def render_line(segments) when is_list(segments) do
+    nodes =
+      Enum.map(segments, fn {text, style} ->
+        TermUI.Component.RenderNode.text(text, style)
+      end)
+
+    TermUI.Component.RenderNode.stack(:horizontal, nodes)
+  end
+
+  # ============================================================================
+  # Document Processing
+  # ============================================================================
+
+  defp process_document(%MDEx.Document{nodes: nodes}) do
+    nodes
+    |> Enum.flat_map(&process_node/1)
+  end
+
+  defp process_document(_), do: [[{"", nil}]]
+
+  # Process different node types
+  defp process_node(%MDEx.Heading{level: 1, nodes: children}) do
+    content = extract_text(children)
+    [[{"# " <> content, @header1_style}], [{"", nil}]]
+  end
+
+  defp process_node(%MDEx.Heading{level: 2, nodes: children}) do
+    content = extract_text(children)
+    [[{"## " <> content, @header2_style}], [{"", nil}]]
+  end
+
+  defp process_node(%MDEx.Heading{level: level, nodes: children}) when level >= 3 do
+    prefix = String.duplicate("#", level) <> " "
+    content = extract_text(children)
+    [[{prefix <> content, @header3_style}], [{"", nil}]]
+  end
+
+  defp process_node(%MDEx.Paragraph{nodes: children}) do
+    segments = process_inline_nodes(children)
+    [segments, [{"", nil}]]
+  end
+
+  defp process_node(%MDEx.CodeBlock{literal: code, info: info}) do
+    # Add language header if present, otherwise just a separator
+    header =
+      if info && info != "" do
+        # Normalize language to lowercase
+        lang = String.downcase(String.trim(info))
+        [[{"┌─ " <> lang <> " ", @code_block_style}, {"─" |> String.duplicate(40), Style.new(fg: :bright_black)}]]
+      else
+        [[{"┌", @code_block_style}, {"─" |> String.duplicate(44), Style.new(fg: :bright_black)}]]
+      end
+
+    code_lines =
+      code
+      |> String.trim_trailing()
+      |> String.split("\n")
+      |> Enum.map(fn line -> [{"│ " <> line, @code_block_style}] end)
+
+    footer = [[{"└", @code_block_style}, {"─" |> String.duplicate(44), Style.new(fg: :bright_black)}], [{"", nil}]]
+
+    header ++ code_lines ++ footer
+  end
+
+  defp process_node(%MDEx.Code{literal: code}) do
+    # Inline code - return as single segment
+    [[{"`" <> code <> "`", @code_style}]]
+  end
+
+  defp process_node(%MDEx.BlockQuote{nodes: children}) do
+    children
+    |> Enum.flat_map(&process_node/1)
+    |> Enum.map(fn segments ->
+      # Prepend blockquote marker to first segment
+      case segments do
+        [{text, _style} | rest] ->
+          [{"│ " <> text, @blockquote_style} | rest]
+
+        [] ->
+          [{"│ ", @blockquote_style}]
+      end
+    end)
+  end
+
+  defp process_node(%MDEx.List{list_type: :bullet, nodes: items}) do
+    items
+    |> Enum.flat_map(fn item ->
+      process_list_item(item, "• ")
+    end)
+    |> Kernel.++([[{"", nil}]])
+  end
+
+  defp process_node(%MDEx.List{list_type: :ordered, nodes: items, start: start}) do
+    items
+    |> Enum.with_index(start || 1)
+    |> Enum.flat_map(fn {item, idx} ->
+      process_list_item(item, "#{idx}. ")
+    end)
+    |> Kernel.++([[{"", nil}]])
+  end
+
+  defp process_node(%MDEx.ListItem{nodes: children}) do
+    # Process list item content
+    children
+    |> Enum.flat_map(&process_node/1)
+  end
+
+  defp process_node(%MDEx.ThematicBreak{}) do
+    [[{"───────────────────────────────────────", Style.new(fg: :bright_black)}], [{"", nil}]]
+  end
+
+  defp process_node(%MDEx.SoftBreak{}) do
+    # Soft breaks become spaces in inline content
+    []
+  end
+
+  defp process_node(%MDEx.LineBreak{}) do
+    # Line breaks become newlines
+    [[{"", nil}]]
+  end
+
+  # Catch-all for unknown nodes - extract text content
+  defp process_node(node) when is_map(node) do
+    case Map.get(node, :nodes) do
+      nil ->
+        case Map.get(node, :literal) do
+          nil -> []
+          text -> [[{text, nil}]]
+        end
+
+      children ->
+        Enum.flat_map(children, &process_node/1)
+    end
+  end
+
+  defp process_node(_), do: []
+
+  # ============================================================================
+  # Inline Node Processing
+  # ============================================================================
+
+  defp process_inline_nodes(nodes) when is_list(nodes) do
+    nodes
+    |> Enum.flat_map(&process_inline_node/1)
+    |> merge_adjacent_segments()
+  end
+
+  defp process_inline_node(%MDEx.Text{literal: text}) do
+    [{text, nil}]
+  end
+
+  defp process_inline_node(%MDEx.Strong{nodes: children}) do
+    text = extract_text(children)
+    [{text, @bold_style}]
+  end
+
+  defp process_inline_node(%MDEx.Emph{nodes: children}) do
+    text = extract_text(children)
+    [{text, @italic_style}]
+  end
+
+  defp process_inline_node(%MDEx.Code{literal: code}) do
+    [{"`" <> code <> "`", @code_style}]
+  end
+
+  defp process_inline_node(%MDEx.Link{url: url, nodes: children}) do
+    text = extract_text(children)
+    # Show link text with URL in parentheses if different
+    if text == url do
+      [{text, @link_style}]
+    else
+      [{text, @link_style}, {" (#{url})", Style.new(fg: :bright_black)}]
+    end
+  end
+
+  defp process_inline_node(%MDEx.SoftBreak{}) do
+    [{" ", nil}]
+  end
+
+  defp process_inline_node(%MDEx.LineBreak{}) do
+    # Line break in inline - will be handled during line wrapping
+    [{"\n", nil}]
+  end
+
+  defp process_inline_node(node) when is_map(node) do
+    case Map.get(node, :literal) do
+      nil ->
+        case Map.get(node, :nodes) do
+          nil -> []
+          children -> process_inline_nodes(children)
+        end
+
+      text ->
+        [{text, nil}]
+    end
+  end
+
+  defp process_inline_node(_), do: []
+
+  # ============================================================================
+  # List Processing
+  # ============================================================================
+
+  defp process_list_item(%MDEx.ListItem{nodes: children}, prefix) do
+    children
+    |> Enum.flat_map(&process_node/1)
+    |> Enum.with_index()
+    |> Enum.map(fn {segments, idx} ->
+      if idx == 0 do
+        # Add bullet/number to first line
+        case segments do
+          [{text, style} | rest] ->
+            [{prefix, @list_bullet_style}, {text, style} | rest]
+
+          [] ->
+            [{prefix, @list_bullet_style}]
+        end
+      else
+        # Indent continuation lines
+        indent = String.duplicate(" ", String.length(prefix))
+
+        case segments do
+          [{text, style} | rest] ->
+            [{indent <> text, style} | rest]
+
+          [] ->
+            segments
+        end
+      end
+    end)
+    # Filter out empty separator lines within list items
+    |> Enum.reject(fn segments ->
+      segments == [{"", nil}]
+    end)
+  end
+
+  # ============================================================================
+  # Text Extraction
+  # ============================================================================
+
+  defp extract_text(nodes) when is_list(nodes) do
+    nodes
+    |> Enum.map(&extract_text/1)
+    |> Enum.join()
+  end
+
+  defp extract_text(%{literal: text}) when is_binary(text), do: text
+  defp extract_text(%{nodes: children}), do: extract_text(children)
+  defp extract_text(_), do: ""
+
+  # ============================================================================
+  # Segment Merging
+  # ============================================================================
+
+  # Merge adjacent segments with the same style
+  defp merge_adjacent_segments([]), do: []
+
+  defp merge_adjacent_segments(segments) do
+    segments
+    |> Enum.reduce([], fn {text, style}, acc ->
+      case acc do
+        [{prev_text, ^style} | rest] ->
+          # Same style - merge
+          [{prev_text <> text, style} | rest]
+
+        _ ->
+          # Different style - keep separate
+          [{text, style} | acc]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  # ============================================================================
+  # Line Wrapping
+  # ============================================================================
+
+  @doc """
+  Wraps styled lines to fit within max_width.
+
+  Preserves styling across line breaks.
+  """
+  @spec wrap_styled_lines([styled_line()], pos_integer()) :: [styled_line()]
+  def wrap_styled_lines(lines, max_width) do
+    lines
+    |> Enum.flat_map(fn line ->
+      wrap_styled_line(line, max_width)
+    end)
+  end
+
+  defp wrap_styled_line([], _max_width), do: [[]]
+
+  defp wrap_styled_line(segments, max_width) do
+    # Handle explicit newlines within segments first
+    expanded_segments =
+      segments
+      |> Enum.flat_map(fn {text, style} ->
+        if String.contains?(text, "\n") do
+          text
+          |> String.split("\n")
+          |> Enum.intersperse(:newline)
+          |> Enum.map(fn
+            :newline -> :newline
+            t -> {t, style}
+          end)
+        else
+          [{text, style}]
+        end
+      end)
+
+    # Split on newlines first
+    {current, wrapped} =
+      Enum.reduce(expanded_segments, {[], []}, fn
+        :newline, {current, acc} ->
+          {[], acc ++ [Enum.reverse(current)]}
+
+        segment, {current, acc} ->
+          {[segment | current], acc}
+      end)
+
+    lines_from_newlines = wrapped ++ [Enum.reverse(current)]
+
+    # Now wrap each resulting line for width
+    lines_from_newlines
+    |> Enum.flat_map(fn line_segments ->
+      wrap_segments_for_width(line_segments, max_width)
+    end)
+  end
+
+  defp wrap_segments_for_width([], _max_width), do: [[]]
+
+  defp wrap_segments_for_width(segments, max_width) do
+    {lines, current_line, _current_width} =
+      Enum.reduce(segments, {[], [], 0}, fn {text, style}, {lines, current, width} ->
+        wrap_segment({text, style}, lines, current, width, max_width)
+      end)
+
+    # Don't forget the last line
+    all_lines = lines ++ [current_line]
+
+    # Filter out completely empty lines that aren't intentional
+    all_lines
+    |> Enum.map(fn line ->
+      case line do
+        [] -> [{"", nil}]
+        segments -> segments
+      end
+    end)
+  end
+
+  defp wrap_segment({text, style}, lines, current, width, max_width) do
+    text_len = String.length(text)
+
+    cond do
+      # Empty text - just pass through
+      text == "" ->
+        {lines, current ++ [{text, style}], width}
+
+      # Fits on current line
+      width + text_len <= max_width ->
+        {lines, current ++ [{text, style}], width + text_len}
+
+      # Need to wrap - try word boundaries
+      true ->
+        wrap_text_at_words(text, style, lines, current, width, max_width)
+    end
+  end
+
+  defp wrap_text_at_words(text, style, lines, current, width, max_width) do
+    words = String.split(text, ~r/(\s+)/, include_captures: true)
+    _remaining_width = max_width - width
+
+    {final_lines, final_current, final_width} =
+      Enum.reduce(words, {lines, current, width}, fn word, {ls, cur, w} ->
+        word_len = String.length(word)
+
+        cond do
+          # Empty word
+          word == "" ->
+            {ls, cur, w}
+
+          # Word fits on current line
+          w + word_len <= max_width ->
+            {ls, cur ++ [{word, style}], w + word_len}
+
+          # Word is longer than max width - force break
+          word_len > max_width ->
+            {new_lines, remainder} = break_long_word(word, style, max_width - w, max_width)
+
+            if cur == [] do
+              {ls ++ new_lines, [{remainder, style}], String.length(remainder)}
+            else
+              {ls ++ [cur] ++ new_lines, [{remainder, style}], String.length(remainder)}
+            end
+
+          # Start new line with this word (skip leading whitespace)
+          String.trim(word) == "" ->
+            {ls, cur, w}
+
+          true ->
+            # Word doesn't fit - wrap to new line
+            {ls ++ [cur], [{word, style}], word_len}
+        end
+      end)
+
+    {final_lines, final_current, final_width}
+  end
+
+  defp break_long_word(word, style, first_chunk_size, max_width) do
+    first_chunk_size = max(first_chunk_size, 1)
+
+    chunks =
+      word
+      |> String.graphemes()
+      |> Enum.chunk_every(max_width)
+      |> Enum.map(&Enum.join/1)
+
+    case chunks do
+      [] ->
+        {[], ""}
+
+      [only] ->
+        {[], only}
+
+      [first | rest] ->
+        # First chunk uses remaining space on current line
+        first_part = String.slice(first, 0, first_chunk_size)
+        remainder_of_first = String.slice(first, first_chunk_size..-1//1)
+
+        all_parts = [remainder_of_first | rest]
+
+        lines =
+          all_parts
+          |> Enum.slice(0..-2//1)
+          |> Enum.map(fn part -> [{part, style}] end)
+
+        last = List.last(all_parts) || ""
+
+        if first_part == "" do
+          {lines, last}
+        else
+          {[[{first_part, style}]] ++ lines, last}
+        end
+    end
+  end
+end

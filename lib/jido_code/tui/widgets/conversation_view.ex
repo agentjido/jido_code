@@ -1453,11 +1453,32 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
     # Calculate content width (accounting for indent)
     content_width = max(1, width - state.indent)
 
+    # Use markdown rendering for assistant messages, plain text for others
+    content_nodes =
+      if message.role == :assistant do
+        render_markdown_content(state, message, idx, content_width, is_streaming)
+      else
+        render_plain_content(state, message, idx, content_width, role_style, is_streaming)
+      end
+
+    # Add separator (blank line)
+    separator = text("", nil)
+
+    [header] ++ content_nodes ++ [separator]
+  end
+
+  # Render plain text content (for user and system messages)
+  defp render_plain_content(state, message, idx, content_width, role_style, is_streaming) do
     # Wrap and potentially truncate content
     wrapped_lines = wrap_text(message.content, content_width)
 
+    # Don't truncate while streaming - only truncate completed messages
     {display_lines, truncated?} =
-      truncate_content(wrapped_lines, state.max_collapsed_lines, state.expanded, message.id)
+      if is_streaming do
+        {wrapped_lines, false}
+      else
+        truncate_content(wrapped_lines, state.max_collapsed_lines, state.expanded, message.id)
+      end
 
     # Add streaming cursor if this is the streaming message
     display_lines =
@@ -1497,20 +1518,102 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       end)
 
     # Add truncation indicator if truncated
-    content_nodes =
-      if truncated? do
-        hidden_count = length(wrapped_lines) - (state.max_collapsed_lines - 1)
-        indicator = "#{indent_str}┄┄┄ #{hidden_count} more lines ┄┄┄"
-        indicator_style = Style.new(fg: :white, attrs: [:dim])
-        content_nodes ++ [text(indicator, indicator_style)]
-      else
-        content_nodes
+    if truncated? do
+      hidden_count = length(wrapped_lines) - (state.max_collapsed_lines - 1)
+      indicator = "#{indent_str}┄┄┄ #{hidden_count} more lines ┄┄┄"
+      indicator_style = Style.new(fg: :white, attrs: [:dim])
+      content_nodes ++ [text(indicator, indicator_style)]
+    else
+      content_nodes
+    end
+  end
+
+  # Render markdown content (for assistant messages)
+  # Note: idx (message index) is accepted for API consistency but not currently used
+  # since markdown rendering doesn't support text selection yet
+  defp render_markdown_content(state, message, _idx, content_width, is_streaming) do
+    alias JidoCode.TUI.Markdown
+
+    # Get styled lines from markdown processor
+    styled_lines = Markdown.render(message.content, content_width)
+
+    # Check if message is expanded
+    is_expanded = MapSet.member?(state.expanded, message.id)
+
+    # Don't truncate while streaming - only truncate completed messages
+    {display_lines, truncated?} =
+      cond do
+        is_streaming ->
+          {styled_lines, false}
+
+        not is_expanded and length(styled_lines) > state.max_collapsed_lines ->
+          {Enum.take(styled_lines, state.max_collapsed_lines - 1), true}
+
+        true ->
+          {styled_lines, false}
       end
 
-    # Add separator (blank line)
-    separator = text("", nil)
+    # Convert styled lines to render nodes
+    indent_str = String.duplicate(" ", state.indent)
 
-    [header] ++ content_nodes ++ [separator]
+    content_nodes =
+      display_lines
+      |> Enum.with_index()
+      |> Enum.map(fn {styled_line, line_idx} ->
+        # Add streaming cursor to last line if streaming
+        styled_line =
+          if is_streaming and line_idx == length(display_lines) - 1 do
+            append_streaming_cursor(styled_line)
+          else
+            styled_line
+          end
+
+        render_styled_line_with_indent(styled_line, indent_str)
+      end)
+
+    # Add truncation indicator if truncated
+    if truncated? do
+      hidden_count = length(styled_lines) - (state.max_collapsed_lines - 1)
+      indicator = "#{indent_str}┄┄┄ #{hidden_count} more lines ┄┄┄"
+      indicator_style = Style.new(fg: :white, attrs: [:dim])
+      content_nodes ++ [text(indicator, indicator_style)]
+    else
+      content_nodes
+    end
+  end
+
+  # Append streaming cursor to the last segment of a styled line
+  defp append_streaming_cursor([]), do: [{"▌", nil}]
+
+  defp append_streaming_cursor(segments) do
+    {last_text, last_style} = List.last(segments)
+    List.replace_at(segments, -1, {last_text <> "▌", last_style})
+  end
+
+  # Render a styled line (list of {text, style} tuples) with indentation
+  defp render_styled_line_with_indent([], indent_str) do
+    text(indent_str, nil)
+  end
+
+  defp render_styled_line_with_indent([{single_text, style}], indent_str) do
+    text(indent_str <> single_text, style)
+  end
+
+  defp render_styled_line_with_indent(segments, indent_str) do
+    # For multiple segments, create a horizontal stack
+    nodes =
+      segments
+      |> Enum.with_index()
+      |> Enum.map(fn {{segment_text, style}, idx} ->
+        # Add indent to first segment
+        if idx == 0 do
+          text(indent_str <> segment_text, style)
+        else
+          text(segment_text, style)
+        end
+      end)
+
+    stack(:horizontal, nodes)
   end
 
   defp render_message_header(state, message, role_style, is_focused) do

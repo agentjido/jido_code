@@ -46,6 +46,7 @@ defmodule JidoCode.Agents.LLMAgent do
   alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
   alias Jido.AI.Prompt
   alias JidoCode.Config
+  alias JidoCode.Language
   alias JidoCode.PubSubTopics
   alias JidoCode.Session.ProcessRegistry
   alias JidoCode.Session.State, as: SessionState
@@ -58,7 +59,8 @@ defmodule JidoCode.Agents.LLMAgent do
 
   # System prompt should NOT include user input to prevent prompt injection attacks.
   # User messages are passed separately to the AI agent via chat_response/3.
-  @system_prompt """
+  # The base prompt is extended with language-specific instructions at runtime.
+  @base_system_prompt """
   You are JidoCode, an expert coding assistant running in a terminal interface.
 
   Your capabilities:
@@ -75,6 +77,9 @@ defmodule JidoCode.Agents.LLMAgent do
   - Ask clarifying questions when requirements are ambiguous
   - Acknowledge limitations when you're uncertain
   """
+
+  # For backwards compatibility and non-session contexts
+  @system_prompt @base_system_prompt
 
   # ============================================================================
   # Client API
@@ -877,11 +882,14 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   defp execute_stream(model, message, topic, session_id) do
+    # Build dynamic system prompt with language-specific instructions
+    system_prompt = build_system_prompt(session_id)
+
     # Build prompt with system message and user message
     prompt =
       Prompt.new(%{
         messages: [
-          %{role: :system, content: @system_prompt, engine: :none},
+          %{role: :system, content: system_prompt, engine: :none},
           %{role: :user, content: message, engine: :none}
         ]
       })
@@ -1134,6 +1142,40 @@ defmodule JidoCode.Agents.LLMAgent do
   # Check if session_id is a valid session ID (not a PID string)
   defp is_valid_session_id?(session_id) when is_binary(session_id) do
     not String.starts_with?(session_id, "#PID<")
+  end
+
+  # ============================================================================
+  # System Prompt Building
+  # ============================================================================
+
+  # Build the system prompt with optional language-specific instructions
+  defp build_system_prompt(session_id) when is_binary(session_id) do
+    if is_valid_session_id?(session_id) do
+      case SessionState.get_state(session_id) do
+        {:ok, %{session: session}} when not is_nil(session.language) ->
+          add_language_instruction(@base_system_prompt, session.language)
+
+        _ ->
+          @base_system_prompt
+      end
+    else
+      @base_system_prompt
+    end
+  end
+
+  defp build_system_prompt(_), do: @base_system_prompt
+
+  # Add language-specific instruction to the system prompt
+  defp add_language_instruction(base_prompt, language) do
+    lang_name = Language.display_name(language)
+
+    language_instruction = """
+
+    Language Context:
+    This project uses #{lang_name}. When providing code snippets, write them in #{lang_name} unless a different language is specifically requested.
+    """
+
+    base_prompt <> language_instruction
   end
 
   # ============================================================================

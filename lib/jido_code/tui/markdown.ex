@@ -35,9 +35,84 @@ defmodule JidoCode.TUI.Markdown do
   @italic_style Style.new(attrs: [:italic])
   @code_style Style.new(fg: :yellow)
   @code_block_style Style.new(fg: :yellow)
+  @code_border_style Style.new(fg: :bright_black)
   @blockquote_style Style.new(fg: :bright_black)
   @link_style Style.new(fg: :blue, attrs: [:underline])
   @list_bullet_style Style.new(fg: :cyan)
+
+  # Syntax highlighting token styles (for code blocks)
+  @token_styles %{
+    # Keywords - magenta/purple
+    keyword: Style.new(fg: :magenta, attrs: [:bold]),
+    keyword_namespace: Style.new(fg: :magenta, attrs: [:bold]),
+    keyword_pseudo: Style.new(fg: :magenta, attrs: [:bold]),
+    keyword_reserved: Style.new(fg: :magenta, attrs: [:bold]),
+    keyword_constant: Style.new(fg: :magenta, attrs: [:bold]),
+    keyword_declaration: Style.new(fg: :magenta, attrs: [:bold]),
+    keyword_type: Style.new(fg: :magenta, attrs: [:bold]),
+
+    # Strings - green
+    string: Style.new(fg: :green),
+    string_char: Style.new(fg: :green),
+    string_doc: Style.new(fg: :green),
+    string_double: Style.new(fg: :green),
+    string_single: Style.new(fg: :green),
+    string_sigil: Style.new(fg: :green),
+    string_regex: Style.new(fg: :green),
+    string_interpol: Style.new(fg: :red),
+    string_escape: Style.new(fg: :cyan),
+    string_symbol: Style.new(fg: :cyan),
+
+    # Comments - dim gray
+    comment: Style.new(fg: :bright_black),
+    comment_single: Style.new(fg: :bright_black),
+    comment_multiline: Style.new(fg: :bright_black),
+    comment_doc: Style.new(fg: :bright_black),
+
+    # Atoms - cyan
+    atom: Style.new(fg: :cyan),
+
+    # Numbers - yellow
+    number: Style.new(fg: :yellow),
+    number_integer: Style.new(fg: :yellow),
+    number_float: Style.new(fg: :yellow),
+    number_bin: Style.new(fg: :yellow),
+    number_oct: Style.new(fg: :yellow),
+    number_hex: Style.new(fg: :yellow),
+
+    # Operators - yellow
+    operator: Style.new(fg: :yellow),
+    operator_word: Style.new(fg: :magenta, attrs: [:bold]),
+
+    # Names
+    name: Style.new(fg: :white),
+    name_function: Style.new(fg: :blue),
+    name_class: Style.new(fg: :yellow, attrs: [:bold]),
+    name_builtin: Style.new(fg: :cyan),
+    name_builtin_pseudo: Style.new(fg: :cyan),
+    name_attribute: Style.new(fg: :cyan),
+    name_label: Style.new(fg: :cyan),
+    name_constant: Style.new(fg: :yellow, attrs: [:bold]),
+    name_exception: Style.new(fg: :red),
+    name_tag: Style.new(fg: :blue),
+    name_decorator: Style.new(fg: :cyan),
+    name_namespace: Style.new(fg: :yellow, attrs: [:bold]),
+
+    # Punctuation - white
+    punctuation: Style.new(fg: :white),
+
+    # Whitespace/text - no style
+    whitespace: nil,
+    text: nil
+  }
+
+  # Supported languages with their Makeup lexers
+  @supported_lexers %{
+    "elixir" => Makeup.Lexers.ElixirLexer,
+    "ex" => Makeup.Lexers.ElixirLexer,
+    "exs" => Makeup.Lexers.ElixirLexer,
+    "iex" => Makeup.Lexers.ElixirLexer
+  }
 
   @doc """
   Renders markdown content as a list of styled lines.
@@ -133,26 +208,111 @@ defmodule JidoCode.TUI.Markdown do
   end
 
   defp process_node(%MDEx.CodeBlock{literal: code, info: info}) do
-    # Add language header if present, otherwise just a separator
+    # Normalize language to lowercase
+    lang = if info && info != "", do: String.downcase(String.trim(info)), else: nil
+
+    # Build header with language label
     header =
-      if info && info != "" do
-        # Normalize language to lowercase
-        lang = String.downcase(String.trim(info))
-        [[{"┌─ " <> lang <> " ", @code_block_style}, {"─" |> String.duplicate(40), Style.new(fg: :bright_black)}]]
+      if lang do
+        [[{"┌─ " <> lang <> " ", @code_block_style}, {String.duplicate("─", 40), @code_border_style}]]
       else
-        [[{"┌", @code_block_style}, {"─" |> String.duplicate(44), Style.new(fg: :bright_black)}]]
+        [[{"┌", @code_block_style}, {String.duplicate("─", 44), @code_border_style}]]
       end
 
-    code_lines =
-      code
-      |> String.trim_trailing()
-      |> String.split("\n")
-      |> Enum.map(fn line -> [{"│ " <> line, @code_block_style}] end)
+    # Render code with syntax highlighting if supported, otherwise plain
+    code_lines = render_code_block(code, lang)
 
-    footer = [[{"└", @code_block_style}, {"─" |> String.duplicate(44), Style.new(fg: :bright_black)}], [{"", nil}]]
+    footer = [[{"└", @code_block_style}, {String.duplicate("─", 44), @code_border_style}], [{"", nil}]]
 
     header ++ code_lines ++ footer
   end
+
+  # Render code block with syntax highlighting for supported languages
+  defp render_code_block(code, lang) do
+    case Map.get(@supported_lexers, lang) do
+      nil ->
+        # No lexer available - plain styling
+        plain_code_lines(code)
+
+      lexer ->
+        # Try syntax highlighting, fall back to plain on error
+        try do
+          highlighted_code_lines(code, lexer)
+        rescue
+          _ -> plain_code_lines(code)
+        end
+    end
+  end
+
+  # Plain code lines without syntax highlighting
+  defp plain_code_lines(code) do
+    code
+    |> String.trim_trailing()
+    |> String.split("\n")
+    |> Enum.map(fn line -> [{"│ " <> line, @code_block_style}] end)
+  end
+
+  # Syntax highlighted code lines using Makeup lexer
+  defp highlighted_code_lines(code, lexer) do
+    tokens = lexer.lex(code |> String.trim_trailing())
+
+    # Convert tokens to styled lines
+    {lines, current_line} =
+      Enum.reduce(tokens, {[], []}, fn {type, _meta, text}, {lines, current} ->
+        style = Map.get(@token_styles, type) || @code_block_style
+        # Makeup can return charlists or lists - normalize to string
+        text_str = normalize_token_text(text)
+        add_token_to_lines(text_str, style, lines, current)
+      end)
+
+    # Finalize - add any remaining content as last line
+    all_lines = finalize_code_lines(lines, current_line)
+
+    # Add border prefix to each line
+    Enum.map(all_lines, fn segments ->
+      [{"│ ", @code_block_style} | segments]
+    end)
+  end
+
+  # Add token text to lines, handling newlines within tokens
+  defp add_token_to_lines(text, style, lines, current) do
+    parts = String.split(text, "\n")
+
+    case parts do
+      # Single part (no newlines)
+      [single] ->
+        {lines, current ++ [{single, style}]}
+
+      # Multiple parts (has newlines)
+      [first | rest] ->
+        # First part finishes current line
+        finished_line = current ++ [{first, style}]
+
+        # Split remaining into middle lines and last part
+        {middle_parts, [last]} = Enum.split(rest, -1)
+        middle_lines = Enum.map(middle_parts, fn part -> [{part, style}] end)
+
+        # Last part starts new current line
+        {lines ++ [finished_line] ++ middle_lines, [{last, style}]}
+    end
+  end
+
+  # Finalize code lines - handle empty current line
+  defp finalize_code_lines(lines, []), do: lines
+  defp finalize_code_lines(lines, current), do: lines ++ [current]
+
+  # Normalize token text from Makeup (can be string, charlist, or list of chars/strings)
+  defp normalize_token_text(text) when is_binary(text), do: text
+  defp normalize_token_text(text) when is_list(text) do
+    text
+    |> List.flatten()
+    |> Enum.map(fn
+      char when is_integer(char) -> <<char::utf8>>
+      str when is_binary(str) -> str
+    end)
+    |> Enum.join()
+  end
+  defp normalize_token_text(text), do: to_string(text)
 
   defp process_node(%MDEx.Code{literal: code}) do
     # Inline code - return as single segment

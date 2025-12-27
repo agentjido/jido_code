@@ -1111,13 +1111,14 @@ defmodule JidoCode.Session.Persistence do
     SessionSupervisor.start_session(session)
   end
 
-  # Restores conversation and todos, or cleans up session on failure
+  # Restores conversation, todos, and prompt history, or cleans up session on failure
   # Includes re-validation of project path to prevent TOCTOU attacks
   @spec restore_state_or_cleanup(String.t(), map(), map()) :: :ok | {:error, term()}
   defp restore_state_or_cleanup(session_id, persisted, cached_stats) do
     with :ok <- revalidate_project_path(persisted.project_path, cached_stats),
          :ok <- restore_conversation(session_id, persisted.conversation),
          :ok <- restore_todos(session_id, persisted.todos),
+         :ok <- restore_prompt_history(session_id, Map.get(persisted, :prompt_history, [])),
          :ok <- delete_persisted(session_id) do
       :ok
     else
@@ -1190,6 +1191,17 @@ defmodule JidoCode.Session.Persistence do
     case State.update_todos(session_id, todos) do
       {:ok, _state} -> :ok
       {:error, reason} -> {:error, {:restore_todos_failed, reason}}
+    end
+  end
+
+  # Restores prompt history to Session.State
+  @spec restore_prompt_history(String.t(), [String.t()]) :: :ok | {:error, term()}
+  defp restore_prompt_history(session_id, history) do
+    alias JidoCode.Session.State
+
+    case State.set_prompt_history(session_id, history) do
+      {:ok, _history} -> :ok
+      {:error, reason} -> {:error, {:restore_prompt_history_failed, reason}}
     end
   end
 

@@ -230,7 +230,10 @@ defmodule JidoCode.TUI do
                 output_tokens: non_neg_integer(),
                 total_cost: float()
               }
-              | nil
+              | nil,
+            # Prompt history navigation state
+            history_index: non_neg_integer() | nil,
+            saved_input: String.t() | nil
           }
 
     @typedoc "Focus states for keyboard navigation"
@@ -783,7 +786,10 @@ defmodule JidoCode.TUI do
         agent_activity: :idle,
         awaiting_input: nil,
         agent_status: :idle,
-        usage: nil
+        usage: nil,
+        # Prompt history navigation state
+        history_index: nil,
+        saved_input: nil
       }
     end
 
@@ -1548,13 +1554,14 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Escape key - forward to modal if open, or exit interactive mode
+  # Escape key - forward to modal if open, exit interactive mode, or clear input
   def event_to_msg(%Event.Key{key: :escape} = event, state) do
     cond do
       state.resume_dialog -> {:msg, :resume_dialog_dismiss}
       state.pick_list -> {:msg, {:pick_list_event, event}}
       state.shell_dialog -> {:msg, {:input_event, event}}
       conversation_view_in_interactive_mode?(state) -> {:msg, :exit_interactive_mode}
+      state.focus == :input -> {:msg, :clear_input}
       true -> {:msg, {:input_event, event}}
     end
   end
@@ -1577,6 +1584,24 @@ defmodule JidoCode.TUI do
       # Tab → focus forward
       true ->
         {:msg, {:cycle_focus, :forward}}
+    end
+  end
+
+  # Up arrow when input focused - navigate prompt history backward
+  def event_to_msg(%Event.Key{key: :up} = event, %Model{focus: :input} = state) do
+    cond do
+      state.pick_list -> {:msg, {:pick_list_event, event}}
+      state.shell_dialog -> {:msg, {:input_event, event}}
+      true -> {:msg, :history_previous}
+    end
+  end
+
+  # Down arrow when input focused - navigate prompt history forward
+  def event_to_msg(%Event.Key{key: :down} = event, %Model{focus: :input} = state) do
+    cond do
+      state.pick_list -> {:msg, {:pick_list_event, event}}
+      state.shell_dialog -> {:msg, {:input_event, event}}
+      true -> {:msg, :history_next}
     end
   end
 
@@ -1762,22 +1787,28 @@ defmodule JidoCode.TUI do
 
       # Command input - starts with /
       String.starts_with?(text, "/") ->
+        # Add command to history (commands are useful to recall too)
+        add_to_prompt_history(state.active_session_id, text)
+
         # Clear active session's input after command and ensure it stays focused
         cleared_state =
           Model.update_active_ui_state(state, fn ui ->
             new_text_input = ui.text_input |> TextInput.clear() |> TextInput.set_focused(true)
-            %{ui | text_input: new_text_input}
+            %{ui | text_input: new_text_input, history_index: nil, saved_input: nil}
           end)
 
         do_handle_command(text, cleared_state)
 
       # Chat input - requires configured provider/model
       true ->
-        # Clear active session's input after submit
+        # Add prompt to history
+        add_to_prompt_history(state.active_session_id, text)
+
+        # Clear active session's input after submit and reset history state
         cleared_state =
           Model.update_active_ui_state(state, fn ui ->
             new_text_input = TextInput.clear(ui.text_input)
-            %{ui | text_input: new_text_input}
+            %{ui | text_input: new_text_input, history_index: nil, saved_input: nil}
           end)
 
         do_handle_chat_submit(text, cleared_state)
@@ -2207,6 +2238,124 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Navigate to previous prompt in history (Up arrow)
+  def update(:history_previous, state) do
+    case state.active_session_id do
+      nil ->
+        {state, []}
+
+      session_id ->
+        case Session.State.get_prompt_history(session_id) do
+          {:ok, []} ->
+            # No history, do nothing
+            {state, []}
+
+          {:ok, history} ->
+            ui_state = Model.get_active_ui_state(state)
+
+            if ui_state == nil do
+              {state, []}
+            else
+              current_index = ui_state.history_index
+              max_index = length(history) - 1
+
+              cond do
+                # Not in history mode yet - save current input and show most recent
+                current_index == nil ->
+                  current_text = get_text_input_value(ui_state.text_input)
+
+                  new_state =
+                    Model.update_active_ui_state(state, fn ui ->
+                      new_text_input = set_text_input_value(ui.text_input, Enum.at(history, 0))
+                      %{ui | text_input: new_text_input, history_index: 0, saved_input: current_text}
+                    end)
+
+                  {new_state, []}
+
+                # Already at oldest - stay there
+                current_index >= max_index ->
+                  {state, []}
+
+                # Navigate to older prompt
+                true ->
+                  new_index = current_index + 1
+
+                  new_state =
+                    Model.update_active_ui_state(state, fn ui ->
+                      new_text_input = set_text_input_value(ui.text_input, Enum.at(history, new_index))
+                      %{ui | text_input: new_text_input, history_index: new_index}
+                    end)
+
+                  {new_state, []}
+              end
+            end
+
+          {:error, _} ->
+            {state, []}
+        end
+    end
+  end
+
+  # Clear input and exit history mode (Escape key)
+  def update(:clear_input, state) do
+    new_state =
+      Model.update_active_ui_state(state, fn ui ->
+        new_text_input =
+          if ui.text_input do
+            ui.text_input
+            |> TextInput.clear()
+            |> TextInput.set_focused(true)
+          else
+            ui.text_input
+          end
+
+        %{ui | text_input: new_text_input, history_index: nil, saved_input: nil}
+      end)
+
+    {new_state, []}
+  end
+
+  # Navigate to next prompt in history (Down arrow)
+  def update(:history_next, state) do
+    ui_state = Model.get_active_ui_state(state)
+
+    cond do
+      # No UI state or not in history mode
+      ui_state == nil or ui_state.history_index == nil ->
+        {state, []}
+
+      # At most recent (index 0) - restore saved input and exit history mode
+      ui_state.history_index == 0 ->
+        new_state =
+          Model.update_active_ui_state(state, fn ui ->
+            new_text_input = set_text_input_value(ui.text_input, ui.saved_input || "")
+            %{ui | text_input: new_text_input, history_index: nil, saved_input: nil}
+          end)
+
+        {new_state, []}
+
+      # Navigate to newer prompt
+      true ->
+        session_id = state.active_session_id
+
+        case Session.State.get_prompt_history(session_id) do
+          {:ok, history} ->
+            new_index = ui_state.history_index - 1
+
+            new_state =
+              Model.update_active_ui_state(state, fn ui ->
+                new_text_input = set_text_input_value(ui.text_input, Enum.at(history, new_index))
+                %{ui | text_input: new_text_input, history_index: new_index}
+              end)
+
+            {new_state, []}
+
+          {:error, _} ->
+            {state, []}
+        end
+    end
+  end
+
   # Mouse click on tab bar
   def update({:tab_click, x, y}, state) do
     # Use FolderTabs.handle_click to determine action
@@ -2380,6 +2529,27 @@ defmodule JidoCode.TUI do
     text_input
     |> TextInput.set_value(new_value)
     |> Map.put(:cursor_col, new_cursor)
+  end
+
+  # Gets the current text value from a text input, handling nil
+  defp get_text_input_value(nil), do: ""
+  defp get_text_input_value(text_input), do: TextInput.get_value(text_input)
+
+  # Sets the text value and moves cursor to end, handling nil
+  defp set_text_input_value(nil, _value), do: nil
+
+  defp set_text_input_value(text_input, value) do
+    text_input
+    |> TextInput.set_value(value)
+    |> Map.put(:cursor_col, String.length(value))
+  end
+
+  # Adds a prompt to the session's history (fire and forget)
+  defp add_to_prompt_history(nil, _text), do: :ok
+
+  defp add_to_prompt_history(session_id, text) do
+    Session.State.add_to_prompt_history(session_id, text)
+    :ok
   end
 
   # ============================================================================

@@ -59,7 +59,8 @@ defmodule JidoCode.Session.Persistence.Serialization do
       updated_at: format_datetime(session.updated_at),
       closed_at: DateTime.to_iso8601(DateTime.utc_now()),
       conversation: Enum.map(messages, &serialize_message/1),
-      todos: Enum.map(state.todos, &serialize_todo/1)
+      todos: Enum.map(state.todos, &serialize_todo/1),
+      prompt_history: Map.get(state, :prompt_history, [])
     }
 
     # Add cumulative usage if available
@@ -207,6 +208,10 @@ defmodule JidoCode.Session.Persistence.Serialization do
          {:ok, todos} <- deserialize_todos(validated.todos),
          {:ok, created_at} <- parse_datetime_required(validated.created_at),
          {:ok, updated_at} <- parse_datetime_required(validated.updated_at) do
+      # Extract prompt_history, handling legacy sessions without it
+      prompt_history =
+        Map.get(validated, :prompt_history) || Map.get(validated, "prompt_history") || []
+
       base = %{
         id: validated.id,
         name: validated.name,
@@ -216,7 +221,8 @@ defmodule JidoCode.Session.Persistence.Serialization do
         created_at: created_at,
         updated_at: updated_at,
         conversation: messages,
-        todos: todos
+        todos: todos,
+        prompt_history: prompt_history
       }
 
       # Add cumulative usage if present (handles legacy sessions without usage)

@@ -62,6 +62,7 @@ defmodule JidoCode.Session.State do
   @max_messages 1000
   @max_reasoning_steps 100
   @max_tool_calls 500
+  @max_prompt_history 100
 
   # ============================================================================
   # Type Definitions
@@ -140,6 +141,7 @@ defmodule JidoCode.Session.State do
   - `streaming_message` - Content being streamed (nil when not streaming)
   - `streaming_message_id` - ID of the message being streamed (nil when not streaming)
   - `is_streaming` - Whether currently receiving a streaming response
+  - `prompt_history` - List of previous user prompts (newest first, max 100)
   """
   @type state :: %{
           session: Session.t(),
@@ -151,7 +153,8 @@ defmodule JidoCode.Session.State do
           scroll_offset: non_neg_integer(),
           streaming_message: String.t() | nil,
           streaming_message_id: String.t() | nil,
-          is_streaming: boolean()
+          is_streaming: boolean(),
+          prompt_history: [String.t()]
         }
 
   # ============================================================================
@@ -560,6 +563,69 @@ defmodule JidoCode.Session.State do
     call_state(session_id, {:update_language, language})
   end
 
+  @doc """
+  Gets the prompt history for a session.
+
+  Returns prompts in reverse chronological order (newest first).
+
+  ## Examples
+
+      iex> {:ok, history} = State.get_prompt_history("session-123")
+      iex> hd(history)
+      "most recent prompt"
+      iex> {:error, :not_found} = State.get_prompt_history("unknown")
+  """
+  @spec get_prompt_history(String.t()) :: {:ok, [String.t()]} | {:error, :not_found}
+  def get_prompt_history(session_id) when is_binary(session_id) do
+    call_state(session_id, :get_prompt_history)
+  end
+
+  @doc """
+  Adds a prompt to the history.
+
+  The prompt is prepended to the history list (newest first).
+  Empty prompts are ignored.
+  History is limited to #{@max_prompt_history} entries.
+
+  ## Examples
+
+      iex> {:ok, history} = State.add_to_prompt_history("session-123", "Hello world")
+      iex> hd(history)
+      "Hello world"
+      iex> {:error, :not_found} = State.add_to_prompt_history("unknown", "Hello")
+  """
+  @spec add_to_prompt_history(String.t(), String.t()) ::
+          {:ok, [String.t()]} | {:error, :not_found}
+  def add_to_prompt_history(session_id, prompt)
+      when is_binary(session_id) and is_binary(prompt) do
+    # Ignore empty prompts
+    if String.trim(prompt) == "" do
+      get_prompt_history(session_id)
+    else
+      call_state(session_id, {:add_to_prompt_history, prompt})
+    end
+  end
+
+  @doc """
+  Sets the prompt history for a session.
+
+  Used during session restoration to set the complete history at once.
+  The history should be a list of strings in reverse chronological order (newest first).
+
+  ## Examples
+
+      iex> {:ok, history} = State.set_prompt_history("session-123", ["newest", "older", "oldest"])
+      iex> hd(history)
+      "newest"
+      iex> {:error, :not_found} = State.set_prompt_history("unknown", [])
+  """
+  @spec set_prompt_history(String.t(), [String.t()]) ::
+          {:ok, [String.t()]} | {:error, :not_found}
+  def set_prompt_history(session_id, history)
+      when is_binary(session_id) and is_list(history) do
+    call_state(session_id, {:set_prompt_history, history})
+  end
+
   # ============================================================================
   # Private Helpers
   # ============================================================================
@@ -592,7 +658,8 @@ defmodule JidoCode.Session.State do
       scroll_offset: 0,
       streaming_message: nil,
       streaming_message_id: nil,
-      is_streaming: false
+      is_streaming: false,
+      prompt_history: []
     }
 
     {:ok, state}
@@ -786,6 +853,27 @@ defmodule JidoCode.Session.State do
       {:error, :invalid_language} ->
         {:reply, {:error, :invalid_language}, state}
     end
+  end
+
+  @impl true
+  def handle_call(:get_prompt_history, _from, state) do
+    {:reply, {:ok, state.prompt_history}, state}
+  end
+
+  @impl true
+  def handle_call({:add_to_prompt_history, prompt}, _from, state) do
+    # Prepend new prompt, enforce max size limit
+    history = [prompt | state.prompt_history] |> Enum.take(@max_prompt_history)
+    new_state = %{state | prompt_history: history}
+    {:reply, {:ok, history}, new_state}
+  end
+
+  @impl true
+  def handle_call({:set_prompt_history, history}, _from, state) do
+    # Set the entire history (for session restoration), enforce max size limit
+    limited_history = Enum.take(history, @max_prompt_history)
+    new_state = %{state | prompt_history: limited_history}
+    {:reply, {:ok, limited_history}, new_state}
   end
 
   # ============================================================================

@@ -327,13 +327,14 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
     end
   end
 
-  # Interactive Element Navigation (Tab to cycle through code blocks)
+  # Interactive Element Navigation (Ctrl+B to cycle through code blocks)
+  # Note: Tab is used by main_layout for pane focus, so we use Ctrl+B instead
 
-  def handle_event(%TermUI.Event.Key{key: :tab}, state) do
+  def handle_event(%TermUI.Event.Key{char: "b", modifiers: [:ctrl]}, state) do
     {:ok, cycle_interactive_focus(state, :forward)}
   end
 
-  def handle_event(%TermUI.Event.Key{key: :tab, modifiers: [:shift]}, state) do
+  def handle_event(%TermUI.Event.Key{char: "B", modifiers: [:ctrl, :shift]}, state) do
     {:ok, cycle_interactive_focus(state, :backward)}
   end
 

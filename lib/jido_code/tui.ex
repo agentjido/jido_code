@@ -1475,6 +1475,15 @@ defmodule JidoCode.TUI do
     end
   end
 
+  # Ctrl+B to cycle through code blocks in conversation view
+  def event_to_msg(%Event.Key{key: "b", modifiers: modifiers} = event, _state) do
+    if :ctrl in modifiers do
+      {:msg, :cycle_code_blocks}
+    else
+      {:msg, {:input_event, event}}
+    end
+  end
+
   # Ctrl+1 through Ctrl+9 to switch to session by index
   def event_to_msg(%Event.Key{key: key, modifiers: modifiers} = event, _state)
       when key in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] do
@@ -1527,6 +1536,10 @@ defmodule JidoCode.TUI do
       state.shell_dialog ->
         {:msg, {:input_event, event}}
 
+      # Check if conversation view is in interactive mode (code block selection)
+      conversation_view_in_interactive_mode?(state) ->
+        {:msg, :copy_focused_code_block}
+
       true ->
         # Get value from active session's text input
         text_input = Model.get_active_text_input(state)
@@ -1535,12 +1548,13 @@ defmodule JidoCode.TUI do
     end
   end
 
-  # Escape key - forward to modal if open
+  # Escape key - forward to modal if open, or exit interactive mode
   def event_to_msg(%Event.Key{key: :escape} = event, state) do
     cond do
       state.resume_dialog -> {:msg, :resume_dialog_dismiss}
       state.pick_list -> {:msg, {:pick_list_event, event}}
       state.shell_dialog -> {:msg, {:input_event, event}}
+      conversation_view_in_interactive_mode?(state) -> {:msg, :exit_interactive_mode}
       true -> {:msg, {:input_event, event}}
     end
   end
@@ -2136,6 +2150,60 @@ defmodule JidoCode.TUI do
         else
           {state, []}
         end
+    end
+  end
+
+  # Ctrl+B to cycle through code blocks
+  def update(:cycle_code_blocks, state) do
+    case Model.get_active_conversation_view(state) do
+      nil ->
+        {state, []}
+
+      conversation_view ->
+        new_conversation_view = ConversationView.cycle_interactive_focus(conversation_view, :forward)
+
+        new_state =
+          Model.update_active_ui_state(state, fn ui ->
+            %{ui | conversation_view: new_conversation_view}
+          end)
+
+        {new_state, []}
+    end
+  end
+
+  # Enter to copy focused code block
+  def update(:copy_focused_code_block, state) do
+    case Model.get_active_conversation_view(state) do
+      nil ->
+        {state, []}
+
+      conversation_view ->
+        new_conversation_view = ConversationView.copy_focused_element(conversation_view)
+
+        new_state =
+          Model.update_active_ui_state(state, fn ui ->
+            %{ui | conversation_view: new_conversation_view}
+          end)
+
+        {new_state, []}
+    end
+  end
+
+  # Escape to exit interactive mode
+  def update(:exit_interactive_mode, state) do
+    case Model.get_active_conversation_view(state) do
+      nil ->
+        {state, []}
+
+      conversation_view ->
+        new_conversation_view = %{conversation_view | interactive_mode: false, focused_element_id: nil}
+
+        new_state =
+          Model.update_active_ui_state(state, fn ui ->
+            %{ui | conversation_view: new_conversation_view}
+          end)
+
+        {new_state, []}
     end
   end
 
@@ -2868,6 +2936,14 @@ defmodule JidoCode.TUI do
       end)
     else
       state
+    end
+  end
+
+  # Check if conversation view is in interactive mode (code block focus)
+  defp conversation_view_in_interactive_mode?(state) do
+    case Model.get_active_conversation_view(state) do
+      nil -> false
+      conversation_view -> ConversationView.interactive_mode?(conversation_view)
     end
   end
 

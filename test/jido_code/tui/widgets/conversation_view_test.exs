@@ -2262,7 +2262,7 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
   # ============================================================================
 
   describe "interactive element navigation" do
-    test "Tab enters interactive mode when code blocks exist" do
+    test "Ctrl+B enters interactive mode when code blocks exist" do
       markdown_with_code = """
       Here's some code:
 
@@ -2277,8 +2277,8 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       # Initially not in interactive mode
       refute state.interactive_mode
 
-      # Press Tab
-      event = %TermUI.Event.Key{key: :tab}
+      # Press Ctrl+B
+      event = %TermUI.Event.Key{char: "b", modifiers: [:ctrl]}
       {:ok, new_state} = ConversationView.handle_event(event, state)
 
       # Should now be in interactive mode with focused element
@@ -2287,18 +2287,18 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert length(new_state.interactive_elements) == 1
     end
 
-    test "Tab does nothing when no code blocks exist" do
+    test "Ctrl+B does nothing when no code blocks exist" do
       messages = [make_message("1", :assistant, "Just plain text, no code")]
       state = init_state(messages: messages)
 
-      event = %TermUI.Event.Key{key: :tab}
+      event = %TermUI.Event.Key{char: "b", modifiers: [:ctrl]}
       {:ok, new_state} = ConversationView.handle_event(event, state)
 
       # Should remain out of interactive mode
       refute new_state.interactive_mode
     end
 
-    test "Tab cycles through multiple code blocks" do
+    test "Ctrl+B cycles through multiple code blocks" do
       markdown_with_multiple = """
       First block:
 
@@ -2317,19 +2317,19 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       state = init_state(messages: messages)
 
       # Enter interactive mode
-      event = %TermUI.Event.Key{key: :tab}
+      event = %TermUI.Event.Key{char: "b", modifiers: [:ctrl]}
       {:ok, state1} = ConversationView.handle_event(event, state)
       assert state1.interactive_mode
       first_id = state1.focused_element_id
 
-      # Tab again to move to next element
+      # Ctrl+B again to move to next element
       {:ok, state2} = ConversationView.handle_event(event, state1)
       second_id = state2.focused_element_id
 
       # Should have moved to different element
       assert first_id != second_id
 
-      # Tab again should cycle back to first
+      # Ctrl+B again should cycle back to first
       {:ok, state3} = ConversationView.handle_event(event, state2)
       assert state3.focused_element_id == first_id
     end
@@ -2345,8 +2345,8 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       state = init_state(messages: messages)
 
       # Enter interactive mode
-      tab_event = %TermUI.Event.Key{key: :tab}
-      {:ok, state1} = ConversationView.handle_event(tab_event, state)
+      ctrl_b_event = %TermUI.Event.Key{char: "b", modifiers: [:ctrl]}
+      {:ok, state1} = ConversationView.handle_event(ctrl_b_event, state)
       assert state1.interactive_mode
 
       # Press Escape
@@ -2372,7 +2372,7 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
       assert ConversationView.get_focused_element(state) == nil
 
       # Enter interactive mode
-      event = %TermUI.Event.Key{key: :tab}
+      event = %TermUI.Event.Key{char: "b", modifiers: [:ctrl]}
       {:ok, state1} = ConversationView.handle_event(event, state)
 
       # Should return the focused element
@@ -2401,8 +2401,8 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
         )
 
       # Enter interactive mode
-      tab_event = %TermUI.Event.Key{key: :tab}
-      {:ok, state1} = ConversationView.handle_event(tab_event, state)
+      ctrl_b_event = %TermUI.Event.Key{char: "b", modifiers: [:ctrl]}
+      {:ok, state1} = ConversationView.handle_event(ctrl_b_event, state)
       assert state1.interactive_mode
 
       # Press Enter to copy
@@ -2422,7 +2422,7 @@ defmodule JidoCode.TUI.Widgets.ConversationViewTest do
 
       refute ConversationView.interactive_mode?(state)
 
-      event = %TermUI.Event.Key{key: :tab}
+      event = %TermUI.Event.Key{char: "b", modifiers: [:ctrl]}
       {:ok, state1} = ConversationView.handle_event(event, state)
 
       assert ConversationView.interactive_mode?(state1)

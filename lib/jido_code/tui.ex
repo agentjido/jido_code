@@ -1816,6 +1816,9 @@ defmodule JidoCode.TUI do
   end
 
   def update(:quit, state) do
+    # Save all active sessions before exiting (best effort)
+    save_all_sessions(state.session_order)
+
     # Clear terminal and disable mouse tracking before quitting
     # This ensures clean exit even if Runtime cleanup is incomplete
     # Disable all mouse tracking modes (SGR extended, all motion, button, normal)
@@ -1829,6 +1832,24 @@ defmodule JidoCode.TUI do
     # Reset terminal attributes to normal
     IO.write("\e[0m")
     {state, [:quit]}
+  end
+
+  # Saves all active sessions on application exit (best effort)
+  defp save_all_sessions(session_ids) do
+    alias JidoCode.Session.Persistence
+
+    for session_id <- session_ids do
+      case Persistence.save(session_id) do
+        {:ok, _path} ->
+          :ok
+
+        {:error, reason} ->
+          require Logger
+          Logger.warning("Failed to save session #{session_id} on exit: #{inspect(reason)}")
+      end
+    end
+
+    :ok
   end
 
   def update({:resize, width, height}, state) do

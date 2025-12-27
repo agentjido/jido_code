@@ -24,7 +24,8 @@ Implemented per-session prompt history with shell-like navigation, allowing user
    - Down at most recent restores the saved original input
 
 2. **History Persistence**:
-   - History is saved with the session (via `/session close` or app exit)
+   - History is saved with the session (via `/session close`, Ctrl+W, or Ctrl+X app exit)
+   - **Auto-save on exit**: All active sessions are automatically saved when exiting with Ctrl+X
    - History is restored when resuming a session (via `/resume`)
    - Maximum 100 prompts per session
 
@@ -39,7 +40,7 @@ Implemented per-session prompt history with shell-like navigation, allowing user
 | File | Changes |
 |------|---------|
 | `lib/jido_code/session/state.ex` | Added `prompt_history` field, `get_prompt_history/1`, `add_to_prompt_history/2`, `set_prompt_history/2` |
-| `lib/jido_code/tui.ex` | Added `history_index` and `saved_input` to UI state, Up/Down/ESC handlers, history navigation update functions |
+| `lib/jido_code/tui.ex` | Added `history_index` and `saved_input` to UI state, Up/Down/ESC handlers, history navigation update functions, auto-save all sessions on Ctrl+X exit |
 | `lib/jido_code/session/persistence/serialization.ex` | Added `prompt_history` to build/deserialize session |
 | `lib/jido_code/session/persistence.ex` | Added `restore_prompt_history/2` for session resume |
 | `test/jido_code/session/state_test.exs` | Added 12 tests for prompt history functionality |

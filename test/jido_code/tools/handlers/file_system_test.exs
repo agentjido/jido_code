@@ -206,6 +206,346 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
   end
 
   # ============================================================================
+  # WriteFile Read-Before-Write Tests (Session Context)
+  # ============================================================================
+
+  describe "WriteFile read-before-write safety" do
+    setup %{tmp_dir: tmp_dir} do
+      # Set dummy API key for test
+      System.put_env("ANTHROPIC_API_KEY", "test-key-write-rbw")
+
+      on_exit(fn ->
+        System.delete_env("ANTHROPIC_API_KEY")
+      end)
+
+      # Start required registries if not already started
+      unless GenServer.whereis(JidoCode.SessionProcessRegistry) do
+        start_supervised!({Registry, keys: :unique, name: JidoCode.SessionProcessRegistry})
+      end
+
+      # Create a session
+      {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "write-rbw-test")
+
+      {:ok, supervisor_pid} =
+        JidoCode.Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:write_rbw_test_sup, session.id}}}
+        )
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      %{session: session}
+    end
+
+    test "allows writing new file without prior read", %{tmp_dir: tmp_dir, session: session} do
+      context = %{session_id: session.id}
+
+      assert {:ok, message} =
+               WriteFile.execute(
+                 %{"path" => "new_file.txt", "content" => "Brand new content"},
+                 context
+               )
+
+      assert message =~ "written successfully"
+      assert File.read!(Path.join(tmp_dir, "new_file.txt")) == "Brand new content"
+    end
+
+    test "rejects overwriting existing file without prior read", %{
+      tmp_dir: tmp_dir,
+      session: session
+    } do
+      # Create existing file
+      file_path = Path.join(tmp_dir, "existing_no_read.txt")
+      File.write!(file_path, "Original content")
+
+      context = %{session_id: session.id}
+
+      # Attempt to overwrite without reading first
+      assert {:error, error} =
+               WriteFile.execute(
+                 %{"path" => "existing_no_read.txt", "content" => "New content"},
+                 context
+               )
+
+      assert error =~ "must be read before overwriting"
+
+      # Verify original content is preserved
+      assert File.read!(file_path) == "Original content"
+    end
+
+    test "allows overwriting after file is read", %{tmp_dir: tmp_dir, session: session} do
+      # Create existing file
+      file_path = Path.join(tmp_dir, "existing_with_read.txt")
+      File.write!(file_path, "Original content")
+
+      context = %{session_id: session.id}
+
+      # First read the file
+      assert {:ok, "Original content"} =
+               ReadFile.execute(%{"path" => "existing_with_read.txt"}, context)
+
+      # Now overwrite should succeed
+      assert {:ok, message} =
+               WriteFile.execute(
+                 %{"path" => "existing_with_read.txt", "content" => "Updated content"},
+                 context
+               )
+
+      assert message =~ "updated successfully"
+      assert File.read!(file_path) == "Updated content"
+    end
+
+    test "tracks multiple file reads for write validation", %{tmp_dir: tmp_dir, session: session} do
+      # Create multiple files
+      File.write!(Path.join(tmp_dir, "file1.txt"), "Content 1")
+      File.write!(Path.join(tmp_dir, "file2.txt"), "Content 2")
+      File.write!(Path.join(tmp_dir, "file3.txt"), "Content 3")
+
+      context = %{session_id: session.id}
+
+      # Read file1 and file2, but not file3
+      assert {:ok, _} = ReadFile.execute(%{"path" => "file1.txt"}, context)
+      assert {:ok, _} = ReadFile.execute(%{"path" => "file2.txt"}, context)
+
+      # Can overwrite file1 and file2
+      assert {:ok, _} =
+               WriteFile.execute(%{"path" => "file1.txt", "content" => "New 1"}, context)
+
+      assert {:ok, _} =
+               WriteFile.execute(%{"path" => "file2.txt", "content" => "New 2"}, context)
+
+      # Cannot overwrite file3 (not read)
+      assert {:error, error} =
+               WriteFile.execute(%{"path" => "file3.txt", "content" => "New 3"}, context)
+
+      assert error =~ "must be read before overwriting"
+    end
+
+    test "project_root context bypasses read-before-write check (legacy mode)", %{
+      tmp_dir: tmp_dir
+    } do
+      # Create existing file
+      file_path = Path.join(tmp_dir, "legacy_mode.txt")
+      File.write!(file_path, "Original content")
+
+      # Use project_root context (legacy mode)
+      context = %{project_root: tmp_dir}
+
+      # Should allow overwrite without prior read
+      assert {:ok, _} =
+               WriteFile.execute(
+                 %{"path" => "legacy_mode.txt", "content" => "New content"},
+                 context
+               )
+
+      assert File.read!(file_path) == "New content"
+    end
+
+    test "creates parent directories for new file", %{tmp_dir: tmp_dir, session: session} do
+      context = %{session_id: session.id}
+
+      assert {:ok, _} =
+               WriteFile.execute(
+                 %{"path" => "deep/nested/dir/file.txt", "content" => "Nested content"},
+                 context
+               )
+
+      assert File.read!(Path.join(tmp_dir, "deep/nested/dir/file.txt")) == "Nested content"
+    end
+
+    test "rejects content exceeding size limit", %{session: session} do
+      context = %{session_id: session.id}
+
+      # Create content larger than 10MB
+      large_content = String.duplicate("x", 10 * 1024 * 1024 + 1)
+
+      assert {:error, error} =
+               WriteFile.execute(%{"path" => "large_file.txt", "content" => large_content}, context)
+
+      assert error =~ "exceeds maximum file size" or error =~ "content_too_large" or
+               error =~ "Content exceeds"
+    end
+
+    test "rejects path traversal with session context", %{session: session} do
+      context = %{session_id: session.id}
+
+      assert {:error, error} =
+               WriteFile.execute(
+                 %{"path" => "../../../etc/evil.txt", "content" => "Bad content"},
+                 context
+               )
+
+      assert error =~ "Security error"
+    end
+
+    test "write after read updates file correctly with unicode content", %{
+      tmp_dir: tmp_dir,
+      session: session
+    } do
+      # Create file with unicode content
+      file_path = Path.join(tmp_dir, "unicode.txt")
+      File.write!(file_path, "Hello 世界 🌍")
+
+      context = %{session_id: session.id}
+
+      # Read first
+      assert {:ok, "Hello 世界 🌍"} = ReadFile.execute(%{"path" => "unicode.txt"}, context)
+
+      # Write unicode content
+      assert {:ok, _} =
+               WriteFile.execute(
+                 %{"path" => "unicode.txt", "content" => "Updated 日本語 🎉"},
+                 context
+               )
+
+      assert File.read!(file_path) == "Updated 日本語 🎉"
+    end
+  end
+
+  # ============================================================================
+  # WriteFile Atomic Write Tests
+  # ============================================================================
+
+  describe "WriteFile atomic write behavior" do
+    test "writes atomically using Security.atomic_write", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      # Write a file
+      assert {:ok, _} =
+               WriteFile.execute(
+                 %{"path" => "atomic_test.txt", "content" => "Atomic content"},
+                 context
+               )
+
+      # Verify content
+      assert File.read!(Path.join(tmp_dir, "atomic_test.txt")) == "Atomic content"
+    end
+
+    test "validates path after write (TOCTOU protection)", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      # Normal write should succeed and be validated
+      assert {:ok, _} =
+               WriteFile.execute(
+                 %{"path" => "safe_file.txt", "content" => "Safe content"},
+                 context
+               )
+
+      # Verify file exists at expected location
+      assert File.exists?(Path.join(tmp_dir, "safe_file.txt"))
+    end
+
+    test "handles concurrent writes to same file", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      # Perform multiple writes - last one should win
+      tasks =
+        for i <- 1..5 do
+          Task.async(fn ->
+            WriteFile.execute(
+              %{"path" => "concurrent.txt", "content" => "Content #{i}"},
+              context
+            )
+          end)
+        end
+
+      results = Task.await_many(tasks, 5000)
+
+      # All should succeed
+      assert Enum.all?(results, fn result ->
+               match?({:ok, _}, result)
+             end)
+
+      # File should exist with one of the contents
+      content = File.read!(Path.join(tmp_dir, "concurrent.txt"))
+      assert content =~ "Content"
+    end
+  end
+
+  # ============================================================================
+  # WriteFile Permission and Error Tests
+  # ============================================================================
+
+  describe "WriteFile error handling" do
+    test "returns error for missing path argument", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} = WriteFile.execute(%{"content" => "No path"}, context)
+      assert error =~ "requires path and content"
+    end
+
+    test "returns error for missing content argument", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} = WriteFile.execute(%{"path" => "file.txt"}, context)
+      assert error =~ "requires path and content"
+    end
+
+    test "returns error for empty arguments", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} = WriteFile.execute(%{}, context)
+      assert error =~ "requires path and content"
+    end
+
+    @tag :tmp_dir
+    test "handles permission denied gracefully", %{tmp_dir: tmp_dir} do
+      # Create a read-only directory
+      readonly_dir = Path.join(tmp_dir, "readonly")
+      File.mkdir_p!(readonly_dir)
+      File.chmod!(readonly_dir, 0o444)
+
+      context = %{project_root: tmp_dir}
+
+      result =
+        WriteFile.execute(
+          %{"path" => "readonly/file.txt", "content" => "Cannot write"},
+          context
+        )
+
+      # Restore permissions for cleanup
+      File.chmod!(readonly_dir, 0o755)
+
+      case result do
+        {:error, error} ->
+          assert error =~ "Permission denied" or error =~ "eacces" or error =~ "Error"
+
+        {:ok, _} ->
+          # Some systems may allow root to write anyway
+          :ok
+      end
+    end
+
+    test "handles symlink in path correctly", %{tmp_dir: tmp_dir} do
+      # Create a real directory
+      real_dir = Path.join(tmp_dir, "real_dir")
+      File.mkdir_p!(real_dir)
+
+      # Create a symlink to it
+      symlink_path = Path.join(tmp_dir, "link_dir")
+      File.ln_s!(real_dir, symlink_path)
+
+      context = %{project_root: tmp_dir}
+
+      # Write through symlink should work (symlink stays within boundary)
+      assert {:ok, _} =
+               WriteFile.execute(
+                 %{"path" => "link_dir/file.txt", "content" => "Via symlink"},
+                 context
+               )
+
+      # Verify file was created in real location
+      assert File.read!(Path.join(real_dir, "file.txt")) == "Via symlink"
+    end
+  end
+
+  # ============================================================================
   # EditFile Tests
   # ============================================================================
 

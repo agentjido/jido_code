@@ -1,228 +1,288 @@
 # Phase 1: File Operations & Core Tools
 
-This phase implements the foundational file system tools that form the basis of all code manipulation. These tools follow the read-before-write validation pattern used by all major coding assistants.
+This phase implements the foundational file system tools that form the basis of all code manipulation. All tools route through the Lua sandbox for defense-in-depth security per [ADR-0001](../../decisions/0001-tool-security-architecture.md).
+
+## Lua Sandbox Architecture
+
+All file operation tools follow this execution flow:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Tool Executor receives LLM tool call                       │
+│  e.g., {"name": "read_file", "arguments": {"path": "x.ex"}} │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Tools.Manager.read_file(path, session_id: id)              │
+│  GenServer call to session-scoped Lua sandbox               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Lua VM executes: "return jido.read_file(path)"             │
+│  (dangerous functions like os.execute already removed)      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Bridge.lua_read_file/3 invoked from Lua                    │
+│  (Elixir function registered as jido.read_file)             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Security.atomic_read(path, project_root)                   │
+│  - Path boundary validation                                 │
+│  - Symlink resolution                                       │
+│  - TOCTOU-safe file read                                    │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Tools in This Phase
 
-| Tool | Purpose | Priority |
-|------|---------|----------|
-| read_file | Read file contents with line numbers | MVP |
-| write_file | Create/overwrite files with read validation | MVP |
-| edit_file | Search/replace modifications | MVP |
-| multi_edit | Atomic batch modifications | MVP |
-| list_dir | Directory listing with ignore patterns | MVP |
-| glob_search | Pattern-based file finding | MVP |
-| delete_file | File removal with boundary validation | MVP |
+| Tool | Bridge Function | Purpose |
+|------|-----------------|---------|
+| read_file | `jido.read_file(path)` | Read file contents with line numbers |
+| write_file | `jido.write_file(path, content)` | Create/overwrite files |
+| edit_file | `jido.edit_file(path, old, new)` | Search/replace modifications |
+| multi_edit | `jido.multi_edit(path, edits)` | Atomic batch modifications |
+| list_dir | `jido.list_dir(path)` | Directory listing |
+| glob_search | `jido.glob(pattern, path)` | Pattern-based file finding |
+| delete_file | `jido.delete_file(path)` | File removal |
 
 ---
 
 ## 1.1 Read File Tool
 
-Implement the read_file tool for reading file contents with line numbers, offset support, and sensible defaults.
+Implement the read_file tool for reading file contents with line numbers, offset support, and sensible defaults. The tool executes through the Lua sandbox via the `jido.read_file` bridge function.
 
 ### 1.1.1 Tool Definition
 
-Create the read_file tool definition with proper schema.
+Create the read_file tool definition with proper schema. This defines the interface for the LLM.
 
 - [ ] 1.1.1.1 Create `lib/jido_code/tools/definitions/file_read.ex` with module documentation
 - [ ] 1.1.1.2 Define tool schema with parameters:
   ```elixir
   %{
-    path: %{type: :string, required: true, description: "Absolute path to file"},
-    offset: %{type: :integer, required: false, description: "Line number to start from (1-indexed)"},
-    limit: %{type: :integer, required: false, description: "Maximum lines to read (default: 2000)"}
+    name: "read_file",
+    description: "Read file contents. Returns line-numbered output.",
+    parameters: [
+      %{name: "path", type: :string, required: true, description: "Path to file"},
+      %{name: "offset", type: :integer, required: false, description: "Line to start from (1-indexed)"},
+      %{name: "limit", type: :integer, required: false, description: "Max lines to read (default: 2000)"}
+    ]
   }
   ```
-- [ ] 1.1.1.3 Set default limit to 2000 lines
-- [ ] 1.1.1.4 Add max line length truncation (2000 characters)
-- [ ] 1.1.1.5 Register tool in definitions module
+- [ ] 1.1.1.3 Set default limit to 2000 lines in schema
+- [ ] 1.1.1.4 Register tool in definitions module
 
-### 1.1.2 Read Handler Implementation
+### 1.1.2 Bridge Function Implementation
 
-Implement the handler for reading files with validation.
+Implement the Bridge function that executes within the Lua sandbox. This is the actual implementation.
 
-- [ ] 1.1.2.1 Create `lib/jido_code/tools/handlers/file_system/read_file.ex`
-- [ ] 1.1.2.2 Implement path validation using session context
-- [ ] 1.1.2.3 Implement file reading with offset/limit support
-- [ ] 1.1.2.4 Format output with line numbers (cat -n style, 1-indexed)
-- [ ] 1.1.2.5 Truncate long lines at 2000 characters with indicator
-- [ ] 1.1.2.6 Handle binary file detection (reject with clear message)
-- [ ] 1.1.2.7 Track read timestamp for concurrent modification detection
-- [ ] 1.1.2.8 Return `{:ok, content}` or `{:error, reason}`
+- [ ] 1.1.2.1 Add `lua_read_file/3` function to `lib/jido_code/tools/bridge.ex`
+  ```elixir
+  def lua_read_file(args, state, project_root) do
+    case args do
+      [path] -> do_read_file(path, %{}, state, project_root)
+      [path, opts] -> do_read_file(path, decode_opts(opts), state, project_root)
+      _ -> {[nil, "read_file requires path argument"], state}
+    end
+  end
+  ```
+- [ ] 1.1.2.2 Use `Security.atomic_read/2` for TOCTOU-safe file reading
+- [ ] 1.1.2.3 Implement offset/limit support (skip first N lines, cap at limit)
+- [ ] 1.1.2.4 Format output with line numbers (cat -n style, 1-indexed):
+  ```
+       1→first line
+       2→second line
+  ```
+- [ ] 1.1.2.5 Truncate long lines at 2000 characters with `[truncated]` indicator
+- [ ] 1.1.2.6 Detect binary files (check for null bytes) and reject with clear message
+- [ ] 1.1.2.7 Return `{[content], state}` on success or `{[nil, error_msg], state}` on failure
+- [ ] 1.1.2.8 Register function in `Bridge.register/2`:
+  ```elixir
+  |> register_function("read_file", &lua_read_file/3, project_root)
+  ```
 
-### 1.1.3 Unit Tests for Read File
+### 1.1.3 Manager API
 
-- [ ] Test read_file with valid path returns line-numbered content
+Expose the tool through the Manager API for session-aware execution.
+
+- [ ] 1.1.3.1 Add `read_file/2` to `Tools.Manager` that accepts path and options
+- [ ] 1.1.3.2 Support `session_id` option to route to session-scoped manager
+- [ ] 1.1.3.3 Call bridge function through Lua: `jido.read_file(path, opts)`
+
+### 1.1.4 Unit Tests for Read File
+
+- [ ] Test read_file through sandbox returns line-numbered content
 - [ ] Test read_file with offset skips initial lines
 - [ ] Test read_file with limit caps output
-- [ ] Test read_file truncates long lines
-- [ ] Test read_file rejects binary files
-- [ ] Test read_file rejects paths outside project boundary
+- [ ] Test read_file truncates long lines with indicator
+- [ ] Test read_file rejects binary files with clear error
+- [ ] Test read_file rejects paths outside project boundary (Security layer)
 - [ ] Test read_file handles non-existent files
 - [ ] Test read_file handles permission errors
+- [ ] Test read_file works through session-scoped manager
 
 ---
 
 ## 1.2 Write File Tool
 
-Implement the write_file tool for creating new files, requiring prior read for existing files.
+Implement the write_file tool for creating/overwriting files through the Lua sandbox.
 
 ### 1.2.1 Tool Definition
-
-Create the write_file tool definition.
 
 - [ ] 1.2.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_write.ex`
 - [ ] 1.2.1.2 Define schema:
   ```elixir
   %{
-    path: %{type: :string, required: true, description: "Absolute path for file"},
-    content: %{type: :string, required: true, description: "File content to write"}
+    name: "write_file",
+    description: "Write content to file. Creates parent directories if needed.",
+    parameters: [
+      %{name: "path", type: :string, required: true, description: "Path for file"},
+      %{name: "content", type: :string, required: true, description: "Content to write"}
+    ]
   }
   ```
-- [ ] 1.2.1.3 Document read-before-write requirement in description
+- [ ] 1.2.1.3 Register tool in definitions module
 
-### 1.2.2 Write Handler Implementation
+### 1.2.2 Bridge Function Implementation
 
-Implement the handler for writing files with validation.
-
-- [ ] 1.2.2.1 Create `lib/jido_code/tools/handlers/file_system/write_file.ex`
-- [ ] 1.2.2.2 Validate path is within project boundary
-- [ ] 1.2.2.3 Check if file exists - if so, verify it was read in this session
-- [ ] 1.2.2.4 Create parent directories if needed
-- [ ] 1.2.2.5 Write content atomically (write to temp, rename)
-- [ ] 1.2.2.6 Track write timestamp
-- [ ] 1.2.2.7 Return `{:ok, path}` or `{:error, reason}`
+- [ ] 1.2.2.1 Update existing `lua_write_file/3` in `bridge.ex` if needed
+- [ ] 1.2.2.2 Use `Security.atomic_write/3` for TOCTOU-safe writing
+- [ ] 1.2.2.3 Validate content size (max 10MB)
+- [ ] 1.2.2.4 Create parent directories via `jido.mkdir_p` if needed
+- [ ] 1.2.2.5 Return `{[true], state}` on success or `{[nil, error], state}` on failure
 
 ### 1.2.3 Unit Tests for Write File
 
-- [ ] Test write_file creates new file successfully
+- [ ] Test write_file through sandbox creates new file
 - [ ] Test write_file creates parent directories
-- [ ] Test write_file rejects overwrite without prior read
-- [ ] Test write_file allows overwrite with prior read
 - [ ] Test write_file rejects paths outside boundary
+- [ ] Test write_file rejects content exceeding 10MB
 - [ ] Test write_file handles permission errors
-- [ ] Test write_file atomic write behavior
+- [ ] Test write_file atomic behavior (no partial writes)
 
 ---
 
 ## 1.3 Edit File Tool
 
-Implement the edit_file tool for surgical search/replace modifications with multi-strategy matching.
+Implement the edit_file tool for surgical search/replace modifications through the Lua sandbox.
 
 ### 1.3.1 Tool Definition
-
-Create the edit_file tool definition.
 
 - [ ] 1.3.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_edit.ex`
 - [ ] 1.3.1.2 Define schema:
   ```elixir
   %{
-    path: %{type: :string, required: true},
-    old_string: %{type: :string, required: true, description: "Exact text to replace"},
-    new_string: %{type: :string, required: true, description: "Replacement text"}
+    name: "edit_file",
+    description: "Replace exact string in file. old_string must be unique.",
+    parameters: [
+      %{name: "path", type: :string, required: true},
+      %{name: "old_string", type: :string, required: true, description: "Exact text to replace"},
+      %{name: "new_string", type: :string, required: true, description: "Replacement text"},
+      %{name: "replace_all", type: :boolean, required: false, description: "Replace all occurrences"}
+    ]
   }
   ```
-- [ ] 1.3.1.3 Document that old_string must be unique in file
 
-### 1.3.2 Edit Handler Implementation
+### 1.3.2 Bridge Function Implementation
 
-Implement the handler with multi-strategy matching (following OpenCode pattern).
-
-- [ ] 1.3.2.1 Create `lib/jido_code/tools/handlers/file_system/edit_file.ex`
-- [ ] 1.3.2.2 Validate path and verify file was read
-- [ ] 1.3.2.3 Implement exact string match (primary strategy)
-- [ ] 1.3.2.4 Implement line-trimmed match fallback
-- [ ] 1.3.2.5 Implement whitespace-normalized match fallback
-- [ ] 1.3.2.6 Implement indentation-flexible match fallback
-- [ ] 1.3.2.7 Verify old_string is unique in file
-- [ ] 1.3.2.8 Return error if multiple matches found
-- [ ] 1.3.2.9 Apply replacement atomically
-- [ ] 1.3.2.10 Return `{:ok, path}` or `{:error, reason}`
+- [ ] 1.3.2.1 Add `lua_edit_file/3` to `bridge.ex`
+- [ ] 1.3.2.2 Use `Security.atomic_read/2` to read current content
+- [ ] 1.3.2.3 Implement multi-strategy matching:
+  1. Exact string match (primary)
+  2. Line-trimmed match (fallback)
+  3. Whitespace-normalized match (fallback)
+  4. Indentation-flexible match (fallback)
+- [ ] 1.3.2.4 Count occurrences - error if multiple and `replace_all` is false
+- [ ] 1.3.2.5 Use `Security.atomic_write/3` to write modified content
+- [ ] 1.3.2.6 Return `{[count], state}` with replacement count or `{[nil, error], state}`
+- [ ] 1.3.2.7 Register in `Bridge.register/2`
 
 ### 1.3.3 Unit Tests for Edit File
 
 - [ ] Test edit_file with exact match succeeds
 - [ ] Test edit_file with whitespace variations uses fallback
 - [ ] Test edit_file with indentation differences uses fallback
-- [ ] Test edit_file fails on multiple matches
+- [ ] Test edit_file fails on multiple matches (without replace_all)
+- [ ] Test edit_file with replace_all replaces all occurrences
 - [ ] Test edit_file fails on no match
-- [ ] Test edit_file requires prior read
-- [ ] Test edit_file validates boundary
-- [ ] Test edit_file preserves file permissions
+- [ ] Test edit_file validates boundary through sandbox
 
 ---
 
 ## 1.4 Multi-Edit Tool
 
-Implement the multi_edit tool for atomic batch modifications.
+Implement the multi_edit tool for atomic batch modifications through the Lua sandbox.
 
 ### 1.4.1 Tool Definition
 
-Create the multi_edit tool definition for atomic batch edits.
-
 - [ ] 1.4.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_multi_edit.ex`
-- [ ] 1.4.1.2 Define schema with edits list:
+- [ ] 1.4.1.2 Define schema with edits array:
   ```elixir
   %{
-    path: %{type: :string, required: true},
-    edits: %{type: :array, required: true, items: %{
-      old_string: %{type: :string},
-      new_string: %{type: :string}
-    }}
+    name: "multi_edit",
+    description: "Apply multiple edits atomically. All succeed or all fail.",
+    parameters: [
+      %{name: "path", type: :string, required: true},
+      %{name: "edits", type: :array, required: true, description: "Array of {old_string, new_string}"}
+    ]
   }
   ```
 
-### 1.4.2 Multi-Edit Handler Implementation
+### 1.4.2 Bridge Function Implementation
 
-Implement the handler for atomic batch modifications.
-
-- [ ] 1.4.2.1 Create `lib/jido_code/tools/handlers/file_system/multi_edit.ex`
-- [ ] 1.4.2.2 Validate all edits can be applied (all old_strings found and unique)
-- [ ] 1.4.2.3 Apply all edits sequentially in single transaction
-- [ ] 1.4.2.4 Rollback on any failure (atomic - all or nothing)
-- [ ] 1.4.2.5 Return `{:ok, path}` or `{:error, {index, reason}}`
+- [ ] 1.4.2.1 Add `lua_multi_edit/3` to `bridge.ex`
+- [ ] 1.4.2.2 Read file content once with `Security.atomic_read/2`
+- [ ] 1.4.2.3 Validate all edits can be applied (all old_strings found and unique)
+- [ ] 1.4.2.4 Apply all edits sequentially to in-memory content
+- [ ] 1.4.2.5 Write once with `Security.atomic_write/3` (atomic - all or nothing)
+- [ ] 1.4.2.6 Return `{[count], state}` or `{[nil, {index, reason}], state}` on failure
+- [ ] 1.4.2.7 Register in `Bridge.register/2`
 
 ### 1.4.3 Unit Tests for Multi-Edit
 
 - [ ] Test multi_edit applies all edits atomically
-- [ ] Test multi_edit rolls back on failure
-- [ ] Test multi_edit handles overlapping edits
-- [ ] Test multi_edit validates all edits before applying
-- [ ] Test multi_edit preserves edit order
+- [ ] Test multi_edit fails validation before any writes
+- [ ] Test multi_edit handles overlapping edits correctly
+- [ ] Test multi_edit returns failing edit index on error
 
 ---
 
 ## 1.5 List Directory Tool
 
-Implement the list_dir tool for directory listing with ignore patterns.
+Implement the list_dir tool for directory listing through the Lua sandbox.
 
 ### 1.5.1 Tool Definition
-
-Create the list_dir tool definition for directory listing.
 
 - [ ] 1.5.1.1 Create tool definition in `lib/jido_code/tools/definitions/list_dir.ex`
 - [ ] 1.5.1.2 Define schema:
   ```elixir
   %{
-    path: %{type: :string, required: true},
-    ignore_patterns: %{type: :array, required: false, description: "Glob patterns to ignore"}
+    name: "list_dir",
+    description: "List directory contents with type indicators.",
+    parameters: [
+      %{name: "path", type: :string, required: true},
+      %{name: "ignore_patterns", type: :array, required: false, description: "Glob patterns to ignore"}
+    ]
   }
   ```
 
-### 1.5.2 List Directory Handler Implementation
+### 1.5.2 Bridge Function Implementation
 
-Implement the handler for directory listing with filtering.
-
-- [ ] 1.5.2.1 Create `lib/jido_code/tools/handlers/file_system/list_dir.ex`
-- [ ] 1.5.2.2 Validate path within boundary
-- [ ] 1.5.2.3 List directory contents with file type indicators
+- [ ] 1.5.2.1 Update existing `lua_list_dir/3` in `bridge.ex` if needed
+- [ ] 1.5.2.2 Use `Security.validate_path/3` before listing
+- [ ] 1.5.2.3 Add file type indicators (directory vs file)
 - [ ] 1.5.2.4 Apply ignore patterns (respect .gitignore by default)
 - [ ] 1.5.2.5 Sort entries (directories first, then alphabetically)
-- [ ] 1.5.2.6 Return `{:ok, entries}` or `{:error, reason}`
+- [ ] 1.5.2.6 Return as Lua array: `{[entries], state}`
 
 ### 1.5.3 Unit Tests for List Directory
 
-- [ ] Test list_dir returns directory contents
+- [ ] Test list_dir returns directory contents through sandbox
 - [ ] Test list_dir applies ignore patterns
 - [ ] Test list_dir validates boundary
 - [ ] Test list_dir handles non-existent path
@@ -232,70 +292,71 @@ Implement the handler for directory listing with filtering.
 
 ## 1.6 Glob Search Tool
 
-Implement the glob_search tool for pattern-based file finding.
+Implement the glob_search tool for pattern-based file finding through the Lua sandbox.
 
 ### 1.6.1 Tool Definition
-
-Create the glob_search tool definition for pattern matching.
 
 - [ ] 1.6.1.1 Create tool definition in `lib/jido_code/tools/definitions/glob_search.ex`
 - [ ] 1.6.1.2 Define schema:
   ```elixir
   %{
-    pattern: %{type: :string, required: true, description: "Glob pattern (**, *, {a,b}, [abc])"},
-    path: %{type: :string, required: false, description: "Base directory (default: project root)"}
+    name: "glob_search",
+    description: "Find files matching glob pattern (**, *, {a,b}).",
+    parameters: [
+      %{name: "pattern", type: :string, required: true, description: "Glob pattern"},
+      %{name: "path", type: :string, required: false, description: "Base directory"}
+    ]
   }
   ```
 
-### 1.6.2 Glob Search Handler Implementation
+### 1.6.2 Bridge Function Implementation
 
-Implement the handler for glob pattern matching.
-
-- [ ] 1.6.2.1 Create `lib/jido_code/tools/handlers/search/glob.ex`
-- [ ] 1.6.2.2 Use Path.wildcard for pattern matching
-- [ ] 1.6.2.3 Validate all results within project boundary
+- [ ] 1.6.2.1 Add `lua_glob/3` to `bridge.ex`
+- [ ] 1.6.2.2 Use `Path.wildcard/2` for pattern matching
+- [ ] 1.6.2.3 Filter results through `Security.validate_path/3` (all must be within boundary)
 - [ ] 1.6.2.4 Sort by modification time (newest first)
-- [ ] 1.6.2.5 Return `{:ok, file_paths}` or `{:error, reason}`
+- [ ] 1.6.2.5 Return as Lua array of paths
+- [ ] 1.6.2.6 Register in `Bridge.register/2`
 
 ### 1.6.3 Unit Tests for Glob Search
 
-- [ ] Test glob_search with ** pattern
+- [ ] Test glob_search with ** pattern through sandbox
 - [ ] Test glob_search with extension filter (*.ex)
 - [ ] Test glob_search with directory prefix
-- [ ] Test glob_search respects boundary
+- [ ] Test glob_search filters results within boundary
 - [ ] Test glob_search handles empty results
 
 ---
 
 ## 1.7 Delete File Tool
 
-Implement the delete_file tool for file removal.
+Implement the delete_file tool for file removal through the Lua sandbox.
 
 ### 1.7.1 Tool Definition
-
-Create the delete_file tool definition.
 
 - [ ] 1.7.1.1 Create tool definition in `lib/jido_code/tools/definitions/delete_file.ex`
 - [ ] 1.7.1.2 Define schema:
   ```elixir
   %{
-    path: %{type: :string, required: true, description: "Absolute path to file"}
+    name: "delete_file",
+    description: "Delete a file (not directories).",
+    parameters: [
+      %{name: "path", type: :string, required: true, description: "Path to file"}
+    ]
   }
   ```
 
-### 1.7.2 Delete File Handler Implementation
+### 1.7.2 Bridge Function Implementation
 
-Implement the handler for file deletion.
-
-- [ ] 1.7.2.1 Create `lib/jido_code/tools/handlers/file_system/delete_file.ex`
-- [ ] 1.7.2.2 Validate path within boundary
-- [ ] 1.7.2.3 Check file exists
-- [ ] 1.7.2.4 Delete file (not directories)
-- [ ] 1.7.2.5 Return `{:ok, path}` or `{:error, reason}`
+- [ ] 1.7.2.1 Update existing `lua_delete_file/3` in `bridge.ex` if needed
+- [ ] 1.7.2.2 Use `Security.validate_path/3` before deletion
+- [ ] 1.7.2.3 Verify target is a file (not directory)
+- [ ] 1.7.2.4 Delete file with `File.rm/1`
+- [ ] 1.7.2.5 Return `{[true], state}` or `{[nil, error], state}`
 
 ### 1.7.3 Unit Tests for Delete File
 
-- [ ] Test delete_file removes existing file
+- [ ] Test delete_file removes existing file through sandbox
 - [ ] Test delete_file fails for non-existent file
 - [ ] Test delete_file fails for directories
 - [ ] Test delete_file validates boundary
@@ -305,51 +366,58 @@ Implement the handler for file deletion.
 
 ## 1.8 Phase 1 Integration Tests
 
-Comprehensive integration tests verifying all Phase 1 file operation tools work together.
+Comprehensive integration tests verifying all Phase 1 tools work together through the Lua sandbox.
 
-### 1.8.1 File Lifecycle Integration
+### 1.8.1 Sandbox Integration
 
-Test complete file lifecycle workflows.
+Verify tools execute through the sandbox correctly.
 
 - [ ] 1.8.1.1 Create `test/jido_code/integration/tools_phase1_test.exs`
-- [ ] 1.8.1.2 Test: Create file -> read -> edit -> verify content
-- [ ] 1.8.1.3 Test: Create file -> multi_edit -> verify all changes
-- [ ] 1.8.1.4 Test: Create file -> delete -> verify removed
-- [ ] 1.8.1.5 Test: Create multiple files -> glob_search finds them
-- [ ] 1.8.1.6 Test: Create directory structure -> list_dir shows contents
+- [ ] 1.8.1.2 Test: All tools execute through `Tools.Manager` → Lua → Bridge → Security chain
+- [ ] 1.8.1.3 Test: Lua VM has dangerous functions removed (os.execute, io.popen unavailable)
+- [ ] 1.8.1.4 Test: Session-scoped managers are isolated
 
-### 1.8.2 Security Boundary Integration
+### 1.8.2 File Lifecycle Integration
 
-Test security boundaries are enforced across all tools.
+Test complete file lifecycle workflows through sandbox.
 
-- [ ] 1.8.2.1 Test: All tools reject paths outside project boundary
-- [ ] 1.8.2.2 Test: Symlinks resolved and validated
-- [ ] 1.8.2.3 Test: Path traversal attempts blocked
+- [ ] 1.8.2.1 Test: write_file → read_file → edit_file → read_file verifies content
+- [ ] 1.8.2.2 Test: write_file → multi_edit → read_file verifies all changes
+- [ ] 1.8.2.3 Test: write_file → delete_file → read_file returns error
+- [ ] 1.8.2.4 Test: Create multiple files → glob_search finds them
+- [ ] 1.8.2.5 Test: mkdir_p → list_dir shows contents
 
-### 1.8.3 Read-Before-Write Integration
+### 1.8.3 Security Boundary Integration
 
-Test read-before-write validation pattern.
+Test security boundaries are enforced at both layers.
 
-- [ ] 1.8.3.1 Test: write_file requires read for existing files
-- [ ] 1.8.3.2 Test: edit_file requires read
-- [ ] 1.8.3.3 Test: multi_edit requires read
+- [ ] 1.8.3.1 Test: All tools reject paths outside project boundary
+- [ ] 1.8.3.2 Test: Symlinks resolved and validated
+- [ ] 1.8.3.3 Test: Path traversal attempts blocked (../../etc/passwd)
+- [ ] 1.8.3.4 Test: Direct Lua execution of os.execute fails (sandbox restriction)
 
 ---
 
 ## Phase 1 Success Criteria
 
-1. **read_file**: Returns line-numbered content with offset/limit support
-2. **write_file**: Creates files, requires prior read for overwrites
-3. **edit_file**: Search/replace with multi-strategy matching
-4. **multi_edit**: Atomic batch edits with rollback
-5. **list_dir**: Directory listing with ignore patterns
-6. **glob_search**: Pattern-based file finding
-7. **delete_file**: File removal with boundary validation
-8. **Test Coverage**: Minimum 80% for Phase 1 tools
+1. **read_file**: Line-numbered content via `jido.read_file` bridge
+2. **write_file**: Atomic writes via `jido.write_file` bridge
+3. **edit_file**: Multi-strategy matching via `jido.edit_file` bridge
+4. **multi_edit**: Atomic batch edits via `jido.multi_edit` bridge
+5. **list_dir**: Directory listing via `jido.list_dir` bridge
+6. **glob_search**: Pattern matching via `jido.glob` bridge
+7. **delete_file**: File removal via `jido.delete_file` bridge
+8. **All tools execute through Lua sandbox** (defense-in-depth)
+9. **Test Coverage**: Minimum 80% for Phase 1 tools
 
 ---
 
 ## Phase 1 Critical Files
+
+**Modified Files:**
+- `lib/jido_code/tools/bridge.ex` - Add/update bridge functions
+- `lib/jido_code/tools/manager.ex` - Expose tool APIs
+- `lib/jido_code/tools/security.ex` - Ensure atomic operations exist
 
 **New Files:**
 - `lib/jido_code/tools/definitions/file_read.ex`
@@ -359,15 +427,5 @@ Test read-before-write validation pattern.
 - `lib/jido_code/tools/definitions/list_dir.ex`
 - `lib/jido_code/tools/definitions/glob_search.ex`
 - `lib/jido_code/tools/definitions/delete_file.ex`
-- `lib/jido_code/tools/handlers/file_system/read_file.ex`
-- `lib/jido_code/tools/handlers/file_system/write_file.ex`
-- `lib/jido_code/tools/handlers/file_system/edit_file.ex`
-- `lib/jido_code/tools/handlers/file_system/multi_edit.ex`
-- `lib/jido_code/tools/handlers/file_system/list_dir.ex`
-- `lib/jido_code/tools/handlers/search/glob.ex`
-- `lib/jido_code/tools/handlers/file_system/delete_file.ex`
-- `test/jido_code/tools/handlers/file_system_test.exs`
+- `test/jido_code/tools/bridge_file_ops_test.exs`
 - `test/jido_code/integration/tools_phase1_test.exs`
-
-**Modified Files:**
-- `lib/jido_code/tools/definitions.ex` - Register new tools

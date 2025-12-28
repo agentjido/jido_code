@@ -77,11 +77,11 @@ Create the read_file tool definition with proper schema. This defines the interf
 - [x] 1.1.1.3 Set default limit to 2000 lines in schema
 - [x] 1.1.1.4 Register tool in definitions module (via delegation from FileSystem module)
 
-### 1.1.2 Bridge Function Implementation
+### 1.1.2 Bridge Function Implementation ✅
 
 Implement the Bridge function that executes within the Lua sandbox. This is the actual implementation.
 
-- [ ] 1.1.2.1 Add `lua_read_file/3` function to `lib/jido_code/tools/bridge.ex`
+- [x] 1.1.2.1 Add `lua_read_file/3` function to `lib/jido_code/tools/bridge.ex`
   ```elixir
   def lua_read_file(args, state, project_root) do
     case args do
@@ -91,17 +91,17 @@ Implement the Bridge function that executes within the Lua sandbox. This is the 
     end
   end
   ```
-- [ ] 1.1.2.2 Use `Security.atomic_read/2` for TOCTOU-safe file reading
-- [ ] 1.1.2.3 Implement offset/limit support (skip first N lines, cap at limit)
-- [ ] 1.1.2.4 Format output with line numbers (cat -n style, 1-indexed):
+- [x] 1.1.2.2 Use `Security.atomic_read/2` for TOCTOU-safe file reading
+- [x] 1.1.2.3 Implement offset/limit support (skip first N lines, cap at limit)
+- [x] 1.1.2.4 Format output with line numbers (cat -n style, 1-indexed):
   ```
        1→first line
        2→second line
   ```
-- [ ] 1.1.2.5 Truncate long lines at 2000 characters with `[truncated]` indicator
-- [ ] 1.1.2.6 Detect binary files (check for null bytes) and reject with clear message
-- [ ] 1.1.2.7 Return `{[content], state}` on success or `{[nil, error_msg], state}` on failure
-- [ ] 1.1.2.8 Register function in `Bridge.register/2`:
+- [x] 1.1.2.5 Truncate long lines at 2000 characters with `[truncated]` indicator
+- [x] 1.1.2.6 Detect binary files (check for null bytes) and reject with clear message
+- [x] 1.1.2.7 Return `{[content], state}` on success or `{[nil, error_msg], state}` on failure
+- [x] 1.1.2.8 Register function in `Bridge.register/2`:
   ```elixir
   |> register_function("read_file", &lua_read_file/3, project_root)
   ```

@@ -59,39 +59,77 @@ defmodule JidoCode.Tools.Bridge do
 
   @default_shell_timeout 60_000
 
+  # Read file defaults
+  @default_offset 1
+  @default_limit 2000
+  @max_line_length 2000
+
   # ============================================================================
   # File Operations
   # ============================================================================
 
   @doc """
-  Reads a file's contents. Called from Lua as `jido.read_file(path)`.
+  Reads a file's contents with line numbers. Called from Lua as `jido.read_file(path)` or
+  `jido.read_file(path, opts)`.
+
+  Returns line-numbered output in cat -n style format:
+  ```
+       1→first line
+       2→second line
+  ```
 
   ## Parameters
 
-  - `args` - Lua arguments: `[path]`
+  - `args` - Lua arguments: `[path]` or `[path, opts_table]`
+    - `opts.offset` - Line to start from (1-indexed, default: 1)
+    - `opts.limit` - Maximum lines to read (default: 2000)
   - `state` - Lua state
   - `project_root` - Project root for path validation
 
   ## Returns
 
-  - `{[content], state}` on success
+  - `{[content], state}` on success (line-numbered content)
   - `{[nil, error], state}` on failure
+
+  ## Errors
+
+  - Binary files are rejected (files containing null bytes)
+  - Paths outside project boundary are rejected
+  - Long lines (>2000 chars) are truncated with `[truncated]` indicator
   """
   def lua_read_file(args, state, project_root) do
     case args do
       [path] when is_binary(path) ->
-        do_read_file(path, state, project_root)
+        do_read_file(path, %{}, state, project_root)
+
+      [path, opts] when is_binary(path) and is_list(opts) ->
+        parsed_opts = parse_read_opts(opts)
+        do_read_file(path, parsed_opts, state, project_root)
+
+      [path, opts] when is_binary(path) and is_map(opts) ->
+        do_read_file(path, opts, state, project_root)
 
       _ ->
         {[nil, "read_file requires a path argument"], state}
     end
   end
 
-  defp do_read_file(path, state, project_root) do
+  defp parse_read_opts(opts) when is_list(opts) do
+    Enum.reduce(opts, %{}, fn
+      {"offset", offset}, acc when is_number(offset) -> Map.put(acc, :offset, trunc(offset))
+      {"limit", limit}, acc when is_number(limit) -> Map.put(acc, :limit, trunc(limit))
+      _, acc -> acc
+    end)
+  end
+
+  defp do_read_file(path, opts, state, project_root) do
+    offset = Map.get(opts, :offset, @default_offset)
+    limit = Map.get(opts, :limit, @default_limit)
+
     # SEC-2 Fix: Use atomic_read to mitigate TOCTOU race conditions
     case Security.atomic_read(path, project_root) do
       {:ok, content} ->
-        {[content], state}
+        process_file_content(content, offset, limit, path, state)
 
       {:error, :path_escapes_boundary} ->
         {[nil, format_security_error(:path_escapes_boundary, path)], state}
@@ -105,6 +143,57 @@ defmodule JidoCode.Tools.Bridge do
       {:error, reason} ->
         {[nil, format_file_error(reason, path)], state}
     end
+  end
+
+  defp process_file_content(content, offset, limit, path, state) do
+    # Check for binary content (null bytes indicate binary file)
+    if is_binary_content?(content) do
+      {[nil, "Binary file detected: #{path}. Cannot read binary files."], state}
+    else
+      formatted = format_with_line_numbers(content, offset, limit)
+      {[formatted], state}
+    end
+  end
+
+  @doc false
+  # Detects binary files by checking for null bytes in the first 8KB
+  def is_binary_content?(content) when is_binary(content) do
+    # Check the first 8KB for null bytes (common binary file indicator)
+    sample_size = min(byte_size(content), 8192)
+    sample = :binary.part(content, 0, sample_size)
+    String.contains?(sample, <<0>>)
+  end
+
+  @doc false
+  # Formats file content with line numbers (cat -n style)
+  # Applies offset and limit, truncates long lines
+  def format_with_line_numbers(content, offset, limit) when is_binary(content) do
+    lines = String.split(content, ~r/\r?\n/, parts: :infinity)
+    total_lines = length(lines)
+
+    # Calculate the width needed for line numbers based on total lines
+    line_num_width = max(6, String.length(Integer.to_string(total_lines)))
+
+    lines
+    |> Enum.with_index(1)
+    |> Enum.drop(max(0, offset - 1))
+    |> Enum.take(limit)
+    |> Enum.map(fn {line, idx} ->
+      truncated_line = truncate_line(line)
+      pad_line_number(idx, line_num_width) <> "→" <> truncated_line
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp truncate_line(line) when byte_size(line) > @max_line_length do
+    truncated = String.slice(line, 0, @max_line_length)
+    truncated <> " [truncated]"
+  end
+
+  defp truncate_line(line), do: line
+
+  defp pad_line_number(num, width) do
+    String.pad_leading(Integer.to_string(num), width, " ")
   end
 
   @doc """

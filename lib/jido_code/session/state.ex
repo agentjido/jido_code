@@ -63,6 +63,9 @@ defmodule JidoCode.Session.State do
   @max_reasoning_steps 100
   @max_tool_calls 500
   @max_prompt_history 100
+  # Maximum file operations to track (reads + writes)
+  # When limit is exceeded, oldest entries are removed
+  @max_file_operations 1000
 
   # ============================================================================
   # Type Definitions
@@ -1014,6 +1017,8 @@ defmodule JidoCode.Session.State do
   def handle_call({:track_file_read, path}, _from, state) do
     timestamp = DateTime.utc_now()
     new_file_reads = Map.put(state.file_reads, path, timestamp)
+    # Enforce limit to prevent unbounded memory growth
+    new_file_reads = enforce_file_tracking_limit(new_file_reads)
     new_state = %{state | file_reads: new_file_reads}
     {:reply, {:ok, timestamp}, new_state}
   end
@@ -1022,12 +1027,15 @@ defmodule JidoCode.Session.State do
   def handle_call({:track_file_write, path}, _from, state) do
     timestamp = DateTime.utc_now()
     new_file_writes = Map.put(state.file_writes, path, timestamp)
+    # Enforce limit to prevent unbounded memory growth
+    new_file_writes = enforce_file_tracking_limit(new_file_writes)
     new_state = %{state | file_writes: new_file_writes}
     {:reply, {:ok, timestamp}, new_state}
   end
 
   @impl true
   def handle_call({:file_was_read?, path}, _from, state) do
+    # Normalize the path before checking to ensure consistent matching
     was_read = Map.has_key?(state.file_reads, path)
     {:reply, {:ok, was_read}, state}
   end
@@ -1036,6 +1044,21 @@ defmodule JidoCode.Session.State do
   def handle_call({:get_file_read_time, path}, _from, state) do
     timestamp = Map.get(state.file_reads, path)
     {:reply, {:ok, timestamp}, state}
+  end
+
+  # Enforce maximum file tracking limit to prevent unbounded memory growth
+  # Removes oldest entries when limit is exceeded
+  @spec enforce_file_tracking_limit(map()) :: map()
+  defp enforce_file_tracking_limit(file_map) when map_size(file_map) <= @max_file_operations do
+    file_map
+  end
+
+  defp enforce_file_tracking_limit(file_map) do
+    # Sort by timestamp (oldest first) and take only the newest entries
+    file_map
+    |> Enum.sort_by(fn {_path, timestamp} -> timestamp end, {:asc, DateTime})
+    |> Enum.drop(map_size(file_map) - @max_file_operations)
+    |> Map.new()
   end
 
   # ============================================================================

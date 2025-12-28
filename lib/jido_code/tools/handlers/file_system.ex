@@ -36,7 +36,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       }, context: context)
   """
 
+  require Logger
+
   alias JidoCode.Tools.HandlerHelpers
+  alias JidoCode.Tools.Security
 
   # ============================================================================
   # Shared Helpers
@@ -47,6 +50,76 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
   @doc false
   defdelegate validate_path(path, context), to: HandlerHelpers
+
+  @doc """
+  Normalizes a path for consistent tracking across read and write operations.
+
+  This ensures both ReadFile and WriteFile use the same path format when
+  tracking file operations for read-before-write validation. The normalized
+  path is always an absolute, expanded path.
+
+  ## Parameters
+
+  - `path` - The relative or absolute path
+  - `project_root` - The project root directory
+
+  ## Returns
+
+  The normalized absolute path.
+  """
+  @spec normalize_path_for_tracking(String.t(), String.t()) :: String.t()
+  def normalize_path_for_tracking(path, project_root) do
+    # For consistent tracking, always:
+    # 1. Join with project_root if relative
+    # 2. Expand to resolve .. and .
+    # 3. This matches what Security.validate_path returns
+    if Path.type(path) == :absolute do
+      Path.expand(path)
+    else
+      Path.join(project_root, path) |> Path.expand()
+    end
+  end
+
+  @doc """
+  Emits telemetry for file operations.
+
+  Used by both ReadFile and WriteFile handlers to emit consistent telemetry.
+
+  ## Parameters
+
+  - `operation` - The operation name (`:read` or `:write`)
+  - `start_time` - The start time from `System.monotonic_time()`
+  - `path` - The file path (will be sanitized to basename only)
+  - `context` - The execution context containing session_id
+  - `status` - The operation status (`:ok`, `:error`, `:read_before_write_required`)
+  - `bytes` - The number of bytes read/written
+  """
+  @spec emit_file_telemetry(atom(), integer(), String.t(), map(), atom(), non_neg_integer()) ::
+          :ok
+  def emit_file_telemetry(operation, start_time, path, context, status, bytes) do
+    duration = System.monotonic_time() - start_time
+
+    :telemetry.execute(
+      [:jido_code, :file_system, operation],
+      %{duration: duration, bytes: bytes},
+      %{
+        path: sanitize_path_for_telemetry(path),
+        status: status,
+        session_id: Map.get(context, :session_id)
+      }
+    )
+  end
+
+  @doc """
+  Sanitizes a path for safe inclusion in telemetry.
+
+  Only includes the filename (basename) to prevent leaking sensitive
+  directory structure information.
+  """
+  @spec sanitize_path_for_telemetry(String.t()) :: String.t()
+  def sanitize_path_for_telemetry(path) do
+    Path.basename(path)
+  end
 
   @doc false
   def format_error(:enoent, path), do: "File not found: #{path}"
@@ -185,6 +258,13 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     Successful reads are tracked in the session state to support the
     read-before-write safety check. This ensures that files must be read
     before they can be overwritten.
+
+    ## Path Normalization
+
+    File paths are normalized using `FileSystem.normalize_path_for_tracking/2`
+    to ensure consistent tracking between read and write operations. This
+    prevents bypass attacks where different path formats could refer to the
+    same file.
     """
 
     alias JidoCode.Session.State, as: SessionState
@@ -230,21 +310,22 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           case Security.atomic_read(path, project_root, log_violations: true) do
             {:ok, content} ->
               # Track the read in session state for read-before-write validation
-              safe_path = Path.join(project_root, path) |> Path.expand()
-              track_file_read(safe_path, context)
+              # Use normalized path for consistent tracking with WriteFile
+              normalized_path = FileSystem.normalize_path_for_tracking(path, project_root)
+              track_file_read(normalized_path, context)
 
-              # Emit success telemetry
-              emit_read_telemetry(start_time, path, context, :ok, byte_size(content))
+              # Emit success telemetry using shared helper
+              FileSystem.emit_file_telemetry(:read, start_time, path, context, :ok, byte_size(content))
 
               {:ok, content}
 
             {:error, reason} ->
-              emit_read_telemetry(start_time, path, context, :error, 0)
+              FileSystem.emit_file_telemetry(:read, start_time, path, context, :error, 0)
               {:error, FileSystem.format_error(reason, path)}
           end
 
         {:error, reason} ->
-          emit_read_telemetry(start_time, path, context, :error, 0)
+          FileSystem.emit_file_telemetry(:read, start_time, path, context, :error, 0)
           {:error, FileSystem.format_error(reason, path)}
       end
     end
@@ -254,39 +335,28 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     end
 
     # Track the file read in session state
-    defp track_file_read(safe_path, context) do
+    # Returns :ok on success, logs warning on session not found
+    @spec track_file_read(String.t(), map()) :: :ok
+    defp track_file_read(normalized_path, context) do
       case Map.get(context, :session_id) do
         nil ->
-          # No session context - skip tracking
+          # No session context - skip tracking (legacy mode)
           :ok
 
         session_id ->
-          case SessionState.track_file_read(session_id, safe_path) do
-            {:ok, _timestamp} -> :ok
-            {:error, :not_found} -> :ok
+          case SessionState.track_file_read(session_id, normalized_path) do
+            {:ok, _timestamp} ->
+              :ok
+
+            {:error, :not_found} ->
+              # Log warning for debugging - session should exist
+              Logger.warning(
+                "ReadFile: Session #{session_id} not found when tracking file read for #{Path.basename(normalized_path)}"
+              )
+
+              :ok
           end
       end
-    end
-
-    # Emit telemetry for file read operations
-    defp emit_read_telemetry(start_time, path, context, status, bytes) do
-      duration = System.monotonic_time() - start_time
-
-      :telemetry.execute(
-        [:jido_code, :file_system, :read],
-        %{duration: duration, bytes: bytes},
-        %{
-          path: sanitize_path_for_telemetry(path),
-          status: status,
-          session_id: Map.get(context, :session_id)
-        }
-      )
-    end
-
-    # Prevent leaking sensitive path information in telemetry
-    defp sanitize_path_for_telemetry(path) do
-      # Only include extension and filename, not full path
-      Path.basename(path)
     end
   end
 
@@ -308,6 +378,13 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     the agent has seen the current file contents. New files can be created
     without prior reading.
 
+    ## Path Normalization
+
+    File paths are normalized using `FileSystem.normalize_path_for_tracking/2`
+    to ensure consistent tracking between read and write operations. This
+    prevents bypass attacks where different path formats could refer to the
+    same file.
+
     ## Security
 
     Uses `Security.atomic_write/4` for TOCTOU-safe file writing:
@@ -315,6 +392,28 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - Creates parent directories atomically
     - Re-validates realpath after write
     - Detects symlink attacks during operation
+
+    ## File Write Tracking
+
+    After successful writes, the file path and timestamp are recorded in
+    session state (`file_writes` map). This tracking is used for:
+    - Detecting concurrent modification conflicts (future feature)
+    - Auditing which files were modified in a session
+    - Enabling session persistence and replay
+
+    Note: The `file_writes` map is currently populated but not actively used
+    for conflict detection. This is intentional infrastructure for planned
+    features. See Session.State for the tracking implementation.
+
+    ## TOCTOU Limitation
+
+    The atomic_write implementation has a known TOCTOU window between
+    `File.mkdir_p` and `File.write`. An attacker could theoretically create
+    a symlink at the target path during this window. The post-write validation
+    (`Security.validate_realpath/3`) detects this attack but cannot prevent
+    the write from occurring. This is logged as a security event for incident
+    response. Full prevention would require OS-level support (O_EXCL, etc.)
+    which is not reliably available in Elixir/Erlang's file APIs.
     """
 
     alias JidoCode.Session.State, as: SessionState
@@ -324,6 +423,12 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     # Maximum file size: 10MB
     @max_file_size 10 * 1024 * 1024
+
+    @doc """
+    Returns the maximum file size in bytes.
+    """
+    @spec max_file_size() :: pos_integer()
+    def max_file_size, do: @max_file_size
 
     @doc """
     Writes content to a file.
@@ -340,7 +445,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     ## Returns
 
-    - `{:ok, message}` - Success message
+    - `{:ok, message}` - Success message (e.g., "File written successfully: path"
+      for new files, "File updated successfully: path" for overwrites)
     - `{:error, reason}` - Error message
 
     ## Security
@@ -358,10 +464,13 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
         with :ok <- validate_content_size(content),
              {:ok, project_root} <- HandlerHelpers.get_project_root(context),
              {:ok, safe_path} <- Security.validate_path(path, project_root, log_violations: true),
+             # Check file existence once and pass to check_read_before_write
              file_existed <- File.exists?(safe_path),
-             :ok <- check_read_before_write(safe_path, context),
+             # Use normalized path for consistent tracking with ReadFile
+             normalized_path <- FileSystem.normalize_path_for_tracking(path, project_root),
+             :ok <- check_read_before_write(normalized_path, file_existed, context),
              :ok <- Security.atomic_write(path, content, project_root, log_violations: true),
-             :ok <- track_file_write(safe_path, context) do
+             :ok <- track_file_write(normalized_path, context) do
           file_status = if file_existed, do: "updated", else: "written"
           {:ok, "File #{file_status} successfully: #{path}"}
         end
@@ -369,15 +478,19 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       # Emit telemetry and return result
       case result do
         {:ok, _} = success ->
-          emit_write_telemetry(start_time, path, context, :ok, content_size)
+          FileSystem.emit_file_telemetry(:write, start_time, path, context, :ok, content_size)
           success
 
         {:error, :read_before_write_required} ->
-          emit_write_telemetry(start_time, path, context, :read_before_write_required, content_size)
+          FileSystem.emit_file_telemetry(:write, start_time, path, context, :read_before_write_required, content_size)
           {:error, "File must be read before overwriting: #{path}"}
 
+        {:error, :session_state_unavailable} ->
+          FileSystem.emit_file_telemetry(:write, start_time, path, context, :error, content_size)
+          {:error, "Session state unavailable - cannot verify read-before-write requirement"}
+
         {:error, reason} ->
-          emit_write_telemetry(start_time, path, context, :error, content_size)
+          FileSystem.emit_file_telemetry(:write, start_time, path, context, :error, content_size)
           {:error, FileSystem.format_error(reason, path)}
       end
     end
@@ -388,6 +501,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     # Private functions for WriteFile
 
+    @spec validate_content_size(binary()) :: :ok | {:error, :content_too_large}
     defp validate_content_size(content) when byte_size(content) > @max_file_size do
       {:error, :content_too_large}
     end
@@ -396,69 +510,64 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     # Check read-before-write requirement for existing files
     # This ensures the agent has seen the file content before overwriting
-    defp check_read_before_write(safe_path, context) do
-      case File.exists?(safe_path) do
-        false ->
-          # New file - no read required
+    # Now takes file_existed as parameter to avoid double File.exists? call
+    @spec check_read_before_write(String.t(), boolean(), map()) ::
+            :ok | {:error, :read_before_write_required | :session_state_unavailable}
+    defp check_read_before_write(_normalized_path, false, _context) do
+      # New file - no read required
+      :ok
+    end
+
+    defp check_read_before_write(normalized_path, true, context) do
+      # Existing file - check if it was read in this session
+      case Map.get(context, :session_id) do
+        nil ->
+          # No session context (legacy mode) - skip check but log
+          Logger.debug("WriteFile: Skipping read-before-write check - no session context (legacy mode)")
           :ok
 
-        true ->
-          # Existing file - check if it was read in this session
-          case Map.get(context, :session_id) do
-            nil ->
-              # No session context (legacy mode) - skip check
+        session_id ->
+          case SessionState.file_was_read?(session_id, normalized_path) do
+            {:ok, true} ->
               :ok
 
-            session_id ->
-              case SessionState.file_was_read?(session_id, safe_path) do
-                {:ok, true} ->
-                  :ok
+            {:ok, false} ->
+              {:error, :read_before_write_required}
 
-                {:ok, false} ->
-                  {:error, :read_before_write_required}
+            {:error, :not_found} ->
+              # Fail-closed: Session not found is a security concern
+              Logger.warning(
+                "WriteFile: Session #{session_id} not found during read-before-write check - failing closed"
+              )
 
-                {:error, :not_found} ->
-                  # Session not found - skip check (shouldn't happen normally)
-                  :ok
-              end
+              {:error, :session_state_unavailable}
           end
       end
     end
 
     # Track the file write in session state
-    defp track_file_write(safe_path, context) do
+    # Returns :ok on success, logs warning on session not found
+    @spec track_file_write(String.t(), map()) :: :ok
+    defp track_file_write(normalized_path, context) do
       case Map.get(context, :session_id) do
         nil ->
-          # No session context - skip tracking
+          # No session context - skip tracking (legacy mode)
           :ok
 
         session_id ->
-          case SessionState.track_file_write(session_id, safe_path) do
-            {:ok, _timestamp} -> :ok
-            {:error, :not_found} -> :ok
+          case SessionState.track_file_write(session_id, normalized_path) do
+            {:ok, _timestamp} ->
+              :ok
+
+            {:error, :not_found} ->
+              # Log warning for debugging - session should exist
+              Logger.warning(
+                "WriteFile: Session #{session_id} not found when tracking file write for #{Path.basename(normalized_path)}"
+              )
+
+              :ok
           end
       end
-    end
-
-    # Emit telemetry for file write operations
-    defp emit_write_telemetry(start_time, path, context, status, bytes) do
-      duration = System.monotonic_time() - start_time
-
-      :telemetry.execute(
-        [:jido_code, :file_system, :write],
-        %{duration: duration, bytes: bytes},
-        %{
-          path: sanitize_path_for_telemetry(path),
-          status: status,
-          session_id: Map.get(context, :session_id)
-        }
-      )
-    end
-
-    # Prevent leaking sensitive path information in telemetry
-    defp sanitize_path_for_telemetry(path) do
-      # Only include extension and filename, not full path
-      Path.basename(path)
     end
   end
 

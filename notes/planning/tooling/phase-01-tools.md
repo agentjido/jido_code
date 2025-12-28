@@ -57,12 +57,12 @@ All file operation tools follow this execution flow:
 
 Implement the read_file tool for reading file contents with line numbers, offset support, and sensible defaults. The tool executes through the Lua sandbox via the `jido.read_file` bridge function.
 
-### 1.1.1 Tool Definition
+### 1.1.1 Tool Definition ✅
 
 Create the read_file tool definition with proper schema. This defines the interface for the LLM.
 
-- [ ] 1.1.1.1 Create `lib/jido_code/tools/definitions/file_read.ex` with module documentation
-- [ ] 1.1.1.2 Define tool schema with parameters:
+- [x] 1.1.1.1 Create `lib/jido_code/tools/definitions/file_read.ex` with module documentation
+- [x] 1.1.1.2 Define tool schema with parameters:
   ```elixir
   %{
     name: "read_file",
@@ -74,8 +74,8 @@ Create the read_file tool definition with proper schema. This defines the interf
     ]
   }
   ```
-- [ ] 1.1.1.3 Set default limit to 2000 lines in schema
-- [ ] 1.1.1.4 Register tool in definitions module
+- [x] 1.1.1.3 Set default limit to 2000 lines in schema
+- [x] 1.1.1.4 Register tool in definitions module (via delegation from FileSystem module)
 
 ### 1.1.2 Bridge Function Implementation
 

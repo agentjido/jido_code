@@ -7,7 +7,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
 
   ## Available Tools
 
-  - `read_file` - Read file contents
+  - `read_file` - Read file contents with line numbers, offset, and limit support
   - `write_file` - Write/overwrite file
   - `edit_file` - Edit file with string replacement
   - `list_directory` - List directory contents
@@ -27,6 +27,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
       :ok = Registry.register(read_file_tool)
   """
 
+  alias JidoCode.Tools.Definitions.FileRead
   alias JidoCode.Tools.Handlers.FileSystem, as: Handlers
   alias JidoCode.Tools.Tool
 
@@ -53,28 +54,21 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   @doc """
   Returns the read_file tool definition.
 
-  Reads the contents of a file within the project boundary.
+  Reads file contents with line numbers, supporting offset and limit parameters
+  for handling large files. Delegates to `JidoCode.Tools.Definitions.FileRead`.
 
   ## Parameters
 
   - `path` (required, string) - Path to the file relative to project root
+  - `offset` (optional, integer) - Line number to start from (1-indexed, default: 1)
+  - `limit` (optional, integer) - Maximum lines to read (default: 2000)
+
+  ## See Also
+
+  - `JidoCode.Tools.Definitions.FileRead` - Full documentation
   """
   @spec read_file() :: Tool.t()
-  def read_file do
-    Tool.new!(%{
-      name: "read_file",
-      description: "Read the contents of a file. Returns the file content as a string.",
-      handler: Handlers.ReadFile,
-      parameters: [
-        %{
-          name: "path",
-          type: :string,
-          description: "Path to the file to read (relative to project root)",
-          required: true
-        }
-      ]
-    })
-  end
+  defdelegate read_file(), to: FileRead
 
   @doc """
   Returns the write_file tool definition.

@@ -39,15 +39,25 @@ defmodule JidoCode.Tools.Definitions.FileSystemTest do
   end
 
   describe "tool definitions" do
-    test "read_file has correct schema" do
+    test "read_file has correct schema with offset and limit" do
       tool = Definitions.read_file()
       assert tool.name == "read_file"
       assert tool.description =~ "Read"
-      assert length(tool.parameters) == 1
+      assert length(tool.parameters) == 3
 
       path_param = Enum.find(tool.parameters, &(&1.name == "path"))
       assert path_param.type == :string
       assert path_param.required == true
+
+      offset_param = Enum.find(tool.parameters, &(&1.name == "offset"))
+      assert offset_param.type == :integer
+      assert offset_param.required == false
+      assert offset_param.default == 1
+
+      limit_param = Enum.find(tool.parameters, &(&1.name == "limit"))
+      assert limit_param.type == :integer
+      assert limit_param.required == false
+      assert limit_param.default == 2000
     end
 
     test "write_file has correct schema" do

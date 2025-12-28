@@ -179,8 +179,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     atomic operations via `Security.atomic_read/3`.
 
     Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
+
+    ## File Tracking
+
+    Successful reads are tracked in the session state to support the
+    read-before-write safety check. This ensures that files must be read
+    before they can be overwritten.
     """
 
+    alias JidoCode.Session.State, as: SessionState
     alias JidoCode.Tools.HandlerHelpers
     alias JidoCode.Tools.Handlers.FileSystem
     alias JidoCode.Tools.Security
@@ -194,7 +201,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     ## Context
 
-    - `:session_id` - Session ID for path validation (preferred)
+    - `:session_id` - Session ID for path validation and read tracking
     - `:project_root` - Direct project root path (legacy)
 
     ## Returns
@@ -208,23 +215,78 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - Validates path before read
     - Re-validates realpath after read
     - Detects symlink attacks during operation
+
+    ## Side Effects
+
+    On successful read, tracks the file path and timestamp in session state
+    to enable read-before-write validation for subsequent write operations.
     """
     def execute(%{"path" => path}, context) when is_binary(path) do
+      start_time = System.monotonic_time()
+
       case HandlerHelpers.get_project_root(context) do
         {:ok, project_root} ->
           # Use atomic_read for TOCTOU-safe reading
           case Security.atomic_read(path, project_root, log_violations: true) do
-            {:ok, content} -> {:ok, content}
-            {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+            {:ok, content} ->
+              # Track the read in session state for read-before-write validation
+              safe_path = Path.join(project_root, path) |> Path.expand()
+              track_file_read(safe_path, context)
+
+              # Emit success telemetry
+              emit_read_telemetry(start_time, path, context, :ok, byte_size(content))
+
+              {:ok, content}
+
+            {:error, reason} ->
+              emit_read_telemetry(start_time, path, context, :error, 0)
+              {:error, FileSystem.format_error(reason, path)}
           end
 
         {:error, reason} ->
+          emit_read_telemetry(start_time, path, context, :error, 0)
           {:error, FileSystem.format_error(reason, path)}
       end
     end
 
     def execute(_args, _context) do
       {:error, "read_file requires a path argument"}
+    end
+
+    # Track the file read in session state
+    defp track_file_read(safe_path, context) do
+      case Map.get(context, :session_id) do
+        nil ->
+          # No session context - skip tracking
+          :ok
+
+        session_id ->
+          case SessionState.track_file_read(session_id, safe_path) do
+            {:ok, _timestamp} -> :ok
+            {:error, :not_found} -> :ok
+          end
+      end
+    end
+
+    # Emit telemetry for file read operations
+    defp emit_read_telemetry(start_time, path, context, status, bytes) do
+      duration = System.monotonic_time() - start_time
+
+      :telemetry.execute(
+        [:jido_code, :file_system, :read],
+        %{duration: duration, bytes: bytes},
+        %{
+          path: sanitize_path_for_telemetry(path),
+          status: status,
+          session_id: Map.get(context, :session_id)
+        }
+      )
+    end
+
+    # Prevent leaking sensitive path information in telemetry
+    defp sanitize_path_for_telemetry(path) do
+      # Only include extension and filename, not full path
+      Path.basename(path)
     end
   end
 
@@ -238,10 +300,27 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     Writes content to a file, creating parent directories if needed.
     Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
+
+    ## Read-Before-Write Requirement
+
+    For existing files, the file must be read in the current session before
+    it can be overwritten. This prevents accidental overwrites and ensures
+    the agent has seen the current file contents. New files can be created
+    without prior reading.
+
+    ## Security
+
+    Uses `Security.atomic_write/4` for TOCTOU-safe file writing:
+    - Validates path before write
+    - Creates parent directories atomically
+    - Re-validates realpath after write
+    - Detects symlink attacks during operation
     """
 
+    alias JidoCode.Session.State, as: SessionState
     alias JidoCode.Tools.HandlerHelpers
     alias JidoCode.Tools.Handlers.FileSystem
+    alias JidoCode.Tools.Security
 
     # Maximum file size: 10MB
     @max_file_size 10 * 1024 * 1024
@@ -256,8 +335,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     ## Context
 
-    - `:session_id` - Session ID for path validation (preferred)
-    - `:project_root` - Direct project root path (legacy)
+    - `:session_id` - Session ID for path validation and read-before-write check
+    - `:project_root` - Direct project root path (legacy, skips read-before-write)
 
     ## Returns
 
@@ -267,19 +346,39 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     ## Security
 
     - Content size limited to 10MB
-    - Parent directories validated to prevent symlink escape
+    - Existing files require prior read in session (read-before-write check)
+    - Uses atomic_write for TOCTOU protection
     """
     def execute(%{"path" => path, "content" => content}, context)
         when is_binary(path) and is_binary(content) do
-      with :ok <- validate_content_size(content),
-           {:ok, safe_path} <- FileSystem.validate_path(path, context),
-           dir_path <- Path.dirname(safe_path),
-           :ok <- validate_parent_directory(dir_path, context),
-           :ok <- maybe_create_directory(dir_path),
-           :ok <- File.write(safe_path, content) do
-        {:ok, "File written successfully: #{path}"}
-      else
-        {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
+      start_time = System.monotonic_time()
+      content_size = byte_size(content)
+
+      result =
+        with :ok <- validate_content_size(content),
+             {:ok, project_root} <- HandlerHelpers.get_project_root(context),
+             {:ok, safe_path} <- Security.validate_path(path, project_root, log_violations: true),
+             file_existed <- File.exists?(safe_path),
+             :ok <- check_read_before_write(safe_path, context),
+             :ok <- Security.atomic_write(path, content, project_root, log_violations: true),
+             :ok <- track_file_write(safe_path, context) do
+          file_status = if file_existed, do: "updated", else: "written"
+          {:ok, "File #{file_status} successfully: #{path}"}
+        end
+
+      # Emit telemetry and return result
+      case result do
+        {:ok, _} = success ->
+          emit_write_telemetry(start_time, path, context, :ok, content_size)
+          success
+
+        {:error, :read_before_write_required} ->
+          emit_write_telemetry(start_time, path, context, :read_before_write_required, content_size)
+          {:error, "File must be read before overwriting: #{path}"}
+
+        {:error, reason} ->
+          emit_write_telemetry(start_time, path, context, :error, content_size)
+          {:error, FileSystem.format_error(reason, path)}
       end
     end
 
@@ -295,62 +394,71 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     defp validate_content_size(_content), do: :ok
 
-    defp maybe_create_directory("."), do: :ok
-    defp maybe_create_directory(dir_path), do: File.mkdir_p(dir_path)
-
-    # Validate parent directory to prevent TOCTOU attacks with symlinks
-    defp validate_parent_directory(".", _context), do: :ok
-
-    defp validate_parent_directory(dir_path, context) do
-      case File.lstat(dir_path) do
-        {:ok, %{type: :symlink}} ->
-          # Symlink exists - validate where it points
-          validate_symlink_target(dir_path, context)
-
-        {:ok, _stat} ->
-          # Regular directory exists, OK
+    # Check read-before-write requirement for existing files
+    # This ensures the agent has seen the file content before overwriting
+    defp check_read_before_write(safe_path, context) do
+      case File.exists?(safe_path) do
+        false ->
+          # New file - no read required
           :ok
 
-        {:error, :enoent} ->
-          # Directory doesn't exist yet - check parent recursively
-          parent = Path.dirname(dir_path)
+        true ->
+          # Existing file - check if it was read in this session
+          case Map.get(context, :session_id) do
+            nil ->
+              # No session context (legacy mode) - skip check
+              :ok
 
-          if parent == dir_path do
-            # Reached root
-            :ok
-          else
-            validate_parent_directory(parent, context)
+            session_id ->
+              case SessionState.file_was_read?(session_id, safe_path) do
+                {:ok, true} ->
+                  :ok
+
+                {:ok, false} ->
+                  {:error, :read_before_write_required}
+
+                {:error, :not_found} ->
+                  # Session not found - skip check (shouldn't happen normally)
+                  :ok
+              end
           end
-
-        {:error, reason} ->
-          {:error, reason}
       end
     end
 
-    defp validate_symlink_target(symlink_path, context) do
-      case File.read_link(symlink_path) do
-        {:ok, target} ->
-          # Resolve symlink relative to its location
-          resolved = Path.expand(target, Path.dirname(symlink_path))
+    # Track the file write in session state
+    defp track_file_write(safe_path, context) do
+      case Map.get(context, :session_id) do
+        nil ->
+          # No session context - skip tracking
+          :ok
 
-          case HandlerHelpers.get_project_root(context) do
-            {:ok, root} ->
-              normalized_root = Path.expand(root)
-
-              if String.starts_with?(resolved, normalized_root <> "/") or
-                   resolved == normalized_root do
-                :ok
-              else
-                {:error, :symlink_escapes_boundary}
-              end
-
-            {:error, _} = error ->
-              error
+        session_id ->
+          case SessionState.track_file_write(session_id, safe_path) do
+            {:ok, _timestamp} -> :ok
+            {:error, :not_found} -> :ok
           end
-
-        {:error, reason} ->
-          {:error, reason}
       end
+    end
+
+    # Emit telemetry for file write operations
+    defp emit_write_telemetry(start_time, path, context, status, bytes) do
+      duration = System.monotonic_time() - start_time
+
+      :telemetry.execute(
+        [:jido_code, :file_system, :write],
+        %{duration: duration, bytes: bytes},
+        %{
+          path: sanitize_path_for_telemetry(path),
+          status: status,
+          session_id: Map.get(context, :session_id)
+        }
+      )
+    end
+
+    # Prevent leaking sensitive path information in telemetry
+    defp sanitize_path_for_telemetry(path) do
+      # Only include extension and filename, not full path
+      Path.basename(path)
     end
   end
 

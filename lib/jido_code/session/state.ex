@@ -129,6 +129,17 @@ defmodule JidoCode.Session.State do
         }
 
   @typedoc """
+  A file operation record for tracking reads and writes.
+
+  - `path` - The file path (relative to project root)
+  - `timestamp` - When the operation occurred
+  """
+  @type file_operation :: %{
+          path: String.t(),
+          timestamp: DateTime.t()
+        }
+
+  @typedoc """
   Session State process state.
 
   - `session` - The Session struct (for backwards compatibility with get_session/1)
@@ -142,6 +153,8 @@ defmodule JidoCode.Session.State do
   - `streaming_message_id` - ID of the message being streamed (nil when not streaming)
   - `is_streaming` - Whether currently receiving a streaming response
   - `prompt_history` - List of previous user prompts (newest first, max 100)
+  - `file_reads` - Map of file paths to read timestamps for read-before-write tracking
+  - `file_writes` - Map of file paths to write timestamps for tracking modifications
   """
   @type state :: %{
           session: Session.t(),
@@ -154,7 +167,9 @@ defmodule JidoCode.Session.State do
           streaming_message: String.t() | nil,
           streaming_message_id: String.t() | nil,
           is_streaming: boolean(),
-          prompt_history: [String.t()]
+          prompt_history: [String.t()],
+          file_reads: %{String.t() => DateTime.t()},
+          file_writes: %{String.t() => DateTime.t()}
         }
 
   # ============================================================================
@@ -627,6 +642,119 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # File Tracking API (Read-Before-Write Support)
+  # ============================================================================
+
+  @doc """
+  Records that a file was read in this session.
+
+  This is used to track reads for the read-before-write safety check.
+  The path should be the normalized/safe path after validation.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The file path (should be absolute or normalized)
+
+  ## Returns
+
+  - `{:ok, timestamp}` - The timestamp when the read was recorded
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, timestamp} = State.track_file_read("session-123", "/project/src/file.ex")
+      iex> {:error, :not_found} = State.track_file_read("unknown", "/project/src/file.ex")
+  """
+  @spec track_file_read(String.t(), String.t()) ::
+          {:ok, DateTime.t()} | {:error, :not_found}
+  def track_file_read(session_id, path)
+      when is_binary(session_id) and is_binary(path) do
+    call_state(session_id, {:track_file_read, path})
+  end
+
+  @doc """
+  Records that a file was written in this session.
+
+  This tracks write operations for monitoring and potential conflict detection.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The file path (should be absolute or normalized)
+
+  ## Returns
+
+  - `{:ok, timestamp}` - The timestamp when the write was recorded
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, timestamp} = State.track_file_write("session-123", "/project/src/file.ex")
+  """
+  @spec track_file_write(String.t(), String.t()) ::
+          {:ok, DateTime.t()} | {:error, :not_found}
+  def track_file_write(session_id, path)
+      when is_binary(session_id) and is_binary(path) do
+    call_state(session_id, {:track_file_write, path})
+  end
+
+  @doc """
+  Checks if a file was read in this session.
+
+  Used by write operations to enforce the read-before-write safety check
+  for existing files.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The file path to check
+
+  ## Returns
+
+  - `{:ok, true}` - File was read in this session
+  - `{:ok, false}` - File was not read in this session
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, true} = State.file_was_read?("session-123", "/project/src/file.ex")
+      iex> {:ok, false} = State.file_was_read?("session-123", "/project/unread.ex")
+  """
+  @spec file_was_read?(String.t(), String.t()) ::
+          {:ok, boolean()} | {:error, :not_found}
+  def file_was_read?(session_id, path)
+      when is_binary(session_id) and is_binary(path) do
+    call_state(session_id, {:file_was_read?, path})
+  end
+
+  @doc """
+  Gets the timestamp when a file was last read in this session.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `path` - The file path to check
+
+  ## Returns
+
+  - `{:ok, timestamp}` - The DateTime when the file was read
+  - `{:ok, nil}` - File was not read in this session
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, %DateTime{}} = State.get_file_read_time("session-123", "/project/src/file.ex")
+      iex> {:ok, nil} = State.get_file_read_time("session-123", "/project/unread.ex")
+  """
+  @spec get_file_read_time(String.t(), String.t()) ::
+          {:ok, DateTime.t() | nil} | {:error, :not_found}
+  def get_file_read_time(session_id, path)
+      when is_binary(session_id) and is_binary(path) do
+    call_state(session_id, {:get_file_read_time, path})
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 
@@ -659,7 +787,9 @@ defmodule JidoCode.Session.State do
       streaming_message: nil,
       streaming_message_id: nil,
       is_streaming: false,
-      prompt_history: []
+      prompt_history: [],
+      file_reads: %{},
+      file_writes: %{}
     }
 
     {:ok, state}
@@ -874,6 +1004,38 @@ defmodule JidoCode.Session.State do
     limited_history = Enum.take(history, @max_prompt_history)
     new_state = %{state | prompt_history: limited_history}
     {:reply, {:ok, limited_history}, new_state}
+  end
+
+  # ============================================================================
+  # File Tracking Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call({:track_file_read, path}, _from, state) do
+    timestamp = DateTime.utc_now()
+    new_file_reads = Map.put(state.file_reads, path, timestamp)
+    new_state = %{state | file_reads: new_file_reads}
+    {:reply, {:ok, timestamp}, new_state}
+  end
+
+  @impl true
+  def handle_call({:track_file_write, path}, _from, state) do
+    timestamp = DateTime.utc_now()
+    new_file_writes = Map.put(state.file_writes, path, timestamp)
+    new_state = %{state | file_writes: new_file_writes}
+    {:reply, {:ok, timestamp}, new_state}
+  end
+
+  @impl true
+  def handle_call({:file_was_read?, path}, _from, state) do
+    was_read = Map.has_key?(state.file_reads, path)
+    {:reply, {:ok, was_read}, state}
+  end
+
+  @impl true
+  def handle_call({:get_file_read_time, path}, _from, state) do
+    timestamp = Map.get(state.file_reads, path)
+    {:reply, {:ok, timestamp}, state}
   end
 
   # ============================================================================

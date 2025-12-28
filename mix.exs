@@ -86,7 +86,14 @@ defmodule JidoCode.MixProject do
   defp aliases do
     [
       setup: ["deps.get"],
-      test: ["test"]
+      test: ["test"],
+      q: ["quality"],
+      quality: [
+        "format --check-formatted",
+        "compile --warnings-as-errors",
+        "credo --min-priority higher",
+        "dialyzer"
+      ]
     ]
   end
 

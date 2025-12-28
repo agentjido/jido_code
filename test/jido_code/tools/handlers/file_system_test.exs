@@ -1111,6 +1111,93 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
   end
 
   # ============================================================================
+  # EditFile Unicode and Edge Case Tests
+  # ============================================================================
+
+  describe "EditFile unicode and edge cases" do
+    test "handles unicode content in old_string and new_string", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "unicode.txt")
+      File.write!(file_path, "Hello 世界! Welcome to 日本")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "unicode.txt",
+                   "old_string" => "世界",
+                   "new_string" => "地球"
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      assert File.read!(file_path) == "Hello 地球! Welcome to 日本"
+    end
+
+    test "handles emoji content correctly", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "emoji.txt")
+      File.write!(file_path, "Status: 🔴 Failed - retry 🔄")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "emoji.txt",
+                   "old_string" => "🔴 Failed",
+                   "new_string" => "✅ Success"
+                 },
+                 context
+               )
+
+      assert File.read!(file_path) == "Status: ✅ Success - retry 🔄"
+    end
+
+    test "handles mixed unicode and ASCII correctly", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "mixed.txt")
+      # Multi-byte characters followed by ASCII
+      File.write!(file_path, "Price: €100 or ¥15000 total")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "mixed.txt",
+                   "old_string" => "€100",
+                   "new_string" => "$120"
+                 },
+                 context
+               )
+
+      assert File.read!(file_path) == "Price: $120 or ¥15000 total"
+    end
+
+    test "returns error for empty old_string", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "empty_old.txt")
+      File.write!(file_path, "Some content here")
+
+      context = %{project_root: tmp_dir}
+
+      # Empty old_string should fail - it would match at every position
+      assert {:error, error} =
+               EditFile.execute(
+                 %{
+                   "path" => "empty_old.txt",
+                   "old_string" => "",
+                   "new_string" => "inserted"
+                 },
+                 context
+               )
+
+      assert error =~ "old_string cannot be empty"
+      # File should be unchanged
+      assert File.read!(file_path) == "Some content here"
+    end
+  end
+
+  # ============================================================================
   # EditFile Session-Aware Tests (Read-Before-Write)
   # ============================================================================
 
@@ -1314,6 +1401,145 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       {:ok, stat} = File.stat(file_path)
       # Verify owner read/write, group read, others read
       assert (stat.mode &&& 0o644) == 0o644
+    end
+  end
+
+  describe "EditFile telemetry emission" do
+    @describetag :tmp_dir
+
+    test "emits telemetry on successful edit", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "telemetry_edit.txt")
+      File.write!(file_path, "Hello World")
+      context = %{project_root: tmp_dir}
+
+      # Set up telemetry handler
+      ref = make_ref()
+      test_pid = self()
+
+      handler = fn event, measurements, metadata, _config ->
+        send(test_pid, {:telemetry, ref, event, measurements, metadata})
+      end
+
+      :telemetry.attach(
+        "test-edit-telemetry-#{inspect(ref)}",
+        [:jido_code, :file_system, :edit],
+        handler,
+        nil
+      )
+
+      on_exit(fn ->
+        :telemetry.detach("test-edit-telemetry-#{inspect(ref)}")
+      end)
+
+      # Perform edit
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{"path" => "telemetry_edit.txt", "old_string" => "World", "new_string" => "Elixir"},
+                 context
+               )
+
+      # Verify telemetry was emitted
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], measurements, metadata},
+                     1000
+
+      assert is_integer(measurements.duration)
+      assert metadata.status == :ok
+      assert metadata.path == "telemetry_edit.txt"
+    end
+
+    test "emits telemetry on edit error", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      # Set up telemetry handler
+      ref = make_ref()
+      test_pid = self()
+
+      handler = fn event, measurements, metadata, _config ->
+        send(test_pid, {:telemetry, ref, event, measurements, metadata})
+      end
+
+      :telemetry.attach(
+        "test-edit-error-telemetry-#{inspect(ref)}",
+        [:jido_code, :file_system, :edit],
+        handler,
+        nil
+      )
+
+      on_exit(fn ->
+        :telemetry.detach("test-edit-error-telemetry-#{inspect(ref)}")
+      end)
+
+      # Attempt edit on non-existent file
+      _ = EditFile.execute(
+        %{"path" => "nonexistent.txt", "old_string" => "foo", "new_string" => "bar"},
+        context
+      )
+
+      # Verify error telemetry was emitted
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], _measurements, metadata},
+                     1000
+
+      assert metadata.status == :error
+    end
+
+    test "emits telemetry with read_before_write_required status", %{tmp_dir: tmp_dir} do
+      # Set dummy API key for test
+      System.put_env("ANTHROPIC_API_KEY", "test-key-telemetry-test")
+
+      # Start required registries if not already started
+      unless GenServer.whereis(JidoCode.SessionProcessRegistry) do
+        start_supervised!({Registry, keys: :unique, name: JidoCode.SessionProcessRegistry})
+      end
+
+      # Create a session
+      {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "telemetry-session-test")
+
+      {:ok, supervisor_pid} =
+        JidoCode.Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:telemetry_session_test_sup, session.id}}}
+        )
+
+      # Set up telemetry handler
+      ref = make_ref()
+      test_pid = self()
+
+      handler = fn event, measurements, metadata, _config ->
+        send(test_pid, {:telemetry, ref, event, measurements, metadata})
+      end
+
+      :telemetry.attach(
+        "test-edit-read-before-write-telemetry-#{inspect(ref)}",
+        [:jido_code, :file_system, :edit],
+        handler,
+        nil
+      )
+
+      on_exit(fn ->
+        :telemetry.detach("test-edit-read-before-write-telemetry-#{inspect(ref)}")
+        System.delete_env("ANTHROPIC_API_KEY")
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      # Create file but don't read it first
+      file_path = Path.join(tmp_dir, "unread_edit.txt")
+      File.write!(file_path, "Test content")
+
+      # Attempt to edit without reading first (should fail with read_before_write_required)
+      _ = EditFile.execute(
+        %{"path" => "unread_edit.txt", "old_string" => "Test", "new_string" => "New"},
+        %{session_id: session.id}
+      )
+
+      # Verify telemetry was emitted with read_before_write_required status
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], _measurements, metadata},
+                     1000
+
+      assert metadata.status == :read_before_write_required
     end
   end
 

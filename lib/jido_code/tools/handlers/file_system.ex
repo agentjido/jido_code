@@ -144,6 +144,46 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   def format_error(reason, _path) when is_binary(reason), do: reason
   def format_error(reason, path), do: "Error (#{inspect(reason)}): #{path}"
 
+  @doc """
+  Tracks a file write in session state.
+
+  Used by both EditFile and WriteFile handlers to record file modifications
+  for read-before-write validation. In legacy mode (no session_id), this is a no-op.
+
+  ## Parameters
+
+  - `normalized_path` - The normalized absolute path of the file
+  - `context` - The execution context containing session_id
+  - `operation` - Atom identifying the calling handler (for logging)
+
+  ## Returns
+
+  Always returns `:ok` (logs warning if session not found).
+  """
+  @spec track_file_write(String.t(), map(), atom()) :: :ok
+  def track_file_write(normalized_path, context, operation \\ :file_system) do
+    alias JidoCode.Session.State, as: SessionState
+
+    case Map.get(context, :session_id) do
+      nil ->
+        # No session context - skip tracking (legacy mode)
+        :ok
+
+      session_id ->
+        case SessionState.track_file_write(session_id, normalized_path) do
+          {:ok, _timestamp} ->
+            :ok
+
+          {:error, :not_found} ->
+            Logger.warning(
+              "#{operation}: Session #{session_id} not found when tracking file write for #{Path.basename(normalized_path)}"
+            )
+
+            :ok
+        end
+    end
+  end
+
   # ============================================================================
   # EditFile Handler
   # ============================================================================
@@ -174,6 +214,13 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     3. **Whitespace-normalized match** - Collapses multiple spaces/tabs to single space
     4. **Indentation-flexible match** - Allows different indentation levels
 
+    ## Configuration
+
+    Tab width for indentation matching can be configured:
+
+        config :jido_code, :tools,
+          edit_file: [tab_width: 4]  # default is 4 spaces per tab
+
     This follows patterns from OpenCode and other coding assistants.
 
     ## Path Normalization
@@ -184,12 +231,30 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     ## Security
 
     Uses `Security.atomic_write/4` for TOCTOU-safe file writing after edits.
+
+    ## Legacy Mode (project_root context)
+
+    When no `session_id` is provided (only `project_root`), the handler operates
+    in "legacy mode":
+
+    - Read-before-write check is bypassed with a debug log
+    - File tracking is skipped
+    - This mode exists for backward compatibility and direct testing
+
+    **Note**: Legacy mode provides weaker safety guarantees. Prefer using
+    `session_id` context in production to enforce read-before-write validation.
     """
 
     alias JidoCode.Session.State, as: SessionState
     alias JidoCode.Tools.HandlerHelpers
     alias JidoCode.Tools.Handlers.FileSystem
     alias JidoCode.Tools.Security
+
+    require Logger
+
+    # Tab width for indentation-flexible matching (configurable via application config)
+    # Default of 4 matches common editor defaults
+    @tab_width Application.compile_env(:jido_code, [:tools, :edit_file, :tab_width], 4)
 
     @doc """
     Edits a file by replacing old_string with new_string.
@@ -226,6 +291,21 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       start_time = System.monotonic_time()
       replace_all = Map.get(args, "replace_all", false)
 
+      # Validate old_string is not empty (would match at every position)
+      if old_string == "" do
+        FileSystem.emit_file_telemetry(:edit, start_time, path, context, :error, 0)
+        {:error, "old_string cannot be empty"}
+      else
+        execute_edit(path, old_string, new_string, replace_all, context, start_time)
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "edit_file requires path, old_string, and new_string arguments"}
+    end
+
+    # Internal function to perform the actual edit after validation
+    defp execute_edit(path, old_string, new_string, replace_all, context, start_time) do
       result =
         with {:ok, project_root} <- HandlerHelpers.get_project_root(context),
              {:ok, safe_path} <- Security.validate_path(path, project_root, log_violations: true),
@@ -235,7 +315,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
              {:ok, new_content, count, strategy} <-
                do_replace_with_strategies(content, old_string, new_string, replace_all),
              :ok <- Security.atomic_write(path, new_content, project_root, log_violations: true),
-             :ok <- track_file_write(normalized_path, context) do
+             :ok <- FileSystem.track_file_write(normalized_path, context, :edit_file) do
           strategy_note = if strategy != :exact, do: " (matched via #{strategy})", else: ""
           {:ok, "Successfully replaced #{count} occurrence(s) in #{path}#{strategy_note}"}
         end
@@ -266,10 +346,6 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           FileSystem.emit_file_telemetry(:edit, start_time, path, context, :error, 0)
           {:error, FileSystem.format_error(reason, path)}
       end
-    end
-
-    def execute(_args, _context) do
-      {:error, "edit_file requires path, old_string, and new_string arguments"}
     end
 
     # ============================================================================
@@ -305,25 +381,6 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       end
     end
 
-    # Track the file write in session state
-    @spec track_file_write(String.t(), map()) :: :ok
-    defp track_file_write(normalized_path, context) do
-      case Map.get(context, :session_id) do
-        nil ->
-          :ok
-
-        session_id ->
-          case SessionState.track_file_write(session_id, normalized_path) do
-            {:ok, _timestamp} -> :ok
-            {:error, :not_found} ->
-              Logger.warning(
-                "EditFile: Session #{session_id} not found when tracking file write for #{Path.basename(normalized_path)}"
-              )
-              :ok
-          end
-      end
-    end
-
     # ============================================================================
     # Multi-Strategy Matching
     # ============================================================================
@@ -342,6 +399,13 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       Enum.reduce_while(strategies, {:error, :not_found}, fn {strategy_name, match_fn}, _acc ->
         case try_replace(content, old_string, new_string, replace_all, match_fn) do
           {:ok, new_content, count} ->
+            # Log when using fallback strategy for observability
+            if strategy_name != :exact do
+              Logger.debug(
+                "EditFile: Used #{strategy_name} matching strategy (exact match failed)"
+              )
+            end
+
             {:halt, {:ok, new_content, count, strategy_name}}
 
           {:error, :ambiguous_match, count} ->
@@ -379,17 +443,27 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     end
 
     # Apply replacements at the given positions (from end to start)
-    @spec apply_replacements(String.t(), String.t(), String.t(), [non_neg_integer()], boolean()) :: String.t()
+    # Positions can be either integers (for exact match) or {pos, len} tuples (for fuzzy match)
+    @spec apply_replacements(String.t(), String.t(), String.t(), [non_neg_integer() | {non_neg_integer(), non_neg_integer()}], boolean()) :: String.t()
     defp apply_replacements(content, old_string, new_string, positions, replace_all) do
-      old_len = String.length(old_string)
+      default_len = String.length(old_string)
       positions_to_use = if replace_all, do: positions, else: [hd(positions)]
 
+      # Normalize positions to {pos, len} tuples
+      normalized_positions = Enum.map(positions_to_use, fn
+        {pos, len} -> {pos, len}
+        pos when is_integer(pos) -> {pos, default_len}
+      end)
+
       # Sort positions in reverse order to apply from end to start
-      positions_to_use
-      |> Enum.sort(:desc)
-      |> Enum.reduce(content, fn pos, acc ->
+      # Using a large constant for suffix slice avoids expensive String.length calls in the reduce
+      # String.slice handles lengths beyond the string end gracefully
+      normalized_positions
+      |> Enum.sort_by(fn {pos, _len} -> pos end, :desc)
+      |> Enum.reduce(content, fn {pos, len}, acc ->
         prefix = String.slice(acc, 0, pos)
-        suffix = String.slice(acc, pos + old_len, String.length(acc))
+        # Use :infinity-like large value - String.slice returns rest of string if length exceeds available
+        suffix = String.slice(acc, pos + len, 0x7FFFFFFF)
         prefix <> new_string <> suffix
       end)
     end
@@ -444,7 +518,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     # Helper Functions
     # ============================================================================
 
-    # Find all positions of exact pattern in content
+    # Find all positions of exact pattern in content (grapheme-safe)
+    # Uses String functions instead of :binary.match for correct UTF-8 handling
     @spec find_all_positions(String.t(), String.t()) :: [non_neg_integer()]
     defp find_all_positions(content, pattern) do
       pattern_len = String.length(pattern)
@@ -452,20 +527,31 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     end
 
     defp do_find_positions(content, pattern, pattern_len, offset, acc) do
-      case :binary.match(content, pattern) do
-        {pos, _len} ->
+      case find_grapheme_position(content, pattern) do
+        {:found, pos} ->
           absolute_pos = offset + pos
           rest = String.slice(content, pos + pattern_len, String.length(content))
           do_find_positions(rest, pattern, pattern_len, absolute_pos + pattern_len, [absolute_pos | acc])
 
-        :nomatch ->
+        :not_found ->
           Enum.reverse(acc)
       end
     end
 
+    # Find the grapheme position of pattern in content
+    # Returns {:found, position} or :not_found
+    @spec find_grapheme_position(String.t(), String.t()) :: {:found, non_neg_integer()} | :not_found
+    defp find_grapheme_position(content, pattern) do
+      case String.split(content, pattern, parts: 2) do
+        [before, _rest] -> {:found, String.length(before)}
+        [_no_match] -> :not_found
+      end
+    end
+
     # Find positions where normalized content matches normalized pattern
-    # Returns positions in the ORIGINAL content
-    @spec find_fuzzy_positions(String.t(), String.t(), (String.t() -> String.t())) :: [non_neg_integer()]
+    # Returns {position, length} tuples in the ORIGINAL content
+    # The length is the actual length of matched content (not pattern length)
+    @spec find_fuzzy_positions(String.t(), String.t(), (String.t() -> String.t())) :: [{non_neg_integer(), non_neg_integer()}]
     defp find_fuzzy_positions(content, pattern, normalize_fn) do
       # Split content into lines and try to find matching sequences
       content_lines = String.split(content, "\n")
@@ -489,7 +575,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
         # Check if normalized versions match
         new_acc =
           if normalized_candidates == normalized_pattern_lines do
-            [char_offset | acc]
+            # Calculate actual length of matched content in original file
+            matched_content = Enum.join(candidate_lines, "\n")
+            matched_len = String.length(matched_content)
+            [{char_offset, matched_len} | acc]
           else
             acc
           end
@@ -551,16 +640,18 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       |> Enum.join("\n")
     end
 
-    # Count leading spaces/tabs (tabs count as configurable spaces, default 2)
+    # Count leading spaces/tabs (tabs count as @tab_width spaces)
     @spec count_leading_spaces(String.t()) :: non_neg_integer()
     defp count_leading_spaces(line) do
+      tab_width = @tab_width
+
       line
       |> String.graphemes()
       |> Enum.take_while(&(&1 == " " or &1 == "\t"))
       |> Enum.reduce(0, fn char, acc ->
         case char do
           " " -> acc + 1
-          "\t" -> acc + 2
+          "\t" -> acc + tab_width
         end
       end)
     end
@@ -796,7 +887,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
              normalized_path <- FileSystem.normalize_path_for_tracking(path, project_root),
              :ok <- check_read_before_write(normalized_path, file_existed, context),
              :ok <- Security.atomic_write(path, content, project_root, log_violations: true),
-             :ok <- track_file_write(normalized_path, context) do
+             :ok <- FileSystem.track_file_write(normalized_path, context, :write_file) do
           file_status = if file_existed, do: "updated", else: "written"
           {:ok, "File #{file_status} successfully: #{path}"}
         end
@@ -867,31 +958,6 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
               )
 
               {:error, :session_state_unavailable}
-          end
-      end
-    end
-
-    # Track the file write in session state
-    # Returns :ok on success, logs warning on session not found
-    @spec track_file_write(String.t(), map()) :: :ok
-    defp track_file_write(normalized_path, context) do
-      case Map.get(context, :session_id) do
-        nil ->
-          # No session context - skip tracking (legacy mode)
-          :ok
-
-        session_id ->
-          case SessionState.track_file_write(session_id, normalized_path) do
-            {:ok, _timestamp} ->
-              :ok
-
-            {:error, :not_found} ->
-              # Log warning for debugging - session should exist
-              Logger.warning(
-                "WriteFile: Session #{session_id} not found when tracking file write for #{Path.basename(normalized_path)}"
-              )
-
-              :ok
           end
       end
     end

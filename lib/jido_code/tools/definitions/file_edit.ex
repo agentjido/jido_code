@@ -12,7 +12,7 @@ defmodule JidoCode.Tools.Definitions.FileEdit do
 
   ## Features
 
-  - Exact string matching with multi-strategy fallback (planned)
+  - Exact string matching with multi-strategy fallback
   - Uniqueness validation (old_string must appear exactly once by default)
   - Optional replace_all mode for multiple occurrences
   - Project boundary enforcement
@@ -27,17 +27,17 @@ defmodule JidoCode.Tools.Definitions.FileEdit do
 
   To replace all occurrences, set `replace_all: true`.
 
-  ## Multi-Strategy Matching (Planned)
+  ## Multi-Strategy Matching
 
-  The handler will implement multi-strategy matching for robustness:
+  The handler implements multi-strategy matching for robustness:
 
   1. **Exact match** (primary) - Literal string comparison
   2. **Line-trimmed match** - Ignores leading/trailing whitespace per line
   3. **Whitespace-normalized match** - Collapses multiple spaces/tabs
   4. **Indentation-flexible match** - Allows different indentation levels
 
-  This follows patterns from OpenCode and other coding assistants to handle
-  common LLM formatting variations.
+  Strategies are tried in order until one succeeds. The success message
+  indicates which strategy matched (e.g., "matched via line_trimmed").
 
   ## Read-Before-Write Requirement
 

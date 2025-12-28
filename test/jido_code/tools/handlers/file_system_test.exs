@@ -2,6 +2,8 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
   # async: false because we're modifying the shared Manager state
   use ExUnit.Case, async: false
 
+  import Bitwise
+
   alias JidoCode.Tools.Handlers.FileSystem.{
     CreateDirectory,
     DeleteFile,
@@ -957,6 +959,361 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
                )
 
       assert File.read!(file_path) == "func(a, b)"
+    end
+  end
+
+  # ============================================================================
+  # EditFile Multi-Strategy Matching Tests
+  # ============================================================================
+
+  describe "EditFile multi-strategy matching" do
+    test "uses line-trimmed matching when exact fails", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "trimmed.ex")
+
+      # File has trailing spaces on some lines
+      File.write!(file_path, "def hello do  \n  :world   \nend")
+
+      context = %{project_root: tmp_dir}
+
+      # Search string without trailing spaces
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "trimmed.ex",
+                   "old_string" => "def hello do\n  :world\nend",
+                   "new_string" => "def hello do\n  :elixir\nend"
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      assert message =~ "line_trimmed"
+      assert File.read!(file_path) =~ ":elixir"
+    end
+
+    test "uses whitespace-normalized matching when line-trimmed fails", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "spaces.ex")
+
+      # File has multiple spaces between tokens
+      File.write!(file_path, "def   hello    do\n  :world\nend")
+
+      context = %{project_root: tmp_dir}
+
+      # Search string with single spaces
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "spaces.ex",
+                   "old_string" => "def hello do\n  :world\nend",
+                   "new_string" => "def hello do\n  :elixir\nend"
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      assert message =~ "whitespace_normalized"
+      assert File.read!(file_path) =~ ":elixir"
+    end
+
+    test "succeeds with different indentation levels", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "indented.ex")
+
+      # File has 4-space indentation
+      File.write!(file_path, "    def hello do\n        value = 1\n        :world\n    end")
+
+      context = %{project_root: tmp_dir}
+
+      # Search string with no base indentation (as if copied from docs)
+      # The fallback strategies handle this mismatch
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "indented.ex",
+                   "old_string" => "def hello do\n    value = 1\n    :world\nend",
+                   "new_string" => "def hello do\n    value = 1\n    :elixir\nend"
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      # Should use a fallback strategy (line_trimmed, whitespace_normalized, or indentation_flexible)
+      assert message =~ "matched via"
+      assert File.read!(file_path) =~ ":elixir"
+    end
+
+    test "indentation-flexible matching handles dedent correctly", %{tmp_dir: tmp_dir} do
+      # Test the dedent function directly by using content that only works with dedent
+      # We need content where the RELATIVE indentation matters, not just leading whitespace
+      file_path = Path.join(tmp_dir, "dedent_test.ex")
+
+      # File has base indent of 2 spaces with nested 4-space indent
+      content = "  def outer do\n    inner()\n  end"
+      File.write!(file_path, content)
+
+      context = %{project_root: tmp_dir}
+
+      # Exact match succeeds with same content
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "dedent_test.ex",
+                   "old_string" => content,
+                   "new_string" => "  def outer do\n    modified()\n  end"
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      refute message =~ "matched via"  # Exact match, no strategy note
+      assert File.read!(file_path) =~ "modified()"
+    end
+
+    test "exact match does not show strategy in message", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "exact.ex")
+      File.write!(file_path, "def hello, do: :world")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "exact.ex",
+                   "old_string" => "def hello, do: :world",
+                   "new_string" => "def hello, do: :elixir"
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      refute message =~ "matched via"
+      assert File.read!(file_path) == "def hello, do: :elixir"
+    end
+
+    test "returns not found when no strategy matches", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "nomatch.ex")
+      File.write!(file_path, "def hello, do: :world")
+
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} =
+               EditFile.execute(
+                 %{
+                   "path" => "nomatch.ex",
+                   "old_string" => "completely different text",
+                   "new_string" => "replacement"
+                 },
+                 context
+               )
+
+      assert error =~ "String not found"
+      assert error =~ "tried exact, line-trimmed, whitespace-normalized, and indentation-flexible"
+    end
+  end
+
+  # ============================================================================
+  # EditFile Session-Aware Tests (Read-Before-Write)
+  # ============================================================================
+
+  describe "EditFile with session context" do
+    setup %{tmp_dir: tmp_dir} do
+      # Set dummy API key for test
+      System.put_env("ANTHROPIC_API_KEY", "test-key-edit-file")
+
+      on_exit(fn ->
+        System.delete_env("ANTHROPIC_API_KEY")
+      end)
+
+      # Start required registries if not already started
+      unless GenServer.whereis(JidoCode.SessionProcessRegistry) do
+        start_supervised!({Registry, keys: :unique, name: JidoCode.SessionProcessRegistry})
+      end
+
+      # Create a session
+      {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "edit-session-test")
+
+      {:ok, supervisor_pid} =
+        JidoCode.Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:edit_session_test_sup, session.id}}}
+        )
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      %{session: session}
+    end
+
+    test "requires file to be read before editing", %{tmp_dir: tmp_dir, session: session} do
+      # Create existing file
+      file_path = Path.join(tmp_dir, "edit_no_read.txt")
+      File.write!(file_path, "Hello, World!")
+
+      context = %{session_id: session.id}
+
+      # Attempt to edit without reading first
+      assert {:error, error} =
+               EditFile.execute(
+                 %{
+                   "path" => "edit_no_read.txt",
+                   "old_string" => "World",
+                   "new_string" => "Elixir"
+                 },
+                 context
+               )
+
+      assert error =~ "must be read before editing"
+
+      # Verify original content is preserved
+      assert File.read!(file_path) == "Hello, World!"
+    end
+
+    test "allows editing after file is read", %{tmp_dir: tmp_dir, session: session} do
+      # Create existing file
+      file_path = Path.join(tmp_dir, "edit_with_read.txt")
+      File.write!(file_path, "Hello, World!")
+
+      context = %{session_id: session.id}
+
+      # First read the file
+      assert {:ok, _} = ReadFile.execute(%{"path" => "edit_with_read.txt"}, context)
+
+      # Now edit should succeed
+      assert {:ok, message} =
+               EditFile.execute(
+                 %{
+                   "path" => "edit_with_read.txt",
+                   "old_string" => "World",
+                   "new_string" => "Elixir"
+                 },
+                 context
+               )
+
+      assert message =~ "Successfully replaced 1 occurrence"
+      assert File.read!(file_path) == "Hello, Elixir!"
+    end
+
+    test "tracks edit in session state", %{tmp_dir: tmp_dir, session: session} do
+      # Create existing file
+      file_path = Path.join(tmp_dir, "tracked_edit.txt")
+      File.write!(file_path, "Original content")
+
+      context = %{session_id: session.id}
+
+      # Read first
+      assert {:ok, _} = ReadFile.execute(%{"path" => "tracked_edit.txt"}, context)
+
+      # Edit the file
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "tracked_edit.txt",
+                   "old_string" => "Original",
+                   "new_string" => "Modified"
+                 },
+                 context
+               )
+
+      # Verify the edit was tracked (allows further edits without re-reading)
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "tracked_edit.txt",
+                   "old_string" => "content",
+                   "new_string" => "text"
+                 },
+                 context
+               )
+
+      assert File.read!(file_path) == "Modified text"
+    end
+
+    test "project_root context bypasses read-before-edit check (legacy mode)", %{
+      tmp_dir: tmp_dir
+    } do
+      # Create existing file
+      file_path = Path.join(tmp_dir, "legacy_edit.txt")
+      File.write!(file_path, "Hello, World!")
+
+      # Use project_root context (legacy mode)
+      context = %{project_root: tmp_dir}
+
+      # Edit should succeed without reading first (legacy behavior)
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "legacy_edit.txt",
+                   "old_string" => "World",
+                   "new_string" => "Elixir"
+                 },
+                 context
+               )
+
+      assert File.read!(file_path) == "Hello, Elixir!"
+    end
+  end
+
+  # ============================================================================
+  # EditFile Permission Tests
+  # ============================================================================
+
+  describe "EditFile preserves file permissions" do
+    @tag :unix
+    test "preserves file mode after edit", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "mode_test.sh")
+      File.write!(file_path, "echo hello")
+
+      # Make executable
+      File.chmod!(file_path, 0o755)
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "mode_test.sh",
+                   "old_string" => "echo hello",
+                   "new_string" => "echo world"
+                 },
+                 context
+               )
+
+      # Verify content changed
+      assert File.read!(file_path) == "echo world"
+
+      # Verify permissions preserved
+      {:ok, stat} = File.stat(file_path)
+      # Check executable bit is still set (mode may vary slightly)
+      assert (stat.mode &&& 0o111) != 0
+    end
+
+    @tag :unix
+    test "preserves readonly permissions after edit", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "readonly_test.txt")
+      File.write!(file_path, "Original content")
+
+      # Set specific permissions
+      File.chmod!(file_path, 0o644)
+
+      context = %{project_root: tmp_dir}
+
+      assert {:ok, _} =
+               EditFile.execute(
+                 %{
+                   "path" => "readonly_test.txt",
+                   "old_string" => "Original",
+                   "new_string" => "Modified"
+                 },
+                 context
+               )
+
+      {:ok, stat} = File.stat(file_path)
+      # Verify owner read/write, group read, others read
+      assert (stat.mode &&& 0o644) == 0o644
     end
   end
 

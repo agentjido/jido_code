@@ -230,6 +230,23 @@ defmodule JidoCode.Tools.BridgeTest do
       # Empty file should return empty content (just one line with empty content)
       assert content == "     1→"
     end
+
+    test "returns error for permission denied", %{tmp_dir: tmp_dir} do
+      file_path = Path.join(tmp_dir, "no_read.txt")
+      File.write!(file_path, "secret content")
+
+      # Remove read permissions (write-only)
+      File.chmod!(file_path, 0o200)
+
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_read_file(["no_read.txt"], state, tmp_dir)
+
+      # Restore permissions for cleanup
+      File.chmod!(file_path, 0o644)
+
+      assert [nil, error] = result
+      assert error =~ "permission" or error =~ "eacces" or error =~ "denied"
+    end
   end
 
   describe "lua_write_file/3" do

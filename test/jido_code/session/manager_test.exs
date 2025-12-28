@@ -267,6 +267,23 @@ defmodule JidoCode.Session.ManagerTest do
       assert msg =~ "not found" or msg =~ "enoent" or msg =~ "No such file"
     end
 
+    test "returns error for permission denied", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      # Create file and remove read permissions
+      file_path = Path.join(tmp_dir, "no_read.txt")
+      File.write!(file_path, "secret")
+      File.chmod!(file_path, 0o200)
+
+      {:error, msg} = Manager.read_file(session.id, "no_read.txt")
+
+      # Restore permissions for cleanup
+      File.chmod!(file_path, 0o644)
+
+      assert msg =~ "permission" or msg =~ "eacces" or msg =~ "denied"
+    end
+
     test "returns error for non-existent session" do
       assert {:error, :not_found} = Manager.read_file("non_existent_session", "file.ex")
     end

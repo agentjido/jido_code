@@ -123,7 +123,7 @@ Expose the tool through the Manager API for session-aware execution.
 - [x] Test read_file rejects binary files with clear error
 - [x] Test read_file rejects paths outside project boundary (Security layer)
 - [x] Test read_file handles non-existent files
-- [ ] Test read_file handles permission errors
+- [x] Test read_file handles permission errors
 - [x] Test read_file works through session-scoped manager
 
 ---

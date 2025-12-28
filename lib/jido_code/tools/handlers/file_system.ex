@@ -152,13 +152,44 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     @moduledoc """
     Handler for the edit_file tool.
 
-    Performs exact string replacement within files. Unlike write_file which
-    overwrites the entire file, edit_file allows targeted modifications.
+    Performs string replacement within files using multi-strategy matching.
+    Unlike write_file which overwrites entire files, edit_file allows targeted
+    modifications to specific sections.
 
     Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
+
+    ## Read-Before-Write Requirement
+
+    The file must be read in the current session before it can be edited.
+    This ensures the agent has seen the current content and understands
+    the context of the modification.
+
+    ## Multi-Strategy Matching
+
+    When the exact `old_string` is not found, the handler tries fallback
+    strategies to handle common LLM formatting variations:
+
+    1. **Exact match** (primary) - Literal string comparison
+    2. **Line-trimmed match** - Ignores leading/trailing whitespace per line
+    3. **Whitespace-normalized match** - Collapses multiple spaces/tabs to single space
+    4. **Indentation-flexible match** - Allows different indentation levels
+
+    This follows patterns from OpenCode and other coding assistants.
+
+    ## Path Normalization
+
+    File paths are normalized using `FileSystem.normalize_path_for_tracking/2`
+    to ensure consistent tracking between read and edit operations.
+
+    ## Security
+
+    Uses `Security.atomic_write/4` for TOCTOU-safe file writing after edits.
     """
 
+    alias JidoCode.Session.State, as: SessionState
+    alias JidoCode.Tools.HandlerHelpers
     alias JidoCode.Tools.Handlers.FileSystem
+    alias JidoCode.Tools.Security
 
     @doc """
     Edits a file by replacing old_string with new_string.
@@ -166,47 +197,73 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     ## Arguments
 
     - `"path"` - Path to the file (relative to project root)
-    - `"old_string"` - Exact string to find and replace
+    - `"old_string"` - Text to find and replace (multi-strategy matching)
     - `"new_string"` - Replacement string
     - `"replace_all"` - If true, replace all occurrences; if false (default),
       require exactly one match
 
     ## Context
 
-    - `:session_id` - Session ID for path validation (preferred)
-    - `:project_root` - Direct project root path (legacy)
+    - `:session_id` - Session ID for path validation and read-before-write check
+    - `:project_root` - Direct project root path (legacy, skips read-before-write)
 
     ## Returns
 
-    - `{:ok, message}` - Success message with replacement count
+    - `{:ok, message}` - Success message with replacement count and match strategy used
     - `{:error, reason}` - Error message
 
     ## Errors
 
-    - Returns error if old_string is not found
+    - Returns error if old_string is not found (after trying all strategies)
     - Returns error if old_string appears multiple times and replace_all is false
+    - Returns error if file was not read first (read-before-write violation)
     """
     def execute(
           %{"path" => path, "old_string" => old_string, "new_string" => new_string} = args,
           context
         )
         when is_binary(path) and is_binary(old_string) and is_binary(new_string) do
+      start_time = System.monotonic_time()
       replace_all = Map.get(args, "replace_all", false)
 
-      with {:ok, safe_path} <- FileSystem.validate_path(path, context),
-           {:ok, content} <- File.read(safe_path),
-           {:ok, new_content, count} <- do_replace(content, old_string, new_string, replace_all),
-           :ok <- File.write(safe_path, new_content) do
-        {:ok, "Successfully replaced #{count} occurrence(s) in #{path}"}
-      else
+      result =
+        with {:ok, project_root} <- HandlerHelpers.get_project_root(context),
+             {:ok, safe_path} <- Security.validate_path(path, project_root, log_violations: true),
+             normalized_path <- FileSystem.normalize_path_for_tracking(path, project_root),
+             :ok <- check_read_before_edit(normalized_path, context),
+             {:ok, content} <- File.read(safe_path),
+             {:ok, new_content, count, strategy} <-
+               do_replace_with_strategies(content, old_string, new_string, replace_all),
+             :ok <- Security.atomic_write(path, new_content, project_root, log_violations: true),
+             :ok <- track_file_write(normalized_path, context) do
+          strategy_note = if strategy != :exact, do: " (matched via #{strategy})", else: ""
+          {:ok, "Successfully replaced #{count} occurrence(s) in #{path}#{strategy_note}"}
+        end
+
+      # Emit telemetry and return result
+      case result do
+        {:ok, _} = success ->
+          FileSystem.emit_file_telemetry(:edit, start_time, path, context, :ok, 0)
+          success
+
+        {:error, :read_before_write_required} ->
+          FileSystem.emit_file_telemetry(:edit, start_time, path, context, :read_before_write_required, 0)
+          {:error, "File must be read before editing: #{path}"}
+
+        {:error, :session_state_unavailable} ->
+          FileSystem.emit_file_telemetry(:edit, start_time, path, context, :error, 0)
+          {:error, "Session state unavailable - cannot verify read-before-write requirement"}
+
         {:error, :not_found} ->
-          {:error, "String not found in file: #{path}"}
+          FileSystem.emit_file_telemetry(:edit, start_time, path, context, :not_found, 0)
+          {:error, "String not found in file (tried exact, line-trimmed, whitespace-normalized, and indentation-flexible matching): #{path}"}
 
         {:error, :ambiguous_match, count} ->
-          {:error,
-           "Found #{count} occurrences of the string in #{path}. Use replace_all: true to replace all, or provide a more specific string."}
+          FileSystem.emit_file_telemetry(:edit, start_time, path, context, :ambiguous_match, 0)
+          {:error, "Found #{count} occurrences of the string in #{path}. Use replace_all: true to replace all, or provide a more specific string."}
 
         {:error, reason} ->
+          FileSystem.emit_file_telemetry(:edit, start_time, path, context, :error, 0)
           {:error, FileSystem.format_error(reason, path)}
       end
     end
@@ -215,9 +272,96 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       {:error, "edit_file requires path, old_string, and new_string arguments"}
     end
 
-    defp do_replace(content, old_string, new_string, replace_all) do
-      # Count occurrences
-      count = count_occurrences(content, old_string)
+    # ============================================================================
+    # Read-Before-Write Check
+    # ============================================================================
+
+    # Check read-before-write requirement
+    # Files must be read in the current session before they can be edited
+    @spec check_read_before_edit(String.t(), map()) ::
+            :ok | {:error, :read_before_write_required | :session_state_unavailable}
+    defp check_read_before_edit(normalized_path, context) do
+      case Map.get(context, :session_id) do
+        nil ->
+          # No session context (legacy mode) - skip check but log
+          Logger.debug("EditFile: Skipping read-before-edit check - no session context (legacy mode)")
+          :ok
+
+        session_id ->
+          case SessionState.file_was_read?(session_id, normalized_path) do
+            {:ok, true} ->
+              :ok
+
+            {:ok, false} ->
+              {:error, :read_before_write_required}
+
+            {:error, :not_found} ->
+              # Fail-closed: Session not found is a security concern
+              Logger.warning(
+                "EditFile: Session #{session_id} not found during read-before-edit check - failing closed"
+              )
+              {:error, :session_state_unavailable}
+          end
+      end
+    end
+
+    # Track the file write in session state
+    @spec track_file_write(String.t(), map()) :: :ok
+    defp track_file_write(normalized_path, context) do
+      case Map.get(context, :session_id) do
+        nil ->
+          :ok
+
+        session_id ->
+          case SessionState.track_file_write(session_id, normalized_path) do
+            {:ok, _timestamp} -> :ok
+            {:error, :not_found} ->
+              Logger.warning(
+                "EditFile: Session #{session_id} not found when tracking file write for #{Path.basename(normalized_path)}"
+              )
+              :ok
+          end
+      end
+    end
+
+    # ============================================================================
+    # Multi-Strategy Matching
+    # ============================================================================
+
+    # Try multiple matching strategies in order of preference
+    @spec do_replace_with_strategies(String.t(), String.t(), String.t(), boolean()) ::
+            {:ok, String.t(), pos_integer(), atom()} | {:error, :not_found} | {:error, :ambiguous_match, pos_integer()}
+    defp do_replace_with_strategies(content, old_string, new_string, replace_all) do
+      strategies = [
+        {:exact, &exact_match/2},
+        {:line_trimmed, &line_trimmed_match/2},
+        {:whitespace_normalized, &whitespace_normalized_match/2},
+        {:indentation_flexible, &indentation_flexible_match/2}
+      ]
+
+      Enum.reduce_while(strategies, {:error, :not_found}, fn {strategy_name, match_fn}, _acc ->
+        case try_replace(content, old_string, new_string, replace_all, match_fn) do
+          {:ok, new_content, count} ->
+            {:halt, {:ok, new_content, count, strategy_name}}
+
+          {:error, :ambiguous_match, count} ->
+            # Stop on ambiguous match - user needs to fix this
+            {:halt, {:error, :ambiguous_match, count}}
+
+          {:error, :not_found} ->
+            # Try next strategy
+            {:cont, {:error, :not_found}}
+        end
+      end)
+    end
+
+    # Try to replace using a specific match function
+    @spec try_replace(String.t(), String.t(), String.t(), boolean(), (String.t(), String.t() -> [non_neg_integer()])) ::
+            {:ok, String.t(), pos_integer()} | {:error, :not_found} | {:error, :ambiguous_match, pos_integer()}
+    defp try_replace(content, old_string, new_string, replace_all, match_fn) do
+      # Find all match positions using the strategy
+      positions = match_fn.(content, old_string)
+      count = length(positions)
 
       cond do
         count == 0 ->
@@ -227,16 +371,198 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           {:error, :ambiguous_match, count}
 
         true ->
-          new_content = String.replace(content, old_string, new_string, global: replace_all)
+          # Apply replacements from end to start to maintain position validity
+          new_content = apply_replacements(content, old_string, new_string, positions, replace_all)
           replaced_count = if replace_all, do: count, else: 1
           {:ok, new_content, replaced_count}
       end
     end
 
-    defp count_occurrences(content, pattern) do
-      # Use binary split to count occurrences without regex
-      parts = String.split(content, pattern)
-      length(parts) - 1
+    # Apply replacements at the given positions (from end to start)
+    @spec apply_replacements(String.t(), String.t(), String.t(), [non_neg_integer()], boolean()) :: String.t()
+    defp apply_replacements(content, old_string, new_string, positions, replace_all) do
+      old_len = String.length(old_string)
+      positions_to_use = if replace_all, do: positions, else: [hd(positions)]
+
+      # Sort positions in reverse order to apply from end to start
+      positions_to_use
+      |> Enum.sort(:desc)
+      |> Enum.reduce(content, fn pos, acc ->
+        prefix = String.slice(acc, 0, pos)
+        suffix = String.slice(acc, pos + old_len, String.length(acc))
+        prefix <> new_string <> suffix
+      end)
+    end
+
+    # ============================================================================
+    # Match Strategy Implementations
+    # ============================================================================
+
+    # Strategy 1: Exact match - find literal occurrences
+    @spec exact_match(String.t(), String.t()) :: [non_neg_integer()]
+    defp exact_match(content, pattern) do
+      find_all_positions(content, pattern)
+    end
+
+    # Strategy 2: Line-trimmed match - trim leading/trailing whitespace from each line
+    @spec line_trimmed_match(String.t(), String.t()) :: [non_neg_integer()]
+    defp line_trimmed_match(content, pattern) do
+      trimmed_pattern = trim_lines(pattern)
+      if trimmed_pattern == pattern do
+        # No change from trimming, skip this strategy
+        []
+      else
+        # Find positions in the original content where trimmed pattern matches
+        find_fuzzy_positions(content, pattern, &trim_lines/1)
+      end
+    end
+
+    # Strategy 3: Whitespace-normalized match - collapse multiple spaces/tabs
+    @spec whitespace_normalized_match(String.t(), String.t()) :: [non_neg_integer()]
+    defp whitespace_normalized_match(content, pattern) do
+      normalized_pattern = normalize_whitespace(pattern)
+      if normalized_pattern == pattern do
+        []
+      else
+        find_fuzzy_positions(content, pattern, &normalize_whitespace/1)
+      end
+    end
+
+    # Strategy 4: Indentation-flexible match - allow different indentation levels
+    @spec indentation_flexible_match(String.t(), String.t()) :: [non_neg_integer()]
+    defp indentation_flexible_match(content, pattern) do
+      # Remove leading indentation from each line of the pattern
+      dedented_pattern = dedent(pattern)
+      if dedented_pattern == pattern do
+        []
+      else
+        find_fuzzy_positions(content, pattern, &dedent/1)
+      end
+    end
+
+    # ============================================================================
+    # Helper Functions
+    # ============================================================================
+
+    # Find all positions of exact pattern in content
+    @spec find_all_positions(String.t(), String.t()) :: [non_neg_integer()]
+    defp find_all_positions(content, pattern) do
+      pattern_len = String.length(pattern)
+      do_find_positions(content, pattern, pattern_len, 0, [])
+    end
+
+    defp do_find_positions(content, pattern, pattern_len, offset, acc) do
+      case :binary.match(content, pattern) do
+        {pos, _len} ->
+          absolute_pos = offset + pos
+          rest = String.slice(content, pos + pattern_len, String.length(content))
+          do_find_positions(rest, pattern, pattern_len, absolute_pos + pattern_len, [absolute_pos | acc])
+
+        :nomatch ->
+          Enum.reverse(acc)
+      end
+    end
+
+    # Find positions where normalized content matches normalized pattern
+    # Returns positions in the ORIGINAL content
+    @spec find_fuzzy_positions(String.t(), String.t(), (String.t() -> String.t())) :: [non_neg_integer()]
+    defp find_fuzzy_positions(content, pattern, normalize_fn) do
+      # Split content into lines and try to find matching sequences
+      content_lines = String.split(content, "\n")
+      pattern_lines = String.split(pattern, "\n")
+      pattern_line_count = length(pattern_lines)
+
+      normalized_pattern_lines = Enum.map(pattern_lines, normalize_fn)
+
+      # Slide through content lines looking for matches
+      find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, 0, 0, [])
+    end
+
+    defp find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, line_idx, char_offset, acc) do
+      if line_idx + pattern_line_count > length(content_lines) do
+        Enum.reverse(acc)
+      else
+        # Get the candidate lines from content
+        candidate_lines = Enum.slice(content_lines, line_idx, pattern_line_count)
+        normalized_candidates = Enum.map(candidate_lines, normalize_fn)
+
+        # Check if normalized versions match
+        new_acc =
+          if normalized_candidates == normalized_pattern_lines do
+            [char_offset | acc]
+          else
+            acc
+          end
+
+        # Calculate next character offset (add length of current line + newline)
+        current_line = Enum.at(content_lines, line_idx, "")
+        next_char_offset = char_offset + String.length(current_line) + 1
+
+        find_matching_line_sequences(
+          content_lines,
+          normalized_pattern_lines,
+          pattern_line_count,
+          normalize_fn,
+          line_idx + 1,
+          next_char_offset,
+          new_acc
+        )
+      end
+    end
+
+    # Trim leading/trailing whitespace from each line
+    @spec trim_lines(String.t()) :: String.t()
+    defp trim_lines(text) do
+      text
+      |> String.split("\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.join("\n")
+    end
+
+    # Collapse multiple whitespace characters to single space
+    @spec normalize_whitespace(String.t()) :: String.t()
+    defp normalize_whitespace(text) do
+      text
+      |> String.replace(~r/[ \t]+/, " ")
+      |> String.replace(~r/ ?\n ?/, "\n")
+    end
+
+    # Remove common leading indentation from all lines
+    @spec dedent(String.t()) :: String.t()
+    defp dedent(text) do
+      lines = String.split(text, "\n")
+
+      # Find minimum indentation (ignoring empty lines)
+      min_indent =
+        lines
+        |> Enum.filter(&(String.trim(&1) != ""))
+        |> Enum.map(&count_leading_spaces/1)
+        |> Enum.min(fn -> 0 end)
+
+      # Remove that many spaces from each line
+      lines
+      |> Enum.map(fn line ->
+        if String.trim(line) == "" do
+          line
+        else
+          String.slice(line, min_indent, String.length(line))
+        end
+      end)
+      |> Enum.join("\n")
+    end
+
+    # Count leading spaces/tabs (tabs count as configurable spaces, default 2)
+    @spec count_leading_spaces(String.t()) :: non_neg_integer()
+    defp count_leading_spaces(line) do
+      line
+      |> String.graphemes()
+      |> Enum.take_while(&(&1 == " " or &1 == "\t"))
+      |> Enum.reduce(0, fn char, acc ->
+        case char do
+          " " -> acc + 1
+          "\t" -> acc + 2
+        end
+      end)
     end
   end
 

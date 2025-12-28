@@ -28,6 +28,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   """
 
   alias JidoCode.Tools.Definitions.FileRead
+  alias JidoCode.Tools.Definitions.FileWrite
   alias JidoCode.Tools.Handlers.FileSystem, as: Handlers
   alias JidoCode.Tools.Tool
 
@@ -74,35 +75,25 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   Returns the write_file tool definition.
 
   Writes content to a file, creating parent directories if needed.
+  Delegates to `JidoCode.Tools.Definitions.FileWrite`.
 
   ## Parameters
 
   - `path` (required, string) - Path to the file relative to project root
   - `content` (required, string) - Content to write to the file
+
+  ## Read-Before-Write Requirement
+
+  Existing files must be read before they can be overwritten to ensure
+  the agent has seen the current content. New files can be created without
+  prior reading.
+
+  ## See Also
+
+  - `JidoCode.Tools.Definitions.FileWrite` - Full documentation
   """
   @spec write_file() :: Tool.t()
-  def write_file do
-    Tool.new!(%{
-      name: "write_file",
-      description:
-        "Write content to a file. Creates the file if it doesn't exist, overwrites if it does. Creates parent directories automatically.",
-      handler: Handlers.WriteFile,
-      parameters: [
-        %{
-          name: "path",
-          type: :string,
-          description: "Path to the file to write (relative to project root)",
-          required: true
-        },
-        %{
-          name: "content",
-          type: :string,
-          description: "Content to write to the file",
-          required: true
-        }
-      ]
-    })
-  end
+  defdelegate write_file(), to: FileWrite
 
   @doc """
   Returns the edit_file tool definition.

@@ -102,7 +102,14 @@ defmodule JidoCode.Tools.Bridge do
       [path] when is_binary(path) ->
         do_read_file(path, %{}, state, project_root)
 
+      # Handle decoded Elixir list (direct calls from tests)
       [path, opts] when is_binary(path) and is_list(opts) ->
+        parsed_opts = parse_read_opts(opts)
+        do_read_file(path, parsed_opts, state, project_root)
+
+      # Handle Lua table reference (calls via luerl.do)
+      [path, {:tref, _} = tref] when is_binary(path) ->
+        opts = :luerl.decode(tref, state)
         parsed_opts = parse_read_opts(opts)
         do_read_file(path, parsed_opts, state, project_root)
 

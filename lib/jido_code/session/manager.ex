@@ -192,27 +192,36 @@ defmodule JidoCode.Session.Manager do
   @doc """
   Reads a file within the session's project boundary.
 
-  Uses atomic read with TOCTOU protection via `Security.atomic_read/3`.
+  Uses the Lua sandbox to execute `jido.read_file(path, opts)` which provides:
+  - TOCTOU-safe reading via `Security.atomic_read/3`
+  - Line-numbered output formatting (cat -n style)
+  - Offset/limit pagination for large files
+  - Binary file detection and rejection
+  - Long line truncation at 2000 characters
 
   ## Parameters
 
   - `session_id` - The session identifier
   - `path` - The path to read (relative or absolute)
+  - `opts` - Optional keyword list:
+    - `:offset` - Line number to start from (1-indexed, default: 1)
+    - `:limit` - Maximum lines to read (default: 2000)
 
   ## Returns
 
-  - `{:ok, content}` - File contents as binary
+  - `{:ok, content}` - Line-numbered file contents
   - `{:error, :not_found}` - Session manager not found
   - `{:error, reason}` - Read failed (path validation or file error)
 
   ## Examples
 
       iex> {:ok, content} = Manager.read_file("session_123", "src/file.ex")
+      iex> {:ok, content} = Manager.read_file("session_123", "src/file.ex", offset: 10, limit: 50)
   """
-  @spec read_file(String.t(), String.t()) ::
+  @spec read_file(String.t(), String.t(), keyword()) ::
           {:ok, binary()} | {:error, :not_found | atom()}
-  def read_file(session_id, path) do
-    call_manager(session_id, {:read_file, path})
+  def read_file(session_id, path, opts \\ []) do
+    call_manager(session_id, {:read_file, path, opts})
   end
 
   @doc """
@@ -369,9 +378,16 @@ defmodule JidoCode.Session.Manager do
     {:reply, result, state}
   end
 
+  # Backward compatibility: 2-tuple format without options
   @impl true
   def handle_call({:read_file, path}, _from, state) do
-    result = Security.atomic_read(path, state.project_root, log_violations: true)
+    handle_call({:read_file, path, []}, {:read_file, path}, state)
+  end
+
+  # New format with options - routes through Lua sandbox
+  @impl true
+  def handle_call({:read_file, path, opts}, _from, state) do
+    result = call_lua_read_file(path, opts, state.lua_state)
     {:reply, result, state}
   end
 
@@ -432,6 +448,65 @@ defmodule JidoCode.Session.Manager do
       {:ok, pid} -> GenServer.call(pid, message, timeout)
       {:error, :not_found} -> {:error, :not_found}
     end
+  end
+
+  # Calls jido.read_file(path, opts) through the Lua sandbox
+  defp call_lua_read_file(path, opts, lua_state) do
+    # Build Lua options table from keyword list
+    lua_opts = build_lua_opts(opts)
+
+    # Build and execute Lua script
+    escaped_path = lua_escape_string(path)
+    script = "return jido.read_file(\"#{escaped_path}\"#{lua_opts})"
+
+    case :luerl.do(script, lua_state) do
+      {:ok, [nil, error_msg], _state} when is_binary(error_msg) ->
+        {:error, error_msg}
+
+      {:ok, [result], _state} ->
+        {:ok, result}
+
+      {:ok, [], _state} ->
+        {:ok, ""}
+
+      {:error, reason, _state} ->
+        {:error, ErrorFormatter.format(reason)}
+    end
+  rescue
+    e ->
+      {:error, Exception.message(e)}
+  catch
+    kind, reason ->
+      {:error, "#{kind}: #{inspect(reason)}"}
+  end
+
+  # Build Lua table string from keyword options
+  # Uses Lua key-value syntax: {offset = 3, limit = 100}
+  # This decodes to [{"offset", 3}, {"limit", 100}] in luerl
+  defp build_lua_opts([]), do: ""
+
+  defp build_lua_opts(opts) do
+    items =
+      opts
+      |> Keyword.take([:offset, :limit])
+      |> Enum.map(fn {k, v} -> "#{k} = #{v}" end)
+      |> Enum.join(", ")
+
+    if items == "" do
+      ""
+    else
+      ", {#{items}}"
+    end
+  end
+
+  # Escape special characters in Lua string
+  defp lua_escape_string(str) do
+    str
+    |> String.replace("\\", "\\\\")
+    |> String.replace("\"", "\\\"")
+    |> String.replace("\n", "\\n")
+    |> String.replace("\r", "\\r")
+    |> String.replace("\t", "\\t")
   end
 
   @doc false

@@ -106,25 +106,25 @@ Implement the Bridge function that executes within the Lua sandbox. This is the 
   |> register_function("read_file", &lua_read_file/3, project_root)
   ```
 
-### 1.1.3 Manager API
+### 1.1.3 Manager API ✅
 
 Expose the tool through the Manager API for session-aware execution.
 
-- [ ] 1.1.3.1 Add `read_file/2` to `Tools.Manager` that accepts path and options
-- [ ] 1.1.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 1.1.3.3 Call bridge function through Lua: `jido.read_file(path, opts)`
+- [x] 1.1.3.1 Add `read_file/2` to `Tools.Manager` that accepts path and options
+- [x] 1.1.3.2 Support `session_id` option to route to session-scoped manager
+- [x] 1.1.3.3 Call bridge function through Lua: `jido.read_file(path, opts)`
 
-### 1.1.4 Unit Tests for Read File
+### 1.1.4 Unit Tests for Read File ✅
 
-- [ ] Test read_file through sandbox returns line-numbered content
-- [ ] Test read_file with offset skips initial lines
-- [ ] Test read_file with limit caps output
-- [ ] Test read_file truncates long lines with indicator
-- [ ] Test read_file rejects binary files with clear error
-- [ ] Test read_file rejects paths outside project boundary (Security layer)
-- [ ] Test read_file handles non-existent files
+- [x] Test read_file through sandbox returns line-numbered content
+- [x] Test read_file with offset skips initial lines
+- [x] Test read_file with limit caps output
+- [x] Test read_file truncates long lines with indicator
+- [x] Test read_file rejects binary files with clear error
+- [x] Test read_file rejects paths outside project boundary (Security layer)
+- [x] Test read_file handles non-existent files
 - [ ] Test read_file handles permission errors
-- [ ] Test read_file works through session-scoped manager
+- [x] Test read_file works through session-scoped manager
 
 ---
 

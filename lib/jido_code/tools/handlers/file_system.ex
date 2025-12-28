@@ -175,11 +175,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     @moduledoc """
     Handler for the read_file tool.
 
-    Reads the contents of a file within the project boundary.
+    Reads the contents of a file within the project boundary using TOCTOU-safe
+    atomic operations via `Security.atomic_read/3`.
+
     Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
     """
 
+    alias JidoCode.Tools.HandlerHelpers
     alias JidoCode.Tools.Handlers.FileSystem
+    alias JidoCode.Tools.Security
 
     @doc """
     Reads the contents of a file.
@@ -197,11 +201,19 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     - `{:ok, content}` - File contents as string
     - `{:error, reason}` - Error message
+
+    ## Security
+
+    Uses `Security.atomic_read/3` for TOCTOU-safe file reading:
+    - Validates path before read
+    - Re-validates realpath after read
+    - Detects symlink attacks during operation
     """
     def execute(%{"path" => path}, context) when is_binary(path) do
-      case FileSystem.validate_path(path, context) do
-        {:ok, safe_path} ->
-          case File.read(safe_path) do
+      case HandlerHelpers.get_project_root(context) do
+        {:ok, project_root} ->
+          # Use atomic_read for TOCTOU-safe reading
+          case Security.atomic_read(path, project_root, log_violations: true) do
             {:ok, content} -> {:ok, content}
             {:error, reason} -> {:error, FileSystem.format_error(reason, path)}
           end

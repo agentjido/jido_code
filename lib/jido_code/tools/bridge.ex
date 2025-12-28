@@ -129,6 +129,8 @@ defmodule JidoCode.Tools.Bridge do
     end)
   end
 
+  @spec do_read_file(String.t(), map(), :luerl.luerl_state(), String.t()) ::
+          {list(), :luerl.luerl_state()}
   defp do_read_file(path, opts, state, project_root) do
     offset = Map.get(opts, :offset, @default_offset)
     limit = Map.get(opts, :limit, @default_limit)
@@ -138,18 +140,23 @@ defmodule JidoCode.Tools.Bridge do
       {:ok, content} ->
         process_file_content(content, offset, limit, path, state)
 
-      {:error, :path_escapes_boundary} ->
-        {[nil, format_security_error(:path_escapes_boundary, path)], state}
-
-      {:error, :path_outside_boundary} ->
-        {[nil, format_security_error(:path_outside_boundary, path)], state}
-
-      {:error, :symlink_escapes_boundary} ->
-        {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
-
       {:error, reason} ->
-        {[nil, format_file_error(reason, path)], state}
+        handle_operation_error(reason, path, state)
     end
+  end
+
+  # Unified error handling for security and file errors
+  # Converts {:error, reason} to Lua-compatible {[nil, message], state}
+  @security_errors [:path_escapes_boundary, :path_outside_boundary, :symlink_escapes_boundary]
+
+  @spec handle_operation_error(atom(), String.t(), :luerl.luerl_state()) ::
+          {list(), :luerl.luerl_state()}
+  defp handle_operation_error(reason, path, state) when reason in @security_errors do
+    {[nil, format_security_error(reason, path)], state}
+  end
+
+  defp handle_operation_error(reason, path, state) do
+    {[nil, format_file_error(reason, path)], state}
   end
 
   defp process_file_content(content, offset, limit, path, state) do
@@ -230,23 +237,16 @@ defmodule JidoCode.Tools.Bridge do
     end
   end
 
+  @spec do_write_file(String.t(), String.t(), :luerl.luerl_state(), String.t()) ::
+          {list(), :luerl.luerl_state()}
   defp do_write_file(path, content, state, project_root) do
     # SEC-2 Fix: Use atomic_write to mitigate TOCTOU race conditions
     case Security.atomic_write(path, content, project_root) do
       :ok ->
         {[true], state}
 
-      {:error, :path_escapes_boundary} ->
-        {[nil, format_security_error(:path_escapes_boundary, path)], state}
-
-      {:error, :path_outside_boundary} ->
-        {[nil, format_security_error(:path_outside_boundary, path)], state}
-
-      {:error, :symlink_escapes_boundary} ->
-        {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
-
       {:error, reason} ->
-        {[nil, format_file_error(reason, path)], state}
+        handle_operation_error(reason, path, state)
     end
   end
 
@@ -278,6 +278,8 @@ defmodule JidoCode.Tools.Bridge do
     end
   end
 
+  @spec do_list_dir(String.t(), :luerl.luerl_state(), String.t()) ::
+          {list(), :luerl.luerl_state()}
   defp do_list_dir(path, state, project_root) do
     with {:ok, safe_path} <- Security.validate_path(path, project_root),
          {:ok, entries} <- File.ls(safe_path) do
@@ -290,17 +292,8 @@ defmodule JidoCode.Tools.Bridge do
 
       {[lua_array], state}
     else
-      {:error, :path_escapes_boundary} ->
-        {[nil, format_security_error(:path_escapes_boundary, path)], state}
-
-      {:error, :path_outside_boundary} ->
-        {[nil, format_security_error(:path_outside_boundary, path)], state}
-
-      {:error, :symlink_escapes_boundary} ->
-        {[nil, format_security_error(:symlink_escapes_boundary, path)], state}
-
       {:error, reason} ->
-        {[nil, format_file_error(reason, path)], state}
+        handle_operation_error(reason, path, state)
     end
   end
 

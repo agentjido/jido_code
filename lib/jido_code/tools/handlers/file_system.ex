@@ -1828,14 +1828,17 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     All matched paths are validated against the project boundary.
     Paths outside the boundary are automatically filtered out.
+    Symlinks are followed to ensure their targets stay within the boundary.
 
     ## See Also
 
     - `JidoCode.Tools.Definitions.GlobSearch` - Tool definition
+    - `JidoCode.Tools.Helpers.GlobMatcher` - Shared helper functions
     - `Path.wildcard/2` - Underlying pattern matching
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
+    alias JidoCode.Tools.Helpers.GlobMatcher
 
     @doc """
     Finds files matching a glob pattern.
@@ -1864,7 +1867,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           if File.exists?(safe_base) do
             search_files(pattern, safe_base, context)
           else
-            {:error, FileSystem.format_error(:file_not_found, base_path)}
+            {:error, FileSystem.format_error(:enoent, base_path)}
           end
 
         {:error, reason} ->
@@ -1872,6 +1875,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       end
     end
 
+    # Fallback clause for missing or invalid pattern argument
     def execute(_args, _context) do
       {:error, "glob_search requires a pattern argument"}
     end
@@ -1885,57 +1889,26 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           full_pattern = Path.join(safe_base, pattern)
 
           # Use Path.wildcard to find matching files
+          # Note: Path.wildcard may raise for invalid patterns, hence the rescue
           matches =
             full_pattern
             |> Path.wildcard(match_dot: false)
-            |> filter_within_boundary(project_root)
-            |> sort_by_mtime_desc()
-            |> make_relative(project_root)
+            |> GlobMatcher.filter_within_boundary(project_root)
+            |> GlobMatcher.sort_by_mtime_desc()
+            |> GlobMatcher.make_relative(project_root)
 
           {:ok, Jason.encode!(matches)}
 
         {:error, reason} ->
-          {:error, "Glob search error: #{reason}"}
+          {:error, FileSystem.format_error(reason, "context")}
       end
     rescue
-      e ->
-        {:error, "Glob search error: #{Exception.message(e)}"}
-    end
+      # Path.wildcard/2 can raise for malformed patterns
+      e in ArgumentError ->
+        {:error, "Invalid glob pattern: #{Exception.message(e)}"}
 
-    # Filter paths to only those within project boundary
-    @spec filter_within_boundary(list(String.t()), String.t()) :: list(String.t())
-    defp filter_within_boundary(paths, project_root) do
-      expanded_root = Path.expand(project_root)
-
-      Enum.filter(paths, fn path ->
-        expanded_path = Path.expand(path)
-        String.starts_with?(expanded_path, expanded_root <> "/") or expanded_path == expanded_root
-      end)
-    end
-
-    # Sort by modification time, newest first
-    @spec sort_by_mtime_desc(list(String.t())) :: list(String.t())
-    defp sort_by_mtime_desc(paths) do
-      Enum.sort_by(
-        paths,
-        fn path ->
-          case File.stat(path, time: :posix) do
-            {:ok, %{mtime: mtime}} -> -mtime
-            _ -> 0
-          end
-        end
-      )
-    end
-
-    # Convert absolute paths to relative paths from project root
-    @spec make_relative(list(String.t()), String.t()) :: list(String.t())
-    defp make_relative(paths, project_root) do
-      expanded_root = Path.expand(project_root)
-
-      Enum.map(paths, fn path ->
-        expanded_path = Path.expand(path)
-        Path.relative_to(expanded_path, expanded_root)
-      end)
+      e in Jason.EncodeError ->
+        {:error, "Failed to encode results: #{Exception.message(e)}"}
     end
   end
 end

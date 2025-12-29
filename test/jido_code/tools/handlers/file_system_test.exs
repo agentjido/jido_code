@@ -1887,7 +1887,7 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       context = %{project_root: tmp_dir}
       {:error, error} = GlobSearch.execute(%{"pattern" => "*.ex", "path" => "nonexistent"}, context)
 
-      assert error =~ "file_not_found"
+      assert error =~ "File not found"
     end
 
     test "finds files with ? single character wildcard", %{tmp_dir: tmp_dir} do
@@ -1913,6 +1913,58 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       paths = Jason.decode!(json)
       assert "safe.ex" in paths
+    end
+
+    test "finds files with [abc] character class pattern", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "a.ex"), "")
+      File.write!(Path.join(tmp_dir, "b.ex"), "")
+      File.write!(Path.join(tmp_dir, "c.ex"), "")
+      File.write!(Path.join(tmp_dir, "d.ex"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "[abc].ex"}, context)
+
+      paths = Jason.decode!(json)
+      assert length(paths) == 3
+      assert "a.ex" in paths
+      assert "b.ex" in paths
+      assert "c.ex" in paths
+      refute "d.ex" in paths
+    end
+
+    test "excludes hidden dot files by default", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, ".hidden.ex"), "")
+      File.write!(Path.join(tmp_dir, "visible.ex"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "*.ex"}, context)
+
+      paths = Jason.decode!(json)
+      assert "visible.ex" in paths
+      refute ".hidden.ex" in paths
+    end
+
+    test "filters out symlinks pointing outside boundary", %{tmp_dir: tmp_dir} do
+      # Create a file inside the boundary
+      File.write!(Path.join(tmp_dir, "inside.ex"), "inside content")
+
+      # Create a symlink pointing outside the boundary
+      escape_link = Path.join(tmp_dir, "escape.ex")
+
+      case File.ln_s("/etc/passwd", escape_link) do
+        :ok ->
+          context = %{project_root: tmp_dir}
+          {:ok, json} = GlobSearch.execute(%{"pattern" => "*.ex"}, context)
+
+          paths = Jason.decode!(json)
+          # The symlink should be filtered out because its target is outside
+          assert "inside.ex" in paths
+          refute "escape.ex" in paths
+
+        {:error, _} ->
+          # Symlinks might not be supported (e.g., Windows), skip
+          :ok
+      end
     end
   end
 

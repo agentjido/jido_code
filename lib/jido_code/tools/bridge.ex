@@ -393,17 +393,18 @@ defmodule JidoCode.Tools.Bridge do
           {list(), :luerl.luerl_state()}
   defp do_glob(pattern, base_path, state, project_root) do
     with {:ok, safe_base} <- Security.validate_path(base_path, project_root),
-         true <- File.exists?(safe_base) do
+         {:ok, _} <- ensure_exists(safe_base) do
       # Build full pattern path
       full_pattern = Path.join(safe_base, pattern)
 
       # Find matching files, filter to boundary, sort by mtime
+      # Uses GlobMatcher for consistent behavior with GlobSearch handler
       matches =
         full_pattern
         |> Path.wildcard(match_dot: false)
-        |> filter_within_boundary(project_root)
-        |> sort_by_mtime_desc()
-        |> make_relative(project_root)
+        |> GlobMatcher.filter_within_boundary(project_root)
+        |> GlobMatcher.sort_by_mtime_desc()
+        |> GlobMatcher.make_relative(project_root)
 
       # Convert to Lua array format
       lua_array =
@@ -413,7 +414,7 @@ defmodule JidoCode.Tools.Bridge do
 
       {[lua_array], state}
     else
-      false ->
+      {:error, :enoent} ->
         handle_operation_error(:enoent, base_path, state)
 
       {:error, reason} ->
@@ -421,40 +422,10 @@ defmodule JidoCode.Tools.Bridge do
     end
   end
 
-  # Filter paths to only those within project boundary
-  @spec filter_within_boundary(list(String.t()), String.t()) :: list(String.t())
-  defp filter_within_boundary(paths, project_root) do
-    expanded_root = Path.expand(project_root)
-
-    Enum.filter(paths, fn path ->
-      expanded_path = Path.expand(path)
-      String.starts_with?(expanded_path, expanded_root <> "/") or expanded_path == expanded_root
-    end)
-  end
-
-  # Sort by modification time, newest first
-  @spec sort_by_mtime_desc(list(String.t())) :: list(String.t())
-  defp sort_by_mtime_desc(paths) do
-    Enum.sort_by(
-      paths,
-      fn path ->
-        case File.stat(path, time: :posix) do
-          {:ok, %{mtime: mtime}} -> -mtime
-          _ -> 0
-        end
-      end
-    )
-  end
-
-  # Convert absolute paths to relative paths from project root
-  @spec make_relative(list(String.t()), String.t()) :: list(String.t())
-  defp make_relative(paths, project_root) do
-    expanded_root = Path.expand(project_root)
-
-    Enum.map(paths, fn path ->
-      expanded_path = Path.expand(path)
-      Path.relative_to(expanded_path, expanded_root)
-    end)
+  # Helper to check file existence in a with-compatible format
+  @spec ensure_exists(String.t()) :: {:ok, String.t()} | {:error, :enoent}
+  defp ensure_exists(path) do
+    if File.exists?(path), do: {:ok, path}, else: {:error, :enoent}
   end
 
   @doc """

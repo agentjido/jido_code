@@ -351,6 +351,24 @@ Implement the glob_search tool for pattern-based file finding through the Lua sa
 - [x] Test glob_search returns error for non-existent base path
 - [x] Test glob_search sorts by modification time newest first
 
+### 1.6.4 Section 1.6 Review Fixes
+
+Code review findings addressed:
+
+- [x] Extract duplicated helpers to GlobMatcher module
+  - `filter_within_boundary/2` with symlink validation
+  - `sort_by_mtime_desc/1`
+  - `make_relative/2`
+- [x] Fix error atom `:file_not_found` → `:enoent` for consistency
+- [x] Add symlink validation to `filter_within_boundary/2`
+- [x] Document rescue clause with specific exception types
+- [x] Make boolean in `with` statement idiomatic (`ensure_exists/1`)
+- [x] Add missing test cases:
+  - Character class `[abc]` patterns
+  - Dot file exclusion
+  - Symlinks pointing outside boundary
+  - GlobMatcher helper function tests
+
 ---
 
 ## 1.7 Delete File Tool

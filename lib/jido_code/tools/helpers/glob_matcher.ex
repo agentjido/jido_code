@@ -1,34 +1,46 @@
 defmodule JidoCode.Tools.Helpers.GlobMatcher do
   @moduledoc """
-  Shared glob pattern matching utilities for file listing tools.
+  Shared glob pattern matching utilities for file listing and search tools.
 
   This module provides glob pattern matching functionality used by both
-  the ListDir handler and the lua_list_dir bridge function, eliminating
-  code duplication and ensuring consistent behavior.
+  handlers and bridge functions, eliminating code duplication and ensuring
+  consistent behavior.
 
-  ## Supported Glob Patterns
+  ## Pattern Matching Functions
+
+  For ignore pattern filtering (used by ListDir):
+  - `matches_any?/2` - Check if entry matches any pattern in a list
+  - `matches_glob?/2` - Check if entry matches a single glob pattern
+  - `sort_directories_first/2` - Sort with directories first
+  - `entry_info/2` - Get entry metadata
+
+  ## Glob Search Functions
+
+  For glob search result processing (used by GlobSearch):
+  - `filter_within_boundary/2` - Filter paths to project boundary (with symlink validation)
+  - `sort_by_mtime_desc/1` - Sort by modification time (newest first)
+  - `make_relative/2` - Convert absolute paths to relative
+
+  ## Supported Glob Patterns (for matches_glob?)
 
   - `*` - Match any sequence of characters (except path separator)
   - `?` - Match any single character
   - Literal characters are matched exactly
 
-  ## Limitations
-
-  The following advanced glob features are NOT supported:
-  - `**` for recursive directory matching (treated as `*`)
-  - `[abc]` character classes
-  - `{a,b}` brace expansion
-  - `!pattern` negation
+  Note: `**`, `[abc]`, and `{a,b}` patterns are handled by `Path.wildcard/2`
+  in the GlobSearch tool, not by this module's pattern matching functions.
 
   ## Security
 
-  All regex metacharacters are properly escaped to prevent regex injection
-  attacks. Invalid patterns are logged and treated as non-matching.
+  - All regex metacharacters are properly escaped to prevent regex injection
+  - Symlinks are followed and validated in `filter_within_boundary/2`
+  - Invalid patterns are logged and treated as non-matching
 
   ## See Also
 
-  - `JidoCode.Tools.Handlers.FileSystem.ListDir` - Handler using this module
-  - `JidoCode.Tools.Bridge.lua_list_dir/3` - Bridge function using this module
+  - `JidoCode.Tools.Handlers.FileSystem.ListDir` - ListDir handler
+  - `JidoCode.Tools.Handlers.FileSystem.GlobSearch` - GlobSearch handler
+  - `JidoCode.Tools.Bridge` - Bridge functions for Lua sandbox
   """
 
   require Logger
@@ -151,5 +163,152 @@ defmodule JidoCode.Tools.Helpers.GlobMatcher do
     # Regex.escape converts * to \* and ? to \?, which we want for now
     # We'll convert them back to regex wildcards in glob_to_regex
     escaped
+  end
+
+  # ===========================================================================
+  # Glob Search Helpers
+  # ===========================================================================
+
+  @doc """
+  Filters paths to only those within the project boundary.
+
+  This function validates that each path is within the allowed project root,
+  including following symlinks to ensure they don't escape the boundary.
+
+  ## Parameters
+
+  - `paths` - List of absolute file paths to filter
+  - `project_root` - The project root directory (will be expanded)
+
+  ## Returns
+
+  A filtered list containing only paths within the boundary.
+
+  ## Examples
+
+      iex> GlobMatcher.filter_within_boundary(["/project/file.ex", "/etc/passwd"], "/project")
+      ["/project/file.ex"]
+
+  """
+  @spec filter_within_boundary(list(String.t()), String.t()) :: list(String.t())
+  def filter_within_boundary(paths, project_root) when is_list(paths) and is_binary(project_root) do
+    expanded_root = Path.expand(project_root)
+
+    Enum.filter(paths, fn path ->
+      path_within_boundary?(path, expanded_root)
+    end)
+  end
+
+  @doc """
+  Sorts paths by modification time, newest first.
+
+  Files that cannot be stat'd (e.g., permission denied) are sorted to the end.
+
+  ## Parameters
+
+  - `paths` - List of file paths to sort
+
+  ## Returns
+
+  Paths sorted by modification time (newest first).
+
+  ## Examples
+
+      iex> GlobMatcher.sort_by_mtime_desc(["/old/file.ex", "/new/file.ex"])
+      ["/new/file.ex", "/old/file.ex"]  # assuming new was modified more recently
+
+  """
+  @spec sort_by_mtime_desc(list(String.t())) :: list(String.t())
+  def sort_by_mtime_desc(paths) when is_list(paths) do
+    Enum.sort_by(
+      paths,
+      fn path ->
+        case File.stat(path, time: :posix) do
+          {:ok, %{mtime: mtime}} -> -mtime
+          _ -> 0
+        end
+      end
+    )
+  end
+
+  @doc """
+  Converts absolute paths to relative paths from project root.
+
+  ## Parameters
+
+  - `paths` - List of absolute file paths
+  - `project_root` - The project root directory (will be expanded)
+
+  ## Returns
+
+  List of paths relative to the project root.
+
+  ## Examples
+
+      iex> GlobMatcher.make_relative(["/project/lib/file.ex"], "/project")
+      ["lib/file.ex"]
+
+  """
+  @spec make_relative(list(String.t()), String.t()) :: list(String.t())
+  def make_relative(paths, project_root) when is_list(paths) and is_binary(project_root) do
+    expanded_root = Path.expand(project_root)
+
+    Enum.map(paths, fn path ->
+      expanded_path = Path.expand(path)
+      Path.relative_to(expanded_path, expanded_root)
+    end)
+  end
+
+  # Private: Check if a single path is within the boundary, including symlink resolution
+  @spec path_within_boundary?(String.t(), String.t()) :: boolean()
+  defp path_within_boundary?(path, expanded_root) do
+    expanded_path = Path.expand(path)
+
+    # First check: is the path itself within the boundary?
+    if String.starts_with?(expanded_path, expanded_root <> "/") or expanded_path == expanded_root do
+      # Second check: if it's a symlink, does its target stay within boundary?
+      case File.read_link(path) do
+        {:ok, _target} ->
+          # It's a symlink - get the real path and check
+          real_path = resolve_real_path(path)
+          String.starts_with?(real_path, expanded_root <> "/") or real_path == expanded_root
+
+        {:error, :einval} ->
+          # Not a symlink, path check passed
+          true
+
+        {:error, _} ->
+          # Other error (file doesn't exist, etc.), exclude
+          false
+      end
+    else
+      false
+    end
+  end
+
+  # Resolve the real path by following all symlinks
+  @spec resolve_real_path(String.t()) :: String.t()
+  defp resolve_real_path(path) do
+    case File.read_link(path) do
+      {:ok, target} ->
+        # Target might be relative to the symlink's directory
+        resolved =
+          if Path.type(target) == :relative do
+            path |> Path.dirname() |> Path.join(target) |> Path.expand()
+          else
+            Path.expand(target)
+          end
+
+        # Recursively follow if target is also a symlink
+        resolve_real_path(resolved)
+
+      {:error, :einval} ->
+        # Not a symlink, return expanded path
+        Path.expand(path)
+
+      {:error, _} ->
+        # Other error, return expanded path
+        Path.expand(path)
+    end
   end
 end

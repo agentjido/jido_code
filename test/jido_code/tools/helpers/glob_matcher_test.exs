@@ -244,4 +244,163 @@ defmodule JidoCode.Tools.Helpers.GlobMatcherTest do
       assert info == %{name: "my file.txt", type: "file"}
     end
   end
+
+  # ===========================================================================
+  # Glob Search Helper Tests
+  # ===========================================================================
+
+  describe "filter_within_boundary/2" do
+    test "filters paths within project boundary", %{tmp_dir: tmp_dir} do
+      subdir = Path.join(tmp_dir, "subdir")
+      File.mkdir_p!(subdir)
+      file1 = Path.join(tmp_dir, "file1.ex")
+      file2 = Path.join(subdir, "file2.ex")
+      File.write!(file1, "")
+      File.write!(file2, "")
+
+      paths = [file1, file2, "/etc/passwd"]
+      result = GlobMatcher.filter_within_boundary(paths, tmp_dir)
+
+      assert length(result) == 2
+      assert file1 in result
+      assert file2 in result
+      refute "/etc/passwd" in result
+    end
+
+    test "excludes paths outside boundary", %{tmp_dir: tmp_dir} do
+      paths = ["/etc/passwd", "/usr/bin/ls", "/tmp/outside"]
+      result = GlobMatcher.filter_within_boundary(paths, tmp_dir)
+
+      assert result == []
+    end
+
+    test "handles empty list", %{tmp_dir: tmp_dir} do
+      result = GlobMatcher.filter_within_boundary([], tmp_dir)
+      assert result == []
+    end
+
+    test "filters symlinks pointing outside boundary", %{tmp_dir: tmp_dir} do
+      # Create a file inside the boundary
+      inside_file = Path.join(tmp_dir, "inside.ex")
+      File.write!(inside_file, "inside content")
+
+      # Create a symlink pointing outside the boundary
+      escape_link = Path.join(tmp_dir, "escape_link")
+
+      case File.ln_s("/etc/passwd", escape_link) do
+        :ok ->
+          paths = [inside_file, escape_link]
+          result = GlobMatcher.filter_within_boundary(paths, tmp_dir)
+
+          # The symlink should be filtered out because its target is outside
+          assert length(result) == 1
+          assert inside_file in result
+          refute escape_link in result
+
+        {:error, _} ->
+          # Symlinks might not be supported (e.g., Windows), skip
+          :ok
+      end
+    end
+
+    test "allows symlinks pointing inside boundary", %{tmp_dir: tmp_dir} do
+      # Create target file inside boundary
+      target = Path.join(tmp_dir, "target.ex")
+      File.write!(target, "target content")
+
+      # Create symlink pointing to the target
+      link = Path.join(tmp_dir, "link.ex")
+
+      case File.ln_s(target, link) do
+        :ok ->
+          paths = [target, link]
+          result = GlobMatcher.filter_within_boundary(paths, tmp_dir)
+
+          # Both should be included since link points to valid target
+          assert length(result) == 2
+          assert target in result
+          assert link in result
+
+        {:error, _} ->
+          # Symlinks might not be supported, skip
+          :ok
+      end
+    end
+  end
+
+  describe "sort_by_mtime_desc/1" do
+    test "sorts files by modification time newest first", %{tmp_dir: tmp_dir} do
+      file1 = Path.join(tmp_dir, "old.ex")
+      file2 = Path.join(tmp_dir, "new.ex")
+
+      # Create both files
+      File.write!(file1, "old")
+      File.write!(file2, "new")
+
+      # Set explicit mtimes (file1 older, file2 newer)
+      old_time = {{2020, 1, 1}, {0, 0, 0}}
+      new_time = {{2024, 1, 1}, {0, 0, 0}}
+      File.touch!(file1, old_time)
+      File.touch!(file2, new_time)
+
+      result = GlobMatcher.sort_by_mtime_desc([file1, file2])
+
+      # Newest first
+      assert hd(result) == file2
+    end
+
+    test "handles empty list" do
+      result = GlobMatcher.sort_by_mtime_desc([])
+      assert result == []
+    end
+
+    test "handles non-existent files gracefully" do
+      paths = ["/nonexistent/file1.ex", "/nonexistent/file2.ex"]
+      result = GlobMatcher.sort_by_mtime_desc(paths)
+
+      # Should return the list unchanged (sorted by 0)
+      assert length(result) == 2
+    end
+  end
+
+  describe "make_relative/2" do
+    test "converts absolute paths to relative", %{tmp_dir: tmp_dir} do
+      subdir = Path.join(tmp_dir, "lib")
+      File.mkdir_p!(subdir)
+      file = Path.join(subdir, "app.ex")
+      File.write!(file, "")
+
+      result = GlobMatcher.make_relative([file], tmp_dir)
+
+      assert result == ["lib/app.ex"]
+    end
+
+    test "handles multiple paths", %{tmp_dir: tmp_dir} do
+      file1 = Path.join(tmp_dir, "a.ex")
+      file2 = Path.join(tmp_dir, "b.ex")
+      File.write!(file1, "")
+      File.write!(file2, "")
+
+      result = GlobMatcher.make_relative([file1, file2], tmp_dir)
+
+      assert "a.ex" in result
+      assert "b.ex" in result
+    end
+
+    test "handles empty list", %{tmp_dir: tmp_dir} do
+      result = GlobMatcher.make_relative([], tmp_dir)
+      assert result == []
+    end
+
+    test "handles nested directories", %{tmp_dir: tmp_dir} do
+      deep_dir = Path.join([tmp_dir, "a", "b", "c"])
+      File.mkdir_p!(deep_dir)
+      file = Path.join(deep_dir, "deep.ex")
+      File.write!(file, "")
+
+      result = GlobMatcher.make_relative([file], tmp_dir)
+
+      assert result == ["a/b/c/deep.ex"]
+    end
+  end
 end

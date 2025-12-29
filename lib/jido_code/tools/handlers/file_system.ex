@@ -1542,17 +1542,33 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     ## Ignore Patterns
 
     Patterns follow standard glob syntax:
+    - `*` - Match any sequence of characters
+    - `?` - Match any single character
     - `*.log` - Match all .log files
     - `node_modules` - Match exact directory name
-    - `**/*.test.js` - Match test files in any subdirectory
+
+    ### Limitations
+
+    The following advanced glob features are NOT supported:
+    - `**` for recursive directory matching (treated as `*`)
+    - `[abc]` character classes
+    - `{a,b}` brace expansion
+    - `!pattern` negation
+
+    ## Security
+
+    All paths are validated against the project boundary before access.
+    Glob patterns are properly escaped to prevent regex injection attacks.
 
     ## See Also
 
     - `JidoCode.Tools.Definitions.ListDir` - Tool definition
     - `JidoCode.Tools.Handlers.FileSystem.ListDirectory` - Base handler
+    - `JidoCode.Tools.Helpers.GlobMatcher` - Glob pattern matching utilities
     """
 
     alias JidoCode.Tools.Handlers.FileSystem
+    alias JidoCode.Tools.Helpers.GlobMatcher
 
     @doc """
     Lists directory contents with optional filtering.
@@ -1569,7 +1585,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     ## Returns
 
-    - `{:ok, entries}` - JSON-encoded list of entries
+    - `{:ok, entries}` - JSON-encoded list of entries with name and type
     - `{:error, reason}` - Error message
     """
     @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
@@ -1589,61 +1605,22 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       {:error, "list_dir requires a path argument"}
     end
 
+    @spec list_entries(String.t(), String.t(), list(String.t())) ::
+            {:ok, String.t()} | {:error, String.t()}
     defp list_entries(original_path, safe_path, ignore_patterns) do
       case File.ls(safe_path) do
         {:ok, entries} when is_list(entries) ->
           result =
             entries
-            |> Enum.sort()
-            |> Enum.reject(&matches_ignore_pattern?(&1, ignore_patterns))
-            |> sort_directories_first(safe_path)
-            |> Enum.map(&entry_info(safe_path, &1))
+            |> Enum.reject(&GlobMatcher.matches_any?(&1, ignore_patterns))
+            |> GlobMatcher.sort_directories_first(safe_path)
+            |> Enum.map(&GlobMatcher.entry_info(safe_path, &1))
 
           {:ok, Jason.encode!(result)}
-
-        {:error, :enotdir} ->
-          {:error, "Not a directory: #{original_path}"}
 
         {:error, reason} ->
           {:error, FileSystem.format_error(reason, original_path)}
       end
-    end
-
-    defp matches_ignore_pattern?(_entry, []), do: false
-
-    defp matches_ignore_pattern?(entry, patterns) when is_list(patterns) do
-      Enum.any?(patterns, &matches_glob?(entry, &1))
-    end
-
-    defp matches_glob?(entry, pattern) when is_binary(pattern) do
-      # Simple glob matching: convert glob pattern to regex
-      regex_pattern =
-        pattern
-        |> String.replace(".", "\\.")
-        |> String.replace("*", ".*")
-        |> String.replace("?", ".")
-
-      case Regex.compile("^#{regex_pattern}$") do
-        {:ok, regex} -> Regex.match?(regex, entry)
-        {:error, _} -> false
-      end
-    end
-
-    defp matches_glob?(_entry, _pattern), do: false
-
-    defp sort_directories_first(entries, safe_path) do
-      Enum.sort_by(entries, fn entry ->
-        full_path = Path.join(safe_path, entry)
-        is_dir = File.dir?(full_path)
-        # Directories first (false < true when negated), then alphabetically
-        {not is_dir, entry}
-      end)
-    end
-
-    defp entry_info(parent_path, entry) do
-      full_path = Path.join(parent_path, entry)
-      type = if File.dir?(full_path), do: "directory", else: "file"
-      %{name: entry, type: type}
     end
   end
 

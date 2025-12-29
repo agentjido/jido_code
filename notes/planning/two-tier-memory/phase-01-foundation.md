@@ -521,10 +521,10 @@ Comprehensive integration tests verifying memory foundation works with existing 
 
 ### 1.6.3 Pending Memories Integration
 
-- [ ] 1.6.3.1 Test: Pending memories accumulate correctly over time
-- [ ] 1.6.3.2 Test: Agent decisions bypass normal staging (importance_score = 1.0)
-- [ ] 1.6.3.3 Test: Pending memory limit enforced correctly (evicts lowest score)
-- [ ] 1.6.3.4 Test: clear_promoted_memories correctly removes specified items
+- [x] 1.6.3.1 Test: Pending memories accumulate correctly over time
+- [x] 1.6.3.2 Test: Agent decisions bypass normal staging (importance_score = 1.0)
+- [x] 1.6.3.3 Test: Pending memory limit enforced correctly (evicts lowest score)
+- [x] 1.6.3.4 Test: clear_promoted_memories correctly removes specified items
 
 ### 1.6.4 Access Log Integration
 

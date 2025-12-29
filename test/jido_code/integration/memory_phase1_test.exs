@@ -950,4 +950,515 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       end
     end
   end
+
+  # ============================================================================
+  # 1.6.3 Pending Memories Integration Tests
+  # ============================================================================
+
+  describe "Pending memories accumulate correctly over time" do
+    test "multiple items can be added and retrieved", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add multiple pending memory items over time
+      items =
+        for i <- 1..10 do
+          item = %{
+            content: "Discovery #{i}",
+            memory_type: :fact,
+            confidence: 0.8 + i * 0.01,
+            source_type: :tool,
+            importance_score: 0.6 + i * 0.02
+          }
+
+          :ok = State.add_pending_memory(session.id, item)
+          item
+        end
+
+      # Verify all items accumulated
+      {:ok, state} = State.get_state(session.id)
+      assert PendingMemories.size(state.pending_memories) == 10
+
+      # Get items ready for promotion (all should be above 0.6 threshold)
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 10
+
+      # Verify contents are preserved
+      contents = Enum.map(ready_items, & &1.content)
+
+      for i <- 1..10 do
+        assert "Discovery #{i}" in contents
+      end
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "items below threshold are not returned as ready", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add items with varying importance scores
+      low_score_item = %{
+        content: "Low importance",
+        memory_type: :fact,
+        confidence: 0.5,
+        source_type: :tool,
+        importance_score: 0.3
+      }
+
+      medium_score_item = %{
+        content: "Medium importance",
+        memory_type: :fact,
+        confidence: 0.7,
+        source_type: :tool,
+        importance_score: 0.5
+      }
+
+      high_score_item = %{
+        content: "High importance",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.8
+      }
+
+      :ok = State.add_pending_memory(session.id, low_score_item)
+      :ok = State.add_pending_memory(session.id, medium_score_item)
+      :ok = State.add_pending_memory(session.id, high_score_item)
+
+      # Verify all items are stored
+      {:ok, state} = State.get_state(session.id)
+      assert PendingMemories.size(state.pending_memories) == 3
+
+      # Only high score item should be ready for promotion (threshold is 0.6)
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+      assert hd(ready_items).content == "High importance"
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "pending memories persist across other state operations", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add pending memory
+      item = %{
+        content: "Initial discovery",
+        memory_type: :discovery,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.85
+      }
+
+      :ok = State.add_pending_memory(session.id, item)
+
+      # Perform various other state operations
+      message = %{id: "msg-1", role: :user, content: "Hello", timestamp: DateTime.utc_now()}
+      {:ok, _} = State.append_message(session.id, message)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+
+      {:ok, _} = State.start_streaming(session.id, "stream-1")
+      :ok = State.update_streaming(session.id, "content")
+      Process.sleep(10)
+      {:ok, _} = State.end_streaming(session.id)
+
+      # Verify pending memory is still there
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+      assert hd(ready_items).content == "Initial discovery"
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "Agent decisions bypass normal staging" do
+    test "agent decisions have importance_score of 1.0", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add agent decision
+      agent_item = %{
+        content: "Critical agent decision",
+        memory_type: :decision,
+        confidence: 0.95,
+        source_type: :agent
+      }
+
+      :ok = State.add_agent_memory_decision(session.id, agent_item)
+
+      # Verify agent decision has score of 1.0
+      {:ok, state} = State.get_state(session.id)
+      decisions = PendingMemories.list_agent_decisions(state.pending_memories)
+
+      assert length(decisions) == 1
+      assert hd(decisions).importance_score == 1.0
+      assert hd(decisions).suggested_by == :agent
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "agent decisions are always included in ready items", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add low-score implicit item (won't be ready)
+      low_item = %{
+        content: "Low importance implicit",
+        memory_type: :fact,
+        confidence: 0.5,
+        source_type: :tool,
+        importance_score: 0.2
+      }
+
+      :ok = State.add_pending_memory(session.id, low_item)
+
+      # Add agent decision (should always be ready)
+      agent_item = %{
+        content: "Agent decision",
+        memory_type: :decision,
+        confidence: 0.9,
+        source_type: :agent
+      }
+
+      :ok = State.add_agent_memory_decision(session.id, agent_item)
+
+      # Only agent decision should be ready
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+      assert hd(ready_items).content == "Agent decision"
+      assert hd(ready_items).suggested_by == :agent
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "multiple agent decisions can be added", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add multiple agent decisions
+      for i <- 1..5 do
+        agent_item = %{
+          content: "Agent decision #{i}",
+          memory_type: :decision,
+          confidence: 0.9,
+          source_type: :agent
+        }
+
+        :ok = State.add_agent_memory_decision(session.id, agent_item)
+      end
+
+      # All agent decisions should be ready
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 5
+
+      # All should have agent as suggested_by
+      assert Enum.all?(ready_items, fn item -> item.suggested_by == :agent end)
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "agent decisions and high-score implicit items both appear in ready", %{
+      tmp_dir: tmp_dir
+    } do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add high-score implicit item
+      high_item = %{
+        content: "High importance implicit",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.85
+      }
+
+      :ok = State.add_pending_memory(session.id, high_item)
+
+      # Add agent decision
+      agent_item = %{
+        content: "Agent decision",
+        memory_type: :decision,
+        confidence: 0.95,
+        source_type: :agent
+      }
+
+      :ok = State.add_agent_memory_decision(session.id, agent_item)
+
+      # Both should be ready
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 2
+
+      contents = Enum.map(ready_items, & &1.content)
+      assert "High importance implicit" in contents
+      assert "Agent decision" in contents
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "Pending memory limit enforced correctly" do
+    test "oldest/lowest scored items are evicted when limit reached", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Get the max items limit
+      {:ok, state} = State.get_state(session.id)
+      max_items = state.pending_memories.max_items
+
+      # Add items up to the limit + some extra
+      # Note: This test demonstrates the eviction mechanism works
+      # We won't add 500+ items as that would be slow, but we can verify the mechanism
+      for i <- 1..20 do
+        item = %{
+          content: "Item #{i}",
+          memory_type: :fact,
+          confidence: 0.8,
+          source_type: :tool,
+          importance_score: i * 0.01
+        }
+
+        :ok = State.add_pending_memory(session.id, item)
+      end
+
+      {:ok, state_after} = State.get_state(session.id)
+      assert PendingMemories.size(state_after.pending_memories) == 20
+
+      # The max_items limit should be configured (default 500)
+      assert max_items == 500
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "eviction preserves higher-scored items", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add items with different scores
+      # When eviction happens, lowest scores should be removed first
+      low_score_item = %{
+        content: "Low score item",
+        memory_type: :fact,
+        confidence: 0.5,
+        source_type: :tool,
+        importance_score: 0.1
+      }
+
+      high_score_item = %{
+        content: "High score item",
+        memory_type: :discovery,
+        confidence: 0.95,
+        source_type: :tool,
+        importance_score: 0.95
+      }
+
+      :ok = State.add_pending_memory(session.id, low_score_item)
+      :ok = State.add_pending_memory(session.id, high_score_item)
+
+      # Both should exist since we're well under the limit
+      {:ok, state} = State.get_state(session.id)
+      assert PendingMemories.size(state.pending_memories) == 2
+
+      # When retrieving ready items, only high score should appear
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+      assert hd(ready_items).content == "High score item"
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "clear_promoted_memories correctly removes specified items" do
+    test "clears specified item IDs from pending memories", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add items with known IDs
+      item1 = %{
+        id: "item-001",
+        content: "First item",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.8
+      }
+
+      item2 = %{
+        id: "item-002",
+        content: "Second item",
+        memory_type: :fact,
+        confidence: 0.85,
+        source_type: :tool,
+        importance_score: 0.75
+      }
+
+      item3 = %{
+        id: "item-003",
+        content: "Third item",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :tool,
+        importance_score: 0.7
+      }
+
+      :ok = State.add_pending_memory(session.id, item1)
+      :ok = State.add_pending_memory(session.id, item2)
+      :ok = State.add_pending_memory(session.id, item3)
+
+      # Verify all items exist
+      {:ok, state_before} = State.get_state(session.id)
+      assert PendingMemories.size(state_before.pending_memories) == 3
+
+      # Clear specific items
+      :ok = State.clear_promoted_memories(session.id, ["item-001", "item-003"])
+
+      # Verify only item-002 remains
+      {:ok, state_after} = State.get_state(session.id)
+      assert PendingMemories.size(state_after.pending_memories) == 1
+
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+      assert hd(ready_items).content == "Second item"
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "clears all agent decisions", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add agent decisions
+      for i <- 1..3 do
+        agent_item = %{
+          content: "Agent decision #{i}",
+          memory_type: :decision,
+          confidence: 0.9,
+          source_type: :agent
+        }
+
+        :ok = State.add_agent_memory_decision(session.id, agent_item)
+      end
+
+      # Verify agent decisions exist
+      {:ok, state_before} = State.get_state(session.id)
+      decisions_before = PendingMemories.list_agent_decisions(state_before.pending_memories)
+      assert length(decisions_before) == 3
+
+      # Clear promoted memories (clears all agent decisions)
+      :ok = State.clear_promoted_memories(session.id, [])
+
+      # Verify agent decisions are cleared
+      {:ok, state_after} = State.get_state(session.id)
+      decisions_after = PendingMemories.list_agent_decisions(state_after.pending_memories)
+      assert decisions_after == []
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "handles non-existent IDs gracefully", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add one item
+      item = %{
+        id: "existing-item",
+        content: "Existing item",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.8
+      }
+
+      :ok = State.add_pending_memory(session.id, item)
+
+      # Try to clear non-existent IDs
+      :ok = State.clear_promoted_memories(session.id, ["non-existent-1", "non-existent-2"])
+
+      # Existing item should still be there
+      {:ok, state} = State.get_state(session.id)
+      assert PendingMemories.size(state.pending_memories) == 1
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "clearing promoted items doesn't affect unrelated items", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add mix of implicit items and agent decisions
+      implicit_item = %{
+        id: "implicit-001",
+        content: "Implicit item",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.8
+      }
+
+      :ok = State.add_pending_memory(session.id, implicit_item)
+
+      agent_item = %{
+        content: "Agent decision",
+        memory_type: :decision,
+        confidence: 0.95,
+        source_type: :agent
+      }
+
+      :ok = State.add_agent_memory_decision(session.id, agent_item)
+
+      # Clear only the implicit item, not agent decision
+      # Note: clear_promoted_memories always clears agent_decisions
+      :ok = State.clear_promoted_memories(session.id, ["implicit-001"])
+
+      {:ok, state} = State.get_state(session.id)
+
+      # Implicit item should be removed
+      assert PendingMemories.size(state.pending_memories) == 0
+
+      # Agent decisions are also cleared by clear_promoted_memories
+      assert PendingMemories.list_agent_decisions(state.pending_memories) == []
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
 end

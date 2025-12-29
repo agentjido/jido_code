@@ -64,20 +64,20 @@ Create an Elixir module for working with Jido ontology IRIs. This provides type-
 
 ### 2.1.1 Vocabulary Module
 
-- [ ] 2.1.1.1 Create `lib/jido_code/memory/long_term/vocab/jido.ex` with comprehensive moduledoc
-- [ ] 2.1.1.2 Define namespace module attributes:
+- [x] 2.1.1.1 Create `lib/jido_code/memory/long_term/vocab/jido.ex` with comprehensive moduledoc
+- [x] 2.1.1.2 Define namespace module attributes:
   ```elixir
   @jido_ns "https://jido.ai/ontology#"
   @rdf_type "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
   @xsd_ns "http://www.w3.org/2001/XMLSchema#"
   ```
-- [ ] 2.1.1.3 Implement `iri/1` helper to construct full IRI from local name:
+- [x] 2.1.1.3 Implement `iri/1` helper to construct full IRI from local name:
   ```elixir
   @spec iri(String.t()) :: String.t()
   def iri(local_name), do: @jido_ns <> local_name
   ```
-- [ ] 2.1.1.4 Implement `rdf_type/0` returning the rdf:type IRI
-- [ ] 2.1.1.5 Implement class functions for all memory types:
+- [x] 2.1.1.4 Implement `rdf_type/0` returning the rdf:type IRI
+- [x] 2.1.1.5 Implement class functions for all memory types:
   ```elixir
   def memory_item, do: iri("MemoryItem")
   def fact, do: iri("Fact")
@@ -94,45 +94,45 @@ Create an Elixir module for working with Jido ontology IRIs. This provides type-
   def error, do: iri("Error")
   def bug, do: iri("Bug")
   ```
-- [ ] 2.1.1.6 Implement `memory_type_to_class/1` to map atom to IRI:
+- [x] 2.1.1.6 Implement `memory_type_to_class/1` to map atom to IRI:
   ```elixir
   @spec memory_type_to_class(atom()) :: String.t()
   def memory_type_to_class(:fact), do: fact()
   def memory_type_to_class(:assumption), do: assumption()
   # ... etc for all types
   ```
-- [ ] 2.1.1.7 Implement `class_to_memory_type/1` to map IRI to atom:
+- [x] 2.1.1.7 Implement `class_to_memory_type/1` to map IRI to atom:
   ```elixir
   @spec class_to_memory_type(String.t()) :: atom()
   ```
-- [ ] 2.1.1.8 Implement confidence level individual IRIs:
+- [x] 2.1.1.8 Implement confidence level individual IRIs:
   ```elixir
   def confidence_high, do: iri("High")
   def confidence_medium, do: iri("Medium")
   def confidence_low, do: iri("Low")
   ```
-- [ ] 2.1.1.9 Implement `confidence_to_individual/1` (float -> IRI):
+- [x] 2.1.1.9 Implement `confidence_to_individual/1` (float -> IRI):
   ```elixir
   @spec confidence_to_individual(float()) :: String.t()
   def confidence_to_individual(c) when c >= 0.8, do: confidence_high()
   def confidence_to_individual(c) when c >= 0.5, do: confidence_medium()
   def confidence_to_individual(_), do: confidence_low()
   ```
-- [ ] 2.1.1.10 Implement `individual_to_confidence/1` (IRI -> float):
+- [x] 2.1.1.10 Implement `individual_to_confidence/1` (IRI -> float):
   ```elixir
   @spec individual_to_confidence(String.t()) :: float()
   ```
   - High -> 0.9, Medium -> 0.6, Low -> 0.3
-- [ ] 2.1.1.11 Implement source type individual IRIs:
+- [x] 2.1.1.11 Implement source type individual IRIs:
   ```elixir
   def source_user, do: iri("UserSource")
   def source_agent, do: iri("AgentSource")
   def source_tool, do: iri("ToolSource")
   def source_external, do: iri("ExternalDocumentSource")
   ```
-- [ ] 2.1.1.12 Implement `source_type_to_individual/1` (atom -> IRI)
-- [ ] 2.1.1.13 Implement `individual_to_source_type/1` (IRI -> atom)
-- [ ] 2.1.1.14 Implement property IRIs:
+- [x] 2.1.1.12 Implement `source_type_to_individual/1` (atom -> IRI)
+- [x] 2.1.1.13 Implement `individual_to_source_type/1` (IRI -> atom)
+- [x] 2.1.1.14 Implement property IRIs:
   ```elixir
   def summary, do: iri("summary")
   def detailed_explanation, do: iri("detailedExplanation")
@@ -147,7 +147,7 @@ Create an Elixir module for working with Jido ontology IRIs. This provides type-
   def superseded_by, do: iri("supersededBy")
   def invalidated_by, do: iri("invalidatedBy")
   ```
-- [ ] 2.1.1.15 Implement entity IRI generators:
+- [x] 2.1.1.15 Implement entity IRI generators:
   ```elixir
   def memory_uri(id), do: iri("memory_" <> id)
   def session_uri(id), do: iri("session_" <> id)
@@ -158,22 +158,22 @@ Create an Elixir module for working with Jido ontology IRIs. This provides type-
 
 ### 2.1.2 Unit Tests for Vocabulary
 
-- [ ] Test iri/1 constructs correct full IRI with namespace prefix
-- [ ] Test rdf_type/0 returns correct RDF type IRI
-- [ ] Test all memory type class functions return correct IRIs
-- [ ] Test memory_type_to_class/1 for all memory types
-- [ ] Test memory_type_to_class/1 raises for unknown types
-- [ ] Test class_to_memory_type/1 for all class IRIs
-- [ ] Test class_to_memory_type/1 returns :unknown for unrecognized IRIs
-- [ ] Test confidence_to_individual maps 0.8+ to High
-- [ ] Test confidence_to_individual maps 0.5-0.79 to Medium
-- [ ] Test confidence_to_individual maps <0.5 to Low
-- [ ] Test individual_to_confidence returns expected float values
-- [ ] Test source_type_to_individual for all source types
-- [ ] Test individual_to_source_type for all source IRIs
-- [ ] Test all property functions return correct IRIs
-- [ ] Test memory_uri/1 generates valid IRI from id
-- [ ] Test session_uri/1 generates valid IRI from id
+- [x] Test iri/1 constructs correct full IRI with namespace prefix
+- [x] Test rdf_type/0 returns correct RDF type IRI
+- [x] Test all memory type class functions return correct IRIs
+- [x] Test memory_type_to_class/1 for all memory types
+- [x] Test memory_type_to_class/1 raises for unknown types
+- [x] Test class_to_memory_type/1 for all class IRIs
+- [x] Test class_to_memory_type/1 returns :unknown for unrecognized IRIs
+- [x] Test confidence_to_individual maps 0.8+ to High
+- [x] Test confidence_to_individual maps 0.5-0.79 to Medium
+- [x] Test confidence_to_individual maps <0.5 to Low
+- [x] Test individual_to_confidence returns expected float values
+- [x] Test source_type_to_individual for all source types
+- [x] Test individual_to_source_type for all source IRIs
+- [x] Test all property functions return correct IRIs
+- [x] Test memory_uri/1 generates valid IRI from id
+- [x] Test session_uri/1 generates valid IRI from id
 
 ---
 

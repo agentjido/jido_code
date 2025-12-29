@@ -658,6 +658,454 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   end
 
   # ============================================================================
+  # MultiEdit Handler
+  # ============================================================================
+
+  defmodule MultiEdit do
+    @moduledoc """
+    Handler for the multi_edit_file tool.
+
+    Applies multiple search/replace edits to a single file atomically.
+    All edits succeed or all fail - the file remains unchanged if any
+    validation fails.
+
+    ## Execution Flow
+
+    1. Validate path and read-before-write requirement
+    2. Read file content once
+    3. Validate ALL edits can be applied (pre-flight check)
+    4. Apply all edits sequentially in memory
+    5. Write result via single atomic write
+    6. Track file write and emit telemetry
+
+    ## Atomicity Guarantee
+
+    If any edit fails validation (string not found, ambiguous match),
+    the operation returns an error and no file is modified. This is
+    achieved by validating all edits before applying any.
+
+    ## Edit Order
+
+    Edits are applied sequentially in the order provided. Each edit
+    operates on the content as modified by previous edits. This means
+    earlier edits may affect positions of later matches.
+
+    ## Multi-Strategy Matching
+
+    Each edit uses the same multi-strategy matching as EditFile:
+    1. Exact match (primary)
+    2. Line-trimmed match (fallback)
+    3. Whitespace-normalized match (fallback)
+    4. Indentation-flexible match (fallback)
+
+    ## Read-Before-Write Requirement
+
+    The file must be read in the current session before it can be edited.
+    In legacy mode (no session_id), this check is skipped.
+    """
+
+    alias JidoCode.Session.State, as: SessionState
+    alias JidoCode.Tools.HandlerHelpers
+    alias JidoCode.Tools.Handlers.FileSystem
+    alias JidoCode.Tools.Security
+
+    require Logger
+
+    @doc """
+    Applies multiple edits to a file atomically.
+
+    ## Arguments
+
+    - `"path"` - Path to the file (relative to project root)
+    - `"edits"` - Array of edit objects, each with:
+      - `"old_string"` - Text to find and replace
+      - `"new_string"` - Replacement text
+
+    ## Context
+
+    - `:session_id` - Session ID for path validation and read-before-write check
+    - `:project_root` - Direct project root path (legacy, skips read-before-write)
+
+    ## Returns
+
+    - `{:ok, message}` - Success message with edit count
+    - `{:error, reason}` - Error message identifying which edit failed
+    """
+    def execute(%{"path" => path, "edits" => edits} = _args, context)
+        when is_binary(path) and is_list(edits) do
+      start_time = System.monotonic_time()
+
+      # Validate edits array is not empty
+      if edits == [] do
+        FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :error, 0)
+        {:error, "edits array cannot be empty"}
+      else
+        execute_multi_edit(path, edits, context, start_time)
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "multi_edit_file requires path and edits arguments"}
+    end
+
+    # ============================================================================
+    # Main Execution Logic
+    # ============================================================================
+
+    defp execute_multi_edit(path, edits, context, start_time) do
+      result =
+        with {:ok, project_root} <- HandlerHelpers.get_project_root(context),
+             {:ok, safe_path} <- Security.validate_path(path, project_root, log_violations: true),
+             normalized_path <- FileSystem.normalize_path_for_tracking(path, project_root),
+             :ok <- check_read_before_edit(normalized_path, context),
+             {:ok, content} <- File.read(safe_path),
+             {:ok, parsed_edits} <- parse_and_validate_edits(edits),
+             {:ok, new_content, count} <- apply_all_edits(content, parsed_edits),
+             :ok <- Security.atomic_write(path, new_content, project_root, log_violations: true),
+             :ok <- FileSystem.track_file_write(normalized_path, context, :multi_edit_file) do
+          {:ok, "Successfully applied #{count} edit(s) to #{path}"}
+        end
+
+      # Emit telemetry and return result
+      case result do
+        {:ok, _} = success ->
+          FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :ok, 0)
+          success
+
+        {:error, :read_before_write_required} ->
+          FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :read_before_write_required, 0)
+          {:error, "File must be read before editing: #{path}"}
+
+        {:error, :session_state_unavailable} ->
+          FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :error, 0)
+          {:error, "Session state unavailable - cannot verify read-before-write requirement"}
+
+        {:error, {:edit_failed, index, reason}} ->
+          FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :edit_failed, 0)
+          {:error, "Edit #{index + 1} failed: #{reason}"}
+
+        {:error, {:invalid_edit, index, reason}} ->
+          FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :invalid_edit, 0)
+          {:error, "Edit #{index + 1} invalid: #{reason}"}
+
+        {:error, reason} ->
+          FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :error, 0)
+          {:error, FileSystem.format_error(reason, path)}
+      end
+    end
+
+    # ============================================================================
+    # Read-Before-Write Check
+    # ============================================================================
+
+    @spec check_read_before_edit(String.t(), map()) ::
+            :ok | {:error, :read_before_write_required | :session_state_unavailable}
+    defp check_read_before_edit(normalized_path, context) do
+      case Map.get(context, :session_id) do
+        nil ->
+          # No session context (legacy mode) - skip check but log
+          Logger.debug("MultiEdit: Skipping read-before-edit check - no session context (legacy mode)")
+          :ok
+
+        session_id ->
+          case SessionState.file_was_read?(session_id, normalized_path) do
+            {:ok, true} ->
+              :ok
+
+            {:ok, false} ->
+              {:error, :read_before_write_required}
+
+            {:error, :not_found} ->
+              Logger.warning(
+                "MultiEdit: Session #{session_id} not found during read-before-edit check - failing closed"
+              )
+              {:error, :session_state_unavailable}
+          end
+      end
+    end
+
+    # ============================================================================
+    # Edit Parsing and Validation
+    # ============================================================================
+
+    @spec parse_and_validate_edits([map()]) :: {:ok, [{String.t(), String.t()}]} | {:error, {:invalid_edit, non_neg_integer(), String.t()}}
+    defp parse_and_validate_edits(edits) do
+      edits
+      |> Enum.with_index()
+      |> Enum.reduce_while({:ok, []}, fn {edit, index}, {:ok, acc} ->
+        case parse_edit(edit) do
+          {:ok, parsed} -> {:cont, {:ok, [parsed | acc]}}
+          {:error, reason} -> {:halt, {:error, {:invalid_edit, index, reason}}}
+        end
+      end)
+      |> case do
+        {:ok, parsed} -> {:ok, Enum.reverse(parsed)}
+        error -> error
+      end
+    end
+
+    defp parse_edit(%{"old_string" => old_string, "new_string" => new_string})
+         when is_binary(old_string) and is_binary(new_string) do
+      cond do
+        old_string == "" ->
+          {:error, "old_string cannot be empty"}
+
+        true ->
+          {:ok, {old_string, new_string}}
+      end
+    end
+
+    defp parse_edit(%{old_string: old_string, new_string: new_string})
+         when is_binary(old_string) and is_binary(new_string) do
+      parse_edit(%{"old_string" => old_string, "new_string" => new_string})
+    end
+
+    defp parse_edit(_), do: {:error, "must have old_string and new_string fields"}
+
+    # ============================================================================
+    # Batch Edit Application
+    # ============================================================================
+
+    @spec apply_all_edits(String.t(), [{String.t(), String.t()}]) ::
+            {:ok, String.t(), pos_integer()} | {:error, {:edit_failed, non_neg_integer(), String.t()}}
+    defp apply_all_edits(content, edits) do
+      edits
+      |> Enum.with_index()
+      |> Enum.reduce_while({:ok, content, 0}, fn {{old_string, new_string}, index}, {:ok, current_content, count} ->
+        case apply_single_edit(current_content, old_string, new_string) do
+          {:ok, new_content} ->
+            {:cont, {:ok, new_content, count + 1}}
+
+          {:error, reason} ->
+            {:halt, {:error, {:edit_failed, index, reason}}}
+        end
+      end)
+    end
+
+    # Apply a single edit using multi-strategy matching
+    @spec apply_single_edit(String.t(), String.t(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
+    defp apply_single_edit(content, old_string, new_string) do
+      strategies = [
+        {:exact, &exact_match/2},
+        {:line_trimmed, &line_trimmed_match/2},
+        {:whitespace_normalized, &whitespace_normalized_match/2},
+        {:indentation_flexible, &indentation_flexible_match/2}
+      ]
+
+      result =
+        Enum.reduce_while(strategies, {:error, :not_found}, fn {strategy_name, match_fn}, _acc ->
+          case try_single_replace(content, old_string, new_string, match_fn) do
+            {:ok, new_content} ->
+              if strategy_name != :exact do
+                Logger.debug("MultiEdit: Used #{strategy_name} matching strategy for edit")
+              end
+              {:halt, {:ok, new_content}}
+
+            {:error, :ambiguous_match, count} ->
+              {:halt, {:error, {:ambiguous, count}}}
+
+            {:error, :not_found} ->
+              {:cont, {:error, :not_found}}
+          end
+        end)
+
+      case result do
+        {:ok, _} = success ->
+          success
+
+        {:error, :not_found} ->
+          {:error, "String not found in file"}
+
+        {:error, {:ambiguous, count}} ->
+          {:error, "Found #{count} occurrences - provide more specific old_string"}
+      end
+    end
+
+    # Try to replace using a specific match function (single occurrence only)
+    defp try_single_replace(content, old_string, new_string, match_fn) do
+      positions = match_fn.(content, old_string)
+      count = length(positions)
+
+      cond do
+        count == 0 ->
+          {:error, :not_found}
+
+        count > 1 ->
+          {:error, :ambiguous_match, count}
+
+        true ->
+          # Apply single replacement
+          {pos, len} = normalize_position(hd(positions), old_string)
+          prefix = String.slice(content, 0, pos)
+          suffix = String.slice(content, pos + len, 0x7FFFFFFF)
+          {:ok, prefix <> new_string <> suffix}
+      end
+    end
+
+    # Normalize position to {pos, len} tuple
+    defp normalize_position({pos, len}, _old_string), do: {pos, len}
+    defp normalize_position(pos, old_string) when is_integer(pos), do: {pos, String.length(old_string)}
+
+    # ============================================================================
+    # Match Strategy Implementations
+    # (Mirrors EditFile strategies for consistency)
+    # ============================================================================
+
+    # Strategy 1: Exact match
+    defp exact_match(content, pattern), do: find_all_positions(content, pattern)
+
+    # Strategy 2: Line-trimmed match
+    defp line_trimmed_match(content, pattern) do
+      trimmed_pattern = trim_lines(pattern)
+      if trimmed_pattern == pattern do
+        []
+      else
+        find_fuzzy_positions(content, pattern, &trim_lines/1)
+      end
+    end
+
+    # Strategy 3: Whitespace-normalized match
+    defp whitespace_normalized_match(content, pattern) do
+      normalized_pattern = normalize_whitespace(pattern)
+      if normalized_pattern == pattern do
+        []
+      else
+        find_fuzzy_positions(content, pattern, &normalize_whitespace/1)
+      end
+    end
+
+    # Strategy 4: Indentation-flexible match
+    defp indentation_flexible_match(content, pattern) do
+      dedented_pattern = dedent(pattern)
+      if dedented_pattern == pattern do
+        []
+      else
+        find_fuzzy_positions(content, pattern, &dedent/1)
+      end
+    end
+
+    # ============================================================================
+    # Position Finding Helpers
+    # ============================================================================
+
+    defp find_all_positions(content, pattern) do
+      pattern_len = String.length(pattern)
+      do_find_positions(content, pattern, pattern_len, 0, [])
+    end
+
+    defp do_find_positions(content, pattern, pattern_len, offset, acc) do
+      case find_grapheme_position(content, pattern) do
+        {:found, pos} ->
+          absolute_pos = offset + pos
+          rest = String.slice(content, pos + pattern_len, String.length(content))
+          do_find_positions(rest, pattern, pattern_len, absolute_pos + pattern_len, [absolute_pos | acc])
+
+        :not_found ->
+          Enum.reverse(acc)
+      end
+    end
+
+    defp find_grapheme_position(content, pattern) do
+      case String.split(content, pattern, parts: 2) do
+        [before, _rest] -> {:found, String.length(before)}
+        [_no_match] -> :not_found
+      end
+    end
+
+    defp find_fuzzy_positions(content, pattern, normalize_fn) do
+      content_lines = String.split(content, "\n")
+      pattern_lines = String.split(pattern, "\n")
+      pattern_line_count = length(pattern_lines)
+      normalized_pattern_lines = Enum.map(pattern_lines, normalize_fn)
+
+      find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, 0, 0, [])
+    end
+
+    defp find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, line_idx, char_offset, acc) do
+      if line_idx + pattern_line_count > length(content_lines) do
+        Enum.reverse(acc)
+      else
+        candidate_lines = Enum.slice(content_lines, line_idx, pattern_line_count)
+        normalized_candidates = Enum.map(candidate_lines, normalize_fn)
+
+        new_acc =
+          if normalized_candidates == normalized_pattern_lines do
+            matched_content = Enum.join(candidate_lines, "\n")
+            matched_len = String.length(matched_content)
+            [{char_offset, matched_len} | acc]
+          else
+            acc
+          end
+
+        current_line = Enum.at(content_lines, line_idx, "")
+        next_char_offset = char_offset + String.length(current_line) + 1
+
+        find_matching_line_sequences(
+          content_lines,
+          normalized_pattern_lines,
+          pattern_line_count,
+          normalize_fn,
+          line_idx + 1,
+          next_char_offset,
+          new_acc
+        )
+      end
+    end
+
+    # ============================================================================
+    # Normalization Helpers
+    # ============================================================================
+
+    defp trim_lines(text) do
+      text
+      |> String.split("\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.join("\n")
+    end
+
+    defp normalize_whitespace(text) do
+      text
+      |> String.replace(~r/[ \t]+/, " ")
+      |> String.replace(~r/ ?\n ?/, "\n")
+    end
+
+    defp dedent(text) do
+      lines = String.split(text, "\n")
+
+      min_indent =
+        lines
+        |> Enum.filter(&(String.trim(&1) != ""))
+        |> Enum.map(&count_leading_spaces/1)
+        |> Enum.min(fn -> 0 end)
+
+      lines
+      |> Enum.map(fn line ->
+        if String.trim(line) == "" do
+          line
+        else
+          String.slice(line, min_indent, String.length(line))
+        end
+      end)
+      |> Enum.join("\n")
+    end
+
+    defp count_leading_spaces(line) do
+      # Using a default tab width of 4 (matching EditFile default)
+      tab_width = 4
+
+      line
+      |> String.graphemes()
+      |> Enum.take_while(&(&1 == " " or &1 == "\t"))
+      |> Enum.reduce(0, fn char, acc ->
+        case char do
+          " " -> acc + 1
+          "\t" -> acc + tab_width
+        end
+      end)
+    end
+  end
+
+  # ============================================================================
   # ReadFile Handler
   # ============================================================================
 

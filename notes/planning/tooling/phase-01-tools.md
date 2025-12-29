@@ -235,22 +235,26 @@ Implement the multi_edit tool for atomic batch modifications through the Lua san
 - [x] 1.4.1.3 Add `multi_edit_file()` to `FileSystem.all/0` via defdelegate
 - [x] 1.4.1.4 Create comprehensive definition tests
 
-### 1.4.2 Bridge Function Implementation
+### 1.4.2 Handler Implementation ✅
 
-- [ ] 1.4.2.1 Add `lua_multi_edit/3` to `bridge.ex`
-- [ ] 1.4.2.2 Read file content once with `Security.atomic_read/2`
-- [ ] 1.4.2.3 Validate all edits can be applied (all old_strings found and unique)
-- [ ] 1.4.2.4 Apply all edits sequentially to in-memory content
-- [ ] 1.4.2.5 Write once with `Security.atomic_write/3` (atomic - all or nothing)
-- [ ] 1.4.2.6 Return `{[count], state}` or `{[nil, {index, reason}], state}` on failure
-- [ ] 1.4.2.7 Register in `Bridge.register/2`
+- [x] 1.4.2.1 Add `MultiEdit` inner module to `lib/jido_code/tools/handlers/file_system.ex`
+- [x] 1.4.2.2 Implement read-before-write check via `check_read_before_edit/2`
+- [x] 1.4.2.3 Validate all edits can be applied (all old_strings found and unique)
+- [x] 1.4.2.4 Apply edits sequentially in memory using multi-strategy matching
+- [x] 1.4.2.5 Write result via single `Security.atomic_write/4` call
+- [x] 1.4.2.6 Track file write in session state via `FileSystem.track_file_write/3`
+- [x] 1.4.2.7 Emit telemetry for `:multi_edit` operation
+- [x] 1.4.2.8 Return `{:ok, message}` or `{:error, message}` with embedded edit index
 
-### 1.4.3 Unit Tests for Multi-Edit
+### 1.4.3 Unit Tests for Multi-Edit ✅
 
-- [ ] Test multi_edit applies all edits atomically
-- [ ] Test multi_edit fails validation before any writes
-- [ ] Test multi_edit handles overlapping edits correctly
-- [ ] Test multi_edit returns failing edit index on error
+- [x] Test multi_edit applies all edits atomically
+- [x] Test multi_edit validates all edits before applying any
+- [x] Test multi_edit preserves edit order (sequential application)
+- [x] Test multi_edit returns failing edit index on error
+- [x] Test multi_edit with session context (read-before-write)
+- [x] Test multi_edit telemetry emission
+- [x] Test multi_edit with various error conditions
 
 ---
 

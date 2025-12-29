@@ -10,6 +10,7 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
     EditFile,
     FileInfo,
     ListDirectory,
+    MultiEdit,
     ReadFile,
     WriteFile
   }
@@ -1760,6 +1761,360 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
                DeleteFile.execute(%{"path" => "../../../etc/passwd", "confirm" => true}, context)
 
       assert error =~ "Security error"
+    end
+  end
+
+  # ============================================================================
+  # MultiEdit Handler Tests
+  # ============================================================================
+
+  describe "MultiEdit basic functionality" do
+    test "applies multiple edits atomically", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "multi_edit_test.txt")
+      File.write!(path, "hello world\nfoo bar\nbaz qux")
+      context = %{project_root: tmp_dir}
+
+      edits = [
+        %{"old_string" => "hello", "new_string" => "goodbye"},
+        %{"old_string" => "foo", "new_string" => "baz"}
+      ]
+
+      assert {:ok, message} = MultiEdit.execute(%{"path" => "multi_edit_test.txt", "edits" => edits}, context)
+      assert message =~ "Successfully applied 2 edit(s)"
+
+      content = File.read!(path)
+      assert content == "goodbye world\nbaz bar\nbaz qux"
+    end
+
+    test "applies single edit", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "single_edit.txt")
+      File.write!(path, "original content")
+      context = %{project_root: tmp_dir}
+
+      edits = [%{"old_string" => "original", "new_string" => "modified"}]
+
+      assert {:ok, message} = MultiEdit.execute(%{"path" => "single_edit.txt", "edits" => edits}, context)
+      assert message =~ "Successfully applied 1 edit(s)"
+
+      assert File.read!(path) == "modified content"
+    end
+
+    test "handles empty new_string (deletion)", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "delete_test.txt")
+      File.write!(path, "keep this delete this keep this too")
+      context = %{project_root: tmp_dir}
+
+      edits = [%{"old_string" => " delete this", "new_string" => ""}]
+
+      assert {:ok, _} = MultiEdit.execute(%{"path" => "delete_test.txt", "edits" => edits}, context)
+      assert File.read!(path) == "keep this keep this too"
+    end
+
+    test "edits are applied sequentially", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "sequential_test.txt")
+      File.write!(path, "aaa bbb ccc")
+      context = %{project_root: tmp_dir}
+
+      # First edit changes aaa to xxx, second edit operates on the modified content
+      edits = [
+        %{"old_string" => "aaa", "new_string" => "xxx"},
+        %{"old_string" => "xxx bbb", "new_string" => "yyy zzz"}
+      ]
+
+      assert {:ok, _} = MultiEdit.execute(%{"path" => "sequential_test.txt", "edits" => edits}, context)
+      assert File.read!(path) == "yyy zzz ccc"
+    end
+  end
+
+  describe "MultiEdit error cases" do
+    test "returns error for empty edits array", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "empty_edits.txt")
+      File.write!(path, "content")
+      context = %{project_root: tmp_dir}
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "empty_edits.txt", "edits" => []}, context)
+      assert error =~ "edits array cannot be empty"
+    end
+
+    test "returns error when string not found", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "not_found.txt")
+      File.write!(path, "hello world")
+      context = %{project_root: tmp_dir}
+
+      edits = [%{"old_string" => "nonexistent", "new_string" => "replacement"}]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "not_found.txt", "edits" => edits}, context)
+      assert error =~ "Edit 1 failed"
+      assert error =~ "String not found"
+    end
+
+    test "returns error with correct index when second edit fails", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "second_fails.txt")
+      File.write!(path, "hello world")
+      context = %{project_root: tmp_dir}
+
+      edits = [
+        %{"old_string" => "hello", "new_string" => "goodbye"},
+        %{"old_string" => "nonexistent", "new_string" => "replacement"}
+      ]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "second_fails.txt", "edits" => edits}, context)
+      assert error =~ "Edit 2 failed"
+
+      # File should remain unchanged (atomic behavior)
+      assert File.read!(path) == "hello world"
+    end
+
+    test "returns error for ambiguous match", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "ambiguous.txt")
+      File.write!(path, "foo foo foo")
+      context = %{project_root: tmp_dir}
+
+      edits = [%{"old_string" => "foo", "new_string" => "bar"}]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "ambiguous.txt", "edits" => edits}, context)
+      assert error =~ "Edit 1 failed"
+      assert error =~ "3 occurrences"
+    end
+
+    test "returns error for missing required fields in edit", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "missing_field.txt")
+      File.write!(path, "content")
+      context = %{project_root: tmp_dir}
+
+      # Missing new_string
+      edits = [%{"old_string" => "content"}]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "missing_field.txt", "edits" => edits}, context)
+      assert error =~ "Edit 1 invalid"
+      assert error =~ "must have old_string and new_string"
+    end
+
+    test "returns error for empty old_string", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "empty_old.txt")
+      File.write!(path, "content")
+      context = %{project_root: tmp_dir}
+
+      edits = [%{"old_string" => "", "new_string" => "replacement"}]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "empty_old.txt", "edits" => edits}, context)
+      assert error =~ "Edit 1 invalid"
+      assert error =~ "old_string cannot be empty"
+    end
+
+    test "returns error for missing file", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+      edits = [%{"old_string" => "hello", "new_string" => "world"}]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "nonexistent.txt", "edits" => edits}, context)
+      assert error =~ "File not found" or error =~ "No such file"
+    end
+
+    test "returns error for path traversal", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+      edits = [%{"old_string" => "hello", "new_string" => "world"}]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "../../../escape.txt", "edits" => edits}, context)
+      assert error =~ "Security error"
+    end
+  end
+
+  describe "MultiEdit with session context" do
+    setup %{tmp_dir: tmp_dir} do
+      System.put_env("ANTHROPIC_API_KEY", "test-key-multi-edit")
+
+      on_exit(fn ->
+        System.delete_env("ANTHROPIC_API_KEY")
+      end)
+
+      unless GenServer.whereis(JidoCode.SessionProcessRegistry) do
+        start_supervised!({Registry, keys: :unique, name: JidoCode.SessionProcessRegistry})
+      end
+
+      {:ok, session} = JidoCode.Session.new(project_path: tmp_dir, name: "multi-edit-session")
+
+      {:ok, supervisor_pid} =
+        JidoCode.Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:multi_edit_session_sup, session.id}}}
+        )
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      {:ok, session: session, supervisor_pid: supervisor_pid}
+    end
+
+    test "requires file to be read first in session context", %{tmp_dir: tmp_dir, session: session} do
+      path = Path.join(tmp_dir, "session_multi_edit.txt")
+      File.write!(path, "hello world")
+      context = %{session_id: session.id, project_root: tmp_dir}
+
+      edits = [%{"old_string" => "hello", "new_string" => "goodbye"}]
+
+      # Should fail because file was not read first
+      assert {:error, error} = MultiEdit.execute(%{"path" => "session_multi_edit.txt", "edits" => edits}, context)
+      assert error =~ "File must be read before editing"
+    end
+
+    test "succeeds after file is read in session context", %{tmp_dir: tmp_dir, session: session} do
+      path = Path.join(tmp_dir, "session_read_first.txt")
+      File.write!(path, "hello world")
+      context = %{session_id: session.id, project_root: tmp_dir}
+
+      # First read the file
+      assert {:ok, _} = ReadFile.execute(%{"path" => "session_read_first.txt"}, context)
+
+      # Now edit should work
+      edits = [%{"old_string" => "hello", "new_string" => "goodbye"}]
+      assert {:ok, message} = MultiEdit.execute(%{"path" => "session_read_first.txt", "edits" => edits}, context)
+      assert message =~ "Successfully applied 1 edit(s)"
+    end
+  end
+
+  describe "MultiEdit multi-strategy matching" do
+    test "uses line-trimmed match when pattern has extra whitespace", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "trimmed.txt")
+      # Content has no extra whitespace
+      File.write!(path, "hello world\nfoo bar")
+      context = %{project_root: tmp_dir}
+
+      # Pattern with extra whitespace should match content without
+      edits = [%{"old_string" => "  hello world  ", "new_string" => "goodbye world"}]
+
+      assert {:ok, _} = MultiEdit.execute(%{"path" => "trimmed.txt", "edits" => edits}, context)
+      assert File.read!(path) == "goodbye world\nfoo bar"
+    end
+
+    test "uses whitespace-normalized match when pattern has multiple spaces", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "whitespace.txt")
+      # Content has single spaces
+      File.write!(path, "hello world")
+      context = %{project_root: tmp_dir}
+
+      # Pattern with multiple spaces should match content with single space
+      edits = [%{"old_string" => "hello    world", "new_string" => "goodbye world"}]
+
+      assert {:ok, _} = MultiEdit.execute(%{"path" => "whitespace.txt", "edits" => edits}, context)
+      assert File.read!(path) == "goodbye world"
+    end
+
+    test "exact match takes priority over fuzzy strategies", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "exact.txt")
+      File.write!(path, "hello world")
+      context = %{project_root: tmp_dir}
+
+      # Exact match should work
+      edits = [%{"old_string" => "hello world", "new_string" => "goodbye world"}]
+
+      assert {:ok, _} = MultiEdit.execute(%{"path" => "exact.txt", "edits" => edits}, context)
+      assert File.read!(path) == "goodbye world"
+    end
+  end
+
+  describe "MultiEdit telemetry" do
+    test "emits telemetry on success", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "telemetry_success.txt")
+      File.write!(path, "hello world")
+      context = %{project_root: tmp_dir}
+
+      # Set up telemetry handler
+      ref = make_ref()
+      test_pid = self()
+
+      handler = fn event, measurements, metadata, _config ->
+        send(test_pid, {:telemetry, ref, event, measurements, metadata})
+      end
+
+      :telemetry.attach(
+        "test-multi-edit-telemetry-#{inspect(ref)}",
+        [:jido_code, :file_system, :multi_edit],
+        handler,
+        nil
+      )
+
+      on_exit(fn ->
+        :telemetry.detach("test-multi-edit-telemetry-#{inspect(ref)}")
+      end)
+
+      edits = [%{"old_string" => "hello", "new_string" => "goodbye"}]
+      assert {:ok, _} = MultiEdit.execute(%{"path" => "telemetry_success.txt", "edits" => edits}, context)
+
+      # Verify telemetry was emitted
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :multi_edit], _measurements, metadata}, 1000
+      assert metadata.status == :ok
+    end
+
+    test "emits telemetry on failure", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "telemetry_failure.txt")
+      File.write!(path, "hello world")
+      context = %{project_root: tmp_dir}
+
+      # Set up telemetry handler
+      ref = make_ref()
+      test_pid = self()
+
+      handler = fn event, measurements, metadata, _config ->
+        send(test_pid, {:telemetry, ref, event, measurements, metadata})
+      end
+
+      :telemetry.attach(
+        "test-multi-edit-error-telemetry-#{inspect(ref)}",
+        [:jido_code, :file_system, :multi_edit],
+        handler,
+        nil
+      )
+
+      on_exit(fn ->
+        :telemetry.detach("test-multi-edit-error-telemetry-#{inspect(ref)}")
+      end)
+
+      edits = [%{"old_string" => "nonexistent", "new_string" => "replacement"}]
+      assert {:error, _} = MultiEdit.execute(%{"path" => "telemetry_failure.txt", "edits" => edits}, context)
+
+      # Verify telemetry was emitted
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :multi_edit], _measurements, metadata}, 1000
+      assert metadata.status == :edit_failed
+    end
+  end
+
+  describe "MultiEdit atomicity guarantee" do
+    test "file unchanged when later edit fails", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "atomic_test.txt")
+      original_content = "line one\nline two\nline three"
+      File.write!(path, original_content)
+      context = %{project_root: tmp_dir}
+
+      # First two edits would succeed, third would fail
+      edits = [
+        %{"old_string" => "line one", "new_string" => "LINE ONE"},
+        %{"old_string" => "line two", "new_string" => "LINE TWO"},
+        %{"old_string" => "nonexistent", "new_string" => "replacement"}
+      ]
+
+      assert {:error, error} = MultiEdit.execute(%{"path" => "atomic_test.txt", "edits" => edits}, context)
+      assert error =~ "Edit 3 failed"
+
+      # File should be completely unchanged
+      assert File.read!(path) == original_content
+    end
+  end
+
+  describe "MultiEdit with atom keys" do
+    test "accepts edits with atom keys", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "atom_keys.txt")
+      File.write!(path, "hello world")
+      context = %{project_root: tmp_dir}
+
+      edits = [%{old_string: "hello", new_string: "goodbye"}]
+
+      assert {:ok, _} = MultiEdit.execute(%{"path" => "atom_keys.txt", "edits" => edits}, context)
+      assert File.read!(path) == "goodbye world"
     end
   end
 end

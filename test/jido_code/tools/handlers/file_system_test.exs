@@ -9,6 +9,7 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
     DeleteFile,
     EditFile,
     FileInfo,
+    ListDir,
     ListDirectory,
     MultiEdit,
     ReadFile,
@@ -1630,6 +1631,145 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       context = %{project_root: tmp_dir}
       assert {:error, error} = ListDirectory.execute(%{"path" => "../.."}, context)
       assert error =~ "Security error"
+    end
+  end
+
+  # ============================================================================
+  # ListDir Tests (with ignore_patterns support)
+  # ============================================================================
+
+  describe "ListDir.execute/2" do
+    test "lists directory contents with type indicators", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "a.txt"), "")
+      File.write!(Path.join(tmp_dir, "b.txt"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "subdir"))
+
+      context = %{project_root: tmp_dir}
+      assert {:ok, json} = ListDir.execute(%{"path" => ""}, context)
+
+      entries = Jason.decode!(json)
+      names = Enum.map(entries, & &1["name"])
+      assert "a.txt" in names
+      assert "b.txt" in names
+      assert "subdir" in names
+
+      # Check type indicators
+      file_entry = Enum.find(entries, &(&1["name"] == "a.txt"))
+      dir_entry = Enum.find(entries, &(&1["name"] == "subdir"))
+      assert file_entry["type"] == "file"
+      assert dir_entry["type"] == "directory"
+    end
+
+    test "sorts directories first then alphabetically", %{tmp_dir: tmp_dir} do
+      # Create files and directories in non-sorted order
+      File.write!(Path.join(tmp_dir, "z.txt"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "beta"))
+      File.write!(Path.join(tmp_dir, "a.txt"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "alpha"))
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = ListDir.execute(%{"path" => ""}, context)
+
+      entries = Jason.decode!(json)
+      names = Enum.map(entries, & &1["name"])
+
+      # Directories first (alpha, beta), then files (a.txt, z.txt)
+      assert names == ["alpha", "beta", "a.txt", "z.txt"]
+    end
+
+    test "applies ignore patterns to filter entries", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "main.ex"), "")
+      File.write!(Path.join(tmp_dir, "test.log"), "")
+      File.write!(Path.join(tmp_dir, "debug.log"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "node_modules"))
+
+      context = %{project_root: tmp_dir}
+      args = %{"path" => "", "ignore_patterns" => ["*.log", "node_modules"]}
+      {:ok, json} = ListDir.execute(args, context)
+
+      entries = Jason.decode!(json)
+      names = Enum.map(entries, & &1["name"])
+
+      # Should only have main.ex (*.log and node_modules filtered out)
+      assert names == ["main.ex"]
+    end
+
+    test "applies wildcard ignore patterns", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "app.test.js"), "")
+      File.write!(Path.join(tmp_dir, "util.test.js"), "")
+      File.write!(Path.join(tmp_dir, "main.js"), "")
+
+      context = %{project_root: tmp_dir}
+      args = %{"path" => "", "ignore_patterns" => ["*.test.js"]}
+      {:ok, json} = ListDir.execute(args, context)
+
+      entries = Jason.decode!(json)
+      names = Enum.map(entries, & &1["name"])
+
+      assert names == ["main.js"]
+    end
+
+    test "empty ignore_patterns has no effect", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "file.txt"), "")
+
+      context = %{project_root: tmp_dir}
+      args = %{"path" => "", "ignore_patterns" => []}
+      {:ok, json} = ListDir.execute(args, context)
+
+      entries = Jason.decode!(json)
+      assert [%{"name" => "file.txt", "type" => "file"}] = entries
+    end
+
+    test "lists subdirectory", %{tmp_dir: tmp_dir} do
+      subdir = Path.join(tmp_dir, "src")
+      File.mkdir_p!(subdir)
+      File.write!(Path.join(subdir, "main.ex"), "")
+      File.write!(Path.join(subdir, "helper.ex"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = ListDir.execute(%{"path" => "src"}, context)
+
+      entries = Jason.decode!(json)
+      names = Enum.map(entries, & &1["name"])
+
+      # Alphabetically sorted (no directories)
+      assert names == ["helper.ex", "main.ex"]
+    end
+
+    test "returns empty list for empty directory", %{tmp_dir: tmp_dir} do
+      empty_dir = Path.join(tmp_dir, "empty")
+      File.mkdir_p!(empty_dir)
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = ListDir.execute(%{"path" => "empty"}, context)
+
+      assert Jason.decode!(json) == []
+    end
+
+    test "returns error for non-existent directory", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+      assert {:error, error} = ListDir.execute(%{"path" => "missing"}, context)
+      assert error =~ "File not found" or error =~ "not found"
+    end
+
+    test "returns error for file path (not directory)", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "file.txt"), "content")
+
+      context = %{project_root: tmp_dir}
+      assert {:error, error} = ListDir.execute(%{"path" => "file.txt"}, context)
+      assert error =~ "Not a directory"
+    end
+
+    test "validates boundary - rejects path traversal", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+      assert {:error, error} = ListDir.execute(%{"path" => "../.."}, context)
+      assert error =~ "Security error"
+    end
+
+    test "returns error for missing path argument", %{tmp_dir: _tmp_dir} do
+      context = %{project_root: "/tmp"}
+      assert {:error, error} = ListDir.execute(%{}, context)
+      assert error =~ "requires a path argument"
     end
   end
 

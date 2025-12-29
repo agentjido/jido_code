@@ -290,13 +290,18 @@ Implement the list_dir tool for directory listing through the Lua sandbox.
 - [x] 1.5.2.6 Return as Lua array: `{[entries], state}` with typed entries
 - [x] 1.5.2.7 Update bridge tests (12 tests for lua_list_dir)
 
-### 1.5.3 Unit Tests for List Directory
+### 1.5.3 Unit Tests for List Directory ✅
 
-- [ ] Test list_dir returns directory contents through sandbox
-- [ ] Test list_dir applies ignore patterns
-- [ ] Test list_dir validates boundary
-- [ ] Test list_dir handles non-existent path
-- [ ] Test list_dir handles file path (not directory)
+- [x] Test list_dir returns directory contents with type indicators
+- [x] Test list_dir sorts directories first then alphabetically
+- [x] Test list_dir applies ignore patterns (multiple patterns, wildcards)
+- [x] Test list_dir validates boundary (path traversal rejection)
+- [x] Test list_dir handles non-existent path
+- [x] Test list_dir handles file path (not directory)
+- [x] Test list_dir handles empty directory
+- [x] Test list_dir handles subdirectory listing
+- [x] Test list_dir handles missing path argument
+- [x] 12 handler tests added to file_system_test.exs
 
 ---
 

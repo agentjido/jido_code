@@ -342,9 +342,10 @@ defmodule JidoCode.Tools.BridgeTest do
       {[result], _state} = Bridge.lua_list_dir([""], state, tmp_dir)
 
       # Extract names in order
-      names = Enum.map(result, fn {_idx, entry} ->
-        Map.new(entry)["name"]
-      end)
+      names =
+        Enum.map(result, fn {_idx, entry} ->
+          Map.new(entry)["name"]
+        end)
 
       # Directories first (alpha, beta), then files (a.txt, z.txt)
       assert names == ["alpha", "beta", "a.txt", "z.txt"]
@@ -360,9 +361,10 @@ defmodule JidoCode.Tools.BridgeTest do
       {[result], _state} = Bridge.lua_list_dir(["src"], state, tmp_dir)
 
       # Extract names
-      names = Enum.map(result, fn {_idx, entry} ->
-        Map.new(entry)["name"]
-      end)
+      names =
+        Enum.map(result, fn {_idx, entry} ->
+          Map.new(entry)["name"]
+        end)
 
       assert names == ["helper.ex", "main.ex"]
     end
@@ -418,9 +420,10 @@ defmodule JidoCode.Tools.BridgeTest do
       {[result], _state} = Bridge.lua_list_dir(["", opts], state, tmp_dir)
 
       # Extract names
-      names = Enum.map(result, fn {_idx, entry} ->
-        Map.new(entry)["name"]
-      end)
+      names =
+        Enum.map(result, fn {_idx, entry} ->
+          Map.new(entry)["name"]
+        end)
 
       # Should only have main.ex (*.log and node_modules filtered out)
       assert names == ["main.ex"]
@@ -435,9 +438,10 @@ defmodule JidoCode.Tools.BridgeTest do
       opts = [{"ignore_patterns", [{1, "*.test.js"}]}]
       {[result], _state} = Bridge.lua_list_dir(["", opts], state, tmp_dir)
 
-      names = Enum.map(result, fn {_idx, entry} ->
-        Map.new(entry)["name"]
-      end)
+      names =
+        Enum.map(result, fn {_idx, entry} ->
+          Map.new(entry)["name"]
+        end)
 
       assert names == ["main.js"]
     end

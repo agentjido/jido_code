@@ -94,7 +94,8 @@ defmodule JidoCode.Tools.Definitions.ListDir do
         %{
           name: "ignore_patterns",
           type: :array,
-          description: "Glob patterns to exclude from the listing (e.g., [\"*.log\", \"node_modules\"])",
+          description:
+            "Glob patterns to exclude from the listing (e.g., [\"*.log\", \"node_modules\"])",
           required: false,
           items: :string
         }

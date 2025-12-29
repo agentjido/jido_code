@@ -393,10 +393,6 @@ defmodule JidoCode.Session.Manager do
       {:ok, result, new_lua_state} ->
         {:reply, {:ok, result}, %{state | lua_state: new_lua_state}}
 
-      {:ok, result} ->
-        # Fallback for backward compatibility
-        {:reply, {:ok, result}, state}
-
       {:error, _} = error ->
         {:reply, error, state}
     end

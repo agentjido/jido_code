@@ -94,8 +94,11 @@ defmodule JidoCode.TUI.Clipboard do
 
         # Give the command a moment to process
         receive do
-          {^port, {:exit_status, 0}} -> :ok
-          {^port, {:exit_status, status}} -> {:error, "Clipboard command exited with status #{status}"}
+          {^port, {:exit_status, 0}} ->
+            :ok
+
+          {^port, {:exit_status, status}} ->
+            {:error, "Clipboard command exited with status #{status}"}
         after
           1000 -> :ok
         end

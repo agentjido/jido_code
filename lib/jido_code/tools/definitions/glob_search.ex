@@ -119,7 +119,8 @@ defmodule JidoCode.Tools.Definitions.GlobSearch do
         %{
           name: "path",
           type: :string,
-          description: "Base directory to search from (relative to project root, defaults to \".\")",
+          description:
+            "Base directory to search from (relative to project root, defaults to \".\")",
           required: false
         }
       ]

@@ -237,7 +237,9 @@ defmodule JidoCode.Tools.Handlers.Shell do
     defp parse_args(_args), do: []
 
     # Cap timeout to prevent resource exhaustion from extremely long timeouts
-    defp cap_timeout(timeout) when is_integer(timeout) and timeout > @max_timeout, do: @max_timeout
+    defp cap_timeout(timeout) when is_integer(timeout) and timeout > @max_timeout,
+      do: @max_timeout
+
     defp cap_timeout(timeout) when is_integer(timeout) and timeout > 0, do: timeout
     defp cap_timeout(_), do: @default_timeout
 

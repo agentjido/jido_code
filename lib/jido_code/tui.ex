@@ -1834,24 +1834,6 @@ defmodule JidoCode.TUI do
     {state, [:quit]}
   end
 
-  # Saves all active sessions on application exit (best effort)
-  defp save_all_sessions(session_ids) do
-    alias JidoCode.Session.Persistence
-
-    for session_id <- session_ids do
-      case Persistence.save(session_id) do
-        {:ok, _path} ->
-          :ok
-
-        {:error, reason} ->
-          require Logger
-          Logger.warning("Failed to save session #{session_id} on exit: #{inspect(reason)}")
-      end
-    end
-
-    :ok
-  end
-
   def update({:resize, width, height}, state) do
     {cur_width, cur_height} = state.window
     new_input_width = max(width - 4, 20)
@@ -2212,7 +2194,8 @@ defmodule JidoCode.TUI do
         {state, []}
 
       conversation_view ->
-        new_conversation_view = ConversationView.cycle_interactive_focus(conversation_view, :forward)
+        new_conversation_view =
+          ConversationView.cycle_interactive_focus(conversation_view, :forward)
 
         new_state =
           Model.update_active_ui_state(state, fn ui ->
@@ -2248,7 +2231,11 @@ defmodule JidoCode.TUI do
         {state, []}
 
       conversation_view ->
-        new_conversation_view = %{conversation_view | interactive_mode: false, focused_element_id: nil}
+        new_conversation_view = %{
+          conversation_view
+          | interactive_mode: false,
+            focused_element_id: nil
+        }
 
         new_state =
           Model.update_active_ui_state(state, fn ui ->
@@ -2288,7 +2275,13 @@ defmodule JidoCode.TUI do
                   new_state =
                     Model.update_active_ui_state(state, fn ui ->
                       new_text_input = set_text_input_value(ui.text_input, Enum.at(history, 0))
-                      %{ui | text_input: new_text_input, history_index: 0, saved_input: current_text}
+
+                      %{
+                        ui
+                        | text_input: new_text_input,
+                          history_index: 0,
+                          saved_input: current_text
+                      }
                     end)
 
                   {new_state, []}
@@ -2303,7 +2296,9 @@ defmodule JidoCode.TUI do
 
                   new_state =
                     Model.update_active_ui_state(state, fn ui ->
-                      new_text_input = set_text_input_value(ui.text_input, Enum.at(history, new_index))
+                      new_text_input =
+                        set_text_input_value(ui.text_input, Enum.at(history, new_index))
+
                       %{ui | text_input: new_text_input, history_index: new_index}
                     end)
 
@@ -2534,6 +2529,24 @@ defmodule JidoCode.TUI do
   def update(msg, state) do
     Logger.debug("TUI unhandled message: #{inspect(msg)}")
     {state, []}
+  end
+
+  # Saves all active sessions on application exit (best effort)
+  defp save_all_sessions(session_ids) do
+    alias JidoCode.Session.Persistence
+
+    for session_id <- session_ids do
+      case Persistence.save(session_id) do
+        {:ok, _path} ->
+          :ok
+
+        {:error, reason} ->
+          require Logger
+          Logger.warning("Failed to save session #{session_id} on exit: #{inspect(reason)}")
+      end
+    end
+
+    :ok
   end
 
   # Insert text at cursor position in TextInput
@@ -3011,9 +3024,10 @@ defmodule JidoCode.TUI do
         case JidoCode.Session.State.update_language(session_id, language) do
           {:ok, updated_session} ->
             # Update local model's session record
-            new_state = Model.update_session(state, session_id, fn session ->
-              %{session | language: updated_session.language}
-            end)
+            new_state =
+              Model.update_session(state, session_id, fn session ->
+                %{session | language: updated_session.language}
+              end)
 
             display_name = JidoCode.Language.display_name(language)
             final_state = add_session_message(new_state, "Language set to: #{display_name}")

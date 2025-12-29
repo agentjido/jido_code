@@ -125,28 +125,34 @@ defmodule JidoCode.Tools.Definitions.ListDirTest do
 
     test "validates with path and ignore_patterns" do
       tool = ListDir.list_dir()
+
       args = %{
         "path" => "lib",
         "ignore_patterns" => ["*.log", "node_modules"]
       }
+
       assert :ok = Tool.validate_args(tool, args)
     end
 
     test "validates with empty ignore_patterns array" do
       tool = ListDir.list_dir()
+
       args = %{
         "path" => "lib",
         "ignore_patterns" => []
       }
+
       assert :ok = Tool.validate_args(tool, args)
     end
 
     test "validates with single ignore pattern" do
       tool = ListDir.list_dir()
+
       args = %{
         "path" => ".",
         "ignore_patterns" => ["*.test.js"]
       }
+
       assert :ok = Tool.validate_args(tool, args)
     end
 
@@ -169,6 +175,7 @@ defmodule JidoCode.Tools.Definitions.ListDirTest do
 
     test "rejects invalid ignore_patterns type" do
       tool = ListDir.list_dir()
+
       args = %{
         "path" => "lib",
         "ignore_patterns" => "not an array"
@@ -180,6 +187,7 @@ defmodule JidoCode.Tools.Definitions.ListDirTest do
 
     test "rejects unknown parameters" do
       tool = ListDir.list_dir()
+
       args = %{
         "path" => "lib",
         "unknown" => "value"

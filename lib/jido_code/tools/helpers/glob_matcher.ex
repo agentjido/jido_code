@@ -116,7 +116,8 @@ defmodule JidoCode.Tools.Helpers.GlobMatcher do
 
   """
   @spec sort_directories_first(list(String.t()), String.t()) :: list(String.t())
-  def sort_directories_first(entries, parent_path) when is_list(entries) and is_binary(parent_path) do
+  def sort_directories_first(entries, parent_path)
+      when is_list(entries) and is_binary(parent_path) do
     Enum.sort_by(entries, fn entry ->
       full_path = Path.join(parent_path, entry)
       is_dir = File.dir?(full_path)
@@ -191,7 +192,8 @@ defmodule JidoCode.Tools.Helpers.GlobMatcher do
 
   """
   @spec filter_within_boundary(list(String.t()), String.t()) :: list(String.t())
-  def filter_within_boundary(paths, project_root) when is_list(paths) and is_binary(project_root) do
+  def filter_within_boundary(paths, project_root)
+      when is_list(paths) and is_binary(project_root) do
     expanded_root = Path.expand(project_root)
 
     Enum.filter(paths, fn path ->

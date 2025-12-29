@@ -327,7 +327,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           success
 
         {:error, :read_before_write_required} ->
-          FileSystem.emit_file_telemetry(:edit, start_time, path, context, :read_before_write_required, 0)
+          FileSystem.emit_file_telemetry(
+            :edit,
+            start_time,
+            path,
+            context,
+            :read_before_write_required,
+            0
+          )
+
           {:error, "File must be read before editing: #{path}"}
 
         {:error, :session_state_unavailable} ->
@@ -336,11 +344,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
         {:error, :not_found} ->
           FileSystem.emit_file_telemetry(:edit, start_time, path, context, :not_found, 0)
-          {:error, "String not found in file (tried exact, line-trimmed, whitespace-normalized, and indentation-flexible matching): #{path}"}
+
+          {:error,
+           "String not found in file (tried exact, line-trimmed, whitespace-normalized, and indentation-flexible matching): #{path}"}
 
         {:error, :ambiguous_match, count} ->
           FileSystem.emit_file_telemetry(:edit, start_time, path, context, :ambiguous_match, 0)
-          {:error, "Found #{count} occurrences of the string in #{path}. Use replace_all: true to replace all, or provide a more specific string."}
+
+          {:error,
+           "Found #{count} occurrences of the string in #{path}. Use replace_all: true to replace all, or provide a more specific string."}
 
         {:error, reason} ->
           FileSystem.emit_file_telemetry(:edit, start_time, path, context, :error, 0)
@@ -360,7 +372,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       case Map.get(context, :session_id) do
         nil ->
           # No session context (legacy mode) - skip check but log
-          Logger.debug("EditFile: Skipping read-before-edit check - no session context (legacy mode)")
+          Logger.debug(
+            "EditFile: Skipping read-before-edit check - no session context (legacy mode)"
+          )
+
           :ok
 
         session_id ->
@@ -376,6 +391,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
               Logger.warning(
                 "EditFile: Session #{session_id} not found during read-before-edit check - failing closed"
               )
+
               {:error, :session_state_unavailable}
           end
       end
@@ -387,7 +403,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     # Try multiple matching strategies in order of preference
     @spec do_replace_with_strategies(String.t(), String.t(), String.t(), boolean()) ::
-            {:ok, String.t(), pos_integer(), atom()} | {:error, :not_found} | {:error, :ambiguous_match, pos_integer()}
+            {:ok, String.t(), pos_integer(), atom()}
+            | {:error, :not_found}
+            | {:error, :ambiguous_match, pos_integer()}
     defp do_replace_with_strategies(content, old_string, new_string, replace_all) do
       strategies = [
         {:exact, &exact_match/2},
@@ -420,8 +438,11 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     end
 
     # Try to replace using a specific match function
-    @spec try_replace(String.t(), String.t(), String.t(), boolean(), (String.t(), String.t() -> [non_neg_integer()])) ::
-            {:ok, String.t(), pos_integer()} | {:error, :not_found} | {:error, :ambiguous_match, pos_integer()}
+    @spec try_replace(String.t(), String.t(), String.t(), boolean(), (String.t(), String.t() ->
+                                                                        [non_neg_integer()])) ::
+            {:ok, String.t(), pos_integer()}
+            | {:error, :not_found}
+            | {:error, :ambiguous_match, pos_integer()}
     defp try_replace(content, old_string, new_string, replace_all, match_fn) do
       # Find all match positions using the strategy
       positions = match_fn.(content, old_string)
@@ -436,7 +457,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
         true ->
           # Apply replacements from end to start to maintain position validity
-          new_content = apply_replacements(content, old_string, new_string, positions, replace_all)
+          new_content =
+            apply_replacements(content, old_string, new_string, positions, replace_all)
+
           replaced_count = if replace_all, do: count, else: 1
           {:ok, new_content, replaced_count}
       end
@@ -444,16 +467,23 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     # Apply replacements at the given positions (from end to start)
     # Positions can be either integers (for exact match) or {pos, len} tuples (for fuzzy match)
-    @spec apply_replacements(String.t(), String.t(), String.t(), [non_neg_integer() | {non_neg_integer(), non_neg_integer()}], boolean()) :: String.t()
+    @spec apply_replacements(
+            String.t(),
+            String.t(),
+            String.t(),
+            [non_neg_integer() | {non_neg_integer(), non_neg_integer()}],
+            boolean()
+          ) :: String.t()
     defp apply_replacements(content, old_string, new_string, positions, replace_all) do
       default_len = String.length(old_string)
       positions_to_use = if replace_all, do: positions, else: [hd(positions)]
 
       # Normalize positions to {pos, len} tuples
-      normalized_positions = Enum.map(positions_to_use, fn
-        {pos, len} -> {pos, len}
-        pos when is_integer(pos) -> {pos, default_len}
-      end)
+      normalized_positions =
+        Enum.map(positions_to_use, fn
+          {pos, len} -> {pos, len}
+          pos when is_integer(pos) -> {pos, default_len}
+        end)
 
       # Sort positions in reverse order to apply from end to start
       # Using a large constant for suffix slice avoids expensive String.length calls in the reduce
@@ -462,6 +492,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       |> Enum.sort_by(fn {pos, _len} -> pos end, :desc)
       |> Enum.reduce(content, fn {pos, len}, acc ->
         prefix = String.slice(acc, 0, pos)
+
         # Use :infinity-like large value - String.slice returns rest of string if length exceeds available
         suffix = String.slice(acc, pos + len, 0x7FFFFFFF)
         prefix <> new_string <> suffix
@@ -482,6 +513,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     @spec line_trimmed_match(String.t(), String.t()) :: [non_neg_integer()]
     defp line_trimmed_match(content, pattern) do
       trimmed_pattern = trim_lines(pattern)
+
       if trimmed_pattern == pattern do
         # No change from trimming, skip this strategy
         []
@@ -495,6 +527,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     @spec whitespace_normalized_match(String.t(), String.t()) :: [non_neg_integer()]
     defp whitespace_normalized_match(content, pattern) do
       normalized_pattern = normalize_whitespace(pattern)
+
       if normalized_pattern == pattern do
         []
       else
@@ -507,6 +540,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     defp indentation_flexible_match(content, pattern) do
       # Remove leading indentation from each line of the pattern
       dedented_pattern = dedent(pattern)
+
       if dedented_pattern == pattern do
         []
       else
@@ -531,7 +565,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
         {:found, pos} ->
           absolute_pos = offset + pos
           rest = String.slice(content, pos + pattern_len, String.length(content))
-          do_find_positions(rest, pattern, pattern_len, absolute_pos + pattern_len, [absolute_pos | acc])
+
+          do_find_positions(rest, pattern, pattern_len, absolute_pos + pattern_len, [
+            absolute_pos | acc
+          ])
 
         :not_found ->
           Enum.reverse(acc)
@@ -540,7 +577,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     # Find the grapheme position of pattern in content
     # Returns {:found, position} or :not_found
-    @spec find_grapheme_position(String.t(), String.t()) :: {:found, non_neg_integer()} | :not_found
+    @spec find_grapheme_position(String.t(), String.t()) ::
+            {:found, non_neg_integer()} | :not_found
     defp find_grapheme_position(content, pattern) do
       case String.split(content, pattern, parts: 2) do
         [before, _rest] -> {:found, String.length(before)}
@@ -551,7 +589,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     # Find positions where normalized content matches normalized pattern
     # Returns {position, length} tuples in the ORIGINAL content
     # The length is the actual length of matched content (not pattern length)
-    @spec find_fuzzy_positions(String.t(), String.t(), (String.t() -> String.t())) :: [{non_neg_integer(), non_neg_integer()}]
+    @spec find_fuzzy_positions(String.t(), String.t(), (String.t() -> String.t())) :: [
+            {non_neg_integer(), non_neg_integer()}
+          ]
     defp find_fuzzy_positions(content, pattern, normalize_fn) do
       # Split content into lines and try to find matching sequences
       content_lines = String.split(content, "\n")
@@ -561,10 +601,26 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       normalized_pattern_lines = Enum.map(pattern_lines, normalize_fn)
 
       # Slide through content lines looking for matches
-      find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, 0, 0, [])
+      find_matching_line_sequences(
+        content_lines,
+        normalized_pattern_lines,
+        pattern_line_count,
+        normalize_fn,
+        0,
+        0,
+        []
+      )
     end
 
-    defp find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, line_idx, char_offset, acc) do
+    defp find_matching_line_sequences(
+           content_lines,
+           normalized_pattern_lines,
+           pattern_line_count,
+           normalize_fn,
+           line_idx,
+           char_offset,
+           acc
+         ) do
       if line_idx + pattern_line_count > length(content_lines) do
         Enum.reverse(acc)
       else
@@ -776,7 +832,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           success
 
         {:error, :read_before_write_required} ->
-          FileSystem.emit_file_telemetry(:multi_edit, start_time, path, context, :read_before_write_required, 0)
+          FileSystem.emit_file_telemetry(
+            :multi_edit,
+            start_time,
+            path,
+            context,
+            :read_before_write_required,
+            0
+          )
+
           {:error, "File must be read before editing: #{path}"}
 
         {:error, :session_state_unavailable} ->
@@ -807,7 +871,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       case Map.get(context, :session_id) do
         nil ->
           # No session context (legacy mode) - skip check but log
-          Logger.debug("MultiEdit: Skipping read-before-edit check - no session context (legacy mode)")
+          Logger.debug(
+            "MultiEdit: Skipping read-before-edit check - no session context (legacy mode)"
+          )
+
           :ok
 
         session_id ->
@@ -822,6 +889,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
               Logger.warning(
                 "MultiEdit: Session #{session_id} not found during read-before-edit check - failing closed"
               )
+
               {:error, :session_state_unavailable}
           end
       end
@@ -831,7 +899,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     # Edit Parsing and Validation
     # ============================================================================
 
-    @spec parse_and_validate_edits([map()]) :: {:ok, [{String.t(), String.t()}]} | {:error, {:invalid_edit, non_neg_integer(), String.t()}}
+    @spec parse_and_validate_edits([map()]) ::
+            {:ok, [{String.t(), String.t()}]}
+            | {:error, {:invalid_edit, non_neg_integer(), String.t()}}
     defp parse_and_validate_edits(edits) do
       edits
       |> Enum.with_index()
@@ -870,11 +940,13 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     # ============================================================================
 
     @spec apply_all_edits(String.t(), [{String.t(), String.t()}]) ::
-            {:ok, String.t(), pos_integer()} | {:error, {:edit_failed, non_neg_integer(), String.t()}}
+            {:ok, String.t(), pos_integer()}
+            | {:error, {:edit_failed, non_neg_integer(), String.t()}}
     defp apply_all_edits(content, edits) do
       edits
       |> Enum.with_index()
-      |> Enum.reduce_while({:ok, content, 0}, fn {{old_string, new_string}, index}, {:ok, current_content, count} ->
+      |> Enum.reduce_while({:ok, content, 0}, fn {{old_string, new_string}, index},
+                                                 {:ok, current_content, count} ->
         case apply_single_edit(current_content, old_string, new_string) do
           {:ok, new_content} ->
             {:cont, {:ok, new_content, count + 1}}
@@ -886,7 +958,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     end
 
     # Apply a single edit using multi-strategy matching
-    @spec apply_single_edit(String.t(), String.t(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
+    @spec apply_single_edit(String.t(), String.t(), String.t()) ::
+            {:ok, String.t()} | {:error, String.t()}
     defp apply_single_edit(content, old_string, new_string) do
       strategies = [
         {:exact, &exact_match/2},
@@ -902,6 +975,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
               if strategy_name != :exact do
                 Logger.debug("MultiEdit: Used #{strategy_name} matching strategy for edit")
               end
+
               {:halt, {:ok, new_content}}
 
             {:error, :ambiguous_match, count} ->
@@ -947,7 +1021,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     # Normalize position to {pos, len} tuple
     defp normalize_position({pos, len}, _old_string), do: {pos, len}
-    defp normalize_position(pos, old_string) when is_integer(pos), do: {pos, String.length(old_string)}
+
+    defp normalize_position(pos, old_string) when is_integer(pos),
+      do: {pos, String.length(old_string)}
 
     # ============================================================================
     # Match Strategy Implementations
@@ -960,6 +1036,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     # Strategy 2: Line-trimmed match
     defp line_trimmed_match(content, pattern) do
       trimmed_pattern = trim_lines(pattern)
+
       if trimmed_pattern == pattern do
         []
       else
@@ -970,6 +1047,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     # Strategy 3: Whitespace-normalized match
     defp whitespace_normalized_match(content, pattern) do
       normalized_pattern = normalize_whitespace(pattern)
+
       if normalized_pattern == pattern do
         []
       else
@@ -980,6 +1058,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     # Strategy 4: Indentation-flexible match
     defp indentation_flexible_match(content, pattern) do
       dedented_pattern = dedent(pattern)
+
       if dedented_pattern == pattern do
         []
       else
@@ -1001,7 +1080,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
         {:found, pos} ->
           absolute_pos = offset + pos
           rest = String.slice(content, pos + pattern_len, String.length(content))
-          do_find_positions(rest, pattern, pattern_len, absolute_pos + pattern_len, [absolute_pos | acc])
+
+          do_find_positions(rest, pattern, pattern_len, absolute_pos + pattern_len, [
+            absolute_pos | acc
+          ])
 
         :not_found ->
           Enum.reverse(acc)
@@ -1021,10 +1103,26 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       pattern_line_count = length(pattern_lines)
       normalized_pattern_lines = Enum.map(pattern_lines, normalize_fn)
 
-      find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, 0, 0, [])
+      find_matching_line_sequences(
+        content_lines,
+        normalized_pattern_lines,
+        pattern_line_count,
+        normalize_fn,
+        0,
+        0,
+        []
+      )
     end
 
-    defp find_matching_line_sequences(content_lines, normalized_pattern_lines, pattern_line_count, normalize_fn, line_idx, char_offset, acc) do
+    defp find_matching_line_sequences(
+           content_lines,
+           normalized_pattern_lines,
+           pattern_line_count,
+           normalize_fn,
+           line_idx,
+           char_offset,
+           acc
+         ) do
       if line_idx + pattern_line_count > length(content_lines) do
         Enum.reverse(acc)
       else
@@ -1183,7 +1281,14 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
               track_file_read(normalized_path, context)
 
               # Emit success telemetry using shared helper
-              FileSystem.emit_file_telemetry(:read, start_time, path, context, :ok, byte_size(content))
+              FileSystem.emit_file_telemetry(
+                :read,
+                start_time,
+                path,
+                context,
+                :ok,
+                byte_size(content)
+              )
 
               {:ok, content}
 
@@ -1350,7 +1455,15 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
           success
 
         {:error, :read_before_write_required} ->
-          FileSystem.emit_file_telemetry(:write, start_time, path, context, :read_before_write_required, content_size)
+          FileSystem.emit_file_telemetry(
+            :write,
+            start_time,
+            path,
+            context,
+            :read_before_write_required,
+            content_size
+          )
+
           {:error, "File must be read before overwriting: #{path}"}
 
         {:error, :session_state_unavailable} ->
@@ -1391,7 +1504,10 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       case Map.get(context, :session_id) do
         nil ->
           # No session context (legacy mode) - skip check but log
-          Logger.debug("WriteFile: Skipping read-before-write check - no session context (legacy mode)")
+          Logger.debug(
+            "WriteFile: Skipping read-before-write check - no session context (legacy mode)"
+          )
+
           :ok
 
         session_id ->

@@ -371,7 +371,10 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       large_content = String.duplicate("x", 10 * 1024 * 1024 + 1)
 
       assert {:error, error} =
-               WriteFile.execute(%{"path" => "large_file.txt", "content" => large_content}, context)
+               WriteFile.execute(
+                 %{"path" => "large_file.txt", "content" => large_content},
+                 context
+               )
 
       assert error =~ "exceeds maximum file size" or error =~ "content_too_large" or
                error =~ "Content exceeds"
@@ -685,7 +688,10 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       # Actually writes are tracked separately, let's verify through the internal state
     end
 
-    test "fails when attempting to write to a directory path", %{tmp_dir: tmp_dir, session: session} do
+    test "fails when attempting to write to a directory path", %{
+      tmp_dir: tmp_dir,
+      session: session
+    } do
       context = %{session_id: session.id}
 
       # Create a directory
@@ -745,7 +751,8 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
                )
 
       # Verify telemetry was emitted
-      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :write], measurements, metadata},
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :write], measurements,
+                      metadata},
                      1000
 
       assert is_integer(measurements.duration)
@@ -780,7 +787,8 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       _ = WriteFile.execute(%{"path" => "../../../escape.txt", "content" => "Bad"}, context)
 
       # Verify error telemetry was emitted
-      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :write], _measurements, metadata},
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :write], _measurements,
+                      metadata},
                      1000
 
       assert metadata.status == :error
@@ -1039,6 +1047,7 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
                )
 
       assert message =~ "Successfully replaced 1 occurrence"
+
       # Should use a fallback strategy (line_trimmed, whitespace_normalized, or indentation_flexible)
       assert message =~ "matched via"
       assert File.read!(file_path) =~ ":elixir"
@@ -1067,7 +1076,8 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
                )
 
       assert message =~ "Successfully replaced 1 occurrence"
-      refute message =~ "matched via"  # Exact match, no strategy note
+      # Exact match, no strategy note
+      refute message =~ "matched via"
       assert File.read!(file_path) =~ "modified()"
     end
 
@@ -1437,12 +1447,17 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       # Perform edit
       assert {:ok, _} =
                EditFile.execute(
-                 %{"path" => "telemetry_edit.txt", "old_string" => "World", "new_string" => "Elixir"},
+                 %{
+                   "path" => "telemetry_edit.txt",
+                   "old_string" => "World",
+                   "new_string" => "Elixir"
+                 },
                  context
                )
 
       # Verify telemetry was emitted
-      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], measurements, metadata},
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], measurements,
+                      metadata},
                      1000
 
       assert is_integer(measurements.duration)
@@ -1473,13 +1488,15 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       end)
 
       # Attempt edit on non-existent file
-      _ = EditFile.execute(
-        %{"path" => "nonexistent.txt", "old_string" => "foo", "new_string" => "bar"},
-        context
-      )
+      _ =
+        EditFile.execute(
+          %{"path" => "nonexistent.txt", "old_string" => "foo", "new_string" => "bar"},
+          context
+        )
 
       # Verify error telemetry was emitted
-      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], _measurements, metadata},
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], _measurements,
+                      metadata},
                      1000
 
       assert metadata.status == :error
@@ -1521,6 +1538,7 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       on_exit(fn ->
         :telemetry.detach("test-edit-read-before-write-telemetry-#{inspect(ref)}")
         System.delete_env("ANTHROPIC_API_KEY")
+
         try do
           if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
         catch
@@ -1533,13 +1551,15 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       File.write!(file_path, "Test content")
 
       # Attempt to edit without reading first (should fail with read_before_write_required)
-      _ = EditFile.execute(
-        %{"path" => "unread_edit.txt", "old_string" => "Test", "new_string" => "New"},
-        %{session_id: session.id}
-      )
+      _ =
+        EditFile.execute(
+          %{"path" => "unread_edit.txt", "old_string" => "Test", "new_string" => "New"},
+          %{session_id: session.id}
+        )
 
       # Verify telemetry was emitted with read_before_write_required status
-      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], _measurements, metadata},
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :edit], _measurements,
+                      metadata},
                      1000
 
       assert metadata.status == :read_before_write_required
@@ -1885,7 +1905,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
     test "returns error for non-existent base path", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
-      {:error, error} = GlobSearch.execute(%{"pattern" => "*.ex", "path" => "nonexistent"}, context)
+
+      {:error, error} =
+        GlobSearch.execute(%{"pattern" => "*.ex", "path" => "nonexistent"}, context)
 
       assert error =~ "File not found"
     end
@@ -2114,7 +2136,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
         %{"old_string" => "foo", "new_string" => "baz"}
       ]
 
-      assert {:ok, message} = MultiEdit.execute(%{"path" => "multi_edit_test.txt", "edits" => edits}, context)
+      assert {:ok, message} =
+               MultiEdit.execute(%{"path" => "multi_edit_test.txt", "edits" => edits}, context)
+
       assert message =~ "Successfully applied 2 edit(s)"
 
       content = File.read!(path)
@@ -2128,7 +2152,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       edits = [%{"old_string" => "original", "new_string" => "modified"}]
 
-      assert {:ok, message} = MultiEdit.execute(%{"path" => "single_edit.txt", "edits" => edits}, context)
+      assert {:ok, message} =
+               MultiEdit.execute(%{"path" => "single_edit.txt", "edits" => edits}, context)
+
       assert message =~ "Successfully applied 1 edit(s)"
 
       assert File.read!(path) == "modified content"
@@ -2141,7 +2167,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       edits = [%{"old_string" => " delete this", "new_string" => ""}]
 
-      assert {:ok, _} = MultiEdit.execute(%{"path" => "delete_test.txt", "edits" => edits}, context)
+      assert {:ok, _} =
+               MultiEdit.execute(%{"path" => "delete_test.txt", "edits" => edits}, context)
+
       assert File.read!(path) == "keep this keep this too"
     end
 
@@ -2156,7 +2184,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
         %{"old_string" => "xxx bbb", "new_string" => "yyy zzz"}
       ]
 
-      assert {:ok, _} = MultiEdit.execute(%{"path" => "sequential_test.txt", "edits" => edits}, context)
+      assert {:ok, _} =
+               MultiEdit.execute(%{"path" => "sequential_test.txt", "edits" => edits}, context)
+
       assert File.read!(path) == "yyy zzz ccc"
     end
   end
@@ -2167,7 +2197,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       File.write!(path, "content")
       context = %{project_root: tmp_dir}
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "empty_edits.txt", "edits" => []}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "empty_edits.txt", "edits" => []}, context)
+
       assert error =~ "edits array cannot be empty"
     end
 
@@ -2178,7 +2210,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       edits = [%{"old_string" => "nonexistent", "new_string" => "replacement"}]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "not_found.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "not_found.txt", "edits" => edits}, context)
+
       assert error =~ "Edit 1 failed"
       assert error =~ "String not found"
     end
@@ -2193,7 +2227,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
         %{"old_string" => "nonexistent", "new_string" => "replacement"}
       ]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "second_fails.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "second_fails.txt", "edits" => edits}, context)
+
       assert error =~ "Edit 2 failed"
 
       # File should remain unchanged (atomic behavior)
@@ -2207,7 +2243,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       edits = [%{"old_string" => "foo", "new_string" => "bar"}]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "ambiguous.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "ambiguous.txt", "edits" => edits}, context)
+
       assert error =~ "Edit 1 failed"
       assert error =~ "3 occurrences"
     end
@@ -2220,7 +2258,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       # Missing new_string
       edits = [%{"old_string" => "content"}]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "missing_field.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "missing_field.txt", "edits" => edits}, context)
+
       assert error =~ "Edit 1 invalid"
       assert error =~ "must have old_string and new_string"
     end
@@ -2232,7 +2272,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       edits = [%{"old_string" => "", "new_string" => "replacement"}]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "empty_old.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "empty_old.txt", "edits" => edits}, context)
+
       assert error =~ "Edit 1 invalid"
       assert error =~ "old_string cannot be empty"
     end
@@ -2241,7 +2283,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       context = %{project_root: tmp_dir}
       edits = [%{"old_string" => "hello", "new_string" => "world"}]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "nonexistent.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "nonexistent.txt", "edits" => edits}, context)
+
       assert error =~ "File not found" or error =~ "No such file"
     end
 
@@ -2249,7 +2293,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       context = %{project_root: tmp_dir}
       edits = [%{"old_string" => "hello", "new_string" => "world"}]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "../../../escape.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "../../../escape.txt", "edits" => edits}, context)
+
       assert error =~ "Security error"
     end
   end
@@ -2285,7 +2331,10 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       {:ok, session: session, supervisor_pid: supervisor_pid}
     end
 
-    test "requires file to be read first in session context", %{tmp_dir: tmp_dir, session: session} do
+    test "requires file to be read first in session context", %{
+      tmp_dir: tmp_dir,
+      session: session
+    } do
       path = Path.join(tmp_dir, "session_multi_edit.txt")
       File.write!(path, "hello world")
       context = %{session_id: session.id, project_root: tmp_dir}
@@ -2293,7 +2342,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       edits = [%{"old_string" => "hello", "new_string" => "goodbye"}]
 
       # Should fail because file was not read first
-      assert {:error, error} = MultiEdit.execute(%{"path" => "session_multi_edit.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "session_multi_edit.txt", "edits" => edits}, context)
+
       assert error =~ "File must be read before editing"
     end
 
@@ -2307,7 +2358,10 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
 
       # Now edit should work
       edits = [%{"old_string" => "hello", "new_string" => "goodbye"}]
-      assert {:ok, message} = MultiEdit.execute(%{"path" => "session_read_first.txt", "edits" => edits}, context)
+
+      assert {:ok, message} =
+               MultiEdit.execute(%{"path" => "session_read_first.txt", "edits" => edits}, context)
+
       assert message =~ "Successfully applied 1 edit(s)"
     end
   end
@@ -2335,7 +2389,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       # Pattern with multiple spaces should match content with single space
       edits = [%{"old_string" => "hello    world", "new_string" => "goodbye world"}]
 
-      assert {:ok, _} = MultiEdit.execute(%{"path" => "whitespace.txt", "edits" => edits}, context)
+      assert {:ok, _} =
+               MultiEdit.execute(%{"path" => "whitespace.txt", "edits" => edits}, context)
+
       assert File.read!(path) == "goodbye world"
     end
 
@@ -2378,10 +2434,15 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       end)
 
       edits = [%{"old_string" => "hello", "new_string" => "goodbye"}]
-      assert {:ok, _} = MultiEdit.execute(%{"path" => "telemetry_success.txt", "edits" => edits}, context)
+
+      assert {:ok, _} =
+               MultiEdit.execute(%{"path" => "telemetry_success.txt", "edits" => edits}, context)
 
       # Verify telemetry was emitted
-      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :multi_edit], _measurements, metadata}, 1000
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :multi_edit], _measurements,
+                      metadata},
+                     1000
+
       assert metadata.status == :ok
     end
 
@@ -2410,10 +2471,15 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       end)
 
       edits = [%{"old_string" => "nonexistent", "new_string" => "replacement"}]
-      assert {:error, _} = MultiEdit.execute(%{"path" => "telemetry_failure.txt", "edits" => edits}, context)
+
+      assert {:error, _} =
+               MultiEdit.execute(%{"path" => "telemetry_failure.txt", "edits" => edits}, context)
 
       # Verify telemetry was emitted
-      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :multi_edit], _measurements, metadata}, 1000
+      assert_receive {:telemetry, ^ref, [:jido_code, :file_system, :multi_edit], _measurements,
+                      metadata},
+                     1000
+
       assert metadata.status == :edit_failed
     end
   end
@@ -2432,7 +2498,9 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
         %{"old_string" => "nonexistent", "new_string" => "replacement"}
       ]
 
-      assert {:error, error} = MultiEdit.execute(%{"path" => "atomic_test.txt", "edits" => edits}, context)
+      assert {:error, error} =
+               MultiEdit.execute(%{"path" => "atomic_test.txt", "edits" => edits}, context)
+
       assert error =~ "Edit 3 failed"
 
       # File should be completely unchanged

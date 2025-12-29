@@ -131,6 +131,8 @@ defmodule JidoCode.Tools.Security do
     end
   end
 
+  def validate_path(_, _, _), do: {:error, :invalid_path}
+
   defp do_validate_path(path, project_root, log_violations) do
     # Normalize project root (ensure no trailing slash, expanded)
     normalized_root = normalize_path(project_root)
@@ -171,8 +173,6 @@ defmodule JidoCode.Tools.Security do
       String.contains?(lower_path, pattern)
     end)
   end
-
-  def validate_path(_, _, _), do: {:error, :invalid_path}
 
   @doc """
   Checks if a path is within the project boundary.

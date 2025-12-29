@@ -123,10 +123,12 @@ defmodule JidoCode.Tools.Definitions.GlobSearchTest do
 
     test "validates with pattern and path" do
       tool = GlobSearch.glob_search()
+
       args = %{
         "pattern" => "**/*.ex",
         "path" => "lib"
       }
+
       assert :ok = Tool.validate_args(tool, args)
     end
 
@@ -167,6 +169,7 @@ defmodule JidoCode.Tools.Definitions.GlobSearchTest do
 
     test "rejects invalid path type" do
       tool = GlobSearch.glob_search()
+
       args = %{
         "pattern" => "**/*.ex",
         "path" => 123
@@ -178,6 +181,7 @@ defmodule JidoCode.Tools.Definitions.GlobSearchTest do
 
     test "rejects unknown parameters" do
       tool = GlobSearch.glob_search()
+
       args = %{
         "pattern" => "**/*.ex",
         "unknown" => "value"

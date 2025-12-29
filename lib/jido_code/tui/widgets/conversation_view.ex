@@ -1150,7 +1150,13 @@ defmodule JidoCode.TUI.Widgets.ConversationView do
       # Not in interactive mode - enter it and focus first/last element
       not state.interactive_mode ->
         first_element = if direction == :forward, do: hd(elements), else: List.last(elements)
-        %{state | interactive_mode: true, focused_element_id: first_element.id, interactive_elements: elements}
+
+        %{
+          state
+          | interactive_mode: true,
+            focused_element_id: first_element.id,
+            interactive_elements: elements
+        }
 
       # In interactive mode - cycle to next/previous
       true ->

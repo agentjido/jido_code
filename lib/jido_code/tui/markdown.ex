@@ -279,7 +279,11 @@ defmodule JidoCode.TUI.Markdown do
 
   # Process node and return {lines, elements} tuple
   # Most nodes don't have interactive elements
-  defp process_node_with_elements(%MDEx.CodeBlock{literal: code, info: info}, line_idx, focused_id) do
+  defp process_node_with_elements(
+         %MDEx.CodeBlock{literal: code, info: info},
+         line_idx,
+         focused_id
+       ) do
     lang = if info && info != "", do: String.downcase(String.trim(info)), else: nil
 
     # Generate deterministic ID for this code block
@@ -293,10 +297,22 @@ defmodule JidoCode.TUI.Markdown do
     header =
       if lang do
         focus_hint = if is_focused, do: " [c]", else: ""
-        [[{"┌─ " <> lang <> focus_hint <> " ", @code_block_style}, {String.duplicate("─", 40 - String.length(focus_hint)), border_style}]]
+
+        [
+          [
+            {"┌─ " <> lang <> focus_hint <> " ", @code_block_style},
+            {String.duplicate("─", 40 - String.length(focus_hint)), border_style}
+          ]
+        ]
       else
         focus_hint = if is_focused, do: " [c]", else: ""
-        [[{"┌" <> focus_hint, @code_block_style}, {String.duplicate("─", 44 - String.length(focus_hint)), border_style}]]
+
+        [
+          [
+            {"┌" <> focus_hint, @code_block_style},
+            {String.duplicate("─", 44 - String.length(focus_hint)), border_style}
+          ]
+        ]
       end
 
     # Render code with syntax highlighting if supported, otherwise plain
@@ -362,7 +378,12 @@ defmodule JidoCode.TUI.Markdown do
     # Build header with language label
     header =
       if lang do
-        [[{"┌─ " <> lang <> " ", @code_block_style}, {String.duplicate("─", 40), @code_border_style}]]
+        [
+          [
+            {"┌─ " <> lang <> " ", @code_block_style},
+            {String.duplicate("─", 40), @code_border_style}
+          ]
+        ]
       else
         [[{"┌", @code_block_style}, {String.duplicate("─", 44), @code_border_style}]]
       end
@@ -370,10 +391,90 @@ defmodule JidoCode.TUI.Markdown do
     # Render code with syntax highlighting if supported, otherwise plain
     code_lines = render_code_block(code, lang)
 
-    footer = [[{"└", @code_block_style}, {String.duplicate("─", 44), @code_border_style}], [{"", nil}]]
+    footer = [
+      [{"└", @code_block_style}, {String.duplicate("─", 44), @code_border_style}],
+      [{"", nil}]
+    ]
 
     header ++ code_lines ++ footer
   end
+
+  defp process_node(%MDEx.Code{literal: code}) do
+    # Inline code - return as single segment
+    [[{"`" <> code <> "`", @code_style}]]
+  end
+
+  defp process_node(%MDEx.BlockQuote{nodes: children}) do
+    children
+    |> Enum.flat_map(&process_node/1)
+    |> Enum.map(fn segments ->
+      # Prepend blockquote marker to first segment
+      case segments do
+        [{text, _style} | rest] ->
+          [{"│ " <> text, @blockquote_style} | rest]
+
+        [] ->
+          [{"│ ", @blockquote_style}]
+      end
+    end)
+  end
+
+  defp process_node(%MDEx.List{list_type: :bullet, nodes: items}) do
+    items
+    |> Enum.flat_map(fn item ->
+      process_list_item(item, "• ")
+    end)
+    |> Kernel.++([[{"", nil}]])
+  end
+
+  defp process_node(%MDEx.List{list_type: :ordered, nodes: items, start: start}) do
+    items
+    |> Enum.with_index(start || 1)
+    |> Enum.flat_map(fn {item, idx} ->
+      process_list_item(item, "#{idx}. ")
+    end)
+    |> Kernel.++([[{"", nil}]])
+  end
+
+  defp process_node(%MDEx.ListItem{nodes: children}) do
+    # Process list item content
+    children
+    |> Enum.flat_map(&process_node/1)
+  end
+
+  defp process_node(%MDEx.ThematicBreak{}) do
+    [[{"───────────────────────────────────────", Style.new(fg: :bright_black)}], [{"", nil}]]
+  end
+
+  defp process_node(%MDEx.SoftBreak{}) do
+    # Soft breaks become spaces in inline content
+    []
+  end
+
+  defp process_node(%MDEx.LineBreak{}) do
+    # Line breaks become newlines
+    [[{"", nil}]]
+  end
+
+  # Catch-all for unknown nodes - extract text content
+  defp process_node(node) when is_map(node) do
+    case Map.get(node, :nodes) do
+      nil ->
+        case Map.get(node, :literal) do
+          nil -> []
+          text -> [[{text, nil}]]
+        end
+
+      children ->
+        Enum.flat_map(children, &process_node/1)
+    end
+  end
+
+  defp process_node(_), do: []
+
+  # ============================================================================
+  # Code Block Rendering Helpers
+  # ============================================================================
 
   # Render code block with syntax highlighting for supported languages
   defp render_code_block(code, lang) do
@@ -451,6 +552,7 @@ defmodule JidoCode.TUI.Markdown do
 
   # Normalize token text from Makeup (can be string, charlist, or list of chars/strings)
   defp normalize_token_text(text) when is_binary(text), do: text
+
   defp normalize_token_text(text) when is_list(text) do
     text
     |> List.flatten()
@@ -460,80 +562,8 @@ defmodule JidoCode.TUI.Markdown do
     end)
     |> Enum.join()
   end
+
   defp normalize_token_text(text), do: to_string(text)
-
-  defp process_node(%MDEx.Code{literal: code}) do
-    # Inline code - return as single segment
-    [[{"`" <> code <> "`", @code_style}]]
-  end
-
-  defp process_node(%MDEx.BlockQuote{nodes: children}) do
-    children
-    |> Enum.flat_map(&process_node/1)
-    |> Enum.map(fn segments ->
-      # Prepend blockquote marker to first segment
-      case segments do
-        [{text, _style} | rest] ->
-          [{"│ " <> text, @blockquote_style} | rest]
-
-        [] ->
-          [{"│ ", @blockquote_style}]
-      end
-    end)
-  end
-
-  defp process_node(%MDEx.List{list_type: :bullet, nodes: items}) do
-    items
-    |> Enum.flat_map(fn item ->
-      process_list_item(item, "• ")
-    end)
-    |> Kernel.++([[{"", nil}]])
-  end
-
-  defp process_node(%MDEx.List{list_type: :ordered, nodes: items, start: start}) do
-    items
-    |> Enum.with_index(start || 1)
-    |> Enum.flat_map(fn {item, idx} ->
-      process_list_item(item, "#{idx}. ")
-    end)
-    |> Kernel.++([[{"", nil}]])
-  end
-
-  defp process_node(%MDEx.ListItem{nodes: children}) do
-    # Process list item content
-    children
-    |> Enum.flat_map(&process_node/1)
-  end
-
-  defp process_node(%MDEx.ThematicBreak{}) do
-    [[{"───────────────────────────────────────", Style.new(fg: :bright_black)}], [{"", nil}]]
-  end
-
-  defp process_node(%MDEx.SoftBreak{}) do
-    # Soft breaks become spaces in inline content
-    []
-  end
-
-  defp process_node(%MDEx.LineBreak{}) do
-    # Line breaks become newlines
-    [[{"", nil}]]
-  end
-
-  # Catch-all for unknown nodes - extract text content
-  defp process_node(node) when is_map(node) do
-    case Map.get(node, :nodes) do
-      nil ->
-        case Map.get(node, :literal) do
-          nil -> []
-          text -> [[{text, nil}]]
-        end
-
-      children ->
-        Enum.flat_map(children, &process_node/1)
-    end
-  end
-
-  defp process_node(_), do: []
 
   # ============================================================================
   # Inline Node Processing

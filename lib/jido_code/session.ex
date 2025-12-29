@@ -694,7 +694,8 @@ defmodule JidoCode.Session do
       iex> updated.language
       :javascript
   """
-  @spec set_language(t(), Language.language() | String.t()) :: {:ok, t()} | {:error, :invalid_language}
+  @spec set_language(t(), Language.language() | String.t()) ::
+          {:ok, t()} | {:error, :invalid_language}
   def set_language(%__MODULE__{} = session, language) do
     case Language.normalize(language) do
       {:ok, normalized} ->

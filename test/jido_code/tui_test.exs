@@ -198,7 +198,11 @@ defmodule JidoCode.TUITest do
       agent_activity: :idle,
       awaiting_input: nil,
       agent_status: :idle,
-      text_input: create_text_input()
+      text_input: create_text_input(),
+      usage: nil,
+      # Prompt history navigation state
+      history_index: nil,
+      saved_input: nil
     }
 
     session_with_ui = Map.put(session, :ui_state, ui_state)
@@ -798,15 +802,29 @@ defmodule JidoCode.TUITest do
       assert {:msg, {:input_event, %Event.Key{key: "w"}}} = TUI.event_to_msg(event, model)
     end
 
-    test "up arrow returns {:msg, {:conversation_event, event}}" do
-      model = %Model{}
+    test "up arrow returns {:msg, :history_previous} when focus is :input" do
+      model = %Model{focus: :input}
+      event = Event.key(:up)
+
+      assert TUI.event_to_msg(event, model) == {:msg, :history_previous}
+    end
+
+    test "up arrow returns {:msg, {:conversation_event, event}} when focus is :conversation" do
+      model = %Model{focus: :conversation}
       event = Event.key(:up)
 
       assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
     end
 
-    test "down arrow returns {:msg, {:conversation_event, event}}" do
-      model = %Model{}
+    test "down arrow returns {:msg, :history_next} when focus is :input" do
+      model = %Model{focus: :input}
+      event = Event.key(:down)
+
+      assert TUI.event_to_msg(event, model) == {:msg, :history_next}
+    end
+
+    test "down arrow returns {:msg, {:conversation_event, event}} when focus is :conversation" do
+      model = %Model{focus: :conversation}
       event = Event.key(:down)
 
       assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
@@ -1643,15 +1661,29 @@ defmodule JidoCode.TUITest do
   describe "scroll navigation" do
     alias JidoCode.TUI.Widgets.ConversationView
 
-    test "up arrow returns {:msg, {:conversation_event, event}}" do
-      model = %Model{}
+    test "up arrow returns {:msg, :history_previous} when focus is :input" do
+      model = %Model{focus: :input}
+      event = Event.key(:up)
+
+      assert TUI.event_to_msg(event, model) == {:msg, :history_previous}
+    end
+
+    test "up arrow returns {:msg, {:conversation_event, event}} when focus is :conversation" do
+      model = %Model{focus: :conversation}
       event = Event.key(:up)
 
       assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
     end
 
-    test "down arrow returns {:msg, {:conversation_event, event}}" do
-      model = %Model{}
+    test "down arrow returns {:msg, :history_next} when focus is :input" do
+      model = %Model{focus: :input}
+      event = Event.key(:down)
+
+      assert TUI.event_to_msg(event, model) == {:msg, :history_next}
+    end
+
+    test "down arrow returns {:msg, {:conversation_event, event}} when focus is :conversation" do
+      model = %Model{focus: :conversation}
       event = Event.key(:down)
 
       assert TUI.event_to_msg(event, model) == {:msg, {:conversation_event, event}}
@@ -1709,10 +1741,29 @@ defmodule JidoCode.TUITest do
       assert new_model == model
     end
 
-    test "scroll keys route to conversation_event" do
-      model = %Model{}
+    test "scroll keys route to conversation_event when focus is :conversation" do
+      model = %Model{focus: :conversation}
 
       for key <- [:up, :down, :page_up, :page_down, :home, :end] do
+        event = Event.key(key)
+        assert {:msg, {:conversation_event, ^event}} = TUI.event_to_msg(event, model)
+      end
+    end
+
+    test "up/down route to history navigation when focus is :input" do
+      model = %Model{focus: :input}
+
+      up_event = Event.key(:up)
+      down_event = Event.key(:down)
+
+      assert TUI.event_to_msg(up_event, model) == {:msg, :history_previous}
+      assert TUI.event_to_msg(down_event, model) == {:msg, :history_next}
+    end
+
+    test "page_up/page_down/home/end route to conversation_event even when focus is :input" do
+      model = %Model{focus: :input}
+
+      for key <- [:page_up, :page_down, :home, :end] do
         event = Event.key(key)
         assert {:msg, {:conversation_event, ^event}} = TUI.event_to_msg(event, model)
       end

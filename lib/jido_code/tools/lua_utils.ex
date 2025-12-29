@@ -131,9 +131,8 @@ defmodule JidoCode.Tools.LuaUtils do
       iex> LuaUtils.parse_lua_result({:ok, [nil, "not found"], state})
       {:error, "not found"}
   """
-  @spec parse_lua_result(
-          {:ok, list(), term()} | {:error, term(), term()}
-        ) :: {:ok, term()} | {:error, term()}
+  @spec parse_lua_result({:ok, list(), term()} | {:error, term(), term()}) ::
+          {:ok, term()} | {:error, term()}
   def parse_lua_result({:ok, [nil, error_msg], _state}) when is_binary(error_msg) do
     {:error, error_msg}
   end
@@ -171,7 +170,7 @@ defmodule JidoCode.Tools.LuaUtils do
         :luerl.do("return 42", state)
       end)
   """
-  @spec safe_lua_execute((() -> {:ok, list(), term()} | {:error, term(), term()})) ::
+  @spec safe_lua_execute((-> {:ok, list(), term()} | {:error, term(), term()})) ::
           {:ok, term(), term()} | {:error, term()}
   def safe_lua_execute(fun) when is_function(fun, 0) do
     case fun.() do

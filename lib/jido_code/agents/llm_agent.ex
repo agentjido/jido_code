@@ -1216,7 +1216,7 @@ defmodule JidoCode.Agents.LLMAgent do
            "Provider '#{provider}' not found. Available providers include: #{available}... (#{length(providers)} total)"}
         end
 
-      {:error, :registry_unavailable} ->
+      {:error, {:registry_error, _}} ->
         # Fall back to allowing any provider if registry unavailable
         Logger.warning("Provider registry unavailable, skipping provider validation")
         :ok

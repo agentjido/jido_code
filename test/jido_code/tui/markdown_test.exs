@@ -88,13 +88,17 @@ defmodule JidoCode.TUI.MarkdownTest do
       assert length(result) >= 3
 
       # Check code line has yellow color (with │ prefix for border)
-      code_lines = Enum.filter(result, fn segments when is_list(segments) ->
-        Enum.any?(segments, fn
-          {text, style} when is_struct(style, Style) ->
-            String.contains?(text, "code") and style.fg == :yellow
-          _ -> false
+      code_lines =
+        Enum.filter(result, fn segments when is_list(segments) ->
+          Enum.any?(segments, fn
+            {text, style} when is_struct(style, Style) ->
+              String.contains?(text, "code") and style.fg == :yellow
+
+            _ ->
+              false
+          end)
         end)
-      end)
+
       assert length(code_lines) >= 1
     end
 
@@ -102,10 +106,12 @@ defmodule JidoCode.TUI.MarkdownTest do
       result = Markdown.render("```elixir\nIO.puts(\"hello\")\n```", 80)
 
       # Find line containing language info (may be in multiple segments)
-      has_lang = Enum.any?(result, fn segments when is_list(segments) ->
-        full_text = Enum.map_join(segments, "", fn {text, _style} -> text end)
-        String.contains?(full_text, "elixir")
-      end)
+      has_lang =
+        Enum.any?(result, fn segments when is_list(segments) ->
+          full_text = Enum.map_join(segments, "", fn {text, _style} -> text end)
+          String.contains?(full_text, "elixir")
+        end)
+
       assert has_lang
     end
 
@@ -113,15 +119,19 @@ defmodule JidoCode.TUI.MarkdownTest do
       result = Markdown.render("- item 1\n- item 2", 80)
 
       # Should have bullet markers
-      has_bullets = Enum.any?(result, fn
-        segments when is_list(segments) ->
-          Enum.any?(segments, fn
-            {"• ", _style} -> true
-            {text, _} -> String.contains?(text, "•")
-            _ -> false
-          end)
-        _ -> false
-      end)
+      has_bullets =
+        Enum.any?(result, fn
+          segments when is_list(segments) ->
+            Enum.any?(segments, fn
+              {"• ", _style} -> true
+              {text, _} -> String.contains?(text, "•")
+              _ -> false
+            end)
+
+          _ ->
+            false
+        end)
+
       assert has_bullets
     end
 
@@ -129,14 +139,18 @@ defmodule JidoCode.TUI.MarkdownTest do
       result = Markdown.render("1. first\n2. second", 80)
 
       # Should have number markers
-      has_numbers = Enum.any?(result, fn
-        segments when is_list(segments) ->
-          Enum.any?(segments, fn
-            {text, _style} -> Regex.match?(~r/^\d+\.\s/, text)
-            _ -> false
-          end)
-        _ -> false
-      end)
+      has_numbers =
+        Enum.any?(result, fn
+          segments when is_list(segments) ->
+            Enum.any?(segments, fn
+              {text, _style} -> Regex.match?(~r/^\d+\.\s/, text)
+              _ -> false
+            end)
+
+          _ ->
+            false
+        end)
+
       assert has_numbers
     end
 
@@ -144,11 +158,15 @@ defmodule JidoCode.TUI.MarkdownTest do
       result = Markdown.render("> quoted text", 80)
 
       # Should have quote marker
-      has_quote = Enum.any?(result, fn
-        [{text, style}] when is_struct(style, Style) ->
-          String.starts_with?(text, "│") and style.fg == :bright_black
-        _ -> false
-      end)
+      has_quote =
+        Enum.any?(result, fn
+          [{text, style}] when is_struct(style, Style) ->
+            String.starts_with?(text, "│") and style.fg == :bright_black
+
+          _ ->
+            false
+        end)
+
       assert has_quote
     end
 
@@ -156,15 +174,21 @@ defmodule JidoCode.TUI.MarkdownTest do
       result = Markdown.render("[text](https://example.com)", 80)
 
       # Should have underlined link text
-      has_link = Enum.any?(result, fn
-        segments when is_list(segments) ->
-          Enum.any?(segments, fn
-            {text, style} when is_struct(style, Style) ->
-              text == "text" and :underline in style.attrs
-            _ -> false
-          end)
-        _ -> false
-      end)
+      has_link =
+        Enum.any?(result, fn
+          segments when is_list(segments) ->
+            Enum.any?(segments, fn
+              {text, style} when is_struct(style, Style) ->
+                text == "text" and :underline in style.attrs
+
+              _ ->
+                false
+            end)
+
+          _ ->
+            false
+        end)
+
       assert has_link
     end
 
@@ -172,10 +196,12 @@ defmodule JidoCode.TUI.MarkdownTest do
       result = Markdown.render("---", 80)
 
       # Should have horizontal rule
-      has_hr = Enum.any?(result, fn
-        [{text, _style}] -> String.contains?(text, "───")
-        _ -> false
-      end)
+      has_hr =
+        Enum.any?(result, fn
+          [{text, _style}] -> String.contains?(text, "───")
+          _ -> false
+        end)
+
       assert has_hr
     end
 
@@ -184,10 +210,12 @@ defmodule JidoCode.TUI.MarkdownTest do
       result = Markdown.render(long_text, 40)
 
       # Should produce multiple lines
-      non_empty_lines = Enum.filter(result, fn
-        [{"", nil}] -> false
-        _ -> true
-      end)
+      non_empty_lines =
+        Enum.filter(result, fn
+          [{"", nil}] -> false
+          _ -> true
+        end)
+
       assert length(non_empty_lines) > 1
     end
 

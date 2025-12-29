@@ -407,22 +407,22 @@ Extend the existing Session.State GenServer with memory-related fields and callb
 
 ### 1.5.3 Pending Memories Client API
 
-- [ ] 1.5.3.1 Add `add_pending_memory/2` client function:
+- [x] 1.5.3.1 Add `add_pending_memory/2` client function:
   ```elixir
   @spec add_pending_memory(String.t(), pending_item()) :: :ok | {:error, :not_found}
   def add_pending_memory(session_id, item)
   ```
-- [ ] 1.5.3.2 Add `add_agent_memory_decision/2` client function:
+- [x] 1.5.3.2 Add `add_agent_memory_decision/2` client function:
   ```elixir
   @spec add_agent_memory_decision(String.t(), pending_item()) :: :ok | {:error, :not_found}
   def add_agent_memory_decision(session_id, item)
   ```
-- [ ] 1.5.3.3 Add `get_pending_memories/1` client function:
+- [x] 1.5.3.3 Add `get_pending_memories/1` client function:
   ```elixir
   @spec get_pending_memories(String.t()) :: {:ok, [pending_item()]} | {:error, :not_found}
   def get_pending_memories(session_id)
   ```
-- [ ] 1.5.3.4 Add `clear_promoted_memories/2` client function:
+- [x] 1.5.3.4 Add `clear_promoted_memories/2` client function:
   ```elixir
   @spec clear_promoted_memories(String.t(), [String.t()]) :: :ok | {:error, :not_found}
   def clear_promoted_memories(session_id, promoted_ids)
@@ -459,14 +459,14 @@ Extend the existing Session.State GenServer with memory-related fields and callb
   - Return working_context as map via WorkingContext.to_map/1
 - [x] 1.5.5.4 Add `handle_call(:clear_context, ...)` callback:
   - Reset working_context via WorkingContext.clear/1
-- [ ] 1.5.5.5 Add `handle_call({:add_pending_memory, item}, ...)` callback:
+- [x] 1.5.5.5 Add `handle_call({:add_pending_memory, item}, ...)` callback:
   - Use PendingMemories.add_implicit/2
   - Enforce size limit
-- [ ] 1.5.5.6 Add `handle_call({:add_agent_memory_decision, item}, ...)` callback:
+- [x] 1.5.5.6 Add `handle_call({:add_agent_memory_decision, item}, ...)` callback:
   - Use PendingMemories.add_agent_decision/2
-- [ ] 1.5.5.7 Add `handle_call(:get_pending_memories, ...)` callback:
+- [x] 1.5.5.7 Add `handle_call(:get_pending_memories, ...)` callback:
   - Return PendingMemories.ready_for_promotion/1 results
-- [ ] 1.5.5.8 Add `handle_call({:clear_promoted_memories, ids}, ...)` callback:
+- [x] 1.5.5.8 Add `handle_call({:clear_promoted_memories, ids}, ...)` callback:
   - Use PendingMemories.clear_promoted/2
 - [ ] 1.5.5.9 Add `handle_cast({:record_access, key, type}, ...)` callback:
   - Use AccessLog.record/3

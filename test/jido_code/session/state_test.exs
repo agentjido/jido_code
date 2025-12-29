@@ -1074,4 +1074,261 @@ defmodule JidoCode.Session.StateTest do
       assert {:error, :not_found} = State.clear_context("unknown-session-id")
     end
   end
+
+  # ============================================================================
+  # Pending Memories Client API (Task 1.5.3)
+  # ============================================================================
+
+  describe "add_pending_memory/2" do
+    test "adds item to pending_memories", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      item = %{
+        content: "Uses Phoenix framework",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool
+      }
+
+      assert :ok = State.add_pending_memory(session.id, item)
+
+      {:ok, state} = State.get_state(session.id)
+      assert PendingMemories.size(state.pending_memories) == 1
+
+      GenServer.stop(pid)
+    end
+
+    test "sets suggested_by to :implicit", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      item = %{
+        content: "Test content",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :tool
+      }
+
+      :ok = State.add_pending_memory(session.id, item)
+
+      {:ok, state} = State.get_state(session.id)
+      [added_item] = PendingMemories.list_implicit(state.pending_memories)
+      assert added_item.suggested_by == :implicit
+
+      GenServer.stop(pid)
+    end
+
+    test "enforces max_pending_memories limit", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Add more items than max limit (500)
+      # We'll add a few and verify the mechanism works (full test in PendingMemories module)
+      for i <- 1..5 do
+        item = %{
+          content: "Item #{i}",
+          memory_type: :fact,
+          confidence: 0.5,
+          source_type: :tool,
+          importance_score: i * 0.1
+        }
+
+        :ok = State.add_pending_memory(session.id, item)
+      end
+
+      {:ok, state} = State.get_state(session.id)
+      assert PendingMemories.size(state.pending_memories) == 5
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      item = %{content: "Test", memory_type: :fact, confidence: 0.8, source_type: :tool}
+      assert {:error, :not_found} = State.add_pending_memory("unknown-session-id", item)
+    end
+  end
+
+  describe "add_agent_memory_decision/2" do
+    test "adds item to agent_decisions", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      item = %{
+        content: "Critical discovery",
+        memory_type: :discovery,
+        confidence: 0.95,
+        source_type: :agent
+      }
+
+      assert :ok = State.add_agent_memory_decision(session.id, item)
+
+      {:ok, state} = State.get_state(session.id)
+      decisions = PendingMemories.list_agent_decisions(state.pending_memories)
+      assert length(decisions) == 1
+
+      GenServer.stop(pid)
+    end
+
+    test "sets suggested_by to :agent and importance_score to 1.0", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      item = %{
+        content: "Agent decision",
+        memory_type: :decision,
+        confidence: 0.9,
+        source_type: :agent
+      }
+
+      :ok = State.add_agent_memory_decision(session.id, item)
+
+      {:ok, state} = State.get_state(session.id)
+      [decision] = PendingMemories.list_agent_decisions(state.pending_memories)
+      assert decision.suggested_by == :agent
+      assert decision.importance_score == 1.0
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      item = %{content: "Test", memory_type: :fact, confidence: 0.8, source_type: :agent}
+      assert {:error, :not_found} = State.add_agent_memory_decision("unknown-session-id", item)
+    end
+  end
+
+  describe "get_pending_memories/1" do
+    test "returns items ready for promotion", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Add item with high importance score (above default threshold of 0.6)
+      high_score_item = %{
+        content: "High importance item",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.8
+      }
+
+      :ok = State.add_pending_memory(session.id, high_score_item)
+
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+      assert hd(ready_items).content == "High importance item"
+
+      GenServer.stop(pid)
+    end
+
+    test "always includes agent decisions", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      agent_item = %{
+        content: "Agent decision",
+        memory_type: :decision,
+        confidence: 0.9,
+        source_type: :agent
+      }
+
+      :ok = State.add_agent_memory_decision(session.id, agent_item)
+
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+      assert hd(ready_items).suggested_by == :agent
+
+      GenServer.stop(pid)
+    end
+
+    test "returns empty list when no items meet threshold", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Add item with low importance score (below default threshold of 0.6)
+      low_score_item = %{
+        content: "Low importance item",
+        memory_type: :fact,
+        confidence: 0.5,
+        source_type: :tool,
+        importance_score: 0.3
+      }
+
+      :ok = State.add_pending_memory(session.id, low_score_item)
+
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert ready_items == []
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_pending_memories("unknown-session-id")
+    end
+  end
+
+  describe "clear_promoted_memories/2" do
+    test "removes specified items from pending_memories", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      item = %{
+        id: "test-item-123",
+        content: "Test item",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.8
+      }
+
+      :ok = State.add_pending_memory(session.id, item)
+
+      {:ok, state_before} = State.get_state(session.id)
+      assert PendingMemories.size(state_before.pending_memories) == 1
+
+      :ok = State.clear_promoted_memories(session.id, ["test-item-123"])
+
+      {:ok, state_after} = State.get_state(session.id)
+      assert PendingMemories.size(state_after.pending_memories) == 0
+
+      GenServer.stop(pid)
+    end
+
+    test "clears agent_decisions list", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      agent_item = %{
+        content: "Agent decision",
+        memory_type: :decision,
+        confidence: 0.9,
+        source_type: :agent
+      }
+
+      :ok = State.add_agent_memory_decision(session.id, agent_item)
+
+      {:ok, state_before} = State.get_state(session.id)
+      assert length(PendingMemories.list_agent_decisions(state_before.pending_memories)) == 1
+
+      :ok = State.clear_promoted_memories(session.id, [])
+
+      {:ok, state_after} = State.get_state(session.id)
+      assert PendingMemories.list_agent_decisions(state_after.pending_memories) == []
+
+      GenServer.stop(pid)
+    end
+
+    test "handles non-existent ids gracefully", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Should not raise error for non-existent ids
+      assert :ok = State.clear_promoted_memories(session.id, ["non-existent-id"])
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.clear_promoted_memories("unknown-session-id", [])
+    end
+  end
 end

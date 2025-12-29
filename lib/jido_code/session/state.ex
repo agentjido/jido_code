@@ -889,6 +889,119 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Pending Memories Client API
+  # ============================================================================
+
+  @doc """
+  Adds a memory item to the pending memories staging area.
+
+  Items added via this function are staged for potential promotion to long-term
+  memory. They are added as implicit items (suggested_by: :implicit) and must
+  meet the importance threshold to be promoted.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `item` - A map with required fields: :content, :memory_type, :confidence, :source_type
+    Optional fields: :id, :evidence, :rationale, :importance_score
+
+  ## Returns
+
+  - `:ok` - Successfully added to pending memories
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> item = %{content: "Uses Phoenix framework", memory_type: :fact, confidence: 0.9, source_type: :tool}
+      iex> :ok = State.add_pending_memory("session-123", item)
+      iex> {:error, :not_found} = State.add_pending_memory("unknown", item)
+  """
+  @spec add_pending_memory(String.t(), map()) :: :ok | {:error, :not_found}
+  def add_pending_memory(session_id, item)
+      when is_binary(session_id) and is_map(item) do
+    call_state(session_id, {:add_pending_memory, item})
+  end
+
+  @doc """
+  Adds a memory item as an explicit agent decision.
+
+  Items added via this function bypass the importance threshold during promotion.
+  They are marked with suggested_by: :agent and importance_score: 1.0.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `item` - A map with required fields: :content, :memory_type, :confidence, :source_type
+
+  ## Returns
+
+  - `:ok` - Successfully added as agent decision
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> item = %{content: "Critical pattern discovered", memory_type: :discovery, confidence: 0.95, source_type: :agent}
+      iex> :ok = State.add_agent_memory_decision("session-123", item)
+  """
+  @spec add_agent_memory_decision(String.t(), map()) :: :ok | {:error, :not_found}
+  def add_agent_memory_decision(session_id, item)
+      when is_binary(session_id) and is_map(item) do
+    call_state(session_id, {:add_agent_memory_decision, item})
+  end
+
+  @doc """
+  Gets all pending memories that are ready for promotion.
+
+  Returns items from both implicit staging (meeting default threshold of 0.6)
+  and all agent decisions (which always qualify for promotion).
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, items}` - List of pending items ready for promotion, sorted by importance_score descending
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, items} = State.get_pending_memories("session-123")
+      iex> length(items)
+      3
+  """
+  @spec get_pending_memories(String.t()) :: {:ok, [map()]} | {:error, :not_found}
+  def get_pending_memories(session_id) when is_binary(session_id) do
+    call_state(session_id, :get_pending_memories)
+  end
+
+  @doc """
+  Clears promoted memories from the pending staging area.
+
+  After memories have been promoted to long-term storage, this function removes
+  them from the pending area. Also clears all agent decisions.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `promoted_ids` - List of item IDs that were promoted
+
+  ## Returns
+
+  - `:ok` - Successfully cleared promoted items
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.clear_promoted_memories("session-123", ["pending-123", "pending-456"])
+  """
+  @spec clear_promoted_memories(String.t(), [String.t()]) :: :ok | {:error, :not_found}
+  def clear_promoted_memories(session_id, promoted_ids)
+      when is_binary(session_id) and is_list(promoted_ids) do
+    call_state(session_id, {:clear_promoted_memories, promoted_ids})
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 
@@ -1228,6 +1341,37 @@ defmodule JidoCode.Session.State do
   def handle_call(:clear_context, _from, state) do
     cleared_context = WorkingContext.clear(state.working_context)
     new_state = %{state | working_context: cleared_context}
+    {:reply, :ok, new_state}
+  end
+
+  # ============================================================================
+  # Pending Memories Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call({:add_pending_memory, item}, _from, state) do
+    updated_pending = PendingMemories.add_implicit(state.pending_memories, item)
+    new_state = %{state | pending_memories: updated_pending}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call({:add_agent_memory_decision, item}, _from, state) do
+    updated_pending = PendingMemories.add_agent_decision(state.pending_memories, item)
+    new_state = %{state | pending_memories: updated_pending}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_pending_memories, _from, state) do
+    ready_items = PendingMemories.ready_for_promotion(state.pending_memories)
+    {:reply, {:ok, ready_items}, state}
+  end
+
+  @impl true
+  def handle_call({:clear_promoted_memories, promoted_ids}, _from, state) do
+    updated_pending = PendingMemories.clear_promoted(state.pending_memories, promoted_ids)
+    new_state = %{state | pending_memories: updated_pending}
     {:reply, :ok, new_state}
   end
 

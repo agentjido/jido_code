@@ -280,15 +280,15 @@ Implement tracking for memory access patterns to inform importance scoring durin
 
 ### 1.4.1 AccessLog Struct and API
 
-- [ ] 1.4.1.1 Create `lib/jido_code/memory/short_term/access_log.ex` with moduledoc
-- [ ] 1.4.1.2 Define struct:
+- [x] 1.4.1.1 Create `lib/jido_code/memory/short_term/access_log.ex` with moduledoc
+- [x] 1.4.1.2 Define struct:
   ```elixir
   defstruct [
     entries: [],          # [access_entry()] - newest first for O(1) prepend
     max_entries: 1000     # Limit to prevent unbounded memory growth
   ]
   ```
-- [ ] 1.4.1.3 Define `access_entry()` type:
+- [x] 1.4.1.3 Define `access_entry()` type:
   ```elixir
   @type access_entry :: %{
     key: context_key() | {:memory, String.t()},
@@ -296,52 +296,52 @@ Implement tracking for memory access patterns to inform importance scoring durin
     access_type: :read | :write | :query
   }
   ```
-- [ ] 1.4.1.4 Implement `new/0` and `new/1` constructors with optional max_entries
-- [ ] 1.4.1.5 Implement `record/3` to add access entry:
+- [x] 1.4.1.4 Implement `new/0` and `new/1` constructors with optional max_entries
+- [x] 1.4.1.5 Implement `record/3` to add access entry:
   ```elixir
   @spec record(t(), context_key() | {:memory, String.t()}, :read | :write | :query) :: t()
   ```
   - Prepend new entry (newest first)
   - Enforce max_entries limit (drop oldest)
   - Set timestamp to current time
-- [ ] 1.4.1.6 Implement `get_frequency/2` to count accesses for a key:
+- [x] 1.4.1.6 Implement `get_frequency/2` to count accesses for a key:
   ```elixir
   @spec get_frequency(t(), context_key() | {:memory, String.t()}) :: non_neg_integer()
   ```
-- [ ] 1.4.1.7 Implement `get_recency/2` to get most recent access timestamp:
+- [x] 1.4.1.7 Implement `get_recency/2` to get most recent access timestamp:
   ```elixir
   @spec get_recency(t(), context_key() | {:memory, String.t()}) :: DateTime.t() | nil
   ```
-- [ ] 1.4.1.8 Implement `get_stats/2` to get combined frequency and recency:
+- [x] 1.4.1.8 Implement `get_stats/2` to get combined frequency and recency:
   ```elixir
   @spec get_stats(t(), context_key()) :: %{frequency: integer(), recency: DateTime.t() | nil}
   ```
-- [ ] 1.4.1.9 Implement `recent_accesses/2` to get last N entries:
+- [x] 1.4.1.9 Implement `recent_accesses/2` to get last N entries:
   ```elixir
   @spec recent_accesses(t(), pos_integer()) :: [access_entry()]
   ```
-- [ ] 1.4.1.10 Implement `clear/1` to reset log to empty
-- [ ] 1.4.1.11 Implement `size/1` to return entry count
+- [x] 1.4.1.10 Implement `clear/1` to reset log to empty
+- [x] 1.4.1.11 Implement `size/1` to return entry count
 
 ### 1.4.2 Unit Tests for AccessLog
 
-- [ ] Test new/0 creates empty log with default max_entries (1000)
-- [ ] Test new/1 accepts custom max_entries value
-- [ ] Test record/3 adds entry to front of list (newest first)
-- [ ] Test record/3 sets timestamp to current time
-- [ ] Test record/3 enforces max_entries limit by dropping oldest
-- [ ] Test record/3 accepts context_key as key
-- [ ] Test record/3 accepts {:memory, id} tuple as key
-- [ ] Test record/3 accepts all access_type values (:read, :write, :query)
-- [ ] Test get_frequency/2 counts all accesses for key
-- [ ] Test get_frequency/2 returns 0 for unknown keys
-- [ ] Test get_recency/2 returns most recent timestamp for key
-- [ ] Test get_recency/2 returns nil for unknown keys
-- [ ] Test get_stats/2 returns both frequency and recency
-- [ ] Test recent_accesses/2 returns last N entries
-- [ ] Test recent_accesses/2 returns all entries if N > size
-- [ ] Test clear/1 resets entries to empty list
-- [ ] Test size/1 returns correct entry count
+- [x] Test new/0 creates empty log with default max_entries (1000)
+- [x] Test new/1 accepts custom max_entries value
+- [x] Test record/3 adds entry to front of list (newest first)
+- [x] Test record/3 sets timestamp to current time
+- [x] Test record/3 enforces max_entries limit by dropping oldest
+- [x] Test record/3 accepts context_key as key
+- [x] Test record/3 accepts {:memory, id} tuple as key
+- [x] Test record/3 accepts all access_type values (:read, :write, :query)
+- [x] Test get_frequency/2 counts all accesses for key
+- [x] Test get_frequency/2 returns 0 for unknown keys
+- [x] Test get_recency/2 returns most recent timestamp for key
+- [x] Test get_recency/2 returns nil for unknown keys
+- [x] Test get_stats/2 returns both frequency and recency
+- [x] Test recent_accesses/2 returns last N entries
+- [x] Test recent_accesses/2 returns all entries if N > size
+- [x] Test clear/1 resets entries to empty list
+- [x] Test size/1 returns correct entry count
 
 ---
 

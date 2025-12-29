@@ -389,46 +389,52 @@ Implement the Bridge function for process termination.
 
 ---
 
-## 2.6 Phase 2 Integration Tests
+## 2.6 Phase 2 Integration Tests ✅
 
-Integration tests for search and shell tools working through the Lua sandbox.
+Integration tests for search and shell tools working through the Handler pattern.
 
-### 2.6.1 Sandbox Integration
+> **Note:** Tests use the Handler pattern (Executor → Handler chain) instead of Lua sandbox as the implementation was changed. Background shell tools (2.3-2.5) are deferred, so related tests are not applicable.
 
-Verify tools execute through the sandbox correctly.
+### 2.6.1 Handler Integration ✅
 
-- [ ] 2.6.1.1 Create `test/jido_code/integration/tools_phase2_test.exs`
-- [ ] 2.6.1.2 Test: All tools execute through `Tools.Manager` → Lua → Bridge → Security chain
-- [ ] 2.6.1.3 Test: Lua VM has dangerous functions removed (os.execute unavailable)
-- [ ] 2.6.1.4 Test: Session-scoped managers are isolated (shell_ids don't leak between sessions)
+Verify tools execute through the Executor → Handler chain correctly.
 
-### 2.6.2 Search Integration
+- [x] 2.6.1.1 Create `test/jido_code/integration/tools_phase2_test.exs`
+- [x] 2.6.1.2 Test: All tools execute through `Executor` → `Handler` chain
+- [x] 2.6.1.3 Test: Security validation enforced (path boundaries, command allowlist)
+- [x] 2.6.1.4 Test: Session-scoped execution is isolated (each session sees only its files)
 
-Test search tools in realistic scenarios through sandbox.
+### 2.6.2 Search Integration ✅
 
-- [ ] 2.6.2.1 Test: Create files with content → grep finds matches → context lines correct
-- [ ] 2.6.2.2 Test: grep with file type filter only searches matching files
-- [ ] 2.6.2.3 Test: grep respects project boundary
+Test search tools in realistic scenarios.
 
-### 2.6.3 Shell Integration
+- [x] 2.6.2.1 Test: Create files with content → grep finds matches → line numbers correct
+- [x] 2.6.2.2 Test: grep searches recursively by default
+- [x] 2.6.2.3 Test: grep respects project boundary
+- [x] 2.6.2.4 Test: grep respects max_results limit
+- [x] 2.6.2.5 Test: grep handles no matches gracefully
+- [x] 2.6.2.6 Test: grep handles invalid regex gracefully
 
-Test shell tools in realistic scenarios through sandbox.
+### 2.6.3 Shell Integration ✅
 
-- [ ] 2.6.3.1 Test: bash_execute runs mix commands successfully
-- [ ] 2.6.3.2 Test: bash_execute → verify output matches expected
-- [ ] 2.6.3.3 Test: bash_background starts long-running process → bash_output retrieves output
-- [ ] 2.6.3.4 Test: Background process completion detected
-- [ ] 2.6.3.5 Test: kill_shell terminates running background process
+Test shell tools in realistic scenarios.
 
-### 2.6.4 Security Integration
+- [x] 2.6.3.1 Test: run_command runs allowed development commands
+- [x] 2.6.3.2 Test: run_command captures exit code correctly
+- [x] 2.6.3.3 Test: run_command merges stderr into stdout
+- [x] 2.6.3.4 Test: run_command respects timeout
+- [ ] 2.6.3.5 Test: bash_background starts long-running process (deferred - not implemented)
+- [ ] 2.6.3.6 Test: kill_shell terminates running background process (deferred - not implemented)
 
-Test security measures across shell tools via sandbox.
+### 2.6.4 Security Integration ✅
 
-- [ ] 2.6.4.1 Test: grep respects project boundary (via Security.validate_path)
-- [ ] 2.6.4.2 Test: bash commands blocked for shell injection patterns (via Security.validate_command)
-- [ ] 2.6.4.3 Test: Commands run in project directory
-- [ ] 2.6.4.4 Test: Dangerous command patterns rejected
-- [ ] 2.6.4.5 Test: Direct Lua execution of os.execute fails (sandbox restriction)
+Test security measures across shell tools.
+
+- [x] 2.6.4.1 Test: grep respects project boundary (via HandlerHelpers.validate_path)
+- [x] 2.6.4.2 Test: run_command blocks disallowed commands
+- [x] 2.6.4.3 Test: run_command blocks shell interpreters (bash, sh, zsh)
+- [x] 2.6.4.4 Test: run_command blocks path traversal in arguments
+- [x] 2.6.4.5 Test: run_command blocks absolute paths outside project
 
 ---
 

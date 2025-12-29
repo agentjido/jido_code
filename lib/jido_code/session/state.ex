@@ -54,6 +54,11 @@ defmodule JidoCode.Session.State do
   alias JidoCode.Session
   alias JidoCode.Session.ProcessRegistry
 
+  # Memory modules
+  alias JidoCode.Memory.ShortTerm.AccessLog
+  alias JidoCode.Memory.ShortTerm.PendingMemories
+  alias JidoCode.Memory.ShortTerm.WorkingContext
+
   # ============================================================================
   # Configuration
   # ============================================================================
@@ -66,6 +71,11 @@ defmodule JidoCode.Session.State do
   # Maximum file operations to track (reads + writes)
   # When limit is exceeded, oldest entries are removed
   @max_file_operations 1000
+
+  # Memory system configuration
+  @max_pending_memories 500
+  @max_access_log_entries 1000
+  @default_context_max_tokens 12_000
 
   # ============================================================================
   # Type Definitions
@@ -158,6 +168,9 @@ defmodule JidoCode.Session.State do
   - `prompt_history` - List of previous user prompts (newest first, max 100)
   - `file_reads` - Map of file paths to read timestamps for read-before-write tracking
   - `file_writes` - Map of file paths to write timestamps for tracking modifications
+  - `working_context` - Semantic scratchpad for session context
+  - `pending_memories` - Staging area for memories awaiting promotion
+  - `access_log` - Usage tracking for importance scoring
   """
   @type state :: %{
           session: Session.t(),
@@ -172,7 +185,10 @@ defmodule JidoCode.Session.State do
           is_streaming: boolean(),
           prompt_history: [String.t()],
           file_reads: %{String.t() => DateTime.t()},
-          file_writes: %{String.t() => DateTime.t()}
+          file_writes: %{String.t() => DateTime.t()},
+          working_context: WorkingContext.t(),
+          pending_memories: PendingMemories.t(),
+          access_log: AccessLog.t()
         }
 
   # ============================================================================
@@ -792,7 +808,11 @@ defmodule JidoCode.Session.State do
       is_streaming: false,
       prompt_history: [],
       file_reads: %{},
-      file_writes: %{}
+      file_writes: %{},
+      # Memory system fields
+      working_context: WorkingContext.new(@default_context_max_tokens),
+      pending_memories: PendingMemories.new(@max_pending_memories),
+      access_log: AccessLog.new(@max_access_log_entries)
     }
 
     {:ok, state}

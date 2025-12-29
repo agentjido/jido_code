@@ -351,25 +351,25 @@ Extend the existing Session.State GenServer with memory-related fields and callb
 
 ### 1.5.1 State Struct Extensions
 
-- [ ] 1.5.1.1 Add `working_context` field to `@type state` typespec in session/state.ex:
+- [x] 1.5.1.1 Add `working_context` field to `@type state` typespec in session/state.ex:
   ```elixir
   working_context: WorkingContext.t()
   ```
-- [ ] 1.5.1.2 Add `pending_memories` field to `@type state`:
+- [x] 1.5.1.2 Add `pending_memories` field to `@type state`:
   ```elixir
   pending_memories: PendingMemories.t()
   ```
-- [ ] 1.5.1.3 Add `access_log` field to `@type state`:
+- [x] 1.5.1.3 Add `access_log` field to `@type state`:
   ```elixir
   access_log: AccessLog.t()
   ```
-- [ ] 1.5.1.4 Add memory configuration constants:
+- [x] 1.5.1.4 Add memory configuration constants:
   ```elixir
   @max_pending_memories 500
   @max_access_log_entries 1000
   @default_context_max_tokens 12_000
   ```
-- [ ] 1.5.1.5 Update `init/1` to initialize memory fields:
+- [x] 1.5.1.5 Update `init/1` to initialize memory fields:
   ```elixir
   state = %{
     # ... existing fields ...
@@ -378,7 +378,7 @@ Extend the existing Session.State GenServer with memory-related fields and callb
     access_log: AccessLog.new(@max_access_log_entries)
   }
   ```
-- [ ] 1.5.1.6 Add alias imports for memory modules at top of file
+- [x] 1.5.1.6 Add alias imports for memory modules at top of file
 
 ### 1.5.2 Working Context Client API
 

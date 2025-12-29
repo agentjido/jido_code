@@ -5,6 +5,9 @@ defmodule JidoCode.Session.StateTest do
 
   alias JidoCode.Session
   alias JidoCode.Session.State
+  alias JidoCode.Memory.ShortTerm.AccessLog
+  alias JidoCode.Memory.ShortTerm.PendingMemories
+  alias JidoCode.Memory.ShortTerm.WorkingContext
 
   @registry JidoCode.SessionProcessRegistry
 
@@ -756,6 +759,128 @@ defmodule JidoCode.Session.StateTest do
 
     test "set_prompt_history/2 returns :not_found for unknown session" do
       assert {:error, :not_found} = State.set_prompt_history("unknown-session-id", ["Hello"])
+    end
+  end
+
+  # ============================================================================
+  # Memory System Extensions (Task 1.5.1)
+  # ============================================================================
+
+  describe "memory field initialization" do
+    test "initializes working_context with correct defaults", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+
+      assert %WorkingContext{} = state.working_context
+      assert state.working_context.max_tokens == 12_000
+      assert state.working_context.items == %{}
+      assert state.working_context.current_tokens == 0
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes pending_memories with correct defaults", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+
+      assert %PendingMemories{} = state.pending_memories
+      assert state.pending_memories.max_items == 500
+      assert state.pending_memories.items == %{}
+      assert state.pending_memories.agent_decisions == []
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes access_log with correct defaults", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+
+      assert %AccessLog{} = state.access_log
+      assert state.access_log.max_entries == 1000
+      assert state.access_log.entries == []
+
+      GenServer.stop(pid)
+    end
+
+    test "memory fields are included in get_state/1 result", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, state} = State.get_state(session.id)
+
+      assert Map.has_key?(state, :working_context)
+      assert Map.has_key?(state, :pending_memories)
+      assert Map.has_key?(state, :access_log)
+
+      GenServer.stop(pid)
+    end
+
+    test "memory fields persist across multiple GenServer calls", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Make several state operations
+      message1 = %{id: "msg-1", role: :user, content: "Hello", timestamp: DateTime.utc_now()}
+      {:ok, _} = State.append_message(session.id, message1)
+      {:ok, _} = State.set_scroll_offset(session.id, 10)
+
+      # Memory fields should still be present and unchanged
+      {:ok, state} = State.get_state(session.id)
+
+      assert %WorkingContext{} = state.working_context
+      assert %PendingMemories{} = state.pending_memories
+      assert %AccessLog{} = state.access_log
+
+      # Verify existing operations still work
+      assert length(state.messages) == 1
+      assert state.scroll_offset == 10
+
+      GenServer.stop(pid)
+    end
+
+    test "memory operations don't interfere with existing Session.State operations", %{
+      tmp_dir: tmp_dir
+    } do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Test that all existing operations still work
+      message = %{id: "msg-1", role: :user, content: "Test", timestamp: DateTime.utc_now()}
+      {:ok, _} = State.append_message(session.id, message)
+      {:ok, messages} = State.get_messages(session.id)
+      assert length(messages) == 1
+
+      # Streaming
+      {:ok, _} = State.start_streaming(session.id, "msg-2")
+      :ok = State.update_streaming(session.id, "Hello")
+      Process.sleep(10)
+      {:ok, streamed_msg} = State.end_streaming(session.id)
+      assert streamed_msg.content == "Hello"
+
+      # Todos
+      todos = [%{id: "t-1", content: "Task", status: :pending}]
+      {:ok, _} = State.update_todos(session.id, todos)
+      {:ok, returned_todos} = State.get_todos(session.id)
+      assert length(returned_todos) == 1
+
+      # Prompt history
+      {:ok, _} = State.add_to_prompt_history(session.id, "Test prompt")
+      {:ok, history} = State.get_prompt_history(session.id)
+      assert hd(history) == "Test prompt"
+
+      # Memory fields should still be intact
+      {:ok, state} = State.get_state(session.id)
+      assert %WorkingContext{} = state.working_context
+      assert %PendingMemories{} = state.pending_memories
+      assert %AccessLog{} = state.access_log
+
+      GenServer.stop(pid)
     end
   end
 end

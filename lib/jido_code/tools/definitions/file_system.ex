@@ -13,6 +13,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   - `multi_edit_file` - Apply multiple edits atomically (all succeed or all fail)
   - `list_dir` - List directory contents with filtering support
   - `list_directory` - List directory contents with recursive option
+  - `glob_search` - Find files matching glob patterns
   - `file_info` - Get file metadata
   - `create_directory` - Create directory
   - `delete_file` - Delete file (with confirmation)
@@ -32,6 +33,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   alias JidoCode.Tools.Definitions.FileMultiEdit
   alias JidoCode.Tools.Definitions.FileRead
   alias JidoCode.Tools.Definitions.FileWrite
+  alias JidoCode.Tools.Definitions.GlobSearch
   alias JidoCode.Tools.Definitions.ListDir
   alias JidoCode.Tools.Handlers.FileSystem, as: Handlers
   alias JidoCode.Tools.Tool
@@ -52,6 +54,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
       multi_edit_file(),
       list_dir(),
       list_directory(),
+      glob_search(),
       file_info(),
       create_directory(),
       delete_file()
@@ -234,6 +237,30 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
       ]
     })
   end
+
+  @doc """
+  Returns the glob_search tool definition.
+
+  Finds files matching a glob pattern within the project boundary.
+  Delegates to `JidoCode.Tools.Definitions.GlobSearch`.
+
+  ## Parameters
+
+  - `pattern` (required, string) - Glob pattern to match files against
+  - `path` (optional, string) - Base directory to search from
+
+  ## Features
+
+  - Full glob pattern support (**, *, ?, {a,b}, [abc])
+  - Results sorted by modification time (newest first)
+  - Security boundary enforcement
+
+  ## See Also
+
+  - `JidoCode.Tools.Definitions.GlobSearch` - Full documentation
+  """
+  @spec glob_search() :: Tool.t()
+  defdelegate glob_search(), to: GlobSearch
 
   @doc """
   Returns the file_info tool definition.

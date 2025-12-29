@@ -1804,4 +1804,130 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       {:error, "delete_file requires path and confirm arguments"}
     end
   end
+
+  # ============================================================================
+  # GlobSearch Handler
+  # ============================================================================
+
+  defmodule GlobSearch do
+    @moduledoc """
+    Handler for the glob_search tool.
+
+    Finds files matching a glob pattern within the project boundary.
+    Uses Elixir's `Path.wildcard/2` for robust pattern matching.
+
+    ## Supported Patterns
+
+    - `*` - Match any sequence of characters (not including path separator)
+    - `**` - Match any sequence of characters including path separators (recursive)
+    - `?` - Match any single character
+    - `{a,b}` - Match either pattern a or pattern b (brace expansion)
+    - `[abc]` - Match any character in the set
+
+    ## Security
+
+    All matched paths are validated against the project boundary.
+    Paths outside the boundary are automatically filtered out.
+
+    ## See Also
+
+    - `JidoCode.Tools.Definitions.GlobSearch` - Tool definition
+    - `Path.wildcard/2` - Underlying pattern matching
+    """
+
+    alias JidoCode.Tools.Handlers.FileSystem
+
+    @doc """
+    Finds files matching a glob pattern.
+
+    ## Arguments
+
+    - `"pattern"` (required) - Glob pattern to match files against
+    - `"path"` (optional) - Base directory to search from (defaults to project root)
+
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
+    ## Returns
+
+    - `{:ok, paths}` - JSON-encoded array of relative file paths, sorted by mtime
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"pattern" => pattern} = args, context) when is_binary(pattern) do
+      base_path = Map.get(args, "path", ".")
+
+      case FileSystem.validate_path(base_path, context) do
+        {:ok, safe_base} ->
+          search_files(pattern, safe_base, base_path, context)
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, base_path)}
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "glob_search requires a pattern argument"}
+    end
+
+    @spec search_files(String.t(), String.t(), String.t(), map()) ::
+            {:ok, String.t()} | {:error, String.t()}
+    defp search_files(pattern, safe_base, original_base, context) do
+      project_root = FileSystem.get_project_root(context)
+
+      # Build full pattern path
+      full_pattern = Path.join(safe_base, pattern)
+
+      # Use Path.wildcard to find matching files
+      matches =
+        full_pattern
+        |> Path.wildcard(match_dot: false)
+        |> filter_within_boundary(project_root)
+        |> sort_by_mtime_desc()
+        |> make_relative(project_root)
+
+      {:ok, Jason.encode!(matches)}
+    rescue
+      e ->
+        {:error, "Glob search error: #{Exception.message(e)}"}
+    end
+
+    # Filter paths to only those within project boundary
+    @spec filter_within_boundary(list(String.t()), String.t()) :: list(String.t())
+    defp filter_within_boundary(paths, project_root) do
+      expanded_root = Path.expand(project_root)
+
+      Enum.filter(paths, fn path ->
+        expanded_path = Path.expand(path)
+        String.starts_with?(expanded_path, expanded_root <> "/") or expanded_path == expanded_root
+      end)
+    end
+
+    # Sort by modification time, newest first
+    @spec sort_by_mtime_desc(list(String.t())) :: list(String.t())
+    defp sort_by_mtime_desc(paths) do
+      Enum.sort_by(
+        paths,
+        fn path ->
+          case File.stat(path, time: :posix) do
+            {:ok, %{mtime: mtime}} -> -mtime
+            _ -> 0
+          end
+        end
+      )
+    end
+
+    # Convert absolute paths to relative paths from project root
+    @spec make_relative(list(String.t()), String.t()) :: list(String.t())
+    defp make_relative(paths, project_root) do
+      expanded_root = Path.expand(project_root)
+
+      Enum.map(paths, fn path ->
+        expanded_path = Path.expand(path)
+        Path.relative_to(expanded_path, expanded_root)
+      end)
+    end
+  end
 end

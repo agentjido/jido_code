@@ -23,9 +23,9 @@ defmodule JidoCode.Tools.Definitions.FileSystemTest do
   end
 
   describe "all/0" do
-    test "returns all 9 file system tools" do
+    test "returns all 10 file system tools" do
       tools = Definitions.all()
-      assert length(tools) == 9
+      assert length(tools) == 10
 
       names = Enum.map(tools, & &1.name)
       assert "read_file" in names
@@ -34,6 +34,7 @@ defmodule JidoCode.Tools.Definitions.FileSystemTest do
       assert "multi_edit_file" in names
       assert "list_dir" in names
       assert "list_directory" in names
+      assert "glob_search" in names
       assert "file_info" in names
       assert "create_directory" in names
       assert "delete_file" in names

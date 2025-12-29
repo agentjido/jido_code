@@ -208,8 +208,8 @@ defmodule JidoCode.Tools.Definitions.ListDirTest do
     test "FileSystem.all/0 has correct count after adding list_dir" do
       tools = FileSystem.all()
       # Should have: read_file, write_file, edit_file, multi_edit_file, list_dir,
-      #              list_directory, file_info, create_directory, delete_file
-      assert length(tools) == 9
+      #              list_directory, glob_search, file_info, create_directory, delete_file
+      assert length(tools) == 10
     end
   end
 end

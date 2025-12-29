@@ -309,10 +309,10 @@ Implement the list_dir tool for directory listing through the Lua sandbox.
 
 Implement the glob_search tool for pattern-based file finding through the Lua sandbox.
 
-### 1.6.1 Tool Definition
+### 1.6.1 Tool Definition ✅
 
-- [ ] 1.6.1.1 Create tool definition in `lib/jido_code/tools/definitions/glob_search.ex`
-- [ ] 1.6.1.2 Define schema:
+- [x] 1.6.1.1 Create tool definition in `lib/jido_code/tools/definitions/glob_search.ex`
+- [x] 1.6.1.2 Define schema:
   ```elixir
   %{
     name: "glob_search",
@@ -323,6 +323,9 @@ Implement the glob_search tool for pattern-based file finding through the Lua sa
     ]
   }
   ```
+- [x] 1.6.1.3 Add `glob_search()` to `FileSystem.all/0` via defdelegate
+- [x] 1.6.1.4 Create GlobSearch handler with Path.wildcard and mtime sorting
+- [x] 1.6.1.5 Create comprehensive definition tests (26 tests)
 
 ### 1.6.2 Bridge Function Implementation
 

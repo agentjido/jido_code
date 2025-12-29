@@ -183,9 +183,9 @@ Implement session-isolated triple store lifecycle management. Each session gets 
 
 ### 2.2.1 StoreManager GenServer
 
-- [ ] 2.2.1.1 Create `lib/jido_code/memory/long_term/store_manager.ex` with comprehensive moduledoc
-- [ ] 2.2.1.2 Implement `use GenServer` with restart: :permanent
-- [ ] 2.2.1.3 Define state struct:
+- [x] 2.2.1.1 Create `lib/jido_code/memory/long_term/store_manager.ex` with comprehensive moduledoc
+- [x] 2.2.1.2 Implement `use GenServer` with restart: :permanent
+- [x] 2.2.1.3 Define state struct:
   ```elixir
   defstruct [
     stores: %{},          # %{session_id => store_handle}
@@ -193,69 +193,69 @@ Implement session-isolated triple store lifecycle management. Each session gets 
     config: %{}           # Store configuration options
   ]
   ```
-- [ ] 2.2.1.4 Define default configuration:
+- [x] 2.2.1.4 Define default configuration:
   ```elixir
   @default_base_path "~/.jido_code/memory_stores"
   @default_config %{
     create_if_missing: true
   }
   ```
-- [ ] 2.2.1.5 Implement `start_link/1` with optional base_path and config:
+- [x] 2.2.1.5 Implement `start_link/1` with optional base_path and config:
   ```elixir
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ [])
   ```
-- [ ] 2.2.1.6 Implement `init/1` to initialize state:
+- [x] 2.2.1.6 Implement `init/1` to initialize state:
   - Expand ~ in base_path
   - Create base directory if missing
   - Initialize empty stores map
-- [ ] 2.2.1.7 Implement `get_or_create/1` client function:
+- [x] 2.2.1.7 Implement `get_or_create/1` client function:
   ```elixir
   @spec get_or_create(String.t()) :: {:ok, store_handle()} | {:error, term()}
   def get_or_create(session_id)
   ```
   - Return existing store if already open
   - Open new store if not exists
-- [ ] 2.2.1.8 Implement `get/1` client function:
+- [x] 2.2.1.8 Implement `get/1` client function:
   ```elixir
   @spec get(String.t()) :: {:ok, store_handle()} | {:error, :not_found}
   def get(session_id)
   ```
   - Return store only if already open
   - Return error if not open (don't auto-create)
-- [ ] 2.2.1.9 Implement `close/1` client function:
+- [x] 2.2.1.9 Implement `close/1` client function:
   ```elixir
   @spec close(String.t()) :: :ok | {:error, term()}
   def close(session_id)
   ```
   - Close and remove store from state
   - Handle already-closed gracefully
-- [ ] 2.2.1.10 Implement `close_all/0` client function:
+- [x] 2.2.1.10 Implement `close_all/0` client function:
   ```elixir
   @spec close_all() :: :ok
   def close_all()
   ```
   - Close all open stores
   - Used during shutdown
-- [ ] 2.2.1.11 Implement `list_open/0` to list currently open session stores
-- [ ] 2.2.1.12 Implement private `store_path/2` to generate session-specific path:
+- [x] 2.2.1.11 Implement `list_open/0` to list currently open session stores
+- [x] 2.2.1.12 Implement private `store_path/2` to generate session-specific path:
   ```elixir
   defp store_path(base_path, session_id) do
     Path.join(base_path, "session_" <> session_id)
   end
   ```
-- [ ] 2.2.1.13 Implement private `open_store/1` wrapping `TripleStore.open/2`:
+- [x] 2.2.1.13 Implement private `open_store/1` wrapping `TripleStore.open/2`:
   ```elixir
   defp open_store(path) do
     TripleStore.open(path, create_if_missing: true)
   end
   ```
-- [ ] 2.2.1.14 Implement `handle_call({:get_or_create, session_id}, ...)` callback
-- [ ] 2.2.1.15 Implement `handle_call({:get, session_id}, ...)` callback
-- [ ] 2.2.1.16 Implement `handle_call({:close, session_id}, ...)` callback
-- [ ] 2.2.1.17 Implement `handle_call(:close_all, ...)` callback
-- [ ] 2.2.1.18 Implement `handle_call(:list_open, ...)` callback
-- [ ] 2.2.1.19 Implement `terminate/2` to close all stores on shutdown:
+- [x] 2.2.1.14 Implement `handle_call({:get_or_create, session_id}, ...)` callback
+- [x] 2.2.1.15 Implement `handle_call({:get, session_id}, ...)` callback
+- [x] 2.2.1.16 Implement `handle_call({:close, session_id}, ...)` callback
+- [x] 2.2.1.17 Implement `handle_call(:close_all, ...)` callback
+- [x] 2.2.1.18 Implement `handle_call(:list_open, ...)` callback
+- [x] 2.2.1.19 Implement `terminate/2` to close all stores on shutdown:
   ```elixir
   def terminate(_reason, state) do
     Enum.each(state.stores, fn {_id, store} ->
@@ -267,21 +267,21 @@ Implement session-isolated triple store lifecycle management. Each session gets 
 
 ### 2.2.2 Unit Tests for StoreManager
 
-- [ ] Test start_link/0 starts GenServer with default base_path
-- [ ] Test start_link/1 accepts custom base_path option
-- [ ] Test start_link/1 accepts custom config options
-- [ ] Test get_or_create/1 creates new store for unknown session
-- [ ] Test get_or_create/1 returns existing store for known session
-- [ ] Test get_or_create/1 creates store directory if missing
-- [ ] Test get/1 returns store for known session
-- [ ] Test get/1 returns {:error, :not_found} for unknown session
-- [ ] Test close/1 closes and removes store from state
-- [ ] Test close/1 handles already-closed session gracefully
-- [ ] Test close_all/0 closes all open stores
-- [ ] Test list_open/0 returns list of open session ids
-- [ ] Test terminate/2 closes all stores on shutdown
-- [ ] Test store paths are isolated per session
-- [ ] Test concurrent get_or_create calls for same session return same store
+- [x] Test start_link/0 starts GenServer with default base_path
+- [x] Test start_link/1 accepts custom base_path option
+- [x] Test start_link/1 accepts custom config options
+- [x] Test get_or_create/1 creates new store for unknown session
+- [x] Test get_or_create/1 returns existing store for known session
+- [x] Test get_or_create/1 creates store directory if missing
+- [x] Test get/1 returns store for known session
+- [x] Test get/1 returns {:error, :not_found} for unknown session
+- [x] Test close/1 closes and removes store from state
+- [x] Test close/1 handles already-closed session gracefully
+- [x] Test close_all/0 closes all open stores
+- [x] Test list_open/0 returns list of open session ids
+- [x] Test terminate/2 closes all stores on shutdown
+- [x] Test store paths are isolated per session
+- [x] Test concurrent get_or_create calls for same session return same store
 
 ---
 

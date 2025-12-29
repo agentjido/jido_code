@@ -4,6 +4,7 @@ defmodule JidoCode.Tools.Handlers.LSP do
 
   This module contains handlers for code intelligence operations:
   - `GetHoverInfo` - Get type info and documentation at cursor position
+  - `GoToDefinition` - Find where a symbol is defined
 
   ## Session Context
 
@@ -71,6 +72,9 @@ defmodule JidoCode.Tools.Handlers.LSP do
 
   def format_error(:no_hover_info, path),
     do: "No hover information available at this position in: #{path}"
+
+  def format_error(:definition_not_found, path),
+    do: "No definition found at this position in: #{path}"
 
   def format_error(reason, path) when is_atom(reason), do: "Error (#{reason}): #{path}"
   def format_error(reason, _path) when is_binary(reason), do: reason
@@ -254,6 +258,164 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
        %{
          "status" => "unsupported_file_type",
          "message" => "Hover info is only available for Elixir files (.ex, .exs)",
+         "path" => path
+       }}
+    end
+  end
+
+  defp elixir_file?(path) do
+    ext = Path.extname(path) |> String.downcase()
+    ext in [".ex", ".exs"]
+  end
+end
+
+defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
+  @moduledoc """
+  Handler for the go_to_definition tool.
+
+  Finds where a symbol is defined using the Language Server Protocol (LSP).
+  Returns the file path and position of the definition.
+
+  ## Parameters
+
+  - `path` (required) - File path to query
+  - `line` (required) - Line number (1-indexed)
+  - `character` (required) - Character offset (1-indexed)
+
+  ## Returns
+
+  - `{:ok, result}` - Map with definition location(s)
+  - `{:error, reason}` - Error message string
+
+  ## LSP Integration
+
+  This handler is designed to integrate with an LSP client (e.g., ElixirLS, Lexical).
+  Until the LSP client infrastructure is implemented (Phase 3.6), this handler
+  returns a placeholder response indicating LSP is not yet configured.
+  """
+
+  require Logger
+
+  alias JidoCode.Tools.Handlers.LSP, as: LSPHandlers
+
+  @doc """
+  Executes the go_to_definition operation.
+
+  ## Arguments
+
+  - `params` - Map with "path", "line", and "character" keys
+  - `context` - Execution context with session_id or project_root
+
+  ## Returns
+
+  - `{:ok, result}` on success with definition location
+  - `{:error, reason}` on failure
+  """
+  @spec execute(map(), map()) :: {:ok, map()} | {:error, String.t()}
+  def execute(params, context) do
+    start_time = System.monotonic_time(:microsecond)
+
+    with {:ok, path} <- extract_path(params),
+         {:ok, line} <- extract_line(params),
+         {:ok, character} <- extract_character(params),
+         {:ok, safe_path} <- LSPHandlers.validate_path(path, context),
+         :ok <- validate_file_exists(safe_path) do
+      result = go_to_definition(safe_path, line, character, context)
+      LSPHandlers.emit_lsp_telemetry(:go_to_definition, start_time, path, context, :success)
+      result
+    else
+      {:error, reason} ->
+        path = Map.get(params, "path", "<unknown>")
+        LSPHandlers.emit_lsp_telemetry(:go_to_definition, start_time, path, context, :error)
+        {:error, LSPHandlers.format_error(reason, path)}
+    end
+  end
+
+  # ============================================================================
+  # Parameter Extraction
+  # ============================================================================
+
+  defp extract_path(%{"path" => path}) when is_binary(path) and byte_size(path) > 0 do
+    {:ok, path}
+  end
+
+  defp extract_path(_), do: {:error, "path is required and must be a non-empty string"}
+
+  defp extract_line(%{"line" => line}) when is_integer(line) and line >= 1 do
+    {:ok, line}
+  end
+
+  defp extract_line(%{"line" => line}) when is_binary(line) do
+    case Integer.parse(line) do
+      {n, ""} when n >= 1 -> {:ok, n}
+      _ -> {:error, "line must be a positive integer (1-indexed)"}
+    end
+  end
+
+  defp extract_line(_), do: {:error, "line is required and must be a positive integer (1-indexed)"}
+
+  defp extract_character(%{"character" => character})
+       when is_integer(character) and character >= 1 do
+    {:ok, character}
+  end
+
+  defp extract_character(%{"character" => character}) when is_binary(character) do
+    case Integer.parse(character) do
+      {n, ""} when n >= 1 -> {:ok, n}
+      _ -> {:error, "character must be a positive integer (1-indexed)"}
+    end
+  end
+
+  defp extract_character(_),
+    do: {:error, "character is required and must be a positive integer (1-indexed)"}
+
+  # ============================================================================
+  # File Validation
+  # ============================================================================
+
+  defp validate_file_exists(path) do
+    if File.exists?(path) do
+      :ok
+    else
+      {:error, :enoent}
+    end
+  end
+
+  # ============================================================================
+  # LSP Integration
+  # ============================================================================
+
+  # Go to definition using LSP server
+  # Currently returns a placeholder until LSP client infrastructure is implemented
+  defp go_to_definition(path, line, character, _context) do
+    # TODO: Integrate with LSP client once Phase 3.6 is implemented
+    # For now, check if the file is an Elixir file and return helpful info
+    if elixir_file?(path) do
+      Logger.debug(
+        "LSP go_to_definition requested for #{path}:#{line}:#{character} - LSP client not yet implemented"
+      )
+
+      # Return a structured response indicating LSP is not yet available
+      {:ok,
+       %{
+         "status" => "lsp_not_configured",
+         "message" =>
+           "LSP integration is not yet configured. " <>
+             "Definition navigation will be available once an LSP server (ElixirLS, Lexical) is connected.",
+         "position" => %{
+           "path" => path,
+           "line" => line,
+           "character" => character
+         },
+         "hint" =>
+           "To enable LSP features, ensure you have ElixirLS or Lexical running " <>
+             "and the LSP client is configured in Phase 3.6."
+       }}
+    else
+      {:ok,
+       %{
+         "status" => "unsupported_file_type",
+         "message" => "Go to definition is only available for Elixir files (.ex, .exs)",
          "path" => path
        }}
     end

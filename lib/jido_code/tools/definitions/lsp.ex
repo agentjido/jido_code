@@ -8,6 +8,7 @@ defmodule JidoCode.Tools.Definitions.LSP do
   ## Available Tools
 
   - `get_hover_info` - Get type info and documentation at cursor position
+  - `go_to_definition` - Find where a symbol is defined
 
   ## Usage
 
@@ -39,7 +40,8 @@ defmodule JidoCode.Tools.Definitions.LSP do
   @spec all() :: [Tool.t()]
   def all do
     [
-      get_hover_info()
+      get_hover_info(),
+      go_to_definition()
     ]
   end
 
@@ -83,6 +85,69 @@ defmodule JidoCode.Tools.Definitions.LSP do
           "Returns function signatures, module docs, and type specs. " <>
           "Use to understand code, check function parameters, or explore module APIs.",
       handler: Handlers.GetHoverInfo,
+      parameters: [
+        %{
+          name: "path",
+          type: :string,
+          description: "File path to query (relative to project root)",
+          required: true
+        },
+        %{
+          name: "line",
+          type: :integer,
+          description: "Line number (1-indexed, as shown in editors)",
+          required: true
+        },
+        %{
+          name: "character",
+          type: :integer,
+          description: "Character offset in the line (1-indexed, as shown in editors)",
+          required: true
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the go_to_definition tool definition.
+
+  Finds where a symbol is defined. Returns the file path and position
+  of the definition, allowing navigation to function, module, or variable
+  declarations.
+
+  ## Parameters
+
+  - `path` (required, string) - File path to query (relative to project root)
+  - `line` (required, integer) - Line number (1-indexed)
+  - `character` (required, integer) - Character offset in line (1-indexed)
+
+  ## Returns
+
+  On success, returns a map with:
+  - `status` - "found", "not_found", or "lsp_not_configured"
+  - `definition` - Map with `path`, `line`, `character` of the definition
+  - `definitions` - Array of locations if multiple definitions exist
+
+  On failure, returns an error message.
+
+  ## Examples
+
+      # Find definition of a function call
+      %{
+        "path" => "lib/my_app/user.ex",
+        "line" => 15,
+        "character" => 10
+      }
+  """
+  @spec go_to_definition() :: Tool.t()
+  def go_to_definition do
+    Tool.new!(%{
+      name: "go_to_definition",
+      description:
+        "Find where a symbol is defined. " <>
+          "Returns the file path and position of the definition. " <>
+          "Use to navigate to function, module, or variable declarations.",
+      handler: Handlers.GoToDefinition,
       parameters: [
         %{
           name: "path",

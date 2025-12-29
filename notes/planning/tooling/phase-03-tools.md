@@ -284,8 +284,8 @@ See `notes/summaries/tooling-3.3.2-lsp-handler-architecture.md` for rationale.
 
 Add the go_to_definition tool to the existing LSP definitions module.
 
-- [ ] 3.4.1.1 Add `go_to_definition/0` function to `lib/jido_code/tools/definitions/lsp.ex`
-- [ ] 3.4.1.2 Define schema:
+- [x] 3.4.1.1 Add `go_to_definition/0` function to `lib/jido_code/tools/definitions/lsp.ex`
+- [x] 3.4.1.2 Define schema:
   ```elixir
   %{
     name: "go_to_definition",
@@ -297,8 +297,8 @@ Add the go_to_definition tool to the existing LSP definitions module.
     ]
   }
   ```
-- [ ] 3.4.1.3 Update `LSP.all/0` to include `go_to_definition()`
-- [ ] 3.4.1.4 Create handler `GoToDefinition` in `lib/jido_code/tools/handlers/lsp.ex`
+- [x] 3.4.1.3 Update `LSP.all/0` to include `go_to_definition()`
+- [x] 3.4.1.4 Create handler `GoToDefinition` in `lib/jido_code/tools/handlers/lsp.ex`
 
 ### 3.4.2 Handler Implementation (uses Handler pattern)
 
@@ -310,19 +310,19 @@ Elixir execution) established in Phase 2, rather than the Lua sandbox bridge. Th
 
 The handler is implemented in `lib/jido_code/tools/handlers/lsp.ex`:
 
-- [ ] 3.4.2.1 Handler module `JidoCode.Tools.Handlers.LSP.GoToDefinition`
-- [ ] 3.4.2.2 Validate INPUT path using `HandlerHelpers.validate_path/2`
-- [ ] 3.4.2.3 Position handling (1-indexed for display; 0-indexed conversion in Phase 3.6)
-- [ ] 3.4.2.4 LSP server integration placeholder (awaiting Phase 3.6 LSP client)
+- [x] 3.4.2.1 Handler module `JidoCode.Tools.Handlers.LSP.GoToDefinition`
+- [x] 3.4.2.2 Validate INPUT path using `HandlerHelpers.validate_path/2`
+- [x] 3.4.2.3 Position handling (1-indexed for display; 0-indexed conversion in Phase 3.6)
+- [x] 3.4.2.4 LSP server integration placeholder (awaiting Phase 3.6 LSP client)
 - [ ] 3.4.2.5 Validate OUTPUT path from LSP response (SECURITY):
   - Within project_root: Return relative path
   - In deps/ or _build/: Return relative path (allow read-only access)
   - In stdlib/OTP: Return sanitized indicator (e.g., `"elixir:File"`)
   - Outside all boundaries: Return error without revealing actual path
 - [ ] 3.4.2.6 Handle multiple definitions (LSP can return array of locations)
-- [ ] 3.4.2.7 Returns `{:ok, map}` or `{:error, string}` per Handler pattern
-- [ ] 3.4.2.8 Emit telemetry for `:go_to_definition` operation
-- [ ] 3.4.2.9 Add `format_error/2` clause for `:definition_not_found`
+- [x] 3.4.2.7 Returns `{:ok, map}` or `{:error, string}` per Handler pattern
+- [x] 3.4.2.8 Emit telemetry for `:go_to_definition` operation
+- [x] 3.4.2.9 Add `format_error/2` clause for `:definition_not_found`
 
 ### 3.4.3 Manager API (N/A - Handler pattern used)
 

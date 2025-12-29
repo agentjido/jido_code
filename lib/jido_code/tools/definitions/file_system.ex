@@ -10,6 +10,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   - `read_file` - Read file contents with line numbers, offset, and limit support
   - `write_file` - Write/overwrite file
   - `edit_file` - Edit file with string replacement
+  - `multi_edit_file` - Apply multiple edits atomically (all succeed or all fail)
   - `list_directory` - List directory contents
   - `file_info` - Get file metadata
   - `create_directory` - Create directory
@@ -27,6 +28,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
       :ok = Registry.register(read_file_tool)
   """
 
+  alias JidoCode.Tools.Definitions.FileMultiEdit
   alias JidoCode.Tools.Definitions.FileRead
   alias JidoCode.Tools.Definitions.FileWrite
   alias JidoCode.Tools.Handlers.FileSystem, as: Handlers
@@ -45,6 +47,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
       read_file(),
       write_file(),
       edit_file(),
+      multi_edit_file(),
       list_directory(),
       file_info(),
       create_directory(),
@@ -146,6 +149,30 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
       ]
     })
   end
+
+  @doc """
+  Returns the multi_edit_file tool definition.
+
+  Performs multiple search/replace operations within a single file atomically.
+  All edits succeed or all fail - the file remains unchanged if any edit fails.
+  Delegates to `JidoCode.Tools.Definitions.FileMultiEdit`.
+
+  ## Parameters
+
+  - `path` (required, string) - Path to the file relative to project root
+  - `edits` (required, array) - Array of edit objects with old_string and new_string
+
+  ## Atomic Behavior
+
+  All edits are validated before any modifications occur. If any edit fails
+  validation (string not found, ambiguous match), no changes are made.
+
+  ## See Also
+
+  - `JidoCode.Tools.Definitions.FileMultiEdit` - Full documentation
+  """
+  @spec multi_edit_file() :: Tool.t()
+  defdelegate multi_edit_file(), to: FileMultiEdit
 
   @doc """
   Returns the list_directory tool definition.

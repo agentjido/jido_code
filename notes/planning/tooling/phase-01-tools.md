@@ -218,20 +218,22 @@ Implement the edit_file tool for surgical search/replace modifications through t
 
 Implement the multi_edit tool for atomic batch modifications through the Lua sandbox.
 
-### 1.4.1 Tool Definition
+### 1.4.1 Tool Definition ✅
 
-- [ ] 1.4.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_multi_edit.ex`
-- [ ] 1.4.1.2 Define schema with edits array:
+- [x] 1.4.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_multi_edit.ex`
+- [x] 1.4.1.2 Define schema with edits array:
   ```elixir
   %{
-    name: "multi_edit",
+    name: "multi_edit_file",
     description: "Apply multiple edits atomically. All succeed or all fail.",
     parameters: [
       %{name: "path", type: :string, required: true},
-      %{name: "edits", type: :array, required: true, description: "Array of {old_string, new_string}"}
+      %{name: "edits", type: :array, required: true, items: :object, description: "Array of {old_string, new_string}"}
     ]
   }
   ```
+- [x] 1.4.1.3 Add `multi_edit_file()` to `FileSystem.all/0` via defdelegate
+- [x] 1.4.1.4 Create comprehensive definition tests
 
 ### 1.4.2 Bridge Function Implementation
 

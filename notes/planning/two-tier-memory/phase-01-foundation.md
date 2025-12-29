@@ -204,8 +204,8 @@ Implement the staging area for memory items awaiting promotion to long-term stor
 
 ### 1.3.1 PendingMemories Struct and API
 
-- [ ] 1.3.1.1 Create `lib/jido_code/memory/short_term/pending_memories.ex` with moduledoc
-- [ ] 1.3.1.2 Define struct:
+- [x] 1.3.1.1 Create `lib/jido_code/memory/short_term/pending_memories.ex` with moduledoc
+- [x] 1.3.1.2 Define struct:
   ```elixir
   defstruct [
     items: %{},           # %{id => pending_item()} - implicit staging
@@ -213,22 +213,22 @@ Implement the staging area for memory items awaiting promotion to long-term stor
     max_items: 500        # Maximum pending items to prevent memory bloat
   ]
   ```
-- [ ] 1.3.1.3 Implement `new/0` and `new/1` constructors with optional max_items
-- [ ] 1.3.1.4 Implement `add_implicit/2` for items from pattern detection:
+- [x] 1.3.1.3 Implement `new/0` and `new/1` constructors with optional max_items
+- [x] 1.3.1.4 Implement `add_implicit/2` for items from pattern detection:
   ```elixir
   @spec add_implicit(t(), pending_item()) :: t()
   ```
   - Generate unique id if not provided
   - Enforce max_items limit (evict lowest importance_score)
   - Set suggested_by: :implicit
-- [ ] 1.3.1.5 Implement `add_agent_decision/2` for explicit remember requests:
+- [x] 1.3.1.5 Implement `add_agent_decision/2` for explicit remember requests:
   ```elixir
   @spec add_agent_decision(t(), pending_item()) :: t()
   ```
   - These bypass importance threshold during promotion
   - Set suggested_by: :agent
   - Set importance_score: 1.0 (maximum)
-- [ ] 1.3.1.6 Implement `ready_for_promotion/2` with configurable threshold:
+- [x] 1.3.1.6 Implement `ready_for_promotion/2` with configurable threshold:
   ```elixir
   @spec ready_for_promotion(t(), float()) :: [pending_item()]
   def ready_for_promotion(pending, threshold \\ 0.6)
@@ -236,41 +236,41 @@ Implement the staging area for memory items awaiting promotion to long-term stor
   - Return items from `items` map with importance_score >= threshold
   - Always include all `agent_decisions` regardless of score
   - Sort by importance_score descending
-- [ ] 1.3.1.7 Implement `clear_promoted/2` to remove promoted items:
+- [x] 1.3.1.7 Implement `clear_promoted/2` to remove promoted items:
   ```elixir
   @spec clear_promoted(t(), [String.t()]) :: t()
   ```
   - Remove specified ids from items map
   - Clear agent_decisions list entirely
-- [ ] 1.3.1.8 Implement `get/2` to retrieve pending item by id
-- [ ] 1.3.1.9 Implement `size/1` to return total pending count (items + agent_decisions)
-- [ ] 1.3.1.10 Implement `update_score/3` to update importance_score for an item
-- [ ] 1.3.1.11 Implement private `generate_id/0` for unique id generation
-- [ ] 1.3.1.12 Implement private `evict_lowest/1` for enforcing max_items limit
+- [x] 1.3.1.8 Implement `get/2` to retrieve pending item by id
+- [x] 1.3.1.9 Implement `size/1` to return total pending count (items + agent_decisions)
+- [x] 1.3.1.10 Implement `update_score/3` to update importance_score for an item
+- [x] 1.3.1.11 Implement private `generate_id/0` for unique id generation
+- [x] 1.3.1.12 Implement private `evict_lowest/1` for enforcing max_items limit
 
 ### 1.3.2 Unit Tests for PendingMemories
 
-- [ ] Test new/0 creates empty pending memories with default max_items
-- [ ] Test new/1 accepts custom max_items value
-- [ ] Test add_implicit/2 adds item to items map
-- [ ] Test add_implicit/2 generates unique id if not provided
-- [ ] Test add_implicit/2 sets suggested_by to :implicit
-- [ ] Test add_implicit/2 enforces max_items limit by evicting lowest score
-- [ ] Test add_agent_decision/2 adds to agent_decisions list
-- [ ] Test add_agent_decision/2 sets suggested_by to :agent
-- [ ] Test add_agent_decision/2 sets importance_score to 1.0
-- [ ] Test ready_for_promotion/2 returns items above default threshold (0.6)
-- [ ] Test ready_for_promotion/2 with custom threshold
-- [ ] Test ready_for_promotion/2 always includes agent_decisions
-- [ ] Test ready_for_promotion/2 sorts by importance_score descending
-- [ ] Test clear_promoted/2 removes specified ids from items
-- [ ] Test clear_promoted/2 clears agent_decisions list
-- [ ] Test clear_promoted/2 handles non-existent ids gracefully
-- [ ] Test get/2 returns pending item by id
-- [ ] Test get/2 returns nil for non-existent id
-- [ ] Test size/1 returns correct total count
-- [ ] Test update_score/3 updates importance_score for existing item
-- [ ] Test eviction removes item with lowest importance_score
+- [x] Test new/0 creates empty pending memories with default max_items
+- [x] Test new/1 accepts custom max_items value
+- [x] Test add_implicit/2 adds item to items map
+- [x] Test add_implicit/2 generates unique id if not provided
+- [x] Test add_implicit/2 sets suggested_by to :implicit
+- [x] Test add_implicit/2 enforces max_items limit by evicting lowest score
+- [x] Test add_agent_decision/2 adds to agent_decisions list
+- [x] Test add_agent_decision/2 sets suggested_by to :agent
+- [x] Test add_agent_decision/2 sets importance_score to 1.0
+- [x] Test ready_for_promotion/2 returns items above default threshold (0.6)
+- [x] Test ready_for_promotion/2 with custom threshold
+- [x] Test ready_for_promotion/2 always includes agent_decisions
+- [x] Test ready_for_promotion/2 sorts by importance_score descending
+- [x] Test clear_promoted/2 removes specified ids from items
+- [x] Test clear_promoted/2 clears agent_decisions list
+- [x] Test clear_promoted/2 handles non-existent ids gracefully
+- [x] Test get/2 returns pending item by id
+- [x] Test get/2 returns nil for non-existent id
+- [x] Test size/1 returns correct total count
+- [x] Test update_score/3 updates importance_score for existing item
+- [x] Test eviction removes item with lowest importance_score
 
 ---
 

@@ -1461,4 +1461,364 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       SessionSupervisor.stop_session(session.id)
     end
   end
+
+  # ============================================================================
+  # 1.6.4 Access Log Integration Tests
+  # ============================================================================
+
+  describe "Access log records operations from context and memory access" do
+    test "context access is recorded via record_access", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Record context access
+      :ok = State.record_access(session.id, :framework, :read)
+      :ok = State.record_access(session.id, :primary_language, :write)
+      :ok = State.record_access(session.id, :database, :query)
+
+      # Give casts time to process
+      Process.sleep(20)
+
+      # Verify all accesses were recorded
+      {:ok, framework_stats} = State.get_access_stats(session.id, :framework)
+      {:ok, language_stats} = State.get_access_stats(session.id, :primary_language)
+      {:ok, database_stats} = State.get_access_stats(session.id, :database)
+
+      assert framework_stats.frequency == 1
+      assert language_stats.frequency == 1
+      assert database_stats.frequency == 1
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "memory reference access is recorded via {:memory, id} keys", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Record memory access using {:memory, id} tuple keys
+      :ok = State.record_access(session.id, {:memory, "mem-001"}, :query)
+      :ok = State.record_access(session.id, {:memory, "mem-002"}, :read)
+      :ok = State.record_access(session.id, {:memory, "mem-001"}, :query)
+
+      # Give casts time to process
+      Process.sleep(20)
+
+      # Verify memory accesses were recorded
+      {:ok, mem1_stats} = State.get_access_stats(session.id, {:memory, "mem-001"})
+      {:ok, mem2_stats} = State.get_access_stats(session.id, {:memory, "mem-002"})
+
+      assert mem1_stats.frequency == 2
+      assert mem2_stats.frequency == 1
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "mixed context and memory access types are tracked separately", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Record various access types
+      :ok = State.record_access(session.id, :framework, :read)
+      :ok = State.record_access(session.id, :framework, :write)
+      :ok = State.record_access(session.id, {:memory, "mem-123"}, :query)
+      :ok = State.record_access(session.id, {:memory, "mem-123"}, :read)
+      :ok = State.record_access(session.id, :database, :read)
+
+      # Give casts time to process
+      Process.sleep(20)
+
+      # Get the full access log state
+      {:ok, state} = State.get_state(session.id)
+
+      # Verify total entries
+      assert AccessLog.size(state.access_log) == 5
+
+      # Verify individual stats
+      {:ok, framework_stats} = State.get_access_stats(session.id, :framework)
+      {:ok, memory_stats} = State.get_access_stats(session.id, {:memory, "mem-123"})
+
+      assert framework_stats.frequency == 2
+      assert memory_stats.frequency == 2
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "access log entries have correct timestamps", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      before_access = DateTime.utc_now()
+
+      :ok = State.record_access(session.id, :framework, :read)
+
+      # Give cast time to process
+      Process.sleep(10)
+
+      after_access = DateTime.utc_now()
+
+      {:ok, stats} = State.get_access_stats(session.id, :framework)
+
+      # Timestamp should be between before and after
+      assert stats.recency != nil
+      assert DateTime.compare(stats.recency, before_access) in [:gt, :eq]
+      assert DateTime.compare(stats.recency, after_access) in [:lt, :eq]
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "High-frequency access recording doesn't block other operations" do
+    test "rapid access recording completes without blocking", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Record many accesses rapidly
+      start_time = System.monotonic_time(:millisecond)
+
+      for i <- 1..500 do
+        key = :"key_#{rem(i, 50)}"
+        :ok = State.record_access(session.id, key, :read)
+      end
+
+      end_time = System.monotonic_time(:millisecond)
+      elapsed = end_time - start_time
+
+      # Should complete quickly since record_access is async (cast)
+      # 500 casts should complete in well under 1 second
+      assert elapsed < 1000
+
+      # Give casts time to process
+      Process.sleep(100)
+
+      # Verify accesses were recorded
+      {:ok, state} = State.get_state(session.id)
+      assert AccessLog.size(state.access_log) == 500
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "other operations work during heavy access logging", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Start recording many accesses
+      for i <- 1..100 do
+        :ok = State.record_access(session.id, :"key_#{i}", :read)
+      end
+
+      # Perform other operations while casts are processing
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      {:ok, context_value} = State.get_context(session.id, :framework)
+      assert context_value == "Phoenix"
+
+      message = %{id: "msg-1", role: :user, content: "Hello", timestamp: DateTime.utc_now()}
+      {:ok, _} = State.append_message(session.id, message)
+      {:ok, messages} = State.get_messages(session.id)
+      assert length(messages) == 1
+
+      item = %{
+        content: "Test",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.8
+      }
+
+      :ok = State.add_pending_memory(session.id, item)
+      {:ok, ready_items} = State.get_pending_memories(session.id)
+      assert length(ready_items) == 1
+
+      # Record more accesses
+      for i <- 101..200 do
+        :ok = State.record_access(session.id, :"key_#{i}", :write)
+      end
+
+      # Give casts time to process
+      Process.sleep(50)
+
+      # Verify all accesses were recorded
+      {:ok, state} = State.get_state(session.id)
+      assert AccessLog.size(state.access_log) == 200
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "concurrent sessions can record accesses independently", %{tmp_dir: tmp_dir} do
+      # Create multiple sessions
+      sessions =
+        for i <- 1..3 do
+          project = Path.join(tmp_dir, "project_#{i}")
+          File.mkdir_p!(project)
+          {:ok, session} = Session.new(name: "Session #{i}", project_path: project)
+          {:ok, _pid} = SessionSupervisor.start_session(session)
+          session
+        end
+
+      # Record accesses on all sessions concurrently
+      for {session, idx} <- Enum.with_index(sessions, 1) do
+        for j <- 1..50 do
+          :ok = State.record_access(session.id, :"key_#{j}", :read)
+        end
+      end
+
+      # Give casts time to process
+      Process.sleep(50)
+
+      # Verify each session has its own access log
+      for session <- sessions do
+        {:ok, state} = State.get_state(session.id)
+        assert AccessLog.size(state.access_log) == 50
+      end
+
+      # Cleanup
+      for session <- sessions do
+        SessionSupervisor.stop_session(session.id)
+      end
+    end
+  end
+
+  describe "Access stats accurately reflect recorded activity" do
+    test "frequency counts are accurate after multiple accesses", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Record specific number of accesses for each key
+      for _ <- 1..10, do: State.record_access(session.id, :framework, :read)
+      for _ <- 1..5, do: State.record_access(session.id, :database, :write)
+      for _ <- 1..15, do: State.record_access(session.id, {:memory, "mem-001"}, :query)
+
+      # Give casts time to process
+      Process.sleep(30)
+
+      # Verify exact counts
+      {:ok, framework_stats} = State.get_access_stats(session.id, :framework)
+      {:ok, database_stats} = State.get_access_stats(session.id, :database)
+      {:ok, memory_stats} = State.get_access_stats(session.id, {:memory, "mem-001"})
+
+      assert framework_stats.frequency == 10
+      assert database_stats.frequency == 5
+      assert memory_stats.frequency == 15
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "recency reflects most recent access time", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # First access
+      :ok = State.record_access(session.id, :framework, :read)
+      Process.sleep(15)
+
+      {:ok, stats1} = State.get_access_stats(session.id, :framework)
+      first_recency = stats1.recency
+
+      # Second access after delay
+      Process.sleep(20)
+      :ok = State.record_access(session.id, :framework, :write)
+      Process.sleep(15)
+
+      {:ok, stats2} = State.get_access_stats(session.id, :framework)
+      second_recency = stats2.recency
+
+      # Second recency should be later than first
+      assert DateTime.compare(second_recency, first_recency) == :gt
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "unknown keys return zero frequency and nil recency", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Query for key that was never accessed
+      {:ok, stats} = State.get_access_stats(session.id, :never_accessed_key)
+
+      assert stats.frequency == 0
+      assert stats.recency == nil
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "access stats are isolated between sessions", %{tmp_dir: tmp_dir} do
+      project1 = Path.join(tmp_dir, "project1")
+      project2 = Path.join(tmp_dir, "project2")
+      File.mkdir_p!(project1)
+      File.mkdir_p!(project2)
+
+      {:ok, session1} = Session.new(name: "Session 1", project_path: project1)
+      {:ok, session2} = Session.new(name: "Session 2", project_path: project2)
+
+      {:ok, _pid1} = SessionSupervisor.start_session(session1)
+      {:ok, _pid2} = SessionSupervisor.start_session(session2)
+
+      # Record different access patterns
+      for _ <- 1..10, do: State.record_access(session1.id, :framework, :read)
+      for _ <- 1..3, do: State.record_access(session2.id, :framework, :read)
+
+      # Give casts time to process
+      Process.sleep(20)
+
+      # Verify isolated stats
+      {:ok, stats1} = State.get_access_stats(session1.id, :framework)
+      {:ok, stats2} = State.get_access_stats(session2.id, :framework)
+
+      assert stats1.frequency == 10
+      assert stats2.frequency == 3
+
+      SessionSupervisor.stop_session(session1.id)
+      SessionSupervisor.stop_session(session2.id)
+    end
+
+    test "access stats include all access types in frequency", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Record different access types for same key
+      :ok = State.record_access(session.id, :framework, :read)
+      :ok = State.record_access(session.id, :framework, :write)
+      :ok = State.record_access(session.id, :framework, :query)
+      :ok = State.record_access(session.id, :framework, :read)
+      :ok = State.record_access(session.id, :framework, :read)
+
+      # Give casts time to process
+      Process.sleep(20)
+
+      # Frequency should count all access types
+      {:ok, stats} = State.get_access_stats(session.id, :framework)
+      assert stats.frequency == 5
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
 end

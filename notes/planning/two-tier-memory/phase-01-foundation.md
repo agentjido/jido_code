@@ -528,9 +528,9 @@ Comprehensive integration tests verifying memory foundation works with existing 
 
 ### 1.6.4 Access Log Integration
 
-- [ ] 1.6.4.1 Test: Access log records operations from context and memory access
-- [ ] 1.6.4.2 Test: High-frequency access recording doesn't block other operations
-- [ ] 1.6.4.3 Test: Access stats accurately reflect recorded activity
+- [x] 1.6.4.1 Test: Access log records operations from context and memory access
+- [x] 1.6.4.2 Test: High-frequency access recording doesn't block other operations
+- [x] 1.6.4.3 Test: Access stats accurately reflect recorded activity
 
 ---
 

@@ -9,6 +9,7 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
     DeleteFile,
     EditFile,
     FileInfo,
+    GlobSearch,
     ListDir,
     ListDirectory,
     MultiEdit,
@@ -1770,6 +1771,148 @@ defmodule JidoCode.Tools.Handlers.FileSystemTest do
       context = %{project_root: "/tmp"}
       assert {:error, error} = ListDir.execute(%{}, context)
       assert error =~ "requires a path argument"
+    end
+  end
+
+  # ============================================================================
+  # GlobSearch Tests
+  # ============================================================================
+
+  describe "GlobSearch.execute/2" do
+    test "finds files with ** recursive pattern", %{tmp_dir: tmp_dir} do
+      # Create nested directory structure
+      lib_dir = Path.join(tmp_dir, "lib")
+      File.mkdir_p!(lib_dir)
+      File.write!(Path.join(lib_dir, "main.ex"), "")
+      File.write!(Path.join(lib_dir, "helper.ex"), "")
+
+      sub_dir = Path.join(lib_dir, "sub")
+      File.mkdir_p!(sub_dir)
+      File.write!(Path.join(sub_dir, "nested.ex"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "**/*.ex"}, context)
+
+      paths = Jason.decode!(json)
+      assert length(paths) == 3
+      assert "lib/main.ex" in paths
+      assert "lib/helper.ex" in paths
+      assert "lib/sub/nested.ex" in paths
+    end
+
+    test "finds files with * extension pattern", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "a.ex"), "")
+      File.write!(Path.join(tmp_dir, "b.ex"), "")
+      File.write!(Path.join(tmp_dir, "c.txt"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "*.ex"}, context)
+
+      paths = Jason.decode!(json)
+      assert length(paths) == 2
+      assert "a.ex" in paths
+      assert "b.ex" in paths
+      refute "c.txt" in paths
+    end
+
+    test "finds files with brace expansion pattern", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "main.ex"), "")
+      File.write!(Path.join(tmp_dir, "test.exs"), "")
+      File.write!(Path.join(tmp_dir, "readme.md"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "*.{ex,exs}"}, context)
+
+      paths = Jason.decode!(json)
+      assert length(paths) == 2
+      assert "main.ex" in paths
+      assert "test.exs" in paths
+      refute "readme.md" in paths
+    end
+
+    test "uses path parameter for base directory", %{tmp_dir: tmp_dir} do
+      lib_dir = Path.join(tmp_dir, "lib")
+      File.mkdir_p!(lib_dir)
+      File.write!(Path.join(lib_dir, "app.ex"), "")
+
+      test_dir = Path.join(tmp_dir, "test")
+      File.mkdir_p!(test_dir)
+      File.write!(Path.join(test_dir, "app_test.exs"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "*.ex", "path" => "lib"}, context)
+
+      paths = Jason.decode!(json)
+      assert paths == ["lib/app.ex"]
+    end
+
+    test "returns empty array for no matches", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "file.txt"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "*.ex"}, context)
+
+      assert Jason.decode!(json) == []
+    end
+
+    test "sorts results by modification time newest first", %{tmp_dir: tmp_dir} do
+      # Create files with slight delay to ensure different mtimes
+      File.write!(Path.join(tmp_dir, "old.ex"), "old")
+      :timer.sleep(10)
+      File.write!(Path.join(tmp_dir, "new.ex"), "new")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "*.ex"}, context)
+
+      paths = Jason.decode!(json)
+      # Newest file should be first
+      assert hd(paths) == "new.ex"
+    end
+
+    test "validates boundary - rejects path traversal", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+      {:error, error} = GlobSearch.execute(%{"pattern" => "*.ex", "path" => "../.."}, context)
+
+      assert error =~ "Security error"
+    end
+
+    test "returns error for missing pattern argument", %{tmp_dir: _tmp_dir} do
+      context = %{project_root: "/tmp"}
+      {:error, error} = GlobSearch.execute(%{}, context)
+
+      assert error =~ "requires a pattern argument"
+    end
+
+    test "returns error for non-existent base path", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+      {:error, error} = GlobSearch.execute(%{"pattern" => "*.ex", "path" => "nonexistent"}, context)
+
+      assert error =~ "file_not_found"
+    end
+
+    test "finds files with ? single character wildcard", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "a1.ex"), "")
+      File.write!(Path.join(tmp_dir, "a2.ex"), "")
+      File.write!(Path.join(tmp_dir, "abc.ex"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "a?.ex"}, context)
+
+      paths = Jason.decode!(json)
+      assert length(paths) == 2
+      assert "a1.ex" in paths
+      assert "a2.ex" in paths
+      refute "abc.ex" in paths
+    end
+
+    test "filters results to stay within project boundary", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "safe.ex"), "")
+
+      context = %{project_root: tmp_dir}
+      {:ok, json} = GlobSearch.execute(%{"pattern" => "*.ex"}, context)
+
+      paths = Jason.decode!(json)
+      assert "safe.ex" in paths
     end
   end
 

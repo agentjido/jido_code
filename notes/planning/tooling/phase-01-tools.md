@@ -339,11 +339,17 @@ Implement the glob_search tool for pattern-based file finding through the Lua sa
 
 ### 1.6.3 Unit Tests for Glob Search
 
-- [ ] Test glob_search with ** pattern through sandbox
-- [ ] Test glob_search with extension filter (*.ex)
-- [ ] Test glob_search with directory prefix
-- [ ] Test glob_search filters results within boundary
-- [ ] Test glob_search handles empty results
+- [x] Test glob_search with ** pattern through sandbox
+- [x] Test glob_search with extension filter (*.ex)
+- [x] Test glob_search with directory prefix
+- [x] Test glob_search filters results within boundary
+- [x] Test glob_search handles empty results
+- [x] Test glob_search with brace expansion (*.{ex,exs})
+- [x] Test glob_search with ? wildcard pattern
+- [x] Test glob_search validates boundary rejects path traversal
+- [x] Test glob_search returns error for missing pattern
+- [x] Test glob_search returns error for non-existent base path
+- [x] Test glob_search sorts by modification time newest first
 
 ---
 

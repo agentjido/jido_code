@@ -1861,7 +1861,11 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
       case FileSystem.validate_path(base_path, context) do
         {:ok, safe_base} ->
-          search_files(pattern, safe_base, base_path, context)
+          if File.exists?(safe_base) do
+            search_files(pattern, safe_base, context)
+          else
+            {:error, FileSystem.format_error(:file_not_found, base_path)}
+          end
 
         {:error, reason} ->
           {:error, FileSystem.format_error(reason, base_path)}
@@ -1872,23 +1876,27 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       {:error, "glob_search requires a pattern argument"}
     end
 
-    @spec search_files(String.t(), String.t(), String.t(), map()) ::
+    @spec search_files(String.t(), String.t(), map()) ::
             {:ok, String.t()} | {:error, String.t()}
-    defp search_files(pattern, safe_base, original_base, context) do
-      project_root = FileSystem.get_project_root(context)
+    defp search_files(pattern, safe_base, context) do
+      case FileSystem.get_project_root(context) do
+        {:ok, project_root} ->
+          # Build full pattern path
+          full_pattern = Path.join(safe_base, pattern)
 
-      # Build full pattern path
-      full_pattern = Path.join(safe_base, pattern)
+          # Use Path.wildcard to find matching files
+          matches =
+            full_pattern
+            |> Path.wildcard(match_dot: false)
+            |> filter_within_boundary(project_root)
+            |> sort_by_mtime_desc()
+            |> make_relative(project_root)
 
-      # Use Path.wildcard to find matching files
-      matches =
-        full_pattern
-        |> Path.wildcard(match_dot: false)
-        |> filter_within_boundary(project_root)
-        |> sort_by_mtime_desc()
-        |> make_relative(project_root)
+          {:ok, Jason.encode!(matches)}
 
-      {:ok, Jason.encode!(matches)}
+        {:error, reason} ->
+          {:error, "Glob search error: #{reason}"}
+      end
     rescue
       e ->
         {:error, "Glob search error: #{Exception.message(e)}"}

@@ -12,6 +12,7 @@ defmodule JidoCode.Tools.Bridge do
   - `jido.read_file(path)` - Read file contents
   - `jido.write_file(path, content)` - Write content to file
   - `jido.list_dir(path)` - List directory contents
+  - `jido.glob(pattern)` - Find files matching glob pattern
   - `jido.file_exists(path)` - Check if path exists
   - `jido.file_stat(path)` - Get file metadata (size, type, access)
   - `jido.is_file(path)` - Check if path is a regular file
@@ -340,6 +341,120 @@ defmodule JidoCode.Tools.Bridge do
       {:error, reason} ->
         handle_operation_error(reason, path, state)
     end
+  end
+
+  @doc """
+  Finds files matching a glob pattern. Called from Lua as `jido.glob(pattern)` or
+  `jido.glob(pattern, path)`.
+
+  ## Parameters
+
+  - `args` - Lua arguments: `[pattern]` or `[pattern, path]`
+    - `pattern` - Glob pattern (e.g., "**/*.ex", "*.{ex,exs}")
+    - `path` - Base directory to search from (defaults to project root)
+  - `state` - Lua state
+  - `project_root` - Project root for path validation
+
+  ## Returns
+
+  - `{[paths], state}` on success (paths as Lua array of relative paths)
+  - `{[nil, error], state}` on failure
+
+  ## Supported Patterns
+
+  - `*` - Match any characters (not path separator)
+  - `**` - Match any characters including path separators
+  - `?` - Match any single character
+  - `{a,b}` - Match either pattern a or pattern b
+  - `[abc]` - Match any character in the set
+
+  ## Sorting
+
+  Results are sorted by modification time with newest files first.
+  """
+  @spec lua_glob(list(), :luerl.luerl_state(), String.t()) :: {list(), :luerl.luerl_state()}
+  def lua_glob(args, state, project_root) do
+    case args do
+      [pattern] when is_binary(pattern) ->
+        do_glob(pattern, ".", state, project_root)
+
+      [pattern, path] when is_binary(pattern) and is_binary(path) ->
+        do_glob(pattern, path, state, project_root)
+
+      [] ->
+        {[nil, "glob requires a pattern argument"], state}
+
+      _ ->
+        {[nil, "glob requires a pattern argument"], state}
+    end
+  end
+
+  @spec do_glob(String.t(), String.t(), :luerl.luerl_state(), String.t()) ::
+          {list(), :luerl.luerl_state()}
+  defp do_glob(pattern, base_path, state, project_root) do
+    with {:ok, safe_base} <- Security.validate_path(base_path, project_root),
+         true <- File.exists?(safe_base) do
+      # Build full pattern path
+      full_pattern = Path.join(safe_base, pattern)
+
+      # Find matching files, filter to boundary, sort by mtime
+      matches =
+        full_pattern
+        |> Path.wildcard(match_dot: false)
+        |> filter_within_boundary(project_root)
+        |> sort_by_mtime_desc()
+        |> make_relative(project_root)
+
+      # Convert to Lua array format
+      lua_array =
+        matches
+        |> Enum.with_index(1)
+        |> Enum.map(fn {path, idx} -> {idx, path} end)
+
+      {[lua_array], state}
+    else
+      false ->
+        handle_operation_error(:enoent, base_path, state)
+
+      {:error, reason} ->
+        handle_operation_error(reason, base_path, state)
+    end
+  end
+
+  # Filter paths to only those within project boundary
+  @spec filter_within_boundary(list(String.t()), String.t()) :: list(String.t())
+  defp filter_within_boundary(paths, project_root) do
+    expanded_root = Path.expand(project_root)
+
+    Enum.filter(paths, fn path ->
+      expanded_path = Path.expand(path)
+      String.starts_with?(expanded_path, expanded_root <> "/") or expanded_path == expanded_root
+    end)
+  end
+
+  # Sort by modification time, newest first
+  @spec sort_by_mtime_desc(list(String.t())) :: list(String.t())
+  defp sort_by_mtime_desc(paths) do
+    Enum.sort_by(
+      paths,
+      fn path ->
+        case File.stat(path, time: :posix) do
+          {:ok, %{mtime: mtime}} -> -mtime
+          _ -> 0
+        end
+      end
+    )
+  end
+
+  # Convert absolute paths to relative paths from project root
+  @spec make_relative(list(String.t()), String.t()) :: list(String.t())
+  defp make_relative(paths, project_root) do
+    expanded_root = Path.expand(project_root)
+
+    Enum.map(paths, fn path ->
+      expanded_path = Path.expand(path)
+      Path.relative_to(expanded_path, expanded_root)
+    end)
   end
 
   @doc """
@@ -750,6 +865,7 @@ defmodule JidoCode.Tools.Bridge do
     |> register_function("read_file", &lua_read_file/3, project_root)
     |> register_function("write_file", &lua_write_file/3, project_root)
     |> register_function("list_dir", &lua_list_dir/3, project_root)
+    |> register_function("glob", &lua_glob/3, project_root)
     |> register_function("file_exists", &lua_file_exists/3, project_root)
     |> register_function("file_stat", &lua_file_stat/3, project_root)
     |> register_function("is_file", &lua_is_file/3, project_root)

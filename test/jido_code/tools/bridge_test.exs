@@ -465,6 +465,157 @@ defmodule JidoCode.Tools.BridgeTest do
     end
   end
 
+  describe "lua_glob/3" do
+    test "finds files with ** pattern", %{tmp_dir: tmp_dir} do
+      # Create nested directory structure
+      lib_dir = Path.join(tmp_dir, "lib")
+      File.mkdir_p!(lib_dir)
+      File.write!(Path.join(lib_dir, "main.ex"), "")
+      File.write!(Path.join(lib_dir, "helper.ex"), "")
+
+      sub_dir = Path.join(lib_dir, "sub")
+      File.mkdir_p!(sub_dir)
+      File.write!(Path.join(sub_dir, "nested.ex"), "")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["**/*.ex"], state, tmp_dir)
+
+      # Extract paths from Lua array
+      paths = Enum.map(result, fn {_idx, path} -> path end)
+
+      assert length(paths) == 3
+      assert "lib/main.ex" in paths
+      assert "lib/helper.ex" in paths
+      assert "lib/sub/nested.ex" in paths
+    end
+
+    test "finds files with simple * pattern", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "a.ex"), "")
+      File.write!(Path.join(tmp_dir, "b.ex"), "")
+      File.write!(Path.join(tmp_dir, "c.txt"), "")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["*.ex"], state, tmp_dir)
+
+      paths = Enum.map(result, fn {_idx, path} -> path end)
+
+      assert length(paths) == 2
+      assert "a.ex" in paths
+      assert "b.ex" in paths
+      refute "c.txt" in paths
+    end
+
+    test "finds files with brace expansion pattern", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "main.ex"), "")
+      File.write!(Path.join(tmp_dir, "test.exs"), "")
+      File.write!(Path.join(tmp_dir, "readme.md"), "")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["*.{ex,exs}"], state, tmp_dir)
+
+      paths = Enum.map(result, fn {_idx, path} -> path end)
+
+      assert length(paths) == 2
+      assert "main.ex" in paths
+      assert "test.exs" in paths
+      refute "readme.md" in paths
+    end
+
+    test "uses base path for searching", %{tmp_dir: tmp_dir} do
+      lib_dir = Path.join(tmp_dir, "lib")
+      File.mkdir_p!(lib_dir)
+      File.write!(Path.join(lib_dir, "app.ex"), "")
+
+      test_dir = Path.join(tmp_dir, "test")
+      File.mkdir_p!(test_dir)
+      File.write!(Path.join(test_dir, "app_test.exs"), "")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["*.ex", "lib"], state, tmp_dir)
+
+      paths = Enum.map(result, fn {_idx, path} -> path end)
+
+      assert paths == ["lib/app.ex"]
+    end
+
+    test "returns empty array for no matches", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "file.txt"), "")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["*.ex"], state, tmp_dir)
+
+      assert result == []
+    end
+
+    test "sorts results by modification time newest first", %{tmp_dir: tmp_dir} do
+      # Create files with slight delay to ensure different mtimes
+      File.write!(Path.join(tmp_dir, "old.ex"), "old")
+      :timer.sleep(10)
+      File.write!(Path.join(tmp_dir, "new.ex"), "new")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["*.ex"], state, tmp_dir)
+
+      paths = Enum.map(result, fn {_idx, path} -> path end)
+
+      # Newest file should be first
+      assert hd(paths) == "new.ex"
+    end
+
+    test "returns error for path traversal in base path", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_glob(["*.ex", "../.."], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Security error"
+    end
+
+    test "returns error for missing pattern argument", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_glob([], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "glob requires a pattern argument"
+    end
+
+    test "filters results to stay within project boundary", %{tmp_dir: tmp_dir} do
+      # Create a file within boundary
+      File.write!(Path.join(tmp_dir, "safe.ex"), "")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["*.ex"], state, tmp_dir)
+
+      paths = Enum.map(result, fn {_idx, path} -> path end)
+
+      # Should only contain files within the project boundary
+      assert "safe.ex" in paths
+    end
+
+    test "returns error for non-existent base path", %{tmp_dir: tmp_dir} do
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_glob(["*.ex", "nonexistent"], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "File not found"
+    end
+
+    test "finds files with ? wildcard pattern", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "a1.ex"), "")
+      File.write!(Path.join(tmp_dir, "a2.ex"), "")
+      File.write!(Path.join(tmp_dir, "abc.ex"), "")
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_glob(["a?.ex"], state, tmp_dir)
+
+      paths = Enum.map(result, fn {_idx, path} -> path end)
+
+      assert length(paths) == 2
+      assert "a1.ex" in paths
+      assert "a2.ex" in paths
+      refute "abc.ex" in paths
+    end
+  end
+
   describe "lua_file_exists/3" do
     test "returns true for existing file", %{tmp_dir: tmp_dir} do
       File.write!(Path.join(tmp_dir, "exists.txt"), "")

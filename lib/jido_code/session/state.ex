@@ -1002,6 +1002,74 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Access Log Client API
+  # ============================================================================
+
+  @doc """
+  Records an access event in the access log.
+
+  This is an async operation (cast) for performance during high-frequency access.
+  If the session is not found, the access event is silently ignored.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key or memory reference (e.g., :framework or {:memory, "mem-123"})
+  - `access_type` - Type of access (:read, :write, or :query)
+
+  ## Returns
+
+  - `:ok` - Always returns :ok (async operation)
+
+  ## Examples
+
+      iex> :ok = State.record_access("session-123", :framework, :read)
+      iex> :ok = State.record_access("session-123", {:memory, "mem-123"}, :query)
+  """
+  @spec record_access(String.t(), atom() | {:memory, String.t()}, :read | :write | :query) :: :ok
+  def record_access(session_id, key, access_type)
+      when is_binary(session_id) and access_type in [:read, :write, :query] do
+    cast_state(session_id, {:record_access, key, access_type})
+  end
+
+  @doc """
+  Gets access statistics for a key.
+
+  Returns frequency (total access count) and recency (most recent access timestamp)
+  for the given key.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key or memory reference to look up
+
+  ## Returns
+
+  - `{:ok, %{frequency: integer(), recency: DateTime.t() | nil}}` - Access statistics
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, stats} = State.get_access_stats("session-123", :framework)
+      iex> stats.frequency
+      5
+      iex> stats.recency
+      ~U[2025-12-29 12:00:00Z]
+
+      iex> {:ok, stats} = State.get_access_stats("session-123", :unknown_key)
+      iex> stats.frequency
+      0
+      iex> stats.recency
+      nil
+  """
+  @spec get_access_stats(String.t(), atom() | {:memory, String.t()}) ::
+          {:ok, %{frequency: non_neg_integer(), recency: DateTime.t() | nil}}
+          | {:error, :not_found}
+  def get_access_stats(session_id, key) when is_binary(session_id) do
+    call_state(session_id, {:get_access_stats, key})
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 
@@ -1376,6 +1444,16 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Access Log Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call({:get_access_stats, key}, _from, state) do
+    stats = AccessLog.get_stats(state.access_log, key)
+    {:reply, {:ok, stats}, state}
+  end
+
+  # ============================================================================
   # handle_cast Callbacks
   # ============================================================================
 
@@ -1387,6 +1465,13 @@ defmodule JidoCode.Session.State do
     else
       {:noreply, state}
     end
+  end
+
+  @impl true
+  def handle_cast({:record_access, key, access_type}, state) do
+    updated_access_log = AccessLog.record(state.access_log, key, access_type)
+    new_state = %{state | access_log: updated_access_log}
+    {:noreply, new_state}
   end
 
   # ============================================================================

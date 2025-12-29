@@ -430,12 +430,12 @@ Extend the existing Session.State GenServer with memory-related fields and callb
 
 ### 1.5.4 Access Log Client API
 
-- [ ] 1.5.4.1 Add `record_access/3` client function (async cast for performance):
+- [x] 1.5.4.1 Add `record_access/3` client function (async cast for performance):
   ```elixir
   @spec record_access(String.t(), context_key(), :read | :write | :query) :: :ok
   def record_access(session_id, key, access_type)
   ```
-- [ ] 1.5.4.2 Add `get_access_stats/2` client function:
+- [x] 1.5.4.2 Add `get_access_stats/2` client function:
   ```elixir
   @spec get_access_stats(String.t(), context_key()) ::
     {:ok, %{frequency: integer(), recency: DateTime.t() | nil}} | {:error, :not_found}
@@ -468,10 +468,10 @@ Extend the existing Session.State GenServer with memory-related fields and callb
   - Return PendingMemories.ready_for_promotion/1 results
 - [x] 1.5.5.8 Add `handle_call({:clear_promoted_memories, ids}, ...)` callback:
   - Use PendingMemories.clear_promoted/2
-- [ ] 1.5.5.9 Add `handle_cast({:record_access, key, type}, ...)` callback:
+- [x] 1.5.5.9 Add `handle_cast({:record_access, key, type}, ...)` callback:
   - Use AccessLog.record/3
   - Async for performance during high-frequency access
-- [ ] 1.5.5.10 Add `handle_call({:get_access_stats, key}, ...)` callback:
+- [x] 1.5.5.10 Add `handle_call({:get_access_stats, key}, ...)` callback:
   - Use AccessLog.get_stats/2
 
 ### 1.5.6 Unit Tests for Session.State Memory Extensions

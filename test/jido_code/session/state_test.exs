@@ -1331,4 +1331,157 @@ defmodule JidoCode.Session.StateTest do
       assert {:error, :not_found} = State.clear_promoted_memories("unknown-session-id", [])
     end
   end
+
+  # ============================================================================
+  # Access Log Client API (Task 1.5.4)
+  # ============================================================================
+
+  describe "record_access/3" do
+    test "adds entry to access_log", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.record_access(session.id, :framework, :read)
+
+      # Give cast time to process
+      Process.sleep(10)
+
+      {:ok, state} = State.get_state(session.id)
+      assert AccessLog.size(state.access_log) == 1
+
+      GenServer.stop(pid)
+    end
+
+    test "records correct access_type values", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.record_access(session.id, :framework, :read)
+      :ok = State.record_access(session.id, :primary_language, :write)
+      :ok = State.record_access(session.id, {:memory, "mem-123"}, :query)
+
+      # Give casts time to process
+      Process.sleep(10)
+
+      {:ok, state} = State.get_state(session.id)
+      assert AccessLog.size(state.access_log) == 3
+
+      recent = AccessLog.recent_accesses(state.access_log, 3)
+      access_types = Enum.map(recent, & &1.access_type)
+      assert :read in access_types
+      assert :write in access_types
+      assert :query in access_types
+
+      GenServer.stop(pid)
+    end
+
+    test "accepts context_key as key", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.record_access(session.id, :framework, :read)
+
+      # Give cast time to process
+      Process.sleep(10)
+
+      {:ok, state} = State.get_state(session.id)
+      [entry] = AccessLog.recent_accesses(state.access_log, 1)
+      assert entry.key == :framework
+
+      GenServer.stop(pid)
+    end
+
+    test "accepts {:memory, id} tuple as key", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.record_access(session.id, {:memory, "mem-456"}, :query)
+
+      # Give cast time to process
+      Process.sleep(10)
+
+      {:ok, state} = State.get_state(session.id)
+      [entry] = AccessLog.recent_accesses(state.access_log, 1)
+      assert entry.key == {:memory, "mem-456"}
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :ok for unknown session (silent ignore)", %{tmp_dir: _tmp_dir} do
+      assert :ok = State.record_access("unknown-session-id", :framework, :read)
+    end
+
+    test "async operation does not block", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Record many accesses quickly
+      for i <- 1..100 do
+        :ok = State.record_access(session.id, :"key_#{i}", :read)
+      end
+
+      # Give casts time to process
+      Process.sleep(50)
+
+      {:ok, state} = State.get_state(session.id)
+      assert AccessLog.size(state.access_log) == 100
+
+      GenServer.stop(pid)
+    end
+  end
+
+  describe "get_access_stats/2" do
+    test "returns frequency and recency for key", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.record_access(session.id, :framework, :read)
+      :ok = State.record_access(session.id, :framework, :read)
+      :ok = State.record_access(session.id, :framework, :write)
+
+      # Give casts time to process
+      Process.sleep(10)
+
+      {:ok, stats} = State.get_access_stats(session.id, :framework)
+
+      assert stats.frequency == 3
+      assert %DateTime{} = stats.recency
+
+      GenServer.stop(pid)
+    end
+
+    test "returns zero frequency for unknown key", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, stats} = State.get_access_stats(session.id, :unknown_key)
+
+      assert stats.frequency == 0
+      assert stats.recency == nil
+
+      GenServer.stop(pid)
+    end
+
+    test "returns stats for {:memory, id} keys", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.record_access(session.id, {:memory, "mem-789"}, :query)
+      :ok = State.record_access(session.id, {:memory, "mem-789"}, :read)
+
+      # Give casts time to process
+      Process.sleep(10)
+
+      {:ok, stats} = State.get_access_stats(session.id, {:memory, "mem-789"})
+
+      assert stats.frequency == 2
+      assert %DateTime{} = stats.recency
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_access_stats("unknown-session-id", :framework)
+    end
+  end
 end

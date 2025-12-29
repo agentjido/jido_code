@@ -262,10 +262,10 @@ Implement the multi_edit tool for atomic batch modifications through the Lua san
 
 Implement the list_dir tool for directory listing through the Lua sandbox.
 
-### 1.5.1 Tool Definition
+### 1.5.1 Tool Definition ✅
 
-- [ ] 1.5.1.1 Create tool definition in `lib/jido_code/tools/definitions/list_dir.ex`
-- [ ] 1.5.1.2 Define schema:
+- [x] 1.5.1.1 Create tool definition in `lib/jido_code/tools/definitions/list_dir.ex`
+- [x] 1.5.1.2 Define schema:
   ```elixir
   %{
     name: "list_dir",
@@ -276,6 +276,9 @@ Implement the list_dir tool for directory listing through the Lua sandbox.
     ]
   }
   ```
+- [x] 1.5.1.3 Add `list_dir()` to `FileSystem.all/0` via defdelegate
+- [x] 1.5.1.4 Create comprehensive definition tests (25 tests)
+- [x] 1.5.1.5 Create ListDir handler with ignore_patterns support
 
 ### 1.5.2 Bridge Function Implementation
 

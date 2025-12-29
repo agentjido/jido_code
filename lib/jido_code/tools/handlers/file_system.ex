@@ -1525,6 +1525,129 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
   end
 
   # ============================================================================
+  # ListDir Handler
+  # ============================================================================
+
+  defmodule ListDir do
+    @moduledoc """
+    Handler for the list_dir tool.
+
+    Lists the contents of a directory with optional filtering via glob patterns.
+    Uses session-aware path validation via `HandlerHelpers.validate_path/2`.
+
+    This handler extends ListDirectory with support for ignore_patterns,
+    allowing files and directories matching specified glob patterns to be
+    excluded from the listing.
+
+    ## Ignore Patterns
+
+    Patterns follow standard glob syntax:
+    - `*.log` - Match all .log files
+    - `node_modules` - Match exact directory name
+    - `**/*.test.js` - Match test files in any subdirectory
+
+    ## See Also
+
+    - `JidoCode.Tools.Definitions.ListDir` - Tool definition
+    - `JidoCode.Tools.Handlers.FileSystem.ListDirectory` - Base handler
+    """
+
+    alias JidoCode.Tools.Handlers.FileSystem
+
+    @doc """
+    Lists directory contents with optional filtering.
+
+    ## Arguments
+
+    - `"path"` - Path to the directory (relative to project root)
+    - `"ignore_patterns"` - Array of glob patterns to exclude (optional)
+
+    ## Context
+
+    - `:session_id` - Session ID for path validation (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
+    ## Returns
+
+    - `{:ok, entries}` - JSON-encoded list of entries
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"path" => path} = args, context) when is_binary(path) do
+      ignore_patterns = Map.get(args, "ignore_patterns", [])
+
+      case FileSystem.validate_path(path, context) do
+        {:ok, safe_path} ->
+          list_entries(path, safe_path, ignore_patterns)
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, path)}
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "list_dir requires a path argument"}
+    end
+
+    defp list_entries(original_path, safe_path, ignore_patterns) do
+      case File.ls(safe_path) do
+        {:ok, entries} when is_list(entries) ->
+          result =
+            entries
+            |> Enum.sort()
+            |> Enum.reject(&matches_ignore_pattern?(&1, ignore_patterns))
+            |> sort_directories_first(safe_path)
+            |> Enum.map(&entry_info(safe_path, &1))
+
+          {:ok, Jason.encode!(result)}
+
+        {:error, :enotdir} ->
+          {:error, "Not a directory: #{original_path}"}
+
+        {:error, reason} ->
+          {:error, FileSystem.format_error(reason, original_path)}
+      end
+    end
+
+    defp matches_ignore_pattern?(_entry, []), do: false
+
+    defp matches_ignore_pattern?(entry, patterns) when is_list(patterns) do
+      Enum.any?(patterns, &matches_glob?(entry, &1))
+    end
+
+    defp matches_glob?(entry, pattern) when is_binary(pattern) do
+      # Simple glob matching: convert glob pattern to regex
+      regex_pattern =
+        pattern
+        |> String.replace(".", "\\.")
+        |> String.replace("*", ".*")
+        |> String.replace("?", ".")
+
+      case Regex.compile("^#{regex_pattern}$") do
+        {:ok, regex} -> Regex.match?(regex, entry)
+        {:error, _} -> false
+      end
+    end
+
+    defp matches_glob?(_entry, _pattern), do: false
+
+    defp sort_directories_first(entries, safe_path) do
+      Enum.sort_by(entries, fn entry ->
+        full_path = Path.join(safe_path, entry)
+        is_dir = File.dir?(full_path)
+        # Directories first (false < true when negated), then alphabetically
+        {not is_dir, entry}
+      end)
+    end
+
+    defp entry_info(parent_path, entry) do
+      full_path = Path.join(parent_path, entry)
+      type = if File.dir?(full_path), do: "directory", else: "file"
+      %{name: entry, type: type}
+    end
+  end
+
+  # ============================================================================
   # FileInfo Handler
   # ============================================================================
 

@@ -11,7 +11,8 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   - `write_file` - Write/overwrite file
   - `edit_file` - Edit file with string replacement
   - `multi_edit_file` - Apply multiple edits atomically (all succeed or all fail)
-  - `list_directory` - List directory contents
+  - `list_dir` - List directory contents with filtering support
+  - `list_directory` - List directory contents with recursive option
   - `file_info` - Get file metadata
   - `create_directory` - Create directory
   - `delete_file` - Delete file (with confirmation)
@@ -31,6 +32,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   alias JidoCode.Tools.Definitions.FileMultiEdit
   alias JidoCode.Tools.Definitions.FileRead
   alias JidoCode.Tools.Definitions.FileWrite
+  alias JidoCode.Tools.Definitions.ListDir
   alias JidoCode.Tools.Handlers.FileSystem, as: Handlers
   alias JidoCode.Tools.Tool
 
@@ -48,6 +50,7 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
       write_file(),
       edit_file(),
       multi_edit_file(),
+      list_dir(),
       list_directory(),
       file_info(),
       create_directory(),
@@ -173,6 +176,30 @@ defmodule JidoCode.Tools.Definitions.FileSystem do
   """
   @spec multi_edit_file() :: Tool.t()
   defdelegate multi_edit_file(), to: FileMultiEdit
+
+  @doc """
+  Returns the list_dir tool definition.
+
+  Lists the contents of a directory with optional filtering via glob patterns.
+  Delegates to `JidoCode.Tools.Definitions.ListDir`.
+
+  ## Parameters
+
+  - `path` (required, string) - Path to the directory relative to project root
+  - `ignore_patterns` (optional, array) - Glob patterns to exclude from listing
+
+  ## Features
+
+  - Sorted output (directories first, then alphabetically)
+  - Glob pattern filtering for excluding unwanted entries
+  - Type indicators for each entry (file or directory)
+
+  ## See Also
+
+  - `JidoCode.Tools.Definitions.ListDir` - Full documentation
+  """
+  @spec list_dir() :: Tool.t()
+  defdelegate list_dir(), to: ListDir
 
   @doc """
   Returns the list_directory tool definition.

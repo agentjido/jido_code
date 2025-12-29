@@ -305,4 +305,30 @@ defmodule JidoCode.Memory.Types do
   """
   @spec valid_context_key?(term()) :: boolean()
   def valid_context_key?(key), do: key in @context_keys
+
+  # =============================================================================
+  # Utility Functions
+  # =============================================================================
+
+  @doc """
+  Clamps a numeric value to the unit interval [0.0, 1.0].
+
+  Used for confidence scores, importance scores, and similar bounded values.
+
+  ## Examples
+
+      iex> Types.clamp_to_unit(0.5)
+      0.5
+
+      iex> Types.clamp_to_unit(1.5)
+      1.0
+
+      iex> Types.clamp_to_unit(-0.3)
+      0.0
+
+  """
+  @spec clamp_to_unit(number()) :: float()
+  def clamp_to_unit(value) when is_number(value) and value < 0.0, do: 0.0
+  def clamp_to_unit(value) when is_number(value) and value > 1.0, do: 1.0
+  def clamp_to_unit(value) when is_number(value), do: value / 1
 end

@@ -174,6 +174,13 @@ defmodule JidoCode.Memory.ShortTerm.WorkingContext do
   """
   @spec put(t(), Types.context_key(), term(), keyword()) :: t()
   def put(%__MODULE__{} = ctx, key, value, opts \\ []) do
+    # Validate context key to prevent arbitrary atom creation
+    unless Types.valid_context_key?(key) do
+      raise ArgumentError,
+            "Invalid context key: #{inspect(key)}. " <>
+              "Valid keys are: #{inspect(Types.context_keys())}"
+    end
+
     source = Keyword.get(opts, :source, @default_source)
     confidence = Keyword.get(opts, :confidence, @default_confidence)
     memory_type = Keyword.get(opts, :memory_type)
@@ -188,7 +195,7 @@ defmodule JidoCode.Memory.ShortTerm.WorkingContext do
             key: key,
             value: value,
             source: source,
-            confidence: clamp_confidence(confidence),
+            confidence: Types.clamp_to_unit(confidence),
             access_count: 1,
             first_seen: now,
             last_accessed: now,
@@ -201,7 +208,7 @@ defmodule JidoCode.Memory.ShortTerm.WorkingContext do
             existing
             | value: value,
               source: source,
-              confidence: clamp_confidence(confidence),
+              confidence: Types.clamp_to_unit(confidence),
               access_count: existing.access_count + 1,
               last_accessed: now,
               suggested_type: memory_type || infer_memory_type(key, source)
@@ -434,8 +441,4 @@ defmodule JidoCode.Memory.ShortTerm.WorkingContext do
   def infer_memory_type(:active_errors, _source), do: nil
   def infer_memory_type(:pending_questions, _source), do: :unknown
   def infer_memory_type(_key, _source), do: nil
-
-  defp clamp_confidence(confidence) when confidence < 0.0, do: 0.0
-  defp clamp_confidence(confidence) when confidence > 1.0, do: 1.0
-  defp clamp_confidence(confidence), do: confidence
 end

@@ -73,15 +73,18 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
   @type t :: %__MODULE__{
           items: %{String.t() => Types.pending_item()},
           agent_decisions: [Types.pending_item()],
-          max_items: pos_integer()
+          max_items: pos_integer(),
+          max_agent_decisions: pos_integer()
         }
 
   @default_max_items 500
+  @default_max_agent_decisions 100
   @default_threshold 0.6
 
   defstruct items: %{},
             agent_decisions: [],
-            max_items: @default_max_items
+            max_items: @default_max_items,
+            max_agent_decisions: @default_max_agent_decisions
 
   # =============================================================================
   # Constructors
@@ -160,25 +163,10 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
   """
   @spec add_implicit(t(), map()) :: t()
   def add_implicit(%__MODULE__{} = pending, item) do
-    now = DateTime.utc_now()
-    id = Map.get(item, :id) || generate_id()
+    importance = Map.get(item, :importance_score, 0.5)
+    pending_item = build_pending_item(item, :implicit, importance)
 
-    pending_item = %{
-      id: id,
-      content: Map.fetch!(item, :content),
-      memory_type: Map.fetch!(item, :memory_type),
-      confidence: Map.fetch!(item, :confidence),
-      source_type: Map.fetch!(item, :source_type),
-      evidence: Map.get(item, :evidence, []),
-      rationale: Map.get(item, :rationale),
-      suggested_by: :implicit,
-      importance_score: Map.get(item, :importance_score, 0.5),
-      created_at: Map.get(item, :created_at, now),
-      access_count: Map.get(item, :access_count, 0)
-    }
-
-    updated_items = Map.put(pending.items, id, pending_item)
-
+    updated_items = Map.put(pending.items, pending_item.id, pending_item)
     pending = %{pending | items: updated_items}
 
     # Enforce max_items limit
@@ -216,24 +204,18 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
   """
   @spec add_agent_decision(t(), map()) :: t()
   def add_agent_decision(%__MODULE__{} = pending, item) do
-    now = DateTime.utc_now()
-    id = Map.get(item, :id) || generate_id()
+    pending_item = build_pending_item(item, :agent, 1.0)
+    new_decisions = [pending_item | pending.agent_decisions]
 
-    pending_item = %{
-      id: id,
-      content: Map.fetch!(item, :content),
-      memory_type: Map.fetch!(item, :memory_type),
-      confidence: Map.fetch!(item, :confidence),
-      source_type: Map.fetch!(item, :source_type),
-      evidence: Map.get(item, :evidence, []),
-      rationale: Map.get(item, :rationale),
-      suggested_by: :agent,
-      importance_score: 1.0,
-      created_at: Map.get(item, :created_at, now),
-      access_count: Map.get(item, :access_count, 0)
-    }
+    # Enforce max_agent_decisions limit (drop oldest when exceeded)
+    decisions =
+      if length(new_decisions) > pending.max_agent_decisions do
+        Enum.take(new_decisions, pending.max_agent_decisions)
+      else
+        new_decisions
+      end
 
-    %{pending | agent_decisions: [pending_item | pending.agent_decisions]}
+    %{pending | agent_decisions: decisions}
   end
 
   @doc """
@@ -390,7 +372,7 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
         pending
 
       item ->
-        updated_item = %{item | importance_score: clamp_score(new_score)}
+        updated_item = %{item | importance_score: Types.clamp_to_unit(new_score)}
         %{pending | items: Map.put(pending.items, id, updated_item)}
     end
   end
@@ -460,6 +442,26 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
     "pending-#{timestamp}-#{random}"
   end
 
+  # Builds a pending_item map with common fields extracted
+  defp build_pending_item(item, suggested_by, importance_score) do
+    now = DateTime.utc_now()
+    id = Map.get(item, :id) || generate_id()
+
+    %{
+      id: id,
+      content: Map.fetch!(item, :content),
+      memory_type: Map.fetch!(item, :memory_type),
+      confidence: Map.fetch!(item, :confidence),
+      source_type: Map.fetch!(item, :source_type),
+      evidence: Map.get(item, :evidence, []),
+      rationale: Map.get(item, :rationale),
+      suggested_by: suggested_by,
+      importance_score: importance_score,
+      created_at: Map.get(item, :created_at, now),
+      access_count: Map.get(item, :access_count, 0)
+    }
+  end
+
   defp evict_lowest(%__MODULE__{} = pending) do
     # Find the item with the lowest importance_score
     {lowest_id, _lowest_item} =
@@ -468,8 +470,4 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
 
     %{pending | items: Map.delete(pending.items, lowest_id)}
   end
-
-  defp clamp_score(score) when score < 0.0, do: 0.0
-  defp clamp_score(score) when score > 1.0, do: 1.0
-  defp clamp_score(score), do: score
 end

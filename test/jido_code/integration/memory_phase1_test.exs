@@ -23,6 +23,7 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
   alias JidoCode.Memory.ShortTerm.AccessLog
   alias JidoCode.Memory.ShortTerm.PendingMemories
   alias JidoCode.Memory.ShortTerm.WorkingContext
+  alias JidoCode.Memory.Types
 
   # ============================================================================
   # Setup
@@ -604,22 +605,22 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       {:ok, session} = Session.new(name: "Test", project_path: project_path)
       {:ok, _pid} = SessionSupervisor.start_session(session)
 
-      # Update multiple keys
+      # Update multiple keys (using valid context keys)
       :ok = State.update_context(session.id, :framework, "Phoenix")
       :ok = State.update_context(session.id, :primary_language, "Elixir")
-      :ok = State.update_context(session.id, :database, "PostgreSQL")
-      :ok = State.update_context(session.id, :orm, "Ecto")
+      :ok = State.update_context(session.id, :project_root, "/app")
+      :ok = State.update_context(session.id, :active_file, "lib/app.ex")
 
       # Retrieve each independently
       {:ok, framework} = State.get_context(session.id, :framework)
       {:ok, language} = State.get_context(session.id, :primary_language)
-      {:ok, database} = State.get_context(session.id, :database)
-      {:ok, orm} = State.get_context(session.id, :orm)
+      {:ok, project_root} = State.get_context(session.id, :project_root)
+      {:ok, active_file} = State.get_context(session.id, :active_file)
 
       assert framework == "Phoenix"
       assert language == "Elixir"
-      assert database == "PostgreSQL"
-      assert orm == "Ecto"
+      assert project_root == "/app"
+      assert active_file == "lib/app.ex"
 
       # Verify all context
       {:ok, all} = State.get_all_context(session.id)
@@ -635,10 +636,10 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       {:ok, session} = Session.new(name: "Test", project_path: project_path)
       {:ok, _pid} = SessionSupervisor.start_session(session)
 
-      # Add several keys
+      # Add several keys (using valid context keys)
       :ok = State.update_context(session.id, :framework, "Phoenix")
       :ok = State.update_context(session.id, :primary_language, "Elixir")
-      :ok = State.update_context(session.id, :database, "PostgreSQL")
+      :ok = State.update_context(session.id, :project_root, "/app")
 
       {:ok, before_clear} = State.get_all_context(session.id)
       assert map_size(before_clear) == 3
@@ -829,22 +830,26 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       {:ok, session} = Session.new(name: "Test", project_path: project_path)
       {:ok, _pid} = SessionSupervisor.start_session(session)
 
-      # Perform many rapid updates
+      # Use valid context keys for rapid updates
+      valid_keys = Types.context_keys()
+
+      # Perform many rapid updates cycling through valid keys
       for i <- 1..100 do
-        key = :"key_#{rem(i, 10)}"
+        key = Enum.at(valid_keys, rem(i, length(valid_keys)))
         value = "value_#{i}"
         :ok = State.update_context(session.id, key, value)
       end
 
-      # Verify final state has 10 keys (key_0 through key_9)
+      # Verify final state has all keys updated
       {:ok, context} = State.get_all_context(session.id)
-      assert map_size(context) == 10
+      assert map_size(context) == length(valid_keys)
 
       # Each key should have the last value written to it
-      # key_0 was last written at i=100, key_1 at i=91, etc.
-      assert context[:key_0] == "value_100"
-      assert context[:key_1] == "value_91"
-      assert context[:key_9] == "value_99"
+      # With 10 valid keys and 100 iterations:
+      # - key at index 0 (active_file) was last written at i=100 (rem(100,10)=0)
+      # - key at index 1 (project_root) was last written at i=91 (rem(91,10)=1)
+      assert context[:active_file] == "value_100"
+      assert context[:project_root] == "value_91"
 
       SessionSupervisor.stop_session(session.id)
     end
@@ -856,24 +861,24 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       {:ok, session} = Session.new(name: "Test", project_path: project_path)
       {:ok, _pid} = SessionSupervisor.start_session(session)
 
-      # Initial setup
-      :ok = State.update_context(session.id, :counter, 0)
+      # Initial setup - use valid context key with counter value
+      :ok = State.update_context(session.id, :current_task, 0)
 
       # Perform mixed reads and writes
       for i <- 1..50 do
         # Read current value
-        {:ok, current} = State.get_context(session.id, :counter)
+        {:ok, current} = State.get_context(session.id, :current_task)
 
         # Update to new value
-        :ok = State.update_context(session.id, :counter, current + 1)
+        :ok = State.update_context(session.id, :current_task, current + 1)
 
         # Verify the update
-        {:ok, updated} = State.get_context(session.id, :counter)
+        {:ok, updated} = State.get_context(session.id, :current_task)
         assert updated == i
       end
 
       # Final verification
-      {:ok, final} = State.get_context(session.id, :counter)
+      {:ok, final} = State.get_context(session.id, :current_task)
       assert final == 50
 
       SessionSupervisor.stop_session(session.id)
@@ -886,16 +891,16 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       {:ok, session} = Session.new(name: "Test", project_path: project_path)
       {:ok, _pid} = SessionSupervisor.start_session(session)
 
-      # Store a large value
+      # Store a large value using valid context key
       large_value = String.duplicate("x", 10_000)
-      :ok = State.update_context(session.id, :large_data, large_value)
+      :ok = State.update_context(session.id, :discovered_patterns, large_value)
 
       # Retrieve and verify
-      {:ok, retrieved} = State.get_context(session.id, :large_data)
+      {:ok, retrieved} = State.get_context(session.id, :discovered_patterns)
       assert retrieved == large_value
       assert String.length(retrieved) == 10_000
 
-      # Store complex nested data
+      # Store complex nested data using valid context key
       complex_data = %{
         nested: %{
           deep: %{
@@ -906,9 +911,9 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
         array: Enum.to_list(1..100)
       }
 
-      :ok = State.update_context(session.id, :complex, complex_data)
+      :ok = State.update_context(session.id, :file_relationships, complex_data)
 
-      {:ok, retrieved_complex} = State.get_context(session.id, :complex)
+      {:ok, retrieved_complex} = State.get_context(session.id, :file_relationships)
       assert retrieved_complex == complex_data
 
       SessionSupervisor.stop_session(session.id)
@@ -925,10 +930,12 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
           session
         end
 
-      # Perform operations on all sessions
+      # Use valid context keys
+      valid_keys = Types.context_keys()
+
+      # Perform operations on all sessions using valid keys
       for {session, idx} <- Enum.with_index(sessions, 1) do
-        for j <- 1..20 do
-          key = :"key_#{j}"
+        for {key, j} <- Enum.with_index(valid_keys, 1) do
           value = "session_#{idx}_value_#{j}"
           :ok = State.update_context(session.id, key, value)
         end
@@ -937,11 +944,11 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       # Verify each session has its own isolated data
       for {session, idx} <- Enum.with_index(sessions, 1) do
         {:ok, context} = State.get_all_context(session.id)
-        assert map_size(context) == 20
+        assert map_size(context) == length(valid_keys)
 
         # Verify values are session-specific
-        assert context[:key_1] == "session_#{idx}_value_1"
-        assert context[:key_20] == "session_#{idx}_value_20"
+        assert context[:active_file] == "session_#{idx}_value_1"
+        assert context[:file_relationships] == "session_#{idx}_value_#{length(valid_keys)}"
       end
 
       # Cleanup

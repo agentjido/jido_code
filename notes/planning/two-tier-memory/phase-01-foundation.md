@@ -476,26 +476,26 @@ Extend the existing Session.State GenServer with memory-related fields and callb
 
 ### 1.5.6 Unit Tests for Session.State Memory Extensions
 
-- [ ] Test init/1 initializes working_context with correct defaults
-- [ ] Test init/1 initializes pending_memories with correct defaults
-- [ ] Test init/1 initializes access_log with correct defaults
-- [ ] Test update_context/4 stores context item in working_context
-- [ ] Test update_context/4 updates existing item with incremented access_count
-- [ ] Test update_context/4 accepts all supported options
-- [ ] Test get_context/2 returns value for existing key
-- [ ] Test get_context/2 returns {:error, :key_not_found} for missing key
-- [ ] Test get_context/2 updates access tracking
-- [ ] Test get_all_context/1 returns all context items as map
-- [ ] Test clear_context/1 resets working_context to empty
-- [ ] Test add_pending_memory/2 adds item to pending_memories
-- [ ] Test add_pending_memory/2 enforces max_pending_memories limit
-- [ ] Test add_agent_memory_decision/2 adds to agent_decisions with max score
-- [ ] Test get_pending_memories/1 returns items ready for promotion
-- [ ] Test clear_promoted_memories/2 removes promoted ids
-- [ ] Test record_access/3 adds entry to access_log (async)
-- [ ] Test get_access_stats/2 returns frequency and recency
-- [ ] Test memory fields persist across multiple GenServer calls
-- [ ] Test memory operations work with existing Session.State operations
+- [x] Test init/1 initializes working_context with correct defaults
+- [x] Test init/1 initializes pending_memories with correct defaults
+- [x] Test init/1 initializes access_log with correct defaults
+- [x] Test update_context/4 stores context item in working_context
+- [x] Test update_context/4 updates existing item with incremented access_count
+- [x] Test update_context/4 accepts all supported options
+- [x] Test get_context/2 returns value for existing key
+- [x] Test get_context/2 returns {:error, :key_not_found} for missing key
+- [x] Test get_context/2 updates access tracking
+- [x] Test get_all_context/1 returns all context items as map
+- [x] Test clear_context/1 resets working_context to empty
+- [x] Test add_pending_memory/2 adds item to pending_memories
+- [x] Test add_pending_memory/2 enforces max_pending_memories limit
+- [x] Test add_agent_memory_decision/2 adds to agent_decisions with max score
+- [x] Test get_pending_memories/1 returns items ready for promotion
+- [x] Test clear_promoted_memories/2 removes promoted ids
+- [x] Test record_access/3 adds entry to access_log (async)
+- [x] Test get_access_stats/2 returns frequency and recency
+- [x] Test memory fields persist across multiple GenServer calls
+- [x] Test memory operations work with existing Session.State operations
 
 ---
 

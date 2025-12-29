@@ -48,21 +48,6 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
   # =============================================================================
 
   @typedoc """
-  An access log entry recording a single access event.
-
-  ## Fields
-
-  - `key` - The context key or memory reference that was accessed
-  - `timestamp` - When the access occurred
-  - `access_type` - Type of access (:read, :write, or :query)
-  """
-  @type access_entry :: %{
-          key: Types.context_key() | {:memory, String.t()},
-          timestamp: DateTime.t(),
-          access_type: :read | :write | :query
-        }
-
-  @typedoc """
   The AccessLog struct.
 
   ## Fields
@@ -71,13 +56,15 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
   - `max_entries` - Maximum number of entries to retain
   """
   @type t :: %__MODULE__{
-          entries: [access_entry()],
+          entries: [Types.access_entry()],
+          entry_count: non_neg_integer(),
           max_entries: pos_integer()
         }
 
   @default_max_entries 1000
 
   defstruct entries: [],
+            entry_count: 0,
             max_entries: @default_max_entries
 
   # =============================================================================
@@ -151,17 +138,15 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
       access_type: access_type
     }
 
+    new_count = log.entry_count + 1
     entries = [entry | log.entries]
 
-    # Enforce max_entries limit
-    entries =
-      if length(entries) > log.max_entries do
-        Enum.take(entries, log.max_entries)
-      else
-        entries
-      end
-
-    %{log | entries: entries}
+    # Enforce max_entries limit using tracked count (O(1) check instead of O(n) length)
+    if new_count > log.max_entries do
+      %{log | entries: Enum.take(entries, log.max_entries), entry_count: log.max_entries}
+    else
+      %{log | entries: entries, entry_count: new_count}
+    end
   end
 
   @doc """
@@ -261,7 +246,7 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
       :project_root  # Most recent first
 
   """
-  @spec recent_accesses(t(), pos_integer()) :: [access_entry()]
+  @spec recent_accesses(t(), pos_integer()) :: [Types.access_entry()]
   def recent_accesses(%__MODULE__{} = log, n) when is_integer(n) and n > 0 do
     Enum.take(log.entries, n)
   end
@@ -284,7 +269,7 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
   """
   @spec clear(t()) :: t()
   def clear(%__MODULE__{} = log) do
-    %{log | entries: []}
+    %{log | entries: [], entry_count: 0}
   end
 
   @doc """
@@ -302,9 +287,7 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
 
   """
   @spec size(t()) :: non_neg_integer()
-  def size(%__MODULE__{} = log) do
-    length(log.entries)
-  end
+  def size(%__MODULE__{entry_count: count}), do: count
 
   @doc """
   Returns all entries for a specific key.
@@ -323,7 +306,7 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
       2
 
   """
-  @spec entries_for(t(), Types.context_key() | {:memory, String.t()}) :: [access_entry()]
+  @spec entries_for(t(), Types.context_key() | {:memory, String.t()}) :: [Types.access_entry()]
   def entries_for(%__MODULE__{} = log, key) do
     Enum.filter(log.entries, fn entry -> entry.key == key end)
   end
@@ -371,12 +354,14 @@ defmodule JidoCode.Memory.ShortTerm.AccessLog do
           query: non_neg_integer()
         }
   def access_type_counts(%__MODULE__{} = log, key) do
-    entries = entries_for(log, key)
-
-    %{
-      read: Enum.count(entries, fn e -> e.access_type == :read end),
-      write: Enum.count(entries, fn e -> e.access_type == :write end),
-      query: Enum.count(entries, fn e -> e.access_type == :query end)
-    }
+    # Single-pass reduction instead of triple iteration
+    log.entries
+    |> Enum.reduce(%{read: 0, write: 0, query: 0}, fn entry, acc ->
+      if entry.key == key do
+        Map.update!(acc, entry.access_type, &(&1 + 1))
+      else
+        acc
+      end
+    end)
   end
 end

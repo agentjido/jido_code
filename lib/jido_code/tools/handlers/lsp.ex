@@ -37,7 +37,54 @@ defmodule JidoCode.Tools.Handlers.LSP do
   alias JidoCode.Tools.HandlerHelpers
 
   # ============================================================================
-  # Shared Helpers
+  # Module Attributes (compile-time constants)
+  # ============================================================================
+
+  # Supported Elixir file extensions
+  @elixir_extensions [".ex", ".exs"]
+
+  # Regex patterns for detecting Elixir stdlib paths (compiled at module load time)
+  @elixir_stdlib_patterns [
+    ~r{/elixir/[^/]+/lib/elixir/},
+    ~r{/lib/elixir/lib/},
+    ~r{\.asdf/installs/elixir/},
+    ~r{\.kiex/elixirs/},
+    ~r{/elixir-[0-9]+\.[0-9]+},
+    # mise (formerly rtx) installs
+    ~r{\.local/share/mise/installs/elixir/},
+    ~r{\.local/share/rtx/installs/elixir/},
+    # Nix installations
+    ~r{/nix/store/[^/]+-elixir-},
+    # Homebrew on macOS
+    ~r{/opt/homebrew/Cellar/elixir/},
+    ~r{/usr/local/Cellar/elixir/}
+  ]
+
+  # Regex patterns for detecting Erlang/OTP paths (compiled at module load time)
+  @erlang_otp_patterns [
+    ~r{/erlang/[^/]+/lib/},
+    ~r{/lib/erlang/lib/},
+    ~r{\.asdf/installs/erlang/},
+    ~r{/otp[_-]?[0-9]+},
+    # mise (formerly rtx) installs
+    ~r{\.local/share/mise/installs/erlang/},
+    ~r{\.local/share/rtx/installs/erlang/},
+    # Nix installations
+    ~r{/nix/store/[^/]+-erlang-},
+    # Docker/system paths
+    ~r{/usr/local/lib/erlang/},
+    # Homebrew on macOS
+    ~r{/opt/homebrew/Cellar/erlang/},
+    ~r{/usr/local/Cellar/erlang/}
+  ]
+
+  # Regex for extracting module name from stdlib paths
+  @elixir_module_regex ~r{lib/([^/]+)\.ex$}
+  @erlang_app_module_regex ~r{/([^/]+)/src/([^/]+)\.erl$}
+  @erlang_module_regex ~r{/([^/]+)\.erl$}
+
+  # ============================================================================
+  # Shared Helpers (delegated)
   # ============================================================================
 
   @doc false
@@ -46,12 +93,76 @@ defmodule JidoCode.Tools.Handlers.LSP do
   defdelegate get_project_root(context), to: HandlerHelpers
 
   @doc false
-  @spec validate_path(String.t(), map()) ::
-          {:ok, String.t()} | {:error, atom() | :not_found | :invalid_session_id}
+  @spec validate_path(String.t(), map()) :: {:ok, String.t()} | {:error, atom()}
   defdelegate validate_path(path, context), to: HandlerHelpers
 
+  # ============================================================================
+  # Shared Parameter Extraction (used by all LSP handlers)
+  # ============================================================================
+
   @doc false
-  @spec format_error(atom() | {atom(), term()} | String.t(), String.t()) :: String.t()
+  @spec extract_path(map()) :: {:ok, String.t()} | {:error, String.t()}
+  def extract_path(%{"path" => path}) when is_binary(path) and byte_size(path) > 0 do
+    {:ok, path}
+  end
+
+  def extract_path(_), do: {:error, "path is required and must be a non-empty string"}
+
+  @doc false
+  @spec extract_line(map()) :: {:ok, pos_integer()} | {:error, String.t()}
+  def extract_line(%{"line" => line}) when is_integer(line) and line >= 1 do
+    {:ok, line}
+  end
+
+  def extract_line(%{"line" => line}) when is_binary(line) do
+    case Integer.parse(line) do
+      {n, ""} when n >= 1 -> {:ok, n}
+      _ -> {:error, "line must be a positive integer (1-indexed)"}
+    end
+  end
+
+  def extract_line(_), do: {:error, "line is required and must be a positive integer (1-indexed)"}
+
+  @doc false
+  @spec extract_character(map()) :: {:ok, pos_integer()} | {:error, String.t()}
+  def extract_character(%{"character" => character})
+      when is_integer(character) and character >= 1 do
+    {:ok, character}
+  end
+
+  def extract_character(%{"character" => character}) when is_binary(character) do
+    case Integer.parse(character) do
+      {n, ""} when n >= 1 -> {:ok, n}
+      _ -> {:error, "character must be a positive integer (1-indexed)"}
+    end
+  end
+
+  def extract_character(_),
+    do: {:error, "character is required and must be a positive integer (1-indexed)"}
+
+  # ============================================================================
+  # Shared File Validation
+  # ============================================================================
+
+  @doc false
+  @spec validate_file_exists(String.t()) :: :ok | {:error, :enoent}
+  def validate_file_exists(path) do
+    if File.exists?(path), do: :ok, else: {:error, :enoent}
+  end
+
+  @doc false
+  @spec elixir_file?(String.t()) :: boolean()
+  def elixir_file?(path) do
+    ext = path |> Path.extname() |> String.downcase()
+    ext in @elixir_extensions
+  end
+
+  # ============================================================================
+  # Error Formatting
+  # ============================================================================
+
+  @doc false
+  @spec format_error(atom() | String.t(), String.t()) :: String.t()
   def format_error(:enoent, path), do: "File not found: #{path}"
   def format_error(:eacces, path), do: "Permission denied: #{path}"
 
@@ -167,7 +278,10 @@ defmodule JidoCode.Tools.Handlers.LSP do
 
         # Path is outside all allowed boundaries
         true ->
-          Logger.warning("LSP returned external path (not exposed): #{truncate_path(path)}")
+          Logger.warning("LSP returned external path (not exposed)",
+            path_hash: hash_path_for_logging(path)
+          )
+
           {:error, :external_path}
       end
     else
@@ -188,10 +302,10 @@ defmodule JidoCode.Tools.Handlers.LSP do
   @spec validate_output_paths([String.t()], map()) :: {:ok, [String.t()]}
   def validate_output_paths(paths, context) when is_list(paths) do
     validated =
-      paths
-      |> Enum.map(&validate_output_path(&1, context))
-      |> Enum.filter(&match?({:ok, _}, &1))
-      |> Enum.map(fn {:ok, path} -> path end)
+      for path <- paths,
+          {:ok, safe_path} <- [validate_output_path(path, context)] do
+        safe_path
+      end
 
     {:ok, validated}
   end
@@ -206,41 +320,23 @@ defmodule JidoCode.Tools.Handlers.LSP do
       normalized_path == normalized_root
   end
 
-  # Check if path is in Elixir stdlib
-  # Common patterns: /usr/lib/elixir/, ~/.asdf/installs/elixir/, ~/.kiex/elixirs/
+  # Check if path is in Elixir stdlib (uses module attribute patterns)
   defp elixir_stdlib_path?(path) do
-    patterns = [
-      ~r{/elixir/[^/]+/lib/elixir/},
-      ~r{/lib/elixir/lib/},
-      ~r{\.asdf/installs/elixir/},
-      ~r{\.kiex/elixirs/},
-      ~r{/elixir-[0-9]+\.[0-9]+}
-    ]
-
-    Enum.any?(patterns, &Regex.match?(&1, path))
+    Enum.any?(@elixir_stdlib_patterns, &Regex.match?(&1, path))
   end
 
-  # Check if path is in Erlang/OTP
-  # Common patterns: /usr/lib/erlang/, ~/.asdf/installs/erlang/
+  # Check if path is in Erlang/OTP (uses module attribute patterns)
   defp erlang_otp_path?(path) do
-    patterns = [
-      ~r{/erlang/[^/]+/lib/},
-      ~r{/lib/erlang/lib/},
-      ~r{\.asdf/installs/erlang/},
-      ~r{/otp[_-]?[0-9]+}
-    ]
-
-    Enum.any?(patterns, &Regex.match?(&1, path))
+    Enum.any?(@erlang_otp_patterns, &Regex.match?(&1, path))
   end
 
   # Sanitize stdlib path to a safe indicator
   # e.g., "/usr/lib/elixir/lib/elixir/lib/file.ex" -> "elixir:File"
   defp sanitize_stdlib_path(path, :elixir) do
-    # Extract the module name from the path
-    case Regex.run(~r{lib/([^/]+)\.ex$}, path) do
+    case Regex.run(@elixir_module_regex, path) do
       [_, module_name] ->
         # Convert file name to module name (e.g., "file" -> "File")
-        module = module_name |> Macro.camelize()
+        module = Macro.camelize(module_name)
         "elixir:#{module}"
 
       nil ->
@@ -250,29 +346,49 @@ defmodule JidoCode.Tools.Handlers.LSP do
   end
 
   defp sanitize_stdlib_path(path, :erlang) do
-    # Extract the module name from the path
-    case Regex.run(~r{/([^/]+)/src/([^/]+)\.erl$}, path) do
+    case Regex.run(@erlang_app_module_regex, path) do
       [_, _app, module_name] ->
         "erlang:#{module_name}"
 
       nil ->
-        case Regex.run(~r{/([^/]+)\.erl$}, path) do
+        case Regex.run(@erlang_module_regex, path) do
           [_, module_name] -> "erlang:#{module_name}"
           nil -> "erlang:otp"
         end
     end
   end
 
-  # Truncate path for logging (don't reveal full path structure)
-  defp truncate_path(path) when is_binary(path) do
-    if String.length(path) > 30 do
-      "...#{String.slice(path, -27, 27)}"
+  # Hash path for secure logging (doesn't reveal path structure)
+  defp hash_path_for_logging(path) when is_binary(path) do
+    ext = Path.extname(path)
+    hash = :erlang.phash2(path, 100_000)
+    "external:#{hash}#{ext}"
+  end
+
+  defp hash_path_for_logging(_), do: "external:unknown"
+
+  # ============================================================================
+  # URI Handling
+  # ============================================================================
+
+  @doc """
+  Converts a file:// URI to a filesystem path.
+
+  Handles case-insensitive matching for the file:// scheme and URL decoding.
+  """
+  @spec uri_to_path(String.t()) :: String.t()
+  def uri_to_path(uri) when is_binary(uri) do
+    # Case-insensitive check for file:// prefix
+    if String.downcase(String.slice(uri, 0, 7)) == "file://" do
+      uri
+      |> String.slice(7..-1//1)
+      |> URI.decode()
     else
-      path
+      uri
     end
   end
 
-  defp truncate_path(_), do: "<unknown>"
+  def uri_to_path(uri), do: to_string(uri)
 end
 
 defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
@@ -321,11 +437,11 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
   def execute(params, context) do
     start_time = System.monotonic_time(:microsecond)
 
-    with {:ok, path} <- extract_path(params),
-         {:ok, line} <- extract_line(params),
-         {:ok, character} <- extract_character(params),
+    with {:ok, path} <- LSPHandlers.extract_path(params),
+         {:ok, line} <- LSPHandlers.extract_line(params),
+         {:ok, character} <- LSPHandlers.extract_character(params),
          {:ok, safe_path} <- LSPHandlers.validate_path(path, context),
-         :ok <- validate_file_exists(safe_path) do
+         :ok <- LSPHandlers.validate_file_exists(safe_path) do
       result = get_hover_info(safe_path, line, character, context)
       LSPHandlers.emit_lsp_telemetry(:get_hover_info, start_time, path, context, :success)
       result
@@ -338,56 +454,6 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
   end
 
   # ============================================================================
-  # Parameter Extraction
-  # ============================================================================
-
-  defp extract_path(%{"path" => path}) when is_binary(path) and byte_size(path) > 0 do
-    {:ok, path}
-  end
-
-  defp extract_path(_), do: {:error, "path is required and must be a non-empty string"}
-
-  defp extract_line(%{"line" => line}) when is_integer(line) and line >= 1 do
-    {:ok, line}
-  end
-
-  defp extract_line(%{"line" => line}) when is_binary(line) do
-    case Integer.parse(line) do
-      {n, ""} when n >= 1 -> {:ok, n}
-      _ -> {:error, "line must be a positive integer (1-indexed)"}
-    end
-  end
-
-  defp extract_line(_), do: {:error, "line is required and must be a positive integer (1-indexed)"}
-
-  defp extract_character(%{"character" => character})
-       when is_integer(character) and character >= 1 do
-    {:ok, character}
-  end
-
-  defp extract_character(%{"character" => character}) when is_binary(character) do
-    case Integer.parse(character) do
-      {n, ""} when n >= 1 -> {:ok, n}
-      _ -> {:error, "character must be a positive integer (1-indexed)"}
-    end
-  end
-
-  defp extract_character(_),
-    do: {:error, "character is required and must be a positive integer (1-indexed)"}
-
-  # ============================================================================
-  # File Validation
-  # ============================================================================
-
-  defp validate_file_exists(path) do
-    if File.exists?(path) do
-      :ok
-    else
-      {:error, :enoent}
-    end
-  end
-
-  # ============================================================================
   # LSP Integration
   # ============================================================================
 
@@ -396,7 +462,7 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
   defp get_hover_info(path, line, character, _context) do
     # TODO: Integrate with LSP client once Phase 3.6 is implemented
     # For now, check if the file is an Elixir file and return helpful info
-    if elixir_file?(path) do
+    if LSPHandlers.elixir_file?(path) do
       Logger.debug(
         "LSP get_hover_info requested for #{path}:#{line}:#{character} - LSP client not yet implemented"
       )
@@ -425,11 +491,6 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
          "path" => path
        }}
     end
-  end
-
-  defp elixir_file?(path) do
-    ext = Path.extname(path) |> String.downcase()
-    ext in [".ex", ".exs"]
   end
 end
 
@@ -527,11 +588,11 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   def execute(params, context) do
     start_time = System.monotonic_time(:microsecond)
 
-    with {:ok, path} <- extract_path(params),
-         {:ok, line} <- extract_line(params),
-         {:ok, character} <- extract_character(params),
+    with {:ok, path} <- LSPHandlers.extract_path(params),
+         {:ok, line} <- LSPHandlers.extract_line(params),
+         {:ok, character} <- LSPHandlers.extract_character(params),
          {:ok, safe_path} <- LSPHandlers.validate_path(path, context),
-         :ok <- validate_file_exists(safe_path) do
+         :ok <- LSPHandlers.validate_file_exists(safe_path) do
       result = go_to_definition(safe_path, line, character, context)
       LSPHandlers.emit_lsp_telemetry(:go_to_definition, start_time, path, context, :success)
       result
@@ -544,56 +605,6 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   end
 
   # ============================================================================
-  # Parameter Extraction
-  # ============================================================================
-
-  defp extract_path(%{"path" => path}) when is_binary(path) and byte_size(path) > 0 do
-    {:ok, path}
-  end
-
-  defp extract_path(_), do: {:error, "path is required and must be a non-empty string"}
-
-  defp extract_line(%{"line" => line}) when is_integer(line) and line >= 1 do
-    {:ok, line}
-  end
-
-  defp extract_line(%{"line" => line}) when is_binary(line) do
-    case Integer.parse(line) do
-      {n, ""} when n >= 1 -> {:ok, n}
-      _ -> {:error, "line must be a positive integer (1-indexed)"}
-    end
-  end
-
-  defp extract_line(_), do: {:error, "line is required and must be a positive integer (1-indexed)"}
-
-  defp extract_character(%{"character" => character})
-       when is_integer(character) and character >= 1 do
-    {:ok, character}
-  end
-
-  defp extract_character(%{"character" => character}) when is_binary(character) do
-    case Integer.parse(character) do
-      {n, ""} when n >= 1 -> {:ok, n}
-      _ -> {:error, "character must be a positive integer (1-indexed)"}
-    end
-  end
-
-  defp extract_character(_),
-    do: {:error, "character is required and must be a positive integer (1-indexed)"}
-
-  # ============================================================================
-  # File Validation
-  # ============================================================================
-
-  defp validate_file_exists(path) do
-    if File.exists?(path) do
-      :ok
-    else
-      {:error, :enoent}
-    end
-  end
-
-  # ============================================================================
   # LSP Integration
   # ============================================================================
 
@@ -602,7 +613,7 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   defp go_to_definition(path, line, character, _context) do
     # TODO: Integrate with LSP client once Phase 3.6 is implemented
     # For now, check if the file is an Elixir file and return helpful info
-    if elixir_file?(path) do
+    if LSPHandlers.elixir_file?(path) do
       Logger.debug(
         "LSP go_to_definition requested for #{path}:#{line}:#{character} - LSP client not yet implemented"
       )
@@ -631,11 +642,6 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
          "path" => path
        }}
     end
-  end
-
-  defp elixir_file?(path) do
-    ext = Path.extname(path) |> String.downcase()
-    ext in [".ex", ".exs"]
   end
 
   # ============================================================================
@@ -671,11 +677,12 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
 
   # Multiple definitions (array of LSP Locations)
   def process_lsp_definition_response(locations, context) when is_list(locations) do
+    # Use for comprehension for cleaner filtering
     processed =
-      locations
-      |> Enum.map(&process_single_location(&1, context))
-      |> Enum.filter(&match?({:ok, _}, &1))
-      |> Enum.map(fn {:ok, loc} -> loc end)
+      for location <- locations,
+          {:ok, definition} <- [process_single_location(location, context)] do
+        definition
+      end
 
     case processed do
       [] ->
@@ -699,13 +706,15 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
 
   # Process a single LSP Location
   defp process_single_location(%{"uri" => uri} = location, context) do
-    # Convert file:// URI to path
-    path = uri_to_path(uri)
+    # Convert file:// URI to path (case-insensitive)
+    path = LSPHandlers.uri_to_path(uri)
 
     case LSPHandlers.validate_output_path(path, context) do
       {:ok, safe_path} ->
         # Check if it's a stdlib reference
-        is_stdlib = String.starts_with?(safe_path, "elixir:") or String.starts_with?(safe_path, "erlang:")
+        is_stdlib =
+          String.starts_with?(safe_path, "elixir:") or
+            String.starts_with?(safe_path, "erlang:")
 
         definition =
           if is_stdlib do
@@ -718,6 +727,7 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
           else
             %{
               "path" => safe_path,
+              # LSP uses 0-indexed positions, we convert to 1-indexed (editor convention)
               "line" => get_line_from_location(location),
               "character" => get_character_from_location(location)
             }
@@ -733,19 +743,17 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
 
   defp process_single_location(_, _context), do: {:error, :invalid_location}
 
-  # Convert file:// URI to filesystem path
-  defp uri_to_path("file://" <> path), do: URI.decode(path)
-  defp uri_to_path(path), do: path
-
   # Extract line number from LSP Location (convert 0-indexed to 1-indexed)
-  defp get_line_from_location(%{"range" => %{"start" => %{"line" => line}}}) when is_integer(line) do
+  defp get_line_from_location(%{"range" => %{"start" => %{"line" => line}}})
+       when is_integer(line) do
     line + 1
   end
 
   defp get_line_from_location(_), do: 1
 
   # Extract character from LSP Location (convert 0-indexed to 1-indexed)
-  defp get_character_from_location(%{"range" => %{"start" => %{"character" => char}}}) when is_integer(char) do
+  defp get_character_from_location(%{"range" => %{"start" => %{"character" => char}}})
+       when is_integer(char) do
     char + 1
   end
 

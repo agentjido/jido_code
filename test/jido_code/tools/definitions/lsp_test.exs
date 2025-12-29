@@ -3,8 +3,32 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
 
   alias JidoCode.Tools.{Executor, Registry, Result}
   alias JidoCode.Tools.Definitions.LSP, as: Definitions
+  alias JidoCode.Tools.Handlers.LSP, as: LSPHandlers
 
   @moduletag :tmp_dir
+
+  # ============================================================================
+  # Shared Test Helpers (reduces duplication across tool tests)
+  # ============================================================================
+
+  @doc false
+  def make_tool_call(name, arguments, id \\ "call_123") do
+    %{id: id, name: name, arguments: arguments}
+  end
+
+  @doc false
+  def assert_error_result(result, pattern) do
+    assert result.status == :error
+    assert result.content =~ pattern
+  end
+
+  @doc false
+  def assert_ok_status(result, expected_status) do
+    assert result.status == :ok
+    response = Jason.decode!(result.content)
+    assert response["status"] == expected_status
+    response
+  end
 
   setup %{tmp_dir: tmp_dir} do
     # Ensure application is started (Manager and registries)
@@ -120,6 +144,7 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
     test "get_hover_info works via executor for Elixir files", %{project_root: project_root} do
       # Create an Elixir file
       file_path = Path.join(project_root, "test_module.ex")
+
       File.write!(file_path, """
       defmodule TestModule do
         def hello do
@@ -409,7 +434,9 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
       assert result.content =~ "positive integer"
     end
 
-    test "go_to_definition results can be converted to LLM messages", %{project_root: project_root} do
+    test "go_to_definition results can be converted to LLM messages", %{
+      project_root: project_root
+    } do
       file_path = Path.join(project_root, "test.ex")
       File.write!(file_path, "defmodule Test, do: nil")
 
@@ -586,12 +613,16 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
 
     test "processes nil response as not found", %{project_root: project_root} do
       context = %{project_root: project_root}
-      assert {:error, :definition_not_found} = GoToDefinition.process_lsp_definition_response(nil, context)
+
+      assert {:error, :definition_not_found} =
+               GoToDefinition.process_lsp_definition_response(nil, context)
     end
 
     test "processes empty array as not found", %{project_root: project_root} do
       context = %{project_root: project_root}
-      assert {:error, :definition_not_found} = GoToDefinition.process_lsp_definition_response([], context)
+
+      assert {:error, :definition_not_found} =
+               GoToDefinition.process_lsp_definition_response([], context)
     end
 
     test "processes single definition", %{project_root: project_root} do
@@ -683,7 +714,9 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
       ]
 
       context = %{project_root: project_root}
-      assert {:error, :definition_not_found} = GoToDefinition.process_lsp_definition_response(lsp_response, context)
+
+      assert {:error, :definition_not_found} =
+               GoToDefinition.process_lsp_definition_response(lsp_response, context)
     end
 
     test "handles stdlib definitions", %{project_root: project_root} do
@@ -701,6 +734,225 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
       assert result["definition"]["line"] == nil
       assert result["definition"]["character"] == nil
       assert result["definition"]["note"] =~ "standard library"
+    end
+  end
+
+  # ============================================================================
+  # Edge Case Tests (Suggestions from Review)
+  # ============================================================================
+
+  describe "edge cases - negative numbers" do
+    test "get_hover_info rejects negative line numbers", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call =
+        make_tool_call("get_hover_info", %{
+          "path" => "test.ex",
+          "line" => -1,
+          "character" => 1
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "positive integer")
+    end
+
+    test "get_hover_info rejects negative character numbers", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call =
+        make_tool_call("get_hover_info", %{
+          "path" => "test.ex",
+          "line" => 1,
+          "character" => -5
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "positive integer")
+    end
+
+    test "go_to_definition rejects negative line numbers", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call =
+        make_tool_call("go_to_definition", %{
+          "path" => "test.ex",
+          "line" => -1,
+          "character" => 1
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "positive integer")
+    end
+
+    test "go_to_definition rejects negative character numbers", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call =
+        make_tool_call("go_to_definition", %{
+          "path" => "test.ex",
+          "line" => 1,
+          "character" => -5
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "positive integer")
+    end
+  end
+
+  describe "edge cases - URI handling" do
+    alias JidoCode.Tools.Handlers.LSP.GoToDefinition
+
+    test "handles case-insensitive file:// URI", %{project_root: project_root} do
+      # Test various case variations
+      assert LSPHandlers.uri_to_path("file:///path/to/file.ex") == "/path/to/file.ex"
+      assert LSPHandlers.uri_to_path("FILE:///path/to/file.ex") == "/path/to/file.ex"
+      assert LSPHandlers.uri_to_path("File:///path/to/file.ex") == "/path/to/file.ex"
+      assert LSPHandlers.uri_to_path("fiLe:///path/to/file.ex") == "/path/to/file.ex"
+    end
+
+    test "handles URL-encoded paths in URIs", %{project_root: project_root} do
+      # Create a file with spaces in the directory name
+      space_dir = Path.join(project_root, "lib with spaces")
+      File.mkdir_p!(space_dir)
+      file_path = Path.join(space_dir, "my_module.ex")
+      File.write!(file_path, "defmodule MyModule, do: nil")
+
+      # URL-encoded path (spaces become %20)
+      encoded_uri = "file://#{URI.encode(file_path)}"
+      decoded_path = LSPHandlers.uri_to_path(encoded_uri)
+
+      # Should decode the path correctly
+      assert decoded_path == file_path
+    end
+
+    test "handles URL-encoded path traversal in LSP response", %{project_root: project_root} do
+      # Create a project file for comparison
+      lib_dir = Path.join(project_root, "lib")
+      File.mkdir_p!(lib_dir)
+      file_path = Path.join(lib_dir, "my_module.ex")
+      File.write!(file_path, "defmodule MyModule, do: nil")
+
+      # URL-encoded path traversal attempt: ..%2f..%2fetc%2fpasswd (../../etc/passwd)
+      malicious_uri = "file://#{project_root}%2f..%2f..%2fetc%2fpasswd"
+
+      lsp_response = %{
+        "uri" => malicious_uri,
+        "range" => %{"start" => %{"line" => 0, "character" => 0}}
+      }
+
+      context = %{project_root: project_root}
+      # Should fail because the decoded path escapes project_root
+      assert {:error, :definition_not_found} =
+               GoToDefinition.process_lsp_definition_response(lsp_response, context)
+    end
+
+    test "non-file URIs are passed through unchanged", %{project_root: _project_root} do
+      # Non-file schemes should not be modified
+      assert LSPHandlers.uri_to_path("https://example.com/path") == "https://example.com/path"
+      assert LSPHandlers.uri_to_path("/absolute/path") == "/absolute/path"
+      assert LSPHandlers.uri_to_path("relative/path") == "relative/path"
+    end
+  end
+
+  describe "edge cases - missing arguments" do
+    test "get_hover_info requires line argument", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("get_hover_info", %{
+          "path" => "test.ex",
+          "character" => 1
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "missing required parameter")
+    end
+
+    test "get_hover_info requires character argument", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("get_hover_info", %{
+          "path" => "test.ex",
+          "line" => 1
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "missing required parameter")
+    end
+
+    test "go_to_definition requires line argument", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("go_to_definition", %{
+          "path" => "test.ex",
+          "character" => 1
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "missing required parameter")
+    end
+
+    test "go_to_definition requires character argument", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("go_to_definition", %{
+          "path" => "test.ex",
+          "line" => 1
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "missing required parameter")
+    end
+  end
+
+  describe "edge cases - additional stdlib patterns" do
+    test "recognizes mise-installed Elixir paths", %{project_root: project_root} do
+      mise_path = "/home/user/.local/share/mise/installs/elixir/1.16.0/lib/elixir/lib/enum.ex"
+      context = %{project_root: project_root}
+
+      assert {:ok, sanitized} = LSPHandlers.validate_output_path(mise_path, context)
+      assert sanitized == "elixir:Enum"
+    end
+
+    test "recognizes Nix-installed Elixir paths", %{project_root: project_root} do
+      nix_path = "/nix/store/abc123-elixir-1.16.0/lib/elixir/lib/kernel.ex"
+      context = %{project_root: project_root}
+
+      assert {:ok, sanitized} = LSPHandlers.validate_output_path(nix_path, context)
+      assert sanitized == "elixir:Kernel"
+    end
+
+    test "recognizes Homebrew-installed Elixir paths", %{project_root: project_root} do
+      brew_path = "/opt/homebrew/Cellar/elixir/1.16.0/lib/elixir/lib/string.ex"
+      context = %{project_root: project_root}
+
+      assert {:ok, sanitized} = LSPHandlers.validate_output_path(brew_path, context)
+      assert sanitized == "elixir:String"
+    end
+
+    test "recognizes mise-installed Erlang paths", %{project_root: project_root} do
+      mise_erlang =
+        "/home/user/.local/share/mise/installs/erlang/26.0/lib/kernel-9.0/src/file.erl"
+
+      context = %{project_root: project_root}
+
+      assert {:ok, sanitized} = LSPHandlers.validate_output_path(mise_erlang, context)
+      assert sanitized == "erlang:file"
+    end
+
+    test "recognizes Docker/system Erlang paths", %{project_root: project_root} do
+      docker_erlang = "/usr/local/lib/erlang/lib/kernel-9.0/src/gen_server.erl"
+      context = %{project_root: project_root}
+
+      assert {:ok, sanitized} = LSPHandlers.validate_output_path(docker_erlang, context)
+      assert sanitized == "erlang:gen_server"
     end
   end
 end

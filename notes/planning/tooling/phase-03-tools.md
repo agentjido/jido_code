@@ -388,6 +388,29 @@ Tests should be added to `test/jido_code/tools/definitions/lsp_test.exs`:
 Note: Full LSP integration tests (actual definition navigation) deferred to Phase 3.6
 when LSP client is implemented.
 
+### 3.4.5 Code Review Fixes (Post-Implementation)
+
+Review conducted: 2025-12-29. See `notes/reviews/phase-03-section-3.4-implementation-review.md`.
+
+**Concerns Addressed:**
+- [x] Extract duplicated helper functions to parent LSP module
+- [x] Move regex patterns to module attributes (compile-time optimization)
+- [x] Improve truncate_path security with hash-based logging
+- [x] Add case-insensitive file:// URI handling
+- [x] Add missing stdlib patterns (mise, Nix, Homebrew, Docker)
+- [x] Add shared test helpers to reduce duplication
+- [x] Fix type spec inconsistency
+
+**Edge Case Tests Added:**
+- [x] Negative line/character number validation (4 tests)
+- [x] Case-insensitive URI handling (4 tests)
+- [x] Missing argument tests (4 tests)
+- [x] Additional stdlib pattern tests (5 tests)
+
+**Total Tests:** 57 (up from 40)
+
+See `notes/summaries/phase-03-section-3.4-review-fixes.md` for full details.
+
 ---
 
 ## 3.5 Find References Tool

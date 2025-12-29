@@ -201,12 +201,12 @@ Implement the Bridge function for LSP diagnostics retrieval.
 
 Implement the get_hover_info tool for retrieving type information and documentation through the Lua sandbox.
 
-### 3.3.1 Tool Definition
+### 3.3.1 Tool Definition (DONE)
 
 Create the get_hover_info tool definition for code intelligence.
 
-- [ ] 3.3.1.1 Create `lib/jido_code/tools/definitions/get_hover_info.ex`
-- [ ] 3.3.1.2 Define schema:
+- [x] 3.3.1.1 Create `lib/jido_code/tools/definitions/lsp.ex` (combined LSP definitions)
+- [x] 3.3.1.2 Define schema:
   ```elixir
   %{
     name: "get_hover_info",
@@ -218,7 +218,9 @@ Create the get_hover_info tool definition for code intelligence.
     ]
   }
   ```
-- [ ] 3.3.1.3 Register tool in definitions module
+- [x] 3.3.1.3 Register tool in definitions module
+- [x] 3.3.1.4 Create handler `lib/jido_code/tools/handlers/lsp.ex` with `GetHoverInfo` module
+- [x] 3.3.1.5 Add unit tests `test/jido_code/tools/definitions/lsp_test.exs` (13 tests)
 
 ### 3.3.2 Bridge Function Implementation
 
@@ -467,10 +469,10 @@ Test LSP tools with real language server through sandbox.
 **New Files:**
 - `lib/jido_code/tools/definitions/git_command.ex`
 - `lib/jido_code/tools/definitions/get_diagnostics.ex`
-- `lib/jido_code/tools/definitions/get_hover_info.ex`
-- `lib/jido_code/tools/definitions/go_to_definition.ex`
-- `lib/jido_code/tools/definitions/find_references.ex`
+- `lib/jido_code/tools/definitions/lsp.ex` - LSP tool definitions (get_hover_info, go_to_definition, find_references)
+- `lib/jido_code/tools/handlers/lsp.ex` - LSP handlers (GetHoverInfo, etc.)
 - `lib/jido_code/tools/lsp/client.ex`
 - `lib/jido_code/tools/lsp/protocol.ex`
+- `test/jido_code/tools/definitions/lsp_test.exs`
 - `test/jido_code/tools/bridge_git_lsp_test.exs`
 - `test/jido_code/integration/tools_phase3_test.exs`

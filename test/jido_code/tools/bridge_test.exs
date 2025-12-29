@@ -303,8 +303,8 @@ defmodule JidoCode.Tools.BridgeTest do
   end
 
   describe "lua_list_dir/3" do
-    test "lists directory contents", %{tmp_dir: tmp_dir} do
-      # Create some files
+    test "lists directory contents with type indicators", %{tmp_dir: tmp_dir} do
+      # Create some files and a directory
       File.write!(Path.join(tmp_dir, "a.txt"), "")
       File.write!(Path.join(tmp_dir, "b.txt"), "")
       File.mkdir_p!(Path.join(tmp_dir, "subdir"))
@@ -312,8 +312,42 @@ defmodule JidoCode.Tools.BridgeTest do
       state = :luerl.init()
       {[result], _state} = Bridge.lua_list_dir([""], state, tmp_dir)
 
-      # Result is a Lua array (list of {index, value} tuples)
-      assert [{1, "a.txt"}, {2, "b.txt"}, {3, "subdir"}] = Enum.sort(result)
+      # Result is a Lua array with {index, [{name, value}, {type, value}]} entries
+      # Directories come first, then files alphabetically
+      assert [{1, subdir_entry}, {2, a_entry}, {3, b_entry}] = result
+
+      # Check directory entry
+      subdir_map = Map.new(subdir_entry)
+      assert subdir_map["name"] == "subdir"
+      assert subdir_map["type"] == "directory"
+
+      # Check file entries
+      a_map = Map.new(a_entry)
+      assert a_map["name"] == "a.txt"
+      assert a_map["type"] == "file"
+
+      b_map = Map.new(b_entry)
+      assert b_map["name"] == "b.txt"
+      assert b_map["type"] == "file"
+    end
+
+    test "sorts directories first then alphabetically", %{tmp_dir: tmp_dir} do
+      # Create files and directories in non-sorted order
+      File.write!(Path.join(tmp_dir, "z.txt"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "beta"))
+      File.write!(Path.join(tmp_dir, "a.txt"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "alpha"))
+
+      state = :luerl.init()
+      {[result], _state} = Bridge.lua_list_dir([""], state, tmp_dir)
+
+      # Extract names in order
+      names = Enum.map(result, fn {_idx, entry} ->
+        Map.new(entry)["name"]
+      end)
+
+      # Directories first (alpha, beta), then files (a.txt, z.txt)
+      assert names == ["alpha", "beta", "a.txt", "z.txt"]
     end
 
     test "lists subdirectory", %{tmp_dir: tmp_dir} do
@@ -325,7 +359,12 @@ defmodule JidoCode.Tools.BridgeTest do
       state = :luerl.init()
       {[result], _state} = Bridge.lua_list_dir(["src"], state, tmp_dir)
 
-      assert [{1, "helper.ex"}, {2, "main.ex"}] = Enum.sort(result)
+      # Extract names
+      names = Enum.map(result, fn {_idx, entry} ->
+        Map.new(entry)["name"]
+      end)
+
+      assert names == ["helper.ex", "main.ex"]
     end
 
     test "returns empty array for empty directory", %{tmp_dir: tmp_dir} do
@@ -360,7 +399,69 @@ defmodule JidoCode.Tools.BridgeTest do
       state = :luerl.init()
       {[result], _state} = Bridge.lua_list_dir([], state, tmp_dir)
 
-      assert [{1, "root.txt"}] = result
+      assert [{1, entry}] = result
+      entry_map = Map.new(entry)
+      assert entry_map["name"] == "root.txt"
+      assert entry_map["type"] == "file"
+    end
+
+    test "supports ignore_patterns option", %{tmp_dir: tmp_dir} do
+      # Create various files
+      File.write!(Path.join(tmp_dir, "main.ex"), "")
+      File.write!(Path.join(tmp_dir, "test.log"), "")
+      File.write!(Path.join(tmp_dir, "debug.log"), "")
+      File.mkdir_p!(Path.join(tmp_dir, "node_modules"))
+
+      state = :luerl.init()
+      # Pass ignore_patterns as Lua table format
+      opts = [{"ignore_patterns", [{1, "*.log"}, {2, "node_modules"}]}]
+      {[result], _state} = Bridge.lua_list_dir(["", opts], state, tmp_dir)
+
+      # Extract names
+      names = Enum.map(result, fn {_idx, entry} ->
+        Map.new(entry)["name"]
+      end)
+
+      # Should only have main.ex (*.log and node_modules filtered out)
+      assert names == ["main.ex"]
+    end
+
+    test "ignore_patterns with wildcard matching", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "app.test.js"), "")
+      File.write!(Path.join(tmp_dir, "util.test.js"), "")
+      File.write!(Path.join(tmp_dir, "main.js"), "")
+
+      state = :luerl.init()
+      opts = [{"ignore_patterns", [{1, "*.test.js"}]}]
+      {[result], _state} = Bridge.lua_list_dir(["", opts], state, tmp_dir)
+
+      names = Enum.map(result, fn {_idx, entry} ->
+        Map.new(entry)["name"]
+      end)
+
+      assert names == ["main.js"]
+    end
+
+    test "empty ignore_patterns has no effect", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "file.txt"), "")
+
+      state = :luerl.init()
+      opts = [{"ignore_patterns", []}]
+      {[result], _state} = Bridge.lua_list_dir(["", opts], state, tmp_dir)
+
+      assert [{1, entry}] = result
+      entry_map = Map.new(entry)
+      assert entry_map["name"] == "file.txt"
+    end
+
+    test "returns error for file path (not directory)", %{tmp_dir: tmp_dir} do
+      File.write!(Path.join(tmp_dir, "file.txt"), "content")
+
+      state = :luerl.init()
+      {result, _state} = Bridge.lua_list_dir(["file.txt"], state, tmp_dir)
+
+      assert [nil, error] = result
+      assert error =~ "Not a directory"
     end
   end
 

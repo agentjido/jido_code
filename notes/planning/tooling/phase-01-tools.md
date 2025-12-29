@@ -280,14 +280,15 @@ Implement the list_dir tool for directory listing through the Lua sandbox.
 - [x] 1.5.1.4 Create comprehensive definition tests (25 tests)
 - [x] 1.5.1.5 Create ListDir handler with ignore_patterns support
 
-### 1.5.2 Bridge Function Implementation
+### 1.5.2 Bridge Function Implementation ✅
 
-- [ ] 1.5.2.1 Update existing `lua_list_dir/3` in `bridge.ex` if needed
-- [ ] 1.5.2.2 Use `Security.validate_path/3` before listing
-- [ ] 1.5.2.3 Add file type indicators (directory vs file)
-- [ ] 1.5.2.4 Apply ignore patterns (respect .gitignore by default)
-- [ ] 1.5.2.5 Sort entries (directories first, then alphabetically)
-- [ ] 1.5.2.6 Return as Lua array: `{[entries], state}`
+- [x] 1.5.2.1 Update existing `lua_list_dir/3` in `bridge.ex` with options support
+- [x] 1.5.2.2 Use `Security.validate_path/3` before listing
+- [x] 1.5.2.3 Add file type indicators (directory vs file) - entries now return `{name, type}` tables
+- [x] 1.5.2.4 Apply ignore patterns via `ignore_patterns` option with glob matching
+- [x] 1.5.2.5 Sort entries (directories first, then alphabetically)
+- [x] 1.5.2.6 Return as Lua array: `{[entries], state}` with typed entries
+- [x] 1.5.2.7 Update bridge tests (12 tests for lua_list_dir)
 
 ### 1.5.3 Unit Tests for List Directory
 

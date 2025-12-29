@@ -251,23 +251,41 @@ defmodule JidoCode.Tools.Bridge do
   end
 
   @doc """
-  Lists directory contents. Called from Lua as `jido.list_dir(path)`.
+  Lists directory contents. Called from Lua as `jido.list_dir(path)` or
+  `jido.list_dir(path, opts)`.
 
   ## Parameters
 
-  - `args` - Lua arguments: `[path]`
+  - `args` - Lua arguments: `[path]` or `[path, opts]`
+    - `path` - Directory path to list
+    - `opts` - Optional Lua table with:
+      - `ignore_patterns` - Array of glob patterns to exclude
   - `state` - Lua state
   - `project_root` - Project root for path validation
 
   ## Returns
 
-  - `{[entries], state}` on success (entries as Lua array)
+  - `{[entries], state}` on success (entries as Lua array of tables with name/type)
   - `{[nil, error], state}` on failure
+
+  ## Entry Format
+
+  Each entry is a Lua table with:
+  - `name` - Entry name (string)
+  - `type` - Either "file" or "directory"
+
+  ## Sorting
+
+  Entries are sorted with directories first, then alphabetically within each group.
   """
   def lua_list_dir(args, state, project_root) do
     case args do
       [path] when is_binary(path) ->
-        do_list_dir(path, state, project_root)
+        do_list_dir(path, [], state, project_root)
+
+      [path, opts] when is_binary(path) ->
+        ignore_patterns = extract_ignore_patterns(opts)
+        do_list_dir(path, ignore_patterns, state, project_root)
 
       [] ->
         # Default to project root
@@ -278,23 +296,84 @@ defmodule JidoCode.Tools.Bridge do
     end
   end
 
-  @spec do_list_dir(String.t(), :luerl.luerl_state(), String.t()) ::
+  # Extract ignore_patterns from Lua options table
+  defp extract_ignore_patterns(opts) when is_list(opts) do
+    case List.keyfind(opts, "ignore_patterns", 0) do
+      {"ignore_patterns", patterns} when is_list(patterns) ->
+        # Convert Lua array (list of {index, value} tuples) to list of strings
+        patterns
+        |> Enum.map(fn
+          {_idx, pattern} when is_binary(pattern) -> pattern
+          pattern when is_binary(pattern) -> pattern
+          _ -> nil
+        end)
+        |> Enum.reject(&is_nil/1)
+
+      _ ->
+        []
+    end
+  end
+
+  defp extract_ignore_patterns(_), do: []
+
+  @spec do_list_dir(String.t(), list(String.t()), :luerl.luerl_state(), String.t()) ::
           {list(), :luerl.luerl_state()}
-  defp do_list_dir(path, state, project_root) do
+  defp do_list_dir(path, ignore_patterns, state, project_root) do
     with {:ok, safe_path} <- Security.validate_path(path, project_root),
          {:ok, entries} <- File.ls(safe_path) do
-      # Convert to Lua array format (1-indexed list of tuples)
+      # Filter, sort (directories first), and convert to Lua array format
       lua_array =
         entries
-        |> Enum.sort()
+        |> Enum.reject(&matches_ignore_pattern?(&1, ignore_patterns))
+        |> sort_directories_first(safe_path)
         |> Enum.with_index(1)
-        |> Enum.map(fn {entry, idx} -> {idx, entry} end)
+        |> Enum.map(fn {entry, idx} ->
+          full_path = Path.join(safe_path, entry)
+          type = if File.dir?(full_path), do: "directory", else: "file"
+          {idx, [{"name", entry}, {"type", type}]}
+        end)
 
       {[lua_array], state}
     else
+      {:error, :enotdir} ->
+        {[nil, "Not a directory: #{path}"], state}
+
       {:error, reason} ->
         handle_operation_error(reason, path, state)
     end
+  end
+
+  # Check if entry matches any ignore pattern
+  defp matches_ignore_pattern?(_entry, []), do: false
+
+  defp matches_ignore_pattern?(entry, patterns) when is_list(patterns) do
+    Enum.any?(patterns, &matches_glob?(entry, &1))
+  end
+
+  defp matches_glob?(entry, pattern) when is_binary(pattern) do
+    # Simple glob matching: convert glob pattern to regex
+    regex_pattern =
+      pattern
+      |> String.replace(".", "\\.")
+      |> String.replace("*", ".*")
+      |> String.replace("?", ".")
+
+    case Regex.compile("^#{regex_pattern}$") do
+      {:ok, regex} -> Regex.match?(regex, entry)
+      {:error, _} -> false
+    end
+  end
+
+  defp matches_glob?(_entry, _pattern), do: false
+
+  # Sort entries with directories first, then alphabetically
+  defp sort_directories_first(entries, safe_path) do
+    Enum.sort_by(entries, fn entry ->
+      full_path = Path.join(safe_path, entry)
+      is_dir = File.dir?(full_path)
+      # Directories first (false < true when negated), then alphabetically
+      {not is_dir, entry}
+    end)
   end
 
   @doc """

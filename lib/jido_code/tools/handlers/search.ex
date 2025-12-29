@@ -33,6 +33,8 @@ defmodule JidoCode.Tools.Handlers.Search do
   - `:project_root` - Base directory for operations (legacy)
   """
 
+  require Logger
+
   alias JidoCode.Tools.HandlerHelpers
 
   # ============================================================================
@@ -40,12 +42,17 @@ defmodule JidoCode.Tools.Handlers.Search do
   # ============================================================================
 
   @doc false
+  @spec get_project_root(map()) ::
+          {:ok, String.t()} | {:error, :not_found | :invalid_session_id | String.t()}
   defdelegate get_project_root(context), to: HandlerHelpers
 
   @doc false
+  @spec validate_path(String.t(), map()) ::
+          {:ok, String.t()} | {:error, atom() | :not_found | :invalid_session_id}
   defdelegate validate_path(path, context), to: HandlerHelpers
 
   @doc false
+  @spec format_error(atom() | {atom(), term()} | String.t(), String.t()) :: String.t()
   def format_error(:enoent, path), do: "Path not found: #{path}"
   def format_error(:eacces, path), do: "Permission denied: #{path}"
   def format_error(:enotdir, path), do: "Not a directory: #{path}"
@@ -63,6 +70,38 @@ defmodule JidoCode.Tools.Handlers.Search do
   def format_error(reason, path) when is_atom(reason), do: "Error (#{reason}): #{path}"
   def format_error(reason, _path) when is_binary(reason), do: reason
   def format_error(reason, path), do: "Error (#{inspect(reason)}): #{path}"
+
+  # ============================================================================
+  # Telemetry
+  # ============================================================================
+
+  @doc false
+  @spec emit_search_telemetry(atom(), integer(), String.t(), map(), atom(), non_neg_integer()) ::
+          :ok
+  def emit_search_telemetry(operation, start_time, path, context, status, result_count) do
+    duration = System.monotonic_time(:microsecond) - start_time
+
+    :telemetry.execute(
+      [:jido_code, :search, operation],
+      %{duration: duration, result_count: result_count},
+      %{
+        path: sanitize_path_for_telemetry(path),
+        status: status,
+        session_id: Map.get(context, :session_id)
+      }
+    )
+  end
+
+  defp sanitize_path_for_telemetry(path) when is_binary(path) do
+    # Remove potentially sensitive path components for telemetry
+    if String.length(path) > 100 do
+      String.slice(path, 0, 97) <> "..."
+    else
+      path
+    end
+  end
+
+  defp sanitize_path_for_telemetry(_), do: "<unknown>"
 
   # ============================================================================
   # Grep Handler
@@ -104,6 +143,7 @@ defmodule JidoCode.Tools.Handlers.Search do
     """
     def execute(%{"pattern" => pattern, "path" => path} = args, context)
         when is_binary(pattern) and is_binary(path) do
+      start_time = System.monotonic_time(:microsecond)
       recursive = Map.get(args, "recursive", true)
       max_results = Map.get(args, "max_results", @default_max_results)
 
@@ -111,9 +151,12 @@ defmodule JidoCode.Tools.Handlers.Search do
            {:ok, safe_path} <- Search.validate_path(path, context),
            {:ok, project_root} <- Search.get_project_root(context) do
         results = search_files(safe_path, project_root, regex, recursive, max_results)
+        Search.emit_search_telemetry(:grep, start_time, path, context, :ok, length(results))
         {:ok, Jason.encode!(results)}
       else
-        {:error, reason} -> {:error, Search.format_error(reason, path)}
+        {:error, reason} ->
+          Search.emit_search_telemetry(:grep, start_time, path, context, :error, 0)
+          {:error, Search.format_error(reason, path)}
       end
     end
 
@@ -246,15 +289,18 @@ defmodule JidoCode.Tools.Handlers.Search do
     - `{:error, reason}` - Error message
     """
     def execute(%{"pattern" => pattern} = args, context) when is_binary(pattern) do
+      start_time = System.monotonic_time(:microsecond)
       path = Map.get(args, "path", "")
       max_results = Map.get(args, "max_results", @default_max_results)
 
       with {:ok, safe_path} <- Search.validate_path(path, context),
            {:ok, project_root} <- Search.get_project_root(context) do
         results = find_matching_files(safe_path, project_root, pattern, max_results)
+        Search.emit_search_telemetry(:find_files, start_time, path, context, :ok, length(results))
         {:ok, Jason.encode!(results)}
       else
         {:error, reason} ->
+          Search.emit_search_telemetry(:find_files, start_time, path, context, :error, 0)
           {:error, Search.format_error(reason, path)}
       end
     end

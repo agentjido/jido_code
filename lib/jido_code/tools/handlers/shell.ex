@@ -74,7 +74,33 @@ defmodule JidoCode.Tools.Handlers.Shell do
   defdelegate get_project_root(context), to: HandlerHelpers
 
   @doc false
+  @spec validate_path(String.t(), map()) ::
+          {:ok, String.t()} | {:error, atom() | :not_found | :invalid_session_id}
   defdelegate validate_path(path, context), to: HandlerHelpers
+
+  # ============================================================================
+  # Telemetry
+  # ============================================================================
+
+  @doc false
+  @spec emit_shell_telemetry(atom(), integer(), String.t(), map(), atom(), integer()) :: :ok
+  def emit_shell_telemetry(operation, start_time, command, context, status, exit_code) do
+    duration = System.monotonic_time(:microsecond) - start_time
+
+    :telemetry.execute(
+      [:jido_code, :shell, operation],
+      %{duration: duration, exit_code: exit_code},
+      %{
+        command: command,
+        status: status,
+        session_id: Map.get(context, :session_id)
+      }
+    )
+  end
+
+  # ============================================================================
+  # Error Formatting
+  # ============================================================================
 
   @doc false
   @spec format_error(atom() | {atom(), term()} | String.t(), String.t()) :: String.t()
@@ -148,6 +174,7 @@ defmodule JidoCode.Tools.Handlers.Shell do
     alias JidoCode.Tools.Handlers.Shell
 
     @default_timeout 25_000
+    @max_timeout 120_000
     @max_output_size 1_048_576
 
     @doc """
@@ -179,18 +206,22 @@ defmodule JidoCode.Tools.Handlers.Shell do
     """
     @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
     def execute(%{"command" => command} = args, context) when is_binary(command) do
+      start_time = System.monotonic_time(:microsecond)
+
       with {:ok, _valid_command} <- Shell.validate_command(command),
            {:ok, project_root} <- Shell.get_project_root(context),
            raw_args <- Map.get(args, "args", []),
            cmd_args <- parse_args(raw_args),
            :ok <- validate_path_args(cmd_args, project_root) do
-        timeout = Map.get(args, "timeout", @default_timeout)
-        run_command(command, cmd_args, project_root, timeout)
+        timeout = cap_timeout(Map.get(args, "timeout", @default_timeout))
+        run_command(command, cmd_args, project_root, timeout, start_time, context)
       else
         {:error, reason} when is_atom(reason) ->
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :error, -1)
           {:error, Shell.format_error(reason, command)}
 
         {:error, reason} ->
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :error, -1)
           {:error, Shell.format_error(reason, command)}
       end
     end
@@ -204,6 +235,11 @@ defmodule JidoCode.Tools.Handlers.Shell do
     end
 
     defp parse_args(_args), do: []
+
+    # Cap timeout to prevent resource exhaustion from extremely long timeouts
+    defp cap_timeout(timeout) when is_integer(timeout) and timeout > @max_timeout, do: @max_timeout
+    defp cap_timeout(timeout) when is_integer(timeout) and timeout > 0, do: timeout
+    defp cap_timeout(_), do: @default_timeout
 
     # Validate path-like arguments against project boundary
     defp validate_path_args(args, project_root) do
@@ -256,7 +292,7 @@ defmodule JidoCode.Tools.Handlers.Shell do
       end
     end
 
-    defp run_command(command, args, project_root, timeout) do
+    defp run_command(command, args, project_root, timeout, start_time, context) do
       # Use Task.async with yield/shutdown to enforce timeout
       task =
         Task.async(fn ->
@@ -275,18 +311,23 @@ defmodule JidoCode.Tools.Handlers.Shell do
 
       case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
         {:ok, {:error, :enoent}} ->
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :error, -1)
           {:error, Shell.format_error(:enoent, command)}
 
         {:ok, {:error, :eacces}} ->
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :error, -1)
           {:error, Shell.format_error(:eacces, command)}
 
         {:ok, {:error, {:exit, reason}}} ->
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :error, -1)
           {:error, Shell.format_error({:exit, reason}, command)}
 
         {:ok, {:error, reason}} ->
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :error, -1)
           {:error, Shell.format_error({:system_error, reason}, command)}
 
         {:ok, {output, exit_code}} ->
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :ok, exit_code)
           stdout = maybe_truncate(output)
 
           formatted = %{
@@ -299,6 +340,7 @@ defmodule JidoCode.Tools.Handlers.Shell do
 
         nil ->
           # Timeout - task was killed
+          Shell.emit_shell_telemetry(:run_command, start_time, command, context, :timeout, -1)
           {:error, Shell.format_error(:timeout, command)}
       end
     end

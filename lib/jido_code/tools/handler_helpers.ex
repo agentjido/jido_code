@@ -183,8 +183,8 @@ defmodule JidoCode.Tools.HandlerHelpers do
   @doc """
   Formats common error types used across all handlers.
 
-  Returns the formatted error message. Handlers may extend this with
-  domain-specific error patterns.
+  Returns `{:ok, message}` for known errors, `:not_handled` for unknown errors.
+  Handlers should use this for common cases and add domain-specific handling.
 
   ## Common Errors
 
@@ -193,6 +193,9 @@ defmodule JidoCode.Tools.HandlerHelpers do
   - `:path_escapes_boundary` - Path traversal attempt
   - `:path_outside_boundary` - Path outside project
   - `:symlink_escapes_boundary` - Symlink points outside project
+  - `:enotdir` - Not a directory
+  - `:eisdir` - Is a directory (expected file)
+  - `:enospc` - No space left on device
 
   ## Examples
 
@@ -201,11 +204,25 @@ defmodule JidoCode.Tools.HandlerHelpers do
 
       iex> HandlerHelpers.format_common_error(:custom_error, "/path")
       :not_handled
+
+  ## Usage Pattern
+
+  Handlers should use `format_error/2` with fallback to common errors:
+
+      def format_error(reason, path) do
+        case HandlerHelpers.format_common_error(reason, path) do
+          {:ok, message} -> message
+          :not_handled -> format_domain_error(reason, path)
+        end
+      end
   """
   @spec format_common_error(atom() | tuple() | String.t(), String.t()) ::
           {:ok, String.t()} | :not_handled
   def format_common_error(:enoent, path), do: {:ok, "Path not found: #{path}"}
   def format_common_error(:eacces, path), do: {:ok, "Permission denied: #{path}"}
+  def format_common_error(:enotdir, path), do: {:ok, "Not a directory: #{path}"}
+  def format_common_error(:eisdir, path), do: {:ok, "Is a directory: #{path}"}
+  def format_common_error(:enospc, _path), do: {:ok, "No space left on device"}
 
   def format_common_error(:path_escapes_boundary, path),
     do: {:ok, "Security error: path escapes project boundary: #{path}"}
@@ -224,6 +241,32 @@ defmodule JidoCode.Tools.HandlerHelpers do
 
   def format_common_error(reason, _path) when is_binary(reason), do: {:ok, reason}
   def format_common_error(_reason, _path), do: :not_handled
+
+  @doc """
+  Formats an error with fallback for unknown errors.
+
+  This is a convenience function that wraps `format_common_error/2` with a
+  generic fallback for unhandled errors. Handlers can use this directly
+  or implement their own format_error with domain-specific cases.
+
+  ## Examples
+
+      iex> HandlerHelpers.format_error(:enoent, "/path/to/file")
+      "Path not found: /path/to/file"
+
+      iex> HandlerHelpers.format_error(:custom_error, "/path")
+      "Error (custom_error): /path"
+  """
+  @spec format_error(atom() | tuple() | String.t(), String.t()) :: String.t()
+  def format_error(reason, path) do
+    case format_common_error(reason, path) do
+      {:ok, message} -> message
+      :not_handled -> format_fallback_error(reason, path)
+    end
+  end
+
+  defp format_fallback_error(reason, path) when is_atom(reason), do: "Error (#{reason}): #{path}"
+  defp format_fallback_error(reason, path), do: "Error (#{inspect(reason)}): #{path}"
 
   # ============================================================================
   # Private Functions

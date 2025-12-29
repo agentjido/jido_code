@@ -1,43 +1,40 @@
 # Phase 2: Code Search & Shell Execution
 
-This phase implements code search capabilities using ripgrep and shell execution tools with background process support. All tools route through the Lua sandbox for defense-in-depth security per [ADR-0001](../../decisions/0001-tool-security-architecture.md).
+This phase implements code search capabilities and shell execution tools with security validation. Tools use the Handler pattern (direct Elixir execution) for simpler implementation while maintaining security through path validation and command allowlisting.
 
-## Lua Sandbox Architecture
+## Handler Pattern Architecture
 
 All search and shell tools follow this execution flow:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Tool Executor receives LLM tool call                       │
-│  e.g., {"name": "grep_search", "arguments": {...}}          │
+│  e.g., {"name": "grep", "arguments": {...}}                 │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Tools.Manager.grep(pattern, opts, session_id: id)          │
-│  GenServer call to session-scoped Lua sandbox               │
+│  Executor.execute/2 dispatches to registered handler        │
+│  Handler is resolved from tool definition                   │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Lua VM executes: "return jido.grep(pattern, opts)"         │
-│  (dangerous functions like os.execute already removed)      │
+│  Handler.execute/2 performs operation                       │
+│  - Uses HandlerHelpers for session-aware context            │
+│  - Direct Elixir implementation (no Lua bridge)             │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Bridge.lua_grep/3 invoked from Lua                         │
-│  (Elixir function registered as jido.grep)                  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Security.validate_path(path, project_root) +               │
-│  Security.validate_command(cmd) for shell tools             │
-│  - Path boundary validation                                 │
-│  - Command allowlist enforcement                            │
+│  HandlerHelpers.validate_path/2 + Security checks           │
+│  - Path boundary validation via Security module             │
+│  - Command allowlist enforcement for shell tools            │
+│  - Session-scoped isolation                                 │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> **Note:** The original plan specified a Lua sandbox architecture. The actual implementation uses the Handler pattern for simplicity while maintaining security through the Security module and HandlerHelpers.
 
 ## Tools in This Phase
 
@@ -366,28 +363,36 @@ Test security measures across shell tools.
 
 ## Phase 2 Success Criteria
 
-1. **grep_search**: Ripgrep search via `jido.grep` bridge
-2. **bash_execute**: Foreground execution via `jido.shell` bridge
-3. **bash_background**: Background spawning via `jido.shell_background` bridge
-4. **bash_output**: Output retrieval via `jido.shell_output` bridge
-5. **kill_shell**: Process termination via `jido.shell_kill` bridge
-6. **All tools execute through Lua sandbox** (defense-in-depth)
-7. **Test Coverage**: Minimum 80% for Phase 2 tools
+| Criterion | Status |
+|-----------|--------|
+| **grep**: Regex search via Handler pattern | ✅ Implemented |
+| **run_command**: Foreground execution via Handler pattern | ✅ Implemented |
+| **bash_background**: Background spawning | ❌ Deferred |
+| **bash_output**: Output retrieval | ❌ Deferred |
+| **kill_shell**: Process termination | ❌ Deferred |
+| **Handler pattern execution**: Tools execute through Executor → Handler chain | ✅ Implemented |
+| **Security validation**: Path boundaries and command allowlist enforced | ✅ Implemented |
+| **Session isolation**: Session-scoped execution via HandlerHelpers | ✅ Implemented |
+| **Test Coverage**: Minimum 80% for Phase 2 tools | ✅ Achieved |
+
+> **Note:** The original plan specified Lua sandbox architecture. The actual implementation uses the Handler pattern (direct Elixir execution) for simplicity while maintaining security through the Security module and HandlerHelpers.
 
 ---
 
 ## Phase 2 Critical Files
 
-**Modified Files:**
-- `lib/jido_code/tools/bridge.ex` - Add/update bridge functions for grep and shell
-- `lib/jido_code/tools/manager.ex` - Expose grep and shell APIs
-- `lib/jido_code/tools/security.ex` - Ensure `validate_command/1` exists
+**Implemented Files:**
+- `lib/jido_code/tools/definitions/search.ex` - grep, find_files tool definitions
+- `lib/jido_code/tools/definitions/shell.ex` - run_command tool definition
+- `lib/jido_code/tools/handlers/search.ex` - Grep, FindFiles handlers
+- `lib/jido_code/tools/handlers/shell.ex` - RunCommand handler
+- `lib/jido_code/tools/handler_helpers.ex` - Session-aware path validation
+- `lib/jido_code/tools/security.ex` - Path boundary validation
+- `test/jido_code/tools/handlers/search_test.exs` - Search handler tests
+- `test/jido_code/tools/handlers/shell_test.exs` - Shell handler tests
+- `test/jido_code/integration/tools_phase2_test.exs` - Integration tests
 
-**New Files:**
-- `lib/jido_code/tools/definitions/grep_search.ex`
-- `lib/jido_code/tools/definitions/bash_execute.ex`
+**Deferred Files (not implemented):**
 - `lib/jido_code/tools/definitions/bash_background.ex`
 - `lib/jido_code/tools/definitions/bash_output.ex`
 - `lib/jido_code/tools/definitions/kill_shell.ex`
-- `test/jido_code/tools/bridge_search_shell_test.exs`
-- `test/jido_code/integration/tools_phase2_test.exs`

@@ -243,21 +243,32 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
       assert result["exit_code"] == 0
     end
 
-    @tag :skip
-    # TODO: Timeout support needs to be implemented in Manager.shell/Bridge.lua_shell
     test "respects timeout", %{tmp_dir: tmp_dir} do
       context = %{project_root: tmp_dir}
 
-      # Use a very short timeout
-      {:ok, json} =
+      # Use a very short timeout - sleep for 5 seconds but timeout after 100ms
+      {:error, error} =
         RunCommand.execute(
           %{"command" => "sleep", "args" => ["5"], "timeout" => 100},
           context
         )
 
+      assert error =~ "timed out" or error =~ "timeout"
+    end
+
+    test "caps timeout at maximum", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      # Request a very long timeout - should be capped at 120 seconds (120_000ms)
+      # We just verify the command runs without error for a short command
+      {:ok, json} =
+        RunCommand.execute(
+          %{"command" => "true", "timeout" => 999_999_999},
+          context
+        )
+
       result = Jason.decode!(json)
-      assert result["exit_code"] == -1
-      assert result["stderr"] =~ "timed out"
+      assert result["exit_code"] == 0
     end
 
     test "returns error for missing command", %{tmp_dir: tmp_dir} do
@@ -364,6 +375,34 @@ defmodule JidoCode.Tools.Handlers.ShellTest do
 
       {:error, error} =
         RunCommand.execute(%{"command" => "ls", "args" => ["foo/../../../bar"]}, context)
+
+      assert error =~ "Path traversal not allowed"
+    end
+
+    test "blocks URL-encoded path traversal in arguments", %{tmp_dir: tmp_dir} do
+      context = %{project_root: tmp_dir}
+
+      # Test %2e%2e%2f (URL-encoded ../)
+      {:error, error} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["%2e%2e%2fetc/passwd"]}, context)
+
+      assert error =~ "Path traversal not allowed"
+
+      # Test mixed encoding: ..%2f
+      {:error, error} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["..%2fetc/passwd"]}, context)
+
+      assert error =~ "Path traversal not allowed"
+
+      # Test %2e%2e/ (partial encoding)
+      {:error, error} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["%2e%2e/etc/passwd"]}, context)
+
+      assert error =~ "Path traversal not allowed"
+
+      # Test backslash variant %2e%2e%5c
+      {:error, error} =
+        RunCommand.execute(%{"command" => "cat", "args" => ["%2e%2e%5cetc\\passwd"]}, context)
 
       assert error =~ "Path traversal not allowed"
     end

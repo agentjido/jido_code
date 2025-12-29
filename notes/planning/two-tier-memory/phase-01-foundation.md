@@ -46,29 +46,29 @@ Define the foundational types and structs for the memory system. These types map
 
 Create the shared type definitions used across all memory components.
 
-- [ ] 1.1.1.1 Create `lib/jido_code/memory/types.ex` with module documentation describing the type system
-- [ ] 1.1.1.2 Define `memory_type()` typespec matching Jido ontology MemoryItem subclasses:
+- [x] 1.1.1.1 Create `lib/jido_code/memory/types.ex` with module documentation describing the type system
+- [x] 1.1.1.2 Define `memory_type()` typespec matching Jido ontology MemoryItem subclasses:
   ```elixir
   @type memory_type ::
     :fact | :assumption | :hypothesis | :discovery |
     :risk | :unknown | :decision | :convention | :lesson_learned
   ```
-- [ ] 1.1.1.3 Define `confidence_level()` typespec mapping to Jido ConfidenceLevel individuals:
+- [x] 1.1.1.3 Define `confidence_level()` typespec mapping to Jido ConfidenceLevel individuals:
   ```elixir
   @type confidence_level :: :high | :medium | :low
   ```
-- [ ] 1.1.1.4 Define `source_type()` typespec matching Jido SourceType individuals:
+- [x] 1.1.1.4 Define `source_type()` typespec matching Jido SourceType individuals:
   ```elixir
   @type source_type :: :user | :agent | :tool | :external_document
   ```
-- [ ] 1.1.1.5 Define `context_key()` typespec for working context semantic keys:
+- [x] 1.1.1.5 Define `context_key()` typespec for working context semantic keys:
   ```elixir
   @type context_key ::
     :active_file | :project_root | :primary_language | :framework |
     :current_task | :user_intent | :discovered_patterns | :active_errors |
     :pending_questions | :file_relationships
   ```
-- [ ] 1.1.1.6 Define `pending_item()` struct type for pre-promotion staging:
+- [x] 1.1.1.6 Define `pending_item()` struct type for pre-promotion staging:
   ```elixir
   @type pending_item :: %{
     id: String.t(),
@@ -84,7 +84,7 @@ Create the shared type definitions used across all memory components.
     access_count: non_neg_integer()
   }
   ```
-- [ ] 1.1.1.7 Define `access_entry()` struct type for access log entries:
+- [x] 1.1.1.7 Define `access_entry()` struct type for access log entries:
   ```elixir
   @type access_entry :: %{
     key: context_key() | {:memory, String.t()},
@@ -92,20 +92,20 @@ Create the shared type definitions used across all memory components.
     access_type: :read | :write | :query
   }
   ```
-- [ ] 1.1.1.8 Implement `confidence_to_level/1` helper function (float -> atom)
-- [ ] 1.1.1.9 Implement `level_to_confidence/1` helper function (atom -> float)
+- [x] 1.1.1.8 Implement `confidence_to_level/1` helper function (float -> atom)
+- [x] 1.1.1.9 Implement `level_to_confidence/1` helper function (atom -> float)
 
 ### 1.1.2 Unit Tests for Memory Types
 
-- [ ] Test memory_type values are valid atoms matching Jido ontology
-- [ ] Test confidence_level values map correctly (:high >= 0.8, :medium >= 0.5, :low < 0.5)
-- [ ] Test source_type values match Jido SourceType individuals
-- [ ] Test context_key exhaustiveness matches design specification
-- [ ] Test pending_item struct creation with all required fields
-- [ ] Test pending_item struct creation with optional fields as nil
-- [ ] Test access_entry struct creation with timestamp
-- [ ] Test confidence_to_level/1 returns correct level for boundary values
-- [ ] Test level_to_confidence/1 returns expected float values
+- [x] Test memory_type values are valid atoms matching Jido ontology
+- [x] Test confidence_level values map correctly (:high >= 0.8, :medium >= 0.5, :low < 0.5)
+- [x] Test source_type values match Jido SourceType individuals
+- [x] Test context_key exhaustiveness matches design specification
+- [x] Test pending_item struct creation with all required fields
+- [x] Test pending_item struct creation with optional fields as nil
+- [x] Test access_entry struct creation with timestamp
+- [x] Test confidence_to_level/1 returns correct level for boundary values
+- [x] Test level_to_confidence/1 returns expected float values
 
 ---
 

@@ -115,8 +115,8 @@ Implement the semantic scratchpad that holds extracted understanding about the c
 
 ### 1.2.1 WorkingContext Struct and API
 
-- [ ] 1.2.1.1 Create `lib/jido_code/memory/short_term/working_context.ex` with comprehensive moduledoc
-- [ ] 1.2.1.2 Define struct with fields:
+- [x] 1.2.1.1 Create `lib/jido_code/memory/short_term/working_context.ex` with comprehensive moduledoc
+- [x] 1.2.1.2 Define struct with fields:
   ```elixir
   defstruct [
     items: %{},           # %{context_key() => context_item()}
@@ -124,7 +124,7 @@ Implement the semantic scratchpad that holds extracted understanding about the c
     max_tokens: 12_000    # Maximum tokens allowed in working context
   ]
   ```
-- [ ] 1.2.1.3 Define `context_item()` internal type:
+- [x] 1.2.1.3 Define `context_item()` internal type:
   ```elixir
   @type context_item :: %{
     key: context_key(),
@@ -137,8 +137,8 @@ Implement the semantic scratchpad that holds extracted understanding about the c
     suggested_type: memory_type() | nil
   }
   ```
-- [ ] 1.2.1.4 Implement `new/0` and `new/1` constructors with optional max_tokens parameter
-- [ ] 1.2.1.5 Implement `put/4` to add/update context items:
+- [x] 1.2.1.4 Implement `new/0` and `new/1` constructors with optional max_tokens parameter
+- [x] 1.2.1.5 Implement `put/4` to add/update context items:
   ```elixir
   @spec put(t(), context_key(), term(), keyword()) :: t()
   def put(ctx, key, value, opts \\ [])
@@ -147,18 +147,18 @@ Implement the semantic scratchpad that holds extracted understanding about the c
   - Track first_seen (preserve on update) and last_accessed (update always)
   - Increment access_count on updates
   - Infer suggested_type if not provided
-- [ ] 1.2.1.6 Implement `get/2` to retrieve value and update access tracking:
+- [x] 1.2.1.6 Implement `get/2` to retrieve value and update access tracking:
   ```elixir
   @spec get(t(), context_key()) :: {t(), term() | nil}
   ```
   - Return updated context (with incremented access) and value
   - Return nil for missing keys without error
-- [ ] 1.2.1.7 Implement `delete/2` to remove context items
-- [ ] 1.2.1.8 Implement `to_list/1` to export all items for context assembly
-- [ ] 1.2.1.9 Implement `to_map/1` to export items as key-value map (without metadata)
-- [ ] 1.2.1.10 Implement `size/1` to return number of items
-- [ ] 1.2.1.11 Implement `clear/1` to reset to empty context
-- [ ] 1.2.1.12 Implement private `infer_memory_type/2` for suggested_type assignment:
+- [x] 1.2.1.7 Implement `delete/2` to remove context items
+- [x] 1.2.1.8 Implement `to_list/1` to export all items for context assembly
+- [x] 1.2.1.9 Implement `to_map/1` to export items as key-value map (without metadata)
+- [x] 1.2.1.10 Implement `size/1` to return number of items
+- [x] 1.2.1.11 Implement `clear/1` to reset to empty context
+- [x] 1.2.1.12 Implement private `infer_memory_type/2` for suggested_type assignment:
   ```elixir
   defp infer_memory_type(:framework, :tool), do: :fact
   defp infer_memory_type(:primary_language, :tool), do: :fact
@@ -172,29 +172,29 @@ Implement the semantic scratchpad that holds extracted understanding about the c
 
 ### 1.2.2 Unit Tests for WorkingContext
 
-- [ ] Test new/0 creates empty context with default max_tokens (12_000)
-- [ ] Test new/1 accepts custom max_tokens value
-- [ ] Test put/4 creates new context item with all required fields
-- [ ] Test put/4 sets first_seen and last_accessed to current time for new items
-- [ ] Test put/4 updates existing item, incrementing access_count
-- [ ] Test put/4 updates last_accessed but preserves first_seen on update
-- [ ] Test put/4 accepts source option (:inferred, :explicit, :tool)
-- [ ] Test put/4 accepts confidence option (0.0 to 1.0)
-- [ ] Test put/4 accepts memory_type option overriding inference
-- [ ] Test get/2 returns {context, value} for existing key
-- [ ] Test get/2 increments access_count on retrieval
-- [ ] Test get/2 updates last_accessed on retrieval
-- [ ] Test get/2 returns {context, nil} for missing keys
-- [ ] Test delete/2 removes item from context
-- [ ] Test delete/2 handles non-existent keys gracefully
-- [ ] Test to_list/1 returns all items as list
-- [ ] Test to_map/1 returns key-value pairs without metadata
-- [ ] Test size/1 returns correct count
-- [ ] Test clear/1 resets to empty context
-- [ ] Test infer_memory_type assigns :fact for :framework from :tool source
-- [ ] Test infer_memory_type assigns :assumption for :user_intent from :inferred
-- [ ] Test infer_memory_type assigns :discovery for :discovered_patterns
-- [ ] Test infer_memory_type assigns nil for ephemeral keys like :active_errors
+- [x] Test new/0 creates empty context with default max_tokens (12_000)
+- [x] Test new/1 accepts custom max_tokens value
+- [x] Test put/4 creates new context item with all required fields
+- [x] Test put/4 sets first_seen and last_accessed to current time for new items
+- [x] Test put/4 updates existing item, incrementing access_count
+- [x] Test put/4 updates last_accessed but preserves first_seen on update
+- [x] Test put/4 accepts source option (:inferred, :explicit, :tool)
+- [x] Test put/4 accepts confidence option (0.0 to 1.0)
+- [x] Test put/4 accepts memory_type option overriding inference
+- [x] Test get/2 returns {context, value} for existing key
+- [x] Test get/2 increments access_count on retrieval
+- [x] Test get/2 updates last_accessed on retrieval
+- [x] Test get/2 returns {context, nil} for missing keys
+- [x] Test delete/2 removes item from context
+- [x] Test delete/2 handles non-existent keys gracefully
+- [x] Test to_list/1 returns all items as list
+- [x] Test to_map/1 returns key-value pairs without metadata
+- [x] Test size/1 returns correct count
+- [x] Test clear/1 resets to empty context
+- [x] Test infer_memory_type assigns :fact for :framework from :tool source
+- [x] Test infer_memory_type assigns :assumption for :user_intent from :inferred
+- [x] Test infer_memory_type assigns :discovery for :discovered_patterns
+- [x] Test infer_memory_type assigns nil for ephemeral keys like :active_errors
 
 ---
 

@@ -567,4 +567,387 @@ defmodule JidoCode.Integration.MemoryPhase1Test do
       SessionSupervisor.stop_session(session2.id)
     end
   end
+
+  # ============================================================================
+  # 1.6.2 Working Context Integration Tests
+  # ============================================================================
+
+  describe "Context updates propagate correctly through GenServer" do
+    test "put operations are immediately visible via get", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Update context
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+
+      # Immediately verify via get
+      {:ok, value} = State.get_context(session.id, :framework)
+      assert value == "Phoenix"
+
+      # Update again
+      :ok = State.update_context(session.id, :framework, "Phoenix 1.7")
+
+      # Immediately verify update
+      {:ok, updated_value} = State.get_context(session.id, :framework)
+      assert updated_value == "Phoenix 1.7"
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "multiple keys can be updated and retrieved independently", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Update multiple keys
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      :ok = State.update_context(session.id, :primary_language, "Elixir")
+      :ok = State.update_context(session.id, :database, "PostgreSQL")
+      :ok = State.update_context(session.id, :orm, "Ecto")
+
+      # Retrieve each independently
+      {:ok, framework} = State.get_context(session.id, :framework)
+      {:ok, language} = State.get_context(session.id, :primary_language)
+      {:ok, database} = State.get_context(session.id, :database)
+      {:ok, orm} = State.get_context(session.id, :orm)
+
+      assert framework == "Phoenix"
+      assert language == "Elixir"
+      assert database == "PostgreSQL"
+      assert orm == "Ecto"
+
+      # Verify all context
+      {:ok, all} = State.get_all_context(session.id)
+      assert map_size(all) == 4
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "clear_context removes all keys", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Add several keys
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      :ok = State.update_context(session.id, :primary_language, "Elixir")
+      :ok = State.update_context(session.id, :database, "PostgreSQL")
+
+      {:ok, before_clear} = State.get_all_context(session.id)
+      assert map_size(before_clear) == 3
+
+      # Clear context
+      :ok = State.clear_context(session.id)
+
+      # Verify all keys removed
+      {:ok, after_clear} = State.get_all_context(session.id)
+      assert after_clear == %{}
+
+      # Verify individual key access returns not found
+      assert {:error, :key_not_found} = State.get_context(session.id, :framework)
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "Multiple sessions have isolated working contexts" do
+    test "context updates in one session don't affect another", %{tmp_dir: tmp_dir} do
+      project1 = Path.join(tmp_dir, "project1")
+      project2 = Path.join(tmp_dir, "project2")
+      File.mkdir_p!(project1)
+      File.mkdir_p!(project2)
+
+      {:ok, session1} = Session.new(name: "Session 1", project_path: project1)
+      {:ok, session2} = Session.new(name: "Session 2", project_path: project2)
+
+      {:ok, _pid1} = SessionSupervisor.start_session(session1)
+      {:ok, _pid2} = SessionSupervisor.start_session(session2)
+
+      # Add context to session1
+      :ok = State.update_context(session1.id, :framework, "Phoenix")
+      :ok = State.update_context(session1.id, :primary_language, "Elixir")
+
+      # Verify session2 has no context
+      {:ok, context2} = State.get_all_context(session2.id)
+      assert context2 == %{}
+
+      # Add different context to session2
+      :ok = State.update_context(session2.id, :framework, "Rails")
+
+      # Verify session1 is unchanged
+      {:ok, context1} = State.get_all_context(session1.id)
+      assert context1 == %{framework: "Phoenix", primary_language: "Elixir"}
+
+      # Verify session2 has its own context
+      {:ok, updated_context2} = State.get_all_context(session2.id)
+      assert updated_context2 == %{framework: "Rails"}
+
+      SessionSupervisor.stop_session(session1.id)
+      SessionSupervisor.stop_session(session2.id)
+    end
+
+    test "clearing context in one session doesn't affect another", %{tmp_dir: tmp_dir} do
+      project1 = Path.join(tmp_dir, "project1")
+      project2 = Path.join(tmp_dir, "project2")
+      File.mkdir_p!(project1)
+      File.mkdir_p!(project2)
+
+      {:ok, session1} = Session.new(name: "Session 1", project_path: project1)
+      {:ok, session2} = Session.new(name: "Session 2", project_path: project2)
+
+      {:ok, _pid1} = SessionSupervisor.start_session(session1)
+      {:ok, _pid2} = SessionSupervisor.start_session(session2)
+
+      # Add same context to both sessions
+      :ok = State.update_context(session1.id, :framework, "Phoenix")
+      :ok = State.update_context(session2.id, :framework, "Phoenix")
+
+      # Clear session1
+      :ok = State.clear_context(session1.id)
+
+      # Verify session1 is cleared
+      {:ok, context1} = State.get_all_context(session1.id)
+      assert context1 == %{}
+
+      # Verify session2 is unaffected
+      {:ok, context2} = State.get_all_context(session2.id)
+      assert context2 == %{framework: "Phoenix"}
+
+      SessionSupervisor.stop_session(session1.id)
+      SessionSupervisor.stop_session(session2.id)
+    end
+  end
+
+  describe "Context access tracking updates correctly on get/put" do
+    test "access_count increments on each put operation", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Initial put
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+
+      {:ok, state1} = State.get_state(session.id)
+      initial_count = state1.working_context.items[:framework].access_count
+
+      # Second put
+      :ok = State.update_context(session.id, :framework, "Phoenix 1.7")
+
+      {:ok, state2} = State.get_state(session.id)
+      second_count = state2.working_context.items[:framework].access_count
+
+      assert second_count == initial_count + 1
+
+      # Third put
+      :ok = State.update_context(session.id, :framework, "Phoenix 1.8")
+
+      {:ok, state3} = State.get_state(session.id)
+      third_count = state3.working_context.items[:framework].access_count
+
+      assert third_count == initial_count + 2
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "access_count increments on each get operation", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Initial put
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+
+      {:ok, state1} = State.get_state(session.id)
+      initial_count = state1.working_context.items[:framework].access_count
+
+      # First get
+      {:ok, _value} = State.get_context(session.id, :framework)
+
+      {:ok, state2} = State.get_state(session.id)
+      after_first_get = state2.working_context.items[:framework].access_count
+
+      assert after_first_get == initial_count + 1
+
+      # Multiple gets
+      {:ok, _} = State.get_context(session.id, :framework)
+      {:ok, _} = State.get_context(session.id, :framework)
+      {:ok, _} = State.get_context(session.id, :framework)
+
+      {:ok, state3} = State.get_state(session.id)
+      after_multiple_gets = state3.working_context.items[:framework].access_count
+
+      assert after_multiple_gets == initial_count + 4
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "last_accessed timestamp updates on access", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Initial put
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+
+      {:ok, state1} = State.get_state(session.id)
+      initial_timestamp = state1.working_context.items[:framework].last_accessed
+
+      # Small delay to ensure timestamp difference
+      Process.sleep(10)
+
+      # Access the key
+      {:ok, _value} = State.get_context(session.id, :framework)
+
+      {:ok, state2} = State.get_state(session.id)
+      updated_timestamp = state2.working_context.items[:framework].last_accessed
+
+      # Timestamp should be later
+      assert DateTime.compare(updated_timestamp, initial_timestamp) in [:gt, :eq]
+
+      SessionSupervisor.stop_session(session.id)
+    end
+  end
+
+  describe "Context survives heavy read/write load without corruption" do
+    test "concurrent-style rapid updates maintain data integrity", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Perform many rapid updates
+      for i <- 1..100 do
+        key = :"key_#{rem(i, 10)}"
+        value = "value_#{i}"
+        :ok = State.update_context(session.id, key, value)
+      end
+
+      # Verify final state has 10 keys (key_0 through key_9)
+      {:ok, context} = State.get_all_context(session.id)
+      assert map_size(context) == 10
+
+      # Each key should have the last value written to it
+      # key_0 was last written at i=100, key_1 at i=91, etc.
+      assert context[:key_0] == "value_100"
+      assert context[:key_1] == "value_91"
+      assert context[:key_9] == "value_99"
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "mixed read/write operations maintain consistency", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Initial setup
+      :ok = State.update_context(session.id, :counter, 0)
+
+      # Perform mixed reads and writes
+      for i <- 1..50 do
+        # Read current value
+        {:ok, current} = State.get_context(session.id, :counter)
+
+        # Update to new value
+        :ok = State.update_context(session.id, :counter, current + 1)
+
+        # Verify the update
+        {:ok, updated} = State.get_context(session.id, :counter)
+        assert updated == i
+      end
+
+      # Final verification
+      {:ok, final} = State.get_context(session.id, :counter)
+      assert final == 50
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "large values are stored and retrieved correctly", %{tmp_dir: tmp_dir} do
+      project_path = Path.join(tmp_dir, "test_project")
+      File.mkdir_p!(project_path)
+
+      {:ok, session} = Session.new(name: "Test", project_path: project_path)
+      {:ok, _pid} = SessionSupervisor.start_session(session)
+
+      # Store a large value
+      large_value = String.duplicate("x", 10_000)
+      :ok = State.update_context(session.id, :large_data, large_value)
+
+      # Retrieve and verify
+      {:ok, retrieved} = State.get_context(session.id, :large_data)
+      assert retrieved == large_value
+      assert String.length(retrieved) == 10_000
+
+      # Store complex nested data
+      complex_data = %{
+        nested: %{
+          deep: %{
+            value: "test",
+            list: [1, 2, 3, 4, 5]
+          }
+        },
+        array: Enum.to_list(1..100)
+      }
+
+      :ok = State.update_context(session.id, :complex, complex_data)
+
+      {:ok, retrieved_complex} = State.get_context(session.id, :complex)
+      assert retrieved_complex == complex_data
+
+      SessionSupervisor.stop_session(session.id)
+    end
+
+    test "multiple sessions under load remain isolated", %{tmp_dir: tmp_dir} do
+      # Create multiple sessions
+      sessions =
+        for i <- 1..5 do
+          project = Path.join(tmp_dir, "project_#{i}")
+          File.mkdir_p!(project)
+          {:ok, session} = Session.new(name: "Session #{i}", project_path: project)
+          {:ok, _pid} = SessionSupervisor.start_session(session)
+          session
+        end
+
+      # Perform operations on all sessions
+      for {session, idx} <- Enum.with_index(sessions, 1) do
+        for j <- 1..20 do
+          key = :"key_#{j}"
+          value = "session_#{idx}_value_#{j}"
+          :ok = State.update_context(session.id, key, value)
+        end
+      end
+
+      # Verify each session has its own isolated data
+      for {session, idx} <- Enum.with_index(sessions, 1) do
+        {:ok, context} = State.get_all_context(session.id)
+        assert map_size(context) == 20
+
+        # Verify values are session-specific
+        assert context[:key_1] == "session_#{idx}_value_1"
+        assert context[:key_20] == "session_#{idx}_value_20"
+      end
+
+      # Cleanup
+      for session <- sessions do
+        SessionSupervisor.stop_session(session.id)
+      end
+    end
+  end
 end

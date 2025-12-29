@@ -711,6 +711,8 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
 
     require Logger
 
+    @tab_width Application.compile_env(:jido_code, [:tools, :edit_file, :tab_width], 4)
+
     @doc """
     Applies multiple edits to a file atomically.
 
@@ -731,6 +733,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
     - `{:ok, message}` - Success message with edit count
     - `{:error, reason}` - Error message identifying which edit failed
     """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
     def execute(%{"path" => path, "edits" => edits} = _args, context)
         when is_binary(path) and is_list(edits) do
       start_time = System.monotonic_time()
@@ -756,7 +759,7 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       result =
         with {:ok, project_root} <- HandlerHelpers.get_project_root(context),
              {:ok, safe_path} <- Security.validate_path(path, project_root, log_violations: true),
-             normalized_path <- FileSystem.normalize_path_for_tracking(path, project_root),
+             normalized_path = FileSystem.normalize_path_for_tracking(path, project_root),
              :ok <- check_read_before_edit(normalized_path, context),
              {:ok, content} <- File.read(safe_path),
              {:ok, parsed_edits} <- parse_and_validate_edits(edits),
@@ -1089,9 +1092,9 @@ defmodule JidoCode.Tools.Handlers.FileSystem do
       |> Enum.join("\n")
     end
 
+    # Count leading spaces/tabs (tabs count as @tab_width spaces)
     defp count_leading_spaces(line) do
-      # Using a default tab width of 4 (matching EditFile default)
-      tab_width = 4
+      tab_width = @tab_width
 
       line
       |> String.graphemes()

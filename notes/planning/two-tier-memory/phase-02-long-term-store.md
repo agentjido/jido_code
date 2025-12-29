@@ -291,8 +291,8 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
 
 ### 2.3.1 Adapter Module
 
-- [ ] 2.3.1.1 Create `lib/jido_code/memory/long_term/triple_store_adapter.ex` with moduledoc
-- [ ] 2.3.1.2 Define `memory_input()` type for persist input:
+- [x] 2.3.1.1 Create `lib/jido_code/memory/long_term/triple_store_adapter.ex` with moduledoc
+- [x] 2.3.1.2 Define `memory_input()` type for persist input:
   ```elixir
   @type memory_input :: %{
     id: String.t(),
@@ -308,7 +308,7 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
     created_at: DateTime.t()
   }
   ```
-- [ ] 2.3.1.3 Define `stored_memory()` type for query results:
+- [x] 2.3.1.3 Define `stored_memory()` type for query results:
   ```elixir
   @type stored_memory :: %{
     id: String.t(),
@@ -324,7 +324,7 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
     superseded_by: String.t() | nil
   }
   ```
-- [ ] 2.3.1.4 Implement `persist/2` to store memory as RDF triples:
+- [x] 2.3.1.4 Implement `persist/2` to store memory as RDF triples:
   ```elixir
   @spec persist(memory_input(), store_handle()) :: {:ok, String.t()} | {:error, term()}
   def persist(memory, store)
@@ -334,7 +334,7 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
   - Build triple list using build_triples/2
   - Insert all triples via TripleStore.insert/2
   - Return {:ok, memory.id} on success
-- [ ] 2.3.1.5 Implement `build_triples/2` private function:
+- [x] 2.3.1.5 Implement `build_triples/2` private function:
   ```elixir
   defp build_triples(memory, session_id) do
     subject = Vocab.memory_uri(memory.id)
@@ -358,7 +358,7 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
     |> add_evidence_triples(memory.evidence_refs, subject)
   end
   ```
-- [ ] 2.3.1.6 Implement `query_by_type/3` to retrieve memories by type:
+- [x] 2.3.1.6 Implement `query_by_type/3` to retrieve memories by type:
   ```elixir
   @spec query_by_type(store_handle(), String.t(), memory_type(), keyword()) ::
     {:ok, [stored_memory()]} | {:error, term()}
@@ -368,7 +368,7 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
   - Filter by session_id
   - Apply limit from opts
   - Map results to stored_memory structs
-- [ ] 2.3.1.7 Implement `query_all/3` to retrieve all memories for session:
+- [x] 2.3.1.7 Implement `query_all/3` to retrieve all memories for session:
   ```elixir
   @spec query_all(store_handle(), String.t(), keyword()) ::
     {:ok, [stored_memory()]} | {:error, term()}
@@ -378,13 +378,13 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
   - Apply optional min_confidence filter
   - Apply limit
   - Exclude superseded memories by default (option to include)
-- [ ] 2.3.1.8 Implement `query_by_id/2` to retrieve single memory:
+- [x] 2.3.1.8 Implement `query_by_id/2` to retrieve single memory:
   ```elixir
   @spec query_by_id(store_handle(), String.t()) ::
     {:ok, stored_memory()} | {:error, :not_found}
   def query_by_id(store, memory_id)
   ```
-- [ ] 2.3.1.9 Implement `supersede/4` to mark memory as superseded:
+- [x] 2.3.1.9 Implement `supersede/4` to mark memory as superseded:
   ```elixir
   @spec supersede(store_handle(), String.t(), String.t(), String.t() | nil) ::
     :ok | {:error, term()}
@@ -392,56 +392,56 @@ Implement the adapter layer for mapping Elixir memory structs to/from RDF triple
   ```
   - Add supersededBy triple if new_memory_id provided
   - Add supersession timestamp
-- [ ] 2.3.1.10 Implement `delete/3` to remove memory triples:
+- [x] 2.3.1.10 Implement `delete/3` to remove memory triples:
   ```elixir
   @spec delete(store_handle(), String.t(), String.t()) :: :ok | {:error, term()}
   def delete(store, session_id, memory_id)
   ```
   - Delete all triples with memory as subject
   - Use SPARQL DELETE WHERE
-- [ ] 2.3.1.11 Implement `record_access/3` to track memory access:
+- [x] 2.3.1.11 Implement `record_access/3` to track memory access:
   ```elixir
   @spec record_access(store_handle(), String.t(), String.t()) :: :ok
   def record_access(store, session_id, memory_id)
   ```
   - Update access count triple
   - Update last accessed timestamp triple
-- [ ] 2.3.1.12 Implement `count/2` to count memories for session:
+- [x] 2.3.1.12 Implement `count/2` to count memories for session:
   ```elixir
   @spec count(store_handle(), String.t()) :: {:ok, non_neg_integer()}
   def count(store, session_id)
   ```
-- [ ] 2.3.1.13 Implement private `build_select_query/3` for SPARQL generation
-- [ ] 2.3.1.14 Implement private `parse_query_result/1` to convert query result to stored_memory
-- [ ] 2.3.1.15 Implement private `extract_id/1` to extract id from memory IRI
+- [x] 2.3.1.13 Implement private `build_select_query/3` for SPARQL generation
+- [x] 2.3.1.14 Implement private `parse_query_result/1` to convert query result to stored_memory
+- [x] 2.3.1.15 Implement private `extract_id/1` to extract id from memory IRI
 
 ### 2.3.2 Unit Tests for TripleStoreAdapter
 
-- [ ] Test persist/2 creates correct type triple
-- [ ] Test persist/2 creates summary triple with content
-- [ ] Test persist/2 creates confidence triple with correct level
-- [ ] Test persist/2 creates source type triple
-- [ ] Test persist/2 creates session scoping triple (assertedIn)
-- [ ] Test persist/2 creates timestamp triple
-- [ ] Test persist/2 includes optional agent triple when present
-- [ ] Test persist/2 includes optional project triple when present
-- [ ] Test persist/2 includes optional rationale triple when present
-- [ ] Test persist/2 creates evidence triples for each reference
-- [ ] Test persist/2 returns {:ok, id} on success
-- [ ] Test query_by_type/3 returns memories of specified type only
-- [ ] Test query_by_type/3 respects limit option
-- [ ] Test query_by_type/3 filters by session_id
-- [ ] Test query_all/3 returns all memories for session
-- [ ] Test query_all/3 filters by min_confidence
-- [ ] Test query_all/3 excludes superseded memories by default
-- [ ] Test query_all/3 includes superseded with option
-- [ ] Test query_by_id/2 returns specific memory
-- [ ] Test query_by_id/2 returns {:error, :not_found} for missing id
-- [ ] Test supersede/4 adds supersededBy triple
-- [ ] Test supersede/4 adds supersession timestamp
-- [ ] Test delete/3 removes all triples for memory
-- [ ] Test record_access/3 updates access tracking
-- [ ] Test count/2 returns correct count
+- [x] Test persist/2 creates correct type triple
+- [x] Test persist/2 creates summary triple with content
+- [x] Test persist/2 creates confidence triple with correct level
+- [x] Test persist/2 creates source type triple
+- [x] Test persist/2 creates session scoping triple (assertedIn)
+- [x] Test persist/2 creates timestamp triple
+- [x] Test persist/2 includes optional agent triple when present
+- [x] Test persist/2 includes optional project triple when present
+- [x] Test persist/2 includes optional rationale triple when present
+- [x] Test persist/2 creates evidence triples for each reference
+- [x] Test persist/2 returns {:ok, id} on success
+- [x] Test query_by_type/3 returns memories of specified type only
+- [x] Test query_by_type/3 respects limit option
+- [x] Test query_by_type/3 filters by session_id
+- [x] Test query_all/3 returns all memories for session
+- [x] Test query_all/3 filters by min_confidence
+- [x] Test query_all/3 excludes superseded memories by default
+- [x] Test query_all/3 includes superseded with option
+- [x] Test query_by_id/2 returns specific memory
+- [x] Test query_by_id/2 returns {:error, :not_found} for missing id
+- [x] Test supersede/4 adds supersededBy triple
+- [x] Test supersede/4 adds supersession timestamp
+- [x] Test delete/3 removes all triples for memory
+- [x] Test record_access/3 updates access tracking
+- [x] Test count/2 returns correct count
 
 ---
 

@@ -132,10 +132,10 @@ Expose the tool through the Manager API for session-aware execution.
 
 Implement the write_file tool for creating/overwriting files through the Lua sandbox.
 
-### 1.2.1 Tool Definition
+### 1.2.1 Tool Definition ✅
 
-- [ ] 1.2.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_write.ex`
-- [ ] 1.2.1.2 Define schema:
+- [x] 1.2.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_write.ex`
+- [x] 1.2.1.2 Define schema:
   ```elixir
   %{
     name: "write_file",
@@ -146,24 +146,24 @@ Implement the write_file tool for creating/overwriting files through the Lua san
     ]
   }
   ```
-- [ ] 1.2.1.3 Register tool in definitions module
+- [x] 1.2.1.3 Register tool in definitions module
 
-### 1.2.2 Bridge Function Implementation
+### 1.2.2 Bridge Function Implementation ✅
 
-- [ ] 1.2.2.1 Update existing `lua_write_file/3` in `bridge.ex` if needed
-- [ ] 1.2.2.2 Use `Security.atomic_write/3` for TOCTOU-safe writing
-- [ ] 1.2.2.3 Validate content size (max 10MB)
-- [ ] 1.2.2.4 Create parent directories via `jido.mkdir_p` if needed
-- [ ] 1.2.2.5 Return `{[true], state}` on success or `{[nil, error], state}` on failure
+- [x] 1.2.2.1 Update existing `lua_write_file/3` in `bridge.ex` if needed
+- [x] 1.2.2.2 Use `Security.atomic_write/3` for TOCTOU-safe writing
+- [x] 1.2.2.3 Validate content size (max 10MB)
+- [x] 1.2.2.4 Create parent directories via `jido.mkdir_p` if needed
+- [x] 1.2.2.5 Return `{[true], state}` on success or `{[nil, error], state}` on failure
 
-### 1.2.3 Unit Tests for Write File
+### 1.2.3 Unit Tests for Write File ✅
 
-- [ ] Test write_file through sandbox creates new file
-- [ ] Test write_file creates parent directories
-- [ ] Test write_file rejects paths outside boundary
-- [ ] Test write_file rejects content exceeding 10MB
-- [ ] Test write_file handles permission errors
-- [ ] Test write_file atomic behavior (no partial writes)
+- [x] Test write_file through sandbox creates new file
+- [x] Test write_file creates parent directories
+- [x] Test write_file rejects paths outside boundary
+- [x] Test write_file rejects content exceeding 10MB
+- [x] Test write_file handles permission errors
+- [x] Test write_file atomic behavior (no partial writes)
 
 ---
 
@@ -171,10 +171,10 @@ Implement the write_file tool for creating/overwriting files through the Lua san
 
 Implement the edit_file tool for surgical search/replace modifications through the Lua sandbox.
 
-### 1.3.1 Tool Definition
+### 1.3.1 Tool Definition ✅
 
-- [ ] 1.3.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_edit.ex`
-- [ ] 1.3.1.2 Define schema:
+- [x] 1.3.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_edit.ex`
+- [x] 1.3.1.2 Define schema:
   ```elixir
   %{
     name: "edit_file",
@@ -188,29 +188,31 @@ Implement the edit_file tool for surgical search/replace modifications through t
   }
   ```
 
-### 1.3.2 Bridge Function Implementation
+### 1.3.2 Handler Implementation ✅
 
-- [ ] 1.3.2.1 Add `lua_edit_file/3` to `bridge.ex`
-- [ ] 1.3.2.2 Use `Security.atomic_read/2` to read current content
-- [ ] 1.3.2.3 Implement multi-strategy matching:
+Note: edit_file uses the Handler pattern instead of Lua bridge for more complex matching logic.
+
+- [x] 1.3.2.1 Create `EditFile` handler in `lib/jido_code/tools/handlers/file_system.ex`
+- [x] 1.3.2.2 Use `Security.atomic_read/2` to read current content
+- [x] 1.3.2.3 Implement multi-strategy matching:
   1. Exact string match (primary)
   2. Line-trimmed match (fallback)
   3. Whitespace-normalized match (fallback)
   4. Indentation-flexible match (fallback)
-- [ ] 1.3.2.4 Count occurrences - error if multiple and `replace_all` is false
-- [ ] 1.3.2.5 Use `Security.atomic_write/3` to write modified content
-- [ ] 1.3.2.6 Return `{[count], state}` with replacement count or `{[nil, error], state}`
-- [ ] 1.3.2.7 Register in `Bridge.register/2`
+- [x] 1.3.2.4 Count occurrences - error if multiple and `replace_all` is false
+- [x] 1.3.2.5 Use `Security.atomic_write/3` to write modified content
+- [x] 1.3.2.6 Return `{:ok, message}` or `{:error, message}` with match strategy info
+- [x] 1.3.2.7 Register handler in tool definition
 
-### 1.3.3 Unit Tests for Edit File
+### 1.3.3 Unit Tests for Edit File ✅
 
-- [ ] Test edit_file with exact match succeeds
-- [ ] Test edit_file with whitespace variations uses fallback
-- [ ] Test edit_file with indentation differences uses fallback
-- [ ] Test edit_file fails on multiple matches (without replace_all)
-- [ ] Test edit_file with replace_all replaces all occurrences
-- [ ] Test edit_file fails on no match
-- [ ] Test edit_file validates boundary through sandbox
+- [x] Test edit_file with exact match succeeds
+- [x] Test edit_file with whitespace variations uses fallback
+- [x] Test edit_file with indentation differences uses fallback
+- [x] Test edit_file fails on multiple matches (without replace_all)
+- [x] Test edit_file with replace_all replaces all occurrences
+- [x] Test edit_file fails on no match
+- [x] Test edit_file validates boundary through sandbox
 
 ---
 
@@ -375,10 +377,12 @@ Code review findings addressed:
 
 Implement the delete_file tool for file removal through the Lua sandbox.
 
-### 1.7.1 Tool Definition
+### 1.7.1 Tool Definition ✅
 
-- [ ] 1.7.1.1 Create tool definition in `lib/jido_code/tools/definitions/delete_file.ex`
-- [ ] 1.7.1.2 Define schema:
+Note: delete_file is defined in `lib/jido_code/tools/definitions/file_system.ex` rather than a separate file.
+
+- [x] 1.7.1.1 Create tool definition in `lib/jido_code/tools/definitions/file_system.ex`
+- [x] 1.7.1.2 Define schema:
   ```elixir
   %{
     name: "delete_file",
@@ -389,21 +393,21 @@ Implement the delete_file tool for file removal through the Lua sandbox.
   }
   ```
 
-### 1.7.2 Bridge Function Implementation
+### 1.7.2 Bridge Function Implementation ✅
 
-- [ ] 1.7.2.1 Update existing `lua_delete_file/3` in `bridge.ex` if needed
-- [ ] 1.7.2.2 Use `Security.validate_path/3` before deletion
-- [ ] 1.7.2.3 Verify target is a file (not directory)
-- [ ] 1.7.2.4 Delete file with `File.rm/1`
-- [ ] 1.7.2.5 Return `{[true], state}` or `{[nil, error], state}`
+- [x] 1.7.2.1 Update existing `lua_delete_file/3` in `bridge.ex` if needed
+- [x] 1.7.2.2 Use `Security.validate_path/3` before deletion
+- [x] 1.7.2.3 Verify target is a file (not directory)
+- [x] 1.7.2.4 Delete file with `File.rm/1`
+- [x] 1.7.2.5 Return `{[true], state}` or `{[nil, error], state}`
 
-### 1.7.3 Unit Tests for Delete File
+### 1.7.3 Unit Tests for Delete File ✅
 
-- [ ] Test delete_file removes existing file through sandbox
-- [ ] Test delete_file fails for non-existent file
-- [ ] Test delete_file fails for directories
-- [ ] Test delete_file validates boundary
-- [ ] Test delete_file handles permission errors
+- [x] Test delete_file removes existing file through sandbox
+- [x] Test delete_file fails for non-existent file
+- [x] Test delete_file fails for directories
+- [x] Test delete_file validates boundary
+- [x] Test delete_file handles permission errors
 
 ---
 

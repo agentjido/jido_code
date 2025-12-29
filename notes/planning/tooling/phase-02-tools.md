@@ -41,175 +41,97 @@ All search and shell tools follow this execution flow:
 
 ## Tools in This Phase
 
-| Tool | Bridge Function | Purpose |
-|------|-----------------|---------|
-| grep_search | `jido.grep(pattern, opts)` | Regex-based code searching with ripgrep |
-| bash_execute | `jido.shell(cmd, opts)` | Foreground command execution |
-| bash_background | `jido.shell_background(cmd)` | Background process spawning |
-| bash_output | `jido.shell_output(shell_id)` | Background output retrieval |
-| kill_shell | `jido.shell_kill(shell_id)` | Background process termination |
+| Tool | Implementation | Purpose | Status |
+|------|----------------|---------|--------|
+| grep | Handler pattern | Regex-based code searching | ✅ Implemented |
+| run_command | Handler pattern | Foreground command execution | ✅ Implemented |
+| bash_background | - | Background process spawning | ❌ Deferred |
+| bash_output | - | Background output retrieval | ❌ Deferred |
+| kill_shell | - | Background process termination | ❌ Deferred |
+
+> **Note:** The implementation uses the Handler pattern (direct Elixir execution) instead of the Lua bridge pattern for grep and run_command. Background shell tools (2.3-2.5) are deferred to a future phase.
 
 ---
 
-## 2.1 Grep Search Tool
+## 2.1 Grep Tool ✅
 
-Implement the grep_search tool using ripgrep for regex-based code searching. The tool executes through the Lua sandbox via the `jido.grep` bridge function.
+Implement the grep tool for regex-based code searching. Uses the Handler pattern with direct Elixir execution.
 
-### 2.1.1 Tool Definition
+### 2.1.1 Tool Definition ✅
 
-Create the grep_search tool definition with comprehensive options.
+Note: Implemented as `grep` in `lib/jido_code/tools/definitions/search.ex`
 
-- [ ] 2.1.1.1 Create `lib/jido_code/tools/definitions/grep_search.ex`
-- [ ] 2.1.1.2 Define comprehensive schema:
-  ```elixir
-  %{
-    name: "grep_search",
-    description: "Search file contents with regex pattern using ripgrep.",
-    parameters: [
-      %{name: "pattern", type: :string, required: true, description: "Regex pattern"},
-      %{name: "path", type: :string, required: false, description: "Search directory"},
-      %{name: "output_mode", type: :string, required: false,
-        enum: ["content", "files_with_matches", "count"]},
-      %{name: "context_before", type: :integer, required: false, description: "Lines before (-B)"},
-      %{name: "context_after", type: :integer, required: false, description: "Lines after (-A)"},
-      %{name: "context", type: :integer, required: false, description: "Lines before and after (-C)"},
-      %{name: "file_type", type: :string, required: false, description: "File type filter (ex, js)"},
-      %{name: "case_insensitive", type: :boolean, required: false},
-      %{name: "multiline", type: :boolean, required: false},
-      %{name: "head_limit", type: :integer, required: false, description: "Max results"}
-    ]
-  }
-  ```
-- [ ] 2.1.1.3 Register tool in definitions module
+- [x] 2.1.1.1 Create tool definition in `lib/jido_code/tools/definitions/search.ex`
+- [x] 2.1.1.2 Define schema with pattern, path, recursive, max_results parameters
+- [x] 2.1.1.3 Register tool via `Search.all/0`
 
-### 2.1.2 Bridge Function Implementation
+### 2.1.2 Handler Implementation ✅
 
-Implement the Bridge function that executes within the Lua sandbox.
+Note: Uses Handler pattern instead of Lua bridge for simpler implementation.
 
-- [ ] 2.1.2.1 Add `lua_grep/3` function to `lib/jido_code/tools/bridge.ex`
-  ```elixir
-  def lua_grep(args, state, project_root) do
-    case args do
-      [pattern] -> do_grep(pattern, %{}, state, project_root)
-      [pattern, opts] -> do_grep(pattern, decode_opts(opts), state, project_root)
-      _ -> {[nil, "grep requires pattern argument"], state}
-    end
-  end
-  ```
-- [ ] 2.1.2.2 Validate search path within boundary using `Security.validate_path/3`
-- [ ] 2.1.2.3 Build ripgrep command with all options
-- [ ] 2.1.2.4 Execute ripgrep with timeout (default 30 seconds)
-- [ ] 2.1.2.5 Parse output based on output_mode:
-  - `content`: Show matching lines with context
-  - `files_with_matches`: Show only file paths
-  - `count`: Show match counts per file
-- [ ] 2.1.2.6 Apply head_limit to truncate large results
-- [ ] 2.1.2.7 Return `{[results], state}` or `{[nil, error], state}`
-- [ ] 2.1.2.8 Register in `Bridge.register/2`:
-  ```elixir
-  |> register_function("grep", &lua_grep/3, project_root)
-  ```
+- [x] 2.1.2.1 Create `Grep` handler in `lib/jido_code/tools/handlers/search.ex`
+- [x] 2.1.2.2 Validate search path within boundary
+- [x] 2.1.2.3 Search file contents with regex pattern
+- [x] 2.1.2.4 Return matched lines with file paths and line numbers
+- [x] 2.1.2.5 Apply max_results limit
+- [x] 2.1.2.6 Handle recursive search option
 
-### 2.1.3 Manager API
+### 2.1.3 Unit Tests for Grep ✅
 
-Expose the tool through the Manager API for session-aware execution.
-
-- [ ] 2.1.3.1 Add `grep/3` to `Tools.Manager` that accepts pattern and options
-- [ ] 2.1.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 2.1.3.3 Call bridge function through Lua: `jido.grep(pattern, opts)`
-
-### 2.1.4 Unit Tests for Grep Search
-
-- [ ] Test grep_search through sandbox finds pattern matches
-- [ ] Test grep_search with context_before lines
-- [ ] Test grep_search with context_after lines
-- [ ] Test grep_search with combined context
-- [ ] Test grep_search with file type filter
-- [ ] Test grep_search multiline mode
-- [ ] Test grep_search output mode: content
-- [ ] Test grep_search output mode: files_with_matches
-- [ ] Test grep_search output mode: count
-- [ ] Test grep_search case insensitive
-- [ ] Test grep_search validates boundary through sandbox
-- [ ] Test grep_search handles no matches gracefully
-- [ ] Test grep_search handles invalid regex
+- [x] Test grep finds pattern matches
+- [x] Test grep with recursive search
+- [x] Test grep with max_results limit
+- [x] Test grep validates boundary
+- [x] Test grep handles no matches gracefully
+- [x] Test grep handles invalid regex
 
 ---
 
-## 2.2 Bash Execute Tool
+## 2.2 Run Command Tool ✅
 
-Implement the bash_execute tool for foreground command execution through the Lua sandbox.
+Implement the run_command tool for foreground command execution. Uses the Handler pattern with security validation.
 
-### 2.2.1 Tool Definition
+### 2.2.1 Tool Definition ✅
 
-Create the bash_execute tool definition for foreground commands.
+Note: Implemented as `run_command` in `lib/jido_code/tools/definitions/shell.ex`
 
-- [ ] 2.2.1.1 Create `lib/jido_code/tools/definitions/bash_execute.ex`
-- [ ] 2.2.1.2 Define schema:
-  ```elixir
-  %{
-    name: "bash_execute",
-    description: "Execute shell command. Command must be in allowlist.",
-    parameters: [
-      %{name: "command", type: :string, required: true, description: "Shell command"},
-      %{name: "description", type: :string, required: false, description: "5-10 word description"},
-      %{name: "timeout", type: :integer, required: false, description: "Timeout in ms (default: 120000)"},
-      %{name: "working_directory", type: :string, required: false, description: "Override working directory"}
-    ]
-  }
-  ```
-- [ ] 2.2.1.3 Document allowed command patterns in description
-- [ ] 2.2.1.4 Register tool in definitions module
+- [x] 2.2.1.1 Create tool definition in `lib/jido_code/tools/definitions/shell.ex`
+- [x] 2.2.1.2 Define schema with command, args, timeout parameters
+- [x] 2.2.1.3 Document allowed command patterns in description
+- [x] 2.2.1.4 Register tool via `Shell.all/0`
 
-### 2.2.2 Bridge Function Implementation
+### 2.2.2 Handler Implementation ✅
 
-Implement the Bridge function for shell execution within the Lua sandbox.
+Note: Uses Handler pattern instead of Lua bridge.
 
-- [ ] 2.2.2.1 Update existing `lua_shell/3` in `lib/jido_code/tools/bridge.ex`
-  ```elixir
-  def lua_shell(args, state, project_root) do
-    case args do
-      [command] -> do_shell(command, %{}, state, project_root)
-      [command, opts] -> do_shell(command, decode_opts(opts), state, project_root)
-      _ -> {[nil, "shell requires command argument"], state}
-    end
-  end
-  ```
-- [ ] 2.2.2.2 Use `Security.validate_command/1` to check against allowlist:
-  - Allowed: mix, git, npm, node, elixir, erl, rebar3, etc.
-  - Blocked: bash, sh, zsh, rm -rf /, sudo, etc.
-- [ ] 2.2.2.3 Block shell interpreters (bash, sh, zsh directly)
-- [ ] 2.2.2.4 Block dangerous patterns (rm -rf /, etc.)
-- [ ] 2.2.2.5 Set working directory to project root (or override if within boundary)
-- [ ] 2.2.2.6 Execute command with System.cmd or Port
-- [ ] 2.2.2.7 Apply timeout (default 120000ms, max 600000ms)
-- [ ] 2.2.2.8 Capture stdout and stderr separately
-- [ ] 2.2.2.9 Truncate output at 30,000 characters with indicator
-- [ ] 2.2.2.10 Return `{[%{output: output, exit_code: code, stderr: stderr}], state}` or `{[nil, error], state}`
+- [x] 2.2.2.1 Create `RunCommand` handler in `lib/jido_code/tools/handlers/shell.ex`
+- [x] 2.2.2.2 Implement command allowlist validation:
+  - Allowed: mix, git, npm, node, elixir, erl, rebar3, ls, cat, grep, etc.
+  - Blocked: bash, sh, zsh, sudo, etc.
+- [x] 2.2.2.3 Block shell interpreters (bash, sh, zsh directly)
+- [x] 2.2.2.4 Block path traversal in arguments
+- [x] 2.2.2.5 Set working directory to project root
+- [x] 2.2.2.6 Execute command with timeout enforcement
+- [x] 2.2.2.7 Apply timeout (default 25000ms)
+- [x] 2.2.2.8 Capture stdout (stderr merged)
+- [x] 2.2.2.9 Truncate output at 1MB
+- [x] 2.2.2.10 Return JSON with exit_code and stdout
 
-### 2.2.3 Manager API
+### 2.2.3 Unit Tests for Run Command ✅
 
-- [ ] 2.2.3.1 Add `shell/2` to `Tools.Manager` that accepts command and options
-- [ ] 2.2.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 2.2.3.3 Call bridge function through Lua: `jido.shell(command, opts)`
-
-### 2.2.4 Unit Tests for Bash Execute
-
-- [ ] Test bash_execute through sandbox runs allowed commands (mix compile)
-- [ ] Test bash_execute runs git commands (git status)
-- [ ] Test bash_execute blocks dangerous commands
-- [ ] Test bash_execute blocks shell interpreters
-- [ ] Test bash_execute respects timeout
-- [ ] Test bash_execute handles timeout exceeded
-- [ ] Test bash_execute captures exit code
-- [ ] Test bash_execute captures stderr separately
-- [ ] Test bash_execute truncates long output
-- [ ] Test bash_execute uses project working directory
-- [ ] Test bash_execute respects working_directory override within boundary
+- [x] Test run_command runs allowed commands (mix compile)
+- [x] Test run_command runs git commands (git status)
+- [x] Test run_command blocks dangerous commands
+- [x] Test run_command blocks shell interpreters
+- [x] Test run_command respects timeout
+- [x] Test run_command captures exit code
+- [x] Test run_command uses project working directory
 
 ---
 
-## 2.3 Bash Background Tool
+## 2.3 Bash Background Tool ❌ Deferred
+
+> **Note:** Background shell tools are deferred to a future phase. The current implementation focuses on foreground execution via `run_command`.
 
 Implement the bash_background tool for starting long-running processes through the Lua sandbox.
 
@@ -270,7 +192,9 @@ Implement the Bridge function for background process management.
 
 ---
 
-## 2.4 Bash Output Tool
+## 2.4 Bash Output Tool ❌ Deferred
+
+> **Note:** Background shell tools are deferred to a future phase.
 
 Implement the bash_output tool for retrieving output from background processes through the Lua sandbox.
 
@@ -334,7 +258,9 @@ Implement the Bridge function for background output retrieval.
 
 ---
 
-## 2.5 Kill Shell Tool
+## 2.5 Kill Shell Tool ❌ Deferred
+
+> **Note:** Background shell tools are deferred to a future phase.
 
 Implement the kill_shell tool for terminating background processes through the Lua sandbox.
 

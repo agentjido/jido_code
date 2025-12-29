@@ -314,12 +314,12 @@ The handler is implemented in `lib/jido_code/tools/handlers/lsp.ex`:
 - [x] 3.4.2.2 Validate INPUT path using `HandlerHelpers.validate_path/2`
 - [x] 3.4.2.3 Position handling (1-indexed for display; 0-indexed conversion in Phase 3.6)
 - [x] 3.4.2.4 LSP server integration placeholder (awaiting Phase 3.6 LSP client)
-- [ ] 3.4.2.5 Validate OUTPUT path from LSP response (SECURITY):
+- [x] 3.4.2.5 Validate OUTPUT path from LSP response (SECURITY):
   - Within project_root: Return relative path
   - In deps/ or _build/: Return relative path (allow read-only access)
   - In stdlib/OTP: Return sanitized indicator (e.g., `"elixir:File"`)
   - Outside all boundaries: Return error without revealing actual path
-- [ ] 3.4.2.6 Handle multiple definitions (LSP can return array of locations)
+- [x] 3.4.2.6 Handle multiple definitions (LSP can return array of locations)
 - [x] 3.4.2.7 Returns `{:ok, map}` or `{:error, string}` per Handler pattern
 - [x] 3.4.2.8 Emit telemetry for `:go_to_definition` operation
 - [x] 3.4.2.9 Add `format_error/2` clause for `:definition_not_found`
@@ -338,34 +338,52 @@ The Executor handles session-aware context routing via `HandlerHelpers`.
 Tests should be added to `test/jido_code/tools/definitions/lsp_test.exs`:
 
 **Schema & Format:**
-- [ ] Test tool definition has correct schema
-- [ ] Test generates valid LLM function format
+- [x] Test tool definition has correct schema
+- [x] Test generates valid LLM function format
 
 **Executor Integration:**
-- [ ] Test go_to_definition works via executor for Elixir files
-- [ ] Test go_to_definition handles non-Elixir files (unsupported_file_type)
-- [ ] Test go_to_definition returns error for non-existent file
-- [ ] Test executor validates required arguments (path, line, character)
+- [x] Test go_to_definition works via executor for Elixir files
+- [x] Test go_to_definition handles non-Elixir files (unsupported_file_type)
+- [x] Test go_to_definition returns error for non-existent file
+- [x] Test executor validates required arguments (path, line, character)
 
 **Parameter Validation:**
-- [ ] Test validates line number (must be >= 1)
-- [ ] Test validates character number (must be >= 1)
+- [x] Test validates line number (must be >= 1)
+- [x] Test validates character number (must be >= 1)
 
 **Functional:**
-- [ ] Test finds function definition (placeholder: lsp_not_configured)
-- [ ] Test finds module definition (placeholder: lsp_not_configured)
-- [ ] Test handles no definition found
-- [ ] Test handles multiple definitions (returns array)
+- [x] Test finds function definition (placeholder: lsp_not_configured)
+- [x] Test finds module definition (placeholder: lsp_not_configured)
+- [x] Test handles no definition found
+- [x] Test handles multiple definitions (returns array)
 
 **Security (CRITICAL):**
-- [ ] Test blocks path traversal in input
-- [ ] Test blocks absolute paths outside project in input
-- [ ] Test sanitizes external paths in output (does not reveal system paths)
-- [ ] Test error messages do not reveal external file paths
+- [x] Test blocks path traversal in input
+- [x] Test blocks absolute paths outside project in input
+- [x] Test sanitizes external paths in output (does not reveal system paths)
+- [x] Test error messages do not reveal external file paths
 
 **Session & LLM:**
-- [ ] Test session-aware context uses session_id when provided
-- [ ] Test results can be converted to LLM messages
+- [x] Test session-aware context uses session_id when provided
+- [x] Test results can be converted to LLM messages
+
+**Output Path Validation (3.4.2.5):**
+- [x] Test returns relative path for project files
+- [x] Test returns relative path for deps files
+- [x] Test returns relative path for _build files
+- [x] Test sanitizes Elixir stdlib paths
+- [x] Test sanitizes Erlang OTP paths
+- [x] Test returns error for external paths
+- [x] Test validates multiple output paths
+
+**LSP Response Processing (3.4.2.6):**
+- [x] Test processes nil response as not found
+- [x] Test processes empty array as not found
+- [x] Test processes single definition
+- [x] Test processes multiple definitions
+- [x] Test filters out external paths from multiple definitions
+- [x] Test returns not found when all definitions are external
+- [x] Test handles stdlib definitions
 
 Note: Full LSP integration tests (actual definition navigation) deferred to Phase 3.6
 when LSP client is implemented.

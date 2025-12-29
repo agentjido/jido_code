@@ -109,6 +109,170 @@ defmodule JidoCode.Tools.Handlers.LSP do
   end
 
   defp sanitize_path_for_telemetry(_), do: "<unknown>"
+
+  # ============================================================================
+  # Output Path Validation (Security)
+  # ============================================================================
+
+  @doc """
+  Validates and sanitizes an output path from an LSP response.
+
+  This function ensures that paths returned by the LSP server are safe to expose
+  to the LLM agent. It applies the following rules:
+
+  1. **Within project_root** - Returns relative path
+  2. **In deps/ or _build/** - Returns relative path (read-only access allowed)
+  3. **In stdlib/OTP** - Returns sanitized indicator (e.g., "elixir:File")
+  4. **Outside all boundaries** - Returns error without revealing actual path
+
+  ## Parameters
+
+  - `path` - The absolute path returned by the LSP server
+  - `context` - Execution context with project_root
+
+  ## Returns
+
+  - `{:ok, sanitized_path}` - Safe path to return to LLM
+  - `{:error, :external_path}` - Path is outside allowed boundaries
+
+  ## Examples
+
+      iex> validate_output_path("/project/lib/foo.ex", %{project_root: "/project"})
+      {:ok, "lib/foo.ex"}
+
+      iex> validate_output_path("/project/deps/jason/lib/jason.ex", %{project_root: "/project"})
+      {:ok, "deps/jason/lib/jason.ex"}
+
+      iex> validate_output_path("/usr/lib/elixir/lib/elixir/lib/file.ex", %{project_root: "/project"})
+      {:ok, "elixir:File"}
+
+      iex> validate_output_path("/home/user/secret.ex", %{project_root: "/project"})
+      {:error, :external_path}
+  """
+  @spec validate_output_path(String.t(), map()) :: {:ok, String.t()} | {:error, :external_path}
+  def validate_output_path(path, context) when is_binary(path) do
+    with {:ok, project_root} <- get_project_root(context) do
+      cond do
+        # Check if path is within project (including deps/ and _build/)
+        path_within_project?(path, project_root) ->
+          {:ok, Path.relative_to(path, project_root)}
+
+        # Check if path is in Elixir stdlib
+        elixir_stdlib_path?(path) ->
+          {:ok, sanitize_stdlib_path(path, :elixir)}
+
+        # Check if path is in Erlang/OTP
+        erlang_otp_path?(path) ->
+          {:ok, sanitize_stdlib_path(path, :erlang)}
+
+        # Path is outside all allowed boundaries
+        true ->
+          Logger.warning("LSP returned external path (not exposed): #{truncate_path(path)}")
+          {:error, :external_path}
+      end
+    else
+      {:error, _reason} ->
+        # Without project_root, we can't validate - treat as external
+        {:error, :external_path}
+    end
+  end
+
+  def validate_output_path(nil, _context), do: {:error, :external_path}
+
+  @doc """
+  Validates multiple output paths from an LSP response (for multiple definitions).
+
+  Filters out any paths that fail validation and returns only safe paths.
+  If all paths are filtered out, returns an empty list (not an error).
+  """
+  @spec validate_output_paths([String.t()], map()) :: {:ok, [String.t()]}
+  def validate_output_paths(paths, context) when is_list(paths) do
+    validated =
+      paths
+      |> Enum.map(&validate_output_path(&1, context))
+      |> Enum.filter(&match?({:ok, _}, &1))
+      |> Enum.map(fn {:ok, path} -> path end)
+
+    {:ok, validated}
+  end
+
+  # Check if path is within project directory
+  defp path_within_project?(path, project_root) do
+    # Normalize both paths for comparison
+    normalized_path = Path.expand(path)
+    normalized_root = Path.expand(project_root)
+
+    String.starts_with?(normalized_path, normalized_root <> "/") or
+      normalized_path == normalized_root
+  end
+
+  # Check if path is in Elixir stdlib
+  # Common patterns: /usr/lib/elixir/, ~/.asdf/installs/elixir/, ~/.kiex/elixirs/
+  defp elixir_stdlib_path?(path) do
+    patterns = [
+      ~r{/elixir/[^/]+/lib/elixir/},
+      ~r{/lib/elixir/lib/},
+      ~r{\.asdf/installs/elixir/},
+      ~r{\.kiex/elixirs/},
+      ~r{/elixir-[0-9]+\.[0-9]+}
+    ]
+
+    Enum.any?(patterns, &Regex.match?(&1, path))
+  end
+
+  # Check if path is in Erlang/OTP
+  # Common patterns: /usr/lib/erlang/, ~/.asdf/installs/erlang/
+  defp erlang_otp_path?(path) do
+    patterns = [
+      ~r{/erlang/[^/]+/lib/},
+      ~r{/lib/erlang/lib/},
+      ~r{\.asdf/installs/erlang/},
+      ~r{/otp[_-]?[0-9]+}
+    ]
+
+    Enum.any?(patterns, &Regex.match?(&1, path))
+  end
+
+  # Sanitize stdlib path to a safe indicator
+  # e.g., "/usr/lib/elixir/lib/elixir/lib/file.ex" -> "elixir:File"
+  defp sanitize_stdlib_path(path, :elixir) do
+    # Extract the module name from the path
+    case Regex.run(~r{lib/([^/]+)\.ex$}, path) do
+      [_, module_name] ->
+        # Convert file name to module name (e.g., "file" -> "File")
+        module = module_name |> Macro.camelize()
+        "elixir:#{module}"
+
+      nil ->
+        # Fallback for non-standard paths
+        "elixir:stdlib"
+    end
+  end
+
+  defp sanitize_stdlib_path(path, :erlang) do
+    # Extract the module name from the path
+    case Regex.run(~r{/([^/]+)/src/([^/]+)\.erl$}, path) do
+      [_, _app, module_name] ->
+        "erlang:#{module_name}"
+
+      nil ->
+        case Regex.run(~r{/([^/]+)\.erl$}, path) do
+          [_, module_name] -> "erlang:#{module_name}"
+          nil -> "erlang:otp"
+        end
+    end
+  end
+
+  # Truncate path for logging (don't reveal full path structure)
+  defp truncate_path(path) when is_binary(path) do
+    if String.length(path) > 30 do
+      "...#{String.slice(path, -27, 27)}"
+    else
+      path
+    end
+  end
+
+  defp truncate_path(_), do: "<unknown>"
 end
 
 defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
@@ -287,6 +451,54 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   - `{:ok, result}` - Map with definition location(s)
   - `{:error, reason}` - Error message string
 
+  ## Response Format
+
+  When LSP is configured, returns one of:
+
+  ### Single Definition
+  ```elixir
+  %{
+    "status" => "found",
+    "definition" => %{
+      "path" => "lib/my_module.ex",
+      "line" => 15,
+      "character" => 3
+    }
+  }
+  ```
+
+  ### Multiple Definitions (e.g., protocol implementations)
+  ```elixir
+  %{
+    "status" => "found",
+    "definitions" => [
+      %{"path" => "lib/impl_a.ex", "line" => 10, "character" => 3},
+      %{"path" => "lib/impl_b.ex", "line" => 20, "character" => 3}
+    ]
+  }
+  ```
+
+  ### Stdlib Definition
+  ```elixir
+  %{
+    "status" => "found",
+    "definition" => %{
+      "path" => "elixir:File",
+      "line" => nil,
+      "character" => nil
+    },
+    "note" => "Definition is in Elixir standard library"
+  }
+  ```
+
+  ## Output Path Security
+
+  All paths returned by the LSP server are validated and sanitized:
+  - Project paths: Returned as relative paths
+  - Dependency paths: Returned as relative paths (deps/*, _build/*)
+  - Stdlib paths: Returned as "elixir:Module" or "erlang:module"
+  - External paths: Filtered out (not exposed to LLM)
+
   ## LSP Integration
 
   This handler is designed to integrate with an LSP client (e.g., ElixirLS, Lexical).
@@ -425,4 +637,117 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
     ext = Path.extname(path) |> String.downcase()
     ext in [".ex", ".exs"]
   end
+
+  # ============================================================================
+  # LSP Response Processing (for Phase 3.6 integration)
+  # ============================================================================
+
+  @doc """
+  Processes an LSP definition response, validating and sanitizing output paths.
+
+  This function will be called when the LSP client is integrated (Phase 3.6).
+  It handles both single and multiple definition responses from the LSP server.
+
+  ## Parameters
+
+  - `lsp_response` - Raw response from LSP server (single Location or array)
+  - `context` - Execution context with project_root
+
+  ## Returns
+
+  - `{:ok, result}` - Processed result with sanitized paths
+  - `{:error, :definition_not_found}` - No valid definitions found
+  """
+  @spec process_lsp_definition_response(map() | [map()] | nil, map()) ::
+          {:ok, map()} | {:error, :definition_not_found}
+  def process_lsp_definition_response(nil, _context), do: {:error, :definition_not_found}
+
+  def process_lsp_definition_response([], _context), do: {:error, :definition_not_found}
+
+  # Single definition (LSP Location)
+  def process_lsp_definition_response(%{"uri" => _uri} = location, context) do
+    process_lsp_definition_response([location], context)
+  end
+
+  # Multiple definitions (array of LSP Locations)
+  def process_lsp_definition_response(locations, context) when is_list(locations) do
+    processed =
+      locations
+      |> Enum.map(&process_single_location(&1, context))
+      |> Enum.filter(&match?({:ok, _}, &1))
+      |> Enum.map(fn {:ok, loc} -> loc end)
+
+    case processed do
+      [] ->
+        {:error, :definition_not_found}
+
+      [single] ->
+        {:ok,
+         %{
+           "status" => "found",
+           "definition" => single
+         }}
+
+      multiple ->
+        {:ok,
+         %{
+           "status" => "found",
+           "definitions" => multiple
+         }}
+    end
+  end
+
+  # Process a single LSP Location
+  defp process_single_location(%{"uri" => uri} = location, context) do
+    # Convert file:// URI to path
+    path = uri_to_path(uri)
+
+    case LSPHandlers.validate_output_path(path, context) do
+      {:ok, safe_path} ->
+        # Check if it's a stdlib reference
+        is_stdlib = String.starts_with?(safe_path, "elixir:") or String.starts_with?(safe_path, "erlang:")
+
+        definition =
+          if is_stdlib do
+            %{
+              "path" => safe_path,
+              "line" => nil,
+              "character" => nil,
+              "note" => "Definition is in standard library"
+            }
+          else
+            %{
+              "path" => safe_path,
+              "line" => get_line_from_location(location),
+              "character" => get_character_from_location(location)
+            }
+          end
+
+        {:ok, definition}
+
+      {:error, :external_path} ->
+        # Path is outside allowed boundaries - skip this location
+        {:error, :external_path}
+    end
+  end
+
+  defp process_single_location(_, _context), do: {:error, :invalid_location}
+
+  # Convert file:// URI to filesystem path
+  defp uri_to_path("file://" <> path), do: URI.decode(path)
+  defp uri_to_path(path), do: path
+
+  # Extract line number from LSP Location (convert 0-indexed to 1-indexed)
+  defp get_line_from_location(%{"range" => %{"start" => %{"line" => line}}}) when is_integer(line) do
+    line + 1
+  end
+
+  defp get_line_from_location(_), do: 1
+
+  # Extract character from LSP Location (convert 0-indexed to 1-indexed)
+  defp get_character_from_location(%{"range" => %{"start" => %{"character" => char}}}) when is_integer(char) do
+    char + 1
+  end
+
+  defp get_character_from_location(_), do: 1
 end

@@ -554,6 +554,21 @@ Integrate memory actions with the tool system for LLM access.
 
 ### 4.4.2 Executor Integration
 
+> **⚠️ STOP: Architecture Decision Required**
+>
+> Before proceeding with executor integration, an Architecture Decision Record (ADR) must be written and approved. This section modifies `lib/jido_code/tools/executor.ex`, which is also modified by the parallel Tooling implementation.
+>
+> **Decision to document:**
+> - Memory tools (remember, recall, forget) use Jido Actions pattern and bypass the Lua sandbox
+> - Standard tools route through Lua sandbox for security sandboxing
+> - Executor needs a guard clause to route memory tools differently
+>
+> **Required ADR:** `notes/decisions/XXXX-memory-tool-executor-routing.md`
+>
+> See `notes/planning/two-tier-memory/conciliation.md` for full conflict analysis.
+>
+> - [ ] 4.4.2.0 **Write and approve ADR for memory tool executor routing before proceeding**
+
 - [ ] 4.4.2.1 Update tool executor to handle memory actions:
   ```elixir
   def execute_tool(name, args, context) when name in ["remember", "recall", "forget"] do

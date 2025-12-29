@@ -774,6 +774,121 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Working Context Client API
+  # ============================================================================
+
+  @doc """
+  Updates a context item in the working context.
+
+  Stores or updates a value in the session's semantic scratchpad. If the key
+  already exists, the access_count is incremented and last_accessed is updated.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key (e.g., :framework, :primary_language)
+  - `value` - The value to store
+  - `opts` - Optional keyword list:
+    - `:source` - Source of the value (:inferred, :explicit, :tool)
+    - `:confidence` - Confidence level (0.0 to 1.0)
+    - `:memory_type` - Override inferred memory type
+
+  ## Returns
+
+  - `:ok` - Successfully updated context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.update_context("session-123", :framework, "Phoenix")
+      iex> :ok = State.update_context("session-123", :primary_language, "Elixir", source: :tool, confidence: 0.95)
+      iex> {:error, :not_found} = State.update_context("unknown", :framework, "Phoenix")
+  """
+  @spec update_context(String.t(), atom(), term(), keyword()) :: :ok | {:error, :not_found}
+  def update_context(session_id, key, value, opts \\ [])
+      when is_binary(session_id) and is_atom(key) do
+    call_state(session_id, {:update_context, key, value, opts})
+  end
+
+  @doc """
+  Gets a context value from the working context.
+
+  Retrieves the value for a key and updates access tracking (increments
+  access_count and updates last_accessed).
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key to retrieve
+
+  ## Returns
+
+  - `{:ok, value}` - The value for the key
+  - `{:error, :key_not_found}` - Key does not exist in context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, "Phoenix"} = State.get_context("session-123", :framework)
+      iex> {:error, :key_not_found} = State.get_context("session-123", :unknown_key)
+      iex> {:error, :not_found} = State.get_context("unknown", :framework)
+  """
+  @spec get_context(String.t(), atom()) :: {:ok, term()} | {:error, :not_found | :key_not_found}
+  def get_context(session_id, key)
+      when is_binary(session_id) and is_atom(key) do
+    call_state(session_id, {:get_context, key})
+  end
+
+  @doc """
+  Gets all context items as a simple key-value map.
+
+  Returns the working context as a map without metadata (just keys and values).
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, map}` - Map of context keys to values
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, %{framework: "Phoenix", primary_language: "Elixir"}} = State.get_all_context("session-123")
+      iex> {:ok, %{}} = State.get_all_context("empty-session")
+      iex> {:error, :not_found} = State.get_all_context("unknown")
+  """
+  @spec get_all_context(String.t()) :: {:ok, map()} | {:error, :not_found}
+  def get_all_context(session_id) when is_binary(session_id) do
+    call_state(session_id, :get_all_context)
+  end
+
+  @doc """
+  Clears all items from the working context.
+
+  Resets the working context to empty while preserving max_tokens setting.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `:ok` - Successfully cleared context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.clear_context("session-123")
+      iex> {:error, :not_found} = State.clear_context("unknown")
+  """
+  @spec clear_context(String.t()) :: :ok | {:error, :not_found}
+  def clear_context(session_id) when is_binary(session_id) do
+    call_state(session_id, :clear_context)
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 
@@ -1079,6 +1194,41 @@ defmodule JidoCode.Session.State do
     |> Enum.sort_by(fn {_path, timestamp} -> timestamp end, {:asc, DateTime})
     |> Enum.drop(map_size(file_map) - @max_file_operations)
     |> Map.new()
+  end
+
+  # ============================================================================
+  # Working Context Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call({:update_context, key, value, opts}, _from, state) do
+    updated_context = WorkingContext.put(state.working_context, key, value, opts)
+    new_state = %{state | working_context: updated_context}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call({:get_context, key}, _from, state) do
+    {updated_context, value} = WorkingContext.get(state.working_context, key)
+    new_state = %{state | working_context: updated_context}
+
+    case value do
+      nil -> {:reply, {:error, :key_not_found}, new_state}
+      val -> {:reply, {:ok, val}, new_state}
+    end
+  end
+
+  @impl true
+  def handle_call(:get_all_context, _from, state) do
+    context_map = WorkingContext.to_map(state.working_context)
+    {:reply, {:ok, context_map}, state}
+  end
+
+  @impl true
+  def handle_call(:clear_context, _from, state) do
+    cleared_context = WorkingContext.clear(state.working_context)
+    new_state = %{state | working_context: cleared_context}
+    {:reply, :ok, new_state}
   end
 
   # ============================================================================

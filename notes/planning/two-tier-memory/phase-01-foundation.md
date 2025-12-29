@@ -382,24 +382,24 @@ Extend the existing Session.State GenServer with memory-related fields and callb
 
 ### 1.5.2 Working Context Client API
 
-- [ ] 1.5.2.1 Add `update_context/4` client function:
+- [x] 1.5.2.1 Add `update_context/4` client function:
   ```elixir
   @spec update_context(String.t(), context_key(), term(), keyword()) ::
     :ok | {:error, :not_found}
   def update_context(session_id, key, value, opts \\ [])
   ```
-- [ ] 1.5.2.2 Add `get_context/2` client function:
+- [x] 1.5.2.2 Add `get_context/2` client function:
   ```elixir
   @spec get_context(String.t(), context_key()) ::
     {:ok, term()} | {:error, :not_found | :key_not_found}
   def get_context(session_id, key)
   ```
-- [ ] 1.5.2.3 Add `get_all_context/1` client function:
+- [x] 1.5.2.3 Add `get_all_context/1` client function:
   ```elixir
   @spec get_all_context(String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_all_context(session_id)
   ```
-- [ ] 1.5.2.4 Add `clear_context/1` client function:
+- [x] 1.5.2.4 Add `clear_context/1` client function:
   ```elixir
   @spec clear_context(String.t()) :: :ok | {:error, :not_found}
   def clear_context(session_id)
@@ -444,7 +444,7 @@ Extend the existing Session.State GenServer with memory-related fields and callb
 
 ### 1.5.5 GenServer Callbacks for Memory
 
-- [ ] 1.5.5.1 Add `handle_call({:update_context, key, value, opts}, ...)` callback:
+- [x] 1.5.5.1 Add `handle_call({:update_context, key, value, opts}, ...)` callback:
   ```elixir
   def handle_call({:update_context, key, value, opts}, _from, state) do
     updated_context = WorkingContext.put(state.working_context, key, value, opts)
@@ -452,12 +452,12 @@ Extend the existing Session.State GenServer with memory-related fields and callb
     {:reply, :ok, new_state}
   end
   ```
-- [ ] 1.5.5.2 Add `handle_call({:get_context, key}, ...)` callback:
+- [x] 1.5.5.2 Add `handle_call({:get_context, key}, ...)` callback:
   - Return value and update access tracking
   - Return `{:error, :key_not_found}` for missing keys
-- [ ] 1.5.5.3 Add `handle_call(:get_all_context, ...)` callback:
+- [x] 1.5.5.3 Add `handle_call(:get_all_context, ...)` callback:
   - Return working_context as map via WorkingContext.to_map/1
-- [ ] 1.5.5.4 Add `handle_call(:clear_context, ...)` callback:
+- [x] 1.5.5.4 Add `handle_call(:clear_context, ...)` callback:
   - Reset working_context via WorkingContext.clear/1
 - [ ] 1.5.5.5 Add `handle_call({:add_pending_memory, item}, ...)` callback:
   - Use PendingMemories.add_implicit/2

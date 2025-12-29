@@ -883,4 +883,195 @@ defmodule JidoCode.Session.StateTest do
       GenServer.stop(pid)
     end
   end
+
+  # ============================================================================
+  # Working Context Client API (Task 1.5.2)
+  # ============================================================================
+
+  describe "update_context/4" do
+    test "stores context item in working_context", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert :ok = State.update_context(session.id, :framework, "Phoenix")
+
+      {:ok, state} = State.get_state(session.id)
+      assert Map.has_key?(state.working_context.items, :framework)
+      assert state.working_context.items[:framework].value == "Phoenix"
+
+      GenServer.stop(pid)
+    end
+
+    test "updates existing item with incremented access_count", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      {:ok, state1} = State.get_state(session.id)
+      initial_count = state1.working_context.items[:framework].access_count
+
+      :ok = State.update_context(session.id, :framework, "Phoenix 1.7")
+      {:ok, state2} = State.get_state(session.id)
+      updated_count = state2.working_context.items[:framework].access_count
+
+      assert updated_count == initial_count + 1
+      assert state2.working_context.items[:framework].value == "Phoenix 1.7"
+
+      GenServer.stop(pid)
+    end
+
+    test "accepts source option", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix", source: :tool)
+
+      {:ok, state} = State.get_state(session.id)
+      assert state.working_context.items[:framework].source == :tool
+
+      GenServer.stop(pid)
+    end
+
+    test "accepts confidence option", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix", confidence: 0.95)
+
+      {:ok, state} = State.get_state(session.id)
+      assert state.working_context.items[:framework].confidence == 0.95
+
+      GenServer.stop(pid)
+    end
+
+    test "accepts memory_type option", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix", memory_type: :fact)
+
+      {:ok, state} = State.get_state(session.id)
+      assert state.working_context.items[:framework].suggested_type == :fact
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.update_context("unknown-session-id", :framework, "Phoenix")
+    end
+  end
+
+  describe "get_context/2" do
+    test "returns value for existing key", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+
+      assert {:ok, "Phoenix"} = State.get_context(session.id, :framework)
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :key_not_found for missing key", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:error, :key_not_found} = State.get_context(session.id, :unknown_key)
+
+      GenServer.stop(pid)
+    end
+
+    test "updates access tracking on retrieval", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      {:ok, state1} = State.get_state(session.id)
+      initial_count = state1.working_context.items[:framework].access_count
+
+      {:ok, _value} = State.get_context(session.id, :framework)
+      {:ok, state2} = State.get_state(session.id)
+      updated_count = state2.working_context.items[:framework].access_count
+
+      assert updated_count == initial_count + 1
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_context("unknown-session-id", :framework)
+    end
+  end
+
+  describe "get_all_context/1" do
+    test "returns all context items as map", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      :ok = State.update_context(session.id, :primary_language, "Elixir")
+
+      {:ok, context} = State.get_all_context(session.id)
+
+      assert context == %{framework: "Phoenix", primary_language: "Elixir"}
+
+      GenServer.stop(pid)
+    end
+
+    test "returns empty map for empty context", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, context} = State.get_all_context(session.id)
+
+      assert context == %{}
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_all_context("unknown-session-id")
+    end
+  end
+
+  describe "clear_context/1" do
+    test "clears all context items", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      :ok = State.update_context(session.id, :primary_language, "Elixir")
+
+      {:ok, context_before} = State.get_all_context(session.id)
+      assert map_size(context_before) == 2
+
+      :ok = State.clear_context(session.id)
+
+      {:ok, context_after} = State.get_all_context(session.id)
+      assert context_after == %{}
+
+      GenServer.stop(pid)
+    end
+
+    test "preserves max_tokens setting", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      :ok = State.update_context(session.id, :framework, "Phoenix")
+      {:ok, state_before} = State.get_state(session.id)
+      max_tokens = state_before.working_context.max_tokens
+
+      :ok = State.clear_context(session.id)
+
+      {:ok, state_after} = State.get_state(session.id)
+      assert state_after.working_context.max_tokens == max_tokens
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.clear_context("unknown-session-id")
+    end
+  end
 end

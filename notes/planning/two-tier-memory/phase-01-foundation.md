@@ -505,12 +505,12 @@ Comprehensive integration tests verifying memory foundation works with existing 
 
 ### 1.6.1 Session Lifecycle Integration
 
-- [ ] 1.6.1.1 Create `test/jido_code/integration/memory_phase1_test.exs`
-- [ ] 1.6.1.2 Test: Session.State initializes with empty memory fields
-- [ ] 1.6.1.3 Test: Memory fields persist across multiple GenServer calls within session
-- [ ] 1.6.1.4 Test: Session restart resets memory fields to defaults (not persisted in Phase 1)
-- [ ] 1.6.1.5 Test: Memory operations don't interfere with existing Session.State operations
-- [ ] 1.6.1.6 Test: Multiple sessions have isolated memory state
+- [x] 1.6.1.1 Create `test/jido_code/integration/memory_phase1_test.exs`
+- [x] 1.6.1.2 Test: Session.State initializes with empty memory fields
+- [x] 1.6.1.3 Test: Memory fields persist across multiple GenServer calls within session
+- [x] 1.6.1.4 Test: Session restart resets memory fields to defaults (not persisted in Phase 1)
+- [x] 1.6.1.5 Test: Memory operations don't interfere with existing Session.State operations
+- [x] 1.6.1.6 Test: Multiple sessions have isolated memory state
 
 ### 1.6.2 Working Context Integration
 

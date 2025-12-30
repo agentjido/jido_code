@@ -447,18 +447,18 @@ Add the find_references tool to the existing LSP definitions module.
 
 The handler is implemented in `lib/jido_code/tools/handlers/lsp.ex`:
 
-- [ ] 3.5.2.1 Handler module `JidoCode.Tools.Handlers.LSP.FindReferences`
-- [ ] 3.5.2.2 Validate INPUT path using `HandlerHelpers.validate_path/2`
-- [ ] 3.5.2.3 Position handling (1-indexed for display; 0-indexed conversion in Phase 3.6)
-- [ ] 3.5.2.4 Handle `include_declaration` parameter (default: false)
-- [ ] 3.5.2.5 LSP server integration placeholder (awaiting Phase 3.6 LSP client)
-- [ ] 3.5.2.6 Validate OUTPUT paths from LSP response (SECURITY):
+- [x] 3.5.2.1 Handler module `JidoCode.Tools.Handlers.LSP.FindReferences`
+- [x] 3.5.2.2 Validate INPUT path using `HandlerHelpers.validate_path/2`
+- [x] 3.5.2.3 Position handling (1-indexed for display; 0-indexed conversion in Phase 3.6)
+- [x] 3.5.2.4 Handle `include_declaration` parameter (default: false)
+- [x] 3.5.2.5 LSP server integration placeholder (awaiting Phase 3.6 LSP client)
+- [x] 3.5.2.6 Validate OUTPUT paths from LSP response (SECURITY):
   - Filter results to only include paths within project boundary
   - Include deps/ and _build/ as relative paths
   - Exclude and do not reveal stdlib/OTP paths
-- [ ] 3.5.2.7 Returns `{:ok, %{"references" => [...]}}` or `{:error, string}`
-- [ ] 3.5.2.8 Emit telemetry for `:find_references` operation
-- [ ] 3.5.2.9 Add `format_error/2` clause for `:no_references_found`
+- [x] 3.5.2.7 Returns `{:ok, %{"references" => [...]}}` or `{:error, string}`
+- [x] 3.5.2.8 Emit telemetry for `:find_references` operation
+- [x] 3.5.2.9 Add `format_error/2` clause for `:no_references_found`
 
 ### 3.5.3 Manager API (N/A - Handler pattern used)
 
@@ -473,35 +473,35 @@ Handler pattern tools execute via `Tools.Executor` directly, not through `Tools.
 Tests should be added to `test/jido_code/tools/definitions/lsp_test.exs`:
 
 **Schema & Format:**
-- [ ] Test tool definition has correct schema (including include_declaration param)
-- [ ] Test generates valid LLM function format
+- [x] Test tool definition has correct schema (including include_declaration param)
+- [x] Test generates valid LLM function format
 
 **Executor Integration:**
-- [ ] Test find_references works via executor for Elixir files
-- [ ] Test find_references handles non-Elixir files (unsupported_file_type)
-- [ ] Test find_references returns error for non-existent file
-- [ ] Test executor validates required arguments
+- [x] Test find_references works via executor for Elixir files
+- [x] Test find_references handles non-Elixir files (unsupported_file_type)
+- [x] Test find_references returns error for non-existent file
+- [x] Test executor validates required arguments
 
 **Parameter Validation:**
-- [ ] Test validates line number (must be >= 1)
-- [ ] Test validates character number (must be >= 1)
-- [ ] Test include_declaration defaults to false
+- [x] Test validates line number (must be >= 1)
+- [x] Test validates character number (must be >= 1)
+- [x] Test include_declaration defaults to false
 
 **Functional:**
-- [ ] Test finds function usages (placeholder: lsp_not_configured)
-- [ ] Test finds module usages (placeholder: lsp_not_configured)
-- [ ] Test handles no references found (empty array)
-- [ ] Test include_declaration=true includes declaration in results
+- [x] Test finds function usages (placeholder: lsp_not_configured)
+- [x] Test finds module usages (placeholder: lsp_not_configured)
+- [x] Test handles no references found (empty array)
+- [x] Test include_declaration=true includes declaration in results
 
 **Security (CRITICAL):**
-- [ ] Test blocks path traversal in input
-- [ ] Test blocks absolute paths outside project in input
-- [ ] Test filters output paths to project boundary only
-- [ ] Test does not reveal stdlib paths in results
+- [x] Test blocks path traversal in input
+- [x] Test blocks absolute paths outside project in input
+- [x] Test filters output paths to project boundary only
+- [x] Test does not reveal stdlib paths in results
 
 **Session & LLM:**
-- [ ] Test session-aware context uses session_id when provided
-- [ ] Test results can be converted to LLM messages
+- [x] Test session-aware context uses session_id when provided
+- [x] Test results can be converted to LLM messages
 
 Note: Full LSP integration tests deferred to Phase 3.6 when LSP client is implemented.
 

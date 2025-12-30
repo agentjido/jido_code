@@ -525,6 +525,126 @@ defmodule JidoCode.MemoryTest do
   end
 
   # =============================================================================
+  # Memory Facade Error Path Tests
+  # =============================================================================
+
+  describe "Memory facade error paths" do
+    test "persist/2 returns error for invalid memory_type" do
+      memory = %{
+        id: "test-mem",
+        content: "test content",
+        memory_type: :invalid_type,
+        confidence: 0.85,
+        source_type: :agent,
+        session_id: "test-session-error",
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_memory_type} = Memory.persist(memory, "test-session-error")
+    end
+
+    test "persist/2 returns error for invalid source_type" do
+      memory = %{
+        id: "test-mem",
+        content: "test content",
+        memory_type: :fact,
+        confidence: 0.85,
+        source_type: :invalid_source,
+        session_id: "test-session-error",
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_source_type} = Memory.persist(memory, "test-session-error")
+    end
+
+    test "persist/2 returns error for confidence < 0" do
+      memory = %{
+        id: "test-mem",
+        content: "test content",
+        memory_type: :fact,
+        confidence: -0.1,
+        source_type: :agent,
+        session_id: "test-session-error",
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_confidence} = Memory.persist(memory, "test-session-error")
+    end
+
+    test "persist/2 returns error for confidence > 1" do
+      memory = %{
+        id: "test-mem",
+        content: "test content",
+        memory_type: :fact,
+        confidence: 1.1,
+        source_type: :agent,
+        session_id: "test-session-error",
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_confidence} = Memory.persist(memory, "test-session-error")
+    end
+
+    test "persist/2 accepts confidence at boundaries" do
+      # These should NOT return validation errors (may return other errors if session invalid)
+      memory_low = %{
+        id: "test-mem-low",
+        content: "test content",
+        memory_type: :fact,
+        confidence: 0.0,
+        source_type: :agent,
+        session_id: "test-session-boundary",
+        created_at: DateTime.utc_now()
+      }
+
+      memory_high = %{
+        id: "test-mem-high",
+        content: "test content",
+        memory_type: :fact,
+        confidence: 1.0,
+        source_type: :agent,
+        session_id: "test-session-boundary",
+        created_at: DateTime.utc_now()
+      }
+
+      # Should not return :invalid_confidence (may return :ok or session error)
+      result_low = Memory.persist(memory_low, "test-session-boundary")
+      refute result_low == {:error, :invalid_confidence}
+
+      result_high = Memory.persist(memory_high, "test-session-boundary")
+      refute result_high == {:error, :invalid_confidence}
+    end
+
+    test "persist/2 returns error for nil memory_type" do
+      memory = %{
+        id: "test-mem",
+        content: "test content",
+        memory_type: nil,
+        confidence: 0.85,
+        source_type: :agent,
+        session_id: "test-session-error",
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_memory_type} = Memory.persist(memory, "test-session-error")
+    end
+
+    test "persist/2 returns error for nil source_type" do
+      memory = %{
+        id: "test-mem",
+        content: "test content",
+        memory_type: :fact,
+        confidence: 0.85,
+        source_type: nil,
+        session_id: "test-session-error",
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_source_type} = Memory.persist(memory, "test-session-error")
+    end
+  end
+
+  # =============================================================================
   # Module API Tests (using the actual Memory module)
   # =============================================================================
 

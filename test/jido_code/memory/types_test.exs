@@ -109,6 +109,37 @@ defmodule JidoCode.Memory.TypesTest do
     end
   end
 
+  describe "clamp_to_unit/1" do
+    test "clamps negative values to 0.0" do
+      assert Types.clamp_to_unit(-0.5) == 0.0
+      assert Types.clamp_to_unit(-100) == 0.0
+      assert Types.clamp_to_unit(-0.001) == 0.0
+    end
+
+    test "clamps values > 1.0 to 1.0" do
+      assert Types.clamp_to_unit(1.5) == 1.0
+      assert Types.clamp_to_unit(100) == 1.0
+      assert Types.clamp_to_unit(1.001) == 1.0
+    end
+
+    test "passes through values in [0.0, 1.0]" do
+      assert Types.clamp_to_unit(0.0) == 0.0
+      assert Types.clamp_to_unit(0.5) == 0.5
+      assert Types.clamp_to_unit(1.0) == 1.0
+      assert Types.clamp_to_unit(0.333) == 0.333
+    end
+
+    test "converts integers to floats" do
+      result = Types.clamp_to_unit(0)
+      assert result == 0.0
+      assert is_float(result)
+
+      result = Types.clamp_to_unit(1)
+      assert result == 1.0
+      assert is_float(result)
+    end
+  end
+
   describe "source_type" do
     test "source_types/0 returns all valid source types matching Jido SourceType" do
       expected = [:user, :agent, :tool, :external_document]

@@ -84,6 +84,7 @@ defmodule JidoCode.Memory.Supervisor do
   # Supervisor Callbacks
   # =============================================================================
 
+  @doc false
   @impl true
   def init(opts) do
     # Extract store_name option and pass as :name to StoreManager

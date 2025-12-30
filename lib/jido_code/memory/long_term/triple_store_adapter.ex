@@ -163,19 +163,30 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   def persist(memory, store) do
     stored_record = build_stored_record(memory)
 
-    try do
+    with_ets_store(store, fn ->
       :ets.insert(store, {memory.id, stored_record})
       {:ok, memory.id}
-    rescue
-      ArgumentError -> {:error, :invalid_store}
-    end
+    end)
   end
 
   @doc """
   Builds the RDF triple representations for a memory.
 
-  This function is provided for compatibility with RDF-based systems.
-  Returns a list of {subject, predicate, object} tuples.
+  This function generates RDF-compatible triples for future integration with
+  semantic web systems and triple stores. While the current storage uses ETS,
+  this function maintains RDF semantics for:
+
+  - **Export compatibility**: Enables export to RDF formats (TTL, N-Triples)
+  - **SPARQL preparation**: Provides structure for future SPARQL query support
+  - **Ontology alignment**: Ensures memories conform to the Jido ontology
+
+  The function is not currently used in the persistence path but is available
+  for RDF serialization and validation purposes.
+
+  Returns a list of {subject, predicate, object} tuples where:
+  - `subject` is the memory IRI (e.g., `jido:memory-123`)
+  - `predicate` is a property IRI from the Jido vocabulary
+  - `object` is either an IRI or a `{:literal, value}` tuple
 
   ## Examples
 
@@ -231,7 +242,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   def query_by_type(store, session_id, memory_type, opts \\ []) do
     limit = Keyword.get(opts, :limit)
 
-    try do
+    with_ets_store(store, fn ->
       results =
         store
         |> ets_to_list()
@@ -245,9 +256,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         |> maybe_limit(limit)
 
       {:ok, results}
-    rescue
-      ArgumentError -> {:error, :invalid_store}
-    end
+    end)
   end
 
   @doc """
@@ -275,7 +284,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
     include_superseded = Keyword.get(opts, :include_superseded, false)
     type_filter = Keyword.get(opts, :type)
 
-    try do
+    with_ets_store(store, fn ->
       results =
         store
         |> ets_to_list()
@@ -290,13 +299,14 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         |> maybe_limit(limit)
 
       {:ok, results}
-    rescue
-      ArgumentError -> {:error, :invalid_store}
-    end
+    end)
   end
 
   @doc """
-  Retrieves a specific memory by ID.
+  Retrieves a specific memory by ID (internal use only).
+
+  **Note:** This function bypasses session ownership verification. For public API use,
+  prefer `query_by_id/3` which verifies that the memory belongs to the specified session.
 
   ## Examples
 
@@ -304,16 +314,19 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
       {:error, :not_found} = TripleStoreAdapter.query_by_id(store, "unknown")
 
   """
+  @doc since: "0.1.0"
   @spec query_by_id(store_ref(), String.t()) :: {:ok, stored_memory()} | {:error, :not_found}
   def query_by_id(store, memory_id) do
-    try do
-      case :ets.lookup(store, memory_id) do
-        [{^memory_id, record}] -> {:ok, to_stored_memory(record)}
-        [] -> {:error, :not_found}
-      end
-    rescue
-      ArgumentError -> {:error, :not_found}
-    end
+    with_ets_store(
+      store,
+      fn ->
+        case :ets.lookup(store, memory_id) do
+          [{^memory_id, record}] -> {:ok, to_stored_memory(record)}
+          [] -> {:error, :not_found}
+        end
+      end,
+      {:error, :not_found}
+    )
   end
 
   @doc """
@@ -342,22 +355,24 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @spec query_by_id(store_ref(), String.t(), String.t()) ::
           {:ok, stored_memory()} | {:error, :not_found}
   def query_by_id(store, session_id, memory_id) do
-    try do
-      case :ets.lookup(store, memory_id) do
-        [{^memory_id, record}] ->
-          # Verify session ownership
-          if record.session_id == session_id do
-            {:ok, to_stored_memory(record)}
-          else
-            {:error, :not_found}
-          end
+    with_ets_store(
+      store,
+      fn ->
+        case :ets.lookup(store, memory_id) do
+          [{^memory_id, record}] ->
+            # Verify session ownership
+            if record.session_id == session_id do
+              {:ok, to_stored_memory(record)}
+            else
+              {:error, :not_found}
+            end
 
-        [] ->
-          {:error, :not_found}
-      end
-    rescue
-      ArgumentError -> {:error, :not_found}
-    end
+          [] ->
+            {:error, :not_found}
+        end
+      end,
+      {:error, :not_found}
+    )
   end
 
   # =============================================================================
@@ -386,7 +401,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @spec supersede(store_ref(), String.t(), String.t(), String.t() | nil) ::
           :ok | {:error, term()}
   def supersede(store, session_id, old_memory_id, new_memory_id \\ nil) do
-    try do
+    with_ets_store(store, fn ->
       case :ets.lookup(store, old_memory_id) do
         [{^old_memory_id, record}] ->
           if record.session_id == session_id do
@@ -405,9 +420,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         [] ->
           {:error, :not_found}
       end
-    rescue
-      ArgumentError -> {:error, :invalid_store}
-    end
+    end)
   end
 
   @doc """
@@ -422,7 +435,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec delete(store_ref(), String.t(), String.t()) :: :ok | {:error, term()}
   def delete(store, session_id, memory_id) do
-    try do
+    with_ets_store(store, fn ->
       case :ets.lookup(store, memory_id) do
         [{^memory_id, record}] ->
           if record.session_id == session_id do
@@ -435,9 +448,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         [] ->
           :ok
       end
-    rescue
-      ArgumentError -> {:error, :invalid_store}
-    end
+    end)
   end
 
   @doc """
@@ -452,27 +463,29 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec record_access(store_ref(), String.t(), String.t()) :: :ok
   def record_access(store, session_id, memory_id) do
-    try do
-      case :ets.lookup(store, memory_id) do
-        [{^memory_id, record}] ->
-          if record.session_id == session_id do
-            updated_record = %{
-              record
-              | access_count: record.access_count + 1,
-                last_accessed: DateTime.utc_now()
-            }
+    with_ets_store(
+      store,
+      fn ->
+        case :ets.lookup(store, memory_id) do
+          [{^memory_id, record}] ->
+            if record.session_id == session_id do
+              updated_record = %{
+                record
+                | access_count: record.access_count + 1,
+                  last_accessed: DateTime.utc_now()
+              }
 
-            :ets.insert(store, {memory_id, updated_record})
-          end
+              :ets.insert(store, {memory_id, updated_record})
+            end
 
-          :ok
+            :ok
 
-        [] ->
-          :ok
-      end
-    rescue
-      ArgumentError -> :ok
-    end
+          [] ->
+            :ok
+        end
+      end,
+      :ok
+    )
   end
 
   # =============================================================================
@@ -495,19 +508,21 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   def count(store, session_id, opts \\ []) do
     include_superseded = Keyword.get(opts, :include_superseded, false)
 
-    try do
-      count =
-        store
-        |> ets_to_list()
-        |> Enum.count(fn {_id, record} ->
-          record.session_id == session_id and
-            (include_superseded or record.superseded_at == nil)
-        end)
+    with_ets_store(
+      store,
+      fn ->
+        count =
+          store
+          |> ets_to_list()
+          |> Enum.count(fn {_id, record} ->
+            record.session_id == session_id and
+              (include_superseded or record.superseded_at == nil)
+          end)
 
-      {:ok, count}
-    rescue
-      ArgumentError -> {:ok, 0}
-    end
+        {:ok, count}
+      end,
+      {:ok, 0}
+    )
   end
 
   # =============================================================================
@@ -612,4 +627,18 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
 
   defp maybe_limit(results, nil), do: results
   defp maybe_limit(results, limit), do: Enum.take(results, limit)
+
+  # Helper to wrap ETS operations with consistent error handling.
+  # This centralizes the try/rescue pattern used throughout the module.
+  @spec with_ets_store(store_ref(), (() -> result), result) :: result when result: term()
+  defp with_ets_store(store, fun, error_result \\ {:error, :invalid_store}) do
+    try do
+      fun.()
+    rescue
+      ArgumentError ->
+        # ETS operations raise ArgumentError when table doesn't exist
+        # or when given invalid arguments
+        error_result
+    end
+  end
 end

@@ -313,7 +313,15 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   end
 
   @impl true
-  def terminate(_reason, state) do
+  def handle_info(msg, state) do
+    Logger.warning("StoreManager received unexpected message: #{inspect(msg)}")
+    {:noreply, state}
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    Logger.debug("StoreManager terminating: #{inspect(reason)}")
+
     Enum.each(state.stores, fn {_session_id, store_ref} ->
       close_store(store_ref)
     end)

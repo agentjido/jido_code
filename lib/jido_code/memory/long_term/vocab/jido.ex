@@ -52,6 +52,8 @@ defmodule JidoCode.Memory.LongTerm.Vocab.Jido do
 
   """
 
+  alias JidoCode.Memory.Types
+
   # =============================================================================
   # Namespace Constants
   # =============================================================================
@@ -266,6 +268,9 @@ defmodule JidoCode.Memory.LongTerm.Vocab.Jido do
   @doc """
   Maps a confidence float to its corresponding Jido ontology individual IRI.
 
+  Delegates threshold logic to `JidoCode.Memory.Types.confidence_to_level/1` to
+  ensure consistency across the codebase:
+
   - Values >= 0.8 map to `jido:High`
   - Values >= 0.5 and < 0.8 map to `jido:Medium`
   - Values < 0.5 map to `jido:Low`
@@ -286,18 +291,25 @@ defmodule JidoCode.Memory.LongTerm.Vocab.Jido do
 
   """
   @spec confidence_to_individual(float()) :: String.t()
-  def confidence_to_individual(confidence) when confidence >= 0.8, do: confidence_high()
-  def confidence_to_individual(confidence) when confidence >= 0.5, do: confidence_medium()
-  def confidence_to_individual(_confidence), do: confidence_low()
+  def confidence_to_individual(confidence) do
+    case Types.confidence_to_level(confidence) do
+      :high -> confidence_high()
+      :medium -> confidence_medium()
+      :low -> confidence_low()
+    end
+  end
 
   @doc """
   Maps a confidence level IRI to its representative float value.
+
+  Delegates to `JidoCode.Memory.Types.level_to_confidence/1` for the actual
+  float values to ensure consistency across the codebase:
 
   - `jido:High` -> 0.9
   - `jido:Medium` -> 0.6
   - `jido:Low` -> 0.3
 
-  Returns 0.5 for unrecognized IRIs.
+  Returns 0.5 for unrecognized IRIs (medium confidence as a safe default).
 
   ## Examples
 
@@ -314,9 +326,9 @@ defmodule JidoCode.Memory.LongTerm.Vocab.Jido do
   @spec individual_to_confidence(String.t()) :: float()
   def individual_to_confidence(iri) do
     case iri do
-      @jido_ns <> "High" -> 0.9
-      @jido_ns <> "Medium" -> 0.6
-      @jido_ns <> "Low" -> 0.3
+      @jido_ns <> "High" -> Types.level_to_confidence(:high)
+      @jido_ns <> "Medium" -> Types.level_to_confidence(:medium)
+      @jido_ns <> "Low" -> Types.level_to_confidence(:low)
       _ -> 0.5
     end
   end

@@ -56,8 +56,8 @@ Implement the multi-factor importance scoring algorithm that determines which me
 
 ### 3.1.1 ImportanceScorer Module
 
-- [ ] 3.1.1.1 Create `lib/jido_code/memory/promotion/importance_scorer.ex` with comprehensive moduledoc
-- [ ] 3.1.1.2 Define weight constants (configurable via module attribute):
+- [x] 3.1.1.1 Create `lib/jido_code/memory/promotion/importance_scorer.ex` with comprehensive moduledoc
+- [x] 3.1.1.2 Define weight constants (configurable via module attribute):
   ```elixir
   @recency_weight 0.2
   @frequency_weight 0.3
@@ -66,14 +66,14 @@ Implement the multi-factor importance scoring algorithm that determines which me
 
   @frequency_cap 10  # Accesses beyond this don't increase score
   ```
-- [ ] 3.1.1.3 Define high salience memory types:
+- [x] 3.1.1.3 Define high salience memory types:
   ```elixir
   @high_salience_types [
     :decision, :architectural_decision, :convention,
     :coding_standard, :lesson_learned, :risk
   ]
   ```
-- [ ] 3.1.1.4 Define `scorable_item()` type for input:
+- [x] 3.1.1.4 Define `scorable_item()` type for input:
   ```elixir
   @type scorable_item :: %{
     last_accessed: DateTime.t(),
@@ -82,7 +82,7 @@ Implement the multi-factor importance scoring algorithm that determines which me
     suggested_type: memory_type() | nil
   }
   ```
-- [ ] 3.1.1.5 Implement `score/1` main scoring function:
+- [x] 3.1.1.5 Implement `score/1` main scoring function:
   ```elixir
   @spec score(scorable_item()) :: float()
   def score(item) do
@@ -97,7 +97,7 @@ Implement the multi-factor importance scoring algorithm that determines which me
     (@salience_weight * salience)
   end
   ```
-- [ ] 3.1.1.6 Implement `score_with_breakdown/1` for debugging:
+- [x] 3.1.1.6 Implement `score_with_breakdown/1` for debugging:
   ```elixir
   @spec score_with_breakdown(scorable_item()) :: %{
     total: float(),
@@ -107,7 +107,7 @@ Implement the multi-factor importance scoring algorithm that determines which me
     salience: float()
   }
   ```
-- [ ] 3.1.1.7 Implement private `recency_score/1`:
+- [x] 3.1.1.7 Implement private `recency_score/1`:
   ```elixir
   defp recency_score(last_accessed) do
     minutes_ago = DateTime.diff(DateTime.utc_now(), last_accessed, :minute)
@@ -116,14 +116,14 @@ Implement the multi-factor importance scoring algorithm that determines which me
     1 / (1 + minutes_ago / 30)
   end
   ```
-- [ ] 3.1.1.8 Implement private `frequency_score/1`:
+- [x] 3.1.1.8 Implement private `frequency_score/1`:
   ```elixir
   defp frequency_score(access_count) do
     # Normalize against cap, max 1.0
     min(access_count / @frequency_cap, 1.0)
   end
   ```
-- [ ] 3.1.1.9 Implement private `salience_score/1`:
+- [x] 3.1.1.9 Implement private `salience_score/1`:
   ```elixir
   defp salience_score(nil), do: 0.3
   defp salience_score(type) when type in @high_salience_types, do: 1.0
@@ -133,7 +133,7 @@ Implement the multi-factor importance scoring algorithm that determines which me
   defp salience_score(:assumption), do: 0.4
   defp salience_score(_), do: 0.3
   ```
-- [ ] 3.1.1.10 Implement `configure/1` to override default weights:
+- [x] 3.1.1.10 Implement `configure/1` to override default weights:
   ```elixir
   @spec configure(keyword()) :: :ok
   def configure(opts)
@@ -143,28 +143,28 @@ Implement the multi-factor importance scoring algorithm that determines which me
 
 ### 3.1.2 Unit Tests for ImportanceScorer
 
-- [ ] Test score/1 returns value between 0 and 1
-- [ ] Test score/1 returns maximum (1.0) for ideal item (recent, frequent, high confidence, high salience)
-- [ ] Test score/1 returns low value for old, unaccessed, low confidence item
-- [ ] Test recency_score returns 1.0 for item accessed now
-- [ ] Test recency_score returns ~0.5 for item accessed 30 minutes ago
-- [ ] Test recency_score returns ~0.33 for item accessed 60 minutes ago
-- [ ] Test recency_score decays correctly over hours
-- [ ] Test frequency_score returns 0 for 0 accesses
-- [ ] Test frequency_score returns 0.5 for 5 accesses (with cap 10)
-- [ ] Test frequency_score caps at 1.0 for accesses >= cap
-- [ ] Test salience_score returns 1.0 for :decision
-- [ ] Test salience_score returns 1.0 for :lesson_learned
-- [ ] Test salience_score returns 1.0 for :convention
-- [ ] Test salience_score returns 0.8 for :discovery
-- [ ] Test salience_score returns 0.7 for :fact
-- [ ] Test salience_score returns 0.5 for :hypothesis
-- [ ] Test salience_score returns 0.4 for :assumption
-- [ ] Test salience_score returns 0.3 for nil
-- [ ] Test salience_score returns 0.3 for unknown types
-- [ ] Test score_with_breakdown returns all component scores
-- [ ] Test score_with_breakdown components sum to total (within float precision)
-- [ ] Test configure/1 changes weight values
+- [x] Test score/1 returns value between 0 and 1
+- [x] Test score/1 returns maximum (1.0) for ideal item (recent, frequent, high confidence, high salience)
+- [x] Test score/1 returns low value for old, unaccessed, low confidence item
+- [x] Test recency_score returns 1.0 for item accessed now
+- [x] Test recency_score returns ~0.5 for item accessed 30 minutes ago
+- [x] Test recency_score returns ~0.33 for item accessed 60 minutes ago
+- [x] Test recency_score decays correctly over hours
+- [x] Test frequency_score returns 0 for 0 accesses
+- [x] Test frequency_score returns 0.5 for 5 accesses (with cap 10)
+- [x] Test frequency_score caps at 1.0 for accesses >= cap
+- [x] Test salience_score returns 1.0 for :decision
+- [x] Test salience_score returns 1.0 for :lesson_learned
+- [x] Test salience_score returns 1.0 for :convention
+- [x] Test salience_score returns 0.8 for :discovery
+- [x] Test salience_score returns 0.7 for :fact
+- [x] Test salience_score returns 0.5 for :hypothesis
+- [x] Test salience_score returns 0.4 for :assumption
+- [x] Test salience_score returns 0.3 for nil
+- [x] Test salience_score returns 0.3 for unknown types
+- [x] Test score_with_breakdown returns all component scores
+- [x] Test score_with_breakdown components sum to total (within float precision)
+- [x] Test configure/1 changes weight values
 
 ---
 

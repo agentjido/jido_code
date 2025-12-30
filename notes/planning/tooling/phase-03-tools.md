@@ -505,6 +505,21 @@ Tests should be added to `test/jido_code/tools/definitions/lsp_test.exs`:
 
 Note: Full LSP integration tests deferred to Phase 3.6 when LSP client is implemented.
 
+### 3.5.5 Review Fixes (post-implementation)
+
+Code review fixes implemented after completion of 3.5.1-3.5.4:
+
+- [x] 3.5.5.1 Extract shared `execute_lsp_operation/4` to parent LSP module
+- [x] 3.5.5.2 Move `get_line_from_location/1` and `get_character_from_location/1` to parent module
+- [x] 3.5.5.3 Extract `stdlib_path?/1` helper to parent module
+- [x] 3.5.5.4 Add negative number validation tests for find_references
+- [x] 3.5.5.5 Add parameter validation tests for include_declaration
+- [x] 3.5.5.6 Add invalid location structure test
+- [x] 3.5.5.7 Add shared helper unit tests (stdlib_path?, location extraction)
+
+See `notes/summaries/tooling-3.5-review-fixes.md` for implementation details.
+See `notes/reviews/phase-03-section-3.5-implementation-review.md` for original review.
+
 ---
 
 ## 3.6 LSP Client Infrastructure

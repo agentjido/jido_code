@@ -392,6 +392,93 @@ defmodule JidoCode.Tools.Handlers.LSP do
   end
 
   def uri_to_path(uri), do: to_string(uri)
+
+  # ============================================================================
+  # Shared LSP Location Helpers (used by GoToDefinition and FindReferences)
+  # ============================================================================
+
+  @doc """
+  Checks if a sanitized path represents a stdlib (Elixir or Erlang) location.
+
+  Stdlib paths are sanitized to "elixir:Module" or "erlang:module" format.
+  """
+  @spec stdlib_path?(String.t()) :: boolean()
+  def stdlib_path?(path) when is_binary(path) do
+    String.starts_with?(path, "elixir:") or String.starts_with?(path, "erlang:")
+  end
+
+  def stdlib_path?(_), do: false
+
+  @doc """
+  Extracts line number from LSP Location, converting from 0-indexed to 1-indexed.
+
+  LSP uses 0-indexed positions, but editors display 1-indexed positions.
+  Returns 1 as fallback if the location structure is invalid.
+  """
+  @spec get_line_from_location(map()) :: pos_integer()
+  def get_line_from_location(%{"range" => %{"start" => %{"line" => line}}})
+      when is_integer(line) do
+    line + 1
+  end
+
+  def get_line_from_location(_), do: 1
+
+  @doc """
+  Extracts character offset from LSP Location, converting from 0-indexed to 1-indexed.
+
+  LSP uses 0-indexed positions, but editors display 1-indexed positions.
+  Returns 1 as fallback if the location structure is invalid.
+  """
+  @spec get_character_from_location(map()) :: pos_integer()
+  def get_character_from_location(%{"range" => %{"start" => %{"character" => char}}})
+      when is_integer(char) do
+    char + 1
+  end
+
+  def get_character_from_location(_), do: 1
+
+  # ============================================================================
+  # Shared Execute Helper (reduces duplication across LSP handlers)
+  # ============================================================================
+
+  @doc """
+  Executes an LSP operation with common parameter extraction, validation, and telemetry.
+
+  This helper reduces code duplication across GetHoverInfo, GoToDefinition, and
+  FindReferences handlers by providing a common execution pattern.
+
+  ## Parameters
+
+  - `params` - Map with "path", "line", and "character" keys
+  - `context` - Execution context with session_id or project_root
+  - `operation` - Atom identifying the operation (e.g., :get_hover_info)
+  - `handler_fn` - Function to call with (safe_path, line, character, context)
+
+  ## Returns
+
+  - `{:ok, result}` on success from handler_fn
+  - `{:error, reason}` on validation or handler failure
+  """
+  @spec execute_lsp_operation(map(), map(), atom(), function()) ::
+          {:ok, map()} | {:error, String.t()}
+  def execute_lsp_operation(params, context, operation, handler_fn) do
+    start_time = System.monotonic_time(:microsecond)
+
+    with {:ok, path} <- extract_path(params),
+         {:ok, line} <- extract_line(params),
+         {:ok, character} <- extract_character(params),
+         {:ok, safe_path} <- validate_path(path, context),
+         :ok <- validate_file_exists(safe_path) do
+      result = handler_fn.(safe_path, line, character, context)
+      emit_lsp_telemetry(operation, start_time, path, context, :success)
+      result
+    else
+      {:error, reason} ->
+        path = Map.get(params, "path", "<unknown>")
+        emit_lsp_telemetry(operation, start_time, path, context, :error)
+        {:error, format_error(reason, path)}
+    end
+  end
 end
 
 defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
@@ -438,22 +525,7 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
   """
   @spec execute(map(), map()) :: {:ok, map()} | {:error, String.t()}
   def execute(params, context) do
-    start_time = System.monotonic_time(:microsecond)
-
-    with {:ok, path} <- LSPHandlers.extract_path(params),
-         {:ok, line} <- LSPHandlers.extract_line(params),
-         {:ok, character} <- LSPHandlers.extract_character(params),
-         {:ok, safe_path} <- LSPHandlers.validate_path(path, context),
-         :ok <- LSPHandlers.validate_file_exists(safe_path) do
-      result = get_hover_info(safe_path, line, character, context)
-      LSPHandlers.emit_lsp_telemetry(:get_hover_info, start_time, path, context, :success)
-      result
-    else
-      {:error, reason} ->
-        path = Map.get(params, "path", "<unknown>")
-        LSPHandlers.emit_lsp_telemetry(:get_hover_info, start_time, path, context, :error)
-        {:error, LSPHandlers.format_error(reason, path)}
-    end
+    LSPHandlers.execute_lsp_operation(params, context, :get_hover_info, &get_hover_info/4)
   end
 
   # ============================================================================
@@ -589,22 +661,7 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   """
   @spec execute(map(), map()) :: {:ok, map()} | {:error, String.t()}
   def execute(params, context) do
-    start_time = System.monotonic_time(:microsecond)
-
-    with {:ok, path} <- LSPHandlers.extract_path(params),
-         {:ok, line} <- LSPHandlers.extract_line(params),
-         {:ok, character} <- LSPHandlers.extract_character(params),
-         {:ok, safe_path} <- LSPHandlers.validate_path(path, context),
-         :ok <- LSPHandlers.validate_file_exists(safe_path) do
-      result = go_to_definition(safe_path, line, character, context)
-      LSPHandlers.emit_lsp_telemetry(:go_to_definition, start_time, path, context, :success)
-      result
-    else
-      {:error, reason} ->
-        path = Map.get(params, "path", "<unknown>")
-        LSPHandlers.emit_lsp_telemetry(:go_to_definition, start_time, path, context, :error)
-        {:error, LSPHandlers.format_error(reason, path)}
-    end
+    LSPHandlers.execute_lsp_operation(params, context, :go_to_definition, &go_to_definition/4)
   end
 
   # ============================================================================
@@ -714,13 +771,8 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
 
     case LSPHandlers.validate_output_path(path, context) do
       {:ok, safe_path} ->
-        # Check if it's a stdlib reference
-        is_stdlib =
-          String.starts_with?(safe_path, "elixir:") or
-            String.starts_with?(safe_path, "erlang:")
-
         definition =
-          if is_stdlib do
+          if LSPHandlers.stdlib_path?(safe_path) do
             %{
               "path" => safe_path,
               "line" => nil,
@@ -731,8 +783,8 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
             %{
               "path" => safe_path,
               # LSP uses 0-indexed positions, we convert to 1-indexed (editor convention)
-              "line" => get_line_from_location(location),
-              "character" => get_character_from_location(location)
+              "line" => LSPHandlers.get_line_from_location(location),
+              "character" => LSPHandlers.get_character_from_location(location)
             }
           end
 
@@ -745,22 +797,6 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   end
 
   defp process_single_location(_, _context), do: {:error, :invalid_location}
-
-  # Extract line number from LSP Location (convert 0-indexed to 1-indexed)
-  defp get_line_from_location(%{"range" => %{"start" => %{"line" => line}}})
-       when is_integer(line) do
-    line + 1
-  end
-
-  defp get_line_from_location(_), do: 1
-
-  # Extract character from LSP Location (convert 0-indexed to 1-indexed)
-  defp get_character_from_location(%{"range" => %{"start" => %{"character" => char}}})
-       when is_integer(char) do
-    char + 1
-  end
-
-  defp get_character_from_location(_), do: 1
 end
 
 defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
@@ -851,12 +887,12 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
   end
 
   # Extract include_declaration parameter (default: false)
+  # The Executor validates that the value is a boolean before reaching this handler,
+  # so we only handle boolean values and missing parameters here.
   defp extract_include_declaration(%{"include_declaration" => value}) when is_boolean(value) do
     value
   end
 
-  defp extract_include_declaration(%{"include_declaration" => "true"}), do: true
-  defp extract_include_declaration(%{"include_declaration" => "false"}), do: false
   defp extract_include_declaration(_), do: false
 
   # ============================================================================
@@ -963,19 +999,15 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
     case LSPHandlers.validate_output_path(path, context) do
       {:ok, safe_path} ->
         # For references, exclude stdlib paths (they're not useful)
-        is_stdlib =
-          String.starts_with?(safe_path, "elixir:") or
-            String.starts_with?(safe_path, "erlang:")
-
-        if is_stdlib do
+        if LSPHandlers.stdlib_path?(safe_path) do
           {:error, :stdlib_path}
         else
           {:ok,
            %{
              "path" => safe_path,
              # LSP uses 0-indexed positions, we convert to 1-indexed (editor convention)
-             "line" => get_line_from_location(location),
-             "character" => get_character_from_location(location)
+             "line" => LSPHandlers.get_line_from_location(location),
+             "character" => LSPHandlers.get_character_from_location(location)
            }}
         end
 
@@ -986,20 +1018,4 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
   end
 
   defp process_reference_location(_, _context), do: {:error, :invalid_location}
-
-  # Extract line number from LSP Location (convert 0-indexed to 1-indexed)
-  defp get_line_from_location(%{"range" => %{"start" => %{"line" => line}}})
-       when is_integer(line) do
-    line + 1
-  end
-
-  defp get_line_from_location(_), do: 1
-
-  # Extract character from LSP Location (convert 0-indexed to 1-indexed)
-  defp get_character_from_location(%{"range" => %{"start" => %{"character" => char}}})
-       when is_integer(char) do
-    char + 1
-  end
-
-  defp get_character_from_location(_), do: 1
 end

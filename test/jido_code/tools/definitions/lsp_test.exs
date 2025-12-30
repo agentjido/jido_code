@@ -806,6 +806,38 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
       assert {:ok, result} = Executor.execute(tool_call, context: context)
       assert_error_result(result, "positive integer")
     end
+
+    test "find_references rejects negative line numbers", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call =
+        make_tool_call("find_references", %{
+          "path" => "test.ex",
+          "line" => -1,
+          "character" => 1
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "positive integer")
+    end
+
+    test "find_references rejects negative character numbers", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call =
+        make_tool_call("find_references", %{
+          "path" => "test.ex",
+          "line" => 1,
+          "character" => -5
+        })
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "positive integer")
+    end
   end
 
   describe "edge cases - URI handling" do
@@ -1369,6 +1401,130 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
       assert {:ok, result} = FindReferences.process_lsp_references_response(lsp_response, context)
       assert result["count"] == 1
       assert hd(result["references"])["path"] == "deps/jason/lib/jason.ex"
+    end
+
+    test "handles invalid location structure (missing uri)", %{project_root: project_root} do
+      # Location without "uri" key should be filtered out
+      lsp_response = [
+        %{
+          "range" => %{"start" => %{"line" => 0, "character" => 0}}
+        }
+      ]
+
+      context = %{project_root: project_root}
+
+      assert {:error, :no_references_found} =
+               FindReferences.process_lsp_references_response(lsp_response, context)
+    end
+  end
+
+  # ============================================================================
+  # include_declaration parameter validation tests (Concern 4)
+  # ============================================================================
+
+  describe "find_references include_declaration parameter validation" do
+    test "rejects string value for include_declaration (must be boolean)", %{
+      project_root: project_root
+    } do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{
+          "path" => "test.ex",
+          "line" => 1,
+          "character" => 1,
+          "include_declaration" => "true"
+        }
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      # Executor validates schema - string is rejected for boolean parameter
+      assert result.status == :error
+      assert result.content =~ "must be a boolean"
+    end
+
+    test "rejects integer value for include_declaration (must be boolean)", %{
+      project_root: project_root
+    } do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{
+          "path" => "test.ex",
+          "line" => 1,
+          "character" => 1,
+          "include_declaration" => 1
+        }
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      # Executor validates schema - integer is rejected for boolean parameter
+      assert result.status == :error
+      assert result.content =~ "must be a boolean"
+    end
+  end
+
+  # ============================================================================
+  # Shared helper tests (new in review fixes)
+  # ============================================================================
+
+  describe "shared LSP helpers" do
+    test "stdlib_path? detects Elixir stdlib paths" do
+      assert LSPHandlers.stdlib_path?("elixir:File")
+      assert LSPHandlers.stdlib_path?("elixir:Enum")
+      assert LSPHandlers.stdlib_path?("elixir:Kernel")
+      refute LSPHandlers.stdlib_path?("lib/my_module.ex")
+      refute LSPHandlers.stdlib_path?("deps/jason/lib/jason.ex")
+    end
+
+    test "stdlib_path? detects Erlang OTP paths" do
+      assert LSPHandlers.stdlib_path?("erlang:gen_server")
+      assert LSPHandlers.stdlib_path?("erlang:file")
+      refute LSPHandlers.stdlib_path?("lib/my_module.ex")
+    end
+
+    test "stdlib_path? handles non-binary input" do
+      refute LSPHandlers.stdlib_path?(nil)
+      refute LSPHandlers.stdlib_path?(123)
+      refute LSPHandlers.stdlib_path?(%{})
+    end
+
+    test "get_line_from_location extracts and converts 0-indexed line" do
+      location = %{"range" => %{"start" => %{"line" => 0, "character" => 5}}}
+      assert LSPHandlers.get_line_from_location(location) == 1
+
+      location = %{"range" => %{"start" => %{"line" => 99, "character" => 5}}}
+      assert LSPHandlers.get_line_from_location(location) == 100
+    end
+
+    test "get_line_from_location returns 1 for invalid structure" do
+      assert LSPHandlers.get_line_from_location(%{}) == 1
+      assert LSPHandlers.get_line_from_location(%{"range" => %{}}) == 1
+      assert LSPHandlers.get_line_from_location(%{"range" => %{"start" => %{}}}) == 1
+      assert LSPHandlers.get_line_from_location(nil) == 1
+    end
+
+    test "get_character_from_location extracts and converts 0-indexed character" do
+      location = %{"range" => %{"start" => %{"line" => 5, "character" => 0}}}
+      assert LSPHandlers.get_character_from_location(location) == 1
+
+      location = %{"range" => %{"start" => %{"line" => 5, "character" => 49}}}
+      assert LSPHandlers.get_character_from_location(location) == 50
+    end
+
+    test "get_character_from_location returns 1 for invalid structure" do
+      assert LSPHandlers.get_character_from_location(%{}) == 1
+      assert LSPHandlers.get_character_from_location(%{"range" => %{}}) == 1
+      assert LSPHandlers.get_character_from_location(%{"range" => %{"start" => %{}}}) == 1
+      assert LSPHandlers.get_character_from_location(nil) == 1
     end
   end
 end

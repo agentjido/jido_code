@@ -524,22 +524,28 @@ See `notes/reviews/phase-03-section-3.5-implementation-review.md` for original r
 
 ## 3.6 LSP Client Infrastructure
 
-Implement the shared LSP client infrastructure used by all LSP Handler modules.
+Implement the shared LSP client infrastructure to connect with Expert, the official
+Elixir Language Server.
+
+**Reference:** https://github.com/elixir-lang/expert
 
 **Note:** The LSP client will be used by Handler modules (get_hover_info, go_to_definition,
 find_references) via direct Elixir calls, not through Lua bridge functions.
 
-### 3.6.1 LSP Client Module
+### 3.6.1 Expert Connection Module (DONE)
 
-Create a reusable LSP client accessible from Handler modules.
+Create a reusable LSP client that connects to Expert via stdio.
 
-- [ ] 3.6.1.1 Create `lib/jido_code/tools/lsp/client.ex`
-- [ ] 3.6.1.2 Implement connection to ElixirLS via stdio
-- [ ] 3.6.1.3 Implement connection to Lexical as alternative
-- [ ] 3.6.1.4 Handle initialize/initialized handshake
-- [ ] 3.6.1.5 Implement request/response correlation
-- [ ] 3.6.1.6 Handle notifications (for diagnostics)
-- [ ] 3.6.1.7 Implement graceful shutdown
+- [x] 3.6.1.1 Create `lib/jido_code/tools/lsp/client.ex`
+- [x] 3.6.1.2 Spawn Expert process with `--stdio` flag
+- [x] 3.6.1.3 Implement JSON-RPC message framing (Content-Length headers)
+- [x] 3.6.1.4 Handle initialize/initialized handshake
+- [x] 3.6.1.5 Implement request/response correlation (request IDs)
+- [x] 3.6.1.6 Handle notifications (for diagnostics)
+- [x] 3.6.1.7 Implement graceful shutdown
+- [x] 3.6.1.8 Handle Expert process lifecycle (start, restart on crash)
+
+See `notes/summaries/tooling-3.6.1-expert-client.md` for implementation details.
 
 ### 3.6.2 LSP Protocol Types
 
@@ -550,13 +556,27 @@ Define LSP protocol types for Handler modules.
 - [ ] 3.6.2.3 Define Diagnostic type
 - [ ] 3.6.2.4 Define Hover type
 - [ ] 3.6.2.5 Define TextDocumentIdentifier type
+- [ ] 3.6.2.6 Define LSP method constants (textDocument/hover, textDocument/definition, etc.)
 
-### 3.6.3 Unit Tests for LSP Client
+### 3.6.3 Handler Integration
 
-- [ ] Test LSP client connection
-- [ ] Test LSP request/response handling
-- [ ] Test LSP notification handling
-- [ ] Test LSP error handling
+Update existing LSP handlers to use the Expert client.
+
+- [ ] 3.6.3.1 Update GetHoverInfo to call Expert via client
+- [ ] 3.6.3.2 Update GoToDefinition to call Expert via client
+- [ ] 3.6.3.3 Update FindReferences to call Expert via client
+- [ ] 3.6.3.4 Convert 1-indexed positions to 0-indexed for LSP protocol
+- [ ] 3.6.3.5 Parse Expert responses into handler result format
+
+### 3.6.4 Unit Tests for LSP Client
+
+- [ ] Test Expert process spawning and connection
+- [ ] Test JSON-RPC message encoding/decoding
+- [ ] Test initialize handshake sequence
+- [ ] Test request/response correlation
+- [ ] Test notification handling
+- [ ] Test graceful shutdown
+- [ ] Test reconnection on Expert crash
 
 ---
 
@@ -584,7 +604,7 @@ Test git tools in realistic scenarios through Lua sandbox.
 
 ### 3.7.3 LSP Integration
 
-Test LSP tools with real language server via Handler pattern.
+Test LSP tools with Expert (official Elixir LSP) via Handler pattern.
 
 **Note:** LSP tools use Handler pattern (see 3.3.2 architectural decision), not Lua sandbox.
 
@@ -610,7 +630,7 @@ Test LSP tools with real language server via Handler pattern.
 5. **find_references**: Reference finding via `Handlers.LSP.FindReferences` (Phase 3.5)
 
 **Infrastructure:**
-6. **LSP Client**: Reliable connection infrastructure (Phase 3.6)
+6. **Expert Client**: Reliable connection to Expert (official Elixir LSP) (Phase 3.6)
 7. **Security**: Output path validation for LSP tools returning file paths
 8. **Git tools execute through Lua sandbox** (defense-in-depth)
 9. **LSP tools execute through Handler pattern** (better async/LSP integration)
@@ -635,7 +655,7 @@ Test LSP tools with real language server via Handler pattern.
 - `test/jido_code/tools/definitions/lsp_test.exs` - LSP tool tests ✓
 
 **LSP Infrastructure (Phase 3.6) - New Files:**
-- `lib/jido_code/tools/lsp/client.ex` - LSP client for ElixirLS/Lexical
+- `lib/jido_code/tools/lsp/client.ex` - LSP client for Expert (official Elixir LSP)
 - `lib/jido_code/tools/lsp/protocol.ex` - LSP protocol types
 
 **Integration Tests:**

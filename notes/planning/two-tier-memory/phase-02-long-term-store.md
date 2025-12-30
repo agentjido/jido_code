@@ -451,8 +451,8 @@ High-level convenience functions providing the public API for memory operations.
 
 ### 2.4.1 Memory Module Public API
 
-- [ ] 2.4.1.1 Create `lib/jido_code/memory/memory.ex` with comprehensive moduledoc
-- [ ] 2.4.1.2 Implement `persist/2` facade:
+- [x] 2.4.1.1 Create `lib/jido_code/memory/memory.ex` with comprehensive moduledoc
+- [x] 2.4.1.2 Implement `persist/2` facade:
   ```elixir
   @spec persist(memory_input(), String.t()) :: {:ok, String.t()} | {:error, term()}
   def persist(memory, session_id) do
@@ -461,46 +461,46 @@ High-level convenience functions providing the public API for memory operations.
     end
   end
   ```
-- [ ] 2.4.1.3 Implement `query/2` facade with options:
+- [x] 2.4.1.3 Implement `query/2` facade with options:
   ```elixir
   @spec query(String.t(), keyword()) :: {:ok, [stored_memory()]} | {:error, term()}
   def query(session_id, opts \\ [])
   ```
   - Options: type, min_confidence, limit, include_superseded
-- [ ] 2.4.1.4 Implement `query_by_type/3` facade:
+- [x] 2.4.1.4 Implement `query_by_type/3` facade:
   ```elixir
   @spec query_by_type(String.t(), memory_type(), keyword()) ::
     {:ok, [stored_memory()]} | {:error, term()}
   def query_by_type(session_id, memory_type, opts \\ [])
   ```
-- [ ] 2.4.1.5 Implement `get/2` facade for single memory:
+- [x] 2.4.1.5 Implement `get/2` facade for single memory:
   ```elixir
   @spec get(String.t(), String.t()) :: {:ok, stored_memory()} | {:error, :not_found}
   def get(session_id, memory_id)
   ```
-- [ ] 2.4.1.6 Implement `supersede/3` facade:
+- [x] 2.4.1.6 Implement `supersede/3` facade:
   ```elixir
   @spec supersede(String.t(), String.t(), String.t() | nil) :: :ok | {:error, term()}
   def supersede(session_id, old_memory_id, new_memory_id \\ nil)
   ```
-- [ ] 2.4.1.7 Implement `forget/2` facade (supersede with nil replacement):
+- [x] 2.4.1.7 Implement `forget/2` facade (supersede with nil replacement):
   ```elixir
   @spec forget(String.t(), String.t()) :: :ok | {:error, term()}
   def forget(session_id, memory_id) do
     supersede(session_id, memory_id, nil)
   end
   ```
-- [ ] 2.4.1.8 Implement `count/1` facade:
+- [x] 2.4.1.8 Implement `count/1` facade:
   ```elixir
   @spec count(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def count(session_id)
   ```
-- [ ] 2.4.1.9 Implement `record_access/2` facade:
+- [x] 2.4.1.9 Implement `record_access/2` facade:
   ```elixir
   @spec record_access(String.t(), String.t()) :: :ok
   def record_access(session_id, memory_id)
   ```
-- [ ] 2.4.1.10 Implement `load_ontology/1` to load Jido TTL files into store:
+- [x] 2.4.1.10 Implement `load_ontology/1` to load Jido TTL files into store:
   ```elixir
   @spec load_ontology(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def load_ontology(session_id)
@@ -509,19 +509,19 @@ High-level convenience functions providing the public API for memory operations.
 
 ### 2.4.2 Unit Tests for Memory Facade
 
-- [ ] Test persist/2 stores memory via StoreManager and Adapter
-- [ ] Test persist/2 creates store if not exists
-- [ ] Test query/2 returns memories for session
-- [ ] Test query/2 applies type filter
-- [ ] Test query/2 applies min_confidence filter
-- [ ] Test query_by_type/3 filters by type
-- [ ] Test get/2 retrieves single memory
-- [ ] Test get/2 returns error for non-existent id
-- [ ] Test supersede/3 marks memory as superseded
-- [ ] Test forget/2 marks memory as superseded without replacement
-- [ ] Test count/1 returns memory count
-- [ ] Test record_access/2 updates access tracking
-- [ ] Test load_ontology/1 loads TTL files
+- [x] Test persist/2 stores memory via StoreManager and Adapter
+- [x] Test persist/2 creates store if not exists
+- [x] Test query/2 returns memories for session
+- [x] Test query/2 applies type filter
+- [x] Test query/2 applies min_confidence filter
+- [x] Test query_by_type/3 filters by type
+- [x] Test get/2 retrieves single memory
+- [x] Test get/2 returns error for non-existent id
+- [x] Test supersede/3 marks memory as superseded
+- [x] Test forget/2 marks memory as superseded without replacement
+- [x] Test count/1 returns memory count
+- [x] Test record_access/2 updates access tracking
+- [x] Test load_ontology/1 loads TTL files
 
 ---
 

@@ -238,7 +238,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         |> Enum.filter(fn {_id, record} ->
           record.session_id == session_id and
             record.memory_type == memory_type and
-            record.superseded_by == nil
+            record.superseded_at == nil
         end)
         |> Enum.map(fn {_id, record} -> to_stored_memory(record) end)
         |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
@@ -282,7 +282,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         |> Enum.filter(fn {_id, record} ->
           record.session_id == session_id and
             record.confidence >= min_confidence and
-            (include_superseded or record.superseded_by == nil) and
+            (include_superseded or record.superseded_at == nil) and
             (type_filter == nil or record.memory_type == type_filter)
         end)
         |> Enum.map(fn {_id, record} -> to_stored_memory(record) end)
@@ -457,7 +457,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         |> ets_to_list()
         |> Enum.count(fn {_id, record} ->
           record.session_id == session_id and
-            (include_superseded or record.superseded_by == nil)
+            (include_superseded or record.superseded_at == nil)
         end)
 
       {:ok, count}

@@ -1,0 +1,363 @@
+defmodule JidoCode.Memory do
+  @moduledoc """
+  High-level public API for long-term memory operations.
+
+  This module provides a convenient facade over the underlying store management
+  and triple store adapter layers. It handles store lifecycle automatically and
+  exposes a clean API for persisting, querying, and managing memories.
+
+  ## Architecture
+
+  ```
+  JidoCode.Memory (Public API)
+       │
+       ├── StoreManager.get_or_create/1
+       │        │
+       │        └── Returns session-isolated ETS store
+       │
+       └── TripleStoreAdapter
+            ├── persist/2
+            ├── query_by_type/4
+            ├── query_all/3
+            ├── query_by_id/2
+            ├── supersede/4
+            ├── delete/3
+            ├── record_access/3
+            └── count/3
+  ```
+
+  ## Memory Types
+
+  The system supports the following memory types from the Jido ontology:
+  - `:fact` - Verified factual information
+  - `:assumption` - Inferred or assumed information
+  - `:hypothesis` - Tentative explanations being tested
+  - `:discovery` - Newly discovered information
+  - `:risk` - Identified risks or concerns
+  - `:unknown` - Information with uncertain classification
+  - `:decision` - Recorded decisions made
+  - `:convention` - Coding standards or conventions
+  - `:lesson_learned` - Insights from experience
+
+  ## Example Usage
+
+      # Persist a new memory
+      memory = %{
+        id: "mem-123",
+        content: "The project uses Phoenix 1.7",
+        memory_type: :fact,
+        confidence: 0.95,
+        source_type: :tool,
+        session_id: "session-abc",
+        created_at: DateTime.utc_now()
+      }
+      {:ok, "mem-123"} = JidoCode.Memory.persist(memory, "session-abc")
+
+      # Query all memories
+      {:ok, memories} = JidoCode.Memory.query("session-abc")
+
+      # Query by type with options
+      {:ok, facts} = JidoCode.Memory.query_by_type("session-abc", :fact, limit: 10)
+
+      # Get a specific memory
+      {:ok, memory} = JidoCode.Memory.get("session-abc", "mem-123")
+
+      # Mark a memory as superseded
+      :ok = JidoCode.Memory.supersede("session-abc", "old-mem", "new-mem")
+
+      # Forget a memory (soft delete)
+      :ok = JidoCode.Memory.forget("session-abc", "mem-123")
+
+  ## Session Isolation
+
+  All operations are scoped to a session ID. Each session has its own isolated
+  store, ensuring complete separation between different coding sessions.
+
+  """
+
+  alias JidoCode.Memory.LongTerm.StoreManager
+  alias JidoCode.Memory.LongTerm.TripleStoreAdapter
+  alias JidoCode.Memory.Types
+
+  # =============================================================================
+  # Types
+  # =============================================================================
+
+  @typedoc """
+  Input structure for persisting a memory item.
+  See `JidoCode.Memory.LongTerm.TripleStoreAdapter.memory_input()` for details.
+  """
+  @type memory_input :: TripleStoreAdapter.memory_input()
+
+  @typedoc """
+  Structure returned from memory queries.
+  See `JidoCode.Memory.LongTerm.TripleStoreAdapter.stored_memory()` for details.
+  """
+  @type stored_memory :: TripleStoreAdapter.stored_memory()
+
+  # =============================================================================
+  # Persist API
+  # =============================================================================
+
+  @doc """
+  Persists a memory item for a session.
+
+  Automatically creates the session store if it doesn't exist.
+
+  ## Parameters
+
+  - `memory` - The memory input map (see `memory_input()` type)
+  - `session_id` - Session identifier
+
+  ## Returns
+
+  - `{:ok, memory_id}` - Successfully persisted
+  - `{:error, reason}` - Failed to persist
+
+  ## Examples
+
+      memory = %{
+        id: "mem-123",
+        content: "Uses Phoenix 1.7",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        session_id: "session-abc",
+        created_at: DateTime.utc_now()
+      }
+
+      {:ok, "mem-123"} = JidoCode.Memory.persist(memory, "session-abc")
+
+  """
+  @spec persist(memory_input(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  def persist(memory, session_id) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.persist(memory, store)
+    end
+  end
+
+  # =============================================================================
+  # Query API
+  # =============================================================================
+
+  @doc """
+  Queries memories for a session with optional filters.
+
+  ## Options
+
+  - `:type` - Filter by memory type (e.g., `:fact`, `:assumption`)
+  - `:min_confidence` - Minimum confidence threshold (0.0 to 1.0)
+  - `:limit` - Maximum number of results
+  - `:include_superseded` - Include superseded memories (default: false)
+
+  ## Examples
+
+      # All memories for session
+      {:ok, memories} = JidoCode.Memory.query("session-abc")
+
+      # Filter by type
+      {:ok, facts} = JidoCode.Memory.query("session-abc", type: :fact)
+
+      # Filter by confidence
+      {:ok, confident} = JidoCode.Memory.query("session-abc", min_confidence: 0.8)
+
+      # Combine options
+      {:ok, results} = JidoCode.Memory.query("session-abc",
+        type: :discovery,
+        min_confidence: 0.7,
+        limit: 20
+      )
+
+  """
+  @spec query(String.t(), keyword()) :: {:ok, [stored_memory()]} | {:error, term()}
+  def query(session_id, opts \\ []) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.query_all(store, session_id, opts)
+    end
+  end
+
+  @doc """
+  Queries memories by type for a session.
+
+  This is a convenience wrapper around `query/2` for type-specific queries.
+
+  ## Options
+
+  - `:limit` - Maximum number of results
+
+  ## Examples
+
+      {:ok, facts} = JidoCode.Memory.query_by_type("session-abc", :fact)
+      {:ok, recent_assumptions} = JidoCode.Memory.query_by_type("session-abc", :assumption, limit: 5)
+
+  """
+  @spec query_by_type(String.t(), Types.memory_type(), keyword()) ::
+          {:ok, [stored_memory()]} | {:error, term()}
+  def query_by_type(session_id, memory_type, opts \\ []) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.query_by_type(store, session_id, memory_type, opts)
+    end
+  end
+
+  @doc """
+  Retrieves a specific memory by ID.
+
+  ## Examples
+
+      {:ok, memory} = JidoCode.Memory.get("session-abc", "mem-123")
+      {:error, :not_found} = JidoCode.Memory.get("session-abc", "unknown")
+
+  """
+  @spec get(String.t(), String.t()) :: {:ok, stored_memory()} | {:error, :not_found}
+  def get(session_id, memory_id) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.query_by_id(store, memory_id)
+    end
+  end
+
+  # =============================================================================
+  # Lifecycle API
+  # =============================================================================
+
+  @doc """
+  Marks a memory as superseded by another memory.
+
+  Superseded memories are excluded from normal queries but can be retrieved
+  with the `include_superseded: true` option.
+
+  ## Parameters
+
+  - `session_id` - Session identifier
+  - `old_memory_id` - ID of the memory being superseded
+  - `new_memory_id` - ID of the replacement memory (optional)
+
+  ## Examples
+
+      # Replace old memory with new one
+      :ok = JidoCode.Memory.supersede("session-abc", "old-mem", "new-mem")
+
+      # Mark as obsolete without replacement
+      :ok = JidoCode.Memory.supersede("session-abc", "obsolete-mem", nil)
+
+  """
+  @spec supersede(String.t(), String.t(), String.t() | nil) :: :ok | {:error, term()}
+  def supersede(session_id, old_memory_id, new_memory_id \\ nil) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.supersede(store, session_id, old_memory_id, new_memory_id)
+    end
+  end
+
+  @doc """
+  Forgets a memory (soft delete).
+
+  This is equivalent to `supersede(session_id, memory_id, nil)`.
+  The memory is marked as superseded without a replacement, effectively
+  removing it from normal queries while preserving the history.
+
+  ## Examples
+
+      :ok = JidoCode.Memory.forget("session-abc", "obsolete-mem")
+
+  """
+  @spec forget(String.t(), String.t()) :: :ok | {:error, term()}
+  def forget(session_id, memory_id) do
+    supersede(session_id, memory_id, nil)
+  end
+
+  @doc """
+  Permanently deletes a memory from the store.
+
+  Unlike `forget/2`, this completely removes the memory with no recovery option.
+  Use with caution.
+
+  ## Examples
+
+      :ok = JidoCode.Memory.delete("session-abc", "mem-123")
+
+  """
+  @spec delete(String.t(), String.t()) :: :ok | {:error, term()}
+  def delete(session_id, memory_id) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.delete(store, session_id, memory_id)
+    end
+  end
+
+  # =============================================================================
+  # Access Tracking API
+  # =============================================================================
+
+  @doc """
+  Records an access to a memory.
+
+  This updates the access count and last_accessed timestamp for the memory,
+  which can be used for relevance ranking and memory management.
+
+  ## Examples
+
+      :ok = JidoCode.Memory.record_access("session-abc", "mem-123")
+
+  """
+  @spec record_access(String.t(), String.t()) :: :ok
+  def record_access(session_id, memory_id) do
+    case StoreManager.get_or_create(session_id) do
+      {:ok, store} ->
+        TripleStoreAdapter.record_access(store, session_id, memory_id)
+
+      {:error, _reason} ->
+        :ok
+    end
+  end
+
+  # =============================================================================
+  # Counting API
+  # =============================================================================
+
+  @doc """
+  Counts the number of memories for a session.
+
+  ## Options
+
+  - `:include_superseded` - Include superseded memories in count (default: false)
+
+  ## Examples
+
+      {:ok, 42} = JidoCode.Memory.count("session-abc")
+      {:ok, 50} = JidoCode.Memory.count("session-abc", include_superseded: true)
+
+  """
+  @spec count(String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(session_id, opts \\ []) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.count(store, session_id, opts)
+    end
+  end
+
+  # =============================================================================
+  # Ontology API
+  # =============================================================================
+
+  @doc """
+  Loads the Jido ontology into the session's store.
+
+  This is a placeholder for future ontology loading functionality.
+  When implemented, it will load the jido-core.ttl and jido-knowledge.ttl
+  files into the store for SPARQL querying.
+
+  Currently returns `{:ok, 0}` as a no-op.
+
+  ## Examples
+
+      {:ok, triple_count} = JidoCode.Memory.load_ontology("session-abc")
+
+  """
+  @spec load_ontology(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def load_ontology(_session_id) do
+    # Placeholder for future TTL loading functionality
+    # When RDF library is integrated, this will:
+    # 1. Get or create the store for session
+    # 2. Load jido-core.ttl
+    # 3. Load jido-knowledge.ttl
+    # 4. Return count of loaded triples
+    {:ok, 0}
+  end
+end

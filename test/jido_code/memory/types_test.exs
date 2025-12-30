@@ -13,7 +13,9 @@ defmodule JidoCode.Memory.TypesTest do
         :risk,
         :unknown,
         :decision,
+        :architectural_decision,
         :convention,
+        :coding_standard,
         :lesson_learned
       ]
 

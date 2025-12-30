@@ -348,6 +348,51 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorerTest do
       assert config.recency_weight == 0.1
       assert config.frequency_weight == 0.2
     end
+
+    test "rejects negative recency_weight" do
+      assert {:error, "recency_weight must be a non-negative number"} =
+               ImportanceScorer.configure(recency_weight: -0.1)
+    end
+
+    test "rejects negative frequency_weight" do
+      assert {:error, "frequency_weight must be a non-negative number"} =
+               ImportanceScorer.configure(frequency_weight: -0.5)
+    end
+
+    test "rejects negative confidence_weight" do
+      assert {:error, "confidence_weight must be a non-negative number"} =
+               ImportanceScorer.configure(confidence_weight: -1.0)
+    end
+
+    test "rejects negative salience_weight" do
+      assert {:error, "salience_weight must be a non-negative number"} =
+               ImportanceScorer.configure(salience_weight: -0.2)
+    end
+
+    test "rejects zero frequency_cap" do
+      assert {:error, "frequency_cap must be a positive integer"} =
+               ImportanceScorer.configure(frequency_cap: 0)
+    end
+
+    test "rejects negative frequency_cap" do
+      assert {:error, "frequency_cap must be a positive integer"} =
+               ImportanceScorer.configure(frequency_cap: -5)
+    end
+
+    test "rejects non-integer frequency_cap" do
+      assert {:error, "frequency_cap must be a positive integer"} =
+               ImportanceScorer.configure(frequency_cap: 5.5)
+    end
+
+    test "does not modify config on validation failure" do
+      original_config = ImportanceScorer.get_config()
+
+      # Attempt invalid configuration
+      {:error, _} = ImportanceScorer.configure(frequency_cap: 0)
+
+      # Config should be unchanged
+      assert ImportanceScorer.get_config() == original_config
+    end
   end
 
   # =============================================================================
@@ -414,6 +459,13 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorerTest do
       assert :lesson_learned in types
       assert :convention in types
       assert :risk in types
+      assert :architectural_decision in types
+      assert :coding_standard in types
+    end
+
+    test "contains exactly 6 types" do
+      types = ImportanceScorer.high_salience_types()
+      assert length(types) == 6
     end
 
     test "all returned types score 1.0" do
@@ -421,6 +473,59 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorerTest do
         assert ImportanceScorer.salience_score(type) == 1.0,
                "Expected #{type} to have salience score 1.0"
       end
+    end
+
+    test "all high salience types are valid memory types" do
+      for type <- ImportanceScorer.high_salience_types() do
+        assert JidoCode.Memory.Types.valid_memory_type?(type),
+               "Expected #{type} to be a valid memory type"
+      end
+    end
+  end
+
+  # =============================================================================
+  # Relative Ordering Tests
+  # =============================================================================
+
+  describe "relative ordering" do
+    test "higher frequency items score higher" do
+      low_freq = create_item(%{access_count: 1})
+      high_freq = create_item(%{access_count: 10})
+
+      assert ImportanceScorer.score(high_freq) > ImportanceScorer.score(low_freq)
+    end
+
+    test "more recent items score higher" do
+      old_item = create_item(%{last_accessed: minutes_ago(120)})
+      new_item = create_item(%{last_accessed: DateTime.utc_now()})
+
+      assert ImportanceScorer.score(new_item) > ImportanceScorer.score(old_item)
+    end
+
+    test "higher confidence items score higher" do
+      low_conf = create_item(%{confidence: 0.2})
+      high_conf = create_item(%{confidence: 0.9})
+
+      assert ImportanceScorer.score(high_conf) > ImportanceScorer.score(low_conf)
+    end
+
+    test "high salience types score higher than low salience types" do
+      decision_item = create_item(%{suggested_type: :decision})
+      assumption_item = create_item(%{suggested_type: :assumption})
+
+      assert ImportanceScorer.score(decision_item) > ImportanceScorer.score(assumption_item)
+    end
+
+    test "salience ordering matches expected hierarchy" do
+      # High salience types should score higher than medium, which should score higher than low
+      high = ImportanceScorer.salience_score(:decision)
+      medium = ImportanceScorer.salience_score(:discovery)
+      low = ImportanceScorer.salience_score(:assumption)
+      lowest = ImportanceScorer.salience_score(nil)
+
+      assert high > medium
+      assert medium > low
+      assert low > lowest
     end
   end
 

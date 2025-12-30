@@ -20,17 +20,19 @@ defmodule JidoCode.Memory.Types do
 
   Types in this module correspond to Jido ontology classes:
 
-  | Elixir Type       | Jido Ontology Class      |
-  |-------------------|--------------------------|
-  | `:fact`           | `jido:Fact`              |
-  | `:assumption`     | `jido:Assumption`        |
-  | `:hypothesis`     | `jido:Hypothesis`        |
-  | `:discovery`      | `jido:Discovery`         |
-  | `:risk`           | `jido:Risk`              |
-  | `:unknown`        | `jido:Unknown`           |
-  | `:decision`       | `jido:Decision`          |
-  | `:convention`     | `jido:Convention`        |
-  | `:lesson_learned` | `jido:LessonLearned`     |
+  | Elixir Type              | Jido Ontology Class           |
+  |--------------------------|-------------------------------|
+  | `:fact`                  | `jido:Fact`                   |
+  | `:assumption`            | `jido:Assumption`             |
+  | `:hypothesis`            | `jido:Hypothesis`             |
+  | `:discovery`             | `jido:Discovery`              |
+  | `:risk`                  | `jido:Risk`                   |
+  | `:unknown`               | `jido:Unknown`                |
+  | `:decision`              | `jido:Decision`               |
+  | `:architectural_decision`| `jido:ArchitecturalDecision`  |
+  | `:convention`            | `jido:Convention`             |
+  | `:coding_standard`       | `jido:CodingStandard`         |
+  | `:lesson_learned`        | `jido:LessonLearned`          |
 
   ## Confidence Level Mapping
 
@@ -60,7 +62,9 @@ defmodule JidoCode.Memory.Types do
   - `:risk` - Potential issues or concerns identified
   - `:unknown` - Information gaps that need investigation
   - `:decision` - Choices made with their rationale
+  - `:architectural_decision` - Significant architectural choices with rationale
   - `:convention` - Established patterns or standards to follow
+  - `:coding_standard` - Specific coding practices and style guidelines
   - `:lesson_learned` - Insights gained from past experiences
   """
   @type memory_type ::
@@ -71,7 +75,9 @@ defmodule JidoCode.Memory.Types do
           | :risk
           | :unknown
           | :decision
+          | :architectural_decision
           | :convention
+          | :coding_standard
           | :lesson_learned
 
   @typedoc """
@@ -237,7 +243,9 @@ defmodule JidoCode.Memory.Types do
     :risk,
     :unknown,
     :decision,
+    :architectural_decision,
     :convention,
+    :coding_standard,
     :lesson_learned
   ]
 

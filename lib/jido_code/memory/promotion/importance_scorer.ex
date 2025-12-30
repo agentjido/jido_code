@@ -161,20 +161,9 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorer do
   """
   @spec score(scorable_item()) :: float()
   def score(item) do
-    config = get_config()
-
-    recency = recency_score(item.last_accessed)
-    frequency = frequency_score(item.access_count, config.frequency_cap)
-    confidence = Types.clamp_to_unit(item.confidence)
-    salience = salience_score(item.suggested_type)
-
-    weighted_score =
-      config.recency_weight * recency +
-        config.frequency_weight * frequency +
-        config.confidence_weight * confidence +
-        config.salience_weight * salience
-
-    Types.clamp_to_unit(weighted_score)
+    item
+    |> score_with_breakdown()
+    |> Map.fetch!(:total)
   end
 
   @doc """
@@ -240,19 +229,27 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorer do
 
   ## Options
 
-  - `:recency_weight` - Weight for recency factor (default: 0.2)
-  - `:frequency_weight` - Weight for frequency factor (default: 0.3)
-  - `:confidence_weight` - Weight for confidence factor (default: 0.25)
-  - `:salience_weight` - Weight for salience factor (default: 0.25)
-  - `:frequency_cap` - Access count cap for frequency scoring (default: 10)
+  - `:recency_weight` - Weight for recency factor (default: 0.2), must be non-negative
+  - `:frequency_weight` - Weight for frequency factor (default: 0.3), must be non-negative
+  - `:confidence_weight` - Weight for confidence factor (default: 0.25), must be non-negative
+  - `:salience_weight` - Weight for salience factor (default: 0.25), must be non-negative
+  - `:frequency_cap` - Access count cap for frequency scoring (default: 10), must be positive integer
+
+  ## Returns
+
+  - `:ok` on success
+  - `{:error, reason}` if validation fails
 
   ## Examples
 
       iex> ImportanceScorer.configure(recency_weight: 0.3, frequency_weight: 0.2)
       :ok
 
+      iex> ImportanceScorer.configure(frequency_cap: 0)
+      {:error, "frequency_cap must be a positive integer"}
+
   """
-  @spec configure(keyword()) :: :ok
+  @spec configure(keyword()) :: :ok | {:error, String.t()}
   def configure(opts) when is_list(opts) do
     current = get_config()
 
@@ -264,8 +261,37 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorer do
       frequency_cap: Keyword.get(opts, :frequency_cap, current.frequency_cap)
     }
 
-    Application.put_env(:jido_code, __MODULE__, Map.to_list(new_config))
-    :ok
+    case validate_config(new_config) do
+      :ok ->
+        Application.put_env(:jido_code, __MODULE__, Map.to_list(new_config))
+        :ok
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  # Validates configuration values
+  defp validate_config(config) do
+    cond do
+      not is_number(config.recency_weight) or config.recency_weight < 0 ->
+        {:error, "recency_weight must be a non-negative number"}
+
+      not is_number(config.frequency_weight) or config.frequency_weight < 0 ->
+        {:error, "frequency_weight must be a non-negative number"}
+
+      not is_number(config.confidence_weight) or config.confidence_weight < 0 ->
+        {:error, "confidence_weight must be a non-negative number"}
+
+      not is_number(config.salience_weight) or config.salience_weight < 0 ->
+        {:error, "salience_weight must be a non-negative number"}
+
+      not is_integer(config.frequency_cap) or config.frequency_cap < 1 ->
+        {:error, "frequency_cap must be a positive integer"}
+
+      true ->
+        :ok
+    end
   end
 
   @doc """
@@ -321,24 +347,10 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorer do
   def high_salience_types, do: @high_salience_types
 
   # =============================================================================
-  # Scoring Functions (Public for testing)
+  # Scoring Functions (Public for testing, but hidden from docs)
   # =============================================================================
 
-  @doc """
-  Calculates the recency score based on when the item was last accessed.
-
-  Uses decay function: `1 / (1 + minutes_ago / 30)`
-
-  - Returns 1.0 for items accessed just now
-  - Returns ~0.5 for items accessed 30 minutes ago
-  - Returns ~0.33 for items accessed 60 minutes ago
-
-  ## Examples
-
-      iex> recency_score(DateTime.utc_now())
-      1.0
-
-  """
+  @doc false
   @spec recency_score(DateTime.t()) :: float()
   def recency_score(last_accessed) do
     minutes_ago = max(DateTime.diff(DateTime.utc_now(), last_accessed, :minute), 0)
@@ -347,55 +359,13 @@ defmodule JidoCode.Memory.Promotion.ImportanceScorer do
     1 / (1 + minutes_ago / 30)
   end
 
-  @doc """
-  Calculates the frequency score based on access count.
-
-  Normalizes against the frequency cap (default 10).
-  Accesses beyond the cap don't increase the score.
-
-  ## Examples
-
-      iex> frequency_score(0, 10)
-      0.0
-
-      iex> frequency_score(5, 10)
-      0.5
-
-      iex> frequency_score(15, 10)
-      1.0
-
-  """
+  @doc false
   @spec frequency_score(non_neg_integer(), pos_integer()) :: float()
   def frequency_score(access_count, frequency_cap \\ @default_frequency_cap) do
     min(access_count / frequency_cap, 1.0)
   end
 
-  @doc """
-  Calculates the salience score based on memory type.
-
-  Different memory types have different inherent importance:
-
-  - Decision types (decision, architectural_decision): 1.0
-  - Conventions and standards: 1.0
-  - Lessons learned and risks: 1.0
-  - Discoveries: 0.8
-  - Facts: 0.7
-  - Hypotheses: 0.5
-  - Assumptions: 0.4
-  - Unknown/nil: 0.3
-
-  ## Examples
-
-      iex> salience_score(:decision)
-      1.0
-
-      iex> salience_score(:fact)
-      0.7
-
-      iex> salience_score(nil)
-      0.3
-
-  """
+  @doc false
   @spec salience_score(Types.memory_type() | nil) :: float()
   def salience_score(nil), do: 0.3
   def salience_score(type) when type in @high_salience_types, do: 1.0

@@ -375,22 +375,22 @@ Implement trigger points for when promotion should run, including periodic timer
 
 ### 3.3.2 Event-Based Promotion Triggers
 
-- [ ] 3.3.2.1 Create `lib/jido_code/memory/promotion/triggers.ex` module
-- [ ] 3.3.2.2 Add session pause trigger:
+- [x] 3.3.2.1 Create `lib/jido_code/memory/promotion/triggers.ex` module
+- [x] 3.3.2.2 Add session pause trigger:
   - Implement `on_session_pause/1` callback
   - Call `Promotion.Engine.run/2` synchronously before pause completes
-- [ ] 3.3.2.3 Add session close trigger:
+- [x] 3.3.2.3 Add session close trigger:
   - Implement `on_session_close/1` callback
   - Run final promotion before session closes
   - Ensure all pending memories have chance to promote
-- [ ] 3.3.2.4 Add memory limit trigger:
+- [x] 3.3.2.4 Add memory limit trigger:
   - Implement `on_memory_limit_reached/2` callback
   - Trigger when pending_memories hits max_items
   - Run promotion to clear space
-- [ ] 3.3.2.5 Add high-priority trigger for agent decisions:
+- [x] 3.3.2.5 Add high-priority trigger for agent decisions:
   - Implement `on_agent_decision/2` callback
   - Immediate promotion for explicit remember requests
-- [ ] 3.3.2.6 Integrate triggers with Session.State callbacks:
+- [x] 3.3.2.6 Integrate triggers with Session.State callbacks:
   ```elixir
   # In Session.State
   def handle_call(:pause, _from, state) do
@@ -398,7 +398,8 @@ Implement trigger points for when promotion should run, including periodic timer
     # ... existing pause logic ...
   end
   ```
-- [ ] 3.3.2.7 Add telemetry events for all trigger activations:
+  (Integrated in add_pending_memory and add_agent_memory_decision callbacks)
+- [x] 3.3.2.7 Add telemetry events for all trigger activations:
   ```elixir
   :telemetry.execute(
     [:jido_code, :memory, :promotion, :triggered],

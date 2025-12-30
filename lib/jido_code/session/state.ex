@@ -56,6 +56,7 @@ defmodule JidoCode.Session.State do
 
   # Memory modules
   alias JidoCode.Memory.Promotion.Engine, as: PromotionEngine
+  alias JidoCode.Memory.Promotion.Triggers, as: PromotionTriggers
   alias JidoCode.Memory.ShortTerm.AccessLog
   alias JidoCode.Memory.ShortTerm.PendingMemories
   alias JidoCode.Memory.ShortTerm.WorkingContext
@@ -1619,13 +1620,33 @@ defmodule JidoCode.Session.State do
   @impl true
   def handle_call({:add_pending_memory, item}, _from, state) do
     updated_pending = PendingMemories.add_implicit(state.pending_memories, item)
-    new_state = %{state | pending_memories: updated_pending}
+    current_count = PendingMemories.size(updated_pending)
+
+    # Check if we hit the memory limit and trigger promotion if needed
+    new_state =
+      if current_count >= @max_pending_memories do
+        # Trigger promotion asynchronously to clear space
+        Task.start(fn ->
+          PromotionTriggers.on_memory_limit_reached(state.session_id, current_count)
+        end)
+
+        %{state | pending_memories: updated_pending}
+      else
+        %{state | pending_memories: updated_pending}
+      end
+
     {:reply, :ok, new_state}
   end
 
   @impl true
   def handle_call({:add_agent_memory_decision, item}, _from, state) do
     updated_pending = PendingMemories.add_agent_decision(state.pending_memories, item)
+
+    # Agent decisions are high-priority - trigger immediate promotion asynchronously
+    Task.start(fn ->
+      PromotionTriggers.on_agent_decision(state.session_id, item)
+    end)
+
     new_state = %{state | pending_memories: updated_pending}
     {:reply, :ok, new_state}
   end

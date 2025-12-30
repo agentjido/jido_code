@@ -547,16 +547,18 @@ Create a reusable LSP client that connects to Expert via stdio.
 
 See `notes/summaries/tooling-3.6.1-expert-client.md` for implementation details.
 
-### 3.6.2 LSP Protocol Types
+### 3.6.2 LSP Protocol Types (DONE)
 
 Define LSP protocol types for Handler modules.
 
-- [ ] 3.6.2.1 Create `lib/jido_code/tools/lsp/protocol.ex`
-- [ ] 3.6.2.2 Define Position, Range, Location types
-- [ ] 3.6.2.3 Define Diagnostic type
-- [ ] 3.6.2.4 Define Hover type
-- [ ] 3.6.2.5 Define TextDocumentIdentifier type
-- [ ] 3.6.2.6 Define LSP method constants (textDocument/hover, textDocument/definition, etc.)
+- [x] 3.6.2.1 Create `lib/jido_code/tools/lsp/protocol.ex`
+- [x] 3.6.2.2 Define Position, Range, Location types
+- [x] 3.6.2.3 Define Diagnostic type
+- [x] 3.6.2.4 Define Hover type
+- [x] 3.6.2.5 Define TextDocumentIdentifier type
+- [x] 3.6.2.6 Define LSP method constants (textDocument/hover, textDocument/definition, etc.)
+
+See `notes/summaries/tooling-3.6.2-lsp-protocol-types.md` for implementation details.
 
 ### 3.6.3 Handler Integration
 

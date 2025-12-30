@@ -5,6 +5,12 @@ defmodule JidoCode.Tools.Handlers.LSP do
   This module contains handlers for code intelligence operations:
   - `GetHoverInfo` - Get type info and documentation at cursor position
   - `GoToDefinition` - Find where a symbol is defined
+  - `FindReferences` - Find all usages of a symbol
+
+  ## Expert Integration
+
+  Handlers connect to Expert (the official Elixir LSP) via the LSP.Client module.
+  Each project gets its own LSP client managed by LSP.Supervisor.
 
   ## Session Context
 
@@ -13,11 +19,6 @@ defmodule JidoCode.Tools.Handlers.LSP do
   1. `session_id` present → Uses `Session.Manager.validate_path/2`
   2. `project_root` present → Uses `Security.validate_path/3`
   3. Neither → Falls back to global `Tools.Manager` (deprecated)
-
-  ## LSP Server Requirement
-
-  These handlers require an LSP server to be running (e.g., ElixirLS, Lexical).
-  If no LSP server is available, handlers return appropriate error messages.
 
   ## Usage
 
@@ -35,6 +36,7 @@ defmodule JidoCode.Tools.Handlers.LSP do
   require Logger
 
   alias JidoCode.Tools.HandlerHelpers
+  alias JidoCode.Tools.LSP.{Client, Protocol, Supervisor}
 
   # ============================================================================
   # Module Attributes (compile-time constants)
@@ -438,6 +440,63 @@ defmodule JidoCode.Tools.Handlers.LSP do
   def get_character_from_location(_), do: 1
 
   # ============================================================================
+  # LSP Client Access
+  # ============================================================================
+
+  @doc """
+  Gets the LSP client for the given context.
+
+  Returns the client pid if Expert is available and initialized,
+  or an error if the client cannot be obtained.
+
+  ## Parameters
+
+  - `context` - Execution context with project_root
+
+  ## Returns
+
+  - `{:ok, client_pid}` - The LSP client process
+  - `{:error, :lsp_not_available}` - Expert is not installed or client failed
+  """
+  @spec get_lsp_client(map()) :: {:ok, pid()} | {:error, :lsp_not_available}
+  def get_lsp_client(context) do
+    with {:ok, project_root} <- get_project_root(context),
+         {:ok, client} <- Supervisor.get_or_start_client(project_root) do
+      # Check if client is initialized
+      case Client.status(client) do
+        %{initialized: true} ->
+          {:ok, client}
+
+        %{initialized: false} ->
+          # Client exists but not yet initialized - wait a bit
+          Process.sleep(500)
+
+          case Client.status(client) do
+            %{initialized: true} -> {:ok, client}
+            _ -> {:error, :lsp_not_available}
+          end
+      end
+    else
+      {:error, :expert_not_available} ->
+        {:error, :lsp_not_available}
+
+      {:error, _reason} ->
+        {:error, :lsp_not_available}
+    end
+  end
+
+  @doc """
+  Checks if Expert LSP is available for the given context.
+  """
+  @spec lsp_available?(map()) :: boolean()
+  def lsp_available?(context) do
+    case get_lsp_client(context) do
+      {:ok, _client} -> true
+      {:error, _} -> false
+    end
+  end
+
+  # ============================================================================
   # Shared Execute Helper (reduces duplication across LSP handlers)
   # ============================================================================
 
@@ -499,16 +558,16 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
   - `{:ok, result}` - Map with hover information (type, docs, module)
   - `{:error, reason}` - Error message string
 
-  ## LSP Integration
+  ## Expert Integration
 
-  This handler is designed to integrate with an LSP client (e.g., ElixirLS, Lexical).
-  Until the LSP client infrastructure is implemented (Phase 3.6), this handler
-  returns a placeholder response indicating LSP is not yet configured.
+  This handler connects to Expert (the official Elixir LSP) when available.
+  If Expert is not installed, returns a helpful message indicating LSP is not available.
   """
 
   require Logger
 
   alias JidoCode.Tools.Handlers.LSP, as: LSPHandlers
+  alias JidoCode.Tools.LSP.{Client, Protocol}
 
   @doc """
   Executes the get_hover_info operation.
@@ -532,32 +591,16 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
   # LSP Integration
   # ============================================================================
 
-  # Get hover information from LSP server
-  # Currently returns a placeholder until LSP client infrastructure is implemented
-  defp get_hover_info(path, line, character, _context) do
-    # TODO: Integrate with LSP client once Phase 3.6 is implemented
-    # For now, check if the file is an Elixir file and return helpful info
+  # Get hover information from Expert LSP server
+  defp get_hover_info(path, line, character, context) do
     if LSPHandlers.elixir_file?(path) do
-      Logger.debug(
-        "LSP get_hover_info requested for #{path}:#{line}:#{character} - LSP client not yet implemented"
-      )
+      case LSPHandlers.get_lsp_client(context) do
+        {:ok, client} ->
+          request_hover_from_expert(client, path, line, character)
 
-      # Return a structured response indicating LSP is not yet available
-      {:ok,
-       %{
-         "status" => "lsp_not_configured",
-         "message" =>
-           "LSP integration is not yet configured. " <>
-             "Hover info will be available once an LSP server (ElixirLS, Lexical) is connected.",
-         "position" => %{
-           "path" => path,
-           "line" => line,
-           "character" => character
-         },
-         "hint" =>
-           "To enable LSP features, ensure you have ElixirLS or Lexical running " <>
-             "and the LSP client is configured in Phase 3.6."
-       }}
+        {:error, :lsp_not_available} ->
+          lsp_not_available_response(path, line, character)
+      end
     else
       {:ok,
        %{
@@ -566,6 +609,73 @@ defmodule JidoCode.Tools.Handlers.LSP.GetHoverInfo do
          "path" => path
        }}
     end
+  end
+
+  # Request hover information from Expert
+  defp request_hover_from_expert(client, path, line, character) do
+    # Build LSP params using protocol types (converts 1-indexed to 0-indexed)
+    params = Protocol.hover_params(path, line, character)
+
+    Logger.debug("Requesting hover info from Expert for #{path}:#{line}:#{character}")
+
+    case Client.request(client, Protocol.method_hover(), params) do
+      {:ok, nil} ->
+        {:ok,
+         %{
+           "status" => "no_info",
+           "message" => "No hover information available at this position",
+           "position" => %{"path" => path, "line" => line, "character" => character}
+         }}
+
+      {:ok, hover_result} ->
+        process_hover_response(hover_result, path, line, character)
+
+      {:error, :timeout} ->
+        {:error, LSPHandlers.format_error(:lsp_timeout, path)}
+
+      {:error, reason} ->
+        Logger.warning("Expert hover request failed: #{inspect(reason)}")
+        {:error, LSPHandlers.format_error(:lsp_not_available, path)}
+    end
+  end
+
+  # Process hover response from Expert
+  defp process_hover_response(hover_result, path, line, character) do
+    case Protocol.Hover.from_lsp(hover_result) do
+      {:ok, hover} ->
+        {:ok,
+         %{
+           "status" => "found",
+           "contents" => Protocol.Hover.to_text(hover),
+           "position" => %{"path" => path, "line" => line, "character" => character}
+         }}
+
+      {:error, _} ->
+        {:ok,
+         %{
+           "status" => "no_info",
+           "message" => "No hover information available at this position",
+           "position" => %{"path" => path, "line" => line, "character" => character}
+         }}
+    end
+  end
+
+  # Response when Expert is not available
+  defp lsp_not_available_response(path, line, character) do
+    Logger.debug("Expert not available for hover request at #{path}:#{line}:#{character}")
+
+    {:ok,
+     %{
+       "status" => "lsp_not_available",
+       "message" =>
+         "Expert LSP is not available. " <>
+           "Install Expert (https://github.com/elixir-lang/expert) to enable code intelligence.",
+       "position" => %{
+         "path" => path,
+         "line" => line,
+         "character" => character
+       }
+     }}
   end
 end
 
@@ -588,8 +698,6 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   - `{:error, reason}` - Error message string
 
   ## Response Format
-
-  When LSP is configured, returns one of:
 
   ### Single Definition
   ```elixir
@@ -635,16 +743,16 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   - Stdlib paths: Returned as "elixir:Module" or "erlang:module"
   - External paths: Filtered out (not exposed to LLM)
 
-  ## LSP Integration
+  ## Expert Integration
 
-  This handler is designed to integrate with an LSP client (e.g., ElixirLS, Lexical).
-  Until the LSP client infrastructure is implemented (Phase 3.6), this handler
-  returns a placeholder response indicating LSP is not yet configured.
+  This handler connects to Expert (the official Elixir LSP) when available.
+  If Expert is not installed, returns a helpful message indicating LSP is not available.
   """
 
   require Logger
 
   alias JidoCode.Tools.Handlers.LSP, as: LSPHandlers
+  alias JidoCode.Tools.LSP.{Client, Protocol}
 
   @doc """
   Executes the go_to_definition operation.
@@ -668,32 +776,16 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   # LSP Integration
   # ============================================================================
 
-  # Go to definition using LSP server
-  # Currently returns a placeholder until LSP client infrastructure is implemented
-  defp go_to_definition(path, line, character, _context) do
-    # TODO: Integrate with LSP client once Phase 3.6 is implemented
-    # For now, check if the file is an Elixir file and return helpful info
+  # Go to definition using Expert LSP server
+  defp go_to_definition(path, line, character, context) do
     if LSPHandlers.elixir_file?(path) do
-      Logger.debug(
-        "LSP go_to_definition requested for #{path}:#{line}:#{character} - LSP client not yet implemented"
-      )
+      case LSPHandlers.get_lsp_client(context) do
+        {:ok, client} ->
+          request_definition_from_expert(client, path, line, character, context)
 
-      # Return a structured response indicating LSP is not yet available
-      {:ok,
-       %{
-         "status" => "lsp_not_configured",
-         "message" =>
-           "LSP integration is not yet configured. " <>
-             "Definition navigation will be available once an LSP server (ElixirLS, Lexical) is connected.",
-         "position" => %{
-           "path" => path,
-           "line" => line,
-           "character" => character
-         },
-         "hint" =>
-           "To enable LSP features, ensure you have ElixirLS or Lexical running " <>
-             "and the LSP client is configured in Phase 3.6."
-       }}
+        {:error, :lsp_not_available} ->
+          lsp_not_available_response(path, line, character)
+      end
     else
       {:ok,
        %{
@@ -702,6 +794,50 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
          "path" => path
        }}
     end
+  end
+
+  # Request definition from Expert
+  defp request_definition_from_expert(client, path, line, character, context) do
+    # Build LSP params using protocol types (converts 1-indexed to 0-indexed)
+    params = Protocol.definition_params(path, line, character)
+
+    Logger.debug("Requesting definition from Expert for #{path}:#{line}:#{character}")
+
+    case Client.request(client, Protocol.method_definition(), params) do
+      {:ok, nil} ->
+        {:error, LSPHandlers.format_error(:definition_not_found, path)}
+
+      {:ok, []} ->
+        {:error, LSPHandlers.format_error(:definition_not_found, path)}
+
+      {:ok, locations} ->
+        process_lsp_definition_response(locations, context)
+
+      {:error, :timeout} ->
+        {:error, LSPHandlers.format_error(:lsp_timeout, path)}
+
+      {:error, reason} ->
+        Logger.warning("Expert definition request failed: #{inspect(reason)}")
+        {:error, LSPHandlers.format_error(:lsp_not_available, path)}
+    end
+  end
+
+  # Response when Expert is not available
+  defp lsp_not_available_response(path, line, character) do
+    Logger.debug("Expert not available for definition request at #{path}:#{line}:#{character}")
+
+    {:ok,
+     %{
+       "status" => "lsp_not_available",
+       "message" =>
+         "Expert LSP is not available. " <>
+           "Install Expert (https://github.com/elixir-lang/expert) to enable code intelligence.",
+       "position" => %{
+         "path" => path,
+         "line" => line,
+         "character" => character
+       }
+     }}
   end
 
   # ============================================================================
@@ -820,8 +956,6 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
 
   ## Response Format
 
-  When LSP is configured, returns:
-
   ```elixir
   %{
     "status" => "found",
@@ -841,16 +975,16 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
   - Stdlib/OTP paths: Filtered out (not exposed to LLM)
   - External paths: Filtered out (not exposed to LLM)
 
-  ## LSP Integration
+  ## Expert Integration
 
-  This handler is designed to integrate with an LSP client (e.g., ElixirLS, Lexical).
-  Until the LSP client infrastructure is implemented (Phase 3.6), this handler
-  returns a placeholder response indicating LSP is not yet configured.
+  This handler connects to Expert (the official Elixir LSP) when available.
+  If Expert is not installed, returns a helpful message indicating LSP is not available.
   """
 
   require Logger
 
   alias JidoCode.Tools.Handlers.LSP, as: LSPHandlers
+  alias JidoCode.Tools.LSP.{Client, Protocol}
 
   @doc """
   Executes the find_references operation.
@@ -899,34 +1033,23 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
   # LSP Integration
   # ============================================================================
 
-  # Find references using LSP server
-  # Currently returns a placeholder until LSP client infrastructure is implemented
-  defp find_references(path, line, character, include_declaration, _context) do
-    # TODO: Integrate with LSP client once Phase 3.6 is implemented
-    # For now, check if the file is an Elixir file and return helpful info
+  # Find references using Expert LSP server
+  defp find_references(path, line, character, include_declaration, context) do
     if LSPHandlers.elixir_file?(path) do
-      Logger.debug(
-        "LSP find_references requested for #{path}:#{line}:#{character} " <>
-          "(include_declaration: #{include_declaration}) - LSP client not yet implemented"
-      )
+      case LSPHandlers.get_lsp_client(context) do
+        {:ok, client} ->
+          request_references_from_expert(
+            client,
+            path,
+            line,
+            character,
+            include_declaration,
+            context
+          )
 
-      # Return a structured response indicating LSP is not yet available
-      {:ok,
-       %{
-         "status" => "lsp_not_configured",
-         "message" =>
-           "LSP integration is not yet configured. " <>
-             "Reference finding will be available once an LSP server (ElixirLS, Lexical) is connected.",
-         "position" => %{
-           "path" => path,
-           "line" => line,
-           "character" => character
-         },
-         "include_declaration" => include_declaration,
-         "hint" =>
-           "To enable LSP features, ensure you have ElixirLS or Lexical running " <>
-             "and the LSP client is configured in Phase 3.6."
-       }}
+        {:error, :lsp_not_available} ->
+          lsp_not_available_response(path, line, character, include_declaration)
+      end
     else
       {:ok,
        %{
@@ -935,6 +1058,84 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
          "path" => path
        }}
     end
+  end
+
+  # Request references from Expert LSP server
+  defp request_references_from_expert(client, path, line, character, include_declaration, context) do
+    params =
+      Protocol.references_params(path, line, character, include_declaration: include_declaration)
+
+    case Client.request(client, Protocol.method_references(), params) do
+      {:ok, nil} ->
+        {:ok,
+         %{
+           "status" => "no_references",
+           "message" => "No references found for the symbol at this position",
+           "position" => %{
+             "path" => path,
+             "line" => line,
+             "character" => character
+           },
+           "include_declaration" => include_declaration
+         }}
+
+      {:ok, []} ->
+        {:ok,
+         %{
+           "status" => "no_references",
+           "message" => "No references found for the symbol at this position",
+           "position" => %{
+             "path" => path,
+             "line" => line,
+             "character" => character
+           },
+           "include_declaration" => include_declaration
+         }}
+
+      {:ok, locations} when is_list(locations) ->
+        case process_lsp_references_response(locations, context) do
+          {:ok, result} ->
+            {:ok, result}
+
+          {:error, :no_references_found} ->
+            {:ok,
+             %{
+               "status" => "no_references",
+               "message" => "No references found within project boundaries",
+               "position" => %{
+                 "path" => path,
+                 "line" => line,
+                 "character" => character
+               },
+               "include_declaration" => include_declaration
+             }}
+        end
+
+      {:error, :timeout} ->
+        {:error, LSPHandlers.format_error(:lsp_timeout, path)}
+
+      {:error, reason} ->
+        Logger.warning("LSP references request failed: #{inspect(reason)}")
+        {:error, LSPHandlers.format_error(:lsp_not_available, path)}
+    end
+  end
+
+  # Response when LSP is not available
+  defp lsp_not_available_response(path, line, character, include_declaration) do
+    {:ok,
+     %{
+       "status" => "lsp_not_available",
+       "message" =>
+         "Expert LSP server is not available. Install Expert to enable LSP features: " <>
+           "mix archive.install hex expert",
+       "position" => %{
+         "path" => path,
+         "line" => line,
+         "character" => character
+       },
+       "include_declaration" => include_declaration,
+       "hint" => "Visit https://github.com/elixir-lang/expert for installation instructions"
+     }}
   end
 
   # ============================================================================

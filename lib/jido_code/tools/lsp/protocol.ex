@@ -601,7 +601,11 @@ defmodule JidoCode.Tools.LSP.Protocol do
 
     @doc "Creates new ReferenceParams."
     @spec new(TextDocumentIdentifier.t(), Position.t(), boolean()) :: t()
-    def new(%TextDocumentIdentifier{} = text_document, %Position{} = position, include_declaration \\ false)
+    def new(
+          %TextDocumentIdentifier{} = text_document,
+          %Position{} = position,
+          include_declaration \\ false
+        )
         when is_boolean(include_declaration) do
       %__MODULE__{
         text_document: text_document,

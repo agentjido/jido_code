@@ -109,11 +109,12 @@ defmodule JidoCode.Tools.LSP.ClientTest do
     end
 
     test "accepts name option for registration" do
-      {:ok, pid} = Client.start_link(
-        project_root: @project_root,
-        auto_start: false,
-        name: :test_lsp_client
-      )
+      {:ok, pid} =
+        Client.start_link(
+          project_root: @project_root,
+          auto_start: false,
+          name: :test_lsp_client
+        )
 
       assert Process.whereis(:test_lsp_client) == pid
       GenServer.stop(pid)

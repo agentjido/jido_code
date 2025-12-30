@@ -166,8 +166,8 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
 
       # Parse the response
       response = Jason.decode!(result.content)
-      # Currently returns lsp_not_configured since LSP client isn't implemented
-      assert response["status"] == "lsp_not_configured"
+      # Returns lsp_not_available when Expert is not installed
+      assert response["status"] == "lsp_not_available"
       assert response["position"]["line"] == 2
       assert response["position"]["character"] == 7
     end
@@ -349,8 +349,8 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
 
       # Parse the response
       response = Jason.decode!(result.content)
-      # Currently returns lsp_not_configured since LSP client isn't implemented
-      assert response["status"] == "lsp_not_configured"
+      # Returns lsp_not_available when Expert is not installed
+      assert response["status"] == "lsp_not_available"
       assert response["position"]["line"] == 2
       assert response["position"]["character"] == 7
     end
@@ -1067,8 +1067,8 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
 
       # Parse the response
       response = Jason.decode!(result.content)
-      # Currently returns lsp_not_configured since LSP client isn't implemented
-      assert response["status"] == "lsp_not_configured"
+      # Returns lsp_not_available when Expert is not installed
+      assert response["status"] == "lsp_not_available"
       assert response["position"]["line"] == 2
       assert response["position"]["character"] == 7
     end

@@ -564,11 +564,13 @@ See `notes/summaries/tooling-3.6.2-lsp-protocol-types.md` for implementation det
 
 Update existing LSP handlers to use the Expert client.
 
-- [ ] 3.6.3.1 Update GetHoverInfo to call Expert via client
-- [ ] 3.6.3.2 Update GoToDefinition to call Expert via client
-- [ ] 3.6.3.3 Update FindReferences to call Expert via client
-- [ ] 3.6.3.4 Convert 1-indexed positions to 0-indexed for LSP protocol
-- [ ] 3.6.3.5 Parse Expert responses into handler result format
+- [x] 3.6.3.1 Update GetHoverInfo to call Expert via client
+- [x] 3.6.3.2 Update GoToDefinition to call Expert via client
+- [x] 3.6.3.3 Update FindReferences to call Expert via client
+- [x] 3.6.3.4 Convert 1-indexed positions to 0-indexed for LSP protocol
+- [x] 3.6.3.5 Parse Expert responses into handler result format
+
+See `notes/summaries/tooling-3.6.3-handler-integration.md` for implementation details.
 
 ### 3.6.4 Unit Tests for LSP Client
 

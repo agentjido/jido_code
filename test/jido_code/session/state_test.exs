@@ -1484,4 +1484,316 @@ defmodule JidoCode.Session.StateTest do
       assert {:error, :not_found} = State.get_access_stats("unknown-session-id", :framework)
     end
   end
+
+  # ============================================================================
+  # Promotion Timer Tests (Task 3.3.1)
+  # ============================================================================
+
+  describe "promotion timer initialization" do
+    test "initializes with promotion_enabled = true by default", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.promotion_enabled == true
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with default promotion_interval_ms", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.promotion_interval_ms == 30_000
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes with nil promotion_timer_ref when disabled", %{tmp_dir: tmp_dir} do
+      # Create session with promotion disabled via config
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      # Manually update config to disable promotion
+      session = %{session | config: Map.put(session.config, :promotion_enabled, false)}
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.promotion_enabled == false
+      assert state.promotion_timer_ref == nil
+
+      GenServer.stop(pid)
+    end
+
+    test "schedules timer when promotion is enabled", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.promotion_enabled == true
+      assert is_reference(state.promotion_timer_ref)
+
+      GenServer.stop(pid)
+    end
+
+    test "initializes empty promotion_stats", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state = :sys.get_state(pid)
+      assert state.promotion_stats.last_run == nil
+      assert state.promotion_stats.total_promoted == 0
+      assert state.promotion_stats.runs == 0
+
+      GenServer.stop(pid)
+    end
+  end
+
+  describe "enable_promotion/1" do
+    test "enables promotion and schedules timer", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      session = %{session | config: Map.put(session.config, :promotion_enabled, false)}
+      {:ok, pid} = State.start_link(session: session)
+
+      state_before = :sys.get_state(pid)
+      assert state_before.promotion_enabled == false
+      assert state_before.promotion_timer_ref == nil
+
+      assert :ok = State.enable_promotion(session.id)
+
+      state_after = :sys.get_state(pid)
+      assert state_after.promotion_enabled == true
+      assert is_reference(state_after.promotion_timer_ref)
+
+      GenServer.stop(pid)
+    end
+
+    test "is idempotent when already enabled", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state_before = :sys.get_state(pid)
+      timer_ref_before = state_before.promotion_timer_ref
+
+      assert :ok = State.enable_promotion(session.id)
+
+      state_after = :sys.get_state(pid)
+      assert state_after.promotion_enabled == true
+      # Timer ref should remain unchanged when already enabled
+      assert state_after.promotion_timer_ref == timer_ref_before
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.enable_promotion("unknown-session-id")
+    end
+  end
+
+  describe "disable_promotion/1" do
+    test "disables promotion and cancels timer", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state_before = :sys.get_state(pid)
+      assert state_before.promotion_enabled == true
+      assert is_reference(state_before.promotion_timer_ref)
+
+      assert :ok = State.disable_promotion(session.id)
+
+      state_after = :sys.get_state(pid)
+      assert state_after.promotion_enabled == false
+      assert state_after.promotion_timer_ref == nil
+
+      GenServer.stop(pid)
+    end
+
+    test "cancels pending timer message", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      state_before = :sys.get_state(pid)
+      timer_ref = state_before.promotion_timer_ref
+
+      :ok = State.disable_promotion(session.id)
+
+      # Timer should be cancelled - verify by checking Process.read_timer returns false
+      # (timer was cancelled or already fired)
+      assert Process.read_timer(timer_ref) == false
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.disable_promotion("unknown-session-id")
+    end
+  end
+
+  describe "get_promotion_stats/1" do
+    test "returns all promotion statistics", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, stats} = State.get_promotion_stats(session.id)
+
+      assert stats.enabled == true
+      assert stats.interval_ms == 30_000
+      assert stats.last_run == nil
+      assert stats.total_promoted == 0
+      assert stats.runs == 0
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.get_promotion_stats("unknown-session-id")
+    end
+  end
+
+  describe "set_promotion_interval/2" do
+    test "updates promotion interval", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert :ok = State.set_promotion_interval(session.id, 60_000)
+
+      state = :sys.get_state(pid)
+      assert state.promotion_interval_ms == 60_000
+
+      GenServer.stop(pid)
+    end
+
+    test "rejects non-positive intervals", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      assert {:error, :invalid_interval} = State.set_promotion_interval(session.id, 0)
+      assert {:error, :invalid_interval} = State.set_promotion_interval(session.id, -1000)
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.set_promotion_interval("unknown-session-id", 60_000)
+    end
+  end
+
+  describe "run_promotion_now/1" do
+    test "runs promotion immediately and returns count", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, count} = State.run_promotion_now(session.id)
+
+      # With empty pending memories, should promote 0
+      assert count == 0
+
+      GenServer.stop(pid)
+    end
+
+    test "updates promotion stats after run", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      {:ok, stats_before} = State.get_promotion_stats(session.id)
+      assert stats_before.runs == 0
+      assert stats_before.last_run == nil
+
+      {:ok, _count} = State.run_promotion_now(session.id)
+
+      {:ok, stats_after} = State.get_promotion_stats(session.id)
+      assert stats_after.runs == 1
+      assert %DateTime{} = stats_after.last_run
+
+      GenServer.stop(pid)
+    end
+
+    test "promotes pending memories that meet threshold", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Add a high-importance pending memory
+      item = %{
+        content: "Important discovery",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :tool,
+        importance_score: 0.85
+      }
+
+      :ok = State.add_pending_memory(session.id, item)
+
+      {:ok, count} = State.run_promotion_now(session.id)
+
+      # Should promote the high-importance item
+      assert count == 1
+
+      {:ok, stats} = State.get_promotion_stats(session.id)
+      assert stats.total_promoted == 1
+
+      GenServer.stop(pid)
+    end
+
+    test "returns :not_found for unknown session" do
+      assert {:error, :not_found} = State.run_promotion_now("unknown-session-id")
+    end
+  end
+
+  describe "handle_info(:run_promotion)" do
+    test "runs promotion when enabled", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      # Use very short interval for testing
+      session = %{session | config: Map.put(session.config, :promotion_interval_ms, 50)}
+      {:ok, pid} = State.start_link(session: session)
+
+      # Wait for the timer to fire
+      Process.sleep(100)
+
+      state = :sys.get_state(pid)
+      # Should have run at least once
+      assert state.promotion_stats.runs >= 1
+      assert state.promotion_stats.last_run != nil
+
+      GenServer.stop(pid)
+    end
+
+    test "reschedules timer after promotion", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      session = %{session | config: Map.put(session.config, :promotion_interval_ms, 50)}
+      {:ok, pid} = State.start_link(session: session)
+
+      state_before = :sys.get_state(pid)
+      timer_ref_before = state_before.promotion_timer_ref
+
+      # Wait for timer to fire
+      Process.sleep(100)
+
+      state_after = :sys.get_state(pid)
+      # New timer should be scheduled
+      assert is_reference(state_after.promotion_timer_ref)
+      # Timer ref should be different (new timer scheduled)
+      assert state_after.promotion_timer_ref != timer_ref_before
+
+      GenServer.stop(pid)
+    end
+
+    test "does not reschedule when disabled", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, pid} = State.start_link(session: session)
+
+      # Disable promotion
+      :ok = State.disable_promotion(session.id)
+
+      # Manually send the :run_promotion message
+      send(pid, :run_promotion)
+      Process.sleep(10)
+
+      state = :sys.get_state(pid)
+      # Timer should not be rescheduled
+      assert state.promotion_timer_ref == nil
+      # Stats should not be updated
+      assert state.promotion_stats.runs == 0
+
+      GenServer.stop(pid)
+    end
+  end
 end

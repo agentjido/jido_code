@@ -55,6 +55,7 @@ defmodule JidoCode.Session.State do
   alias JidoCode.Session.ProcessRegistry
 
   # Memory modules
+  alias JidoCode.Memory.Promotion.Engine, as: PromotionEngine
   alias JidoCode.Memory.ShortTerm.AccessLog
   alias JidoCode.Memory.ShortTerm.PendingMemories
   alias JidoCode.Memory.ShortTerm.WorkingContext
@@ -76,6 +77,10 @@ defmodule JidoCode.Session.State do
   @max_pending_memories 500
   @max_access_log_entries 1000
   @default_context_max_tokens 12_000
+
+  # Promotion timer configuration
+  @default_promotion_interval_ms 30_000
+  @default_promotion_enabled true
 
   # ============================================================================
   # Type Definitions
@@ -1070,6 +1075,146 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Promotion Timer Client API
+  # ============================================================================
+
+  @doc """
+  Enables the periodic promotion timer.
+
+  When enabled, the session will periodically evaluate and promote worthy
+  short-term memories to long-term storage.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `:ok` - Promotion timer enabled
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.enable_promotion("session-123")
+  """
+  @spec enable_promotion(String.t()) :: :ok | {:error, :not_found}
+  def enable_promotion(session_id) when is_binary(session_id) do
+    call_state(session_id, :enable_promotion)
+  end
+
+  @doc """
+  Disables the periodic promotion timer.
+
+  When disabled, no automatic promotion will occur. The timer will be cancelled
+  and will not be rescheduled until `enable_promotion/1` is called.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `:ok` - Promotion timer disabled
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.disable_promotion("session-123")
+  """
+  @spec disable_promotion(String.t()) :: :ok | {:error, :not_found}
+  def disable_promotion(session_id) when is_binary(session_id) do
+    call_state(session_id, :disable_promotion)
+  end
+
+  @doc """
+  Gets the current promotion statistics.
+
+  Returns information about promotion activity for this session.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, stats}` - Map containing:
+    - `:enabled` - Whether promotion is currently enabled
+    - `:interval_ms` - Current promotion interval in milliseconds
+    - `:last_run` - DateTime of last promotion run (nil if never run)
+    - `:total_promoted` - Total number of memories promoted
+    - `:runs` - Total number of promotion runs
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, stats} = State.get_promotion_stats("session-123")
+      iex> stats.enabled
+      true
+      iex> stats.total_promoted
+      15
+  """
+  @spec get_promotion_stats(String.t()) :: {:ok, map()} | {:error, :not_found}
+  def get_promotion_stats(session_id) when is_binary(session_id) do
+    call_state(session_id, :get_promotion_stats)
+  end
+
+  @doc """
+  Sets the promotion interval.
+
+  Changes the interval between automatic promotion runs. The change takes effect
+  on the next scheduled run.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `interval_ms` - New interval in milliseconds (must be positive)
+
+  ## Returns
+
+  - `:ok` - Interval updated
+  - `{:error, :invalid_interval}` - Interval is not a positive integer
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.set_promotion_interval("session-123", 60_000)  # 1 minute
+  """
+  @spec set_promotion_interval(String.t(), pos_integer()) ::
+          :ok | {:error, :invalid_interval | :not_found}
+  def set_promotion_interval(session_id, interval_ms)
+      when is_binary(session_id) and is_integer(interval_ms) and interval_ms > 0 do
+    call_state(session_id, {:set_promotion_interval, interval_ms})
+  end
+
+  def set_promotion_interval(session_id, _interval_ms) when is_binary(session_id) do
+    {:error, :invalid_interval}
+  end
+
+  @doc """
+  Triggers an immediate promotion run.
+
+  Runs the promotion engine immediately, outside of the normal scheduled interval.
+  The scheduled timer continues unaffected.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, count}` - Number of memories promoted
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, 3} = State.run_promotion_now("session-123")
+  """
+  @spec run_promotion_now(String.t()) :: {:ok, non_neg_integer()} | {:error, :not_found}
+  def run_promotion_now(session_id) when is_binary(session_id) do
+    call_state(session_id, :run_promotion_now)
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 
@@ -1091,6 +1236,10 @@ defmodule JidoCode.Session.State do
   def init(%Session{} = session) do
     Logger.info("Starting Session.State for session #{session.id}")
 
+    # Get promotion configuration from session config or use defaults
+    promotion_interval = get_promotion_interval(session)
+    promotion_enabled = get_promotion_enabled(session)
+
     state = %{
       session: session,
       session_id: session.id,
@@ -1108,10 +1257,61 @@ defmodule JidoCode.Session.State do
       # Memory system fields
       working_context: WorkingContext.new(@default_context_max_tokens),
       pending_memories: PendingMemories.new(@max_pending_memories),
-      access_log: AccessLog.new(@max_access_log_entries)
+      access_log: AccessLog.new(@max_access_log_entries),
+      # Promotion timer fields
+      promotion_enabled: promotion_enabled,
+      promotion_interval_ms: promotion_interval,
+      promotion_timer_ref: nil,
+      promotion_stats: %{
+        last_run: nil,
+        total_promoted: 0,
+        runs: 0
+      }
     }
 
+    # Schedule promotion timer if enabled
+    state =
+      if promotion_enabled do
+        schedule_promotion(state)
+      else
+        state
+      end
+
     {:ok, state}
+  end
+
+  # Gets promotion interval from session config or defaults
+  defp get_promotion_interval(%Session{} = session) do
+    case session do
+      %{config: %{promotion_interval_ms: interval}} when is_integer(interval) and interval > 0 ->
+        interval
+
+      _ ->
+        @default_promotion_interval_ms
+    end
+  end
+
+  # Gets promotion enabled from session config or defaults
+  defp get_promotion_enabled(%Session{} = session) do
+    case session do
+      %{config: %{promotion_enabled: enabled}} when is_boolean(enabled) ->
+        enabled
+
+      _ ->
+        @default_promotion_enabled
+    end
+  end
+
+  # Schedules the next promotion timer
+  @spec schedule_promotion(state()) :: state()
+  defp schedule_promotion(state) do
+    # Cancel any existing timer first
+    if state.promotion_timer_ref do
+      Process.cancel_timer(state.promotion_timer_ref)
+    end
+
+    timer_ref = Process.send_after(self(), :run_promotion, state.promotion_interval_ms)
+    %{state | promotion_timer_ref: timer_ref}
   end
 
   @impl true
@@ -1454,6 +1654,96 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Promotion Timer Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call(:enable_promotion, _from, state) do
+    if state.promotion_enabled do
+      # Already enabled
+      {:reply, :ok, state}
+    else
+      # Enable and schedule timer
+      new_state =
+        %{state | promotion_enabled: true}
+        |> schedule_promotion()
+
+      {:reply, :ok, new_state}
+    end
+  end
+
+  @impl true
+  def handle_call(:disable_promotion, _from, state) do
+    # Cancel existing timer if any
+    if state.promotion_timer_ref do
+      Process.cancel_timer(state.promotion_timer_ref)
+    end
+
+    new_state = %{state | promotion_enabled: false, promotion_timer_ref: nil}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_promotion_stats, _from, state) do
+    stats = %{
+      enabled: state.promotion_enabled,
+      interval_ms: state.promotion_interval_ms,
+      last_run: state.promotion_stats.last_run,
+      total_promoted: state.promotion_stats.total_promoted,
+      runs: state.promotion_stats.runs
+    }
+
+    {:reply, {:ok, stats}, state}
+  end
+
+  @impl true
+  def handle_call({:set_promotion_interval, interval_ms}, _from, state) do
+    new_state = %{state | promotion_interval_ms: interval_ms}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:run_promotion_now, _from, state) do
+    # Build state map for promotion engine
+    promotion_state = %{
+      working_context: state.working_context,
+      pending_memories: state.pending_memories,
+      access_log: state.access_log
+    }
+
+    # Run promotion engine
+    case PromotionEngine.run_with_state(promotion_state, state.session_id, []) do
+      {:ok, count, promoted_ids} when count > 0 ->
+        # Clear promoted items from pending memories
+        updated_pending = PendingMemories.clear_promoted(state.pending_memories, promoted_ids)
+
+        # Update promotion stats
+        updated_stats = %{
+          last_run: DateTime.utc_now(),
+          total_promoted: state.promotion_stats.total_promoted + count,
+          runs: state.promotion_stats.runs + 1
+        }
+
+        new_state = %{state | pending_memories: updated_pending, promotion_stats: updated_stats}
+        {:reply, {:ok, count}, new_state}
+
+      {:ok, 0} ->
+        # Update stats even when nothing promoted
+        updated_stats = %{
+          state.promotion_stats
+          | last_run: DateTime.utc_now(),
+            runs: state.promotion_stats.runs + 1
+        }
+
+        new_state = %{state | promotion_stats: updated_stats}
+        {:reply, {:ok, 0}, new_state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  # ============================================================================
   # handle_cast Callbacks
   # ============================================================================
 
@@ -1477,6 +1767,69 @@ defmodule JidoCode.Session.State do
   # ============================================================================
   # handle_info Callbacks
   # ============================================================================
+
+  @impl true
+  def handle_info(:run_promotion, state) do
+    if state.promotion_enabled do
+      # Build state map for promotion engine
+      promotion_state = %{
+        working_context: state.working_context,
+        pending_memories: state.pending_memories,
+        access_log: state.access_log
+      }
+
+      # Run promotion engine
+      case PromotionEngine.run_with_state(promotion_state, state.session_id, []) do
+        {:ok, count, promoted_ids} when count > 0 ->
+          Logger.debug(
+            "Session.State #{state.session_id} promoted #{count} memories"
+          )
+
+          # Clear promoted items from pending memories
+          updated_pending = PendingMemories.clear_promoted(state.pending_memories, promoted_ids)
+
+          # Update promotion stats
+          updated_stats = %{
+            last_run: DateTime.utc_now(),
+            total_promoted: state.promotion_stats.total_promoted + count,
+            runs: state.promotion_stats.runs + 1
+          }
+
+          # Schedule next run and update state
+          new_state =
+            %{state | pending_memories: updated_pending, promotion_stats: updated_stats}
+            |> schedule_promotion()
+
+          {:noreply, new_state}
+
+        {:ok, 0} ->
+          # No candidates to promote, just update stats and reschedule
+          updated_stats = %{
+            state.promotion_stats
+            | last_run: DateTime.utc_now(),
+              runs: state.promotion_stats.runs + 1
+          }
+
+          new_state =
+            %{state | promotion_stats: updated_stats}
+            |> schedule_promotion()
+
+          {:noreply, new_state}
+
+        {:error, reason} ->
+          Logger.warning(
+            "Session.State #{state.session_id} promotion failed: #{inspect(reason)}"
+          )
+
+          # Reschedule despite error
+          new_state = schedule_promotion(state)
+          {:noreply, new_state}
+      end
+    else
+      # Promotion disabled, do nothing (timer won't be rescheduled)
+      {:noreply, state}
+    end
+  end
 
   @impl true
   def handle_info(msg, state) do

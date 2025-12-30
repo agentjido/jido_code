@@ -332,12 +332,12 @@ Implement trigger points for when promotion should run, including periodic timer
 
 ### 3.3.1 Periodic Promotion Timer
 
-- [ ] 3.3.1.1 Add promotion configuration to Session.State:
+- [x] 3.3.1.1 Add promotion configuration to Session.State:
   ```elixir
   @promotion_interval_ms 30_000  # 30 seconds
   @promotion_enabled true
   ```
-- [ ] 3.3.1.2 Add promotion timer scheduling to `init/1`:
+- [x] 3.3.1.2 Add promotion timer scheduling to `init/1`:
   ```elixir
   def init(%Session{} = session) do
     # ... existing init ...
@@ -349,13 +349,13 @@ Implement trigger points for when promotion should run, including periodic timer
     {:ok, state}
   end
   ```
-- [ ] 3.3.1.3 Implement private `schedule_promotion/0`:
+- [x] 3.3.1.3 Implement private `schedule_promotion/0`:
   ```elixir
   defp schedule_promotion do
     Process.send_after(self(), :run_promotion, @promotion_interval_ms)
   end
   ```
-- [ ] 3.3.1.4 Add `handle_info(:run_promotion, state)` callback:
+- [x] 3.3.1.4 Add `handle_info(:run_promotion, state)` callback:
   ```elixir
   def handle_info(:run_promotion, state) do
     # Run promotion in a task to avoid blocking GenServer
@@ -370,8 +370,8 @@ Implement trigger points for when promotion should run, including periodic timer
     {:noreply, state}
   end
   ```
-- [ ] 3.3.1.5 Make promotion interval configurable via session config
-- [ ] 3.3.1.6 Add `enable_promotion/1` and `disable_promotion/1` client functions
+- [x] 3.3.1.5 Make promotion interval configurable via session config
+- [x] 3.3.1.6 Add `enable_promotion/1` and `disable_promotion/1` client functions
 
 ### 3.3.2 Event-Based Promotion Triggers
 
@@ -429,7 +429,7 @@ Wire the promotion engine into Session.State callbacks and state management.
 
 ### 3.4.1 Promotion State Fields
 
-- [ ] 3.4.1.1 Add promotion_stats to state struct:
+- [x] 3.4.1.1 Add promotion_stats to state struct:
   ```elixir
   promotion_stats: %{
     last_run: DateTime.t() | nil,
@@ -437,11 +437,11 @@ Wire the promotion engine into Session.State callbacks and state management.
     runs: non_neg_integer()
   }
   ```
-- [ ] 3.4.1.2 Add promotion_enabled field to state:
+- [x] 3.4.1.2 Add promotion_enabled field to state:
   ```elixir
   promotion_enabled: boolean()
   ```
-- [ ] 3.4.1.3 Initialize promotion fields in `init/1`:
+- [x] 3.4.1.3 Initialize promotion fields in `init/1`:
   ```elixir
   promotion_stats: %{last_run: nil, total_promoted: 0, runs: 0},
   promotion_enabled: true
@@ -449,38 +449,41 @@ Wire the promotion engine into Session.State callbacks and state management.
 
 ### 3.4.2 Promotion Client API
 
-- [ ] 3.4.2.1 Add `run_promotion/1` client function:
+- [x] 3.4.2.1 Add `run_promotion/1` client function:
   ```elixir
   @spec run_promotion(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def run_promotion(session_id) do
     Promotion.Engine.run(session_id)
   end
   ```
-- [ ] 3.4.2.2 Add `get_promotion_stats/1` client function:
+  (Implemented as `run_promotion_now/1`)
+- [x] 3.4.2.2 Add `get_promotion_stats/1` client function:
   ```elixir
   @spec get_promotion_stats(String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_promotion_stats(session_id)
   ```
-- [ ] 3.4.2.3 Add `update_promotion_stats/2` internal function:
+- [x] 3.4.2.3 Add `update_promotion_stats/2` internal function:
   ```elixir
   @spec update_promotion_stats(String.t(), non_neg_integer()) :: :ok
   defp update_promotion_stats(session_id, promoted_count)
   ```
-- [ ] 3.4.2.4 Add `set_promotion_enabled/2` client function:
+  (Integrated directly into handle_info and handle_call callbacks)
+- [x] 3.4.2.4 Add `set_promotion_enabled/2` client function:
   ```elixir
   @spec set_promotion_enabled(String.t(), boolean()) :: :ok | {:error, :not_found}
   def set_promotion_enabled(session_id, enabled)
   ```
+  (Implemented as `enable_promotion/1` and `disable_promotion/1`)
 
 ### 3.4.3 Promotion GenServer Callbacks
 
-- [ ] 3.4.3.1 Add `handle_call(:get_promotion_stats, ...)` callback:
+- [x] 3.4.3.1 Add `handle_call(:get_promotion_stats, ...)` callback:
   ```elixir
   def handle_call(:get_promotion_stats, _from, state) do
     {:reply, {:ok, state.promotion_stats}, state}
   end
   ```
-- [ ] 3.4.3.2 Add `handle_cast({:update_promotion_stats, count}, ...)` callback:
+- [x] 3.4.3.2 Add `handle_cast({:update_promotion_stats, count}, ...)` callback:
   ```elixir
   def handle_cast({:update_promotion_stats, count}, state) do
     new_stats = %{
@@ -492,20 +495,23 @@ Wire the promotion engine into Session.State callbacks and state management.
     {:noreply, %{state | promotion_stats: new_stats}}
   end
   ```
-- [ ] 3.4.3.3 Add `handle_call({:set_promotion_enabled, enabled}, ...)` callback
-- [ ] 3.4.3.4 Update Engine.run/2 to call update_promotion_stats after promotion
+  (Integrated into handle_info(:run_promotion) and handle_call(:run_promotion_now))
+- [x] 3.4.3.3 Add `handle_call({:set_promotion_enabled, enabled}, ...)` callback
+  (Implemented as :enable_promotion and :disable_promotion)
+- [x] 3.4.3.4 Update Engine.run/2 to call update_promotion_stats after promotion
+  (Stats updated directly in Session.State callbacks)
 
 ### 3.4.4 Unit Tests for Promotion Integration
 
-- [ ] Test promotion_stats initialize to zeros/nil
-- [ ] Test run_promotion/1 invokes engine and updates stats
-- [ ] Test get_promotion_stats/1 returns current stats
-- [ ] Test promotion stats update correctly after each run
-- [ ] Test total_promoted accumulates across runs
-- [ ] Test last_run timestamp updates on each run
-- [ ] Test runs counter increments on each run
-- [ ] Test set_promotion_enabled/2 changes enabled state
-- [ ] Test promotion timer respects enabled state
+- [x] Test promotion_stats initialize to zeros/nil
+- [x] Test run_promotion/1 invokes engine and updates stats
+- [x] Test get_promotion_stats/1 returns current stats
+- [x] Test promotion stats update correctly after each run
+- [x] Test total_promoted accumulates across runs
+- [x] Test last_run timestamp updates on each run
+- [x] Test runs counter increments on each run
+- [x] Test set_promotion_enabled/2 changes enabled state
+- [x] Test promotion timer respects enabled state
 
 ---
 

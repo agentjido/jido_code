@@ -48,13 +48,14 @@ defmodule JidoCode.Tools do
   """
 
   alias JidoCode.Tools.Definitions
+  alias JidoCode.Tools.Definitions.GitCommand
   alias JidoCode.Tools.{Param, Registry, Tool}
 
   @doc """
   Registers all built-in tools with the Registry.
 
   This is a convenience function to register all available tools at once.
-  Includes: file system, search, shell, livebook, web, todo, and task tools.
+  Includes: file system, search, shell, git, livebook, web, todo, and task tools.
 
   ## Returns
 
@@ -71,6 +72,7 @@ defmodule JidoCode.Tools do
       Definitions.FileSystem.all() ++
         Definitions.Search.all() ++
         Definitions.Shell.all() ++
+        GitCommand.all() ++
         Definitions.Livebook.all() ++
         Definitions.Web.all() ++
         Definitions.Todo.all() ++

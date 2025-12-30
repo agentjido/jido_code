@@ -56,12 +56,12 @@ All Git and LSP tools follow this execution flow:
 
 Implement the git_command tool for safe git CLI passthrough through the Lua sandbox.
 
-### 3.1.1 Tool Definition
+### 3.1.1 Tool Definition (DONE)
 
 Create the git_command tool definition with safety constraints.
 
-- [ ] 3.1.1.1 Create `lib/jido_code/tools/definitions/git_command.ex`
-- [ ] 3.1.1.2 Define schema:
+- [x] 3.1.1.1 Create `lib/jido_code/tools/definitions/git_command.ex`
+- [x] 3.1.1.2 Define schema:
   ```elixir
   %{
     name: "git_command",
@@ -73,8 +73,10 @@ Create the git_command tool definition with safety constraints.
     ]
   }
   ```
-- [ ] 3.1.1.3 Document allowed and blocked subcommands
-- [ ] 3.1.1.4 Register tool in definitions module
+- [x] 3.1.1.3 Document allowed and blocked subcommands
+- [x] 3.1.1.4 Register tool in definitions module
+
+See `notes/summaries/tooling-3.1.1-git-command-definition.md` for implementation details.
 
 ### 3.1.2 Bridge Function Implementation
 

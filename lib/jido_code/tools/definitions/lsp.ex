@@ -9,6 +9,7 @@ defmodule JidoCode.Tools.Definitions.LSP do
 
   - `get_hover_info` - Get type info and documentation at cursor position
   - `go_to_definition` - Find where a symbol is defined
+  - `find_references` - Find all usages of a symbol
 
   ## Usage
 
@@ -41,7 +42,8 @@ defmodule JidoCode.Tools.Definitions.LSP do
   def all do
     [
       get_hover_info(),
-      go_to_definition()
+      go_to_definition(),
+      find_references()
     ]
   end
 
@@ -166,6 +168,84 @@ defmodule JidoCode.Tools.Definitions.LSP do
           type: :integer,
           description: "Character offset in the line (1-indexed, as shown in editors)",
           required: true
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the find_references tool definition.
+
+  Finds all usages of a symbol across the codebase. Returns a list of locations
+  where the symbol is referenced, allowing exploration of how functions, modules,
+  or variables are used throughout the project.
+
+  ## Parameters
+
+  - `path` (required, string) - File path to query (relative to project root)
+  - `line` (required, integer) - Line number (1-indexed)
+  - `character` (required, integer) - Character offset in line (1-indexed)
+  - `include_declaration` (optional, boolean) - Include the declaration in results (default: false)
+
+  ## Returns
+
+  On success, returns a map with:
+  - `status` - "found", "not_found", or "lsp_not_configured"
+  - `references` - Array of locations with `path`, `line`, `character`
+  - `count` - Number of references found
+
+  On failure, returns an error message.
+
+  ## Examples
+
+      # Find all usages of a function
+      %{
+        "path" => "lib/my_app/user.ex",
+        "line" => 15,
+        "character" => 10
+      }
+
+      # Include the declaration in results
+      %{
+        "path" => "lib/my_app/user.ex",
+        "line" => 15,
+        "character" => 10,
+        "include_declaration" => true
+      }
+  """
+  @spec find_references() :: Tool.t()
+  def find_references do
+    Tool.new!(%{
+      name: "find_references",
+      description:
+        "Find all usages of a symbol. " <>
+          "Returns a list of locations where the symbol is used. " <>
+          "Use to explore function callers, module dependencies, or variable usage.",
+      handler: Handlers.FindReferences,
+      parameters: [
+        %{
+          name: "path",
+          type: :string,
+          description: "File path to query (relative to project root)",
+          required: true
+        },
+        %{
+          name: "line",
+          type: :integer,
+          description: "Line number (1-indexed, as shown in editors)",
+          required: true
+        },
+        %{
+          name: "character",
+          type: :integer,
+          description: "Character offset in the line (1-indexed, as shown in editors)",
+          required: true
+        },
+        %{
+          name: "include_declaration",
+          type: :boolean,
+          description: "Include the declaration in results (default: false)",
+          required: false
         }
       ]
     })

@@ -424,8 +424,8 @@ See `notes/summaries/tooling-3.3.2-lsp-handler-architecture.md` for rationale.
 
 Add the find_references tool to the existing LSP definitions module.
 
-- [ ] 3.5.1.1 Add `find_references/0` function to `lib/jido_code/tools/definitions/lsp.ex`
-- [ ] 3.5.1.2 Define schema:
+- [x] 3.5.1.1 Add `find_references/0` function to `lib/jido_code/tools/definitions/lsp.ex`
+- [x] 3.5.1.2 Define schema:
   ```elixir
   %{
     name: "find_references",
@@ -438,8 +438,8 @@ Add the find_references tool to the existing LSP definitions module.
     ]
   }
   ```
-- [ ] 3.5.1.3 Update `LSP.all/0` to include `find_references()`
-- [ ] 3.5.1.4 Create handler `FindReferences` in `lib/jido_code/tools/handlers/lsp.ex`
+- [x] 3.5.1.3 Update `LSP.all/0` to include `find_references()`
+- [x] 3.5.1.4 Create handler `FindReferences` in `lib/jido_code/tools/handlers/lsp.ex`
 
 ### 3.5.2 Handler Implementation (uses Handler pattern)
 

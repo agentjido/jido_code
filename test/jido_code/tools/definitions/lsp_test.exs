@@ -48,11 +48,12 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
   describe "all/0" do
     test "returns all LSP tools" do
       tools = Definitions.all()
-      assert length(tools) == 2
+      assert length(tools) == 3
 
       names = Enum.map(tools, & &1.name)
       assert "get_hover_info" in names
       assert "go_to_definition" in names
+      assert "find_references" in names
     end
   end
 
@@ -953,6 +954,421 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
 
       assert {:ok, sanitized} = LSPHandlers.validate_output_path(docker_erlang, context)
       assert sanitized == "erlang:gen_server"
+    end
+  end
+
+  # ============================================================================
+  # find_references tests (Section 3.5.1)
+  # ============================================================================
+
+  describe "find_references/0 definition" do
+    test "has correct schema" do
+      tool = Definitions.find_references()
+      assert tool.name == "find_references"
+      assert tool.description =~ "usage"
+      assert length(tool.parameters) == 4
+
+      path_param = Enum.find(tool.parameters, &(&1.name == "path"))
+      line_param = Enum.find(tool.parameters, &(&1.name == "line"))
+      char_param = Enum.find(tool.parameters, &(&1.name == "character"))
+      incl_decl_param = Enum.find(tool.parameters, &(&1.name == "include_declaration"))
+
+      assert path_param.required == true
+      assert path_param.type == :string
+
+      assert line_param.required == true
+      assert line_param.type == :integer
+
+      assert char_param.required == true
+      assert char_param.type == :integer
+
+      assert incl_decl_param.required == false
+      assert incl_decl_param.type == :boolean
+    end
+
+    test "generates valid LLM function format" do
+      tool = Definitions.find_references()
+      llm_fn = JidoCode.Tools.Tool.to_llm_function(tool)
+
+      assert llm_fn.type == "function"
+      assert llm_fn.function.name == "find_references"
+      assert is_binary(llm_fn.function.description)
+      assert is_map(llm_fn.function.parameters)
+
+      # Check parameters schema
+      params = llm_fn.function.parameters
+      assert params.type == "object"
+      assert Map.has_key?(params.properties, "path")
+      assert Map.has_key?(params.properties, "line")
+      assert Map.has_key?(params.properties, "character")
+      assert Map.has_key?(params.properties, "include_declaration")
+      assert "path" in params.required
+      assert "line" in params.required
+      assert "character" in params.required
+      # include_declaration should NOT be required
+      refute "include_declaration" in params.required
+    end
+  end
+
+  describe "find_references executor integration" do
+    test "find_references works via executor for Elixir files", %{project_root: project_root} do
+      # Create an Elixir file
+      file_path = Path.join(project_root, "test_module.ex")
+
+      File.write!(file_path, """
+      defmodule TestModule do
+        def hello do
+          :world
+        end
+      end
+      """)
+
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "test_module.ex", "line" => 2, "character" => 7}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      # Parse the response
+      response = Jason.decode!(result.content)
+      # Currently returns lsp_not_configured since LSP client isn't implemented
+      assert response["status"] == "lsp_not_configured"
+      assert response["position"]["line"] == 2
+      assert response["position"]["character"] == 7
+    end
+
+    test "find_references handles non-Elixir files", %{project_root: project_root} do
+      # Create a non-Elixir file
+      file_path = Path.join(project_root, "readme.txt")
+      File.write!(file_path, "This is a readme file")
+
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "readme.txt", "line" => 1, "character" => 1}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      response = Jason.decode!(result.content)
+      assert response["status"] == "unsupported_file_type"
+    end
+
+    test "find_references returns error for non-existent file", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "nonexistent.ex", "line" => 1, "character" => 1}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "not found"
+    end
+
+    test "find_references validates required arguments", %{project_root: project_root} do
+      # Missing required path argument
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"line" => 1, "character" => 1}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "missing required parameter"
+    end
+
+    test "find_references validates line number", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      # Line 0 is invalid (should be 1-indexed)
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "test.ex", "line" => 0, "character" => 1}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "positive integer"
+    end
+
+    test "find_references validates character number", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      # Character 0 is invalid (should be 1-indexed)
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "test.ex", "line" => 1, "character" => 0}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "positive integer"
+    end
+
+    test "find_references include_declaration defaults to false", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      # No include_declaration parameter
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "test.ex", "line" => 1, "character" => 1}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      response = Jason.decode!(result.content)
+      assert response["include_declaration"] == false
+    end
+
+    test "find_references respects include_declaration=true", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{
+          "path" => "test.ex",
+          "line" => 1,
+          "character" => 1,
+          "include_declaration" => true
+        }
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      response = Jason.decode!(result.content)
+      assert response["include_declaration"] == true
+    end
+
+    test "find_references results can be converted to LLM messages", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call = %{
+        id: "call_refs",
+        name: "find_references",
+        arguments: %{"path" => "test.ex", "line" => 1, "character" => 1}
+      }
+
+      context = %{project_root: project_root}
+      {:ok, result} = Executor.execute(tool_call, context: context)
+
+      message = Result.to_llm_message(result)
+      assert message.role == "tool"
+      assert message.tool_call_id == "call_refs"
+      assert is_binary(message.content)
+    end
+  end
+
+  describe "find_references security" do
+    test "find_references blocks path traversal", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "../../../etc/passwd", "line" => 1, "character" => 1}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Security error" or result.content =~ "escapes"
+    end
+
+    test "find_references blocks absolute paths outside project", %{project_root: _project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "/etc/passwd", "line" => 1, "character" => 1}
+      }
+
+      # Use a different project root to ensure absolute path is outside
+      context = %{project_root: "/tmp/test_project"}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+    end
+  end
+
+  describe "find_references session-aware context" do
+    test "uses session_id when provided", %{project_root: project_root} do
+      file_path = Path.join(project_root, "test.ex")
+      File.write!(file_path, "defmodule Test, do: nil")
+
+      tool_call = %{
+        id: "call_123",
+        name: "find_references",
+        arguments: %{"path" => "test.ex", "line" => 1, "character" => 1}
+      }
+
+      # With an invalid session_id, should fall back or error
+      context = %{session_id: "nonexistent_session", project_root: project_root}
+      result = Executor.execute(tool_call, context: context)
+
+      # Should work with fallback to project_root
+      assert {:ok, _} = result
+    end
+  end
+
+  # ============================================================================
+  # LSP References Response Processing Tests
+  # ============================================================================
+
+  describe "LSP references response processing" do
+    alias JidoCode.Tools.Handlers.LSP.FindReferences
+
+    test "processes nil response as no references found", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      assert {:error, :no_references_found} =
+               FindReferences.process_lsp_references_response(nil, context)
+    end
+
+    test "processes empty array as no references found", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      assert {:error, :no_references_found} =
+               FindReferences.process_lsp_references_response([], context)
+    end
+
+    test "processes multiple references", %{project_root: project_root} do
+      # Create multiple files in the project
+      lib_dir = Path.join(project_root, "lib")
+      File.mkdir_p!(lib_dir)
+      file_a = Path.join(lib_dir, "caller_a.ex")
+      file_b = Path.join(lib_dir, "caller_b.ex")
+      File.write!(file_a, "defmodule CallerA, do: nil")
+      File.write!(file_b, "defmodule CallerB, do: nil")
+
+      lsp_response = [
+        %{
+          "uri" => "file://#{file_a}",
+          "range" => %{"start" => %{"line" => 0, "character" => 10}}
+        },
+        %{
+          "uri" => "file://#{file_b}",
+          "range" => %{"start" => %{"line" => 5, "character" => 20}}
+        }
+      ]
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = FindReferences.process_lsp_references_response(lsp_response, context)
+      assert result["status"] == "found"
+      assert is_list(result["references"])
+      assert result["count"] == 2
+
+      paths = Enum.map(result["references"], & &1["path"])
+      assert "lib/caller_a.ex" in paths
+      assert "lib/caller_b.ex" in paths
+    end
+
+    test "filters out external paths from references", %{project_root: project_root} do
+      # Create one file in the project
+      lib_dir = Path.join(project_root, "lib")
+      File.mkdir_p!(lib_dir)
+      file_path = Path.join(lib_dir, "my_module.ex")
+      File.write!(file_path, "defmodule MyModule, do: nil")
+
+      lsp_response = [
+        %{
+          "uri" => "file://#{file_path}",
+          "range" => %{"start" => %{"line" => 0, "character" => 0}}
+        },
+        %{
+          "uri" => "file:///home/secret/hidden.ex",
+          "range" => %{"start" => %{"line" => 5, "character" => 10}}
+        }
+      ]
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = FindReferences.process_lsp_references_response(lsp_response, context)
+      assert result["status"] == "found"
+      assert result["count"] == 1
+      assert hd(result["references"])["path"] == "lib/my_module.ex"
+    end
+
+    test "filters out stdlib paths from references", %{project_root: project_root} do
+      # Create a project file
+      lib_dir = Path.join(project_root, "lib")
+      File.mkdir_p!(lib_dir)
+      file_path = Path.join(lib_dir, "my_module.ex")
+      File.write!(file_path, "defmodule MyModule, do: nil")
+
+      lsp_response = [
+        %{
+          "uri" => "file://#{file_path}",
+          "range" => %{"start" => %{"line" => 0, "character" => 0}}
+        },
+        %{
+          "uri" => "file:///home/user/.asdf/installs/elixir/1.16.0/lib/elixir/lib/enum.ex",
+          "range" => %{"start" => %{"line" => 100, "character" => 5}}
+        }
+      ]
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = FindReferences.process_lsp_references_response(lsp_response, context)
+      # Stdlib reference should be filtered out
+      assert result["count"] == 1
+      assert hd(result["references"])["path"] == "lib/my_module.ex"
+    end
+
+    test "returns no references when all are external or stdlib", %{project_root: project_root} do
+      lsp_response = [
+        %{
+          "uri" => "file:///home/secret/hidden.ex",
+          "range" => %{"start" => %{"line" => 0, "character" => 0}}
+        },
+        %{
+          "uri" => "file:///home/user/.asdf/installs/elixir/1.16.0/lib/elixir/lib/enum.ex",
+          "range" => %{"start" => %{"line" => 100, "character" => 5}}
+        }
+      ]
+
+      context = %{project_root: project_root}
+
+      assert {:error, :no_references_found} =
+               FindReferences.process_lsp_references_response(lsp_response, context)
+    end
+
+    test "includes deps paths in references", %{project_root: project_root} do
+      # Create a deps file
+      deps_dir = Path.join(project_root, "deps/jason/lib")
+      File.mkdir_p!(deps_dir)
+      deps_file = Path.join(deps_dir, "jason.ex")
+      File.write!(deps_file, "defmodule Jason, do: nil")
+
+      lsp_response = [
+        %{
+          "uri" => "file://#{deps_file}",
+          "range" => %{"start" => %{"line" => 10, "character" => 5}}
+        }
+      ]
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = FindReferences.process_lsp_references_response(lsp_response, context)
+      assert result["count"] == 1
+      assert hd(result["references"])["path"] == "deps/jason/lib/jason.ex"
     end
   end
 end

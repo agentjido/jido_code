@@ -187,6 +187,9 @@ defmodule JidoCode.Tools.Handlers.LSP do
   def format_error(:definition_not_found, path),
     do: "No definition found at this position in: #{path}"
 
+  def format_error(:no_references_found, path),
+    do: "No references found for symbol at this position in: #{path}"
+
   def format_error(reason, path) when is_atom(reason), do: "Error (#{reason}): #{path}"
   def format_error(reason, _path) when is_binary(reason), do: reason
   def format_error(reason, path), do: "Error (#{inspect(reason)}): #{path}"
@@ -742,6 +745,247 @@ defmodule JidoCode.Tools.Handlers.LSP.GoToDefinition do
   end
 
   defp process_single_location(_, _context), do: {:error, :invalid_location}
+
+  # Extract line number from LSP Location (convert 0-indexed to 1-indexed)
+  defp get_line_from_location(%{"range" => %{"start" => %{"line" => line}}})
+       when is_integer(line) do
+    line + 1
+  end
+
+  defp get_line_from_location(_), do: 1
+
+  # Extract character from LSP Location (convert 0-indexed to 1-indexed)
+  defp get_character_from_location(%{"range" => %{"start" => %{"character" => char}}})
+       when is_integer(char) do
+    char + 1
+  end
+
+  defp get_character_from_location(_), do: 1
+end
+
+defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
+  @moduledoc """
+  Handler for the find_references tool.
+
+  Finds all usages of a symbol using the Language Server Protocol (LSP).
+  Returns a list of locations where the symbol is referenced.
+
+  ## Parameters
+
+  - `path` (required) - File path to query
+  - `line` (required) - Line number (1-indexed)
+  - `character` (required) - Character offset (1-indexed)
+  - `include_declaration` (optional) - Include the declaration in results (default: false)
+
+  ## Returns
+
+  - `{:ok, result}` - Map with reference locations
+  - `{:error, reason}` - Error message string
+
+  ## Response Format
+
+  When LSP is configured, returns:
+
+  ```elixir
+  %{
+    "status" => "found",
+    "references" => [
+      %{"path" => "lib/caller_a.ex", "line" => 10, "character" => 5},
+      %{"path" => "lib/caller_b.ex", "line" => 22, "character" => 15}
+    ],
+    "count" => 2
+  }
+  ```
+
+  ## Output Path Security
+
+  All paths returned by the LSP server are validated and filtered:
+  - Project paths: Returned as relative paths
+  - Dependency paths: Returned as relative paths (deps/*, _build/*)
+  - Stdlib/OTP paths: Filtered out (not exposed to LLM)
+  - External paths: Filtered out (not exposed to LLM)
+
+  ## LSP Integration
+
+  This handler is designed to integrate with an LSP client (e.g., ElixirLS, Lexical).
+  Until the LSP client infrastructure is implemented (Phase 3.6), this handler
+  returns a placeholder response indicating LSP is not yet configured.
+  """
+
+  require Logger
+
+  alias JidoCode.Tools.Handlers.LSP, as: LSPHandlers
+
+  @doc """
+  Executes the find_references operation.
+
+  ## Arguments
+
+  - `params` - Map with "path", "line", "character", and optional "include_declaration" keys
+  - `context` - Execution context with session_id or project_root
+
+  ## Returns
+
+  - `{:ok, result}` on success with reference locations
+  - `{:error, reason}` on failure
+  """
+  @spec execute(map(), map()) :: {:ok, map()} | {:error, String.t()}
+  def execute(params, context) do
+    start_time = System.monotonic_time(:microsecond)
+
+    with {:ok, path} <- LSPHandlers.extract_path(params),
+         {:ok, line} <- LSPHandlers.extract_line(params),
+         {:ok, character} <- LSPHandlers.extract_character(params),
+         {:ok, safe_path} <- LSPHandlers.validate_path(path, context),
+         :ok <- LSPHandlers.validate_file_exists(safe_path) do
+      include_declaration = extract_include_declaration(params)
+      result = find_references(safe_path, line, character, include_declaration, context)
+      LSPHandlers.emit_lsp_telemetry(:find_references, start_time, path, context, :success)
+      result
+    else
+      {:error, reason} ->
+        path = Map.get(params, "path", "<unknown>")
+        LSPHandlers.emit_lsp_telemetry(:find_references, start_time, path, context, :error)
+        {:error, LSPHandlers.format_error(reason, path)}
+    end
+  end
+
+  # Extract include_declaration parameter (default: false)
+  defp extract_include_declaration(%{"include_declaration" => value}) when is_boolean(value) do
+    value
+  end
+
+  defp extract_include_declaration(%{"include_declaration" => "true"}), do: true
+  defp extract_include_declaration(%{"include_declaration" => "false"}), do: false
+  defp extract_include_declaration(_), do: false
+
+  # ============================================================================
+  # LSP Integration
+  # ============================================================================
+
+  # Find references using LSP server
+  # Currently returns a placeholder until LSP client infrastructure is implemented
+  defp find_references(path, line, character, include_declaration, _context) do
+    # TODO: Integrate with LSP client once Phase 3.6 is implemented
+    # For now, check if the file is an Elixir file and return helpful info
+    if LSPHandlers.elixir_file?(path) do
+      Logger.debug(
+        "LSP find_references requested for #{path}:#{line}:#{character} " <>
+          "(include_declaration: #{include_declaration}) - LSP client not yet implemented"
+      )
+
+      # Return a structured response indicating LSP is not yet available
+      {:ok,
+       %{
+         "status" => "lsp_not_configured",
+         "message" =>
+           "LSP integration is not yet configured. " <>
+             "Reference finding will be available once an LSP server (ElixirLS, Lexical) is connected.",
+         "position" => %{
+           "path" => path,
+           "line" => line,
+           "character" => character
+         },
+         "include_declaration" => include_declaration,
+         "hint" =>
+           "To enable LSP features, ensure you have ElixirLS or Lexical running " <>
+             "and the LSP client is configured in Phase 3.6."
+       }}
+    else
+      {:ok,
+       %{
+         "status" => "unsupported_file_type",
+         "message" => "Find references is only available for Elixir files (.ex, .exs)",
+         "path" => path
+       }}
+    end
+  end
+
+  # ============================================================================
+  # LSP Response Processing (for Phase 3.6 integration)
+  # ============================================================================
+
+  @doc """
+  Processes an LSP references response, validating and filtering output paths.
+
+  This function will be called when the LSP client is integrated (Phase 3.6).
+  It filters out any references outside the project boundary.
+
+  ## Parameters
+
+  - `lsp_response` - Raw response from LSP server (array of Locations)
+  - `context` - Execution context with project_root
+
+  ## Returns
+
+  - `{:ok, result}` - Processed result with filtered and sanitized paths
+  - `{:error, :no_references_found}` - No valid references found
+
+  ## Notes
+
+  Unlike go_to_definition, find_references does NOT include stdlib/OTP paths
+  in results, as references in standard library code are not useful for the user.
+  """
+  @spec process_lsp_references_response([map()] | nil, map()) ::
+          {:ok, map()} | {:error, :no_references_found}
+  def process_lsp_references_response(nil, _context), do: {:error, :no_references_found}
+
+  def process_lsp_references_response([], _context), do: {:error, :no_references_found}
+
+  def process_lsp_references_response(locations, context) when is_list(locations) do
+    # Filter to only project-local paths (no stdlib/OTP)
+    references =
+      for location <- locations,
+          {:ok, ref} <- [process_reference_location(location, context)] do
+        ref
+      end
+
+    case references do
+      [] ->
+        {:error, :no_references_found}
+
+      refs ->
+        {:ok,
+         %{
+           "status" => "found",
+           "references" => refs,
+           "count" => length(refs)
+         }}
+    end
+  end
+
+  # Process a single LSP Location for references
+  # Only includes project-local paths (excludes stdlib/OTP)
+  defp process_reference_location(%{"uri" => uri} = location, context) do
+    # Convert file:// URI to path (case-insensitive)
+    path = LSPHandlers.uri_to_path(uri)
+
+    case LSPHandlers.validate_output_path(path, context) do
+      {:ok, safe_path} ->
+        # For references, exclude stdlib paths (they're not useful)
+        is_stdlib =
+          String.starts_with?(safe_path, "elixir:") or
+            String.starts_with?(safe_path, "erlang:")
+
+        if is_stdlib do
+          {:error, :stdlib_path}
+        else
+          {:ok,
+           %{
+             "path" => safe_path,
+             # LSP uses 0-indexed positions, we convert to 1-indexed (editor convention)
+             "line" => get_line_from_location(location),
+             "character" => get_character_from_location(location)
+           }}
+        end
+
+      {:error, :external_path} ->
+        # Path is outside allowed boundaries - skip this location
+        {:error, :external_path}
+    end
+  end
+
+  defp process_reference_location(_, _context), do: {:error, :invalid_location}
 
   # Extract line number from LSP Location (convert 0-indexed to 1-indexed)
   defp get_line_from_location(%{"range" => %{"start" => %{"line" => line}}})

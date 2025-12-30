@@ -174,13 +174,13 @@ Implement the core promotion logic that evaluates short-term memory and promotes
 
 ### 3.2.1 Engine Module
 
-- [ ] 3.2.1.1 Create `lib/jido_code/memory/promotion/engine.ex` with comprehensive moduledoc
-- [ ] 3.2.1.2 Define promotion configuration:
+- [x] 3.2.1.1 Create `lib/jido_code/memory/promotion/engine.ex` with comprehensive moduledoc
+- [x] 3.2.1.2 Define promotion configuration:
   ```elixir
   @promotion_threshold 0.6
   @max_promotions_per_run 20
   ```
-- [ ] 3.2.1.3 Define `promotion_candidate()` type:
+- [x] 3.2.1.3 Define `promotion_candidate()` type:
   ```elixir
   @type promotion_candidate :: %{
     id: String.t() | nil,
@@ -196,7 +196,7 @@ Implement the core promotion logic that evaluates short-term memory and promotes
     access_count: non_neg_integer()
   }
   ```
-- [ ] 3.2.1.4 Implement `evaluate/1` to find promotion candidates:
+- [x] 3.2.1.4 Implement `evaluate/1` to find promotion candidates:
   ```elixir
   @spec evaluate(Session.State.state()) :: [promotion_candidate()]
   def evaluate(state) do
@@ -217,7 +217,7 @@ Implement the core promotion logic that evaluates short-term memory and promotes
     |> Enum.take(@max_promotions_per_run)
   end
   ```
-- [ ] 3.2.1.5 Implement `promote/3` to persist candidates:
+- [x] 3.2.1.5 Implement `promote/3` to persist candidates:
   ```elixir
   @spec promote([promotion_candidate()], String.t(), keyword()) ::
     {:ok, non_neg_integer()} | {:error, term()}
@@ -234,7 +234,7 @@ Implement the core promotion logic that evaluates short-term memory and promotes
     {:ok, success_count}
   end
   ```
-- [ ] 3.2.1.6 Implement `run/2` convenience function combining all steps:
+- [x] 3.2.1.6 Implement `run/2` convenience function combining all steps:
   ```elixir
   @spec run(String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
   def run(session_id, opts \\ []) do
@@ -261,7 +261,7 @@ Implement the core promotion logic that evaluates short-term memory and promotes
     end
   end
   ```
-- [ ] 3.2.1.7 Implement private `build_context_candidates/2`:
+- [x] 3.2.1.7 Implement private `build_context_candidates/2`:
   ```elixir
   defp build_context_candidates(working_context, access_log) do
     working_context
@@ -273,32 +273,32 @@ Implement the core promotion logic that evaluates short-term memory and promotes
     |> Enum.filter(&(&1.suggested_type != nil))  # Only promotable types
   end
   ```
-- [ ] 3.2.1.8 Implement private `build_candidate_from_context/2`:
+- [x] 3.2.1.8 Implement private `build_candidate_from_context/2`:
   - Convert context item to promotion_candidate
   - Calculate importance score using ImportanceScorer
   - Set suggested_by: :implicit
-- [ ] 3.2.1.9 Implement private `build_memory_input/4`:
+- [x] 3.2.1.9 Implement private `build_memory_input/4`:
   - Convert candidate to memory_input format
   - Generate id if not present
   - Set created_at timestamp
   - Format content (handle non-string values)
-- [ ] 3.2.1.10 Implement private `promotable?/1`:
+- [x] 3.2.1.10 Implement private `promotable?/1`:
   - Check suggested_type is not nil
   - Check content is not empty
-- [ ] 3.2.1.11 Implement private `format_content/1`:
+- [x] 3.2.1.11 Implement private `format_content/1`:
   ```elixir
   defp format_content(%{value: v}) when is_binary(v), do: v
   defp format_content(%{value: v, key: k}), do: "#{k}: #{inspect(v)}"
   defp format_content(%{content: c}) when is_binary(c), do: c
   defp format_content(item), do: inspect(item)
   ```
-- [ ] 3.2.1.12 Implement private `generate_id/0`:
+- [x] 3.2.1.12 Implement private `generate_id/0`:
   ```elixir
   defp generate_id do
     :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
   end
   ```
-- [ ] 3.2.1.13 Implement private `emit_promotion_telemetry/2`
+- [x] 3.2.1.13 Implement private `emit_promotion_telemetry/2`
 
 ### 3.2.2 Unit Tests for Promotion Engine
 

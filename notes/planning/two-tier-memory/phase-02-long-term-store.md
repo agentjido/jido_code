@@ -531,15 +531,15 @@ Supervision tree for memory subsystem processes.
 
 ### 2.5.1 Supervisor Module
 
-- [ ] 2.5.1.1 Create `lib/jido_code/memory/supervisor.ex` with moduledoc
-- [ ] 2.5.1.2 Implement `use Supervisor`
-- [ ] 2.5.1.3 Implement `start_link/1` with named registration:
+- [x] 2.5.1.1 Create `lib/jido_code/memory/supervisor.ex` with moduledoc
+- [x] 2.5.1.2 Implement `use Supervisor`
+- [x] 2.5.1.3 Implement `start_link/1` with named registration:
   ```elixir
   def start_link(opts \\ []) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
   ```
-- [ ] 2.5.1.4 Implement `init/1` with children:
+- [x] 2.5.1.4 Implement `init/1` with children:
   ```elixir
   def init(opts) do
     children = [
@@ -548,7 +548,7 @@ Supervision tree for memory subsystem processes.
     Supervisor.init(children, strategy: :one_for_one)
   end
   ```
-- [ ] 2.5.1.5 Add `JidoCode.Memory.Supervisor` to application supervision tree in application.ex:
+- [x] 2.5.1.5 Add `JidoCode.Memory.Supervisor` to application supervision tree in application.ex:
   ```elixir
   children = [
     # ... existing children ...
@@ -558,10 +558,10 @@ Supervision tree for memory subsystem processes.
 
 ### 2.5.2 Unit Tests for Memory Supervisor
 
-- [ ] Test supervisor starts with StoreManager child
-- [ ] Test StoreManager restarts on crash (permanent)
-- [ ] Test supervisor handles StoreManager failure gracefully
-- [ ] Test supervisor starts successfully in application
+- [x] Test supervisor starts with StoreManager child
+- [x] Test StoreManager restarts on crash (permanent)
+- [x] Test supervisor handles StoreManager failure gracefully
+- [x] Test supervisor starts successfully in application
 
 ---
 

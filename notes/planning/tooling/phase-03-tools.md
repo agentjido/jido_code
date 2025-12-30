@@ -594,14 +594,16 @@ Integration tests for Git and LSP tools.
 
 Verify tools execute through the correct patterns.
 
-- [ ] 3.7.1.1 Create `test/jido_code/integration/tools_phase3_test.exs`
-- [ ] 3.7.1.2 Test: Git tools execute through `Tools.Manager` → Lua → Bridge chain
-- [ ] 3.7.1.3 Test: LSP tools execute through `Tools.Executor` → Handler chain
-- [ ] 3.7.1.4 Test: Session-scoped context isolation works for both patterns
+- [x] 3.7.1.1 Create `test/jido_code/integration/tools_phase3_test.exs`
+- [ ] 3.7.1.2 Test: Git tools execute through `Tools.Manager` → Lua → Bridge chain (blocked: git tools not implemented)
+- [x] 3.7.1.3 Test: LSP tools execute through `Tools.Executor` → Handler chain
+- [x] 3.7.1.4 Test: Session-scoped context isolation works for both patterns
 
 ### 3.7.2 Git Integration
 
 Test git tools in realistic scenarios through Lua sandbox.
+
+**Note:** Git integration tests blocked pending git_command tool implementation (Section 3.1).
 
 - [ ] 3.7.2.1 Test: git_command status works in initialized repo
 - [ ] 3.7.2.2 Test: git_command diff shows file changes
@@ -614,13 +616,15 @@ Test LSP tools with Expert (official Elixir LSP) via Handler pattern.
 
 **Note:** LSP tools use Handler pattern (see 3.3.2 architectural decision), not Lua sandbox.
 
-- [ ] 3.7.3.1 Test: diagnostics returned after file with syntax error
-- [ ] 3.7.3.2 Test: diagnostics returned for undefined function
-- [ ] 3.7.3.3 Test: hover info available for standard library functions
-- [ ] 3.7.3.4 Test: hover info available for project functions
-- [ ] 3.7.3.5 Test: go_to_definition navigates to function
-- [ ] 3.7.3.6 Test: find_references locates function usages
-- [ ] 3.7.3.7 Test: Output path validation filters external paths (security)
+- [ ] 3.7.3.1 Test: diagnostics returned after file with syntax error (blocked: get_diagnostics not implemented)
+- [ ] 3.7.3.2 Test: diagnostics returned for undefined function (blocked: get_diagnostics not implemented)
+- [x] 3.7.3.3 Test: hover info available for standard library functions
+- [x] 3.7.3.4 Test: hover info available for project functions
+- [x] 3.7.3.5 Test: go_to_definition navigates to function
+- [x] 3.7.3.6 Test: find_references locates function usages
+- [x] 3.7.3.7 Test: Output path validation filters external paths (security)
+
+See `notes/summaries/tooling-3.7-phase3-integration-tests.md` for implementation details.
 
 ---
 

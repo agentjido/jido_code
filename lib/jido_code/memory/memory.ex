@@ -103,6 +103,7 @@ defmodule JidoCode.Memory do
   Persists a memory item for a session.
 
   Automatically creates the session store if it doesn't exist.
+  Validates that memory_type, source_type, and confidence are valid.
 
   ## Parameters
 
@@ -112,7 +113,10 @@ defmodule JidoCode.Memory do
   ## Returns
 
   - `{:ok, memory_id}` - Successfully persisted
-  - `{:error, reason}` - Failed to persist
+  - `{:error, :invalid_memory_type}` - Invalid memory type
+  - `{:error, :invalid_source_type}` - Invalid source type
+  - `{:error, :invalid_confidence}` - Confidence not in range [0.0, 1.0]
+  - `{:error, reason}` - Other persistence failure
 
   ## Examples
 
@@ -130,9 +134,28 @@ defmodule JidoCode.Memory do
 
   """
   @spec persist(memory_input(), String.t()) :: {:ok, String.t()} | {:error, term()}
-  def persist(memory, session_id) do
-    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+  def persist(memory, session_id) when is_map(memory) and is_binary(session_id) do
+    with :ok <- validate_memory_fields(memory),
+         {:ok, store} <- StoreManager.get_or_create(session_id) do
       TripleStoreAdapter.persist(memory, store)
+    end
+  end
+
+  # Validates memory fields before persistence
+  defp validate_memory_fields(memory) do
+    cond do
+      not Types.valid_memory_type?(memory[:memory_type]) ->
+        {:error, :invalid_memory_type}
+
+      not Types.valid_source_type?(memory[:source_type]) ->
+        {:error, :invalid_source_type}
+
+      not is_number(memory[:confidence]) or memory[:confidence] < 0.0 or
+          memory[:confidence] > 1.0 ->
+        {:error, :invalid_confidence}
+
+      true ->
+        :ok
     end
   end
 
@@ -170,7 +193,7 @@ defmodule JidoCode.Memory do
 
   """
   @spec query(String.t(), keyword()) :: {:ok, [stored_memory()]} | {:error, term()}
-  def query(session_id, opts \\ []) do
+  def query(session_id, opts \\ []) when is_binary(session_id) and is_list(opts) do
     with {:ok, store} <- StoreManager.get_or_create(session_id) do
       TripleStoreAdapter.query_all(store, session_id, opts)
     end
@@ -193,7 +216,8 @@ defmodule JidoCode.Memory do
   """
   @spec query_by_type(String.t(), Types.memory_type(), keyword()) ::
           {:ok, [stored_memory()]} | {:error, term()}
-  def query_by_type(session_id, memory_type, opts \\ []) do
+  def query_by_type(session_id, memory_type, opts \\ [])
+      when is_binary(session_id) and is_atom(memory_type) and is_list(opts) do
     with {:ok, store} <- StoreManager.get_or_create(session_id) do
       TripleStoreAdapter.query_by_type(store, session_id, memory_type, opts)
     end
@@ -202,6 +226,10 @@ defmodule JidoCode.Memory do
   @doc """
   Retrieves a specific memory by ID.
 
+  This function verifies that the memory belongs to the specified session,
+  preventing cross-session memory access. If the memory exists but belongs
+  to a different session, `{:error, :not_found}` is returned.
+
   ## Examples
 
       {:ok, memory} = JidoCode.Memory.get("session-abc", "mem-123")
@@ -209,9 +237,10 @@ defmodule JidoCode.Memory do
 
   """
   @spec get(String.t(), String.t()) :: {:ok, stored_memory()} | {:error, :not_found}
-  def get(session_id, memory_id) do
+  def get(session_id, memory_id) when is_binary(session_id) and is_binary(memory_id) do
     with {:ok, store} <- StoreManager.get_or_create(session_id) do
-      TripleStoreAdapter.query_by_id(store, memory_id)
+      # Use 3-arity version with session ownership verification
+      TripleStoreAdapter.query_by_id(store, session_id, memory_id)
     end
   end
 
@@ -241,7 +270,9 @@ defmodule JidoCode.Memory do
 
   """
   @spec supersede(String.t(), String.t(), String.t() | nil) :: :ok | {:error, term()}
-  def supersede(session_id, old_memory_id, new_memory_id \\ nil) do
+  def supersede(session_id, old_memory_id, new_memory_id \\ nil)
+      when is_binary(session_id) and is_binary(old_memory_id) and
+             (is_binary(new_memory_id) or is_nil(new_memory_id)) do
     with {:ok, store} <- StoreManager.get_or_create(session_id) do
       TripleStoreAdapter.supersede(store, session_id, old_memory_id, new_memory_id)
     end
@@ -260,7 +291,7 @@ defmodule JidoCode.Memory do
 
   """
   @spec forget(String.t(), String.t()) :: :ok | {:error, term()}
-  def forget(session_id, memory_id) do
+  def forget(session_id, memory_id) when is_binary(session_id) and is_binary(memory_id) do
     supersede(session_id, memory_id, nil)
   end
 
@@ -276,7 +307,7 @@ defmodule JidoCode.Memory do
 
   """
   @spec delete(String.t(), String.t()) :: :ok | {:error, term()}
-  def delete(session_id, memory_id) do
+  def delete(session_id, memory_id) when is_binary(session_id) and is_binary(memory_id) do
     with {:ok, store} <- StoreManager.get_or_create(session_id) do
       TripleStoreAdapter.delete(store, session_id, memory_id)
     end
@@ -292,18 +323,30 @@ defmodule JidoCode.Memory do
   This updates the access count and last_accessed timestamp for the memory,
   which can be used for relevance ranking and memory management.
 
+  ## Error Handling
+
+  This function intentionally returns `:ok` even when errors occur because:
+  1. Access tracking is a non-critical optimization for relevance ranking
+  2. Failing on access tracking would disrupt the main workflow
+  3. Errors are logged but not propagated to avoid cascading failures
+
+  This is a "best effort" operation - if it fails, the memory system
+  continues to function normally, just without updated access statistics.
+
   ## Examples
 
       :ok = JidoCode.Memory.record_access("session-abc", "mem-123")
 
   """
   @spec record_access(String.t(), String.t()) :: :ok
-  def record_access(session_id, memory_id) do
+  def record_access(session_id, memory_id)
+      when is_binary(session_id) and is_binary(memory_id) do
     case StoreManager.get_or_create(session_id) do
       {:ok, store} ->
         TripleStoreAdapter.record_access(store, session_id, memory_id)
 
       {:error, _reason} ->
+        # Intentionally swallow errors - see @doc for rationale
         :ok
     end
   end
@@ -326,7 +369,7 @@ defmodule JidoCode.Memory do
 
   """
   @spec count(String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def count(session_id, opts \\ []) do
+  def count(session_id, opts \\ []) when is_binary(session_id) and is_list(opts) do
     with {:ok, store} <- StoreManager.get_or_create(session_id) do
       TripleStoreAdapter.count(store, session_id, opts)
     end
@@ -359,5 +402,41 @@ defmodule JidoCode.Memory do
     # 3. Load jido-knowledge.ttl
     # 4. Return count of loaded triples
     {:ok, 0}
+  end
+
+  # =============================================================================
+  # Session Management API
+  # =============================================================================
+
+  @doc """
+  Lists all currently open session IDs.
+
+  This surfaces the StoreManager's `list_open/0` functionality through
+  the Memory facade for convenience.
+
+  ## Examples
+
+      ["session-123", "session-456"] = JidoCode.Memory.list_sessions()
+
+  """
+  @spec list_sessions() :: [String.t()]
+  def list_sessions do
+    StoreManager.list_open()
+  end
+
+  @doc """
+  Closes a session's memory store.
+
+  This releases the ETS table and resources associated with the session.
+  Future operations on this session will create a new store.
+
+  ## Examples
+
+      :ok = JidoCode.Memory.close_session("session-123")
+
+  """
+  @spec close_session(String.t()) :: :ok | {:error, term()}
+  def close_session(session_id) when is_binary(session_id) do
+    StoreManager.close(session_id)
   end
 end

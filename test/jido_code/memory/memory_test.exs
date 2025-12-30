@@ -66,10 +66,10 @@ defmodule JidoCode.MemoryTest do
     JidoCode.Memory.LongTerm.TripleStoreAdapter.query_by_type(store, session_id, memory_type, opts)
   end
 
-  # Helper to get by id using the test store manager
+  # Helper to get by id using the test store manager (with session ownership check)
   defp get_with_manager(session_id, memory_id, store_manager) do
     {:ok, store} = StoreManager.get_or_create(session_id, store_manager)
-    JidoCode.Memory.LongTerm.TripleStoreAdapter.query_by_id(store, memory_id)
+    JidoCode.Memory.LongTerm.TripleStoreAdapter.query_by_id(store, session_id, memory_id)
   end
 
   # Helper to supersede using the test store manager
@@ -394,6 +394,137 @@ defmodule JidoCode.MemoryTest do
   end
 
   # =============================================================================
+  # delete/2 Tests
+  # =============================================================================
+
+  describe "delete/2" do
+    test "permanently removes memory from store", %{session_id: session_id, store_manager: manager} do
+      {:ok, _} = persist_with_manager(create_memory(session_id, %{id: "to-delete"}), session_id, manager)
+
+      # Verify it exists
+      {:ok, _} = get_with_manager(session_id, "to-delete", manager)
+
+      # Delete it using the adapter directly (since we're using a test manager)
+      {:ok, store} = StoreManager.get_or_create(session_id, manager)
+      :ok = JidoCode.Memory.LongTerm.TripleStoreAdapter.delete(store, session_id, "to-delete")
+
+      # Verify it's gone
+      assert {:error, :not_found} = get_with_manager(session_id, "to-delete", manager)
+    end
+
+    test "delete/2 removes memory from count", %{session_id: session_id, store_manager: manager} do
+      {:ok, _} = persist_with_manager(create_memory(session_id, %{id: "mem-1"}), session_id, manager)
+      {:ok, _} = persist_with_manager(create_memory(session_id, %{id: "mem-2"}), session_id, manager)
+
+      {:ok, count_before} = count_with_manager(session_id, manager)
+      assert count_before == 2
+
+      {:ok, store} = StoreManager.get_or_create(session_id, manager)
+      :ok = JidoCode.Memory.LongTerm.TripleStoreAdapter.delete(store, session_id, "mem-1")
+
+      {:ok, count_after} = count_with_manager(session_id, manager)
+      assert count_after == 1
+    end
+
+    test "delete/2 on non-existent memory returns ok", %{session_id: session_id, store_manager: manager} do
+      {:ok, store} = StoreManager.get_or_create(session_id, manager)
+      # Should not error on deleting non-existent memory
+      :ok = JidoCode.Memory.LongTerm.TripleStoreAdapter.delete(store, session_id, "non-existent")
+    end
+  end
+
+  # =============================================================================
+  # Session ID Validation Tests
+  # =============================================================================
+
+  describe "session ID validation" do
+    test "rejects session IDs with path traversal characters", %{base_path: base_path} do
+      name = :"store_manager_security_#{:rand.uniform(1_000_000)}"
+      {:ok, pid} = StoreManager.start_link(base_path: base_path, name: name)
+
+      on_exit(fn ->
+        if Process.alive?(pid), do: GenServer.stop(pid)
+      end)
+
+      # These should all be rejected
+      assert {:error, :invalid_session_id} = StoreManager.get_or_create("../../../etc/passwd", name)
+      assert {:error, :invalid_session_id} = StoreManager.get_or_create("session/../other", name)
+      assert {:error, :invalid_session_id} = StoreManager.get_or_create("session/subdir", name)
+      assert {:error, :invalid_session_id} = StoreManager.get_or_create("", name)
+      assert {:error, :invalid_session_id} = StoreManager.get_or_create("session with spaces", name)
+      assert {:error, :invalid_session_id} = StoreManager.get_or_create("session.with.dots", name)
+    end
+
+    test "accepts valid session IDs", %{base_path: base_path} do
+      name = :"store_manager_valid_#{:rand.uniform(1_000_000)}"
+      {:ok, pid} = StoreManager.start_link(base_path: base_path, name: name)
+
+      on_exit(fn ->
+        if Process.alive?(pid) do
+          StoreManager.close_all(name)
+          GenServer.stop(pid)
+        end
+      end)
+
+      # These should all be accepted
+      assert {:ok, _} = StoreManager.get_or_create("session-123", name)
+      assert {:ok, _} = StoreManager.get_or_create("my_session_456", name)
+      assert {:ok, _} = StoreManager.get_or_create("SessionWithCaps", name)
+      assert {:ok, _} = StoreManager.get_or_create("abc123", name)
+    end
+
+    test "rejects session IDs exceeding max length", %{base_path: base_path} do
+      name = :"store_manager_length_#{:rand.uniform(1_000_000)}"
+      {:ok, pid} = StoreManager.start_link(base_path: base_path, name: name)
+
+      on_exit(fn ->
+        if Process.alive?(pid), do: GenServer.stop(pid)
+      end)
+
+      # Create a session ID that's too long (> 128 chars)
+      long_id = String.duplicate("a", 129)
+      assert {:error, :invalid_session_id} = StoreManager.get_or_create(long_id, name)
+
+      # 128 chars should be ok
+      max_id = String.duplicate("a", 128)
+      assert {:ok, _} = StoreManager.get_or_create(max_id, name)
+    end
+  end
+
+  # =============================================================================
+  # Input Validation Tests
+  # =============================================================================
+
+  describe "input validation" do
+    test "persist/2 rejects invalid memory_type" do
+      # Test the Types module directly
+      refute JidoCode.Memory.Types.valid_memory_type?(:invalid_type)
+      assert JidoCode.Memory.Types.valid_memory_type?(:fact)
+    end
+
+    test "persist/2 rejects invalid source_type" do
+      refute JidoCode.Memory.Types.valid_source_type?(:invalid_source)
+      assert JidoCode.Memory.Types.valid_source_type?(:agent)
+    end
+
+    test "Types.valid_session_id? validates correctly" do
+      # Valid session IDs
+      assert JidoCode.Memory.Types.valid_session_id?("session-123")
+      assert JidoCode.Memory.Types.valid_session_id?("my_session")
+      assert JidoCode.Memory.Types.valid_session_id?("ABC123")
+
+      # Invalid session IDs
+      refute JidoCode.Memory.Types.valid_session_id?("")
+      refute JidoCode.Memory.Types.valid_session_id?("../path")
+      refute JidoCode.Memory.Types.valid_session_id?("session/sub")
+      refute JidoCode.Memory.Types.valid_session_id?("session with spaces")
+      refute JidoCode.Memory.Types.valid_session_id?("session.dots")
+      refute JidoCode.Memory.Types.valid_session_id?(nil)
+      refute JidoCode.Memory.Types.valid_session_id?(123)
+    end
+  end
+
+  # =============================================================================
   # Module API Tests (using the actual Memory module)
   # =============================================================================
 
@@ -418,6 +549,9 @@ defmodule JidoCode.MemoryTest do
       assert {:count, 2} in functions
       assert {:record_access, 2} in functions
       assert {:load_ontology, 1} in functions
+      # New session management functions
+      assert {:list_sessions, 0} in functions
+      assert {:close_session, 1} in functions
     end
   end
 end

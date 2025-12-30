@@ -316,6 +316,50 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
     end
   end
 
+  @doc """
+  Retrieves a specific memory by ID with session ownership verification.
+
+  Unlike `query_by_id/2`, this function verifies that the memory belongs
+  to the specified session, preventing cross-session memory access.
+
+  ## Parameters
+
+  - `store` - Reference to the ETS store
+  - `session_id` - Session ID to verify ownership
+  - `memory_id` - ID of the memory to retrieve
+
+  ## Returns
+
+  - `{:ok, stored_memory}` - Memory found and belongs to session
+  - `{:error, :not_found}` - Memory not found or doesn't belong to session
+
+  ## Examples
+
+      {:ok, memory} = TripleStoreAdapter.query_by_id(store, "session-123", "mem-456")
+      {:error, :not_found} = TripleStoreAdapter.query_by_id(store, "session-999", "mem-456")
+
+  """
+  @spec query_by_id(store_ref(), String.t(), String.t()) ::
+          {:ok, stored_memory()} | {:error, :not_found}
+  def query_by_id(store, session_id, memory_id) do
+    try do
+      case :ets.lookup(store, memory_id) do
+        [{^memory_id, record}] ->
+          # Verify session ownership
+          if record.session_id == session_id do
+            {:ok, to_stored_memory(record)}
+          else
+            {:error, :not_found}
+          end
+
+        [] ->
+          {:error, :not_found}
+      end
+    rescue
+      ArgumentError -> {:error, :not_found}
+    end
+  end
+
   # =============================================================================
   # Lifecycle API
   # =============================================================================

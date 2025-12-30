@@ -307,6 +307,58 @@ defmodule JidoCode.Memory.Types do
   def valid_context_key?(key), do: key in @context_keys
 
   # =============================================================================
+  # Session ID Validation
+  # =============================================================================
+
+  # Maximum session ID length to prevent excessive atom/path creation
+  @max_session_id_length 128
+
+  # Pattern for valid session ID characters (alphanumeric, hyphens, underscores)
+  @session_id_pattern ~r/\A[a-zA-Z0-9_-]+\z/
+
+  @doc """
+  Validates that a session ID is safe for use in atom names and file paths.
+
+  Session IDs must:
+  - Be a non-empty string
+  - Contain only alphanumeric characters, hyphens, and underscores
+  - Be no longer than #{@max_session_id_length} characters
+
+  This prevents:
+  - Atom exhaustion attacks (atoms are never garbage collected)
+  - Path traversal attacks (e.g., "../../../etc/passwd")
+
+  ## Examples
+
+      iex> Types.valid_session_id?("session-123")
+      true
+
+      iex> Types.valid_session_id?("my_session_456")
+      true
+
+      iex> Types.valid_session_id?("../../../etc/passwd")
+      false
+
+      iex> Types.valid_session_id?("")
+      false
+
+  """
+  @spec valid_session_id?(term()) :: boolean()
+  def valid_session_id?(session_id) when is_binary(session_id) do
+    byte_size(session_id) > 0 and
+      byte_size(session_id) <= @max_session_id_length and
+      Regex.match?(@session_id_pattern, session_id)
+  end
+
+  def valid_session_id?(_), do: false
+
+  @doc """
+  Returns the maximum allowed session ID length.
+  """
+  @spec max_session_id_length() :: pos_integer()
+  def max_session_id_length, do: @max_session_id_length
+
+  # =============================================================================
   # Utility Functions
   # =============================================================================
 

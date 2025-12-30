@@ -55,6 +55,8 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   require Logger
 
+  alias JidoCode.Memory.Types
+
   # =============================================================================
   # Types
   # =============================================================================
@@ -243,19 +245,24 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   @impl true
   def handle_call({:get_or_create, session_id}, _from, state) do
-    case Map.get(state.stores, session_id) do
-      nil ->
-        case open_store(session_id, state) do
-          {:ok, store_ref} ->
-            new_stores = Map.put(state.stores, session_id, store_ref)
-            {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
+    # Validate session ID to prevent atom exhaustion and path traversal attacks
+    if not Types.valid_session_id?(session_id) do
+      {:reply, {:error, :invalid_session_id}, state}
+    else
+      case Map.get(state.stores, session_id) do
+        nil ->
+          case open_store(session_id, state) do
+            {:ok, store_ref} ->
+              new_stores = Map.put(state.stores, session_id, store_ref)
+              {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
 
-          {:error, reason} ->
-            {:reply, {:error, reason}, state}
-        end
+            {:error, reason} ->
+              {:reply, {:error, reason}, state}
+          end
 
-      store_ref ->
-        {:reply, {:ok, store_ref}, state}
+        store_ref ->
+          {:reply, {:ok, store_ref}, state}
+      end
     end
   end
 
@@ -339,19 +346,34 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   defp open_store(session_id, state) do
     # Create session-specific directory for future persistence
     session_path = store_path(state.base_path, session_id)
-    ensure_directory(session_path)
 
-    # Create an ETS table as the backing store
-    # Using :set for key-value storage, :public for accessibility
-    table_name = :"jido_memory_#{session_id}"
+    # Verify path containment - ensure resolved path is within base_path
+    # This is a defense-in-depth measure (session_id is already validated)
+    resolved_path = Path.expand(session_path)
+    base_expanded = Path.expand(state.base_path)
 
-    try do
-      table = :ets.new(table_name, [:set, :public, :named_table])
-      {:ok, table}
-    rescue
-      ArgumentError ->
-        # Table already exists (shouldn't happen, but handle it)
-        {:ok, :ets.whereis(table_name)}
+    if not String.starts_with?(resolved_path, base_expanded <> "/") and
+         resolved_path != base_expanded do
+      {:error, :path_traversal_detected}
+    else
+      ensure_directory(session_path)
+
+      # Create an ETS table as the backing store
+      # Using :set for key-value storage, :public for accessibility
+      # Note: Public access is required because TripleStoreAdapter writes from
+      # the calling process. A future improvement could route all writes through
+      # the StoreManager GenServer to enable :protected access.
+      # Session isolation is enforced at the API layer through session_id validation.
+      table_name = :"jido_memory_#{session_id}"
+
+      try do
+        table = :ets.new(table_name, [:set, :public, :named_table])
+        {:ok, table}
+      rescue
+        ArgumentError ->
+          # Table already exists (shouldn't happen, but handle it)
+          {:ok, :ets.whereis(table_name)}
+      end
     end
   end
 

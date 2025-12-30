@@ -574,13 +574,15 @@ See `notes/summaries/tooling-3.6.3-handler-integration.md` for implementation de
 
 ### 3.6.4 Unit Tests for LSP Client
 
-- [ ] Test Expert process spawning and connection
-- [ ] Test JSON-RPC message encoding/decoding
-- [ ] Test initialize handshake sequence
-- [ ] Test request/response correlation
-- [ ] Test notification handling
-- [ ] Test graceful shutdown
-- [ ] Test reconnection on Expert crash
+- [x] Test Expert process spawning and connection
+- [x] Test JSON-RPC message encoding/decoding
+- [x] Test initialize handshake sequence
+- [x] Test request/response correlation
+- [x] Test notification handling
+- [x] Test graceful shutdown
+- [x] Test reconnection on Expert crash
+
+See `notes/summaries/tooling-3.6.4-lsp-client-tests.md` for implementation details.
 
 ---
 

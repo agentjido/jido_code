@@ -410,17 +410,17 @@ Implement trigger points for when promotion should run, including periodic timer
 
 ### 3.3.3 Unit Tests for Promotion Triggers
 
-- [ ] Test periodic promotion timer schedules correctly on init
-- [ ] Test :run_promotion message triggers promotion in background task
-- [ ] Test promotion timer reschedules after each run
-- [ ] Test disable_promotion/1 stops timer
-- [ ] Test enable_promotion/1 restarts timer
-- [ ] Test on_session_pause triggers synchronous promotion
-- [ ] Test on_session_close triggers final promotion
-- [ ] Test on_memory_limit_reached triggers promotion
-- [ ] Test on_agent_decision triggers immediate promotion
-- [ ] Test telemetry events emitted for each trigger type
-- [ ] Test promotion doesn't run when disabled
+- [x] Test periodic promotion timer schedules correctly on init
+- [x] Test :run_promotion message triggers promotion in background task
+- [x] Test promotion timer reschedules after each run
+- [x] Test disable_promotion/1 stops timer
+- [x] Test enable_promotion/1 restarts timer
+- [x] Test on_session_pause triggers synchronous promotion
+- [x] Test on_session_close triggers final promotion
+- [x] Test on_memory_limit_reached triggers promotion
+- [x] Test on_agent_decision triggers immediate promotion
+- [x] Test telemetry events emitted for each trigger type
+- [x] Test promotion doesn't run when disabled
 
 ---
 

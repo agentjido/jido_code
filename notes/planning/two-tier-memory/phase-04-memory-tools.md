@@ -63,7 +63,7 @@ Implement the remember action for agent self-determination memory storage. This 
 
 ### 4.1.1 Action Definition
 
-- [ ] 4.1.1.1 Create `lib/jido_code/memory/actions/remember.ex` with moduledoc:
+- [x] 4.1.1.1 Create `lib/jido_code/memory/actions/remember.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Persist important information to long-term memory.
@@ -79,7 +79,7 @@ Implement the remember action for agent self-determination memory storage. This 
   and are persisted immediately with maximum importance score.
   """
   ```
-- [ ] 4.1.1.2 Implement `use Jido.Action` with configuration:
+- [x] 4.1.1.2 Implement `use Jido.Action` with configuration:
   ```elixir
   use Jido.Action,
     name: "remember",
@@ -109,12 +109,12 @@ Implement the remember action for agent self-determination memory storage. This 
       ]
     ]
   ```
-- [ ] 4.1.1.3 Define valid memory types constant for validation
-- [ ] 4.1.1.4 Define maximum content length constant (2000 chars)
+- [x] 4.1.1.3 Define valid memory types constant for validation
+- [x] 4.1.1.4 Define maximum content length constant (2000 chars)
 
 ### 4.1.2 Action Implementation
 
-- [ ] 4.1.2.1 Implement `run/2` callback:
+- [x] 4.1.2.1 Implement `run/2` callback:
   ```elixir
   @impl true
   def run(params, context) do
@@ -128,12 +128,12 @@ Implement the remember action for agent self-determination memory storage. This 
     end
   end
   ```
-- [ ] 4.1.2.2 Implement `validate_params/1` private function:
+- [x] 4.1.2.2 Implement `validate_params/1` private function:
   - Validate content is non-empty string
   - Validate content length <= 2000 characters
   - Validate type is in allowed list
   - Clamp confidence to 0.0-1.0 range
-- [ ] 4.1.2.3 Implement `get_session_id/1` to extract session_id from context:
+- [x] 4.1.2.3 Implement `get_session_id/1` to extract session_id from context:
   ```elixir
   defp get_session_id(context) do
     case context[:session_id] do
@@ -142,7 +142,7 @@ Implement the remember action for agent self-determination memory storage. This 
     end
   end
   ```
-- [ ] 4.1.2.4 Implement `build_memory_item/2`:
+- [x] 4.1.2.4 Implement `build_memory_item/2`:
   ```elixir
   defp build_memory_item(params, context) do
     {:ok, %{
@@ -160,7 +160,7 @@ Implement the remember action for agent self-determination memory storage. This 
     }}
   end
   ```
-- [ ] 4.1.2.5 Implement `promote_immediately/2`:
+- [x] 4.1.2.5 Implement `promote_immediately/2`:
   ```elixir
   defp promote_immediately(memory_item, session_id) do
     # Add to agent decisions for immediate promotion
@@ -184,7 +184,7 @@ Implement the remember action for agent self-determination memory storage. This 
     Memory.persist(memory_input, session_id)
   end
   ```
-- [ ] 4.1.2.6 Implement `format_success/2`:
+- [x] 4.1.2.6 Implement `format_success/2`:
   ```elixir
   defp format_success(memory_id, type) do
     %{
@@ -195,13 +195,13 @@ Implement the remember action for agent self-determination memory storage. This 
     }
   end
   ```
-- [ ] 4.1.2.7 Implement `generate_id/0` for unique memory IDs:
+- [x] 4.1.2.7 Implement `generate_id/0` for unique memory IDs:
   ```elixir
   defp generate_id do
     :crypto.strong_rand_bytes(12) |> Base.encode16(case: :lower)
   end
   ```
-- [ ] 4.1.2.8 Add telemetry emission for remember operations:
+- [x] 4.1.2.8 Add telemetry emission for remember operations:
   ```elixir
   :telemetry.execute(
     [:jido_code, :memory, :remember],
@@ -212,22 +212,22 @@ Implement the remember action for agent self-determination memory storage. This 
 
 ### 4.1.3 Unit Tests for Remember Action
 
-- [ ] Test remember creates memory item with correct type
-- [ ] Test remember sets default type to :fact when not provided
-- [ ] Test remember sets default confidence (0.8) when not provided
-- [ ] Test remember clamps confidence to valid range (0.0-1.0)
-- [ ] Test remember validates content is non-empty
-- [ ] Test remember validates content max length (2000 chars)
-- [ ] Test remember validates type against allowed enum
-- [ ] Test remember generates unique memory ID
-- [ ] Test remember sets source_type to :agent
-- [ ] Test remember sets importance_score to 1.0 (maximum)
-- [ ] Test remember triggers immediate promotion via add_agent_memory_decision
-- [ ] Test remember persists to long-term store via Memory.persist
-- [ ] Test remember returns formatted success message with memory_id
-- [ ] Test remember handles missing session_id with clear error
-- [ ] Test remember handles optional rationale parameter
-- [ ] Test remember emits telemetry event
+- [x] Test remember creates memory item with correct type
+- [x] Test remember sets default type to :fact when not provided
+- [x] Test remember sets default confidence (0.8) when not provided
+- [x] Test remember clamps confidence to valid range (0.0-1.0)
+- [x] Test remember validates content is non-empty
+- [x] Test remember validates content max length (2000 chars)
+- [x] Test remember validates type against allowed enum
+- [x] Test remember generates unique memory ID
+- [x] Test remember sets source_type to :agent
+- [x] Test remember sets importance_score to 1.0 (maximum)
+- [x] Test remember triggers immediate promotion via add_agent_memory_decision
+- [x] Test remember persists to long-term store via Memory.persist
+- [x] Test remember returns formatted success message with memory_id
+- [x] Test remember handles missing session_id with clear error
+- [x] Test remember handles optional rationale parameter
+- [x] Test remember emits telemetry event
 
 ---
 

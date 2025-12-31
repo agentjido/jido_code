@@ -117,19 +117,21 @@ See `notes/summaries/tooling-3.1.2-git-bridge-function.md` for implementation de
 
 See `notes/summaries/tooling-3.1.3-manager-git-api.md` for implementation details.
 
-### 3.1.4 Unit Tests for Git Command
+### 3.1.4 Unit Tests for Git Command (DONE)
 
-- [ ] Test git_command through sandbox runs status
-- [ ] Test git_command runs diff
-- [ ] Test git_command runs log with format options
-- [ ] Test git_command runs branch listing
-- [ ] Test git_command blocks force push by default
-- [ ] Test git_command allows force push with allow_destructive
-- [ ] Test git_command blocks reset --hard by default
-- [ ] Test git_command runs in project directory
-- [ ] Test git_command parses status output
-- [ ] Test git_command parses diff output
-- [ ] Test git_command handles git errors
+- [x] Test git_command through sandbox runs status
+- [x] Test git_command runs diff
+- [x] Test git_command runs log with format options
+- [x] Test git_command runs branch listing
+- [x] Test git_command blocks force push by default
+- [x] Test git_command allows force push with allow_destructive
+- [x] Test git_command blocks reset --hard by default
+- [x] Test git_command runs in project directory
+- [x] Test git_command parses status output
+- [x] Test git_command parses diff output
+- [x] Test git_command handles git errors
+
+See `notes/summaries/tooling-3.1.4-git-command-integration-tests.md` for implementation details.
 
 ---
 

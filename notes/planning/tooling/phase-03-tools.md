@@ -109,11 +109,13 @@ Implement the Bridge function for git command execution within the Lua sandbox.
 
 See `notes/summaries/tooling-3.1.2-git-bridge-function.md` for implementation details.
 
-### 3.1.3 Manager API
+### 3.1.3 Manager API (DONE)
 
-- [ ] 3.1.3.1 Add `git/3` to `Tools.Manager` that accepts subcommand and options
-- [ ] 3.1.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 3.1.3.3 Call bridge function through Lua: `jido.git(subcommand, args, opts)`
+- [x] 3.1.3.1 Add `git/3` to `Tools.Manager` that accepts subcommand and options
+- [x] 3.1.3.2 Support `session_id` option to route to session-scoped manager
+- [x] 3.1.3.3 Call bridge function through Lua: `jido.git(subcommand, args, opts)`
+
+See `notes/summaries/tooling-3.1.3-manager-git-api.md` for implementation details.
 
 ### 3.1.4 Unit Tests for Git Command
 

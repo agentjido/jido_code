@@ -511,6 +511,62 @@ defmodule JidoCode.Tools.Manager do
     GenServer.call(__MODULE__, {:sandbox_shell, command, args}, @default_timeout + 5_000)
   end
 
+  @doc """
+  Executes a git command through the Lua sandbox.
+
+  The subcommand is validated against the allowlist and destructive operations
+  are blocked unless explicitly allowed.
+
+  ## Parameters
+
+  - `subcommand` - Git subcommand (status, diff, log, etc.)
+  - `args` - List of additional arguments (default: [])
+  - `opts` - Options:
+    - `:session_id` - When provided, delegates to `Session.Manager.git/4`
+    - `:allow_destructive` - Allow destructive operations like force push (default: false)
+    - `:timeout` - Execution timeout in milliseconds (default: 30000)
+
+  ## Returns
+
+  - `{:ok, result}` - Map with output, parsed, and exit_code
+  - `{:error, reason}` - Error message
+  - `{:error, :not_found}` - Session manager not found (when using session_id)
+
+  ## Examples
+
+      # Session-aware (preferred)
+      {:ok, result} = Manager.git("status", [], session_id: "abc123")
+      {:ok, result} = Manager.git("log", ["-5", "--oneline"], session_id: "abc123")
+
+      # Force push with explicit permission
+      {:ok, result} = Manager.git("push", ["--force", "origin", "main"],
+                                  session_id: "abc123", allow_destructive: true)
+
+      # Global (deprecated)
+      {:ok, result} = Manager.git("status")
+  """
+  @spec git(String.t(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, String.t() | :not_found}
+  def git(subcommand, args \\ [], opts \\ []) do
+    {session_id, git_opts} = Keyword.pop(opts, :session_id)
+
+    case session_id do
+      nil ->
+        warn_global_usage(:git)
+        allow_destructive = Keyword.get(git_opts, :allow_destructive, false)
+        timeout = Keyword.get(git_opts, :timeout, @default_timeout)
+
+        GenServer.call(
+          __MODULE__,
+          {:sandbox_git, subcommand, args, allow_destructive},
+          timeout + 5_000
+        )
+
+      session_id ->
+        Session.Manager.git(session_id, subcommand, args, git_opts)
+    end
+  end
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -652,6 +708,12 @@ defmodule JidoCode.Tools.Manager do
     {:reply, result, state}
   end
 
+  @impl true
+  def handle_call({:sandbox_git, subcommand, args, allow_destructive}, _from, state) do
+    result = call_git_bridge(state.lua_state, subcommand, args, allow_destructive)
+    {:reply, result, state}
+  end
+
   # ============================================================================
   # Private Functions
   # ============================================================================
@@ -709,6 +771,61 @@ defmodule JidoCode.Tools.Manager do
     kind, reason ->
       {:error, "#{kind}: #{inspect(reason)}"}
   end
+
+  # Calls jido.git(subcommand, args, opts) through the Lua sandbox
+  defp call_git_bridge(lua_state, subcommand, args, allow_destructive) do
+    # Build Lua arguments
+    lua_subcommand = lua_encode_arg(subcommand)
+    lua_args = lua_encode_arg(build_lua_array(args))
+    lua_opts = lua_encode_arg([{"allow_destructive", allow_destructive}])
+
+    script = "return jido.git(#{lua_subcommand}, #{lua_args}, #{lua_opts})"
+
+    case :luerl.do(script, lua_state) do
+      {:ok, [nil, error_msg], _state} when is_binary(error_msg) ->
+        {:error, error_msg}
+
+      {:ok, [result], _state} ->
+        {:ok, decode_git_result(result, lua_state)}
+
+      {:ok, [], _state} ->
+        {:ok, nil}
+
+      {:error, reason, _state} ->
+        {:error, ErrorFormatter.format(reason)}
+    end
+  rescue
+    e ->
+      {:error, Exception.message(e)}
+  catch
+    kind, reason ->
+      {:error, "#{kind}: #{inspect(reason)}"}
+  end
+
+  # Converts a list to Lua array format [{1, val1}, {2, val2}, ...]
+  defp build_lua_array(list) do
+    list
+    |> Enum.with_index(1)
+    |> Enum.map(fn {val, idx} -> {idx, val} end)
+  end
+
+  # Decodes git result from Lua table format to Elixir map
+  defp decode_git_result(result, lua_state) when is_list(result) do
+    result
+    |> Enum.reduce(%{}, fn
+      {"output", output}, acc -> Map.put(acc, :output, output)
+      {"parsed", parsed}, acc -> Map.put(acc, :parsed, decode_lua_result(parsed, lua_state))
+      {"exit_code", code}, acc -> Map.put(acc, :exit_code, trunc(code))
+      _, acc -> acc
+    end)
+  end
+
+  defp decode_git_result({:tref, _} = tref, lua_state) do
+    decoded = :luerl.decode(tref, lua_state)
+    decode_git_result(decoded, lua_state)
+  end
+
+  defp decode_git_result(other, _lua_state), do: other
 
   defp lua_encode_arg(arg) when is_binary(arg) do
     # Escape special characters in string

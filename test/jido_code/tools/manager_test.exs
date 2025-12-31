@@ -441,6 +441,95 @@ defmodule JidoCode.Tools.ManagerTest do
     end
   end
 
+  describe "git/3 - session aware API" do
+    setup do
+      tmp_dir = Path.join(System.tmp_dir!(), "git_test_#{:rand.uniform(100_000)}")
+      File.mkdir_p!(tmp_dir)
+
+      # Initialize git repo
+      {_, 0} = System.cmd("git", ["init"], cd: tmp_dir, stderr_to_stdout: true)
+      {_, 0} = System.cmd("git", ["config", "user.email", "test@example.com"], cd: tmp_dir)
+      {_, 0} = System.cmd("git", ["config", "user.name", "Test User"], cd: tmp_dir)
+
+      {:ok, session} = Session.new(project_path: tmp_dir, name: "git-test")
+
+      {:ok, supervisor_pid} =
+        Session.Supervisor.start_link(
+          session: session,
+          name: {:via, Registry, {JidoCode.Registry, {:git_test, session.id}}}
+        )
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(supervisor_pid), do: Supervisor.stop(supervisor_pid, :normal, 100)
+        catch
+          :exit, _ -> :ok
+        end
+
+        File.rm_rf!(tmp_dir)
+      end)
+
+      %{session: session, tmp_dir: tmp_dir}
+    end
+
+    test "runs git status through session manager", %{session: session} do
+      {:ok, result} = Manager.git("status", [], session_id: session.id)
+
+      assert is_map(result)
+      assert Map.has_key?(result, :output)
+      assert Map.has_key?(result, :exit_code)
+      assert result.exit_code == 0
+    end
+
+    test "runs git log with arguments", %{session: session, tmp_dir: tmp_dir} do
+      # Create a commit first
+      File.write!(Path.join(tmp_dir, "test.txt"), "content")
+      {_, 0} = System.cmd("git", ["add", "."], cd: tmp_dir)
+      {_, 0} = System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+
+      {:ok, result} = Manager.git("log", ["--oneline", "-1"], session_id: session.id)
+
+      assert result.exit_code == 0
+      assert result.output =~ "Initial commit"
+    end
+
+    test "blocks destructive operations by default", %{session: session} do
+      {:error, msg} =
+        Manager.git("push", ["--force", "origin", "main"], session_id: session.id)
+
+      assert msg =~ "destructive operation blocked"
+    end
+
+    test "allows destructive operations with allow_destructive option", %{
+      session: session,
+      tmp_dir: tmp_dir
+    } do
+      # Create a commit first
+      File.write!(Path.join(tmp_dir, "test.txt"), "content")
+      {_, 0} = System.cmd("git", ["add", "."], cd: tmp_dir)
+      {_, 0} = System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+
+      # This will fail (no remote), but should not be blocked
+      {:ok, result} =
+        Manager.git("push", ["--force", "origin", "main"],
+          session_id: session.id,
+          allow_destructive: true
+        )
+
+      # Should execute (but fail with non-zero exit code due to no remote)
+      assert result.exit_code != 0
+    end
+
+    test "rejects disallowed subcommands", %{session: session} do
+      {:error, msg} = Manager.git("gc", [], session_id: session.id)
+      assert msg =~ "'gc' is not allowed"
+    end
+
+    test "returns :not_found for unknown session_id" do
+      {:error, :not_found} = Manager.git("status", [], session_id: "non_existent")
+    end
+  end
+
   describe "deprecation warnings" do
     test "logs warning when using global manager without session_id" do
       # Temporarily enable warnings

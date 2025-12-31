@@ -313,6 +313,46 @@ defmodule JidoCode.Session.Manager do
   end
 
   @doc """
+  Executes a git command within the session's project directory.
+
+  The subcommand is validated against the allowlist and destructive operations
+  are blocked unless explicitly allowed.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `subcommand` - Git subcommand (status, diff, log, etc.)
+  - `args` - List of additional arguments (default: [])
+  - `opts` - Options:
+    - `:allow_destructive` - Allow destructive operations like force push (default: false)
+    - `:timeout` - Execution timeout in milliseconds (default: 30000)
+
+  ## Returns
+
+  - `{:ok, result}` - Map with output, parsed, and exit_code
+  - `{:error, :not_found}` - Session manager not found
+  - `{:error, reason}` - Error message
+
+  ## Examples
+
+      iex> {:ok, result} = Manager.git("session_123", "status")
+      {:ok, %{output: "...", parsed: %{...}, exit_code: 0}}
+
+      iex> {:ok, result} = Manager.git("session_123", "log", ["-5", "--oneline"])
+      {:ok, %{output: "...", parsed: [...], exit_code: 0}}
+
+      iex> {:ok, result} = Manager.git("session_123", "push", ["--force", "origin", "main"],
+      ...>                             allow_destructive: true)
+  """
+  @spec git(String.t(), String.t(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, :not_found | String.t()}
+  def git(session_id, subcommand, args \\ [], opts \\ []) do
+    allow_destructive = Keyword.get(opts, :allow_destructive, false)
+    timeout = Keyword.get(opts, :timeout, 30_000)
+    call_manager(session_id, {:git, subcommand, args, allow_destructive}, timeout + 5_000)
+  end
+
+  @doc """
   Gets the session struct for this manager.
 
   ## Deprecation Warning
@@ -430,6 +470,12 @@ defmodule JidoCode.Session.Manager do
   end
 
   @impl true
+  def handle_call({:git, subcommand, args, allow_destructive}, _from, state) do
+    result = call_git_bridge(subcommand, args, allow_destructive, state.lua_state)
+    {:reply, result, state}
+  end
+
+  @impl true
   def handle_call(:get_session, _from, state) do
     # For backwards compatibility, reconstruct a minimal session-like map
     # WARNING: Timestamps are synthetic, config is empty
@@ -506,6 +552,86 @@ defmodule JidoCode.Session.Manager do
       ", {#{items}}"
     end
   end
+
+  # Calls jido.git(subcommand, args, opts) through the Lua sandbox
+  defp call_git_bridge(subcommand, args, allow_destructive, lua_state) do
+    # Build Lua script: jido.git("subcommand", {args...}, {allow_destructive = true/false})
+    escaped_subcommand = LuaUtils.escape_string(subcommand)
+    lua_args = build_lua_array(args)
+    lua_opts = "{allow_destructive = #{allow_destructive}}"
+
+    script = "return jido.git(\"#{escaped_subcommand}\", #{lua_args}, #{lua_opts})"
+
+    case :luerl.do(script, lua_state) do
+      {:ok, [nil, error_msg], _state} when is_binary(error_msg) ->
+        {:error, error_msg}
+
+      {:ok, [result], _state} ->
+        {:ok, decode_git_result(result, lua_state)}
+
+      {:ok, [], _state} ->
+        {:ok, nil}
+
+      {:error, reason, _state} ->
+        {:error, ErrorFormatter.format(reason)}
+    end
+  rescue
+    e ->
+      {:error, Exception.message(e)}
+  catch
+    kind, reason ->
+      {:error, "#{kind}: #{inspect(reason)}"}
+  end
+
+  # Converts a list to Lua array format string: {arg1, arg2, ...}
+  defp build_lua_array([]), do: "{}"
+
+  defp build_lua_array(args) do
+    items =
+      args
+      |> Enum.map(fn arg -> "\"#{LuaUtils.escape_string(arg)}\"" end)
+      |> Enum.join(", ")
+
+    "{#{items}}"
+  end
+
+  # Decodes git result from Lua table format to Elixir map
+  defp decode_git_result(result, lua_state) when is_list(result) do
+    result
+    |> Enum.reduce(%{}, fn
+      {"output", output}, acc -> Map.put(acc, :output, output)
+      {"parsed", parsed}, acc -> Map.put(acc, :parsed, decode_lua_value(parsed, lua_state))
+      {"exit_code", code}, acc -> Map.put(acc, :exit_code, trunc(code))
+      _, acc -> acc
+    end)
+  end
+
+  defp decode_git_result({:tref, _} = tref, lua_state) do
+    decoded = :luerl.decode(tref, lua_state)
+    decode_git_result(decoded, lua_state)
+  end
+
+  defp decode_git_result(other, _lua_state), do: other
+
+  # Recursively decodes Lua values (tables, table refs, primitives)
+  defp decode_lua_value({:tref, _} = tref, lua_state) do
+    decoded = :luerl.decode(tref, lua_state)
+    decode_lua_value(decoded, lua_state)
+  end
+
+  defp decode_lua_value(list, lua_state) when is_list(list) do
+    if Enum.all?(list, fn {k, _v} -> is_integer(k) end) do
+      # Numeric keys = array
+      list
+      |> Enum.sort_by(fn {k, _} -> k end)
+      |> Enum.map(fn {_, v} -> decode_lua_value(v, lua_state) end)
+    else
+      # String keys = map
+      Map.new(list, fn {k, v} -> {k, decode_lua_value(v, lua_state)} end)
+    end
+  end
+
+  defp decode_lua_value(value, _lua_state), do: value
 
   @doc false
   defp initialize_lua_sandbox(project_root) do

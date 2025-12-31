@@ -300,29 +300,31 @@ Implement the core promotion logic that evaluates short-term memory and promotes
   ```
 - [x] 3.2.1.13 Implement private `emit_promotion_telemetry/2`
 
-### 3.2.2 Unit Tests for Promotion Engine
+### 3.2.2 Unit Tests for Promotion Engine (DONE)
 
-- [ ] Test evaluate/1 returns empty list for empty state
-- [ ] Test evaluate/1 scores context items correctly
-- [ ] Test evaluate/1 includes items above threshold
-- [ ] Test evaluate/1 excludes items below threshold
-- [ ] Test evaluate/1 always includes agent_decisions (importance_score = 1.0)
-- [ ] Test evaluate/1 excludes items with nil suggested_type
-- [ ] Test evaluate/1 sorts by importance descending
-- [ ] Test evaluate/1 limits to max_promotions_per_run
-- [ ] Test promote/3 persists candidates to long-term store
-- [ ] Test promote/3 returns count of successfully persisted items
-- [ ] Test promote/3 includes agent_id in memory input
-- [ ] Test promote/3 includes project_id in memory input
-- [ ] Test promote/3 handles partial failures gracefully
-- [ ] Test run/2 evaluates, promotes, and clears pending
-- [ ] Test run/2 returns {:ok, 0} when no candidates
-- [ ] Test run/2 clears promoted ids from pending_memories
-- [ ] Test run/2 emits telemetry on promotion
-- [ ] Test run/2 handles session not found error
-- [ ] Test build_memory_input generates id when nil
-- [ ] Test format_content handles string values
-- [ ] Test format_content handles non-string values
+- [x] Test evaluate/1 returns empty list for empty state
+- [x] Test evaluate/1 scores context items correctly
+- [x] Test evaluate/1 includes items above threshold
+- [x] Test evaluate/1 excludes items below threshold
+- [x] Test evaluate/1 always includes agent_decisions (importance_score = 1.0)
+- [x] Test evaluate/1 excludes items with nil suggested_type
+- [x] Test evaluate/1 sorts by importance descending
+- [x] Test evaluate/1 limits to max_promotions_per_run
+- [x] Test promote/3 persists candidates to long-term store
+- [x] Test promote/3 returns count of successfully persisted items
+- [x] Test promote/3 includes agent_id in memory input
+- [x] Test promote/3 includes project_id in memory input
+- [x] Test promote/3 handles partial failures gracefully
+- [x] Test run/2 evaluates, promotes, and clears pending
+- [x] Test run/2 returns {:ok, 0} when no candidates
+- [x] Test run/2 clears promoted ids from pending_memories
+- [x] Test run/2 emits telemetry on promotion
+- [x] Test run/2 handles session not found error
+- [x] Test build_memory_input generates id when nil
+- [x] Test format_content handles string values
+- [x] Test format_content handles non-string values
+
+See `notes/summaries/2025-12-31-phase3-engine-tests.md` for implementation details.
 
 ---
 

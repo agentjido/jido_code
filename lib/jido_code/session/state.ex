@@ -1315,6 +1315,24 @@ defmodule JidoCode.Session.State do
     %{state | promotion_timer_ref: timer_ref}
   end
 
+  # Spawns a promotion task with error handling to prevent silent failures
+  @spec spawn_promotion_task((-> any())) :: {:ok, pid()}
+  defp spawn_promotion_task(func) when is_function(func, 0) do
+    Task.start(fn ->
+      try do
+        func.()
+      rescue
+        e ->
+          Logger.error(
+            "Promotion task failed: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}"
+          )
+      catch
+        kind, reason ->
+          Logger.error("Promotion task crashed: #{inspect(kind)} - #{inspect(reason)}")
+      end
+    end)
+  end
+
   @impl true
   def handle_call(:get_session, _from, state) do
     {:reply, {:ok, state.session}, state}
@@ -1626,7 +1644,7 @@ defmodule JidoCode.Session.State do
     new_state =
       if current_count >= @max_pending_memories do
         # Trigger promotion asynchronously to clear space
-        Task.start(fn ->
+        spawn_promotion_task(fn ->
           PromotionTriggers.on_memory_limit_reached(state.session_id, current_count)
         end)
 
@@ -1643,7 +1661,7 @@ defmodule JidoCode.Session.State do
     updated_pending = PendingMemories.add_agent_decision(state.pending_memories, item)
 
     # Agent decisions are high-priority - trigger immediate promotion asynchronously
-    Task.start(fn ->
+    spawn_promotion_task(fn ->
       PromotionTriggers.on_agent_decision(state.session_id, item)
     end)
 
@@ -1748,7 +1766,7 @@ defmodule JidoCode.Session.State do
         new_state = %{state | pending_memories: updated_pending, promotion_stats: updated_stats}
         {:reply, {:ok, count}, new_state}
 
-      {:ok, 0} ->
+      {:ok, 0, []} ->
         # Update stats even when nothing promoted
         updated_stats = %{
           state.promotion_stats
@@ -1823,7 +1841,7 @@ defmodule JidoCode.Session.State do
 
           {:noreply, new_state}
 
-        {:ok, 0} ->
+        {:ok, 0, []} ->
           # No candidates to promote, just update stats and reschedule
           updated_stats = %{
             state.promotion_stats

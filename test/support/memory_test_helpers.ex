@@ -173,6 +173,133 @@ defmodule JidoCode.Memory.TestHelpers do
   end
 
   # =============================================================================
+  # Promotion Test Helpers
+  # =============================================================================
+
+  @doc """
+  Creates an empty session state suitable for promotion testing.
+
+  Returns a map with working_context, pending_memories, and access_log.
+
+  ## Examples
+
+      state = create_empty_promotion_state()
+
+  """
+  @spec create_empty_promotion_state() :: map()
+  def create_empty_promotion_state do
+    alias JidoCode.Memory.ShortTerm.{AccessLog, PendingMemories, WorkingContext}
+
+    %{
+      working_context: WorkingContext.new(),
+      pending_memories: PendingMemories.new(),
+      access_log: AccessLog.new()
+    }
+  end
+
+  @doc """
+  Creates a session state with context items for promotion testing.
+
+  ## Parameters
+
+  - `items` - List of {key, value, opts} tuples for context items
+
+  ## Examples
+
+      state = create_state_with_context([
+        {:framework, "Phoenix", source: :tool, confidence: 0.9}
+      ])
+
+  """
+  @spec create_state_with_context([{atom(), term(), keyword()}]) :: map()
+  def create_state_with_context(items) do
+    alias JidoCode.Memory.ShortTerm.{AccessLog, PendingMemories, WorkingContext}
+
+    ctx =
+      Enum.reduce(items, WorkingContext.new(), fn {key, value, opts}, ctx ->
+        WorkingContext.put(ctx, key, value, opts)
+      end)
+
+    %{
+      working_context: ctx,
+      pending_memories: PendingMemories.new(),
+      access_log: AccessLog.new()
+    }
+  end
+
+  @doc """
+  Creates a session state with both context and pending items.
+
+  ## Parameters
+
+  - `context_items` - List of {key, value, opts} tuples
+  - `pending_items` - List of {:implicit, data} or {:agent, data} tuples
+
+  ## Examples
+
+      state = create_session_state(
+        [{:framework, "Phoenix", source: :tool, confidence: 0.9}],
+        [{:implicit, %{content: "test", memory_type: :fact, ...}}]
+      )
+
+  """
+  @spec create_session_state(list(), list()) :: map()
+  def create_session_state(context_items \\ [], pending_items \\ []) do
+    alias JidoCode.Memory.ShortTerm.{AccessLog, PendingMemories, WorkingContext}
+
+    ctx =
+      Enum.reduce(context_items, WorkingContext.new(), fn {key, value, opts}, ctx ->
+        WorkingContext.put(ctx, key, value, opts)
+      end)
+
+    pending =
+      Enum.reduce(pending_items, PendingMemories.new(), fn item, p ->
+        case item do
+          {:implicit, data} -> PendingMemories.add_implicit(p, data)
+          {:agent, data} -> PendingMemories.add_agent_decision(p, data)
+        end
+      end)
+
+    %{
+      working_context: ctx,
+      pending_memories: pending,
+      access_log: AccessLog.new()
+    }
+  end
+
+  @doc """
+  Creates a scorable item for ImportanceScorer testing.
+
+  ## Parameters
+
+  - `overrides` - Map of fields to override
+
+  ## Examples
+
+      item = create_scorable_item()
+      item = create_scorable_item(suggested_type: :decision, confidence: 1.0)
+
+  """
+  @spec create_scorable_item(map() | keyword()) :: map()
+  def create_scorable_item(overrides \\ %{})
+
+  def create_scorable_item(overrides) when is_list(overrides) do
+    create_scorable_item(Map.new(overrides))
+  end
+
+  def create_scorable_item(overrides) when is_map(overrides) do
+    Map.merge(
+      %{
+        last_accessed: DateTime.utc_now(),
+        access_count: 5,
+        confidence: 0.8,
+        suggested_type: :fact
+      },
+      overrides
+    )
+  end
+
+  # =============================================================================
   # Store Setup Helpers
   # =============================================================================
 

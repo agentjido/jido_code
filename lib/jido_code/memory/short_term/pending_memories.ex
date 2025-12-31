@@ -79,7 +79,7 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
 
   @default_max_items 500
   @default_max_agent_decisions 100
-  @default_threshold 0.6
+  @default_threshold Types.default_promotion_threshold()
 
   defstruct items: %{},
             agent_decisions: [],
@@ -436,10 +436,9 @@ defmodule JidoCode.Memory.ShortTerm.PendingMemories do
   @doc false
   @spec generate_id() :: String.t()
   def generate_id do
-    # Generate a unique id using timestamp and random component
-    timestamp = System.system_time(:microsecond)
-    random = :rand.uniform(1_000_000)
-    "pending-#{timestamp}-#{random}"
+    # Generate a cryptographically secure unique id with pending prefix
+    random_hex = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+    "pending-#{random_hex}"
   end
 
   # Builds a pending_item map with common fields extracted

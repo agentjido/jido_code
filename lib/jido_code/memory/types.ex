@@ -367,6 +367,28 @@ defmodule JidoCode.Memory.Types do
   def max_session_id_length, do: @max_session_id_length
 
   # =============================================================================
+  # Promotion Constants
+  # =============================================================================
+
+  @default_promotion_threshold 0.6
+  @default_max_promotions_per_run 20
+
+  @doc """
+  Returns the default promotion threshold (0.6).
+
+  Items with importance scores at or above this threshold are candidates
+  for promotion to long-term storage.
+  """
+  @spec default_promotion_threshold() :: float()
+  def default_promotion_threshold, do: @default_promotion_threshold
+
+  @doc """
+  Returns the default maximum promotions per run (20).
+  """
+  @spec default_max_promotions_per_run() :: pos_integer()
+  def default_max_promotions_per_run, do: @default_max_promotions_per_run
+
+  # =============================================================================
   # Utility Functions
   # =============================================================================
 

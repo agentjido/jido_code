@@ -10,12 +10,13 @@ defmodule JidoCode.Integration.MemoryPhase3Test do
   use ExUnit.Case, async: false
 
   import JidoCode.Test.SessionTestHelpers
+  import JidoCode.Memory.TestHelpers
 
   alias JidoCode.Memory.LongTerm.StoreManager
   alias JidoCode.Memory.LongTerm.TripleStoreAdapter
   alias JidoCode.Memory.Promotion.Engine
   alias JidoCode.Memory.Promotion.ImportanceScorer
-  alias JidoCode.Memory.ShortTerm.{AccessLog, PendingMemories, WorkingContext}
+  alias JidoCode.Memory.ShortTerm.PendingMemories
   alias JidoCode.Session
   alias JidoCode.Session.State
 
@@ -68,42 +69,17 @@ defmodule JidoCode.Integration.MemoryPhase3Test do
   # Helper Functions
   # =============================================================================
 
-  defp create_session_state(context_items \\ [], pending_items \\ []) do
-    ctx =
-      Enum.reduce(context_items, WorkingContext.new(), fn {key, value, opts}, ctx ->
-        WorkingContext.put(ctx, key, value, opts)
-      end)
-
-    pending =
-      Enum.reduce(pending_items, PendingMemories.new(), fn item, p ->
-        case item do
-          {:implicit, data} -> PendingMemories.add_implicit(p, data)
-          {:agent, data} -> PendingMemories.add_agent_decision(p, data)
-        end
-      end)
-
-    %{
-      working_context: ctx,
-      pending_memories: pending,
-      access_log: AccessLog.new()
-    }
-  end
-
-  defp create_pending_item(overrides \\ %{}) do
-    Map.merge(
-      %{
-        id: "pending-#{:rand.uniform(1_000_000)}",
-        content: "Test pending content",
-        memory_type: :fact,
-        confidence: 0.85,
-        source_type: :tool,
-        evidence: [],
-        rationale: nil,
-        importance_score: 0.75,
-        created_at: DateTime.utc_now(),
-        access_count: 1
-      },
-      overrides
+  # Local wrapper with test-specific defaults for integration tests
+  defp create_test_pending_item(overrides \\ %{}) do
+    create_pending_item(
+      Map.merge(
+        %{
+          id: "pending-#{:rand.uniform(1_000_000)}",
+          importance_score: 0.75,
+          access_count: 1
+        },
+        overrides
+      )
     )
   end
 
@@ -138,7 +114,7 @@ defmodule JidoCode.Integration.MemoryPhase3Test do
             {:primary_language, "Elixir", source: :tool, confidence: 0.99}
           ],
           [
-            {:implicit, create_pending_item(%{importance_score: 0.8, content: "Uses Ecto"})}
+            {:implicit, create_test_pending_item(%{importance_score: 0.8, content: "Uses Ecto"})}
           ]
         )
 
@@ -205,7 +181,7 @@ defmodule JidoCode.Integration.MemoryPhase3Test do
         create_session_state(
           [],
           [
-            {:implicit, create_pending_item(%{importance_score: 0.3, content: "Low importance"})}
+            {:implicit, create_test_pending_item(%{importance_score: 0.3, content: "Low importance"})}
           ]
         )
 
@@ -511,7 +487,7 @@ defmodule JidoCode.Integration.MemoryPhase3Test do
     test "3.5.4.1 ImportanceScorer correctly ranks candidates" do
       # Create items with different importance factors
       high_importance =
-        create_pending_item(%{
+        create_test_pending_item(%{
           content: "High importance",
           importance_score: 0.95,
           confidence: 1.0,
@@ -519,7 +495,7 @@ defmodule JidoCode.Integration.MemoryPhase3Test do
         })
 
       medium_importance =
-        create_pending_item(%{
+        create_test_pending_item(%{
           content: "Medium importance",
           importance_score: 0.75,
           confidence: 0.8,
@@ -527,7 +503,7 @@ defmodule JidoCode.Integration.MemoryPhase3Test do
         })
 
       low_importance =
-        create_pending_item(%{
+        create_test_pending_item(%{
           content: "Low importance",
           importance_score: 0.65,
           confidence: 0.6,

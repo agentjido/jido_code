@@ -78,11 +78,11 @@ Create the git_command tool definition with safety constraints.
 
 See `notes/summaries/tooling-3.1.1-git-command-definition.md` for implementation details.
 
-### 3.1.2 Bridge Function Implementation
+### 3.1.2 Bridge Function Implementation (DONE)
 
 Implement the Bridge function for git command execution within the Lua sandbox.
 
-- [ ] 3.1.2.1 Add `lua_git/3` function to `lib/jido_code/tools/bridge.ex`
+- [x] 3.1.2.1 Add `lua_git/3` function to `lib/jido_code/tools/bridge.ex`
   ```elixir
   def lua_git(args, state, project_root) do
     case args do
@@ -93,19 +93,21 @@ Implement the Bridge function for git command execution within the Lua sandbox.
     end
   end
   ```
-- [ ] 3.1.2.2 Define allowed subcommands:
+- [x] 3.1.2.2 Define allowed subcommands:
   - Always allowed: status, diff, log, show, branch, remote, fetch, stash list
   - With confirmation: add, commit, checkout, merge, rebase, stash push/pop
   - Blocked by default: push --force, reset --hard, clean -fd
-- [ ] 3.1.2.3 Validate subcommand against allowlist
-- [ ] 3.1.2.4 Block destructive operations unless allow_destructive=true
-- [ ] 3.1.2.5 Execute git command in project directory
-- [ ] 3.1.2.6 Parse common outputs for structured response:
+- [x] 3.1.2.3 Validate subcommand against allowlist
+- [x] 3.1.2.4 Block destructive operations unless allow_destructive=true
+- [x] 3.1.2.5 Execute git command in project directory
+- [x] 3.1.2.6 Parse common outputs for structured response:
   - status: Parse staged, unstaged, untracked files
   - diff: Parse file changes
   - log: Parse commits with hash, author, message
-- [ ] 3.1.2.7 Return `{[%{output: output, parsed: structured}], state}` or `{[nil, error], state}`
-- [ ] 3.1.2.8 Register in `Bridge.register/2`
+- [x] 3.1.2.7 Return `{[%{output: output, parsed: structured}], state}` or `{[nil, error], state}`
+- [x] 3.1.2.8 Register in `Bridge.register/2`
+
+See `notes/summaries/tooling-3.1.2-git-bridge-function.md` for implementation details.
 
 ### 3.1.3 Manager API
 

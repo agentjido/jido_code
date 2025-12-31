@@ -3,7 +3,6 @@ defmodule JidoCode.Tools.Handlers.Git do
   Handler modules for Git operations.
 
   This module serves as a namespace for Git-related tool handlers.
-  The actual implementation will be completed in Phase 3.1.2.
 
   ## Handlers
 
@@ -16,29 +15,21 @@ defmodule JidoCode.Tools.Handlers.Git.Command do
   Handler for the git_command tool.
 
   Executes git commands with security validation including subcommand
-  allowlisting and destructive operation guards.
-
-  ## Implementation Status
-
-  This handler is a placeholder. Full implementation will be completed
-  in Phase 3.1.2 (Bridge Function Implementation) of the planning document.
+  allowlisting and destructive operation guards. Delegates to the Lua
+  bridge for actual execution.
 
   ## Security
 
-  When fully implemented, this handler will:
-  - Validate subcommand against allowlist
-  - Block destructive operations unless explicitly allowed
-  - Execute commands in the session's project directory
-  - Parse structured output for common commands
+  - Validates subcommand against allowlist
+  - Blocks destructive operations unless explicitly allowed
+  - Executes commands in the session's project directory
+  - Parses structured output for common commands (status, log, diff, branch)
   """
 
-  alias JidoCode.Tools.Definitions.GitCommand
+  alias JidoCode.Tools.Bridge
 
   @doc """
   Executes a git command.
-
-  Currently returns a placeholder response indicating the handler
-  is not yet implemented. Full implementation pending Phase 3.1.2.
 
   ## Parameters
 
@@ -53,8 +44,16 @@ defmodule JidoCode.Tools.Handlers.Git.Command do
 
   ## Returns
 
-  - `{:ok, map}` - Success with output and parsed data
+  - `{:ok, map}` - Success with output, parsed data, and exit_code
   - `{:error, string}` - Error with message
+
+  ## Examples
+
+      iex> execute(%{"subcommand" => "status"}, %{project_root: "/path/to/repo"})
+      {:ok, %{output: "...", parsed: %{...}, exit_code: 0}}
+
+      iex> execute(%{"subcommand" => "push", "args" => ["--force"]}, %{project_root: "/path"})
+      {:error, "destructive operation blocked: ..."}
   """
   @spec execute(map(), map()) :: {:ok, map()} | {:error, String.t()}
   def execute(params, context) do
@@ -63,38 +62,31 @@ defmodule JidoCode.Tools.Handlers.Git.Command do
     allow_destructive = Map.get(params, "allow_destructive", false)
 
     with :ok <- validate_subcommand(subcommand),
-         :ok <- validate_destructive(subcommand, args, allow_destructive),
          :ok <- validate_context(context) do
-      # Placeholder response - full implementation in 3.1.2
-      {:error, "git_command handler not yet implemented (pending Phase 3.1.2)"}
+      project_root = Map.fetch!(context, :project_root)
+      bridge_args = build_bridge_args(subcommand, args, allow_destructive)
+
+      case Bridge.lua_git(bridge_args, :luerl.init(), project_root) do
+        {[result], _state} when is_list(result) ->
+          {:ok, convert_result(result)}
+
+        {[nil, error], _state} ->
+          {:error, error}
+      end
     end
   end
 
-  # Validates the subcommand is in the allowed list
+  # Validates the subcommand is provided and is a string
   defp validate_subcommand(nil) do
     {:error, "subcommand is required"}
   end
 
   defp validate_subcommand(subcommand) when is_binary(subcommand) do
-    if GitCommand.subcommand_allowed?(subcommand) do
-      :ok
-    else
-      {:error, "git subcommand '#{subcommand}' is not allowed"}
-    end
+    :ok
   end
 
   defp validate_subcommand(_) do
     {:error, "subcommand must be a string"}
-  end
-
-  # Validates destructive operations are explicitly allowed
-  defp validate_destructive(subcommand, args, allow_destructive) do
-    if GitCommand.destructive?(subcommand, args) and not allow_destructive do
-      {:error,
-       "destructive operation blocked: 'git #{subcommand} #{Enum.join(args, " ")}' requires allow_destructive: true"}
-    else
-      :ok
-    end
   end
 
   # Validates required context fields
@@ -105,4 +97,66 @@ defmodule JidoCode.Tools.Handlers.Git.Command do
   defp validate_context(_) do
     {:error, "project_root is required in context"}
   end
+
+  # Builds arguments for the bridge function
+  defp build_bridge_args(subcommand, [], false) do
+    [subcommand]
+  end
+
+  defp build_bridge_args(subcommand, args, false) when is_list(args) and args != [] do
+    args_table = args |> Enum.with_index(1) |> Enum.map(fn {arg, idx} -> {idx, arg} end)
+    [subcommand, args_table]
+  end
+
+  defp build_bridge_args(subcommand, args, allow_destructive) when is_list(args) do
+    args_table =
+      if args == [] do
+        []
+      else
+        args |> Enum.with_index(1) |> Enum.map(fn {arg, idx} -> {idx, arg} end)
+      end
+
+    opts_table = [{"allow_destructive", allow_destructive}]
+    [subcommand, args_table, opts_table]
+  end
+
+  # Converts the bridge result to a map
+  defp convert_result(result) do
+    result
+    |> Enum.reduce(%{}, fn
+      {"output", output}, acc -> Map.put(acc, :output, output)
+      {"parsed", parsed}, acc -> Map.put(acc, :parsed, convert_parsed(parsed))
+      {"exit_code", code}, acc -> Map.put(acc, :exit_code, code)
+      _, acc -> acc
+    end)
+  end
+
+  # Converts nested Lua table parsed data to Elixir maps
+  defp convert_parsed(parsed) when is_list(parsed) do
+    cond do
+      # List of tuples with string keys (like {key, value} pairs from Lua)
+      Enum.all?(parsed, fn
+        {k, _v} when is_binary(k) -> true
+        _ -> false
+      end) ->
+        Enum.reduce(parsed, %{}, fn {k, v}, acc ->
+          Map.put(acc, String.to_atom(k), convert_parsed(v))
+        end)
+
+      # Numeric indexed list (array from Lua)
+      Enum.all?(parsed, fn
+        {k, _v} when is_integer(k) -> true
+        _ -> false
+      end) ->
+        parsed
+        |> Enum.sort_by(fn {k, _} -> k end)
+        |> Enum.map(fn {_, v} -> convert_parsed(v) end)
+
+      # Empty list
+      true ->
+        parsed
+    end
+  end
+
+  defp convert_parsed(value), do: value
 end

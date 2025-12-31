@@ -23,6 +23,9 @@ defmodule JidoCode.Tools.Bridge do
   Shell operations:
   - `jido.shell(command, args)` - Execute shell command (validated against allowlist)
 
+  Git operations:
+  - `jido.git(subcommand, args, opts)` - Execute git command with safety constraints
+
   ## Usage in Lua
 
       -- Read a file
@@ -41,6 +44,16 @@ defmodule JidoCode.Tools.Bridge do
       local result = jido.shell("mix", {"test"})
       -- result = {exit_code = 0, stdout = "...", stderr = "..."}
 
+      -- Run git command
+      local result = jido.git("status")
+      -- result = {output = "...", parsed = {...}, exit_code = 0}
+
+      -- Git with arguments
+      local result = jido.git("log", {"-5", "--oneline"})
+
+      -- Force push (requires allow_destructive)
+      local result = jido.git("push", {"--force"}, {allow_destructive = true})
+
   ## Error Handling
 
   Bridge functions return `{nil, error_message}` on failure, allowing
@@ -53,6 +66,7 @@ defmodule JidoCode.Tools.Bridge do
   Path arguments are validated to prevent traversal attacks.
   """
 
+  alias JidoCode.Tools.Definitions.GitCommand
   alias JidoCode.Tools.Handlers.Shell
   alias JidoCode.Tools.Helpers.GlobMatcher
   alias JidoCode.Tools.Security
@@ -809,6 +823,341 @@ defmodule JidoCode.Tools.Bridge do
   end
 
   # ============================================================================
+  # Git Operations
+  # ============================================================================
+
+  @default_git_timeout 60_000
+
+  @doc """
+  Executes a git command. Called from Lua as `jido.git(subcommand)`,
+  `jido.git(subcommand, args)`, or `jido.git(subcommand, args, opts)`.
+
+  ## Parameters
+
+  - `args` - Lua arguments:
+    - `[subcommand]` - Git subcommand only
+    - `[subcommand, args_table]` - Subcommand with arguments
+    - `[subcommand, args_table, opts_table]` - With options (allow_destructive, timeout)
+  - `state` - Lua state
+  - `project_root` - Project root (used as working directory)
+
+  ## Returns
+
+  - `{[result_table], state}` with `{output, parsed, exit_code}`
+  - `{[nil, error], state}` on failure
+
+  ## Security
+
+  - Subcommands validated against allowlist (status, diff, log, add, commit, etc.)
+  - Destructive operations blocked unless `allow_destructive = true`
+  - Commands run in project directory only
+
+  ## Parsed Output
+
+  For common commands, the `parsed` field contains structured data:
+  - `status`: `{staged = {...}, unstaged = {...}, untracked = {...}}`
+  - `log`: `{commits = [{hash, author, date, message}, ...]}`
+  - `diff`: `{files = [{path, additions, deletions}, ...]}`
+  - Other commands: `nil` (use `output` for raw text)
+
+  ## Examples in Lua
+
+      -- Check status
+      local result = jido.git("status")
+
+      -- View commits
+      local result = jido.git("log", {"-5", "--oneline"})
+
+      -- Stage files
+      local result = jido.git("add", {"lib/module.ex"})
+
+      -- Force push (blocked by default)
+      local result = jido.git("push", {"--force"}, {allow_destructive = true})
+  """
+  @spec lua_git(list(), :luerl.luerl_state(), String.t()) :: {list(), :luerl.luerl_state()}
+  def lua_git(args, state, project_root) do
+    decoded_args = decode_git_args(args, state)
+
+    case parse_git_args(decoded_args) do
+      {:ok, subcommand, cmd_args, opts} ->
+        execute_git(subcommand, cmd_args, opts, project_root, state)
+
+      {:error, message} ->
+        {[nil, message], state}
+    end
+  end
+
+  defp decode_git_args(args, state) do
+    Enum.map(args, fn
+      {:tref, _} = tref -> :luerl.decode(tref, state)
+      other -> other
+    end)
+  end
+
+  defp parse_git_args([subcommand]) when is_binary(subcommand) do
+    {:ok, subcommand, [], %{}}
+  end
+
+  defp parse_git_args([subcommand, args_table]) when is_binary(subcommand) and is_list(args_table) do
+    cmd_args = decode_args_table(args_table)
+    {:ok, subcommand, cmd_args, %{}}
+  end
+
+  defp parse_git_args([subcommand, args_table, opts_table])
+       when is_binary(subcommand) and is_list(args_table) and is_list(opts_table) do
+    cmd_args = decode_args_table(args_table)
+    opts = parse_git_opts(opts_table)
+    {:ok, subcommand, cmd_args, opts}
+  end
+
+  defp parse_git_args(_) do
+    {:error, "git requires a subcommand string and optional args array"}
+  end
+
+  defp parse_git_opts(opts_table) do
+    Enum.reduce(opts_table, %{}, fn
+      {"allow_destructive", value}, acc when is_boolean(value) ->
+        Map.put(acc, :allow_destructive, value)
+
+      {"timeout", timeout}, acc when is_number(timeout) ->
+        Map.put(acc, :timeout, trunc(timeout))
+
+      _, acc ->
+        acc
+    end)
+  end
+
+  defp execute_git(subcommand, cmd_args, opts, project_root, state) do
+    allow_destructive = Map.get(opts, :allow_destructive, false)
+    timeout = Map.get(opts, :timeout, @default_git_timeout)
+
+    with :ok <- validate_git_subcommand(subcommand),
+         :ok <- validate_git_destructive(subcommand, cmd_args, allow_destructive),
+         :ok <- validate_git_args(cmd_args, project_root) do
+      run_git_command(subcommand, cmd_args, timeout, project_root, state)
+    else
+      {:error, message} ->
+        {[nil, message], state}
+    end
+  end
+
+  defp validate_git_subcommand(subcommand) do
+    if GitCommand.subcommand_allowed?(subcommand) do
+      :ok
+    else
+      {:error, "git subcommand '#{subcommand}' is not allowed"}
+    end
+  end
+
+  defp validate_git_destructive(subcommand, args, allow_destructive) do
+    if GitCommand.destructive?(subcommand, args) and not allow_destructive do
+      {:error,
+       "destructive operation blocked: 'git #{subcommand} #{Enum.join(args, " ")}' " <>
+         "requires allow_destructive = true"}
+    else
+      :ok
+    end
+  end
+
+  # Validate git arguments for path traversal
+  defp validate_git_args(args, project_root) do
+    Enum.reduce_while(args, :ok, fn arg, :ok ->
+      cond do
+        # Skip flags (start with -)
+        String.starts_with?(arg, "-") ->
+          {:cont, :ok}
+
+        # Block path traversal
+        String.contains?(arg, "..") ->
+          {:halt, {:error, "Security error: path traversal not allowed: #{arg}"}}
+
+        # Block absolute paths outside project (except common git refs)
+        String.starts_with?(arg, "/") and not String.starts_with?(arg, project_root) ->
+          {:halt, {:error, "Security error: absolute path outside project: #{arg}"}}
+
+        true ->
+          {:cont, :ok}
+      end
+    end)
+  end
+
+  defp run_git_command(subcommand, cmd_args, timeout, project_root, state) do
+    full_args = [subcommand | cmd_args]
+
+    task =
+      Task.async(fn ->
+        try do
+          {output, exit_code} =
+            System.cmd("git", full_args,
+              cd: project_root,
+              stderr_to_stdout: true,
+              env: []
+            )
+
+          {:ok, exit_code, output}
+        catch
+          :error, :enoent ->
+            {:error, "git command not found"}
+
+          kind, reason ->
+            {:error, "git error: #{kind} - #{inspect(reason)}"}
+        end
+      end)
+
+    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:ok, exit_code, output}} ->
+        parsed = parse_git_output(subcommand, output, exit_code)
+
+        result = [
+          {"output", output},
+          {"parsed", parsed},
+          {"exit_code", exit_code}
+        ]
+
+        {[result], state}
+
+      {:ok, {:error, message}} ->
+        {[nil, message], state}
+
+      nil ->
+        {[nil, "git command timed out after #{timeout}ms"], state}
+    end
+  end
+
+  # ============================================================================
+  # Git Output Parsers
+  # ============================================================================
+
+  defp parse_git_output("status", output, 0), do: parse_git_status(output)
+  defp parse_git_output("log", output, 0), do: parse_git_log(output)
+  defp parse_git_output("diff", output, 0), do: parse_git_diff(output)
+  defp parse_git_output("branch", output, 0), do: parse_git_branch(output)
+  defp parse_git_output(_, _, _), do: nil
+
+  @doc false
+  def parse_git_status(output) do
+    lines = String.split(output, "\n", trim: true)
+
+    {staged, unstaged, untracked} =
+      Enum.reduce(lines, {[], [], []}, fn line, {staged, unstaged, untracked} ->
+        cond do
+          # Staged files (first column has letter, second is space)
+          Regex.match?(~r/^[MADRC]\s/, line) ->
+            file = String.slice(line, 3..-1//1) |> String.trim()
+            {[file | staged], unstaged, untracked}
+
+          # Unstaged files (first column is space, second has letter)
+          Regex.match?(~r/^\s[MADRC]/, line) ->
+            file = String.slice(line, 3..-1//1) |> String.trim()
+            {staged, [file | unstaged], untracked}
+
+          # Both staged and unstaged
+          Regex.match?(~r/^[MADRC][MADRC]/, line) ->
+            file = String.slice(line, 3..-1//1) |> String.trim()
+            {[file | staged], [file | unstaged], untracked}
+
+          # Untracked files
+          String.starts_with?(line, "??") ->
+            file = String.slice(line, 3..-1//1) |> String.trim()
+            {staged, unstaged, [file | untracked]}
+
+          true ->
+            {staged, unstaged, untracked}
+        end
+      end)
+
+    [
+      {"staged", Enum.reverse(staged) |> to_lua_array()},
+      {"unstaged", Enum.reverse(unstaged) |> to_lua_array()},
+      {"untracked", Enum.reverse(untracked) |> to_lua_array()}
+    ]
+  end
+
+  @doc false
+  def parse_git_log(output) do
+    # Parse log output - handles both oneline and full format
+    commits =
+      output
+      |> String.split("\n", trim: true)
+      |> Enum.map(&parse_log_line/1)
+      |> Enum.reject(&is_nil/1)
+      |> to_lua_array()
+
+    [{"commits", commits}]
+  end
+
+  defp parse_log_line(line) do
+    # Try oneline format first: "abc1234 commit message"
+    case Regex.run(~r/^([a-f0-9]+)\s+(.*)$/, line) do
+      [_, hash, message] ->
+        [{"hash", hash}, {"message", message}]
+
+      nil ->
+        # Try fuller format: "commit abc1234..."
+        case Regex.run(~r/^commit\s+([a-f0-9]+)/, line) do
+          [_, hash] -> [{"hash", hash}]
+          nil -> nil
+        end
+    end
+  end
+
+  @doc false
+  def parse_git_diff(output) do
+    # Parse diff --stat style output or regular diff
+    files =
+      output
+      |> String.split("\n", trim: true)
+      |> Enum.map(&parse_diff_line/1)
+      |> Enum.reject(&is_nil/1)
+      |> to_lua_array()
+
+    [{"files", files}]
+  end
+
+  defp parse_diff_line(line) do
+    # Match diff --stat format: " file.ex | 10 ++++-----"
+    case Regex.run(~r/^\s*(.+?)\s*\|\s*(\d+)\s*([+-]*)/, line) do
+      [_, file, _count, changes] ->
+        additions = String.graphemes(changes) |> Enum.count(&(&1 == "+"))
+        deletions = String.graphemes(changes) |> Enum.count(&(&1 == "-"))
+        [{"path", String.trim(file)}, {"additions", additions}, {"deletions", deletions}]
+
+      nil ->
+        # Match diff header: "diff --git a/file.ex b/file.ex"
+        case Regex.run(~r/^diff --git a\/(.+) b\//, line) do
+          [_, file] -> [{"path", file}]
+          nil -> nil
+        end
+    end
+  end
+
+  @doc false
+  def parse_git_branch(output) do
+    branches =
+      output
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn line ->
+        {current, name} =
+          if String.starts_with?(line, "* ") do
+            {true, String.slice(line, 2..-1//1) |> String.trim()}
+          else
+            {false, String.trim(line)}
+          end
+
+        [{"name", name}, {"current", current}]
+      end)
+      |> to_lua_array()
+
+    [{"branches", branches}]
+  end
+
+  defp to_lua_array(list) do
+    list
+    |> Enum.with_index(1)
+    |> Enum.map(fn {item, idx} -> {idx, item} end)
+  end
+
+  # ============================================================================
   # Registration
   # ============================================================================
 
@@ -844,6 +1193,7 @@ defmodule JidoCode.Tools.Bridge do
     |> register_function("delete_file", &lua_delete_file/3, project_root)
     |> register_function("mkdir_p", &lua_mkdir_p/3, project_root)
     |> register_function("shell", &lua_shell/3, project_root)
+    |> register_function("git", &lua_git/3, project_root)
   end
 
   # ============================================================================

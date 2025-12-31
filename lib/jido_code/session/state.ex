@@ -54,6 +54,13 @@ defmodule JidoCode.Session.State do
   alias JidoCode.Session
   alias JidoCode.Session.ProcessRegistry
 
+  # Memory modules
+  alias JidoCode.Memory.Promotion.Engine, as: PromotionEngine
+  alias JidoCode.Memory.Promotion.Triggers, as: PromotionTriggers
+  alias JidoCode.Memory.ShortTerm.AccessLog
+  alias JidoCode.Memory.ShortTerm.PendingMemories
+  alias JidoCode.Memory.ShortTerm.WorkingContext
+
   # ============================================================================
   # Configuration
   # ============================================================================
@@ -66,6 +73,15 @@ defmodule JidoCode.Session.State do
   # Maximum file operations to track (reads + writes)
   # When limit is exceeded, oldest entries are removed
   @max_file_operations 1000
+
+  # Memory system configuration
+  @max_pending_memories 500
+  @max_access_log_entries 1000
+  @default_context_max_tokens 12_000
+
+  # Promotion timer configuration
+  @default_promotion_interval_ms 30_000
+  @default_promotion_enabled true
 
   # ============================================================================
   # Type Definitions
@@ -158,6 +174,9 @@ defmodule JidoCode.Session.State do
   - `prompt_history` - List of previous user prompts (newest first, max 100)
   - `file_reads` - Map of file paths to read timestamps for read-before-write tracking
   - `file_writes` - Map of file paths to write timestamps for tracking modifications
+  - `working_context` - Semantic scratchpad for session context
+  - `pending_memories` - Staging area for memories awaiting promotion
+  - `access_log` - Usage tracking for importance scoring
   """
   @type state :: %{
           session: Session.t(),
@@ -172,7 +191,10 @@ defmodule JidoCode.Session.State do
           is_streaming: boolean(),
           prompt_history: [String.t()],
           file_reads: %{String.t() => DateTime.t()},
-          file_writes: %{String.t() => DateTime.t()}
+          file_writes: %{String.t() => DateTime.t()},
+          working_context: WorkingContext.t(),
+          pending_memories: PendingMemories.t(),
+          access_log: AccessLog.t()
         }
 
   # ============================================================================
@@ -758,6 +780,442 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Working Context Client API
+  # ============================================================================
+
+  @doc """
+  Updates a context item in the working context.
+
+  Stores or updates a value in the session's semantic scratchpad. If the key
+  already exists, the access_count is incremented and last_accessed is updated.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key (e.g., :framework, :primary_language)
+  - `value` - The value to store
+  - `opts` - Optional keyword list:
+    - `:source` - Source of the value (:inferred, :explicit, :tool)
+    - `:confidence` - Confidence level (0.0 to 1.0)
+    - `:memory_type` - Override inferred memory type
+
+  ## Returns
+
+  - `:ok` - Successfully updated context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.update_context("session-123", :framework, "Phoenix")
+      iex> :ok = State.update_context("session-123", :primary_language, "Elixir", source: :tool, confidence: 0.95)
+      iex> {:error, :not_found} = State.update_context("unknown", :framework, "Phoenix")
+  """
+  @spec update_context(String.t(), atom(), term(), keyword()) :: :ok | {:error, :not_found}
+  def update_context(session_id, key, value, opts \\ [])
+      when is_binary(session_id) and is_atom(key) do
+    call_state(session_id, {:update_context, key, value, opts})
+  end
+
+  @doc """
+  Gets a context value from the working context.
+
+  Retrieves the value for a key and updates access tracking (increments
+  access_count and updates last_accessed).
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key to retrieve
+
+  ## Returns
+
+  - `{:ok, value}` - The value for the key
+  - `{:error, :key_not_found}` - Key does not exist in context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, "Phoenix"} = State.get_context("session-123", :framework)
+      iex> {:error, :key_not_found} = State.get_context("session-123", :unknown_key)
+      iex> {:error, :not_found} = State.get_context("unknown", :framework)
+  """
+  @spec get_context(String.t(), atom()) :: {:ok, term()} | {:error, :not_found | :key_not_found}
+  def get_context(session_id, key)
+      when is_binary(session_id) and is_atom(key) do
+    call_state(session_id, {:get_context, key})
+  end
+
+  @doc """
+  Gets all context items as a simple key-value map.
+
+  Returns the working context as a map without metadata (just keys and values).
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, map}` - Map of context keys to values
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, %{framework: "Phoenix", primary_language: "Elixir"}} = State.get_all_context("session-123")
+      iex> {:ok, %{}} = State.get_all_context("empty-session")
+      iex> {:error, :not_found} = State.get_all_context("unknown")
+  """
+  @spec get_all_context(String.t()) :: {:ok, map()} | {:error, :not_found}
+  def get_all_context(session_id) when is_binary(session_id) do
+    call_state(session_id, :get_all_context)
+  end
+
+  @doc """
+  Clears all items from the working context.
+
+  Resets the working context to empty while preserving max_tokens setting.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `:ok` - Successfully cleared context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.clear_context("session-123")
+      iex> {:error, :not_found} = State.clear_context("unknown")
+  """
+  @spec clear_context(String.t()) :: :ok | {:error, :not_found}
+  def clear_context(session_id) when is_binary(session_id) do
+    call_state(session_id, :clear_context)
+  end
+
+  # ============================================================================
+  # Pending Memories Client API
+  # ============================================================================
+
+  @doc """
+  Adds a memory item to the pending memories staging area.
+
+  Items added via this function are staged for potential promotion to long-term
+  memory. They are added as implicit items (suggested_by: :implicit) and must
+  meet the importance threshold to be promoted.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `item` - A map with required fields: :content, :memory_type, :confidence, :source_type
+    Optional fields: :id, :evidence, :rationale, :importance_score
+
+  ## Returns
+
+  - `:ok` - Successfully added to pending memories
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> item = %{content: "Uses Phoenix framework", memory_type: :fact, confidence: 0.9, source_type: :tool}
+      iex> :ok = State.add_pending_memory("session-123", item)
+      iex> {:error, :not_found} = State.add_pending_memory("unknown", item)
+  """
+  @spec add_pending_memory(String.t(), map()) :: :ok | {:error, :not_found}
+  def add_pending_memory(session_id, item)
+      when is_binary(session_id) and is_map(item) do
+    call_state(session_id, {:add_pending_memory, item})
+  end
+
+  @doc """
+  Adds a memory item as an explicit agent decision.
+
+  Items added via this function bypass the importance threshold during promotion.
+  They are marked with suggested_by: :agent and importance_score: 1.0.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `item` - A map with required fields: :content, :memory_type, :confidence, :source_type
+
+  ## Returns
+
+  - `:ok` - Successfully added as agent decision
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> item = %{content: "Critical pattern discovered", memory_type: :discovery, confidence: 0.95, source_type: :agent}
+      iex> :ok = State.add_agent_memory_decision("session-123", item)
+  """
+  @spec add_agent_memory_decision(String.t(), map()) :: :ok | {:error, :not_found}
+  def add_agent_memory_decision(session_id, item)
+      when is_binary(session_id) and is_map(item) do
+    call_state(session_id, {:add_agent_memory_decision, item})
+  end
+
+  @doc """
+  Gets all pending memories that are ready for promotion.
+
+  Returns items from both implicit staging (meeting default threshold of 0.6)
+  and all agent decisions (which always qualify for promotion).
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, items}` - List of pending items ready for promotion, sorted by importance_score descending
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, items} = State.get_pending_memories("session-123")
+      iex> length(items)
+      3
+  """
+  @spec get_pending_memories(String.t()) :: {:ok, [map()]} | {:error, :not_found}
+  def get_pending_memories(session_id) when is_binary(session_id) do
+    call_state(session_id, :get_pending_memories)
+  end
+
+  @doc """
+  Clears promoted memories from the pending staging area.
+
+  After memories have been promoted to long-term storage, this function removes
+  them from the pending area. Also clears all agent decisions.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `promoted_ids` - List of item IDs that were promoted
+
+  ## Returns
+
+  - `:ok` - Successfully cleared promoted items
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.clear_promoted_memories("session-123", ["pending-123", "pending-456"])
+  """
+  @spec clear_promoted_memories(String.t(), [String.t()]) :: :ok | {:error, :not_found}
+  def clear_promoted_memories(session_id, promoted_ids)
+      when is_binary(session_id) and is_list(promoted_ids) do
+    call_state(session_id, {:clear_promoted_memories, promoted_ids})
+  end
+
+  # ============================================================================
+  # Access Log Client API
+  # ============================================================================
+
+  @doc """
+  Records an access event in the access log.
+
+  This is an async operation (cast) for performance during high-frequency access.
+  If the session is not found, the access event is silently ignored.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key or memory reference (e.g., :framework or {:memory, "mem-123"})
+  - `access_type` - Type of access (:read, :write, or :query)
+
+  ## Returns
+
+  - `:ok` - Always returns :ok (async operation)
+
+  ## Examples
+
+      iex> :ok = State.record_access("session-123", :framework, :read)
+      iex> :ok = State.record_access("session-123", {:memory, "mem-123"}, :query)
+  """
+  @spec record_access(String.t(), atom() | {:memory, String.t()}, :read | :write | :query) :: :ok
+  def record_access(session_id, key, access_type)
+      when is_binary(session_id) and access_type in [:read, :write, :query] do
+    cast_state(session_id, {:record_access, key, access_type})
+  end
+
+  @doc """
+  Gets access statistics for a key.
+
+  Returns frequency (total access count) and recency (most recent access timestamp)
+  for the given key.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key or memory reference to look up
+
+  ## Returns
+
+  - `{:ok, %{frequency: integer(), recency: DateTime.t() | nil}}` - Access statistics
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, stats} = State.get_access_stats("session-123", :framework)
+      iex> stats.frequency
+      5
+      iex> stats.recency
+      ~U[2025-12-29 12:00:00Z]
+
+      iex> {:ok, stats} = State.get_access_stats("session-123", :unknown_key)
+      iex> stats.frequency
+      0
+      iex> stats.recency
+      nil
+  """
+  @spec get_access_stats(String.t(), atom() | {:memory, String.t()}) ::
+          {:ok, %{frequency: non_neg_integer(), recency: DateTime.t() | nil}}
+          | {:error, :not_found}
+  def get_access_stats(session_id, key) when is_binary(session_id) do
+    call_state(session_id, {:get_access_stats, key})
+  end
+
+  # ============================================================================
+  # Promotion Timer Client API
+  # ============================================================================
+
+  @doc """
+  Enables the periodic promotion timer.
+
+  When enabled, the session will periodically evaluate and promote worthy
+  short-term memories to long-term storage.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `:ok` - Promotion timer enabled
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.enable_promotion("session-123")
+  """
+  @spec enable_promotion(String.t()) :: :ok | {:error, :not_found}
+  def enable_promotion(session_id) when is_binary(session_id) do
+    call_state(session_id, :enable_promotion)
+  end
+
+  @doc """
+  Disables the periodic promotion timer.
+
+  When disabled, no automatic promotion will occur. The timer will be cancelled
+  and will not be rescheduled until `enable_promotion/1` is called.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `:ok` - Promotion timer disabled
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.disable_promotion("session-123")
+  """
+  @spec disable_promotion(String.t()) :: :ok | {:error, :not_found}
+  def disable_promotion(session_id) when is_binary(session_id) do
+    call_state(session_id, :disable_promotion)
+  end
+
+  @doc """
+  Gets the current promotion statistics.
+
+  Returns information about promotion activity for this session.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, stats}` - Map containing:
+    - `:enabled` - Whether promotion is currently enabled
+    - `:interval_ms` - Current promotion interval in milliseconds
+    - `:last_run` - DateTime of last promotion run (nil if never run)
+    - `:total_promoted` - Total number of memories promoted
+    - `:runs` - Total number of promotion runs
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, stats} = State.get_promotion_stats("session-123")
+      iex> stats.enabled
+      true
+      iex> stats.total_promoted
+      15
+  """
+  @spec get_promotion_stats(String.t()) :: {:ok, map()} | {:error, :not_found}
+  def get_promotion_stats(session_id) when is_binary(session_id) do
+    call_state(session_id, :get_promotion_stats)
+  end
+
+  @doc """
+  Sets the promotion interval.
+
+  Changes the interval between automatic promotion runs. The change takes effect
+  on the next scheduled run.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `interval_ms` - New interval in milliseconds (must be positive)
+
+  ## Returns
+
+  - `:ok` - Interval updated
+  - `{:error, :invalid_interval}` - Interval is not a positive integer
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> :ok = State.set_promotion_interval("session-123", 60_000)  # 1 minute
+  """
+  @spec set_promotion_interval(String.t(), pos_integer()) ::
+          :ok | {:error, :invalid_interval | :not_found}
+  def set_promotion_interval(session_id, interval_ms)
+      when is_binary(session_id) and is_integer(interval_ms) and interval_ms > 0 do
+    call_state(session_id, {:set_promotion_interval, interval_ms})
+  end
+
+  def set_promotion_interval(session_id, _interval_ms) when is_binary(session_id) do
+    {:error, :invalid_interval}
+  end
+
+  @doc """
+  Triggers an immediate promotion run.
+
+  Runs the promotion engine immediately, outside of the normal scheduled interval.
+  The scheduled timer continues unaffected.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+
+  ## Returns
+
+  - `{:ok, count}` - Number of memories promoted
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, 3} = State.run_promotion_now("session-123")
+  """
+  @spec run_promotion_now(String.t()) :: {:ok, non_neg_integer()} | {:error, :not_found}
+  def run_promotion_now(session_id) when is_binary(session_id) do
+    call_state(session_id, :run_promotion_now)
+  end
+
+  # ============================================================================
   # Private Helpers
   # ============================================================================
 
@@ -779,6 +1237,10 @@ defmodule JidoCode.Session.State do
   def init(%Session{} = session) do
     Logger.info("Starting Session.State for session #{session.id}")
 
+    # Get promotion configuration from session config or use defaults
+    promotion_interval = get_promotion_interval(session)
+    promotion_enabled = get_promotion_enabled(session)
+
     state = %{
       session: session,
       session_id: session.id,
@@ -792,10 +1254,65 @@ defmodule JidoCode.Session.State do
       is_streaming: false,
       prompt_history: [],
       file_reads: %{},
-      file_writes: %{}
+      file_writes: %{},
+      # Memory system fields
+      working_context: WorkingContext.new(@default_context_max_tokens),
+      pending_memories: PendingMemories.new(@max_pending_memories),
+      access_log: AccessLog.new(@max_access_log_entries),
+      # Promotion timer fields
+      promotion_enabled: promotion_enabled,
+      promotion_interval_ms: promotion_interval,
+      promotion_timer_ref: nil,
+      promotion_stats: %{
+        last_run: nil,
+        total_promoted: 0,
+        runs: 0
+      }
     }
 
+    # Schedule promotion timer if enabled
+    state =
+      if promotion_enabled do
+        schedule_promotion(state)
+      else
+        state
+      end
+
     {:ok, state}
+  end
+
+  # Gets promotion interval from session config or defaults
+  defp get_promotion_interval(%Session{} = session) do
+    case session do
+      %{config: %{promotion_interval_ms: interval}} when is_integer(interval) and interval > 0 ->
+        interval
+
+      _ ->
+        @default_promotion_interval_ms
+    end
+  end
+
+  # Gets promotion enabled from session config or defaults
+  defp get_promotion_enabled(%Session{} = session) do
+    case session do
+      %{config: %{promotion_enabled: enabled}} when is_boolean(enabled) ->
+        enabled
+
+      _ ->
+        @default_promotion_enabled
+    end
+  end
+
+  # Schedules the next promotion timer
+  @spec schedule_promotion(state()) :: state()
+  defp schedule_promotion(state) do
+    # Cancel any existing timer first
+    if state.promotion_timer_ref do
+      Process.cancel_timer(state.promotion_timer_ref)
+    end
+
+    timer_ref = Process.send_after(self(), :run_promotion, state.promotion_interval_ms)
+    %{state | promotion_timer_ref: timer_ref}
   end
 
   @impl true
@@ -1062,6 +1579,192 @@ defmodule JidoCode.Session.State do
   end
 
   # ============================================================================
+  # Working Context Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call({:update_context, key, value, opts}, _from, state) do
+    updated_context = WorkingContext.put(state.working_context, key, value, opts)
+    new_state = %{state | working_context: updated_context}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call({:get_context, key}, _from, state) do
+    {updated_context, value} = WorkingContext.get(state.working_context, key)
+    new_state = %{state | working_context: updated_context}
+
+    case value do
+      nil -> {:reply, {:error, :key_not_found}, new_state}
+      val -> {:reply, {:ok, val}, new_state}
+    end
+  end
+
+  @impl true
+  def handle_call(:get_all_context, _from, state) do
+    context_map = WorkingContext.to_map(state.working_context)
+    {:reply, {:ok, context_map}, state}
+  end
+
+  @impl true
+  def handle_call(:clear_context, _from, state) do
+    cleared_context = WorkingContext.clear(state.working_context)
+    new_state = %{state | working_context: cleared_context}
+    {:reply, :ok, new_state}
+  end
+
+  # ============================================================================
+  # Pending Memories Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call({:add_pending_memory, item}, _from, state) do
+    updated_pending = PendingMemories.add_implicit(state.pending_memories, item)
+    current_count = PendingMemories.size(updated_pending)
+
+    # Check if we hit the memory limit and trigger promotion if needed
+    new_state =
+      if current_count >= @max_pending_memories do
+        # Trigger promotion asynchronously to clear space
+        Task.start(fn ->
+          PromotionTriggers.on_memory_limit_reached(state.session_id, current_count)
+        end)
+
+        %{state | pending_memories: updated_pending}
+      else
+        %{state | pending_memories: updated_pending}
+      end
+
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call({:add_agent_memory_decision, item}, _from, state) do
+    updated_pending = PendingMemories.add_agent_decision(state.pending_memories, item)
+
+    # Agent decisions are high-priority - trigger immediate promotion asynchronously
+    Task.start(fn ->
+      PromotionTriggers.on_agent_decision(state.session_id, item)
+    end)
+
+    new_state = %{state | pending_memories: updated_pending}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_pending_memories, _from, state) do
+    ready_items = PendingMemories.ready_for_promotion(state.pending_memories)
+    {:reply, {:ok, ready_items}, state}
+  end
+
+  @impl true
+  def handle_call({:clear_promoted_memories, promoted_ids}, _from, state) do
+    updated_pending = PendingMemories.clear_promoted(state.pending_memories, promoted_ids)
+    new_state = %{state | pending_memories: updated_pending}
+    {:reply, :ok, new_state}
+  end
+
+  # ============================================================================
+  # Access Log Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call({:get_access_stats, key}, _from, state) do
+    stats = AccessLog.get_stats(state.access_log, key)
+    {:reply, {:ok, stats}, state}
+  end
+
+  # ============================================================================
+  # Promotion Timer Callbacks
+  # ============================================================================
+
+  @impl true
+  def handle_call(:enable_promotion, _from, state) do
+    if state.promotion_enabled do
+      # Already enabled
+      {:reply, :ok, state}
+    else
+      # Enable and schedule timer
+      new_state =
+        %{state | promotion_enabled: true}
+        |> schedule_promotion()
+
+      {:reply, :ok, new_state}
+    end
+  end
+
+  @impl true
+  def handle_call(:disable_promotion, _from, state) do
+    # Cancel existing timer if any
+    if state.promotion_timer_ref do
+      Process.cancel_timer(state.promotion_timer_ref)
+    end
+
+    new_state = %{state | promotion_enabled: false, promotion_timer_ref: nil}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_promotion_stats, _from, state) do
+    stats = %{
+      enabled: state.promotion_enabled,
+      interval_ms: state.promotion_interval_ms,
+      last_run: state.promotion_stats.last_run,
+      total_promoted: state.promotion_stats.total_promoted,
+      runs: state.promotion_stats.runs
+    }
+
+    {:reply, {:ok, stats}, state}
+  end
+
+  @impl true
+  def handle_call({:set_promotion_interval, interval_ms}, _from, state) do
+    new_state = %{state | promotion_interval_ms: interval_ms}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:run_promotion_now, _from, state) do
+    # Build state map for promotion engine
+    promotion_state = %{
+      working_context: state.working_context,
+      pending_memories: state.pending_memories,
+      access_log: state.access_log
+    }
+
+    # Run promotion engine
+    case PromotionEngine.run_with_state(promotion_state, state.session_id, []) do
+      {:ok, count, promoted_ids} when count > 0 ->
+        # Clear promoted items from pending memories
+        updated_pending = PendingMemories.clear_promoted(state.pending_memories, promoted_ids)
+
+        # Update promotion stats
+        updated_stats = %{
+          last_run: DateTime.utc_now(),
+          total_promoted: state.promotion_stats.total_promoted + count,
+          runs: state.promotion_stats.runs + 1
+        }
+
+        new_state = %{state | pending_memories: updated_pending, promotion_stats: updated_stats}
+        {:reply, {:ok, count}, new_state}
+
+      {:ok, 0} ->
+        # Update stats even when nothing promoted
+        updated_stats = %{
+          state.promotion_stats
+          | last_run: DateTime.utc_now(),
+            runs: state.promotion_stats.runs + 1
+        }
+
+        new_state = %{state | promotion_stats: updated_stats}
+        {:reply, {:ok, 0}, new_state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  # ============================================================================
   # handle_cast Callbacks
   # ============================================================================
 
@@ -1075,9 +1778,79 @@ defmodule JidoCode.Session.State do
     end
   end
 
+  @impl true
+  def handle_cast({:record_access, key, access_type}, state) do
+    updated_access_log = AccessLog.record(state.access_log, key, access_type)
+    new_state = %{state | access_log: updated_access_log}
+    {:noreply, new_state}
+  end
+
   # ============================================================================
   # handle_info Callbacks
   # ============================================================================
+
+  @impl true
+  def handle_info(:run_promotion, state) do
+    if state.promotion_enabled do
+      # Build state map for promotion engine
+      promotion_state = %{
+        working_context: state.working_context,
+        pending_memories: state.pending_memories,
+        access_log: state.access_log
+      }
+
+      # Run promotion engine
+      case PromotionEngine.run_with_state(promotion_state, state.session_id, []) do
+        {:ok, count, promoted_ids} when count > 0 ->
+          Logger.debug(
+            "Session.State #{state.session_id} promoted #{count} memories"
+          )
+
+          # Clear promoted items from pending memories
+          updated_pending = PendingMemories.clear_promoted(state.pending_memories, promoted_ids)
+
+          # Update promotion stats
+          updated_stats = %{
+            last_run: DateTime.utc_now(),
+            total_promoted: state.promotion_stats.total_promoted + count,
+            runs: state.promotion_stats.runs + 1
+          }
+
+          # Schedule next run and update state
+          new_state =
+            %{state | pending_memories: updated_pending, promotion_stats: updated_stats}
+            |> schedule_promotion()
+
+          {:noreply, new_state}
+
+        {:ok, 0} ->
+          # No candidates to promote, just update stats and reschedule
+          updated_stats = %{
+            state.promotion_stats
+            | last_run: DateTime.utc_now(),
+              runs: state.promotion_stats.runs + 1
+          }
+
+          new_state =
+            %{state | promotion_stats: updated_stats}
+            |> schedule_promotion()
+
+          {:noreply, new_state}
+
+        {:error, reason} ->
+          Logger.warning(
+            "Session.State #{state.session_id} promotion failed: #{inspect(reason)}"
+          )
+
+          # Reschedule despite error
+          new_state = schedule_promotion(state)
+          {:noreply, new_state}
+      end
+    else
+      # Promotion disabled, do nothing (timer won't be rescheduled)
+      {:noreply, state}
+    end
+  end
 
   @impl true
   def handle_info(msg, state) do

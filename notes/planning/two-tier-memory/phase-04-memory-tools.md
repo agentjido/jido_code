@@ -237,7 +237,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
 
 ### 4.2.1 Action Definition
 
-- [ ] 4.2.1.1 Create `lib/jido_code/memory/actions/recall.ex` with moduledoc:
+- [x] 4.2.1.1 Create `lib/jido_code/memory/actions/recall.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Search long-term memory for relevant information.
@@ -251,7 +251,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
   Supports filtering by memory type and minimum confidence level.
   """
   ```
-- [ ] 4.2.1.2 Implement `use Jido.Action` with configuration:
+- [x] 4.2.1.2 Implement `use Jido.Action` with configuration:
   ```elixir
   use Jido.Action,
     name: "recall",
@@ -284,7 +284,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
 
 ### 4.2.2 Action Implementation
 
-- [ ] 4.2.2.1 Implement `run/2` callback:
+- [x] 4.2.2.1 Implement `run/2` callback:
   ```elixir
   @impl true
   def run(params, context) do
@@ -298,11 +298,11 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     end
   end
   ```
-- [ ] 4.2.2.2 Implement `validate_query_params/1`:
+- [x] 4.2.2.2 Implement `validate_query_params/1`:
   - Validate limit is between 1 and 50
   - Validate min_confidence is between 0.0 and 1.0
   - Validate type is in allowed list
-- [ ] 4.2.2.3 Implement `query_memories/2`:
+- [x] 4.2.2.3 Implement `query_memories/2`:
   ```elixir
   defp query_memories(params, session_id) do
     opts = [
@@ -324,7 +324,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     end
   end
   ```
-- [ ] 4.2.2.4 Implement `filter_by_query/2` for text matching:
+- [x] 4.2.2.4 Implement `filter_by_query/2` for text matching:
   ```elixir
   defp filter_by_query(memories, query) do
     query_lower = String.downcase(query)
@@ -333,7 +333,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     end)
   end
   ```
-- [ ] 4.2.2.5 Implement `record_access/2` to update access tracking:
+- [x] 4.2.2.5 Implement `record_access/2` to update access tracking:
   ```elixir
   defp record_access(memories, session_id) do
     Enum.each(memories, fn mem ->
@@ -342,7 +342,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     :ok
   end
   ```
-- [ ] 4.2.2.6 Implement `format_results/1`:
+- [x] 4.2.2.6 Implement `format_results/1`:
   ```elixir
   defp format_results(memories) do
     %{
@@ -361,23 +361,23 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     }
   end
   ```
-- [ ] 4.2.2.7 Add telemetry emission for recall operations
+- [x] 4.2.2.7 Add telemetry emission for recall operations
 
 ### 4.2.3 Unit Tests for Recall Action
 
-- [ ] Test recall returns memories matching type filter
-- [ ] Test recall with type :all returns all memory types
-- [ ] Test recall filters by min_confidence correctly
-- [ ] Test recall respects limit parameter
-- [ ] Test recall validates limit range (1-50)
-- [ ] Test recall with query performs text search (case-insensitive)
-- [ ] Test recall with query filters results after type/confidence
-- [ ] Test recall records access for all returned memories
-- [ ] Test recall returns empty list when no matches
-- [ ] Test recall formats results with count and memory list
-- [ ] Test recall handles missing session_id with clear error
-- [ ] Test recall emits telemetry event
-- [ ] Test recall returns memories sorted by relevance/recency
+- [x] Test recall returns memories matching type filter
+- [x] Test recall with type :all returns all memory types
+- [x] Test recall filters by min_confidence correctly
+- [x] Test recall respects limit parameter
+- [x] Test recall validates limit range (1-50)
+- [x] Test recall with query performs text search (case-insensitive)
+- [x] Test recall with query filters results after type/confidence
+- [x] Test recall records access for all returned memories
+- [x] Test recall returns empty list when no matches
+- [x] Test recall formats results with count and memory list
+- [x] Test recall handles missing session_id with clear error
+- [x] Test recall emits telemetry event
+- [x] Test recall returns memories sorted by relevance/recency
 
 ---
 

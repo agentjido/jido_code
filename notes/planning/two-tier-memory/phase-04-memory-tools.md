@@ -620,35 +620,35 @@ Comprehensive integration tests verifying memory tools work end-to-end.
 
 ### 4.5.1 Tool Execution Integration
 
-- [ ] 4.5.1.1 Create `test/jido_code/integration/memory_tools_test.exs`
-- [ ] 4.5.1.2 Test: Remember tool creates memory accessible via Recall
-- [ ] 4.5.1.3 Test: Remember -> Recall flow returns persisted memory
-- [ ] 4.5.1.4 Test: Recall returns memories filtered by type
-- [ ] 4.5.1.5 Test: Recall returns memories filtered by confidence
-- [ ] 4.5.1.6 Test: Recall with query filters by text content
-- [ ] 4.5.1.7 Test: Forget tool removes memory from normal Recall results
-- [ ] 4.5.1.8 Test: Forgotten memories still exist for provenance
-- [ ] 4.5.1.9 Test: Forget with replacement_id creates supersession chain
+- [x] 4.5.1.1 Create `test/jido_code/integration/memory_tools_test.exs`
+- [x] 4.5.1.2 Test: Remember tool creates memory accessible via Recall
+- [x] 4.5.1.3 Test: Remember -> Recall flow returns persisted memory
+- [x] 4.5.1.4 Test: Recall returns memories filtered by type
+- [x] 4.5.1.5 Test: Recall returns memories filtered by confidence
+- [x] 4.5.1.6 Test: Recall with query filters by text content
+- [x] 4.5.1.7 Test: Forget tool removes memory from normal Recall results
+- [x] 4.5.1.8 Test: Forgotten memories still exist for provenance
+- [x] 4.5.1.9 Test: Forget with replacement_id creates supersession chain
 
 ### 4.5.2 Session Context Integration
 
-- [ ] 4.5.2.1 Test: Memory tools work with valid session context
-- [ ] 4.5.2.2 Test: Memory tools return appropriate error without session_id
-- [ ] 4.5.2.3 Test: Memory tools respect session isolation
-- [ ] 4.5.2.4 Test: Multiple sessions can use memory tools concurrently
+- [x] 4.5.2.1 Test: Memory tools work with valid session context
+- [x] 4.5.2.2 Test: Memory tools return appropriate error without session_id
+- [x] 4.5.2.3 Test: Memory tools respect session isolation
+- [x] 4.5.2.4 Test: Multiple sessions can use memory tools concurrently
 
 ### 4.5.3 Executor Integration
 
-- [ ] 4.5.3.1 Test: Memory tools execute through standard executor flow
-- [ ] 4.5.3.2 Test: Tool validation rejects invalid arguments
-- [ ] 4.5.3.3 Test: Tool results format correctly for LLM consumption
-- [ ] 4.5.3.4 Test: Error messages are clear and actionable
+- [x] 4.5.3.1 Test: Memory tools execute through standard executor flow
+- [x] 4.5.3.2 Test: Tool validation rejects invalid arguments
+- [x] 4.5.3.3 Test: Tool results format correctly for LLM consumption
+- [x] 4.5.3.4 Test: Error messages are clear and actionable
 
 ### 4.5.4 Telemetry Integration
 
-- [ ] 4.5.4.1 Test: Remember emits telemetry with session_id and type
-- [ ] 4.5.4.2 Test: Recall emits telemetry with query parameters
-- [ ] 4.5.4.3 Test: Forget emits telemetry with memory_id
+- [x] 4.5.4.1 Test: Remember emits telemetry with session_id and type
+- [x] 4.5.4.2 Test: Recall emits telemetry with query parameters
+- [x] 4.5.4.3 Test: Forget emits telemetry with memory_id
 
 ---
 
@@ -672,14 +672,14 @@ Comprehensive integration tests verifying memory tools work end-to-end.
 - `lib/jido_code/memory/actions/remember.ex` - COMPLETE
 - `lib/jido_code/memory/actions/recall.ex` - COMPLETE
 - `lib/jido_code/memory/actions/helpers.ex` - COMPLETE (added from review)
-- `lib/jido_code/memory/actions/forget.ex`
-- `lib/jido_code/memory/actions.ex`
+- `lib/jido_code/memory/actions/forget.ex` - COMPLETE
+- `lib/jido_code/memory/actions.ex` - COMPLETE
 - `test/jido_code/memory/actions/remember_test.exs` - COMPLETE (30 tests)
 - `test/jido_code/memory/actions/recall_test.exs` - COMPLETE (55 tests)
-- `test/jido_code/memory/actions/forget_test.exs`
-- `test/jido_code/memory/actions_test.exs`
-- `test/jido_code/integration/memory_tools_test.exs`
+- `test/jido_code/memory/actions/forget_test.exs` - COMPLETE (27 tests)
+- `test/jido_code/memory/actions_test.exs` - COMPLETE (27 tests)
+- `test/jido_code/integration/memory_tools_test.exs` - COMPLETE (26 tests)
 
 **Modified Files:**
-- `lib/jido_code/tools/executor.ex` - Add memory action routing
-- `lib/jido_code/agents/llm_agent.ex` - Register memory tools
+- `lib/jido_code/tools/executor.ex` - Add memory action routing - COMPLETE
+- `lib/jido_code/agents/llm_agent.ex` - Register memory tools (deferred to Phase 5)

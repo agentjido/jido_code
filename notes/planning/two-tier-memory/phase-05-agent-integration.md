@@ -331,8 +331,8 @@ Implement automatic extraction and storage of working context from LLM responses
 
 ### 5.3.1 Response Processor Module
 
-- [ ] 5.3.1.1 Create `lib/jido_code/memory/response_processor.ex` with moduledoc
-- [ ] 5.3.1.2 Define extraction patterns:
+- [x] 5.3.1.1 Create `lib/jido_code/memory/response_processor.ex` with moduledoc
+- [x] 5.3.1.2 Define extraction patterns:
   ```elixir
   @context_patterns %{
     active_file: [
@@ -350,7 +350,7 @@ Implement automatic extraction and storage of working context from LLM responses
     ]
   }
   ```
-- [ ] 5.3.1.3 Implement `process_response/2`:
+- [x] 5.3.1.3 Implement `process_response/2`:
   ```elixir
   @spec process_response(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   def process_response(response, session_id) do
@@ -363,7 +363,7 @@ Implement automatic extraction and storage of working context from LLM responses
     {:ok, extractions}
   end
   ```
-- [ ] 5.3.1.4 Implement `extract_context/1`:
+- [x] 5.3.1.4 Implement `extract_context/1`:
   ```elixir
   defp extract_context(response) do
     @context_patterns
@@ -384,7 +384,7 @@ Implement automatic extraction and storage of working context from LLM responses
     end)
   end
   ```
-- [ ] 5.3.1.5 Implement `update_working_context/2`:
+- [x] 5.3.1.5 Implement `update_working_context/2`:
   ```elixir
   defp update_working_context(extractions, session_id) do
     Enum.each(extractions, fn {key, value} ->
@@ -418,18 +418,18 @@ Implement automatic extraction and storage of working context from LLM responses
 
 ### 5.3.3 Unit Tests for Response Processor
 
-- [ ] Test extract_context finds active_file from "working on file.ex"
-- [ ] Test extract_context finds active_file from "editing `config.exs`"
-- [ ] Test extract_context finds framework from "using Phoenix 1.7"
-- [ ] Test extract_context finds current_task from "implementing user auth"
-- [ ] Test extract_context finds primary_language from "this is an Elixir project"
-- [ ] Test extract_context handles responses without patterns
-- [ ] Test extract_context extracts multiple context items
-- [ ] Test process_response updates working context
-- [ ] Test process_response assigns inferred source
-- [ ] Test process_response uses lower confidence (0.6)
-- [ ] Test extraction handles empty response
-- [ ] Test extraction handles malformed patterns gracefully
+- [x] Test extract_context finds active_file from "working on file.ex"
+- [x] Test extract_context finds active_file from "editing `config.exs`"
+- [x] Test extract_context finds framework from "using Phoenix 1.7"
+- [x] Test extract_context finds current_task from "implementing user auth"
+- [x] Test extract_context finds primary_language from "this is an Elixir project"
+- [x] Test extract_context handles responses without patterns
+- [x] Test extract_context extracts multiple context items
+- [x] Test process_response updates working context
+- [x] Test process_response assigns inferred source
+- [x] Test process_response uses lower confidence (0.6)
+- [x] Test extraction handles empty response
+- [x] Test extraction handles malformed patterns gracefully
 
 ---
 

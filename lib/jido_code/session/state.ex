@@ -871,6 +871,40 @@ defmodule JidoCode.Session.State do
   end
 
   @doc """
+  Gets the full context item with metadata for a key.
+
+  Retrieves the complete context item including source, confidence, access_count,
+  and other metadata. Does not update access tracking.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key to retrieve
+
+  ## Returns
+
+  - `{:ok, context_item}` - The full context item map
+  - `{:error, :key_not_found}` - Key does not exist in context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, item} = State.get_context_item("session-123", :framework)
+      iex> item.value
+      "Phoenix"
+      iex> item.source
+      :tool
+      iex> item.confidence
+      0.8
+  """
+  @spec get_context_item(String.t(), atom()) ::
+          {:ok, WorkingContext.context_item()} | {:error, :not_found | :key_not_found}
+  def get_context_item(session_id, key)
+      when is_binary(session_id) and is_atom(key) do
+    call_state(session_id, {:get_context_item, key})
+  end
+
+  @doc """
   Clears all items from the working context.
 
   Resets the working context to empty while preserving max_tokens setting.
@@ -1622,6 +1656,14 @@ defmodule JidoCode.Session.State do
   def handle_call(:get_all_context, _from, state) do
     context_map = WorkingContext.to_map(state.working_context)
     {:reply, {:ok, context_map}, state}
+  end
+
+  @impl true
+  def handle_call({:get_context_item, key}, _from, state) do
+    case WorkingContext.get_item(state.working_context, key) do
+      nil -> {:reply, {:error, :key_not_found}, state}
+      item -> {:reply, {:ok, item}, state}
+    end
   end
 
   @impl true

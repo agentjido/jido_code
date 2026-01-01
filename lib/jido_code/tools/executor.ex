@@ -74,12 +74,17 @@ defmodule JidoCode.Tools.Executor do
 
   require Logger
 
+  alias JidoCode.Memory
   alias JidoCode.PubSubHelpers
   alias JidoCode.Session
   alias JidoCode.Tools.{Registry, Result, Tool}
   alias JidoCode.Utils.UUID, as: UUIDUtils
 
   @default_timeout 30_000
+
+  # Memory tools are routed directly to Jido Actions, bypassing the Lua sandbox.
+  # See ADR 0002: Memory Tool Executor Routing
+  @memory_tools ["remember", "recall", "forget"]
 
   @typedoc """
   A parsed tool call from an LLM response.
@@ -340,6 +345,29 @@ defmodule JidoCode.Tools.Executor do
   @spec execute(tool_call() | map(), execute_opts()) :: {:ok, Result.t()} | {:error, term()}
   def execute(tool_call, opts \\ [])
 
+  # Memory tools are routed directly to Jido Actions, bypassing the standard tool path.
+  # This includes: remember, recall, forget
+  def execute(%{id: id, name: name, arguments: args} = _tool_call, opts)
+      when name in @memory_tools do
+    context = Keyword.get(opts, :context, %{})
+    legacy_session_id = Keyword.get(opts, :session_id)
+    session_id = get_session_id(context, legacy_session_id)
+    start_time = System.monotonic_time(:millisecond)
+
+    # Broadcast tool call start
+    broadcast_tool_call(session_id, name, args, id)
+
+    result = execute_memory_action(id, name, args, context, start_time)
+
+    # Broadcast tool result
+    case result do
+      {:ok, tool_result} -> broadcast_tool_result(session_id, tool_result)
+      _ -> :ok
+    end
+
+    result
+  end
+
   def execute(%{id: id, name: name, arguments: args} = _tool_call, opts) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     context = Keyword.get(opts, :context, %{})
@@ -449,6 +477,43 @@ defmodule JidoCode.Tools.Executor do
   end
 
   # ============================================================================
+  # Memory Tool Helpers
+  # ============================================================================
+
+  @doc """
+  Returns the list of memory tool names.
+
+  Memory tools are routed directly to Jido Actions, bypassing the Lua sandbox.
+
+  ## Examples
+
+      iex> Executor.memory_tools()
+      ["remember", "recall", "forget"]
+
+  """
+  @spec memory_tools() :: [String.t()]
+  def memory_tools, do: @memory_tools
+
+  @doc """
+  Checks if a tool name is a memory tool.
+
+  Memory tools (remember, recall, forget) are handled specially by the executor,
+  routed to Jido Actions instead of the standard tool path.
+
+  ## Examples
+
+      iex> Executor.memory_tool?("remember")
+      true
+
+      iex> Executor.memory_tool?("read_file")
+      false
+
+  """
+  @spec memory_tool?(String.t()) :: boolean()
+  def memory_tool?(name) when is_binary(name), do: name in @memory_tools
+  def memory_tool?(_), do: false
+
+  # ============================================================================
   # Validation Helpers
   # ============================================================================
 
@@ -527,6 +592,65 @@ defmodule JidoCode.Tools.Executor do
   end
 
   defp maybe_enrich_context(context, _session_id), do: context
+
+  # ============================================================================
+  # Memory Action Execution
+  # ============================================================================
+
+  # Execute memory actions (remember, recall, forget) via Jido Actions.
+  # These bypass the standard tool path and Lua sandbox.
+  defp execute_memory_action(id, name, args, context, start_time) do
+    # Convert string keys to atoms for Jido.Action compatibility
+    atomized_args = atomize_keys(args)
+
+    case Memory.Actions.get(name) do
+      {:ok, action_module} ->
+        case action_module.run(atomized_args, context) do
+          {:ok, result} ->
+            duration = System.monotonic_time(:millisecond) - start_time
+            {:ok, Result.ok(id, name, format_memory_result(result), duration)}
+
+          {:error, reason} ->
+            duration = System.monotonic_time(:millisecond) - start_time
+            {:ok, Result.error(id, name, reason, duration)}
+        end
+
+      {:error, :not_found} ->
+        duration = System.monotonic_time(:millisecond) - start_time
+        {:ok, Result.error(id, name, "Memory action '#{name}' not found", duration)}
+    end
+  end
+
+  # Format memory action results for LLM consumption.
+  # Converts the result map to a JSON-friendly string representation.
+  defp format_memory_result(result) when is_map(result) do
+    Jason.encode!(result)
+  end
+
+  defp format_memory_result(result), do: inspect(result)
+
+  # Convert string keys to atoms for Jido.Action compatibility.
+  # JSON-parsed arguments come with string keys, but Jido.Action expects atom keys.
+  defp atomize_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {key, value} when is_binary(key) -> {String.to_existing_atom(key), atomize_value(value)}
+      {key, value} -> {key, atomize_value(value)}
+    end)
+  rescue
+    ArgumentError ->
+      # If atom doesn't exist, try creating it (for known schema keys)
+      Map.new(map, fn
+        {key, value} when is_binary(key) -> {String.to_atom(key), atomize_value(value)}
+        {key, value} -> {key, atomize_value(value)}
+      end)
+  end
+
+  defp atomize_keys(value), do: value
+
+  # Recursively atomize nested maps
+  defp atomize_value(map) when is_map(map), do: atomize_keys(map)
+  defp atomize_value(list) when is_list(list), do: Enum.map(list, &atomize_value/1)
+  defp atomize_value(value), do: value
 
   defp parse_tool_call_list(nil), do: {:error, :no_tool_calls}
   defp parse_tool_call_list([]), do: {:error, :no_tool_calls}

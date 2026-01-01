@@ -77,7 +77,10 @@ defmodule JidoCode.Application do
       JidoCode.RateLimit,
 
       # DynamicSupervisor for session processes (per-session supervisors)
-      JidoCode.SessionSupervisor
+      JidoCode.SessionSupervisor,
+
+      # Memory subsystem supervisor (manages StoreManager for long-term memory)
+      JidoCode.Memory.Supervisor
 
       # Note: TUI is not started automatically.
       # Call JidoCode.TUI.run() to start the TUI interactively.

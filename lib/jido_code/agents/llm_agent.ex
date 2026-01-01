@@ -20,6 +20,32 @@ defmodule JidoCode.Agents.LLMAgent do
       # Send a chat message
       {:ok, response} = JidoCode.Agents.LLMAgent.chat(pid, "How do I reverse a list in Elixir?")
 
+  ## Memory Integration
+
+  The agent integrates with the two-tier memory system. Memory is enabled by default
+  and can be configured via the `:memory` option:
+
+      # Start with memory disabled
+      {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(
+        session_id: "my-session",
+        memory: [enabled: false]
+      )
+
+      # Start with custom token budget
+      {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(
+        session_id: "my-session",
+        memory: [token_budget: 16_000]
+      )
+
+  Memory options:
+  - `:enabled` - Whether to include memory context in prompts (default: `true`)
+  - `:token_budget` - Total token budget for context (default: `32_000`)
+
+  When memory is enabled, the agent:
+  - Assembles working context and long-term memories before each LLM call
+  - Includes formatted memory context in the system prompt
+  - Makes memory tools (remember, recall, forget) available for tool use
+
   ## PubSub Integration
 
   Responses are broadcast to the session-specific PubSub topic with the event type
@@ -56,6 +82,7 @@ defmodule JidoCode.Agents.LLMAgent do
   @pubsub JidoCode.PubSub
   @default_timeout 60_000
   @max_message_length 10_000
+  @default_token_budget 32_000
 
   # System prompt should NOT include user input to prevent prompt injection attacks.
   # User messages are passed separately to the AI agent via chat_response/3.
@@ -96,6 +123,13 @@ defmodule JidoCode.Agents.LLMAgent do
   - `:max_tokens` - Override max tokens
   - `:name` - GenServer name for registration (optional)
   - `:session_id` - Session ID for PubSub topic isolation (optional, defaults to agent PID string)
+  - `:memory` - Memory configuration options (see below)
+
+  ## Memory Options
+
+  The `:memory` option accepts a keyword list:
+  - `:enabled` - Whether to include memory context in prompts (default: `true`)
+  - `:token_budget` - Total token budget for context assembly (default: `32_000`)
 
   ## Returns
 
@@ -107,6 +141,7 @@ defmodule JidoCode.Agents.LLMAgent do
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link()
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(session_id: "user-123")
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(name: {:via, Registry, {MyRegistry, :llm}})
+      {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(session_id: "user-123", memory: [enabled: false])
   """
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -497,8 +532,9 @@ defmodule JidoCode.Agents.LLMAgent do
     # Trap exits so we can handle AI agent crashes gracefully
     Process.flag(:trap_exit, true)
 
-    # Extract session_id before building config
-    {session_id, config_opts} = Keyword.pop(opts, :session_id)
+    # Extract session_id and memory options before building config
+    {session_id, opts} = Keyword.pop(opts, :session_id)
+    {memory_opts, config_opts} = Keyword.pop(opts, :memory, [])
 
     case build_config(config_opts) do
       {:ok, config} ->
@@ -512,7 +548,10 @@ defmodule JidoCode.Agents.LLMAgent do
               config: config,
               session_id: actual_session_id,
               topic: build_topic(actual_session_id),
-              is_processing: false
+              is_processing: false,
+              # Memory integration
+              memory_enabled: Keyword.get(memory_opts, :enabled, true),
+              token_budget: Keyword.get(memory_opts, :token_budget, @default_token_budget)
             }
 
             {:ok, state}

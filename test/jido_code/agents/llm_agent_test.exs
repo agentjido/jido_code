@@ -336,6 +336,136 @@ defmodule JidoCode.Agents.LLMAgentTest do
     end
   end
 
+  # ============================================================================
+  # Memory Initialization Tests (Task 5.2.1)
+  # ============================================================================
+
+  describe "memory initialization" do
+    test "memory is enabled by default" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.memory_enabled == true
+          assert state.token_budget == 32_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory can be disabled via memory: [enabled: false]" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.memory_enabled == false
+          # token_budget should still have default value
+          assert state.token_budget == 32_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "custom token_budget can be set via memory options" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [token_budget: 16_000]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.memory_enabled == true
+          assert state.token_budget == 16_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory options can be combined with session_id" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      session_id = "test-session-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(
+             session_id: session_id,
+             memory: [enabled: true, token_budget: 24_000]
+           ) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.session_id == session_id
+          assert state.memory_enabled == true
+          assert state.token_budget == 24_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory options do not interfere with provider/model config" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022",
+        temperature: 0.5
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false, token_budget: 8_000]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Memory options should be set
+          assert state.memory_enabled == false
+          assert state.token_budget == 8_000
+
+          # Config should be correct
+          assert state.config.provider == :anthropic
+          assert state.config.model == "claude-3-5-sonnet-20241022"
+          assert state.config.temperature == 0.5
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+  end
+
   describe "session topics" do
     test "topic_for_session builds correct topic format" do
       topic = LLMAgent.topic_for_session("my-session-123")

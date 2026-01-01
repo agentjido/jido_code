@@ -214,7 +214,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
 
 ### 5.2.1 Agent Initialization Updates
 
-- [ ] 5.2.1.1 Add memory configuration to agent state:
+- [x] 5.2.1.1 Add memory configuration to agent state:
   ```elixir
   @default_token_budget 32_000
 
@@ -224,7 +224,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     token_budget: @default_token_budget
   ]
   ```
-- [ ] 5.2.1.2 Update `init/1` to accept memory options:
+- [x] 5.2.1.2 Update `init/1` to accept memory options:
   ```elixir
   def init(opts) do
     memory_opts = Keyword.get(opts, :memory, [])
@@ -238,7 +238,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     {:ok, state}
   end
   ```
-- [ ] 5.2.1.3 Document memory configuration options in moduledoc
+- [x] 5.2.1.3 Document memory configuration options in moduledoc
 
 ### 5.2.2 Memory Tool Registration
 

@@ -549,8 +549,8 @@ Implement process isolation for handler execution.
 
 Implement automatic redaction of sensitive data.
 
-- [ ] 5.8.4.1 Create `lib/jido_code/tools/security/output_sanitizer.ex`
-- [ ] 5.8.4.2 Define sensitive patterns:
+- [x] 5.8.4.1 Create `lib/jido_code/tools/security/output_sanitizer.ex`
+- [x] 5.8.4.2 Define sensitive patterns:
   ```elixir
   @sensitive_patterns [
     {~r/(?i)(password|secret|api_?key|token)\s*[:=]\s*\S+/, "[REDACTED]"},
@@ -559,11 +559,11 @@ Implement automatic redaction of sensitive data.
     {~r/ghp_[a-zA-Z0-9]{36,}/, "[REDACTED_GITHUB_TOKEN]"}
   ]
   ```
-- [ ] 5.8.4.3 Implement `sanitize/1` for strings
-- [ ] 5.8.4.4 Implement `sanitize/1` for maps (recursive)
-- [ ] 5.8.4.5 Define sensitive field names for map key redaction
+- [x] 5.8.4.3 Implement `sanitize/1` for strings
+- [x] 5.8.4.4 Implement `sanitize/1` for maps (recursive)
+- [x] 5.8.4.5 Define sensitive field names for map key redaction
 - [ ] 5.8.4.6 Apply in Executor after handler returns
-- [ ] 5.8.4.7 Emit telemetry: `[:jido_code, :security, :output_sanitized]`
+- [x] 5.8.4.7 Emit telemetry: `[:jido_code, :security, :output_sanitized]`
 
 ### 5.8.5 Rate Limiting
 

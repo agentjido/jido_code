@@ -410,7 +410,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
 
 ### 4.3.1 Action Definition
 
-- [ ] 4.3.1.1 Create `lib/jido_code/memory/actions/forget.ex` with moduledoc:
+- [x] 4.3.1.1 Create `lib/jido_code/memory/actions/forget.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Mark a memory as superseded (soft delete).
@@ -422,7 +422,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
   Optionally specify a replacement memory that supersedes the old one.
   """
   ```
-- [ ] 4.3.1.2 Implement `use Jido.Action` with configuration:
+- [x] 4.3.1.2 Implement `use Jido.Action` with configuration:
   ```elixir
   use Jido.Action,
     name: "forget",
@@ -449,7 +449,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
 
 ### 4.3.2 Action Implementation
 
-- [ ] 4.3.2.1 Implement `run/2` callback:
+- [x] 4.3.2.1 Implement `run/2` callback:
   ```elixir
   @impl true
   def run(params, context) do
@@ -464,10 +464,10 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.2 Implement `validate_forget_params/1`:
+- [x] 4.3.2.2 Implement `validate_forget_params/1`:
   - Validate memory_id is non-empty string
   - Validate replacement_id if provided
-- [ ] 4.3.2.3 Implement `verify_memory_exists/2`:
+- [x] 4.3.2.3 Implement `verify_memory_exists/2`:
   ```elixir
   defp verify_memory_exists(memory_id, session_id) do
     case Memory.get(session_id, memory_id) do
@@ -476,7 +476,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.4 Implement `maybe_verify_replacement/2`:
+- [x] 4.3.2.4 Implement `maybe_verify_replacement/2`:
   ```elixir
   defp maybe_verify_replacement(%{replacement_id: nil}, _session_id), do: :ok
   defp maybe_verify_replacement(%{replacement_id: id}, session_id) do
@@ -486,13 +486,13 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.5 Implement `supersede_memory/2`:
+- [x] 4.3.2.5 Implement `supersede_memory/2`:
   ```elixir
   defp supersede_memory(params, session_id) do
     Memory.supersede(session_id, params.memory_id, params[:replacement_id])
   end
   ```
-- [ ] 4.3.2.6 Implement `format_forget_success/1`:
+- [x] 4.3.2.6 Implement `format_forget_success/1`:
   ```elixir
   defp format_forget_success(params) do
     base = %{
@@ -508,22 +508,22 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.7 Add telemetry emission for forget operations
+- [x] 4.3.2.7 Add telemetry emission for forget operations
 
 ### 4.3.3 Unit Tests for Forget Action
 
-- [ ] Test forget marks memory as superseded
-- [ ] Test forget with replacement_id creates supersededBy relation
-- [ ] Test forget validates memory_id exists
-- [ ] Test forget validates replacement_id exists (if provided)
-- [ ] Test forget handles non-existent memory_id with clear error
-- [ ] Test forget handles non-existent replacement_id with clear error
-- [ ] Test forget stores reason if provided
-- [ ] Test forget returns formatted success message
-- [ ] Test forget handles missing session_id with clear error
-- [ ] Test forgotten memories excluded from normal recall queries
-- [ ] Test forgotten memories still retrievable with include_superseded option
-- [ ] Test forget emits telemetry event
+- [x] Test forget marks memory as superseded
+- [x] Test forget with replacement_id creates supersededBy relation
+- [x] Test forget validates memory_id exists
+- [x] Test forget validates replacement_id exists (if provided)
+- [x] Test forget handles non-existent memory_id with clear error
+- [x] Test forget handles non-existent replacement_id with clear error
+- [x] Test forget stores reason if provided
+- [x] Test forget returns formatted success message
+- [x] Test forget handles missing session_id with clear error
+- [x] Test forgotten memories excluded from normal recall queries
+- [x] Test forgotten memories still retrievable with include_superseded option
+- [x] Test forget emits telemetry event
 
 ---
 

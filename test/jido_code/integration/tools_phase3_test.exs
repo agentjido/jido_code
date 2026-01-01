@@ -1,12 +1,13 @@
 defmodule JidoCode.Integration.ToolsPhase3Test do
   @moduledoc """
-  Integration tests for Phase 3 (LSP Code Intelligence) tools.
+  Integration tests for Phase 3 (Git & LSP Code Intelligence) tools.
 
-  These tests verify that Phase 3 LSP tools work correctly through the
+  These tests verify that Phase 3 tools work correctly through the
   Executor → Handler chain with proper security boundary enforcement.
 
   ## Tested Tools
 
+  - `git_command` - Safe git CLI passthrough (Section 3.1)
   - `get_hover_info` - Type and documentation at cursor position (Section 3.3)
   - `go_to_definition` - Symbol definition navigation (Section 3.4)
   - `find_references` - Symbol usage finding (Section 3.5)
@@ -14,8 +15,10 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
   ## Test Coverage (Section 3.7)
 
+  - 3.7.1.2: Git tools execute through Executor → Handler chain
   - 3.7.1.3: LSP tools execute through Executor → Handler chain
   - 3.7.1.4: Session-scoped context isolation
+  - 3.7.2: Git integration tests (status, diff, log, branch)
   - 3.7.3: LSP integration tests (hover, definition, references, diagnostics)
 
   ## Note on Expert Integration
@@ -38,6 +41,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   alias JidoCode.SessionRegistry
   alias JidoCode.SessionSupervisor
   alias JidoCode.Test.SessionTestHelpers
+  alias JidoCode.Tools.Definitions.GitCommand
   alias JidoCode.Tools.Definitions.LSP, as: LSPDefs
   alias JidoCode.Tools.Executor
   alias JidoCode.Tools.LSP.Client
@@ -109,6 +113,9 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   end
 
   defp register_phase3_tools do
+    # Register Git tools
+    ToolsRegistry.register(GitCommand.git_command())
+
     # Register LSP tools
     ToolsRegistry.register(LSPDefs.get_hover_info())
     ToolsRegistry.register(LSPDefs.go_to_definition())
@@ -158,6 +165,430 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     path = Path.join(dir, filename)
     File.write!(path, content)
     path
+  end
+
+  defp init_git_repo(dir) do
+    {_, 0} = System.cmd("git", ["init"], cd: dir, stderr_to_stdout: true)
+    {_, 0} = System.cmd("git", ["config", "user.email", "test@example.com"], cd: dir)
+    {_, 0} = System.cmd("git", ["config", "user.name", "Test User"], cd: dir)
+    :ok
+  end
+
+  defp create_file(dir, filename, content) do
+    path = Path.join(dir, filename)
+    File.write!(path, content)
+    path
+  end
+
+  defp git_add_commit(dir, message) do
+    {_, 0} = System.cmd("git", ["add", "."], cd: dir, stderr_to_stdout: true)
+    {_, 0} = System.cmd("git", ["commit", "-m", message], cd: dir, stderr_to_stdout: true)
+    :ok
+  end
+
+  # ============================================================================
+  # Section 3.7.1.2: Git Tools Execute Through Executor → Handler Chain
+  # ============================================================================
+
+  describe "Executor → Handler chain execution for Git tools" do
+    test "git_command executes through Executor and returns result", %{tmp_base: tmp_base} do
+      # Setup: Create project with initialized git repo
+      project_dir = create_test_dir(tmp_base, "git_chain_test")
+      init_git_repo(project_dir)
+
+      # Create session and build context
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Execute git_command through Executor
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      # Verify result structure
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert is_map(response)
+      assert Map.has_key?(response, "output")
+      assert Map.has_key?(response, "exit_code")
+      assert response["exit_code"] == 0
+    end
+
+    test "git_command with args executes through Executor", %{tmp_base: tmp_base} do
+      # Setup
+      project_dir = create_test_dir(tmp_base, "git_args_chain_test")
+      init_git_repo(project_dir)
+      create_file(project_dir, "test.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      # Create session and build context
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Execute git log with args
+      call = tool_call("git_command", %{"subcommand" => "log", "args" => ["--oneline", "-1"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "Initial commit"
+    end
+
+    test "git_command blocks disallowed subcommand", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_blocked_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Try to execute a disallowed subcommand
+      call = tool_call("git_command", %{"subcommand" => "invalid-command-xyz"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "not allowed"
+    end
+  end
+
+  # ============================================================================
+  # Section 3.7.2: Git Integration Tests (status, diff, log, branch)
+  # ============================================================================
+
+  describe "git_command integration - status (3.7.2.1)" do
+    test "git_command status works in initialized repo", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_status_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      # Fresh repo shows clean status or initial branch message
+      assert is_binary(response["output"])
+    end
+
+    test "git_command status shows untracked files", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_status_untracked_test")
+      init_git_repo(project_dir)
+      create_file(project_dir, "new_file.txt", "content")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "new_file.txt"
+    end
+
+    test "git_command status shows staged files", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_status_staged_test")
+      init_git_repo(project_dir)
+      create_file(project_dir, "staged.txt", "content")
+      {_, 0} = System.cmd("git", ["add", "staged.txt"], cd: project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "staged.txt"
+    end
+  end
+
+  describe "git_command integration - diff (3.7.2.2)" do
+    test "git_command diff shows no changes on clean repo", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_diff_clean_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "diff"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      # Empty diff on clean repo
+      assert response["output"] == ""
+    end
+
+    test "git_command diff shows file changes", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_diff_changes_test")
+      init_git_repo(project_dir)
+
+      # Create and commit a file
+      create_file(project_dir, "tracked.txt", "original content")
+      git_add_commit(project_dir, "Add tracked file")
+
+      # Modify the file
+      File.write!(Path.join(project_dir, "tracked.txt"), "modified content")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "diff"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "tracked.txt"
+      assert response["output"] =~ "-original content"
+      assert response["output"] =~ "+modified content"
+    end
+
+    test "git_command diff with file path argument", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_diff_path_test")
+      init_git_repo(project_dir)
+
+      # Create and commit files
+      create_file(project_dir, "file1.txt", "content1")
+      create_file(project_dir, "file2.txt", "content2")
+      git_add_commit(project_dir, "Add files")
+
+      # Modify both files
+      File.write!(Path.join(project_dir, "file1.txt"), "modified1")
+      File.write!(Path.join(project_dir, "file2.txt"), "modified2")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Diff only file1.txt
+      call = tool_call("git_command", %{"subcommand" => "diff", "args" => ["file1.txt"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "file1.txt"
+      refute response["output"] =~ "file2.txt"
+    end
+  end
+
+  describe "git_command integration - log (3.7.2.3)" do
+    test "git_command log shows commit history", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_log_test")
+      init_git_repo(project_dir)
+
+      # Create commits
+      create_file(project_dir, "file1.txt", "content1")
+      git_add_commit(project_dir, "First commit")
+
+      create_file(project_dir, "file2.txt", "content2")
+      git_add_commit(project_dir, "Second commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "log"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "First commit"
+      assert response["output"] =~ "Second commit"
+    end
+
+    test "git_command log with format options", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_log_format_test")
+      init_git_repo(project_dir)
+
+      create_file(project_dir, "test.txt", "content")
+      git_add_commit(project_dir, "Test commit message")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "log", "args" => ["--oneline", "-1"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "Test commit message"
+      # Oneline format should be short
+      lines = String.split(response["output"], "\n", trim: true)
+      assert length(lines) == 1
+    end
+
+    test "git_command log on empty repo returns error", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_log_empty_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "log"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      # Empty repo returns non-zero exit code for log
+      assert response["exit_code"] != 0
+    end
+  end
+
+  describe "git_command integration - branch (3.7.2.4)" do
+    test "git_command branch lists branches", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_list_test")
+      init_git_repo(project_dir)
+
+      # Need at least one commit for branch to work
+      create_file(project_dir, "init.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      # Should show current branch (master or main)
+      assert response["output"] =~ "master" or response["output"] =~ "main"
+    end
+
+    test "git_command branch creates new branch", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_create_test")
+      init_git_repo(project_dir)
+
+      create_file(project_dir, "init.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch", "args" => ["feature-test"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+
+      # Verify branch was created
+      {output, 0} = System.cmd("git", ["branch"], cd: project_dir)
+      assert output =~ "feature-test"
+    end
+
+    test "git_command branch -a shows all branches", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_all_test")
+      init_git_repo(project_dir)
+
+      create_file(project_dir, "init.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      # Create another branch
+      {_, 0} = System.cmd("git", ["branch", "another-branch"], cd: project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch", "args" => ["-a"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "another-branch"
+    end
+  end
+
+  # ============================================================================
+  # Section 3.7.2.5: Git Security - Destructive Operation Blocking
+  # ============================================================================
+
+  describe "git_command security - destructive operations" do
+    test "git_command blocks force push by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_force_push_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{
+          "subcommand" => "push",
+          "args" => ["--force", "origin", "main"]
+        })
+
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command blocks reset --hard by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_reset_hard_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{"subcommand" => "reset", "args" => ["--hard", "HEAD~1"]})
+
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command blocks clean -fd by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_clean_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "clean", "args" => ["-fd"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command blocks branch -D by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_delete_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch", "args" => ["-D", "some-branch"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command allows destructive operation with allow_destructive flag", %{
+      tmp_base: tmp_base
+    } do
+      project_dir = create_test_dir(tmp_base, "git_allow_destructive_test")
+      init_git_repo(project_dir)
+
+      # Create a commit first
+      create_file(project_dir, "test.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{
+          "subcommand" => "reset",
+          "args" => ["--hard", "HEAD"],
+          "allow_destructive" => true
+        })
+
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+    end
   end
 
   # ============================================================================

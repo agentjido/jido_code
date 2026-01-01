@@ -662,20 +662,42 @@ Integration tests for Git and LSP tools.
 Verify tools execute through the correct patterns.
 
 - [x] 3.7.1.1 Create `test/jido_code/integration/tools_phase3_test.exs`
-- [ ] 3.7.1.2 Test: Git tools execute through `Tools.Manager` → Lua → Bridge chain (blocked: git tools not implemented)
+- [x] 3.7.1.2 Test: Git tools execute through `Tools.Executor` → Handler chain
 - [x] 3.7.1.3 Test: LSP tools execute through `Tools.Executor` → Handler chain
 - [x] 3.7.1.4 Test: Session-scoped context isolation works for both patterns
 
-### 3.7.2 Git Integration
+**Note:** Git tools use Handler pattern (not Lua sandbox) - same architecture as LSP tools.
+See `notes/summaries/tooling-3.7.2-git-integration-tests.md` for implementation details.
 
-Test git tools in realistic scenarios through Lua sandbox.
+### 3.7.2 Git Integration (DONE)
 
-**Note:** Git integration tests blocked pending git_command tool implementation (Section 3.1).
+Test git tools through Handler pattern.
 
-- [ ] 3.7.2.1 Test: git_command status works in initialized repo
-- [ ] 3.7.2.2 Test: git_command diff shows file changes
-- [ ] 3.7.2.3 Test: git_command log shows commit history
-- [ ] 3.7.2.4 Test: git_command branch lists branches
+- [x] 3.7.2.1 Test: git_command status works in initialized repo
+- [x] 3.7.2.2 Test: git_command diff shows file changes
+- [x] 3.7.2.3 Test: git_command log shows commit history
+- [x] 3.7.2.4 Test: git_command branch lists branches
+- [x] 3.7.2.5 Test: git_command security - destructive operation blocking
+
+**Additional Tests Added:**
+- [x] Test: git_command executes through Executor and returns result
+- [x] Test: git_command with args executes through Executor
+- [x] Test: git_command blocks disallowed subcommand
+- [x] Test: git_command status shows untracked files
+- [x] Test: git_command status shows staged files
+- [x] Test: git_command diff shows no changes on clean repo
+- [x] Test: git_command diff with file path argument
+- [x] Test: git_command log with format options
+- [x] Test: git_command log on empty repo returns error
+- [x] Test: git_command branch creates new branch
+- [x] Test: git_command branch -a shows all branches
+- [x] Test: git_command blocks force push by default
+- [x] Test: git_command blocks reset --hard by default
+- [x] Test: git_command blocks clean -fd by default
+- [x] Test: git_command blocks branch -D by default
+- [x] Test: git_command allows destructive operation with allow_destructive flag
+
+See `notes/summaries/tooling-3.7.2-git-integration-tests.md` for implementation details.
 
 ### 3.7.3 LSP Integration (DONE)
 

@@ -439,8 +439,8 @@ Implement token budget management for memory-aware context assembly.
 
 ### 5.4.1 Token Counter Module
 
-- [ ] 5.4.1.1 Create `lib/jido_code/memory/token_counter.ex`
-- [ ] 5.4.1.2 Implement approximate token estimation:
+- [x] 5.4.1.1 Create `lib/jido_code/memory/token_counter.ex`
+- [x] 5.4.1.2 Implement approximate token estimation:
   ```elixir
   @moduledoc """
   Fast token estimation for budget management.
@@ -458,7 +458,7 @@ Implement token budget management for memory-aware context assembly.
 
   def estimate_tokens(nil), do: 0
   ```
-- [ ] 5.4.1.3 Implement message token counting:
+- [x] 5.4.1.3 Implement message token counting:
   ```elixir
   @spec count_message(map()) :: non_neg_integer()
   def count_message(%{content: content, role: role}) do
@@ -467,7 +467,7 @@ Implement token budget management for memory-aware context assembly.
     estimate_tokens(content) + overhead
   end
   ```
-- [ ] 5.4.1.4 Implement memory token counting:
+- [x] 5.4.1.4 Implement memory token counting:
   ```elixir
   @spec count_memory(stored_memory()) :: non_neg_integer()
   def count_memory(memory) do
@@ -476,7 +476,7 @@ Implement token budget management for memory-aware context assembly.
     content_tokens + metadata_overhead
   end
   ```
-- [ ] 5.4.1.5 Implement list counting:
+- [x] 5.4.1.5 Implement list counting:
   ```elixir
   @spec count_messages([map()]) :: non_neg_integer()
   def count_messages(messages) do
@@ -554,12 +554,12 @@ Implement token budget management for memory-aware context assembly.
 
 ### 5.4.3 Unit Tests for Token Budget
 
-- [ ] Test estimate_tokens produces reasonable estimates
-- [ ] Test estimate_tokens handles empty string
-- [ ] Test count_message includes overhead
-- [ ] Test count_memory includes metadata overhead
-- [ ] Test count_messages sums correctly
-- [ ] Test count_memories sums correctly
+- [x] Test estimate_tokens produces reasonable estimates
+- [x] Test estimate_tokens handles empty string
+- [x] Test count_message includes overhead
+- [x] Test count_memory includes metadata overhead
+- [x] Test count_messages sums correctly
+- [x] Test count_memories sums correctly
 - [ ] Test allocate_budget distributes tokens correctly
 - [ ] Test allocate_budget handles small budgets
 - [ ] Test enforce_budget returns content within budget

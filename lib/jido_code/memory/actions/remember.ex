@@ -54,6 +54,7 @@ defmodule JidoCode.Memory.Actions.Remember do
     ]
 
   alias JidoCode.Memory
+  alias JidoCode.Memory.Actions.Helpers
   alias JidoCode.Memory.Types
 
   # =============================================================================
@@ -61,18 +62,10 @@ defmodule JidoCode.Memory.Actions.Remember do
   # =============================================================================
 
   @max_content_length 2000
+  @default_confidence 0.8
 
-  @valid_memory_types [
-    :fact,
-    :assumption,
-    :hypothesis,
-    :discovery,
-    :risk,
-    :unknown,
-    :decision,
-    :convention,
-    :lesson_learned
-  ]
+  # Valid memory types from Types module (single source of truth)
+  @valid_memory_types Types.memory_types()
 
   # =============================================================================
   # Public API
@@ -95,11 +88,12 @@ defmodule JidoCode.Memory.Actions.Remember do
   # =============================================================================
 
   @impl true
+  @spec run(map(), map()) :: {:ok, map()} | {:error, String.t()}
   def run(params, context) do
     start_time = System.monotonic_time(:millisecond)
 
     with {:ok, validated} <- validate_remember_params(params),
-         {:ok, session_id} <- get_session_id(context),
+         {:ok, session_id} <- Helpers.get_session_id(context),
          {:ok, memory_item} <- build_memory_item(validated, context),
          {:ok, memory_id} <- promote_immediately(memory_item, session_id) do
       emit_telemetry(session_id, validated.type, start_time)
@@ -134,8 +128,8 @@ defmodule JidoCode.Memory.Actions.Remember do
       byte_size(trimmed) == 0 ->
         {:error, :empty_content}
 
-      String.length(trimmed) > @max_content_length ->
-        {:error, {:content_too_long, String.length(trimmed), @max_content_length}}
+      byte_size(trimmed) > @max_content_length ->
+        {:error, {:content_too_long, byte_size(trimmed), @max_content_length}}
 
       true ->
         {:ok, trimmed}
@@ -158,19 +152,11 @@ defmodule JidoCode.Memory.Actions.Remember do
     {:ok, Types.clamp_to_unit(confidence)}
   end
 
-  defp validate_confidence(_), do: {:ok, 0.8}
-
-  # =============================================================================
-  # Private Functions - Context
-  # =============================================================================
-
-  defp get_session_id(context) do
-    case context[:session_id] do
-      nil -> {:error, :missing_session_id}
-      id when is_binary(id) -> {:ok, id}
-      _ -> {:error, :invalid_session_id}
-    end
+  defp validate_confidence(%{confidence: level}) when level in [:high, :medium, :low] do
+    {:ok, Types.level_to_confidence(level)}
   end
+
+  defp validate_confidence(_), do: {:ok, @default_confidence}
 
   # =============================================================================
   # Private Functions - Memory Building
@@ -232,31 +218,27 @@ defmodule JidoCode.Memory.Actions.Remember do
     }
   end
 
-  defp format_error(:empty_content) do
+  defp format_error(reason) do
+    Helpers.format_common_error(reason) || format_action_error(reason)
+  end
+
+  defp format_action_error(:empty_content) do
     "Content cannot be empty"
   end
 
-  defp format_error({:content_too_long, actual, max}) do
-    "Content exceeds maximum length (#{actual} > #{max} characters)"
+  defp format_action_error({:content_too_long, actual, max}) do
+    "Content exceeds maximum length (#{actual} > #{max} bytes)"
   end
 
-  defp format_error(:invalid_content) do
+  defp format_action_error(:invalid_content) do
     "Content must be a non-empty string"
   end
 
-  defp format_error({:invalid_memory_type, type}) do
+  defp format_action_error({:invalid_memory_type, type}) do
     "Invalid memory type: #{inspect(type)}. Valid types: #{inspect(@valid_memory_types)}"
   end
 
-  defp format_error(:missing_session_id) do
-    "Session ID is required in context"
-  end
-
-  defp format_error(:invalid_session_id) do
-    "Session ID must be a string"
-  end
-
-  defp format_error(reason) do
+  defp format_action_error(reason) do
     "Failed to remember: #{inspect(reason)}"
   end
 

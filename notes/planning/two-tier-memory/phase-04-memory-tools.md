@@ -379,6 +379,29 @@ Implement the recall action for querying long-term memory. This allows the LLM t
 - [x] Test recall emits telemetry event
 - [x] Test recall returns memories sorted by relevance/recency
 
+### 4.2.4 Review Improvements (Added from Review)
+
+- [x] 4.2.4.1 Create `lib/jido_code/memory/actions/helpers.ex` shared module:
+  - Extract `get_session_id/1` with format validation via `Types.valid_session_id?/1`
+  - Extract `format_common_error/1` for shared error formatting
+  - Extract `format_timestamp/1` for DateTime formatting
+  - Add `validate_confidence/3` with support for levels (:high, :medium, :low)
+- [x] 4.2.4.2 Add query string length validation (max 1000 bytes)
+- [x] 4.2.4.3 Add `@spec run(map(), map()) :: {:ok, map()} | {:error, String.t()}` to both actions
+- [x] 4.2.4.4 Harmonize naming conventions:
+  - Use `:invalid_memory_type` error atom consistently
+  - Use `memory_type` in telemetry metadata consistently
+  - Use `Types.memory_types()` as single source of truth
+- [x] 4.2.4.5 Fix mixed size checks in Remember (use `byte_size` consistently)
+- [x] 4.2.4.6 Add support for confidence levels (:high, :medium, :low)
+- [x] 4.2.4.7 Add tests for:
+  - Query max length validation
+  - Confidence levels
+  - Session ID format validation
+  - ISO8601 timestamp formatting
+  - Helpers module functions
+  - Extended memory types from Types module
+
 ---
 
 ## 4.3 Forget Action
@@ -646,12 +669,13 @@ Comprehensive integration tests verifying memory tools work end-to-end.
 ## Phase 4 Critical Files
 
 **New Files:**
-- `lib/jido_code/memory/actions/remember.ex`
-- `lib/jido_code/memory/actions/recall.ex`
+- `lib/jido_code/memory/actions/remember.ex` - COMPLETE
+- `lib/jido_code/memory/actions/recall.ex` - COMPLETE
+- `lib/jido_code/memory/actions/helpers.ex` - COMPLETE (added from review)
 - `lib/jido_code/memory/actions/forget.ex`
 - `lib/jido_code/memory/actions.ex`
-- `test/jido_code/memory/actions/remember_test.exs`
-- `test/jido_code/memory/actions/recall_test.exs`
+- `test/jido_code/memory/actions/remember_test.exs` - COMPLETE (30 tests)
+- `test/jido_code/memory/actions/recall_test.exs` - COMPLETE (55 tests)
 - `test/jido_code/memory/actions/forget_test.exs`
 - `test/jido_code/memory/actions_test.exs`
 - `test/jido_code/integration/memory_tools_test.exs`

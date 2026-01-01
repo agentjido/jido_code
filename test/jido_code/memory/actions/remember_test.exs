@@ -54,6 +54,26 @@ defmodule JidoCode.Memory.Actions.RememberTest do
       {:ok, result} = Remember.run(params, context)
       assert result.remembered == true
     end
+
+    test "accepts confidence levels (:high, :medium, :low)", %{session_id: session_id, context: context} do
+      # Test :high
+      params = %{content: "High confidence memory", confidence: :high}
+      {:ok, result} = Remember.run(params, context)
+      {:ok, stored} = JidoCode.Memory.get(session_id, result.memory_id)
+      assert stored.confidence == 0.9
+
+      # Test :medium
+      params = %{content: "Medium confidence memory", confidence: :medium}
+      {:ok, result} = Remember.run(params, context)
+      {:ok, stored} = JidoCode.Memory.get(session_id, result.memory_id)
+      assert stored.confidence == 0.6
+
+      # Test :low
+      params = %{content: "Low confidence memory", confidence: :low}
+      {:ok, result} = Remember.run(params, context)
+      {:ok, stored} = JidoCode.Memory.get(session_id, result.memory_id)
+      assert stored.confidence == 0.3
+    end
   end
 
   # =============================================================================
@@ -77,7 +97,7 @@ defmodule JidoCode.Memory.Actions.RememberTest do
       assert message =~ "empty"
     end
 
-    test "validates content max length (2000 chars)", %{context: context} do
+    test "validates content max length (2000 bytes)", %{context: context} do
       long_content = String.duplicate("a", 2001)
       params = %{content: long_content}
 
@@ -127,6 +147,13 @@ defmodule JidoCode.Memory.Actions.RememberTest do
         {:ok, result} = Remember.run(params, context)
         assert result.memory_type == type
       end
+    end
+
+    test "valid_memory_types matches Types.memory_types", %{context: context} do
+      remember_types = Remember.valid_memory_types()
+      types_module_types = JidoCode.Memory.Types.memory_types()
+
+      assert remember_types == types_module_types
     end
   end
 
@@ -246,6 +273,16 @@ defmodule JidoCode.Memory.Actions.RememberTest do
       assert message =~ "Session ID"
       assert message =~ "string"
     end
+
+    test "validates session_id format" do
+      params = %{content: "Test memory"}
+      # Invalid session ID with path traversal attempt
+      context = %{session_id: "../../../etc/passwd"}
+
+      {:error, message} = Remember.run(params, context)
+
+      assert message =~ "Session ID"
+    end
   end
 
   # =============================================================================
@@ -330,6 +367,14 @@ defmodule JidoCode.Memory.Actions.RememberTest do
       assert :decision in types
       assert :convention in types
       assert :lesson_learned in types
+    end
+
+    test "valid_memory_types includes extended types from Types module" do
+      types = Remember.valid_memory_types()
+
+      # These are extended types from Types.memory_types()
+      assert :architectural_decision in types
+      assert :coding_standard in types
     end
   end
 end

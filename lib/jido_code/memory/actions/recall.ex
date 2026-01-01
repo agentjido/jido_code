@@ -20,7 +20,7 @@ defmodule JidoCode.Memory.Actions.Recall do
       query: [
         type: :string,
         required: false,
-        doc: "Search query or keywords (optional, for text matching)"
+        doc: "Search query or keywords (optional, for text matching, max 1000 chars)"
       ],
       type: [
         type:
@@ -53,6 +53,7 @@ defmodule JidoCode.Memory.Actions.Recall do
     ]
 
   alias JidoCode.Memory
+  alias JidoCode.Memory.Actions.Helpers
   alias JidoCode.Memory.Types
 
   # =============================================================================
@@ -63,19 +64,12 @@ defmodule JidoCode.Memory.Actions.Recall do
   @min_limit 1
   @default_limit 10
   @default_min_confidence 0.5
+  @max_query_length 1000
 
-  @valid_types [
-    :all,
-    :fact,
-    :assumption,
-    :hypothesis,
-    :discovery,
-    :risk,
-    :unknown,
-    :decision,
-    :convention,
-    :lesson_learned
-  ]
+  # Valid types for recall queries (includes :all as a filter option)
+  # Note: :all is a pseudo-type for query purposes, not a memory type
+  @valid_memory_types Types.memory_types()
+  @valid_filter_types [:all | @valid_memory_types]
 
   # =============================================================================
   # Public API
@@ -100,21 +94,29 @@ defmodule JidoCode.Memory.Actions.Recall do
   def default_limit, do: @default_limit
 
   @doc """
-  Returns the list of valid types for recall queries.
+  Returns the maximum allowed query length.
+  """
+  @spec max_query_length() :: pos_integer()
+  def max_query_length, do: @max_query_length
+
+  @doc """
+  Returns the list of valid filter types for recall queries.
+  Includes :all as a filter option plus all valid memory types.
   """
   @spec valid_types() :: [atom()]
-  def valid_types, do: @valid_types
+  def valid_types, do: @valid_filter_types
 
   # =============================================================================
   # Action Implementation
   # =============================================================================
 
   @impl true
+  @spec run(map(), map()) :: {:ok, map()} | {:error, String.t()}
   def run(params, context) do
     start_time = System.monotonic_time(:millisecond)
 
     with {:ok, validated} <- validate_recall_params(params),
-         {:ok, session_id} <- get_session_id(context),
+         {:ok, session_id} <- Helpers.get_session_id(context),
          {:ok, memories} <- query_memories(validated, session_id),
          :ok <- record_access(memories, session_id) do
       emit_telemetry(session_id, validated, length(memories), start_time)
@@ -162,14 +164,18 @@ defmodule JidoCode.Memory.Actions.Recall do
     {:ok, Types.clamp_to_unit(conf)}
   end
 
+  defp validate_min_confidence(%{min_confidence: level}) when level in [:high, :medium, :low] do
+    {:ok, Types.level_to_confidence(level)}
+  end
+
   defp validate_min_confidence(_), do: {:ok, @default_min_confidence}
 
-  defp validate_type(%{type: type}) when type in @valid_types do
+  defp validate_type(%{type: type}) when type in @valid_filter_types do
     {:ok, type}
   end
 
   defp validate_type(%{type: type}) do
-    {:error, {:invalid_type, type}}
+    {:error, {:invalid_memory_type, type}}
   end
 
   defp validate_type(_), do: {:ok, :all}
@@ -177,26 +183,19 @@ defmodule JidoCode.Memory.Actions.Recall do
   defp validate_query(%{query: query}) when is_binary(query) do
     trimmed = String.trim(query)
 
-    if byte_size(trimmed) == 0 do
-      {:ok, nil}
-    else
-      {:ok, trimmed}
+    cond do
+      byte_size(trimmed) == 0 ->
+        {:ok, nil}
+
+      byte_size(trimmed) > @max_query_length ->
+        {:error, {:query_too_long, byte_size(trimmed), @max_query_length}}
+
+      true ->
+        {:ok, trimmed}
     end
   end
 
   defp validate_query(_), do: {:ok, nil}
-
-  # =============================================================================
-  # Private Functions - Context
-  # =============================================================================
-
-  defp get_session_id(context) do
-    case context[:session_id] do
-      nil -> {:error, :missing_session_id}
-      id when is_binary(id) -> {:ok, id}
-      _ -> {:error, :invalid_session_id}
-    end
-  end
 
   # =============================================================================
   # Private Functions - Query
@@ -239,6 +238,8 @@ defmodule JidoCode.Memory.Actions.Recall do
   # Private Functions - Access Tracking
   # =============================================================================
 
+  # Access tracking is best-effort; errors are swallowed intentionally
+  # (see Memory.record_access/2 documentation)
   defp record_access(memories, session_id) do
     Enum.each(memories, fn mem ->
       Memory.record_access(session_id, mem.id)
@@ -264,35 +265,31 @@ defmodule JidoCode.Memory.Actions.Recall do
       content: mem.content,
       type: mem.memory_type,
       confidence: mem.confidence,
-      timestamp: format_timestamp(mem.timestamp)
+      timestamp: Helpers.format_timestamp(mem.timestamp)
     }
   end
 
-  defp format_timestamp(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
-  defp format_timestamp(nil), do: nil
-  defp format_timestamp(other), do: inspect(other)
-
-  defp format_error(:missing_session_id) do
-    "Session ID is required in context"
+  defp format_error(reason) do
+    Helpers.format_common_error(reason) || format_action_error(reason)
   end
 
-  defp format_error(:invalid_session_id) do
-    "Session ID must be a string"
-  end
-
-  defp format_error({:limit_too_small, actual, min}) do
+  defp format_action_error({:limit_too_small, actual, min}) do
     "Limit must be at least #{min}, got #{actual}"
   end
 
-  defp format_error({:limit_too_large, actual, max}) do
+  defp format_action_error({:limit_too_large, actual, max}) do
     "Limit cannot exceed #{max}, got #{actual}"
   end
 
-  defp format_error({:invalid_type, type}) do
-    "Invalid memory type: #{inspect(type)}. Valid types: #{inspect(@valid_types)}"
+  defp format_action_error({:invalid_memory_type, type}) do
+    "Invalid memory type: #{inspect(type)}. Valid types: #{inspect(@valid_filter_types)}"
   end
 
-  defp format_error(reason) do
+  defp format_action_error({:query_too_long, actual, max}) do
+    "Query exceeds maximum length (#{actual} > #{max} bytes)"
+  end
+
+  defp format_action_error(reason) do
     "Failed to recall: #{inspect(reason)}"
   end
 
@@ -308,7 +305,7 @@ defmodule JidoCode.Memory.Actions.Recall do
       %{duration: duration_ms, result_count: result_count},
       %{
         session_id: session_id,
-        type_filter: params.type,
+        memory_type: params.type,
         min_confidence: params.min_confidence,
         has_query: params.query != nil
       }

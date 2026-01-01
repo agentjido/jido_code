@@ -463,10 +463,10 @@ defmodule JidoCode.Memory.ContextBuilder do
 
   defp format_key(key), do: to_string(key)
 
-  defp format_value(value) when is_binary(value), do: truncate_content(value)
+  defp format_value(value) when is_binary(value), do: sanitize_content(value) |> truncate_content()
   defp format_value(value) when is_atom(value), do: Atom.to_string(value)
   defp format_value(value) when is_number(value), do: to_string(value)
-  defp format_value(value) when is_list(value), do: Enum.join(value, ", ") |> truncate_content()
+  defp format_value(value) when is_list(value), do: Enum.join(value, ", ") |> sanitize_content() |> truncate_content()
   defp format_value(value), do: inspect(value) |> truncate_content()
 
   defp format_memories(memories) do
@@ -475,7 +475,8 @@ defmodule JidoCode.Memory.ContextBuilder do
       confidence_badge = confidence_badge(mem.confidence)
       type_badge = "[#{mem.memory_type}]"
       timestamp = format_timestamp(mem[:timestamp])
-      content = truncate_content(mem.content)
+      # Sanitize memory content to prevent prompt injection
+      content = mem.content |> sanitize_content() |> truncate_content()
 
       if timestamp do
         "- #{type_badge} #{confidence_badge} #{content} _(#{timestamp})_"
@@ -512,6 +513,26 @@ defmodule JidoCode.Memory.ContextBuilder do
   end
 
   defp truncate_content(content), do: to_string(content)
+
+  # Sanitizes content to prevent markdown injection and potential prompt injection
+  # Escapes markdown special characters and removes dangerous patterns
+  @spec sanitize_content(String.t()) :: String.t()
+  defp sanitize_content(content) when is_binary(content) do
+    content
+    # Escape markdown special characters that could affect formatting
+    |> String.replace("**", "\\*\\*")
+    |> String.replace("__", "\\_\\_")
+    |> String.replace("```", "\\`\\`\\`")
+    # Remove potential instruction injection patterns (common LLM jailbreak attempts)
+    |> String.replace(~r/\bignore\s+(all\s+)?previous\s+instructions?\b/i, "[filtered]")
+    |> String.replace(~r/\byou\s+are\s+now\b/i, "[filtered]")
+    |> String.replace(~r/\bforget\s+(all\s+)?previous\b/i, "[filtered]")
+    |> String.replace(~r/\bsystem\s*:\s*/i, "system : ")
+    |> String.replace(~r/\buser\s*:\s*/i, "user : ")
+    |> String.replace(~r/\bassistant\s*:\s*/i, "assistant : ")
+  end
+
+  defp sanitize_content(content), do: to_string(content)
 
   # =============================================================================
   # Private Functions - Telemetry

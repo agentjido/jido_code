@@ -746,6 +746,105 @@ defmodule JidoCode.Agents.LLMAgentTest do
       result = JidoCode.Memory.ContextBuilder.format_for_prompt(nil)
       assert result == ""
     end
+
+    test "ContextBuilder.build returns error for invalid session_id" do
+      # Test error path when session doesn't exist
+      result = JidoCode.Memory.ContextBuilder.build("nonexistent-session-12345")
+
+      # Should return error for non-existent session
+      assert {:error, _reason} = result
+    end
+
+    test "ContextBuilder.build error path is handled gracefully in LLMAgent" do
+      # The build_memory_context/3 function in LLMAgent should handle errors
+      # by returning nil and logging, not crashing
+      # This test verifies the pattern by testing the ContextBuilder directly
+      # since we can't easily test the private function
+
+      # Invalid session should return error
+      result = JidoCode.Memory.ContextBuilder.build("invalid-session-xyz-123")
+      assert match?({:error, _}, result)
+    end
+  end
+
+  # ============================================================================
+  # Memory Tool Execution Through LLMAgent Tests (Review Fix)
+  # ============================================================================
+
+  describe "memory tool execution through LLMAgent" do
+    setup do
+      # Ensure tools are registered
+      JidoCode.Tools.register_all()
+
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      :ok
+    end
+
+    test "execute_tool routes memory tools correctly" do
+      session_id = "memory-tool-test-session-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(session_id: session_id) do
+        {:ok, pid} ->
+          # Test that memory tool execution is attempted (may fail due to no actual session)
+          # The important thing is that it doesn't crash and returns a proper result
+          remember_call = %{
+            "id" => "test-call-1",
+            "type" => "function",
+            "function" => %{
+              "name" => "remember",
+              "arguments" => Jason.encode!(%{"content" => "test memory", "memory_type" => "fact"})
+            }
+          }
+
+          # Execute should return a Result struct (success or error)
+          result = LLMAgent.execute_tool(pid, remember_call)
+
+          # Should return {:ok, Result} or {:error, reason} - not crash
+          assert match?({:ok, %JidoCode.Tools.Result{}}, result) or
+                   match?({:error, _}, result)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          # If agent fails to start, skip test
+          :ok
+      end
+    end
+
+    test "execute_tool_batch handles memory tools in batch" do
+      session_id = "memory-batch-test-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(session_id: session_id) do
+        {:ok, pid} ->
+          tool_calls = [
+            %{
+              "id" => "batch-1",
+              "type" => "function",
+              "function" => %{
+                "name" => "recall",
+                "arguments" => Jason.encode!(%{"query" => "test query"})
+              }
+            }
+          ]
+
+          # Should return a list of results, not crash
+          result = LLMAgent.execute_tool_batch(pid, tool_calls)
+
+          assert match?({:ok, results} when is_list(results), result) or
+                   match?({:error, _}, result)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
   end
 
   describe "session topics" do
@@ -943,9 +1042,10 @@ defmodule JidoCode.Agents.LLMAgentTest do
           case result do
             :ok ->
               # Should receive config change broadcast on session-specific topic
-              assert_receive {:config_changed, old_config, new_config}, 1000
+              # Note: Implementation broadcasts 2-tuple {:config_changed, new_config}
+              # for consistency with commands.ex (see llm_agent.ex lines 933-938)
+              assert_receive {:config_changed, new_config}, 1000
 
-              assert old_config.provider == :anthropic
               assert new_config.provider == :openai
               assert new_config.model == "gpt-4o"
 

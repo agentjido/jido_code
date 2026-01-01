@@ -537,13 +537,13 @@ Implement pre-execution security checks in Executor.
 
 Implement process isolation for handler execution.
 
-- [ ] 5.8.3.1 Create `lib/jido_code/tools/security/isolated_executor.ex`
-- [ ] 5.8.3.2 Implement `execute_isolated/4` with Task.Supervisor
-- [ ] 5.8.3.3 Add `JidoCode.Tools.TaskSupervisor` to supervision tree
-- [ ] 5.8.3.4 Enforce memory limit via `:max_heap_size` process flag
-- [ ] 5.8.3.5 Implement timeout with graceful shutdown
-- [ ] 5.8.3.6 Handle process crashes without affecting main app
-- [ ] 5.8.3.7 Emit telemetry: `[:jido_code, :security, :isolation]`
+- [x] 5.8.3.1 Create `lib/jido_code/tools/security/isolated_executor.ex`
+- [x] 5.8.3.2 Implement `execute_isolated/4` with Task.Supervisor
+- [x] 5.8.3.3 Add `JidoCode.Tools.TaskSupervisor` to supervision tree (already exists)
+- [x] 5.8.3.4 Enforce memory limit via `:max_heap_size` process flag
+- [x] 5.8.3.5 Implement timeout with graceful shutdown
+- [x] 5.8.3.6 Handle process crashes without affecting main app
+- [x] 5.8.3.7 Emit telemetry: `[:jido_code, :security, :isolation]`
 
 ### 5.8.4 Output Sanitization
 

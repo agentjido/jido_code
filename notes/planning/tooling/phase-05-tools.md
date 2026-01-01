@@ -605,11 +605,11 @@ Implement tool categorization with graduated access.
 - [x] 5.8.7.1 Create `lib/jido_code/tools/security/permissions.ex`
 - [x] 5.8.7.2 Define tier hierarchy: `[:read_only, :write, :execute, :privileged]`
 - [x] 5.8.7.3 Define default tool-to-tier mapping
-- [ ] 5.8.7.4 Add `granted_tier` and `consented_tools` to Session.State
-- [ ] 5.8.7.5 Implement `grant_tier/2` for permission upgrades
-- [ ] 5.8.7.6 Implement `record_consent/2` for explicit consent
+- [ ] 5.8.7.4 Add `granted_tier` and `consented_tools` to Session.State (deferred - requires Session.State changes)
+- [x] 5.8.7.5 Implement `grant_tier/2` for permission upgrades
+- [x] 5.8.7.6 Implement `record_consent/2` for explicit consent
 - [x] 5.8.7.7 Implement `check_permission/3` for middleware
-- [ ] 5.8.7.8 Emit telemetry: `[:jido_code, :security, :permission_denied]`
+- [x] 5.8.7.8 Emit telemetry: `[:jido_code, :security, :permission_denied]`
 
 ### 5.8.8 Unit Tests
 

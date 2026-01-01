@@ -589,14 +589,14 @@ Implement per-session, per-tool rate limiting.
 
 Implement comprehensive invocation logging.
 
-- [ ] 5.8.6.1 Create `lib/jido_code/tools/security/audit_logger.ex`
-- [ ] 5.8.6.2 Define audit entry structure (timestamp, session, tool, status, duration)
-- [ ] 5.8.6.3 Implement `log_invocation/4` called from Executor
-- [ ] 5.8.6.4 Hash arguments for privacy (don't log raw values)
-- [ ] 5.8.6.5 Store in ETS ring buffer (default 10000 entries)
-- [ ] 5.8.6.6 Implement `get_audit_log/1` for session-specific trail
-- [ ] 5.8.6.7 Emit telemetry: `[:jido_code, :security, :audit]`
-- [ ] 5.8.6.8 Integrate with Logger for blocked invocations
+- [x] 5.8.6.1 Create `lib/jido_code/tools/security/audit_logger.ex`
+- [x] 5.8.6.2 Define audit entry structure (timestamp, session, tool, status, duration)
+- [x] 5.8.6.3 Implement `log_invocation/4` called from Executor
+- [x] 5.8.6.4 Hash arguments for privacy (don't log raw values)
+- [x] 5.8.6.5 Store in ETS ring buffer (default 10000 entries)
+- [x] 5.8.6.6 Implement `get_audit_log/1` for session-specific trail
+- [x] 5.8.6.7 Emit telemetry: `[:jido_code, :security, :audit]`
+- [x] 5.8.6.8 Integrate with Logger for blocked invocations
 
 ### 5.8.7 Permission Tiers
 

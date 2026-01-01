@@ -65,6 +65,16 @@ defmodule JidoCode.Tools.Security.OutputSanitizer do
     {~r/xox[baprs]-[a-zA-Z0-9\-]+/, "[REDACTED_SLACK_TOKEN]"},
     # Anthropic API keys
     {~r/sk-ant-[a-zA-Z0-9\-]+/, "[REDACTED_ANTHROPIC_KEY]"},
+    # Google Cloud API keys (AIza...)
+    {~r/AIza[a-zA-Z0-9_\-]{35}/, "[REDACTED_GOOGLE_KEY]"},
+    # Azure connection strings
+    {~r/(?i)(AccountKey|SharedAccessKey)\s*[:=]\s*[A-Za-z0-9+\/=]{40,}/, "[REDACTED_AZURE_KEY]"},
+    # JWT tokens (three base64 segments)
+    {~r/eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]+/, "[REDACTED_JWT]"},
+    # SSH private keys
+    {~r/-----BEGIN\s+(RSA|EC|DSA|OPENSSH)?\s*PRIVATE KEY-----/, "[REDACTED_SSH_KEY]"},
+    # Database connection strings with passwords
+    {~r/(?i)(mysql|postgres|postgresql|mongodb|redis):\/\/[^:]+:[^@]+@/, "[REDACTED_DB_URL]"},
     # Generic secret in JSON/env format
     {~r/"(password|secret|api_?key|token)"\s*:\s*"[^"]+"/i, "\"\\1\": \"[REDACTED]\""}
   ]
@@ -126,6 +136,7 @@ defmodule JidoCode.Tools.Security.OutputSanitizer do
   ])
 
   @redacted_value "[REDACTED]"
+  @default_max_depth 50
 
   @typedoc """
   Options for sanitization.
@@ -133,6 +144,7 @@ defmodule JidoCode.Tools.Security.OutputSanitizer do
   @type option ::
           {:emit_telemetry, boolean()}
           | {:context, map()}
+          | {:max_depth, pos_integer()}
 
   # =============================================================================
   # Public API
@@ -174,11 +186,13 @@ defmodule JidoCode.Tools.Security.OutputSanitizer do
   end
 
   def sanitize(value, opts) when is_map(value) do
-    sanitize_map(value, opts)
+    max_depth = Keyword.get(opts, :max_depth, @default_max_depth)
+    sanitize_map(value, opts, 0, max_depth)
   end
 
   def sanitize(value, opts) when is_list(value) do
-    sanitize_list(value, opts)
+    max_depth = Keyword.get(opts, :max_depth, @default_max_depth)
+    sanitize_list(value, opts, 0, max_depth)
   end
 
   def sanitize({:ok, value}, opts) do
@@ -262,29 +276,56 @@ defmodule JidoCode.Tools.Security.OutputSanitizer do
     end)
   end
 
-  defp sanitize_map(map, opts) do
-    {sanitized, redaction_count} =
-      Enum.reduce(map, {%{}, 0}, fn {key, value}, {acc, count} ->
-        if MapSet.member?(@sensitive_fields, key) do
-          {Map.put(acc, key, @redacted_value), count + 1}
-        else
-          # Recursively sanitize the value
-          sanitized_value = sanitize(value, Keyword.put(opts, :emit_telemetry, false))
-          {Map.put(acc, key, sanitized_value), count}
-        end
-      end)
+  defp sanitize_map(map, opts, depth, max_depth) do
+    # Stop recursion at max depth to prevent DoS attacks
+    if depth >= max_depth do
+      map
+    else
+      {sanitized, redaction_count} =
+        Enum.reduce(map, {%{}, 0}, fn {key, value}, {acc, count} ->
+          if MapSet.member?(@sensitive_fields, key) do
+            {Map.put(acc, key, @redacted_value), count + 1}
+          else
+            # Recursively sanitize the value with incremented depth
+            sanitized_value = sanitize_value(value, opts, depth + 1, max_depth)
+            {Map.put(acc, key, sanitized_value), count}
+          end
+        end)
 
-    if redaction_count > 0 do
-      maybe_emit_telemetry(:map, redaction_count, opts)
+      if redaction_count > 0 do
+        maybe_emit_telemetry(:map, redaction_count, opts)
+      end
+
+      sanitized
     end
-
-    sanitized
   end
 
-  defp sanitize_list(list, opts) do
-    Enum.map(list, fn item ->
-      sanitize(item, Keyword.put(opts, :emit_telemetry, false))
-    end)
+  defp sanitize_list(list, opts, depth, max_depth) do
+    # Stop recursion at max depth to prevent DoS attacks
+    if depth >= max_depth do
+      list
+    else
+      Enum.map(list, fn item ->
+        sanitize_value(item, opts, depth + 1, max_depth)
+      end)
+    end
+  end
+
+  # Internal recursive sanitization with depth tracking
+  defp sanitize_value(value, opts, _depth, _max_depth) when is_binary(value) do
+    sanitize_string(value, Keyword.put(opts, :emit_telemetry, false))
+  end
+
+  defp sanitize_value(value, opts, depth, max_depth) when is_map(value) do
+    sanitize_map(value, Keyword.put(opts, :emit_telemetry, false), depth, max_depth)
+  end
+
+  defp sanitize_value(value, opts, depth, max_depth) when is_list(value) do
+    sanitize_list(value, Keyword.put(opts, :emit_telemetry, false), depth, max_depth)
+  end
+
+  defp sanitize_value(value, _opts, _depth, _max_depth) do
+    value
   end
 
   defp maybe_emit_telemetry(type, redaction_count, opts) do

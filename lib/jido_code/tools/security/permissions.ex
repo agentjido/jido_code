@@ -14,6 +14,26 @@ defmodule JidoCode.Tools.Security.Permissions do
   3. `:execute` - Can run external commands
   4. `:privileged` - System-level access (highest privilege)
 
+  ## Consent Override Behavior
+
+  Explicit consent can override tier requirements. When a tool name is in the
+  `consented_tools` list, permission is granted regardless of the session's tier.
+  This is intentional for use cases where users explicitly approve specific tools:
+
+  - Interactive UIs can prompt for consent before executing privileged tools
+  - Automation scripts can pre-approve known-safe tools
+  - Testing environments can grant consent for specific tools
+
+  **Security Note:** Consent should only be granted through controlled interfaces.
+  The consent list should not be directly modifiable by untrusted input.
+
+  ## Unknown Tool Behavior
+
+  Tools not in the default tier mapping are assigned `:read_only` tier by default.
+  This can be overridden via configuration:
+
+      config :jido_code, unknown_tool_tier: :execute
+
   ## Default Tool Mappings
 
   Tools are mapped to tiers based on their capabilities:
@@ -103,7 +123,8 @@ defmodule JidoCode.Tools.Security.Permissions do
   """
   @spec get_tool_tier(String.t()) :: SecureHandler.tier()
   def get_tool_tier(tool_name) do
-    Map.get(@default_tool_tiers, tool_name, :read_only)
+    default_tier = Application.get_env(:jido_code, :unknown_tool_tier, :read_only)
+    Map.get(@default_tool_tiers, tool_name, default_tier)
   end
 
   @doc """

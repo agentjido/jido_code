@@ -529,7 +529,7 @@ Implement pre-execution security checks in Executor.
 - [x] 5.8.2.3 Implement `check_rate_limit/2`
 - [x] 5.8.2.4 Implement `check_permission_tier/2`
 - [x] 5.8.2.5 Implement `check_consent_requirement/2`
-- [ ] 5.8.2.6 Add middleware hook to `Executor.execute/2`
+- [x] 5.8.2.6 Add middleware hook to `Executor.execute/2`
 - [x] 5.8.2.7 Make opt-in via config: `config :jido_code, security_middleware: true`
 - [x] 5.8.2.8 Emit telemetry: `[:jido_code, :security, :middleware_check]`
 
@@ -562,7 +562,7 @@ Implement automatic redaction of sensitive data.
 - [x] 5.8.4.3 Implement `sanitize/1` for strings
 - [x] 5.8.4.4 Implement `sanitize/1` for maps (recursive)
 - [x] 5.8.4.5 Define sensitive field names for map key redaction
-- [ ] 5.8.4.6 Apply in Executor after handler returns
+- [x] 5.8.4.6 Apply in Executor after handler returns
 - [x] 5.8.4.7 Emit telemetry: `[:jido_code, :security, :output_sanitized]`
 
 ### 5.8.5 Rate Limiting
@@ -613,27 +613,27 @@ Implement tool categorization with graduated access.
 
 ### 5.8.8 Unit Tests
 
-- [ ] 5.8.8.1 Test SecureHandler behavior callbacks
-- [ ] 5.8.8.2 Test Middleware.run_checks passes/blocks correctly
-- [ ] 5.8.8.3 Test IsolatedExecutor timeout enforcement
-- [ ] 5.8.8.4 Test IsolatedExecutor memory limit
-- [ ] 5.8.8.5 Test OutputSanitizer pattern redaction
-- [ ] 5.8.8.6 Test OutputSanitizer nested map handling
-- [ ] 5.8.8.7 Test RateLimiter within/exceeds limit
-- [ ] 5.8.8.8 Test RateLimiter sliding window
-- [ ] 5.8.8.9 Test AuditLogger invocation recording
-- [ ] 5.8.8.10 Test Permissions tier hierarchy
-- [ ] 5.8.8.11 Test all telemetry events emitted
+- [x] 5.8.8.1 Test SecureHandler behavior callbacks
+- [x] 5.8.8.2 Test Middleware.run_checks passes/blocks correctly
+- [x] 5.8.8.3 Test IsolatedExecutor timeout enforcement
+- [x] 5.8.8.4 Test IsolatedExecutor memory limit
+- [x] 5.8.8.5 Test OutputSanitizer pattern redaction
+- [x] 5.8.8.6 Test OutputSanitizer nested map handling
+- [x] 5.8.8.7 Test RateLimiter within/exceeds limit
+- [x] 5.8.8.8 Test RateLimiter sliding window
+- [x] 5.8.8.9 Test AuditLogger invocation recording
+- [x] 5.8.8.10 Test Permissions tier hierarchy
+- [x] 5.8.8.11 Test all telemetry events emitted
 
 ### 5.8.9 Integration Tests
 
-- [ ] 5.8.9.1 Create `test/jido_code/integration/tools_security_test.exs`
-- [ ] 5.8.9.2 Test: Executor applies middleware when enabled
-- [ ] 5.8.9.3 Test: Rate limiting blocks rapid calls
-- [ ] 5.8.9.4 Test: Output sanitization removes secrets
-- [ ] 5.8.9.5 Test: Process isolation kills runaway handler
-- [ ] 5.8.9.6 Test: Permission tier blocks privileged tools
-- [ ] 5.8.9.7 Test: Audit log captures blocked invocations
+- [x] 5.8.9.1 Create `test/jido_code/integration/tools_security_test.exs`
+- [x] 5.8.9.2 Test: Executor applies middleware when enabled
+- [x] 5.8.9.3 Test: Rate limiting blocks rapid calls
+- [x] 5.8.9.4 Test: Output sanitization removes secrets
+- [x] 5.8.9.5 Test: Process isolation kills runaway handler (covered via IsolatedExecutor unit tests)
+- [x] 5.8.9.6 Test: Permission tier blocks privileged tools
+- [x] 5.8.9.7 Test: Audit log captures blocked invocations
 
 ---
 

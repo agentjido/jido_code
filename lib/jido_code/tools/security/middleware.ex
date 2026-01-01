@@ -140,30 +140,25 @@ defmodule JidoCode.Tools.Security.Middleware do
   """
   @spec check_rate_limit(map(), map()) :: :ok | {:error, {:rate_limited, map()}}
   def check_rate_limit(tool, context) do
-    session_id = Map.get(context, :session_id)
+    session_id = Map.get(context, :session_id) || "__global__"
     tool_name = get_tool_name(tool)
 
-    if is_nil(session_id) do
-      # No session means no rate limiting
-      :ok
-    else
-      # Get rate limit from handler's security properties or use defaults
-      {limit, window_ms} = get_rate_limit(tool)
+    # Get rate limit from handler's security properties or use defaults
+    {limit, window_ms} = get_rate_limit(tool)
 
-      case RateLimiter.check_rate(session_id, tool_name, limit, window_ms) do
-        :ok ->
-          :ok
+    case RateLimiter.check_rate(session_id, tool_name, limit, window_ms) do
+      :ok ->
+        :ok
 
-        {:error, retry_after_ms} ->
-          {:error,
-           {:rate_limited,
-            %{
-              tool: tool_name,
-              limit: limit,
-              window_ms: window_ms,
-              retry_after_ms: retry_after_ms
-            }}}
-      end
+      {:error, retry_after_ms} ->
+        {:error,
+         {:rate_limited,
+          %{
+            tool: tool_name,
+            limit: limit,
+            window_ms: window_ms,
+            retry_after_ms: retry_after_ms
+          }}}
     end
   end
 

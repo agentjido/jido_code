@@ -263,11 +263,13 @@ defmodule JidoCode.Tools.Security.AuditLogger do
   def hash_args(nil), do: nil
 
   def hash_args(args) when is_map(args) do
+    # Use 32 chars (128 bits) for better collision resistance
+    # while still being short enough for logs
     args
     |> :erlang.term_to_binary()
     |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16(case: :lower)
-    |> String.slice(0, 16)
+    |> String.slice(0, 32)
   end
 
   # =============================================================================
@@ -309,7 +311,9 @@ defmodule JidoCode.Tools.Security.AuditLogger do
   defp ensure_table_exists do
     case :ets.whereis(@ets_table) do
       :undefined ->
-        :ets.new(@ets_table, [:named_table, :public, :set])
+        # Use :ordered_set to ensure correct eviction ordering
+        # (lowest ID = oldest entry is always first)
+        :ets.new(@ets_table, [:named_table, :public, :ordered_set])
         init_entry_counter()
 
       _ ->

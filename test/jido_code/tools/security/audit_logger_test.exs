@@ -87,8 +87,8 @@ defmodule JidoCode.Tools.Security.AuditLoggerTest do
       # Args hash should be present
       assert is_binary(entry.args_hash)
       # Should be a 16-character hex string (truncated SHA256)
-      assert String.length(entry.args_hash) == 16
-      assert Regex.match?(~r/^[0-9a-f]{16}$/, entry.args_hash)
+      assert String.length(entry.args_hash) == 32
+      assert Regex.match?(~r/^[0-9a-f]{32}$/, entry.args_hash)
     end
 
     test "handles nil args" do
@@ -331,12 +331,12 @@ defmodule JidoCode.Tools.Security.AuditLoggerTest do
       assert AuditLogger.hash_args(nil) == nil
     end
 
-    test "returns 16-character hex string for map args" do
+    test "returns 32-character hex string for map args" do
       hash = AuditLogger.hash_args(%{"key" => "value"})
 
       assert is_binary(hash)
-      assert String.length(hash) == 16
-      assert Regex.match?(~r/^[0-9a-f]{16}$/, hash)
+      assert String.length(hash) == 32
+      assert Regex.match?(~r/^[0-9a-f]{32}$/, hash)
     end
 
     test "returns consistent hash for same args" do
@@ -364,7 +364,7 @@ defmodule JidoCode.Tools.Security.AuditLoggerTest do
 
       hash = AuditLogger.hash_args(args)
       assert is_binary(hash)
-      assert String.length(hash) == 16
+      assert String.length(hash) == 32
     end
   end
 

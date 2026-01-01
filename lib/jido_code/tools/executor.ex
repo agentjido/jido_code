@@ -78,6 +78,7 @@ defmodule JidoCode.Tools.Executor do
   alias JidoCode.PubSubHelpers
   alias JidoCode.Session
   alias JidoCode.Tools.{Registry, Result, Tool}
+  alias JidoCode.Tools.Security.{Middleware, OutputSanitizer}
   alias JidoCode.Utils.UUID, as: UUIDUtils
 
   @default_timeout 30_000
@@ -385,7 +386,8 @@ defmodule JidoCode.Tools.Executor do
     start_time = System.monotonic_time(:millisecond)
 
     with {:ok, tool} <- validate_tool_exists(name),
-         :ok <- validate_arguments(tool, args) do
+         :ok <- validate_arguments(tool, args),
+         :ok <- run_middleware_checks(tool, args, enriched_context, id, name, session_id, start_time) do
       # Broadcast tool call start
       broadcast_tool_call(session_id, name, args, id)
 
@@ -412,6 +414,11 @@ defmodule JidoCode.Tools.Executor do
       {:error, :not_found} ->
         duration = System.monotonic_time(:millisecond) - start_time
         error_result = Result.error(id, name, "Tool '#{name}' not found", duration)
+        broadcast_tool_result(session_id, error_result)
+        {:ok, error_result}
+
+      {:error, {:middleware_blocked, error_result}} ->
+        # Middleware blocked the execution - result already created
         broadcast_tool_result(session_id, error_result)
         {:ok, error_result}
 
@@ -734,14 +741,81 @@ defmodule JidoCode.Tools.Executor do
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, {:ok, result}} ->
         duration = System.monotonic_time(:millisecond) - start_time
-        {:ok, Result.ok(id, name, result, duration)}
+        # Apply output sanitization if middleware is enabled
+        sanitized_result = maybe_sanitize_output(result)
+        {:ok, Result.ok(id, name, sanitized_result, duration)}
 
       {:ok, {:error, reason}} ->
         duration = System.monotonic_time(:millisecond) - start_time
-        {:ok, Result.error(id, name, reason, duration)}
+        # Also sanitize error messages in case they contain secrets
+        sanitized_reason = maybe_sanitize_output(reason)
+        {:ok, Result.error(id, name, sanitized_reason, duration)}
 
       nil ->
         {:ok, Result.timeout(id, name, timeout)}
+    end
+  end
+
+  # Run middleware checks if enabled
+  defp run_middleware_checks(tool, args, context, id, name, session_id, start_time) do
+    if Middleware.enabled?() do
+      case Middleware.run_checks(tool, args, context) do
+        :ok ->
+          :ok
+
+        {:error, {reason_type, details}} ->
+          duration = System.monotonic_time(:millisecond) - start_time
+          error_message = format_middleware_error(reason_type, details)
+          error_result = Result.error(id, name, error_message, duration)
+
+          # Log the blocked invocation for audit
+          log_blocked_invocation(session_id, name, reason_type, details)
+
+          {:error, {:middleware_blocked, error_result}}
+      end
+    else
+      :ok
+    end
+  end
+
+  # Apply output sanitization if middleware is enabled
+  defp maybe_sanitize_output(result) do
+    if Middleware.enabled?() do
+      OutputSanitizer.sanitize(result, emit_telemetry: true)
+    else
+      result
+    end
+  end
+
+  # Format middleware error for user display
+  defp format_middleware_error(:rate_limited, %{retry_after_ms: retry_after}) do
+    "Rate limit exceeded. Please wait #{div(retry_after, 1000)} seconds before retrying."
+  end
+
+  defp format_middleware_error(:permission_denied, %{required_tier: req, granted_tier: granted}) do
+    "Permission denied. This tool requires '#{req}' tier but session has '#{granted}' tier."
+  end
+
+  defp format_middleware_error(:consent_required, %{tool: tool_name}) do
+    "Consent required. The tool '#{tool_name}' requires explicit user consent before execution."
+  end
+
+  defp format_middleware_error(reason_type, _details) do
+    "Security check failed: #{reason_type}"
+  end
+
+  # Log blocked invocation via AuditLogger
+  defp log_blocked_invocation(session_id, tool_name, reason_type, _details) do
+    if session_id do
+      alias JidoCode.Tools.Security.AuditLogger
+
+      AuditLogger.log_invocation(
+        session_id,
+        tool_name,
+        :blocked,
+        0,
+        args: %{blocked_reason: reason_type}
+      )
     end
   end
 

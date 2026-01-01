@@ -170,14 +170,17 @@ defmodule JidoCode.Tools.Security.MiddlewareTest do
       assert :ok = Middleware.check_rate_limit(tool, context)
     end
 
-    test "returns :ok when no session_id (no rate limiting)" do
-      tool = %{name: "rate_tool", handler: ReadOnlyHandler}
+    test "uses global session_id when no session_id provided" do
+      tool = %{name: "global_rate_tool", handler: ReadOnlyHandler}
       context = %{}
 
-      # Should never rate limit without session
-      for _ <- 1..10 do
-        assert :ok = Middleware.check_rate_limit(tool, context)
-      end
+      # Should use "__global__" as the session_id fallback
+      # and apply rate limiting normally
+      assert :ok = Middleware.check_rate_limit(tool, context)
+
+      # Verify it's tracking under __global__
+      count = RateLimiter.get_count("__global__", "global_rate_tool", 1000)
+      assert count == 1
     end
 
     test "returns error with retry_after when limit exceeded" do

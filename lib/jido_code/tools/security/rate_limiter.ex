@@ -21,11 +21,41 @@ defmodule JidoCode.Tools.Security.RateLimiter do
   3. Count remaining entries
   4. Allow if under limit, reject if at/over limit
 
+  ## Concurrency Note
+
+  The read-modify-write operation in `check_rate/5` is not atomic, which means
+  under high concurrency, slightly more requests than the limit may be allowed
+  briefly. This is intentional and acceptable for rate limiting because:
+
+  1. The window-based approach naturally corrects over time
+  2. The slight over-allowance is bounded and temporary
+  3. Using atomic operations would add significant complexity
+  4. Rate limiting is about preventing abuse, not exact accounting
+
+  For use cases requiring exact counting, consider using a GenServer wrapper.
+
   ## ETS Table
 
   The module creates an ETS table `:jido_code_rate_limits` on first use.
   Entries are keyed by `{session_id, tool_name}` and contain a list of
   invocation timestamps.
+
+  ## Periodic Cleanup
+
+  To prevent memory growth, schedule periodic cleanup:
+
+      # In your application supervision tree or scheduler:
+      :timer.apply_interval(:timer.minutes(5), RateLimiter, :cleanup, [])
+
+  Or using a GenServer-based scheduler like `Quantum`:
+
+      config :my_app, MyApp.Scheduler,
+        jobs: [
+          rate_limiter_cleanup: [
+            schedule: "*/5 * * * *",  # Every 5 minutes
+            task: {JidoCode.Tools.Security.RateLimiter, :cleanup, []}
+          ]
+        ]
   """
 
   @ets_table :jido_code_rate_limits

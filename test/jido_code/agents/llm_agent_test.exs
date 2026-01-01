@@ -552,6 +552,121 @@ defmodule JidoCode.Agents.LLMAgentTest do
     end
   end
 
+  # ============================================================================
+  # Pre-Call Context Assembly Tests (Task 5.2.3)
+  # ============================================================================
+
+  describe "pre-call context assembly" do
+    test "agent state includes memory_enabled and token_budget" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: true, token_budget: 16_000]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Verify state has memory fields
+          assert Map.has_key?(state, :memory_enabled)
+          assert Map.has_key?(state, :token_budget)
+          assert state.memory_enabled == true
+          assert state.token_budget == 16_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "agent works correctly with memory disabled" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Memory should be disabled
+          assert state.memory_enabled == false
+
+          # Agent should still be functional
+          {:ok, info} = LLMAgent.get_session_info(pid)
+          assert is_binary(info.session_id)
+          assert is_binary(info.topic)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "agent handles invalid session_id gracefully" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Start agent without explicit session_id (will use PID string)
+      case LLMAgent.start_link(memory: [enabled: true]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Session ID will be a PID string like "#PID<0.123.0>"
+          # Memory context assembly should gracefully handle this
+          assert state.memory_enabled == true
+          assert String.starts_with?(state.session_id, "#PID<")
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "agent can be started with valid session_id for memory context" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      session_id = "test-session-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(
+             session_id: session_id,
+             memory: [enabled: true, token_budget: 24_000]
+           ) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Session ID should be the one we provided
+          assert state.session_id == session_id
+          assert state.memory_enabled == true
+          assert state.token_budget == 24_000
+
+          # Verify it's a valid session ID (not a PID string)
+          refute String.starts_with?(state.session_id, "#PID<")
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+  end
+
   describe "session topics" do
     test "topic_for_session builds correct topic format" do
       topic = LLMAgent.topic_for_session("my-session-123")

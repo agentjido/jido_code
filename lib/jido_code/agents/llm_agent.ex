@@ -74,6 +74,7 @@ defmodule JidoCode.Agents.LLMAgent do
   alias JidoCode.Config
   alias JidoCode.Language
   alias JidoCode.Memory.Actions, as: MemoryActions
+  alias JidoCode.Memory.ContextBuilder
   alias JidoCode.PubSubTopics
   alias JidoCode.Session.ProcessRegistry
   alias JidoCode.Session.State, as: SessionState
@@ -734,13 +735,19 @@ defmodule JidoCode.Agents.LLMAgent do
     session_id = state.session_id
     agent_pid = self()
 
+    # Extract memory options for context assembly
+    memory_opts = %{
+      memory_enabled: Map.get(state, :memory_enabled, true),
+      token_budget: Map.get(state, :token_budget, @default_token_budget)
+    }
+
     # ARCH-1 Fix: Use Task.Supervisor for monitored async streaming
     Task.Supervisor.start_child(JidoCode.TaskSupervisor, fn ->
       # Trap exits to prevent ReqLLM's internal cleanup tasks from crashing us
       Process.flag(:trap_exit, true)
 
       try do
-        do_chat_stream_with_timeout(config, message, topic, timeout, session_id)
+        do_chat_stream_with_timeout(config, message, topic, timeout, session_id, memory_opts)
         # Notify agent that streaming is complete
         send(agent_pid, :stream_complete)
       catch
@@ -949,11 +956,11 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   # Wrapper that enforces timeout on stream operations
-  defp do_chat_stream_with_timeout(config, message, topic, timeout, session_id) do
+  defp do_chat_stream_with_timeout(config, message, topic, timeout, session_id, memory_opts) do
     # Use a Task to enforce timeout on the entire streaming operation
     task =
       Task.async(fn ->
-        do_chat_stream(config, message, topic, session_id)
+        do_chat_stream(config, message, topic, session_id, memory_opts)
       end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
@@ -967,7 +974,7 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp do_chat_stream(config, message, topic, session_id) do
+  defp do_chat_stream(config, message, topic, session_id, memory_opts) do
     # Build model from config
     model_tuple =
       {config.provider,
@@ -979,7 +986,7 @@ defmodule JidoCode.Agents.LLMAgent do
 
     case Model.from(model_tuple) do
       {:ok, model} ->
-        execute_stream(model, message, topic, session_id)
+        execute_stream(model, message, topic, session_id, memory_opts)
 
       {:error, reason} ->
         Logger.error("Failed to create model for streaming: #{inspect(reason)}")
@@ -987,9 +994,12 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp execute_stream(model, message, topic, session_id) do
-    # Build dynamic system prompt with language-specific instructions
-    system_prompt = build_system_prompt(session_id)
+  defp execute_stream(model, message, topic, session_id, memory_opts) do
+    # Build memory context if enabled and session is valid
+    memory_context = build_memory_context(session_id, message, memory_opts)
+
+    # Build dynamic system prompt with language-specific instructions and memory context
+    system_prompt = build_system_prompt(session_id, memory_context)
 
     # Build prompt with system message and user message
     prompt =
@@ -1254,22 +1264,27 @@ defmodule JidoCode.Agents.LLMAgent do
   # System Prompt Building
   # ============================================================================
 
-  # Build the system prompt with optional language-specific instructions
-  defp build_system_prompt(session_id) when is_binary(session_id) do
-    if is_valid_session_id?(session_id) do
-      case SessionState.get_state(session_id) do
-        {:ok, %{session: session}} when not is_nil(session.language) ->
-          add_language_instruction(@base_system_prompt, session.language)
+  # Build the system prompt with optional language-specific instructions and memory context
+  defp build_system_prompt(session_id, memory_context) when is_binary(session_id) do
+    base_prompt =
+      if is_valid_session_id?(session_id) do
+        case SessionState.get_state(session_id) do
+          {:ok, %{session: session}} when not is_nil(session.language) ->
+            add_language_instruction(@base_system_prompt, session.language)
 
-        _ ->
-          @base_system_prompt
+          _ ->
+            @base_system_prompt
+        end
+      else
+        @base_system_prompt
       end
-    else
-      @base_system_prompt
-    end
+
+    add_memory_context(base_prompt, memory_context)
   end
 
-  defp build_system_prompt(_), do: @base_system_prompt
+  defp build_system_prompt(_, memory_context) do
+    add_memory_context(@base_system_prompt, memory_context)
+  end
 
   # Add language-specific instruction to the system prompt
   defp add_language_instruction(base_prompt, language) do
@@ -1282,6 +1297,39 @@ defmodule JidoCode.Agents.LLMAgent do
     """
 
     base_prompt <> language_instruction
+  end
+
+  # Add memory context to the system prompt if available
+  defp add_memory_context(prompt, nil), do: prompt
+
+  defp add_memory_context(prompt, memory_context) do
+    memory_section = ContextBuilder.format_for_prompt(memory_context)
+
+    if memory_section != "" do
+      prompt <> "\n\n" <> memory_section
+    else
+      prompt
+    end
+  end
+
+  # Build memory context for the current message
+  defp build_memory_context(session_id, message, memory_opts) do
+    if memory_opts.memory_enabled and is_valid_session_id?(session_id) do
+      case ContextBuilder.build(session_id,
+             token_budget: ContextBuilder.default_budget(),
+             query_hint: message
+           ) do
+        {:ok, context} ->
+          Logger.debug("LLMAgent: Built memory context with #{context.token_counts.total} tokens")
+          context
+
+        {:error, reason} ->
+          Logger.debug("LLMAgent: Failed to build memory context: #{inspect(reason)}")
+          nil
+      end
+    else
+      nil
+    end
   end
 
   # ============================================================================

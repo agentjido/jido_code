@@ -272,7 +272,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
 
 ### 5.2.3 Pre-Call Context Assembly
 
-- [ ] 5.2.3.1 Update chat flow to assemble memory context:
+- [x] 5.2.3.1 Update chat flow to assemble memory context:
   ```elixir
   defp execute_stream(model, message, topic, session_id, state) do
     # Build memory-enhanced context
@@ -294,7 +294,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     # ... rest of streaming logic ...
   end
   ```
-- [ ] 5.2.3.2 Update `build_system_prompt/2`:
+- [x] 5.2.3.2 Update `build_system_prompt/2`:
   ```elixir
   defp build_system_prompt(session_id, context) do
     base = get_base_system_prompt()
@@ -308,7 +308,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     end
   end
   ```
-- [ ] 5.2.3.3 Ensure context is session-scoped
+- [x] 5.2.3.3 Ensure context is session-scoped
 
 ### 5.2.4 Unit Tests for Agent Integration
 

@@ -51,7 +51,7 @@ Implement the context builder that combines short-term and long-term memory for 
 
 ### 5.1.1 Context Builder Module
 
-- [ ] 5.1.1.1 Create `lib/jido_code/memory/context_builder.ex` with moduledoc:
+- [x] 5.1.1.1 Create `lib/jido_code/memory/context_builder.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Builds memory-enhanced context for LLM prompts.
@@ -64,7 +64,7 @@ Implement the context builder that combines short-term and long-term memory for 
   based on relevance and recency.
   """
   ```
-- [ ] 5.1.1.2 Define context struct type:
+- [x] 5.1.1.2 Define context struct type:
   ```elixir
   @type context :: %{
     conversation: [message()],
@@ -79,7 +79,7 @@ Implement the context builder that combines short-term and long-term memory for 
     }
   }
   ```
-- [ ] 5.1.1.3 Define default token budget:
+- [x] 5.1.1.3 Define default token budget:
   ```elixir
   @default_budget %{
     total: 32_000,
@@ -89,7 +89,7 @@ Implement the context builder that combines short-term and long-term memory for 
     long_term: 6_000
   }
   ```
-- [ ] 5.1.1.4 Implement `build/2` main function:
+- [x] 5.1.1.4 Implement `build/2` main function:
   ```elixir
   @spec build(String.t(), keyword()) :: {:ok, context()} | {:error, term()}
   def build(session_id, opts \\ []) do
@@ -104,14 +104,14 @@ Implement the context builder that combines short-term and long-term memory for 
     end
   end
   ```
-- [ ] 5.1.1.5 Implement `get_conversation/2`:
+- [x] 5.1.1.5 Implement `get_conversation/2`:
   - Retrieve messages from Session.State
   - Apply token-aware truncation (keep most recent)
   - Return within budget allocation
-- [ ] 5.1.1.6 Implement `get_working_context/1`:
+- [x] 5.1.1.6 Implement `get_working_context/1`:
   - Retrieve working context from Session.State
   - Serialize to key-value map
-- [ ] 5.1.1.7 Implement `get_relevant_memories/3`:
+- [x] 5.1.1.7 Implement `get_relevant_memories/3`:
   ```elixir
   defp get_relevant_memories(session_id, query_hint, include?) do
     if include? do
@@ -127,7 +127,7 @@ Implement the context builder that combines short-term and long-term memory for 
     end
   end
   ```
-- [ ] 5.1.1.8 Implement `assemble_context/4`:
+- [x] 5.1.1.8 Implement `assemble_context/4`:
   - Combine all components
   - Calculate token counts for each
   - Enforce budget limits with priority ordering
@@ -135,7 +135,7 @@ Implement the context builder that combines short-term and long-term memory for 
 
 ### 5.1.2 Context Formatting
 
-- [ ] 5.1.2.1 Implement `format_for_prompt/1`:
+- [x] 5.1.2.1 Implement `format_for_prompt/1`:
   ```elixir
   @spec format_for_prompt(context()) :: String.t()
   def format_for_prompt(%{working_context: working, long_term_memories: memories}) do
@@ -156,7 +156,7 @@ Implement the context builder that combines short-term and long-term memory for 
     Enum.join(Enum.reverse(parts), "\n\n")
   end
   ```
-- [ ] 5.1.2.2 Implement `format_working_context/1`:
+- [x] 5.1.2.2 Implement `format_working_context/1`:
   ```elixir
   defp format_working_context(working) do
     working
@@ -170,7 +170,7 @@ Implement the context builder that combines short-term and long-term memory for 
     key |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
   end
   ```
-- [ ] 5.1.2.3 Implement `format_memories/1`:
+- [x] 5.1.2.3 Implement `format_memories/1`:
   ```elixir
   defp format_memories(memories) do
     memories
@@ -186,25 +186,25 @@ Implement the context builder that combines short-term and long-term memory for 
   defp confidence_badge(c) when c >= 0.5, do: "(medium confidence)"
   defp confidence_badge(_), do: "(low confidence)"
   ```
-- [ ] 5.1.2.4 Include memory timestamps for recency context
+- [x] 5.1.2.4 Include memory timestamps for recency context
 
 ### 5.1.3 Unit Tests for Context Builder
 
-- [ ] Test build/2 assembles all context components
-- [ ] Test build/2 respects total token budget
-- [ ] Test build/2 with query_hint retrieves more memories
-- [ ] Test build/2 without query_hint filters by high confidence
-- [ ] Test build/2 with include_memories: false skips memory query
-- [ ] Test get_conversation/2 truncates to budget
-- [ ] Test get_conversation/2 preserves most recent messages
-- [ ] Test get_working_context/1 returns serialized map
-- [ ] Test get_relevant_memories/3 applies correct filters
-- [ ] Test assemble_context/4 calculates token counts
-- [ ] Test format_for_prompt/1 produces valid markdown
-- [ ] Test format_for_prompt/1 handles empty context gracefully
-- [ ] Test format_working_context/1 formats key-value pairs
-- [ ] Test format_memories/1 includes type and confidence badges
-- [ ] Test context handles missing session gracefully
+- [x] Test build/2 assembles all context components
+- [x] Test build/2 respects total token budget
+- [x] Test build/2 with query_hint retrieves more memories
+- [x] Test build/2 without query_hint filters by high confidence
+- [x] Test build/2 with include_memories: false skips memory query
+- [x] Test get_conversation/2 truncates to budget
+- [x] Test get_conversation/2 preserves most recent messages
+- [x] Test get_working_context/1 returns serialized map
+- [x] Test get_relevant_memories/3 applies correct filters
+- [x] Test assemble_context/4 calculates token counts
+- [x] Test format_for_prompt/1 produces valid markdown
+- [x] Test format_for_prompt/1 handles empty context gracefully
+- [x] Test format_working_context/1 formats key-value pairs
+- [x] Test format_memories/1 includes type and confidence badges
+- [x] Test context handles missing session gracefully
 
 ---
 

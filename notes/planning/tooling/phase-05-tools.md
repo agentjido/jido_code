@@ -515,8 +515,8 @@ Define a behavior for handlers to declare security properties.
 
 Implement pre-execution security checks in Executor.
 
-- [ ] 5.8.2.1 Create `lib/jido_code/tools/security/middleware.ex`
-- [ ] 5.8.2.2 Implement `run_checks/3`:
+- [x] 5.8.2.1 Create `lib/jido_code/tools/security/middleware.ex`
+- [x] 5.8.2.2 Implement `run_checks/3`:
   ```elixir
   def run_checks(tool, args, context) do
     with :ok <- check_rate_limit(tool, context),
@@ -526,12 +526,12 @@ Implement pre-execution security checks in Executor.
     end
   end
   ```
-- [ ] 5.8.2.3 Implement `check_rate_limit/2`
-- [ ] 5.8.2.4 Implement `check_permission_tier/2`
-- [ ] 5.8.2.5 Implement `check_consent_requirement/2`
+- [x] 5.8.2.3 Implement `check_rate_limit/2`
+- [x] 5.8.2.4 Implement `check_permission_tier/2`
+- [x] 5.8.2.5 Implement `check_consent_requirement/2`
 - [ ] 5.8.2.6 Add middleware hook to `Executor.execute/2`
-- [ ] 5.8.2.7 Make opt-in via config: `config :jido_code, security_middleware: true`
-- [ ] 5.8.2.8 Emit telemetry: `[:jido_code, :security, :middleware_check]`
+- [x] 5.8.2.7 Make opt-in via config: `config :jido_code, security_middleware: true`
+- [x] 5.8.2.8 Emit telemetry: `[:jido_code, :security, :middleware_check]`
 
 ### 5.8.3 Process Isolation
 
@@ -569,10 +569,10 @@ Implement automatic redaction of sensitive data.
 
 Implement per-session, per-tool rate limiting.
 
-- [ ] 5.8.5.1 Create `lib/jido_code/tools/security/rate_limiter.ex`
-- [ ] 5.8.5.2 Use ETS table for tracking
-- [ ] 5.8.5.3 Implement sliding window algorithm
-- [ ] 5.8.5.4 Define default limits per tier:
+- [x] 5.8.5.1 Create `lib/jido_code/tools/security/rate_limiter.ex`
+- [x] 5.8.5.2 Use ETS table for tracking
+- [x] 5.8.5.3 Implement sliding window algorithm
+- [x] 5.8.5.4 Define default limits per tier:
   ```elixir
   @default_limits %{
     read_only: {100, :timer.minutes(1)},
@@ -581,8 +581,8 @@ Implement per-session, per-tool rate limiting.
     privileged: {5, :timer.minutes(1)}
   }
   ```
-- [ ] 5.8.5.5 Implement periodic cleanup of expired entries
-- [ ] 5.8.5.6 Include retry-after in error response
+- [x] 5.8.5.5 Implement periodic cleanup of expired entries
+- [x] 5.8.5.6 Include retry-after in error response
 - [ ] 5.8.5.7 Emit telemetry: `[:jido_code, :security, :rate_limited]`
 
 ### 5.8.6 Audit Logging
@@ -602,13 +602,13 @@ Implement comprehensive invocation logging.
 
 Implement tool categorization with graduated access.
 
-- [ ] 5.8.7.1 Create `lib/jido_code/tools/security/permissions.ex`
-- [ ] 5.8.7.2 Define tier hierarchy: `[:read_only, :write, :execute, :privileged]`
-- [ ] 5.8.7.3 Define default tool-to-tier mapping
+- [x] 5.8.7.1 Create `lib/jido_code/tools/security/permissions.ex`
+- [x] 5.8.7.2 Define tier hierarchy: `[:read_only, :write, :execute, :privileged]`
+- [x] 5.8.7.3 Define default tool-to-tier mapping
 - [ ] 5.8.7.4 Add `granted_tier` and `consented_tools` to Session.State
 - [ ] 5.8.7.5 Implement `grant_tier/2` for permission upgrades
 - [ ] 5.8.7.6 Implement `record_consent/2` for explicit consent
-- [ ] 5.8.7.7 Implement `check_permission/3` for middleware
+- [x] 5.8.7.7 Implement `check_permission/3` for middleware
 - [ ] 5.8.7.8 Emit telemetry: `[:jido_code, :security, :permission_denied]`
 
 ### 5.8.8 Unit Tests

@@ -495,8 +495,8 @@ opt-in security enhancements without requiring changes to existing handlers.
 
 Define a behavior for handlers to declare security properties.
 
-- [ ] 5.8.1.1 Create `lib/jido_code/tools/behaviours/secure_handler.ex`
-- [ ] 5.8.1.2 Define `@callback security_properties/0`:
+- [x] 5.8.1.1 Create `lib/jido_code/tools/behaviours/secure_handler.ex`
+- [x] 5.8.1.2 Define `@callback security_properties/0`:
   ```elixir
   @type security_properties :: %{
     required(:tier) => :read_only | :write | :execute | :privileged,
@@ -505,11 +505,11 @@ Define a behavior for handlers to declare security properties.
     optional(:requires_consent) => boolean()
   }
   ```
-- [ ] 5.8.1.3 Define `@callback validate_security(args, context) :: :ok | {:error, reason}`
-- [ ] 5.8.1.4 Define `@callback sanitize_output(result) :: term()` with default
-- [ ] 5.8.1.5 Provide `__using__` macro with defaults
-- [ ] 5.8.1.6 Document tiers: `:read_only`, `:write`, `:execute`, `:privileged`
-- [ ] 5.8.1.7 Emit telemetry: `[:jido_code, :security, :handler_loaded]`
+- [x] 5.8.1.3 Define `@callback validate_security(args, context) :: :ok | {:error, reason}`
+- [x] 5.8.1.4 Define `@callback sanitize_output(result) :: term()` with default
+- [x] 5.8.1.5 Provide `__using__` macro with defaults
+- [x] 5.8.1.6 Document tiers: `:read_only`, `:write`, `:execute`, `:privileged`
+- [x] 5.8.1.7 Emit telemetry: `[:jido_code, :security, :handler_loaded]`
 
 ### 5.8.2 Security Middleware
 

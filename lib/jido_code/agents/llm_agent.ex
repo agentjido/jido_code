@@ -75,6 +75,7 @@ defmodule JidoCode.Agents.LLMAgent do
   alias JidoCode.Language
   alias JidoCode.Memory.Actions, as: MemoryActions
   alias JidoCode.Memory.ContextBuilder
+  alias JidoCode.Memory.ResponseProcessor
   alias JidoCode.PubSubTopics
   alias JidoCode.Session.ProcessRegistry
   alias JidoCode.Session.State, as: SessionState
@@ -946,7 +947,37 @@ defmodule JidoCode.Agents.LLMAgent do
     end_session_streaming(session_id)
     # Also broadcast for TUI (include session_id, content, and metadata for routing)
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, session_id, full_content, metadata})
+
+    # Process response for context extraction (async to not block stream completion)
+    process_response_async(full_content, session_id)
   end
+
+  # Asynchronously process LLM response for context extraction
+  # Runs in a separate task to avoid blocking stream completion
+  @spec process_response_async(String.t(), String.t()) :: :ok
+  defp process_response_async(full_content, session_id) when is_binary(session_id) do
+    if is_valid_session_id?(session_id) do
+      Task.start(fn ->
+        case ResponseProcessor.process_response(full_content, session_id) do
+          {:ok, extractions} when map_size(extractions) > 0 ->
+            Logger.debug(
+              "LLMAgent: Extracted #{map_size(extractions)} context items from response: #{inspect(Map.keys(extractions))}"
+            )
+
+          {:ok, _empty} ->
+            # No context extracted, nothing to log
+            :ok
+
+          {:error, reason} ->
+            Logger.warning("LLMAgent: Response processing failed: #{inspect(reason)}")
+        end
+      end)
+    end
+
+    :ok
+  end
+
+  defp process_response_async(_content, _session_id), do: :ok
 
   defp broadcast_stream_error(topic, reason) do
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_error, reason})

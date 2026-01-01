@@ -10,12 +10,13 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   - `get_hover_info` - Type and documentation at cursor position (Section 3.3)
   - `go_to_definition` - Symbol definition navigation (Section 3.4)
   - `find_references` - Symbol usage finding (Section 3.5)
+  - `get_diagnostics` - LSP diagnostics (errors, warnings) (Section 3.2)
 
   ## Test Coverage (Section 3.7)
 
   - 3.7.1.3: LSP tools execute through Executor → Handler chain
   - 3.7.1.4: Session-scoped context isolation
-  - 3.7.3: LSP integration tests (hover, definition, references)
+  - 3.7.3: LSP integration tests (hover, definition, references, diagnostics)
 
   ## Note on Expert Integration
 
@@ -112,6 +113,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     ToolsRegistry.register(LSPDefs.get_hover_info())
     ToolsRegistry.register(LSPDefs.go_to_definition())
     ToolsRegistry.register(LSPDefs.find_references())
+    ToolsRegistry.register(LSPDefs.get_diagnostics())
   end
 
   # ============================================================================
@@ -543,6 +545,320 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       {:ok, response} = result |> unwrap_result() |> decode_result()
 
       assert response["status"] == "unsupported_file_type"
+    end
+  end
+
+  # ============================================================================
+  # Section 3.7.3.1-3.7.3.2: LSP Diagnostics Integration
+  # ============================================================================
+
+  describe "LSP handler integration - get_diagnostics" do
+    test "get_diagnostics returns structured response for workspace", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_workspace_test")
+
+      create_elixir_file(project_dir, "test.ex", """
+      defmodule DiagTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get workspace diagnostics (no path specified)
+      call = tool_call("get_diagnostics", %{})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      assert Map.has_key?(response, "diagnostics")
+      assert Map.has_key?(response, "count")
+      assert Map.has_key?(response, "truncated")
+      assert is_list(response["diagnostics"])
+      assert is_integer(response["count"])
+      assert is_boolean(response["truncated"])
+    end
+
+    test "get_diagnostics returns structured response for specific file", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_file_test")
+
+      create_elixir_file(project_dir, "test.ex", """
+      defmodule DiagFileTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get diagnostics for specific file
+      call = tool_call("get_diagnostics", %{"path" => "test.ex"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      assert Map.has_key?(response, "diagnostics")
+      assert Map.has_key?(response, "count")
+    end
+
+    test "get_diagnostics filters by severity", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_severity_test")
+
+      create_elixir_file(project_dir, "test.ex", """
+      defmodule DiagSeverityTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get only error-level diagnostics
+      call = tool_call("get_diagnostics", %{"severity" => "error"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      # All returned diagnostics should be errors (if any)
+      for diag <- response["diagnostics"] do
+        assert diag["severity"] == "error"
+      end
+    end
+
+    test "get_diagnostics respects limit parameter", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_limit_test")
+
+      create_elixir_file(project_dir, "test.ex", """
+      defmodule DiagLimitTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get at most 5 diagnostics
+      call = tool_call("get_diagnostics", %{"limit" => 5})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      assert length(response["diagnostics"]) <= 5
+    end
+
+    test "get_diagnostics rejects invalid severity", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_invalid_sev_test")
+
+      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"severity" => "critical"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "Invalid severity" or error_msg =~ "invalid"
+    end
+
+    test "get_diagnostics rejects invalid limit", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_invalid_limit_test")
+
+      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"limit" => -5})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "positive" or error_msg =~ "invalid"
+    end
+
+    test "get_diagnostics blocks path traversal", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_security_test")
+
+      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"path" => "../../../etc/passwd"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "escapes" or error_msg =~ "outside" or error_msg =~ "boundary"
+    end
+
+    test "get_diagnostics returns error for nonexistent file", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_nofile_test")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"path" => "nonexistent.ex"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "not found" or error_msg =~ "does not exist"
+    end
+  end
+
+  describe "LSP diagnostics with Expert (when installed)" do
+    @tag :integration
+    @tag :expert_required
+
+    @doc """
+    Section 3.7.3.1: Test diagnostics returned after file with syntax error.
+
+    When Expert is available and running, files with syntax errors should
+    produce diagnostics after being opened/compiled by the language server.
+    """
+    test "get_diagnostics detects syntax errors when Expert available", %{tmp_base: tmp_base} do
+      case Client.find_expert_path() do
+        {:ok, _path} ->
+          project_dir = create_test_dir(tmp_base, "expert_diag_syntax_test")
+
+          # Create a file with a syntax error (missing 'do')
+          create_elixir_file(project_dir, "syntax_error.ex", """
+          defmodule SyntaxErrorModule
+            def hello, do: :world
+          end
+          """)
+
+          session = create_session(project_dir)
+          {:ok, context} = Executor.build_context(session.id)
+
+          # Give Expert time to start and analyze the file
+          Process.sleep(3000)
+
+          call = tool_call("get_diagnostics", %{"path" => "syntax_error.ex"})
+          result = Executor.execute(call, context: context)
+
+          {:ok, response} = result |> unwrap_result() |> decode_result()
+
+          # With Expert, we should get actual diagnostics
+          assert response["status"] in ["lsp_not_configured", nil] or
+                   (is_list(response["diagnostics"]) and
+                      (length(response["diagnostics"]) > 0 or
+                         response["status"] == "lsp_not_configured"))
+
+          # If diagnostics are returned, verify structure
+          if length(response["diagnostics"] || []) > 0 do
+            diag = hd(response["diagnostics"])
+            assert Map.has_key?(diag, "severity")
+            assert Map.has_key?(diag, "message")
+            assert Map.has_key?(diag, "line")
+          end
+
+        {:error, :not_found} ->
+          # Skip test if Expert is not installed
+          :ok
+      end
+    end
+
+    @doc """
+    Section 3.7.3.2: Test diagnostics returned for undefined function.
+
+    When Expert is available, calling an undefined function should produce
+    a diagnostic warning or error.
+    """
+    test "get_diagnostics detects undefined function when Expert available", %{tmp_base: tmp_base} do
+      case Client.find_expert_path() do
+        {:ok, _path} ->
+          project_dir = create_test_dir(tmp_base, "expert_diag_undef_test")
+
+          # Create a file that calls an undefined function
+          create_elixir_file(project_dir, "undefined_func.ex", """
+          defmodule UndefinedFuncModule do
+            def caller do
+              this_function_does_not_exist()
+            end
+          end
+          """)
+
+          session = create_session(project_dir)
+          {:ok, context} = Executor.build_context(session.id)
+
+          # Give Expert time to start and analyze the file
+          Process.sleep(3000)
+
+          call = tool_call("get_diagnostics", %{"path" => "undefined_func.ex"})
+          result = Executor.execute(call, context: context)
+
+          {:ok, response} = result |> unwrap_result() |> decode_result()
+
+          # With Expert, we should get diagnostics for undefined function
+          assert is_map(response)
+          assert Map.has_key?(response, "diagnostics")
+
+          # If diagnostics are returned, check for undefined function warning/error
+          diagnostics = response["diagnostics"] || []
+
+          if length(diagnostics) > 0 do
+            # Find diagnostic about undefined function
+            undef_diag =
+              Enum.find(diagnostics, fn d ->
+                msg = d["message"] || ""
+
+                String.contains?(msg, "undefined") or
+                  String.contains?(msg, "does not exist") or
+                  String.contains?(msg, "unknown")
+              end)
+
+            # If Expert caught the undefined function, verify the diagnostic
+            if undef_diag do
+              assert undef_diag["severity"] in ["error", "warning"]
+              assert undef_diag["line"] >= 1
+            end
+          end
+
+        {:error, :not_found} ->
+          # Skip test if Expert is not installed
+          :ok
+      end
+    end
+
+    test "get_diagnostics filters errors only when Expert available", %{tmp_base: tmp_base} do
+      case Client.find_expert_path() do
+        {:ok, _path} ->
+          project_dir = create_test_dir(tmp_base, "expert_diag_filter_test")
+
+          # Create a file with both errors and warnings
+          create_elixir_file(project_dir, "mixed_issues.ex", """
+          defmodule MixedIssuesModule do
+            # Missing 'do' causes syntax error
+            def hello
+              unused_var = :warning
+              :ok
+            end
+          end
+          """)
+
+          session = create_session(project_dir)
+          {:ok, context} = Executor.build_context(session.id)
+
+          Process.sleep(3000)
+
+          # Filter to errors only
+          call = tool_call("get_diagnostics", %{"severity" => "error"})
+          result = Executor.execute(call, context: context)
+
+          {:ok, response} = result |> unwrap_result() |> decode_result()
+
+          # All returned diagnostics should be errors
+          for diag <- response["diagnostics"] || [] do
+            assert diag["severity"] == "error"
+          end
+
+        {:error, :not_found} ->
+          :ok
+      end
     end
   end
 

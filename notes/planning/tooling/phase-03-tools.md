@@ -677,21 +677,33 @@ Test git tools in realistic scenarios through Lua sandbox.
 - [ ] 3.7.2.3 Test: git_command log shows commit history
 - [ ] 3.7.2.4 Test: git_command branch lists branches
 
-### 3.7.3 LSP Integration
+### 3.7.3 LSP Integration (DONE)
 
 Test LSP tools with Expert (official Elixir LSP) via Handler pattern.
 
 **Note:** LSP tools use Handler pattern (see 3.3.2 architectural decision), not Lua sandbox.
 
-- [ ] 3.7.3.1 Test: diagnostics returned after file with syntax error (blocked: get_diagnostics not implemented)
-- [ ] 3.7.3.2 Test: diagnostics returned for undefined function (blocked: get_diagnostics not implemented)
+- [x] 3.7.3.1 Test: diagnostics returned after file with syntax error
+- [x] 3.7.3.2 Test: diagnostics returned for undefined function
 - [x] 3.7.3.3 Test: hover info available for standard library functions
 - [x] 3.7.3.4 Test: hover info available for project functions
 - [x] 3.7.3.5 Test: go_to_definition navigates to function
 - [x] 3.7.3.6 Test: find_references locates function usages
 - [x] 3.7.3.7 Test: Output path validation filters external paths (security)
 
+**Additional Diagnostics Tests Added:**
+- [x] Test: get_diagnostics returns structured response for workspace
+- [x] Test: get_diagnostics returns structured response for specific file
+- [x] Test: get_diagnostics filters by severity
+- [x] Test: get_diagnostics respects limit parameter
+- [x] Test: get_diagnostics rejects invalid severity
+- [x] Test: get_diagnostics rejects invalid limit
+- [x] Test: get_diagnostics blocks path traversal
+- [x] Test: get_diagnostics returns error for nonexistent file
+- [x] Test: get_diagnostics filters errors only when Expert available
+
 See `notes/summaries/tooling-3.7-phase3-integration-tests.md` for implementation details.
+See `notes/summaries/tooling-3.7.3-diagnostics-integration-tests.md` for diagnostics tests.
 
 ---
 

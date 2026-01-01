@@ -271,6 +271,44 @@ defmodule JidoCode.Tools.GitCommandIntegrationTest do
     end
   end
 
+  describe "security bypass vector blocking" do
+    test "blocks --hard=value syntax", %{exec_opts: exec_opts} do
+      tool_call = build_tool_call("reset", ["--hard=HEAD~1"])
+
+      {:ok, result} = Executor.execute(tool_call, exec_opts)
+
+      assert result.status == :error
+      assert result.content =~ "destructive operation blocked"
+    end
+
+    test "blocks reordered clean flags (-df)", %{exec_opts: exec_opts} do
+      tool_call = build_tool_call("clean", ["-df"])
+
+      {:ok, result} = Executor.execute(tool_call, exec_opts)
+
+      assert result.status == :error
+      assert result.content =~ "destructive operation blocked"
+    end
+
+    test "blocks reordered clean flags (-xdf)", %{exec_opts: exec_opts} do
+      tool_call = build_tool_call("clean", ["-xdf"])
+
+      {:ok, result} = Executor.execute(tool_call, exec_opts)
+
+      assert result.status == :error
+      assert result.content =~ "destructive operation blocked"
+    end
+
+    test "blocks --force-with-lease push", %{exec_opts: exec_opts} do
+      tool_call = build_tool_call("push", ["--force-with-lease", "origin", "main"])
+
+      {:ok, result} = Executor.execute(tool_call, exec_opts)
+
+      assert result.status == :error
+      assert result.content =~ "destructive operation blocked"
+    end
+  end
+
   # ============================================================================
   # Project Directory Tests
   # ============================================================================

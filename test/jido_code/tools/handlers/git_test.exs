@@ -101,25 +101,40 @@ defmodule JidoCode.Tools.Handlers.Git.CommandTest do
   # ============================================================================
 
   describe "execute/2 context validation" do
-    test "rejects missing context" do
+    setup do
+      # Enable require_session_context for strict validation testing
+      prev = Application.get_env(:jido_code, :require_session_context, false)
+      Application.put_env(:jido_code, :require_session_context, true)
+      on_exit(fn -> Application.put_env(:jido_code, :require_session_context, prev) end)
+      :ok
+    end
+
+    test "rejects missing context when require_session_context is true" do
       params = %{"subcommand" => "status"}
 
       assert {:error, msg} = Command.execute(params, %{})
-      assert msg =~ "project_root is required"
+      assert msg =~ "session_id or project_root required"
     end
 
-    test "rejects nil project_root" do
+    test "rejects nil project_root when require_session_context is true" do
       params = %{"subcommand" => "status"}
 
       assert {:error, msg} = Command.execute(params, %{project_root: nil})
-      assert msg =~ "project_root is required"
+      assert msg =~ "session_id or project_root required"
     end
 
-    test "rejects non-string project_root" do
+    test "rejects non-string project_root when require_session_context is true" do
       params = %{"subcommand" => "status"}
 
       assert {:error, msg} = Command.execute(params, %{project_root: 123})
-      assert msg =~ "project_root is required"
+      assert msg =~ "session_id or project_root required"
+    end
+
+    test "rejects invalid session_id format" do
+      params = %{"subcommand" => "status"}
+
+      assert {:error, msg} = Command.execute(params, %{session_id: "invalid-uuid"})
+      assert msg =~ "invalid session ID format"
     end
   end
 

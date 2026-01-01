@@ -85,7 +85,7 @@ defmodule JidoCode.Tools.Manager do
 
   alias JidoCode.ErrorFormatter
   alias JidoCode.Session
-  alias JidoCode.Tools.{Bridge, Security}
+  alias JidoCode.Tools.{Bridge, LuaUtils, Security}
 
   require Logger
 
@@ -773,6 +773,7 @@ defmodule JidoCode.Tools.Manager do
   end
 
   # Calls jido.git(subcommand, args, opts) through the Lua sandbox
+  # Uses LuaUtils for shared encoding/decoding functions
   defp call_git_bridge(lua_state, subcommand, args, allow_destructive) do
     # Build Lua arguments
     lua_subcommand = lua_encode_arg(subcommand)
@@ -786,7 +787,7 @@ defmodule JidoCode.Tools.Manager do
         {:error, error_msg}
 
       {:ok, [result], _state} ->
-        {:ok, decode_git_result(result, lua_state)}
+        {:ok, LuaUtils.decode_git_result(result, lua_state)}
 
       {:ok, [], _state} ->
         {:ok, nil}
@@ -803,29 +804,13 @@ defmodule JidoCode.Tools.Manager do
   end
 
   # Converts a list to Lua array format [{1, val1}, {2, val2}, ...]
+  # Note: This is different from LuaUtils.build_lua_array/1 which returns a string
+  # This returns a list of tuples for luerl encoding
   defp build_lua_array(list) do
     list
     |> Enum.with_index(1)
     |> Enum.map(fn {val, idx} -> {idx, val} end)
   end
-
-  # Decodes git result from Lua table format to Elixir map
-  defp decode_git_result(result, lua_state) when is_list(result) do
-    result
-    |> Enum.reduce(%{}, fn
-      {"output", output}, acc -> Map.put(acc, :output, output)
-      {"parsed", parsed}, acc -> Map.put(acc, :parsed, decode_lua_result(parsed, lua_state))
-      {"exit_code", code}, acc -> Map.put(acc, :exit_code, trunc(code))
-      _, acc -> acc
-    end)
-  end
-
-  defp decode_git_result({:tref, _} = tref, lua_state) do
-    decoded = :luerl.decode(tref, lua_state)
-    decode_git_result(decoded, lua_state)
-  end
-
-  defp decode_git_result(other, _lua_state), do: other
 
   defp lua_encode_arg(arg) when is_binary(arg) do
     # Escape special characters in string

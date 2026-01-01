@@ -960,25 +960,51 @@ defmodule JidoCode.Tools.Bridge do
   end
 
   # Validate git arguments for path traversal
+  # Checks both positional arguments and flag values (e.g., --path=/etc/passwd)
   defp validate_git_args(args, project_root) do
     Enum.reduce_while(args, :ok, fn arg, :ok ->
+      # Extract the value to validate - for flags with =, check the value portion
+      value_to_check = extract_flag_value(arg)
+
       cond do
-        # Skip flags (start with -)
-        String.starts_with?(arg, "-") ->
+        # If it's a pure flag with no value, skip validation
+        value_to_check == nil ->
           {:cont, :ok}
 
-        # Block path traversal
-        String.contains?(arg, "..") ->
+        # Block path traversal in values
+        String.contains?(value_to_check, "..") ->
           {:halt, {:error, "Security error: path traversal not allowed: #{arg}"}}
 
-        # Block absolute paths outside project (except common git refs)
-        String.starts_with?(arg, "/") and not String.starts_with?(arg, project_root) ->
+        # Block absolute paths outside project in values
+        String.starts_with?(value_to_check, "/") and
+            not String.starts_with?(value_to_check, project_root) ->
           {:halt, {:error, "Security error: absolute path outside project: #{arg}"}}
 
         true ->
           {:cont, :ok}
       end
     end)
+  end
+
+  # Extracts the value portion of an argument for path validation
+  # Returns nil for flags without values, the value for --flag=value, or the arg itself
+  defp extract_flag_value(arg) do
+    cond do
+      # --flag=value format - extract value
+      String.starts_with?(arg, "--") and String.contains?(arg, "=") ->
+        case String.split(arg, "=", parts: 2) do
+          [_flag, value] -> value
+          _ -> nil
+        end
+
+      # Pure flag (--flag or -f) - no value to validate
+      String.starts_with?(arg, "-") ->
+        nil
+
+      # Regular argument - validate as-is
+      true ->
+        arg
+    end
   end
 
   defp run_git_command(subcommand, cmd_args, timeout, project_root, state) do

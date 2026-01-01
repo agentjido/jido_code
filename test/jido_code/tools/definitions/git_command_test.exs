@@ -279,6 +279,41 @@ defmodule JidoCode.Tools.Definitions.GitCommandTest do
       refute GitCommand.destructive?("diff", ["HEAD~1"])
       refute GitCommand.destructive?("log", ["-5"])
     end
+
+    # Security bypass vector tests - ensure alternative flag syntaxes are caught
+    test "detects --hard=value syntax (bypass vector #1)" do
+      # Git accepts --hard=<commit> syntax which must be caught
+      assert GitCommand.destructive?("reset", ["--hard=HEAD~1"])
+      assert GitCommand.destructive?("reset", ["--hard=abc123"])
+    end
+
+    test "detects reordered clean flags (bypass vector #2)" do
+      # Git accepts flags in any order - -df is same as -fd
+      assert GitCommand.destructive?("clean", ["-df"])
+      assert GitCommand.destructive?("clean", ["-xf"])
+      assert GitCommand.destructive?("clean", ["-dxf"])
+      assert GitCommand.destructive?("clean", ["-xdf"])
+      assert GitCommand.destructive?("clean", ["-fxd"])
+    end
+
+    test "detects force push with --force-with-lease" do
+      assert GitCommand.destructive?("push", ["--force-with-lease", "origin", "main"])
+      assert GitCommand.destructive?("push", ["origin", "--force-with-lease"])
+    end
+
+    test "detects combined short flags containing force" do
+      # Short flags can be combined - any combination with 'f' is destructive for clean
+      assert GitCommand.destructive?("clean", ["-nfd"])
+      assert GitCommand.destructive?("clean", ["-nfx"])
+    end
+
+    test "does not false positive on unrelated flags" do
+      # -d alone should not match -D (case-sensitive)
+      refute GitCommand.destructive?("branch", ["-d", "feature"])
+      # -n (dry-run) for clean should not match -f
+      refute GitCommand.destructive?("clean", ["-n"])
+      refute GitCommand.destructive?("clean", ["-nd"])
+    end
   end
 
   # ============================================================================

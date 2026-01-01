@@ -133,6 +133,31 @@ See `notes/summaries/tooling-3.1.3-manager-git-api.md` for implementation detail
 
 See `notes/summaries/tooling-3.1.4-git-command-integration-tests.md` for implementation details.
 
+### 3.1.5 Code Review Fixes (DONE)
+
+Review conducted on Section 3.1 implementation. All blockers and concerns have been addressed.
+
+**Blockers Fixed:**
+- [x] Blocker #1: Reset `--hard=value` bypass detection
+- [x] Blocker #2: Clean flag reordering (`-df` vs `-fd`) bypass detection
+
+**Concerns Addressed:**
+- [x] Concern #2: Integrate with HandlerHelpers for session-aware context
+- [x] Concern #3: Add telemetry emission to Git handler
+- [x] Concern #4-7: Extract shared code to LuaUtils (decode_git_result, build_lua_array)
+- [x] Concern #8-10: Add missing tests (parse_git_diff unit tests, bypass vector tests)
+- [x] Concern #11: Timeout constants - kept as module-level attributes (appropriate)
+- [x] Concern #12: Validate flag values for path traversal (`--path=/etc/passwd`)
+
+**Tests Added:**
+- [x] Security bypass vector tests (9 tests in definition tests)
+- [x] Security bypass integration tests (4 tests)
+- [x] parse_git_diff unit tests (4 tests)
+- [x] Flag value path validation tests (4 tests)
+
+See `notes/reviews/section-3.1-git-command-tool-review.md` for original review.
+See `notes/summaries/section-3.1-review-fixes.md` for implementation details.
+
 ---
 
 ## 3.2 Get Diagnostics Tool

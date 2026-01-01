@@ -554,10 +554,11 @@ defmodule JidoCode.Session.Manager do
   end
 
   # Calls jido.git(subcommand, args, opts) through the Lua sandbox
+  # Uses LuaUtils for shared encoding/decoding functions
   defp call_git_bridge(subcommand, args, allow_destructive, lua_state) do
     # Build Lua script: jido.git("subcommand", {args...}, {allow_destructive = true/false})
     escaped_subcommand = LuaUtils.escape_string(subcommand)
-    lua_args = build_lua_array(args)
+    lua_args = LuaUtils.build_lua_array(args)
     lua_opts = "{allow_destructive = #{allow_destructive}}"
 
     script = "return jido.git(\"#{escaped_subcommand}\", #{lua_args}, #{lua_opts})"
@@ -567,7 +568,7 @@ defmodule JidoCode.Session.Manager do
         {:error, error_msg}
 
       {:ok, [result], _state} ->
-        {:ok, decode_git_result(result, lua_state)}
+        {:ok, LuaUtils.decode_git_result(result, lua_state)}
 
       {:ok, [], _state} ->
         {:ok, nil}
@@ -582,56 +583,6 @@ defmodule JidoCode.Session.Manager do
     kind, reason ->
       {:error, "#{kind}: #{inspect(reason)}"}
   end
-
-  # Converts a list to Lua array format string: {arg1, arg2, ...}
-  defp build_lua_array([]), do: "{}"
-
-  defp build_lua_array(args) do
-    items =
-      args
-      |> Enum.map(fn arg -> "\"#{LuaUtils.escape_string(arg)}\"" end)
-      |> Enum.join(", ")
-
-    "{#{items}}"
-  end
-
-  # Decodes git result from Lua table format to Elixir map
-  defp decode_git_result(result, lua_state) when is_list(result) do
-    result
-    |> Enum.reduce(%{}, fn
-      {"output", output}, acc -> Map.put(acc, :output, output)
-      {"parsed", parsed}, acc -> Map.put(acc, :parsed, decode_lua_value(parsed, lua_state))
-      {"exit_code", code}, acc -> Map.put(acc, :exit_code, trunc(code))
-      _, acc -> acc
-    end)
-  end
-
-  defp decode_git_result({:tref, _} = tref, lua_state) do
-    decoded = :luerl.decode(tref, lua_state)
-    decode_git_result(decoded, lua_state)
-  end
-
-  defp decode_git_result(other, _lua_state), do: other
-
-  # Recursively decodes Lua values (tables, table refs, primitives)
-  defp decode_lua_value({:tref, _} = tref, lua_state) do
-    decoded = :luerl.decode(tref, lua_state)
-    decode_lua_value(decoded, lua_state)
-  end
-
-  defp decode_lua_value(list, lua_state) when is_list(list) do
-    if Enum.all?(list, fn {k, _v} -> is_integer(k) end) do
-      # Numeric keys = array
-      list
-      |> Enum.sort_by(fn {k, _} -> k end)
-      |> Enum.map(fn {_, v} -> decode_lua_value(v, lua_state) end)
-    else
-      # String keys = map
-      Map.new(list, fn {k, v} -> {k, decode_lua_value(v, lua_state)} end)
-    end
-  end
-
-  defp decode_lua_value(value, _lua_state), do: value
 
   @doc false
   defp initialize_lua_sandbox(project_root) do

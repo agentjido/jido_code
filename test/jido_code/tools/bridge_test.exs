@@ -1068,6 +1068,36 @@ defmodule JidoCode.Tools.BridgeTest do
       assert error =~ "absolute path outside project"
     end
 
+    test "blocks path traversal in flag values (--flag=../path)", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "--path=../../../etc/passwd"}]
+      {[nil, error], _state} = Bridge.lua_git(["checkout", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "Security error"
+      assert error =~ "path traversal"
+    end
+
+    test "blocks absolute paths in flag values (--flag=/etc/passwd)", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "--worktree=/etc/passwd"}]
+      {[nil, error], _state} = Bridge.lua_git(["status", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "Security error"
+      assert error =~ "absolute path outside project"
+    end
+
+    test "allows flag values with project paths", %{tmp_dir: tmp_dir} do
+      # Create a file and commit so we have something to work with
+      File.write!(Path.join(tmp_dir, "test.txt"), "test content")
+      System.cmd("git", ["add", "."], cd: tmp_dir)
+      System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+
+      # --format with a safe value should work
+      args_table = [{1, "--format=%H"}]
+      {[result], _state} = Bridge.lua_git(["log", args_table], :luerl.init(), tmp_dir)
+
+      # Should execute successfully
+      assert {"exit_code", 0} = List.keyfind(result, "exit_code", 0)
+    end
+
     test "returns error for missing subcommand", %{tmp_dir: tmp_dir} do
       {[nil, error], _state} = Bridge.lua_git([], :luerl.init(), tmp_dir)
 
@@ -1168,6 +1198,54 @@ defmodule JidoCode.Tools.BridgeTest do
       assert develop_entry
       {_, develop} = develop_entry
       assert {"current", false} = List.keyfind(develop, "current", 0)
+    end
+  end
+
+  describe "parse_git_diff/1" do
+    test "parses diff --stat format" do
+      output = " lib/module.ex | 10 ++++-----\n lib/other.ex | 5 ++---\n"
+      result = Bridge.parse_git_diff(output)
+
+      assert {"files", files} = List.keyfind(result, "files", 0)
+      assert length(files) == 2
+
+      # First file entry
+      {1, first} = Enum.find(files, fn {idx, _} -> idx == 1 end)
+      assert {"path", "lib/module.ex"} = List.keyfind(first, "path", 0)
+      assert {"additions", 4} = List.keyfind(first, "additions", 0)
+      assert {"deletions", 5} = List.keyfind(first, "deletions", 0)
+
+      # Second file entry
+      {2, second} = Enum.find(files, fn {idx, _} -> idx == 2 end)
+      assert {"path", "lib/other.ex"} = List.keyfind(second, "path", 0)
+      assert {"additions", 2} = List.keyfind(second, "additions", 0)
+      assert {"deletions", 3} = List.keyfind(second, "deletions", 0)
+    end
+
+    test "parses diff header format" do
+      output = "diff --git a/lib/module.ex b/lib/module.ex\n--- a/lib/module.ex\n+++ b/lib/module.ex\n"
+      result = Bridge.parse_git_diff(output)
+
+      assert {"files", files} = List.keyfind(result, "files", 0)
+      # Only the diff header line should be parsed, not the --- and +++ lines
+      assert length(files) == 1
+
+      {1, first} = Enum.find(files, fn {idx, _} -> idx == 1 end)
+      assert {"path", "lib/module.ex"} = List.keyfind(first, "path", 0)
+    end
+
+    test "handles empty output" do
+      result = Bridge.parse_git_diff("")
+
+      assert {"files", []} = List.keyfind(result, "files", 0)
+    end
+
+    test "ignores non-matching lines" do
+      output = "Some random text\n lib/module.ex | 5 +++++\nMore random text\n"
+      result = Bridge.parse_git_diff(output)
+
+      assert {"files", files} = List.keyfind(result, "files", 0)
+      assert length(files) == 1
     end
   end
 end

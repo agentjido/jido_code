@@ -62,6 +62,52 @@ defmodule JidoCode.Memory.ContextBuilderTest do
   end
 
   # =============================================================================
+  # chars_per_token/0 Tests
+  # =============================================================================
+
+  describe "chars_per_token/0" do
+    test "returns the token estimation ratio" do
+      assert ContextBuilder.chars_per_token() == 4
+    end
+  end
+
+  # =============================================================================
+  # valid_token_budget?/1 Tests
+  # =============================================================================
+
+  describe "valid_token_budget?/1" do
+    test "returns true for valid budget" do
+      budget = %{total: 32_000, system: 2_000, conversation: 20_000, working: 4_000, long_term: 6_000}
+      assert ContextBuilder.valid_token_budget?(budget) == true
+    end
+
+    test "returns false for negative total" do
+      budget = %{total: -1, system: 2_000, conversation: 20_000, working: 4_000, long_term: 6_000}
+      assert ContextBuilder.valid_token_budget?(budget) == false
+    end
+
+    test "returns false for zero total" do
+      budget = %{total: 0, system: 2_000, conversation: 20_000, working: 4_000, long_term: 6_000}
+      assert ContextBuilder.valid_token_budget?(budget) == false
+    end
+
+    test "returns false for missing keys" do
+      budget = %{total: 32_000, system: 2_000}
+      assert ContextBuilder.valid_token_budget?(budget) == false
+    end
+
+    test "returns false for non-integer values" do
+      budget = %{total: 32_000.5, system: 2_000, conversation: 20_000, working: 4_000, long_term: 6_000}
+      assert ContextBuilder.valid_token_budget?(budget) == false
+    end
+
+    test "allows zero for component budgets" do
+      budget = %{total: 32_000, system: 0, conversation: 0, working: 0, long_term: 0}
+      assert ContextBuilder.valid_token_budget?(budget) == true
+    end
+  end
+
+  # =============================================================================
   # estimate_tokens/1 Tests
   # =============================================================================
 
@@ -85,6 +131,21 @@ defmodule JidoCode.Memory.ContextBuilderTest do
 
     test "returns 0 for nil" do
       assert ContextBuilder.estimate_tokens(nil) == 0
+    end
+
+    test "correctly handles unicode characters" do
+      # Using String.length counts graphemes, not bytes
+      # "héllo" has 5 characters but more bytes
+      tokens = ContextBuilder.estimate_tokens("héllo")
+      # 5 chars / 4 = 1.25 -> 1
+      assert tokens == 1
+    end
+
+    test "correctly handles multi-byte unicode" do
+      # Emoji and other multi-byte characters
+      tokens = ContextBuilder.estimate_tokens("こんにちは")
+      # 5 Japanese characters / 4 = 1.25 -> 1
+      assert tokens == 1
     end
   end
 
@@ -181,6 +242,51 @@ defmodule JidoCode.Memory.ContextBuilderTest do
       result = ContextBuilder.build("non-existent-session-12345")
 
       assert {:error, :session_not_found} = result
+    end
+
+    test "query_hint affects memory retrieval strategy", %{session_id: session_id} do
+      # This test verifies the documented behavior:
+      # - With query_hint: retrieves more memories (limit: 10)
+      # - Without query_hint: fewer memories with higher confidence (min_confidence: 0.7, limit: 5)
+
+      # Build without query_hint
+      {:ok, context_no_hint} = ContextBuilder.build(session_id)
+      assert is_list(context_no_hint.long_term_memories)
+
+      # Build with query_hint
+      {:ok, context_with_hint} = ContextBuilder.build(session_id, query_hint: "test query")
+      assert is_list(context_with_hint.long_term_memories)
+
+      # Both should work without error - the strategy difference is internal
+      # and would require mocking Memory.query to verify the exact opts
+    end
+
+    test "emits telemetry on successful build", %{session_id: session_id} do
+      # Attach a telemetry handler
+      test_pid = self()
+      ref = make_ref()
+
+      :telemetry.attach(
+        "test-context-build-#{inspect(ref)}",
+        [:jido_code, :memory, :context_build],
+        fn _event_name, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, measurements, metadata})
+        end,
+        nil
+      )
+
+      # Build context
+      {:ok, _context} = ContextBuilder.build(session_id)
+
+      # Verify telemetry was emitted
+      assert_receive {:telemetry, measurements, metadata}, 1000
+      assert is_integer(measurements.duration_ms)
+      assert measurements.duration_ms >= 0
+      assert is_integer(measurements.tokens)
+      assert metadata.session_id == session_id
+
+      # Cleanup
+      :telemetry.detach("test-context-build-#{inspect(ref)}")
     end
   end
 
@@ -328,6 +434,64 @@ defmodule JidoCode.Memory.ContextBuilderTest do
       assert ContextBuilder.format_for_prompt(high_context) =~ "(high confidence)"
       assert ContextBuilder.format_for_prompt(medium_context) =~ "(medium confidence)"
       assert ContextBuilder.format_for_prompt(low_context) =~ "(low confidence)"
+    end
+
+    test "confidence badge boundaries are correct" do
+      # Test exact boundaries: 0.8 = high, 0.79 = medium, 0.5 = medium, 0.49 = low
+      boundary_high = %{
+        working_context: %{},
+        long_term_memories: [%{memory_type: :fact, confidence: 0.8, content: "Boundary"}]
+      }
+
+      boundary_medium_upper = %{
+        working_context: %{},
+        long_term_memories: [%{memory_type: :fact, confidence: 0.79, content: "Boundary"}]
+      }
+
+      boundary_medium_lower = %{
+        working_context: %{},
+        long_term_memories: [%{memory_type: :fact, confidence: 0.5, content: "Boundary"}]
+      }
+
+      boundary_low = %{
+        working_context: %{},
+        long_term_memories: [%{memory_type: :fact, confidence: 0.49, content: "Boundary"}]
+      }
+
+      assert ContextBuilder.format_for_prompt(boundary_high) =~ "(high confidence)"
+      assert ContextBuilder.format_for_prompt(boundary_medium_upper) =~ "(medium confidence)"
+      assert ContextBuilder.format_for_prompt(boundary_medium_lower) =~ "(medium confidence)"
+      assert ContextBuilder.format_for_prompt(boundary_low) =~ "(low confidence)"
+    end
+
+    test "truncates long content in memories for security" do
+      long_content = String.duplicate("a", 3000)
+
+      context = %{
+        working_context: %{},
+        long_term_memories: [%{memory_type: :fact, confidence: 0.9, content: long_content}]
+      }
+
+      result = ContextBuilder.format_for_prompt(context)
+
+      # Content should be truncated to max length (2000) plus "..."
+      assert String.length(result) < 3000
+      assert result =~ "..."
+    end
+
+    test "truncates long content in working context values" do
+      long_value = String.duplicate("x", 3000)
+
+      context = %{
+        working_context: %{long_key: long_value},
+        long_term_memories: []
+      }
+
+      result = ContextBuilder.format_for_prompt(context)
+
+      # Value should be truncated
+      assert String.length(result) < 3000
+      assert result =~ "..."
     end
 
     test "handles various value types in working context" do

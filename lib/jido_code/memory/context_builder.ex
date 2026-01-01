@@ -19,7 +19,7 @@ defmodule JidoCode.Memory.ContextBuilder do
         token_budget: %{total: 16_000, ...}
       )
 
-      # Build with query hint for better memory retrieval
+      # Build with query hint to adjust memory retrieval strategy
       {:ok, context} = ContextBuilder.build(session_id,
         query_hint: "user asked about Phoenix patterns"
       )
@@ -37,9 +37,21 @@ defmodule JidoCode.Memory.ContextBuilder do
 
   When a component exceeds its budget, content is truncated with
   priority given to more recent/relevant items.
+
+  ## Query Hint Behavior
+
+  When `query_hint` is provided, the builder retrieves more memories (up to 10)
+  assuming the caller will perform relevance filtering. Without a hint, it retrieves
+  fewer memories (up to 5) but with a higher minimum confidence threshold (0.7).
+
+  Note: The hint itself is not currently used for relevance scoring; it only
+  affects the query strategy (limit vs confidence filter).
   """
 
+  require Logger
+
   alias JidoCode.Memory
+  alias JidoCode.Memory.Types
   alias JidoCode.Session.State
 
   # =============================================================================
@@ -55,10 +67,8 @@ defmodule JidoCode.Memory.ContextBuilder do
           timestamp: DateTime.t() | nil
         }
 
-  @typedoc """
-  A memory item from long-term storage.
-  """
-  @type stored_memory :: Memory.stored_memory()
+  # Note: For stored_memory type, use Memory.stored_memory() directly.
+  # Removed pass-through type alias for clarity.
 
   @typedoc """
   Token budget allocation for context components.
@@ -87,7 +97,7 @@ defmodule JidoCode.Memory.ContextBuilder do
   @type context :: %{
           conversation: [message()],
           working_context: map(),
-          long_term_memories: [stored_memory()],
+          long_term_memories: [Memory.stored_memory()],
           system_context: String.t() | nil,
           token_counts: token_counts()
         }
@@ -112,6 +122,9 @@ defmodule JidoCode.Memory.ContextBuilder do
   @high_confidence_limit 5
   @high_confidence_threshold 0.7
 
+  # Maximum content length for formatted output (security limit)
+  @max_content_display_length 2000
+
   # =============================================================================
   # Public API
   # =============================================================================
@@ -123,12 +136,43 @@ defmodule JidoCode.Memory.ContextBuilder do
   def default_budget, do: @default_budget
 
   @doc """
+  Returns the characters per token ratio used for estimation.
+  """
+  @spec chars_per_token() :: pos_integer()
+  def chars_per_token, do: @chars_per_token
+
+  @doc """
+  Validates a token budget map.
+
+  Returns `true` if all required keys are present with positive integer values.
+
+  ## Examples
+
+      iex> ContextBuilder.valid_token_budget?(%{total: 32_000, system: 2_000, conversation: 20_000, working: 4_000, long_term: 6_000})
+      true
+
+      iex> ContextBuilder.valid_token_budget?(%{total: -1, system: 2_000, conversation: 20_000, working: 4_000, long_term: 6_000})
+      false
+
+  """
+  @spec valid_token_budget?(term()) :: boolean()
+  def valid_token_budget?(%{total: t, system: s, conversation: c, working: w, long_term: l})
+      when is_integer(t) and is_integer(s) and is_integer(c) and is_integer(w) and is_integer(l) and
+             t > 0 and s >= 0 and c >= 0 and w >= 0 and l >= 0,
+      do: true
+
+  def valid_token_budget?(_), do: false
+
+  @doc """
   Builds a memory-enhanced context for the given session.
 
   ## Options
 
   - `:token_budget` - Custom token budget (default: `default_budget()`)
-  - `:query_hint` - Optional text hint to improve memory retrieval relevance
+  - `:query_hint` - Optional text hint to adjust memory retrieval strategy.
+    When provided, retrieves more memories (limit: 10). When absent, retrieves
+    fewer memories with higher confidence threshold (min_confidence: 0.7, limit: 5).
+    Note: The hint does not perform relevance scoring.
   - `:include_memories` - Whether to include long-term memories (default: true)
   - `:include_conversation` - Whether to include conversation history (default: true)
 
@@ -150,6 +194,7 @@ defmodule JidoCode.Memory.ContextBuilder do
   """
   @spec build(String.t(), keyword()) :: {:ok, context()} | {:error, term()}
   def build(session_id, opts \\ []) when is_binary(session_id) do
+    start_time = System.monotonic_time(:millisecond)
     token_budget = Keyword.get(opts, :token_budget, @default_budget)
     query_hint = Keyword.get(opts, :query_hint)
     include_memories = Keyword.get(opts, :include_memories, true)
@@ -158,7 +203,9 @@ defmodule JidoCode.Memory.ContextBuilder do
     with {:ok, conversation} <- get_conversation(session_id, token_budget.conversation, include_conversation),
          {:ok, working} <- get_working_context(session_id),
          {:ok, long_term} <- get_relevant_memories(session_id, query_hint, include_memories, token_budget.long_term) do
-      {:ok, assemble_context(conversation, working, long_term, token_budget)}
+      context = assemble_context(conversation, working, long_term)
+      emit_telemetry(session_id, context.token_counts, start_time)
+      {:ok, context}
     end
   end
 
@@ -192,7 +239,7 @@ defmodule JidoCode.Memory.ContextBuilder do
       end
 
     parts =
-      if length(memories) > 0 do
+      if memories != [] do
         ["## Remembered Information\n" <> format_memories(memories) | parts]
       else
         parts
@@ -207,17 +254,18 @@ defmodule JidoCode.Memory.ContextBuilder do
   Estimates the token count for a given string.
 
   Uses a simple character-based estimation (approximately 4 characters per token
-  for English text). This is a conservative estimate suitable for budget planning.
+  for English text). Uses `String.length/1` to correctly handle multi-byte
+  Unicode characters. This is a conservative estimate suitable for budget planning.
 
   ## Examples
 
       ContextBuilder.estimate_tokens("Hello, world!")
-      # => 4
+      # => 3
 
   """
   @spec estimate_tokens(String.t()) :: non_neg_integer()
   def estimate_tokens(text) when is_binary(text) do
-    div(byte_size(text), @chars_per_token)
+    div(String.length(text), @chars_per_token)
   end
 
   def estimate_tokens(_), do: 0
@@ -250,8 +298,8 @@ defmodule JidoCode.Memory.ContextBuilder do
         {:ok, context}
 
       {:error, :not_found} ->
-        # Session exists but no context set yet
-        {:ok, %{}}
+        # Session doesn't exist - consistent with get_conversation
+        {:error, :session_not_found}
 
       error ->
         error
@@ -288,7 +336,7 @@ defmodule JidoCode.Memory.ContextBuilder do
   # Private Functions - Assembly
   # =============================================================================
 
-  defp assemble_context(conversation, working, long_term, _budget) do
+  defp assemble_context(conversation, working, long_term) do
     conversation_tokens = estimate_conversation_tokens(conversation)
     working_tokens = estimate_working_tokens(working)
     long_term_tokens = estimate_memories_tokens(long_term)
@@ -331,17 +379,19 @@ defmodule JidoCode.Memory.ContextBuilder do
   defp truncate_memories_to_budget(memories, budget) do
     # Keep memories that fit within budget
     # Already ordered by relevance from the query
+    # Use prepend + reverse for O(n) instead of O(n²) with ++
     memories
     |> Enum.reduce_while({[], 0}, fn mem, {acc, tokens} ->
       mem_tokens = estimate_memory_tokens(mem)
 
       if tokens + mem_tokens <= budget do
-        {:cont, {acc ++ [mem], tokens + mem_tokens}}
+        {:cont, {[mem | acc], tokens + mem_tokens}}
       else
         {:halt, {acc, tokens}}
       end
     end)
     |> elem(0)
+    |> Enum.reverse()
   end
 
   # =============================================================================
@@ -359,7 +409,7 @@ defmodule JidoCode.Memory.ContextBuilder do
     role = Map.get(msg, :role, :user)
 
     # Add overhead for message structure
-    role_overhead = byte_size(Atom.to_string(role)) + 10
+    role_overhead = String.length(Atom.to_string(role)) + 10
     content_tokens = estimate_tokens(content)
 
     div(role_overhead, @chars_per_token) + content_tokens
@@ -413,11 +463,11 @@ defmodule JidoCode.Memory.ContextBuilder do
 
   defp format_key(key), do: to_string(key)
 
-  defp format_value(value) when is_binary(value), do: value
+  defp format_value(value) when is_binary(value), do: truncate_content(value)
   defp format_value(value) when is_atom(value), do: Atom.to_string(value)
   defp format_value(value) when is_number(value), do: to_string(value)
-  defp format_value(value) when is_list(value), do: Enum.join(value, ", ")
-  defp format_value(value), do: inspect(value)
+  defp format_value(value) when is_list(value), do: Enum.join(value, ", ") |> truncate_content()
+  defp format_value(value), do: inspect(value) |> truncate_content()
 
   defp format_memories(memories) do
     memories
@@ -425,18 +475,25 @@ defmodule JidoCode.Memory.ContextBuilder do
       confidence_badge = confidence_badge(mem.confidence)
       type_badge = "[#{mem.memory_type}]"
       timestamp = format_timestamp(mem[:timestamp])
+      content = truncate_content(mem.content)
 
       if timestamp do
-        "- #{type_badge} #{confidence_badge} #{mem.content} _(#{timestamp})_"
+        "- #{type_badge} #{confidence_badge} #{content} _(#{timestamp})_"
       else
-        "- #{type_badge} #{confidence_badge} #{mem.content}"
+        "- #{type_badge} #{confidence_badge} #{content}"
       end
     end)
     |> Enum.join("\n")
   end
 
-  defp confidence_badge(c) when is_number(c) and c >= 0.8, do: "(high confidence)"
-  defp confidence_badge(c) when is_number(c) and c >= 0.5, do: "(medium confidence)"
+  defp confidence_badge(c) when is_number(c) do
+    case Types.confidence_to_level(c) do
+      :high -> "(high confidence)"
+      :medium -> "(medium confidence)"
+      :low -> "(low confidence)"
+    end
+  end
+
   defp confidence_badge(_), do: "(low confidence)"
 
   defp format_timestamp(%DateTime{} = dt) do
@@ -444,4 +501,29 @@ defmodule JidoCode.Memory.ContextBuilder do
   end
 
   defp format_timestamp(_), do: nil
+
+  # Truncates content to prevent overly long strings in formatted output
+  defp truncate_content(content) when is_binary(content) do
+    if String.length(content) > @max_content_display_length do
+      String.slice(content, 0, @max_content_display_length) <> "..."
+    else
+      content
+    end
+  end
+
+  defp truncate_content(content), do: to_string(content)
+
+  # =============================================================================
+  # Private Functions - Telemetry
+  # =============================================================================
+
+  defp emit_telemetry(session_id, token_counts, start_time) do
+    duration_ms = System.monotonic_time(:millisecond) - start_time
+
+    :telemetry.execute(
+      [:jido_code, :memory, :context_build],
+      %{duration_ms: duration_ms, tokens: token_counts.total},
+      %{session_id: session_id}
+    )
+  end
 end

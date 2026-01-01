@@ -70,9 +70,11 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     SessionRegistry.clear()
 
     # Stop any running sessions under SessionSupervisor
-    for {_id, pid, _type, _modules} <- DynamicSupervisor.which_children(SessionSupervisor) do
+    SessionSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.each(fn {_id, pid, _type, _modules} ->
       DynamicSupervisor.terminate_child(SessionSupervisor, pid)
-    end
+    end)
 
     # Create temp base directory for test sessions
     tmp_base = Path.join(System.tmp_dir!(), "phase3_integration_#{:rand.uniform(100_000)}")
@@ -87,9 +89,8 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
       # Stop all test sessions
       if Process.whereis(SessionSupervisor) do
-        for session <- SessionRegistry.list_all() do
-          SessionSupervisor.stop_session(session.id)
-        end
+        SessionRegistry.list_all()
+        |> Enum.each(&SessionSupervisor.stop_session(&1.id))
       end
 
       SessionRegistry.clear()
@@ -100,15 +101,12 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   end
 
   defp wait_for_supervisor(retries \\ 50) do
-    if Process.whereis(SessionSupervisor) do
-      :ok
-    else
-      if retries > 0 do
+    cond do
+      Process.whereis(SessionSupervisor) != nil -> :ok
+      retries <= 0 -> raise "SessionSupervisor not available after waiting"
+      true ->
         Process.sleep(10)
         wait_for_supervisor(retries - 1)
-      else
-        raise "SessionSupervisor not available after waiting"
-      end
     end
   end
 
@@ -161,17 +159,19 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   defp decode_result({:ok, json}) when is_binary(json), do: {:ok, Jason.decode!(json)}
   defp decode_result(other), do: other
 
-  defp create_elixir_file(dir, filename, content) do
-    path = Path.join(dir, filename)
-    File.write!(path, content)
-    path
+  defp init_git_repo(dir) do
+    # Initialize with explicit branch name for consistency across systems
+    run_git_cmd!(dir, ["init", "-b", "main"])
+    run_git_cmd!(dir, ["config", "user.email", "test@example.com"])
+    run_git_cmd!(dir, ["config", "user.name", "Test User"])
+    :ok
   end
 
-  defp init_git_repo(dir) do
-    {_, 0} = System.cmd("git", ["init"], cd: dir, stderr_to_stdout: true)
-    {_, 0} = System.cmd("git", ["config", "user.email", "test@example.com"], cd: dir)
-    {_, 0} = System.cmd("git", ["config", "user.name", "Test User"], cd: dir)
-    :ok
+  defp run_git_cmd!(dir, args) do
+    case System.cmd("git", args, cd: dir, stderr_to_stdout: true) do
+      {_output, 0} -> :ok
+      {output, code} -> raise "git #{hd(args)} failed (exit #{code}): #{output}"
+    end
   end
 
   defp create_file(dir, filename, content) do
@@ -191,6 +191,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   # ============================================================================
 
   describe "Executor → Handler chain execution for Git tools" do
+    @describetag :git
     test "git_command executes through Executor and returns result", %{tmp_base: tmp_base} do
       # Setup: Create project with initialized git repo
       project_dir = create_test_dir(tmp_base, "git_chain_test")
@@ -253,6 +254,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   # ============================================================================
 
   describe "git_command integration - status (3.7.2.1)" do
+    @describetag :git
     test "git_command status works in initialized repo", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "git_status_test")
       init_git_repo(project_dir)
@@ -304,6 +306,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   end
 
   describe "git_command integration - diff (3.7.2.2)" do
+    @describetag :git
     test "git_command diff shows no changes on clean repo", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "git_diff_clean_test")
       init_git_repo(project_dir)
@@ -372,6 +375,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   end
 
   describe "git_command integration - log (3.7.2.3)" do
+    @describetag :git
     test "git_command log shows commit history", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "git_log_test")
       init_git_repo(project_dir)
@@ -433,6 +437,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   end
 
   describe "git_command integration - branch (3.7.2.4)" do
+    @describetag :git
     test "git_command branch lists branches", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "git_branch_list_test")
       init_git_repo(project_dir)
@@ -449,8 +454,8 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
       {:ok, response} = result |> unwrap_result() |> decode_result()
       assert response["exit_code"] == 0
-      # Should show current branch (master or main)
-      assert response["output"] =~ "master" or response["output"] =~ "main"
+      # Should show current branch (we explicitly init with -b main)
+      assert response["output"] =~ "main"
     end
 
     test "git_command branch creates new branch", %{tmp_base: tmp_base} do
@@ -501,6 +506,8 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   # ============================================================================
 
   describe "git_command security - destructive operations" do
+    @describetag :git
+    @describetag :security
     test "git_command blocks force push by default", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "git_force_push_test")
       init_git_repo(project_dir)
@@ -564,6 +571,87 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       assert error_msg =~ "destructive operation blocked"
     end
 
+    # Security bypass vector tests (from Section 3.1.5 code review)
+    @tag :security
+    test "git_command blocks push -f (short flag) by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_push_f_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "push", "args" => ["-f", "origin", "main"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks --force-with-lease push by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_force_with_lease_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{
+          "subcommand" => "push",
+          "args" => ["--force-with-lease", "origin", "main"]
+        })
+
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks reset --hard=value syntax by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_reset_hard_value_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "reset", "args" => ["--hard=HEAD~1"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks reordered clean flags (-df) by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_clean_df_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "clean", "args" => ["-df"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks combined clean flags (-xdf) by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_clean_xdf_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "clean", "args" => ["-xdf"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
     test "git_command allows destructive operation with allow_destructive flag", %{
       tmp_base: tmp_base
     } do
@@ -600,7 +688,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project with Elixir file
       project_dir = create_test_dir(tmp_base, "hover_chain_test")
 
-      create_elixir_file(project_dir, "test_module.ex", """
+      create_file(project_dir, "test_module.ex", """
       defmodule TestModule do
         def hello, do: :world
       end
@@ -628,7 +716,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project with Elixir file
       project_dir = create_test_dir(tmp_base, "def_chain_test")
 
-      create_elixir_file(project_dir, "test_module.ex", """
+      create_file(project_dir, "test_module.ex", """
       defmodule TestModule do
         def hello, do: :world
 
@@ -659,13 +747,13 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project with Elixir files
       project_dir = create_test_dir(tmp_base, "refs_chain_test")
 
-      create_elixir_file(project_dir, "module_a.ex", """
+      create_file(project_dir, "module_a.ex", """
       defmodule ModuleA do
         def shared_func, do: :ok
       end
       """)
 
-      create_elixir_file(project_dir, "module_b.ex", """
+      create_file(project_dir, "module_b.ex", """
       defmodule ModuleB do
         def caller do
           ModuleA.shared_func()
@@ -702,14 +790,14 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_b = create_test_dir(tmp_base, "hover_project_b")
 
       # Create different content in each project
-      create_elixir_file(project_a, "code.ex", """
+      create_file(project_a, "code.ex", """
       defmodule ProjectA do
         @moduledoc "Project A module"
         def hello, do: :project_a
       end
       """)
 
-      create_elixir_file(project_b, "code.ex", """
+      create_file(project_b, "code.ex", """
       defmodule ProjectB do
         @moduledoc "Project B module"
         def hello, do: :project_b
@@ -738,7 +826,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project directory
       project_dir = create_test_dir(tmp_base, "isolation_test")
 
-      create_elixir_file(project_dir, "safe.ex", """
+      create_file(project_dir, "safe.ex", """
       defmodule Safe do
         def ok, do: :ok
       end
@@ -768,8 +856,8 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_a = create_test_dir(tmp_base, "def_project_a")
       project_b = create_test_dir(tmp_base, "def_project_b")
 
-      create_elixir_file(project_a, "module.ex", "defmodule A do end")
-      create_elixir_file(project_b, "module.ex", "defmodule B do end")
+      create_file(project_a, "module.ex", "defmodule A do end")
+      create_file(project_b, "module.ex", "defmodule B do end")
 
       # Create session for project A
       session_a = create_session(project_a)
@@ -800,7 +888,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_hover_info for Elixir file returns structured response", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "hover_elixir_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestHover do
         @moduledoc "A test module for hover info"
 
@@ -861,7 +949,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "go_to_definition for Elixir file returns structured response", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "def_elixir_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestDef do
         def target, do: :ok
 
@@ -907,7 +995,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "find_references for Elixir file returns structured response", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "refs_elixir_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestRefs do
         def target, do: :ok
 
@@ -932,7 +1020,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "find_references with include_declaration option", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "refs_decl_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestRefsDecl do
         def func, do: :ok
         def caller, do: func()
@@ -987,7 +1075,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_diagnostics returns structured response for workspace", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "diag_workspace_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule DiagTest do
         def hello, do: :world
       end
@@ -1014,7 +1102,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_diagnostics returns structured response for specific file", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "diag_file_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule DiagFileTest do
         def hello, do: :world
       end
@@ -1037,7 +1125,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_diagnostics filters by severity", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "diag_severity_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule DiagSeverityTest do
         def hello, do: :world
       end
@@ -1062,7 +1150,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_diagnostics respects limit parameter", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "diag_limit_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule DiagLimitTest do
         def hello, do: :world
       end
@@ -1084,7 +1172,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_diagnostics rejects invalid severity", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "diag_invalid_sev_test")
 
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -1099,7 +1187,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_diagnostics rejects invalid limit", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "diag_invalid_limit_test")
 
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -1114,7 +1202,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_diagnostics blocks path traversal", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "diag_security_test")
 
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -1156,7 +1244,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
           project_dir = create_test_dir(tmp_base, "expert_diag_syntax_test")
 
           # Create a file with a syntax error (missing 'do')
-          create_elixir_file(project_dir, "syntax_error.ex", """
+          create_file(project_dir, "syntax_error.ex", """
           defmodule SyntaxErrorModule
             def hello, do: :world
           end
@@ -1205,7 +1293,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
           project_dir = create_test_dir(tmp_base, "expert_diag_undef_test")
 
           # Create a file that calls an undefined function
-          create_elixir_file(project_dir, "undefined_func.ex", """
+          create_file(project_dir, "undefined_func.ex", """
           defmodule UndefinedFuncModule do
             def caller do
               this_function_does_not_exist()
@@ -1261,7 +1349,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
           project_dir = create_test_dir(tmp_base, "expert_diag_filter_test")
 
           # Create a file with both errors and warnings
-          create_elixir_file(project_dir, "mixed_issues.ex", """
+          create_file(project_dir, "mixed_issues.ex", """
           defmodule MixedIssuesModule do
             # Missing 'do' causes syntax error
             def hello
@@ -1301,7 +1389,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "LSP handlers validate input paths against project boundary", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "path_security_test")
 
-      create_elixir_file(project_dir, "safe.ex", "defmodule Safe do end")
+      create_file(project_dir, "safe.ex", "defmodule Safe do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -1329,7 +1417,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_dir = create_test_dir(tmp_base, "valid_path_test")
       lib_dir = create_test_dir(project_dir, "lib")
 
-      create_elixir_file(lib_dir, "module.ex", """
+      create_file(lib_dir, "module.ex", """
       defmodule Lib.Module do
         def func, do: :ok
       end
@@ -1365,7 +1453,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_dir = create_test_dir(tmp_base, "abs_path_test")
 
       file_path =
-        create_elixir_file(project_dir, "module.ex", """
+        create_file(project_dir, "module.ex", """
         defmodule AbsPath do
           def func, do: :ok
         end
@@ -1406,7 +1494,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
         {:ok, _path} ->
           project_dir = create_test_dir(tmp_base, "expert_hover_test")
 
-          create_elixir_file(project_dir, "test.ex", """
+          create_file(project_dir, "test.ex", """
           defmodule ExpertHover do
             @moduledoc "Test module for Expert integration"
 
@@ -1446,7 +1534,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
         {:ok, _path} ->
           project_dir = create_test_dir(tmp_base, "expert_def_test")
 
-          create_elixir_file(project_dir, "test.ex", """
+          create_file(project_dir, "test.ex", """
           defmodule ExpertDef do
             def target, do: :ok
 
@@ -1484,7 +1572,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
         {:ok, _path} ->
           project_dir = create_test_dir(tmp_base, "expert_refs_test")
 
-          create_elixir_file(project_dir, "test.ex", """
+          create_file(project_dir, "test.ex", """
           defmodule ExpertRefs do
             def shared_func, do: :ok
 
@@ -1531,7 +1619,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   describe "parameter validation" do
     test "get_hover_info requires path parameter", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_path_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -1546,7 +1634,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
     test "get_hover_info requires line parameter", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_line_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -1561,7 +1649,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
     test "get_hover_info requires character parameter", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_char_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -1576,7 +1664,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
     test "line and character must be positive integers", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_int_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)

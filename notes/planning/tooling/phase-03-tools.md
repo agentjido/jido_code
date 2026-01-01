@@ -727,6 +727,33 @@ Test LSP tools with Expert (official Elixir LSP) via Handler pattern.
 See `notes/summaries/tooling-3.7-phase3-integration-tests.md` for implementation details.
 See `notes/summaries/tooling-3.7.3-diagnostics-integration-tests.md` for diagnostics tests.
 
+### 3.7.4 Review Fixes (DONE)
+
+Code review conducted on Section 3.7 integration tests. All concerns addressed:
+
+**Concerns Fixed:**
+- [x] Fix `init_git_repo` robustness - Added `run_git_cmd!` helper with proper error handling
+- [x] Fix explicit branch name - Uses `-b main` for consistency across systems
+- [x] Consolidate duplicate helpers - Removed `create_elixir_file`, use `create_file` for all
+- [x] Fix `for` comprehension - Changed to `Enum.each` for side-effect-only operations
+- [x] Fix `wait_for_supervisor` - Changed nested `if` to `cond` for Elixir idiom
+
+**Security Bypass Tests Added (5 tests):**
+- [x] Test: git_command blocks push -f (short flag) by default
+- [x] Test: git_command blocks --force-with-lease push by default
+- [x] Test: git_command blocks reset --hard=value syntax by default
+- [x] Test: git_command blocks clean -df (reordered flags) by default
+- [x] Test: git_command blocks clean -xdf (combined flags) by default
+
+**Test Tags Added:**
+- [x] Added `@describetag :git` for git-related describe blocks
+- [x] Added `@describetag :security` for security-related describe blocks
+- [x] Added `@tag :security` for individual security tests
+
+**Test Count:** 60 tests (55 original + 5 new security bypass tests)
+
+See `notes/summaries/tooling-3.7.4-review-fixes.md` for implementation details.
+
 ---
 
 ## Phase 3 Success Criteria

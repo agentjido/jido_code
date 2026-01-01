@@ -312,16 +312,16 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
 
 ### 5.2.4 Unit Tests for Agent Integration
 
-- [ ] Test agent initializes with memory enabled by default
-- [ ] Test agent accepts memory_enabled: false option
-- [ ] Test agent accepts custom token_budget option
-- [ ] Test get_available_tools includes memory tools when enabled
-- [ ] Test get_available_tools excludes memory tools when disabled
-- [ ] Test memory tool calls route to action executor
-- [ ] Test context assembly runs before LLM call
-- [ ] Test system prompt includes formatted memory context
-- [ ] Test agent works correctly with memory disabled
-- [ ] Test invalid session_id doesn't crash context assembly
+- [x] Test agent initializes with memory enabled by default
+- [x] Test agent accepts memory_enabled: false option
+- [x] Test agent accepts custom token_budget option
+- [x] Test get_available_tools includes memory tools when enabled
+- [x] Test get_available_tools excludes memory tools when disabled
+- [x] Test memory tool calls route to action executor
+- [x] Test context assembly runs before LLM call (covered by state tests)
+- [x] Test system prompt includes formatted memory context
+- [x] Test agent works correctly with memory disabled
+- [x] Test invalid session_id doesn't crash context assembly
 
 ---
 

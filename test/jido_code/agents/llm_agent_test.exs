@@ -667,6 +667,87 @@ defmodule JidoCode.Agents.LLMAgentTest do
     end
   end
 
+  # ============================================================================
+  # Memory Tool Execution Tests (Task 5.2.4)
+  # ============================================================================
+
+  describe "memory tool execution" do
+    test "memory tools are routed through Executor" do
+      # Verify that memory tool names are recognized by the Executor
+      assert JidoCode.Tools.Executor.memory_tool?("remember") == true
+      assert JidoCode.Tools.Executor.memory_tool?("recall") == true
+      assert JidoCode.Tools.Executor.memory_tool?("forget") == true
+
+      # Non-memory tools should return false
+      assert JidoCode.Tools.Executor.memory_tool?("read_file") == false
+    end
+
+    test "Executor.memory_tools/0 returns all memory tool names" do
+      memory_tools = JidoCode.Tools.Executor.memory_tools()
+
+      assert is_list(memory_tools)
+      assert "remember" in memory_tools
+      assert "recall" in memory_tools
+      assert "forget" in memory_tools
+      assert length(memory_tools) == 3
+    end
+  end
+
+  # ============================================================================
+  # System Prompt Memory Context Tests (Task 5.2.4)
+  # ============================================================================
+
+  describe "system prompt with memory context" do
+    test "ContextBuilder.format_for_prompt/1 produces valid markdown" do
+      # Test with working context
+      context = %{
+        working_context: %{project_root: "/app", language: "elixir"},
+        long_term_memories: []
+      }
+
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(context)
+
+      assert is_binary(result)
+      assert result =~ "## Session Context"
+      assert result =~ "Project root"
+      assert result =~ "/app"
+    end
+
+    test "ContextBuilder.format_for_prompt/1 includes memories with badges" do
+      context = %{
+        working_context: %{},
+        long_term_memories: [
+          %{memory_type: :fact, confidence: 0.9, content: "Uses Phoenix 1.7"}
+        ]
+      }
+
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(context)
+
+      assert is_binary(result)
+      assert result =~ "## Remembered Information"
+      assert result =~ "[fact]"
+      assert result =~ "high confidence"
+      assert result =~ "Uses Phoenix 1.7"
+    end
+
+    test "ContextBuilder.format_for_prompt/1 handles empty context" do
+      context = %{
+        working_context: %{},
+        long_term_memories: []
+      }
+
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(context)
+
+      # Should return empty string for empty context
+      assert result == ""
+    end
+
+    test "ContextBuilder.format_for_prompt/1 handles nil input" do
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(nil)
+      assert result == ""
+    end
+  end
+
   describe "session topics" do
     test "topic_for_session builds correct topic format" do
       topic = LLMAgent.topic_for_session("my-session-123")

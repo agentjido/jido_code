@@ -466,6 +466,92 @@ defmodule JidoCode.Agents.LLMAgentTest do
     end
   end
 
+  # ============================================================================
+  # Memory Tool Registration Tests (Task 5.2.2)
+  # ============================================================================
+
+  describe "memory tool registration" do
+    setup do
+      # Register tools for testing
+      JidoCode.Tools.register_all()
+      :ok
+    end
+
+    test "get_available_tools includes memory tools when memory is enabled" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: true]) do
+        {:ok, pid} ->
+          {:ok, tools} = LLMAgent.get_available_tools(pid)
+
+          tool_names = Enum.map(tools, & &1[:name])
+
+          # Should include memory tools
+          assert "remember" in tool_names
+          assert "recall" in tool_names
+          assert "forget" in tool_names
+
+          # Should also include some base tools
+          assert "read_file" in tool_names
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "get_available_tools excludes memory tools when memory is disabled" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false]) do
+        {:ok, pid} ->
+          {:ok, tools} = LLMAgent.get_available_tools(pid)
+
+          tool_names = Enum.map(tools, & &1[:name])
+
+          # Should NOT include memory tools
+          refute "remember" in tool_names
+          refute "recall" in tool_names
+          refute "forget" in tool_names
+
+          # Should still include base tools
+          assert "read_file" in tool_names
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory_tool?/1 correctly identifies memory tools" do
+      assert LLMAgent.memory_tool?("remember") == true
+      assert LLMAgent.memory_tool?("recall") == true
+      assert LLMAgent.memory_tool?("forget") == true
+
+      assert LLMAgent.memory_tool?("read_file") == false
+      assert LLMAgent.memory_tool?("write_file") == false
+      assert LLMAgent.memory_tool?("unknown") == false
+    end
+
+    test "memory_tool?/1 handles non-string input" do
+      assert LLMAgent.memory_tool?(nil) == false
+      assert LLMAgent.memory_tool?(:remember) == false
+      assert LLMAgent.memory_tool?(123) == false
+    end
+  end
+
   describe "session topics" do
     test "topic_for_session builds correct topic format" do
       topic = LLMAgent.topic_for_session("my-session-123")

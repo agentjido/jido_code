@@ -242,7 +242,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
 
 ### 5.2.2 Memory Tool Registration
 
-- [ ] 5.2.2.1 Add memory tools to available tools list:
+- [x] 5.2.2.1 Add memory tools to available tools list:
   ```elixir
   defp get_available_tools(state) do
     base_tools = get_base_tools()
@@ -254,19 +254,21 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     end
   end
   ```
-- [ ] 5.2.2.2 Implement helper to identify memory tools:
+- [x] 5.2.2.2 Implement helper to identify memory tools:
   ```elixir
   defp memory_tool?(name) do
     name in ["remember", "recall", "forget"]
   end
   ```
-- [ ] 5.2.2.3 Route memory tool calls to action executor:
+- [x] 5.2.2.3 Route memory tool calls to action executor:
   ```elixir
   defp execute_tool_call(name, args, context) when memory_tool?(name) do
     {:ok, action} = Memory.Actions.get(name)
     action.run(args, context)
   end
   ```
+  Note: Already implemented in `JidoCode.Tools.Executor.execute/2` which routes
+  memory tools to `Memory.Actions` automatically.
 
 ### 5.2.3 Pre-Call Context Assembly
 

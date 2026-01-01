@@ -73,10 +73,12 @@ defmodule JidoCode.Agents.LLMAgent do
   alias Jido.AI.Prompt
   alias JidoCode.Config
   alias JidoCode.Language
+  alias JidoCode.Memory.Actions, as: MemoryActions
   alias JidoCode.PubSubTopics
   alias JidoCode.Session.ProcessRegistry
   alias JidoCode.Session.State, as: SessionState
   alias JidoCode.Tools.Executor
+  alias JidoCode.Tools.Registry, as: ToolRegistry
   alias JidoCode.Tools.Result
 
   @pubsub JidoCode.PubSub
@@ -523,6 +525,48 @@ defmodule JidoCode.Agents.LLMAgent do
   defp get_model_name(%{model: name}) when is_binary(name), do: name
   defp get_model_name(_), do: nil
 
+  @doc """
+  Returns the list of available tools for the agent.
+
+  When memory is enabled, this includes both the base tools from the
+  Tools.Registry and the memory tools (remember, recall, forget).
+  When memory is disabled, only the base tools are returned.
+
+  ## Returns
+
+  - `{:ok, tools}` - List of tool definitions in LLM format
+
+  ## Examples
+
+      {:ok, tools} = JidoCode.Agents.LLMAgent.get_available_tools(pid)
+
+  """
+  @spec get_available_tools(GenServer.server()) :: {:ok, [map()]}
+  def get_available_tools(pid) do
+    GenServer.call(pid, :get_available_tools)
+  end
+
+  @doc """
+  Checks if a tool name is a memory tool.
+
+  Memory tools are: remember, recall, forget
+
+  ## Examples
+
+      JidoCode.Agents.LLMAgent.memory_tool?("remember")
+      # => true
+
+      JidoCode.Agents.LLMAgent.memory_tool?("read_file")
+      # => false
+
+  """
+  @spec memory_tool?(String.t()) :: boolean()
+  def memory_tool?(name) when is_binary(name) do
+    MemoryActions.memory_action?(name)
+  end
+
+  def memory_tool?(_), do: false
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -657,6 +701,12 @@ defmodule JidoCode.Agents.LLMAgent do
   def handle_call({:execute_tool_batch, tool_calls, opts}, _from, state) do
     result = do_execute_tool_batch(tool_calls, opts, state)
     {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call(:get_available_tools, _from, state) do
+    tools = do_get_available_tools(state)
+    {:reply, {:ok, tools}, state}
   end
 
   @impl true
@@ -850,6 +900,23 @@ defmodule JidoCode.Agents.LLMAgent do
       batch_opts = Keyword.put(opts, :context, context)
       Executor.execute_batch(tool_calls, batch_opts)
     end
+  end
+
+  # Returns the list of available tools based on memory configuration.
+  # When memory is enabled, includes memory tools (remember, recall, forget).
+  defp do_get_available_tools(%{memory_enabled: true}) do
+    base_tools = ToolRegistry.to_llm_format()
+    memory_tools = MemoryActions.to_tool_definitions()
+    base_tools ++ memory_tools
+  end
+
+  defp do_get_available_tools(%{memory_enabled: false}) do
+    ToolRegistry.to_llm_format()
+  end
+
+  defp do_get_available_tools(_state) do
+    # Default to base tools if memory_enabled not in state (backwards compat)
+    ToolRegistry.to_llm_format()
   end
 
   defp broadcast_response(topic, response) do

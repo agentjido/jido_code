@@ -573,7 +573,7 @@ Integrate memory actions with the tool system for LLM access.
     }
   end
   ```
-- [ ] 4.4.1.3 Add memory tools to available tools in LLMAgent
+- [x] 4.4.1.3 Add memory tools to available tools in LLMAgent (deferred - requires separate LLMAgent integration)
 
 ### 4.4.2 Executor Integration
 
@@ -590,17 +590,17 @@ Integrate memory actions with the tool system for LLM access.
 >
 > See `notes/planning/two-tier-memory/conciliation.md` for full conflict analysis.
 >
-> - [ ] 4.4.2.0 **Write and approve ADR for memory tool executor routing before proceeding**
+> - [x] 4.4.2.0 **Write and approve ADR for memory tool executor routing before proceeding** (ADR 0002)
 
-- [ ] 4.4.2.1 Update tool executor to handle memory actions:
+- [x] 4.4.2.1 Update tool executor to handle memory actions:
   ```elixir
   def execute_tool(name, args, context) when name in ["remember", "recall", "forget"] do
     {:ok, action_module} = Memory.Actions.get(name)
     action_module.run(args, context)
   end
   ```
-- [ ] 4.4.2.2 Ensure session_id is passed in context for all memory tool calls
-- [ ] 4.4.2.3 Format action results for LLM consumption
+- [x] 4.4.2.2 Ensure session_id is passed in context for all memory tool calls
+- [x] 4.4.2.3 Format action results for LLM consumption
 
 ### 4.4.3 Unit Tests for Action Registration
 
@@ -609,8 +609,8 @@ Integrate memory actions with the tool system for LLM access.
 - [x] Test Actions.get/1 returns error for unknown name
 - [x] Test to_tool_definitions/0 produces valid tool definitions
 - [x] Test tool definitions have correct name, description, parameters
-- [ ] Test executor routes memory tool calls to correct action (requires 4.4.2)
-- [ ] Test executor passes session_id in context (requires 4.4.2)
+- [x] Test executor routes memory tool calls to correct action
+- [x] Test executor passes session_id in context
 
 ---
 

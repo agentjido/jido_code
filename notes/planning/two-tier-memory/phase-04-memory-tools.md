@@ -533,7 +533,7 @@ Integrate memory actions with the tool system for LLM access.
 
 ### 4.4.1 Action Discovery
 
-- [ ] 4.4.1.1 Create `lib/jido_code/memory/actions.ex` module:
+- [x] 4.4.1.1 Create `lib/jido_code/memory/actions.ex` module:
   ```elixir
   defmodule JidoCode.Memory.Actions do
     @moduledoc """
@@ -558,7 +558,7 @@ Integrate memory actions with the tool system for LLM access.
     end
   end
   ```
-- [ ] 4.4.1.2 Implement action-to-tool-definition conversion:
+- [x] 4.4.1.2 Implement action-to-tool-definition conversion:
   ```elixir
   def to_tool_definitions do
     Enum.map(all(), &action_to_tool_def/1)
@@ -604,13 +604,13 @@ Integrate memory actions with the tool system for LLM access.
 
 ### 4.4.3 Unit Tests for Action Registration
 
-- [ ] Test Actions.all/0 returns all three action modules
-- [ ] Test Actions.get/1 returns correct module for each name
-- [ ] Test Actions.get/1 returns error for unknown name
-- [ ] Test to_tool_definitions/0 produces valid tool definitions
-- [ ] Test tool definitions have correct name, description, parameters
-- [ ] Test executor routes memory tool calls to correct action
-- [ ] Test executor passes session_id in context
+- [x] Test Actions.all/0 returns all three action modules
+- [x] Test Actions.get/1 returns correct module for each name
+- [x] Test Actions.get/1 returns error for unknown name
+- [x] Test to_tool_definitions/0 produces valid tool definitions
+- [x] Test tool definitions have correct name, description, parameters
+- [ ] Test executor routes memory tool calls to correct action (requires 4.4.2)
+- [ ] Test executor passes session_id in context (requires 4.4.2)
 
 ---
 

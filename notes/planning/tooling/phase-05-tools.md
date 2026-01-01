@@ -461,6 +461,7 @@ Test security controls are enforced.
 | **fetch_elixir_docs** | Documentation retrieval with safe atom handling |
 | **Handler pattern** | All tools use Executor → Handler chain |
 | **Security controls** | Each handler enforces appropriate restrictions |
+| **Security infrastructure** | Opt-in middleware, isolation, sanitization, rate limiting, audit logging |
 | **Test Coverage** | Minimum 80% for Phase 5 tools |
 
 ---
@@ -479,3 +480,176 @@ Test security controls are enforced.
 
 **Documentation:**
 - `notes/decisions/0002-phase5-tool-security-and-architecture.md` - ADR for removed tools and Handler pattern
+- `notes/decisions/0003-handler-security-infrastructure.md` - ADR for centralized security infrastructure
+
+---
+
+## 5.8 Handler Security Infrastructure
+
+Implement centralized security infrastructure for all Handler-based tools. This provides
+opt-in security enhancements without requiring changes to existing handlers.
+
+**Architectural Decision:** See [ADR-0003](../../decisions/0003-handler-security-infrastructure.md).
+
+### 5.8.1 SecureHandler Behavior
+
+Define a behavior for handlers to declare security properties.
+
+- [ ] 5.8.1.1 Create `lib/jido_code/tools/behaviours/secure_handler.ex`
+- [ ] 5.8.1.2 Define `@callback security_properties/0`:
+  ```elixir
+  @type security_properties :: %{
+    required(:tier) => :read_only | :write | :execute | :privileged,
+    optional(:rate_limit) => {count :: pos_integer(), window_ms :: pos_integer()},
+    optional(:timeout_ms) => pos_integer(),
+    optional(:requires_consent) => boolean()
+  }
+  ```
+- [ ] 5.8.1.3 Define `@callback validate_security(args, context) :: :ok | {:error, reason}`
+- [ ] 5.8.1.4 Define `@callback sanitize_output(result) :: term()` with default
+- [ ] 5.8.1.5 Provide `__using__` macro with defaults
+- [ ] 5.8.1.6 Document tiers: `:read_only`, `:write`, `:execute`, `:privileged`
+- [ ] 5.8.1.7 Emit telemetry: `[:jido_code, :security, :handler_loaded]`
+
+### 5.8.2 Security Middleware
+
+Implement pre-execution security checks in Executor.
+
+- [ ] 5.8.2.1 Create `lib/jido_code/tools/security/middleware.ex`
+- [ ] 5.8.2.2 Implement `run_checks/3`:
+  ```elixir
+  def run_checks(tool, args, context) do
+    with :ok <- check_rate_limit(tool, context),
+         :ok <- check_permission_tier(tool, context),
+         :ok <- check_consent_requirement(tool, context) do
+      :ok
+    end
+  end
+  ```
+- [ ] 5.8.2.3 Implement `check_rate_limit/2`
+- [ ] 5.8.2.4 Implement `check_permission_tier/2`
+- [ ] 5.8.2.5 Implement `check_consent_requirement/2`
+- [ ] 5.8.2.6 Add middleware hook to `Executor.execute/2`
+- [ ] 5.8.2.7 Make opt-in via config: `config :jido_code, security_middleware: true`
+- [ ] 5.8.2.8 Emit telemetry: `[:jido_code, :security, :middleware_check]`
+
+### 5.8.3 Process Isolation
+
+Implement process isolation for handler execution.
+
+- [ ] 5.8.3.1 Create `lib/jido_code/tools/security/isolated_executor.ex`
+- [ ] 5.8.3.2 Implement `execute_isolated/4` with Task.Supervisor
+- [ ] 5.8.3.3 Add `JidoCode.Tools.TaskSupervisor` to supervision tree
+- [ ] 5.8.3.4 Enforce memory limit via `:max_heap_size` process flag
+- [ ] 5.8.3.5 Implement timeout with graceful shutdown
+- [ ] 5.8.3.6 Handle process crashes without affecting main app
+- [ ] 5.8.3.7 Emit telemetry: `[:jido_code, :security, :isolation]`
+
+### 5.8.4 Output Sanitization
+
+Implement automatic redaction of sensitive data.
+
+- [ ] 5.8.4.1 Create `lib/jido_code/tools/security/output_sanitizer.ex`
+- [ ] 5.8.4.2 Define sensitive patterns:
+  ```elixir
+  @sensitive_patterns [
+    {~r/(?i)(password|secret|api_?key|token)\s*[:=]\s*\S+/, "[REDACTED]"},
+    {~r/(?i)bearer\s+[a-zA-Z0-9._-]+/, "[REDACTED_BEARER]"},
+    {~r/sk-[a-zA-Z0-9]{48,}/, "[REDACTED_API_KEY]"},
+    {~r/ghp_[a-zA-Z0-9]{36,}/, "[REDACTED_GITHUB_TOKEN]"}
+  ]
+  ```
+- [ ] 5.8.4.3 Implement `sanitize/1` for strings
+- [ ] 5.8.4.4 Implement `sanitize/1` for maps (recursive)
+- [ ] 5.8.4.5 Define sensitive field names for map key redaction
+- [ ] 5.8.4.6 Apply in Executor after handler returns
+- [ ] 5.8.4.7 Emit telemetry: `[:jido_code, :security, :output_sanitized]`
+
+### 5.8.5 Rate Limiting
+
+Implement per-session, per-tool rate limiting.
+
+- [ ] 5.8.5.1 Create `lib/jido_code/tools/security/rate_limiter.ex`
+- [ ] 5.8.5.2 Use ETS table for tracking
+- [ ] 5.8.5.3 Implement sliding window algorithm
+- [ ] 5.8.5.4 Define default limits per tier:
+  ```elixir
+  @default_limits %{
+    read_only: {100, :timer.minutes(1)},
+    write: {30, :timer.minutes(1)},
+    execute: {10, :timer.minutes(1)},
+    privileged: {5, :timer.minutes(1)}
+  }
+  ```
+- [ ] 5.8.5.5 Implement periodic cleanup of expired entries
+- [ ] 5.8.5.6 Include retry-after in error response
+- [ ] 5.8.5.7 Emit telemetry: `[:jido_code, :security, :rate_limited]`
+
+### 5.8.6 Audit Logging
+
+Implement comprehensive invocation logging.
+
+- [ ] 5.8.6.1 Create `lib/jido_code/tools/security/audit_logger.ex`
+- [ ] 5.8.6.2 Define audit entry structure (timestamp, session, tool, status, duration)
+- [ ] 5.8.6.3 Implement `log_invocation/4` called from Executor
+- [ ] 5.8.6.4 Hash arguments for privacy (don't log raw values)
+- [ ] 5.8.6.5 Store in ETS ring buffer (default 10000 entries)
+- [ ] 5.8.6.6 Implement `get_audit_log/1` for session-specific trail
+- [ ] 5.8.6.7 Emit telemetry: `[:jido_code, :security, :audit]`
+- [ ] 5.8.6.8 Integrate with Logger for blocked invocations
+
+### 5.8.7 Permission Tiers
+
+Implement tool categorization with graduated access.
+
+- [ ] 5.8.7.1 Create `lib/jido_code/tools/security/permissions.ex`
+- [ ] 5.8.7.2 Define tier hierarchy: `[:read_only, :write, :execute, :privileged]`
+- [ ] 5.8.7.3 Define default tool-to-tier mapping
+- [ ] 5.8.7.4 Add `granted_tier` and `consented_tools` to Session.State
+- [ ] 5.8.7.5 Implement `grant_tier/2` for permission upgrades
+- [ ] 5.8.7.6 Implement `record_consent/2` for explicit consent
+- [ ] 5.8.7.7 Implement `check_permission/3` for middleware
+- [ ] 5.8.7.8 Emit telemetry: `[:jido_code, :security, :permission_denied]`
+
+### 5.8.8 Unit Tests
+
+- [ ] 5.8.8.1 Test SecureHandler behavior callbacks
+- [ ] 5.8.8.2 Test Middleware.run_checks passes/blocks correctly
+- [ ] 5.8.8.3 Test IsolatedExecutor timeout enforcement
+- [ ] 5.8.8.4 Test IsolatedExecutor memory limit
+- [ ] 5.8.8.5 Test OutputSanitizer pattern redaction
+- [ ] 5.8.8.6 Test OutputSanitizer nested map handling
+- [ ] 5.8.8.7 Test RateLimiter within/exceeds limit
+- [ ] 5.8.8.8 Test RateLimiter sliding window
+- [ ] 5.8.8.9 Test AuditLogger invocation recording
+- [ ] 5.8.8.10 Test Permissions tier hierarchy
+- [ ] 5.8.8.11 Test all telemetry events emitted
+
+### 5.8.9 Integration Tests
+
+- [ ] 5.8.9.1 Create `test/jido_code/integration/tools_security_test.exs`
+- [ ] 5.8.9.2 Test: Executor applies middleware when enabled
+- [ ] 5.8.9.3 Test: Rate limiting blocks rapid calls
+- [ ] 5.8.9.4 Test: Output sanitization removes secrets
+- [ ] 5.8.9.5 Test: Process isolation kills runaway handler
+- [ ] 5.8.9.6 Test: Permission tier blocks privileged tools
+- [ ] 5.8.9.7 Test: Audit log captures blocked invocations
+
+---
+
+## 5.8 Critical Files
+
+**New Files (Section 5.8):**
+- `lib/jido_code/tools/behaviours/secure_handler.ex` - SecureHandler behavior
+- `lib/jido_code/tools/security/middleware.ex` - Pre-execution checks
+- `lib/jido_code/tools/security/isolated_executor.ex` - Process isolation
+- `lib/jido_code/tools/security/output_sanitizer.ex` - Output redaction
+- `lib/jido_code/tools/security/rate_limiter.ex` - Rate limiting
+- `lib/jido_code/tools/security/audit_logger.ex` - Audit logging
+- `lib/jido_code/tools/security/permissions.ex` - Permission tiers
+- `test/jido_code/tools/security/*_test.exs` - Security unit tests
+- `test/jido_code/integration/tools_security_test.exs` - Security integration tests
+
+**Modified Files (Section 5.8):**
+- `lib/jido_code/tools/executor.ex` - Add middleware hook
+- `lib/jido_code/application.ex` - Add TaskSupervisor

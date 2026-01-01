@@ -73,8 +73,8 @@ Implement the mix_task tool for running Mix tasks with security controls.
 
 Create the mix_task tool definition.
 
-- [ ] 5.1.1.1 Create `lib/jido_code/tools/definitions/elixir.ex` (combined Elixir definitions)
-- [ ] 5.1.1.2 Define schema:
+- [x] 5.1.1.1 Create `lib/jido_code/tools/definitions/elixir.ex` (combined Elixir definitions)
+- [x] 5.1.1.2 Define schema:
   ```elixir
   %{
     name: "mix_task",
@@ -87,7 +87,7 @@ Create the mix_task tool definition.
     ]
   }
   ```
-- [ ] 5.1.1.3 Register tool via `Elixir.all/0`
+- [x] 5.1.1.3 Register tool via `Elixir.all/0`
 
 ### 5.1.2 Handler Implementation
 

@@ -162,14 +162,17 @@ See `notes/summaries/section-3.1-review-fixes.md` for implementation details.
 
 ## 3.2 Get Diagnostics Tool
 
-Implement the get_diagnostics tool for retrieving LSP errors, warnings, and hints through the Lua sandbox.
+Implement the get_diagnostics tool for retrieving LSP errors, warnings, and hints.
 
-### 3.2.1 Tool Definition
+**Architectural Decision:** Uses Handler pattern (not Lua sandbox) per decision in 3.3.2.
+LSP tools use the Handler pattern for better integration with LSP client infrastructure.
+
+### 3.2.1 Tool Definition (DONE)
 
 Create the get_diagnostics tool definition for LSP integration.
 
-- [ ] 3.2.1.1 Create `lib/jido_code/tools/definitions/get_diagnostics.ex`
-- [ ] 3.2.1.2 Define schema:
+- [x] 3.2.1.1 Create `lib/jido_code/tools/definitions/get_diagnostics.ex`
+- [x] 3.2.1.2 Define schema:
   ```elixir
   %{
     name: "get_diagnostics",
@@ -182,53 +185,84 @@ Create the get_diagnostics tool definition for LSP integration.
     ]
   }
   ```
-- [ ] 3.2.1.3 Register tool in definitions module
+- [x] 3.2.1.3 Register tool in definitions module (added to `LSP.all/0`)
+- [x] 3.2.1.4 Create handler `GetDiagnostics` in `lib/jido_code/tools/handlers/lsp.ex`
+- [x] 3.2.1.5 Add diagnostic caching to LSP Client
+- [x] 3.2.1.6 Add `get_diagnostics/2` function to LSP Client
+- [x] 3.2.1.7 Handle `textDocument/publishDiagnostics` notifications
+- [x] 3.2.1.8 Add unit tests (15 tests in `test/jido_code/tools/definitions/lsp_test.exs`)
 
-### 3.2.2 Bridge Function Implementation
+See `notes/summaries/tooling-3.2.1-get-diagnostics-tool.md` for implementation details.
 
-Implement the Bridge function for LSP diagnostics retrieval.
+### 3.2.2 Handler Implementation (DONE - uses Handler pattern)
 
-- [ ] 3.2.2.1 Add `lua_lsp_diagnostics/3` function to `lib/jido_code/tools/bridge.ex`
-  ```elixir
-  def lua_lsp_diagnostics(args, state, project_root) do
-    case args do
-      [] -> do_lsp_diagnostics(nil, %{}, state, project_root)
-      [path] -> do_lsp_diagnostics(path, %{}, state, project_root)
-      [path, opts] -> do_lsp_diagnostics(path, decode_opts(opts), state, project_root)
-      _ -> {[nil, "lsp_diagnostics: invalid arguments"], state}
-    end
-  end
-  ```
-- [ ] 3.2.2.2 Use LSP client interface (abstraction over ElixirLS/Lexical)
-- [ ] 3.2.2.3 Connect to running language server
-- [ ] 3.2.2.4 Retrieve diagnostics for file or workspace
-- [ ] 3.2.2.5 Filter by severity if specified
-- [ ] 3.2.2.6 Format diagnostics with:
+**Architectural Decision:** Same as 3.3.2 - LSP tools use the Handler pattern (direct
+Elixir execution) rather than the Lua sandbox bridge. This provides:
+- Better integration with LSP client infrastructure (Phase 3.6)
+- Consistent pattern with other LSP tools (get_hover_info, go_to_definition, find_references)
+- Access to diagnostic caching in the LSP Client
+
+The handler is implemented in `lib/jido_code/tools/handlers/lsp.ex`:
+
+- [x] 3.2.2.1 Handler module `JidoCode.Tools.Handlers.LSP.GetDiagnostics`
+- [x] 3.2.2.2 LSP Client integration via `Client.get_diagnostics/2`
+- [x] 3.2.2.3 Diagnostic caching via `textDocument/publishDiagnostics` notifications
+- [x] 3.2.2.4 Retrieve diagnostics for file or workspace
+- [x] 3.2.2.5 Filter by severity if specified
+- [x] 3.2.2.6 Format diagnostics with:
   - severity: error/warning/info/hint
   - file: relative path
-  - line: line number
-  - column: column number
+  - line: line number (1-indexed)
+  - column: column number (1-indexed)
   - message: diagnostic message
   - code: diagnostic code if available
-- [ ] 3.2.2.7 Apply limit if specified
-- [ ] 3.2.2.8 Return `{[diagnostics], state}` or `{[nil, error], state}`
-- [ ] 3.2.2.9 Register in `Bridge.register/2`
+  - source: diagnostic source (e.g., "elixir", "credo")
+- [x] 3.2.2.7 Apply limit if specified (with truncated flag)
+- [x] 3.2.2.8 Returns `{:ok, map}` or `{:error, string}` per Handler pattern
+- [x] 3.2.2.9 Emit telemetry for `:get_diagnostics` operation
+- [N/A] No Lua bridge registration needed (Handler pattern)
 
-### 3.2.3 Manager API
+### 3.2.3 Manager API (N/A - Handler pattern used)
 
-- [ ] 3.2.3.1 Add `lsp_diagnostics/2` to `Tools.Manager`
-- [ ] 3.2.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 3.2.3.3 Call bridge function through Lua: `jido.lsp_diagnostics(path, opts)`
+Handler pattern tools execute via `Tools.Executor` directly, not through `Tools.Manager`.
+The Executor handles session-aware context routing via `HandlerHelpers`.
 
-### 3.2.4 Unit Tests for Get Diagnostics
+- [N/A] 3.2.3.1 No Manager API needed (Handler pattern uses Executor)
+- [x] 3.2.3.2 Session-aware routing via `context.session_id` in Handler
+- [N/A] 3.2.3.3 No Lua call needed (Handler pattern)
 
-- [ ] Test get_diagnostics through sandbox retrieves compilation errors
-- [ ] Test get_diagnostics retrieves warnings
-- [ ] Test get_diagnostics filters by file path
-- [ ] Test get_diagnostics filters by severity
-- [ ] Test get_diagnostics respects limit
-- [ ] Test get_diagnostics handles no diagnostics
-- [ ] Test get_diagnostics handles LSP connection failure
+### 3.2.4 Unit Tests for Get Diagnostics (DONE)
+
+Tests implemented in `test/jido_code/tools/definitions/lsp_test.exs` (15 tests):
+
+**Schema & Format:**
+- [x] Test tool definition has correct schema
+- [x] Test generates valid LLM function format
+
+**Executor Integration:**
+- [x] Test get_diagnostics works via executor with no parameters
+- [x] Test get_diagnostics works via executor for specific file
+- [x] Test get_diagnostics returns error for non-existent file
+
+**Parameter Validation:**
+- [x] Test get_diagnostics validates severity parameter
+- [x] Test get_diagnostics accepts valid severity values
+- [x] Test get_diagnostics validates limit parameter (positive integer)
+- [x] Test get_diagnostics accepts positive limit
+- [x] Test rejects negative limit
+- [x] Test rejects non-integer limit
+- [x] Test rejects non-string severity
+- [x] Test rejects non-string path
+
+**Security:**
+- [x] Test get_diagnostics blocks path traversal
+- [x] Test get_diagnostics blocks absolute paths outside project
+
+**Session & LLM:**
+- [x] Test session-aware context uses session_id when provided
+- [x] Test results can be converted to LLM messages
+
+Note: Full LSP integration tests (actual diagnostics) deferred to Phase 3.7 when Expert is running.
 
 ---
 

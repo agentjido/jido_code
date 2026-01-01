@@ -48,12 +48,13 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
   describe "all/0" do
     test "returns all LSP tools" do
       tools = Definitions.all()
-      assert length(tools) == 3
+      assert length(tools) == 4
 
       names = Enum.map(tools, & &1.name)
       assert "get_hover_info" in names
       assert "go_to_definition" in names
       assert "find_references" in names
+      assert "get_diagnostics" in names
     end
   end
 
@@ -1525,6 +1526,258 @@ defmodule JidoCode.Tools.Definitions.LSPTest do
       assert LSPHandlers.get_character_from_location(%{"range" => %{}}) == 1
       assert LSPHandlers.get_character_from_location(%{"range" => %{"start" => %{}}}) == 1
       assert LSPHandlers.get_character_from_location(nil) == 1
+    end
+  end
+
+  # ============================================================================
+  # get_diagnostics tests (Section 3.2.1)
+  # ============================================================================
+
+  describe "get_diagnostics/0 definition" do
+    test "has correct schema" do
+      tool = Definitions.get_diagnostics()
+      assert tool.name == "get_diagnostics"
+      assert tool.description =~ "diagnostics"
+      assert length(tool.parameters) == 3
+
+      path_param = Enum.find(tool.parameters, &(&1.name == "path"))
+      severity_param = Enum.find(tool.parameters, &(&1.name == "severity"))
+      limit_param = Enum.find(tool.parameters, &(&1.name == "limit"))
+
+      # All parameters are optional
+      assert path_param.required == false
+      assert path_param.type == :string
+
+      assert severity_param.required == false
+      assert severity_param.type == :string
+      assert severity_param.enum == ["error", "warning", "info", "hint"]
+
+      assert limit_param.required == false
+      assert limit_param.type == :integer
+    end
+
+    test "generates valid LLM function format" do
+      tool = Definitions.get_diagnostics()
+      llm_fn = JidoCode.Tools.Tool.to_llm_function(tool)
+
+      assert llm_fn.type == "function"
+      assert llm_fn.function.name == "get_diagnostics"
+      assert is_binary(llm_fn.function.description)
+      assert is_map(llm_fn.function.parameters)
+
+      # Check parameters schema
+      params = llm_fn.function.parameters
+      assert params.type == "object"
+      assert Map.has_key?(params.properties, "path")
+      assert Map.has_key?(params.properties, "severity")
+      assert Map.has_key?(params.properties, "limit")
+
+      # No required parameters
+      assert params.required == []
+    end
+  end
+
+  describe "get_diagnostics executor integration" do
+    test "get_diagnostics works via executor with no parameters", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      response = Jason.decode!(result.content)
+      # Returns lsp_not_available when Expert is not installed
+      assert response["status"] == "lsp_not_configured"
+      assert response["diagnostics"] == []
+      assert response["count"] == 0
+    end
+
+    test "get_diagnostics works via executor for specific file", %{project_root: project_root} do
+      # Create an Elixir file
+      file_path = Path.join(project_root, "test_module.ex")
+      File.write!(file_path, "defmodule TestModule, do: nil")
+
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{"path" => "test_module.ex"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      response = Jason.decode!(result.content)
+      # Returns lsp_not_available when Expert is not installed
+      assert response["status"] == "lsp_not_configured"
+    end
+
+    test "get_diagnostics returns error for non-existent file", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{"path" => "nonexistent.ex"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "not found"
+    end
+
+    test "get_diagnostics validates severity parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{"severity" => "invalid"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Invalid severity"
+    end
+
+    test "get_diagnostics accepts valid severity values", %{project_root: project_root} do
+      for severity <- ["error", "warning", "info", "hint"] do
+        tool_call = %{
+          id: "call_123",
+          name: "get_diagnostics",
+          arguments: %{"severity" => severity}
+        }
+
+        context = %{project_root: project_root}
+        assert {:ok, result} = Executor.execute(tool_call, context: context)
+        assert result.status == :ok
+      end
+    end
+
+    test "get_diagnostics validates limit parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{"limit" => 0}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "positive integer"
+    end
+
+    test "get_diagnostics accepts positive limit", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{"limit" => 10}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+    end
+
+    test "get_diagnostics results can be converted to LLM messages", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_diag",
+        name: "get_diagnostics",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      {:ok, result} = Executor.execute(tool_call, context: context)
+
+      message = Result.to_llm_message(result)
+      assert message.role == "tool"
+      assert message.tool_call_id == "call_diag"
+      assert is_binary(message.content)
+    end
+  end
+
+  describe "get_diagnostics security" do
+    test "get_diagnostics blocks path traversal", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{"path" => "../../../etc/passwd"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Security error" or result.content =~ "escapes"
+    end
+
+    test "get_diagnostics blocks absolute paths outside project", %{project_root: _project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{"path" => "/etc/passwd"}
+      }
+
+      # Use a different project root to ensure absolute path is outside
+      context = %{project_root: "/tmp/test_project"}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+    end
+  end
+
+  describe "get_diagnostics session-aware context" do
+    test "uses session_id when provided", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_123",
+        name: "get_diagnostics",
+        arguments: %{}
+      }
+
+      # With an invalid session_id, should fall back or error
+      context = %{session_id: "nonexistent_session", project_root: project_root}
+      result = Executor.execute(tool_call, context: context)
+
+      # Should work with fallback to project_root
+      assert {:ok, _} = result
+    end
+  end
+
+  describe "get_diagnostics edge cases" do
+    test "rejects negative limit", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("get_diagnostics", %{"limit" => -5})
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "positive integer")
+    end
+
+    test "rejects non-integer limit", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("get_diagnostics", %{"limit" => "ten"})
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "integer")
+    end
+
+    test "rejects non-string severity", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("get_diagnostics", %{"severity" => 1})
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "string")
+    end
+
+    test "rejects non-string path", %{project_root: project_root} do
+      tool_call =
+        make_tool_call("get_diagnostics", %{"path" => 123})
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert_error_result(result, "string")
     end
   end
 end

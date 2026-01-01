@@ -76,7 +76,8 @@ defmodule JidoCode.Tools do
         Definitions.Livebook.all() ++
         Definitions.Web.all() ++
         Definitions.Todo.all() ++
-        Definitions.Task.all()
+        Definitions.Task.all() ++
+        Definitions.LSP.all()
 
     results =
       Enum.map(tools, fn tool ->

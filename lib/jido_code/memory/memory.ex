@@ -104,6 +104,7 @@ defmodule JidoCode.Memory do
 
   Automatically creates the session store if it doesn't exist.
   Validates that memory_type, source_type, and confidence are valid.
+  Also enforces a per-session memory limit to prevent unbounded growth.
 
   ## Parameters
 
@@ -116,6 +117,7 @@ defmodule JidoCode.Memory do
   - `{:error, :invalid_memory_type}` - Invalid memory type
   - `{:error, :invalid_source_type}` - Invalid source type
   - `{:error, :invalid_confidence}` - Confidence not in range [0.0, 1.0]
+  - `{:error, :session_memory_limit_exceeded}` - Session has too many memories
   - `{:error, reason}` - Other persistence failure
 
   ## Examples
@@ -136,8 +138,27 @@ defmodule JidoCode.Memory do
   @spec persist(memory_input(), String.t()) :: {:ok, String.t()} | {:error, term()}
   def persist(memory, session_id) when is_map(memory) and is_binary(session_id) do
     with :ok <- validate_memory_fields(memory),
-         {:ok, store} <- StoreManager.get_or_create(session_id) do
+         {:ok, store} <- StoreManager.get_or_create(session_id),
+         :ok <- check_session_memory_limit(session_id) do
       TripleStoreAdapter.persist(memory, store)
+    end
+  end
+
+  # Checks if the session has exceeded the maximum memory limit.
+  # This prevents runaway agents or malicious actors from consuming unbounded memory.
+  defp check_session_memory_limit(session_id) do
+    max_memories = Types.default_max_memories_per_session()
+
+    case count(session_id) do
+      {:ok, current_count} when current_count >= max_memories ->
+        {:error, :session_memory_limit_exceeded}
+
+      {:ok, _} ->
+        :ok
+
+      {:error, _reason} ->
+        # If we can't count, allow the operation (fail open for availability)
+        :ok
     end
   end
 

@@ -35,7 +35,9 @@ defmodule JidoCode.Memory.Actions.Remember do
              :risk,
              :unknown,
              :decision,
+             :architectural_decision,
              :convention,
+             :coding_standard,
              :lesson_learned
            ]},
         default: :fact,
@@ -121,18 +123,12 @@ defmodule JidoCode.Memory.Actions.Remember do
     end
   end
 
-  defp validate_content(%{content: content}) when is_binary(content) do
-    trimmed = String.trim(content)
-
-    cond do
-      byte_size(trimmed) == 0 ->
-        {:error, :empty_content}
-
-      byte_size(trimmed) > @max_content_length ->
-        {:error, {:content_too_long, byte_size(trimmed), @max_content_length}}
-
-      true ->
-        {:ok, trimmed}
+  defp validate_content(%{content: content}) do
+    case Helpers.validate_bounded_string(content, @max_content_length) do
+      {:ok, trimmed} -> {:ok, trimmed}
+      {:error, :empty_string} -> {:error, :empty_content}
+      {:error, :not_a_string} -> {:error, :invalid_content}
+      {:error, {:too_long, actual, max}} -> {:error, {:content_too_long, actual, max}}
     end
   end
 
@@ -148,15 +144,9 @@ defmodule JidoCode.Memory.Actions.Remember do
 
   defp validate_type(_), do: {:ok, :fact}
 
-  defp validate_confidence(%{confidence: confidence}) when is_number(confidence) do
-    {:ok, Types.clamp_to_unit(confidence)}
+  defp validate_confidence(params) do
+    Helpers.validate_confidence(params, :confidence, @default_confidence)
   end
-
-  defp validate_confidence(%{confidence: level}) when level in [:high, :medium, :low] do
-    {:ok, Types.level_to_confidence(level)}
-  end
-
-  defp validate_confidence(_), do: {:ok, @default_confidence}
 
   # =============================================================================
   # Private Functions - Memory Building
@@ -236,6 +226,10 @@ defmodule JidoCode.Memory.Actions.Remember do
 
   defp format_action_error({:invalid_memory_type, type}) do
     "Invalid memory type: #{inspect(type)}. Valid types: #{inspect(@valid_memory_types)}"
+  end
+
+  defp format_action_error(:session_memory_limit_exceeded) do
+    "Session memory limit exceeded. Please forget some old memories first."
   end
 
   defp format_action_error(reason) do

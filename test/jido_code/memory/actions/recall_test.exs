@@ -551,5 +551,60 @@ defmodule JidoCode.Memory.Actions.RecallTest do
       {:ok, conf} = Helpers.validate_confidence(%{}, :confidence, 0.8)
       assert conf == 0.8
     end
+
+    test "validate_non_empty_string handles valid strings" do
+      {:ok, result} = Helpers.validate_non_empty_string("hello")
+      assert result == "hello"
+
+      {:ok, trimmed} = Helpers.validate_non_empty_string("  hello  ")
+      assert trimmed == "hello"
+    end
+
+    test "validate_non_empty_string rejects empty strings" do
+      {:error, :empty_string} = Helpers.validate_non_empty_string("")
+      {:error, :empty_string} = Helpers.validate_non_empty_string("   ")
+    end
+
+    test "validate_non_empty_string rejects non-strings" do
+      {:error, :not_a_string} = Helpers.validate_non_empty_string(nil)
+      {:error, :not_a_string} = Helpers.validate_non_empty_string(123)
+    end
+
+    test "validate_bounded_string handles valid strings within limit" do
+      {:ok, result} = Helpers.validate_bounded_string("hello", 100)
+      assert result == "hello"
+    end
+
+    test "validate_bounded_string rejects strings over limit" do
+      {:error, {:too_long, 5, 3}} = Helpers.validate_bounded_string("hello", 3)
+    end
+
+    test "validate_bounded_string rejects empty strings" do
+      {:error, :empty_string} = Helpers.validate_bounded_string("", 100)
+      {:error, :empty_string} = Helpers.validate_bounded_string("   ", 100)
+    end
+
+    test "validate_optional_string handles valid strings" do
+      {:ok, "hello"} = Helpers.validate_optional_string("hello")
+    end
+
+    test "validate_optional_string returns nil for empty/missing" do
+      {:ok, nil} = Helpers.validate_optional_string("")
+      {:ok, nil} = Helpers.validate_optional_string("   ")
+      {:ok, nil} = Helpers.validate_optional_string(nil)
+    end
+
+    test "validate_optional_bounded_string handles valid strings" do
+      {:ok, "hello"} = Helpers.validate_optional_bounded_string("hello", 100)
+    end
+
+    test "validate_optional_bounded_string returns nil for empty" do
+      {:ok, nil} = Helpers.validate_optional_bounded_string("", 100)
+      {:ok, nil} = Helpers.validate_optional_bounded_string(nil, 100)
+    end
+
+    test "validate_optional_bounded_string rejects over limit" do
+      {:error, {:too_long, 5, 3}} = Helpers.validate_optional_bounded_string("hello", 3)
+    end
   end
 end

@@ -89,44 +89,27 @@ defmodule JidoCode.Memory.Actions.Forget do
     end
   end
 
-  defp validate_memory_id(%{memory_id: memory_id}) when is_binary(memory_id) do
-    trimmed = String.trim(memory_id)
-
-    if byte_size(trimmed) == 0 do
-      {:error, :empty_memory_id}
-    else
-      {:ok, trimmed}
+  defp validate_memory_id(%{memory_id: memory_id}) do
+    case Helpers.validate_non_empty_string(memory_id) do
+      {:ok, trimmed} -> {:ok, trimmed}
+      {:error, :empty_string} -> {:error, :empty_memory_id}
+      {:error, :not_a_string} -> {:error, :invalid_memory_id}
     end
   end
 
-  defp validate_memory_id(%{memory_id: _}), do: {:error, :invalid_memory_id}
   defp validate_memory_id(_), do: {:error, :missing_memory_id}
 
-  defp validate_reason(%{reason: reason}) when is_binary(reason) do
-    trimmed = String.trim(reason)
-
-    cond do
-      byte_size(trimmed) == 0 ->
-        {:ok, nil}
-
-      byte_size(trimmed) > @max_reason_length ->
-        {:error, {:reason_too_long, byte_size(trimmed), @max_reason_length}}
-
-      true ->
-        {:ok, trimmed}
+  defp validate_reason(%{reason: reason}) do
+    case Helpers.validate_optional_bounded_string(reason, @max_reason_length) do
+      {:ok, result} -> {:ok, result}
+      {:error, {:too_long, actual, max}} -> {:error, {:reason_too_long, actual, max}}
     end
   end
 
   defp validate_reason(_), do: {:ok, nil}
 
-  defp validate_replacement_id(%{replacement_id: replacement_id}) when is_binary(replacement_id) do
-    trimmed = String.trim(replacement_id)
-
-    if byte_size(trimmed) == 0 do
-      {:ok, nil}
-    else
-      {:ok, trimmed}
-    end
+  defp validate_replacement_id(%{replacement_id: replacement_id}) do
+    Helpers.validate_optional_string(replacement_id)
   end
 
   defp validate_replacement_id(_), do: {:ok, nil}

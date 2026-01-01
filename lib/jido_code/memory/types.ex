@@ -367,6 +367,24 @@ defmodule JidoCode.Memory.Types do
   def max_session_id_length, do: @max_session_id_length
 
   # =============================================================================
+  # Session Memory Limits
+  # =============================================================================
+
+  # Maximum memories per session to prevent unbounded memory consumption.
+  # This protects against runaway agents or malicious actors creating
+  # excessive memories that could exhaust system resources.
+  @default_max_memories_per_session 10_000
+
+  @doc """
+  Returns the default maximum number of memories allowed per session (10,000).
+
+  This limit prevents unbounded memory growth from runaway agents or abuse.
+  When exceeded, new memory creation will fail with `:session_memory_limit_exceeded`.
+  """
+  @spec default_max_memories_per_session() :: pos_integer()
+  def default_max_memories_per_session, do: @default_max_memories_per_session
+
+  # =============================================================================
   # Promotion Constants
   # =============================================================================
 

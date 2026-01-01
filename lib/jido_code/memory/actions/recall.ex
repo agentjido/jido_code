@@ -34,7 +34,9 @@ defmodule JidoCode.Memory.Actions.Recall do
              :risk,
              :unknown,
              :decision,
+             :architectural_decision,
              :convention,
+             :coding_standard,
              :lesson_learned
            ]},
         default: :all,
@@ -160,15 +162,9 @@ defmodule JidoCode.Memory.Actions.Recall do
 
   defp validate_limit(_), do: {:ok, @default_limit}
 
-  defp validate_min_confidence(%{min_confidence: conf}) when is_number(conf) do
-    {:ok, Types.clamp_to_unit(conf)}
+  defp validate_min_confidence(params) do
+    Helpers.validate_confidence(params, :min_confidence, @default_min_confidence)
   end
-
-  defp validate_min_confidence(%{min_confidence: level}) when level in [:high, :medium, :low] do
-    {:ok, Types.level_to_confidence(level)}
-  end
-
-  defp validate_min_confidence(_), do: {:ok, @default_min_confidence}
 
   defp validate_type(%{type: type}) when type in @valid_filter_types do
     {:ok, type}
@@ -180,18 +176,10 @@ defmodule JidoCode.Memory.Actions.Recall do
 
   defp validate_type(_), do: {:ok, :all}
 
-  defp validate_query(%{query: query}) when is_binary(query) do
-    trimmed = String.trim(query)
-
-    cond do
-      byte_size(trimmed) == 0 ->
-        {:ok, nil}
-
-      byte_size(trimmed) > @max_query_length ->
-        {:error, {:query_too_long, byte_size(trimmed), @max_query_length}}
-
-      true ->
-        {:ok, trimmed}
+  defp validate_query(%{query: query}) do
+    case Helpers.validate_optional_bounded_string(query, @max_query_length) do
+      {:ok, result} -> {:ok, result}
+      {:error, {:too_long, actual, max}} -> {:error, {:query_too_long, actual, max}}
     end
   end
 

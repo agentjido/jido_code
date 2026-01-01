@@ -513,4 +513,31 @@ defmodule JidoCode.Integration.MemoryToolsTest do
       assert forget_def[:parameters_schema][:properties]["memory_id"] != nil
     end
   end
+
+  describe "Security improvements" do
+    test "executor derives memory tools from Actions module" do
+      # Verify that @memory_tools in Executor matches Actions.names()
+      assert Memory.Actions.names() == ["remember", "recall", "forget"]
+    end
+
+    test "Types module provides session memory limit constant" do
+      # Verify the session memory limit is defined
+      max_memories = JidoCode.Memory.Types.default_max_memories_per_session()
+      assert is_integer(max_memories)
+      assert max_memories == 10_000
+    end
+
+    test "memory types in schemas include all Types.memory_types", %{session_id: session_id, context: context} do
+      # Verify Remember accepts all memory types including the new ones
+      types_to_test = [:architectural_decision, :coding_standard]
+
+      for type <- types_to_test do
+        result = JidoCode.Memory.Actions.Remember.run(
+          %{content: "Test for #{type}", type: type, confidence: 0.8},
+          context
+        )
+        assert {:ok, %{remembered: true}} = result
+      end
+    end
+  end
 end

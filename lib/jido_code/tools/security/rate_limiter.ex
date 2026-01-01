@@ -30,6 +30,11 @@ defmodule JidoCode.Tools.Security.RateLimiter do
 
   @ets_table :jido_code_rate_limits
 
+  @typedoc """
+  Options for rate limiting.
+  """
+  @type option :: {:emit_telemetry, boolean()}
+
   @doc """
   Checks if an invocation is allowed within rate limits.
 
@@ -39,15 +44,24 @@ defmodule JidoCode.Tools.Security.RateLimiter do
   - `tool_name` - Name of the tool being invoked
   - `limit` - Maximum allowed invocations in the window
   - `window_ms` - Time window in milliseconds
+  - `opts` - Options:
+    - `:emit_telemetry` - Whether to emit telemetry on rate limit (default: true)
 
   ## Returns
 
   - `:ok` - Invocation allowed, counter incremented
   - `{:error, retry_after_ms}` - Rate limit exceeded, includes time until reset
+
+  ## Telemetry
+
+  When rate limit is exceeded and `:emit_telemetry` is true (default), emits:
+  `[:jido_code, :security, :rate_limited]` with:
+  - measurements: `%{retry_after_ms: integer}`
+  - metadata: `%{session_id: string, tool: string, limit: integer, window_ms: integer}`
   """
-  @spec check_rate(String.t(), String.t(), pos_integer(), pos_integer()) ::
+  @spec check_rate(String.t(), String.t(), pos_integer(), pos_integer(), [option()]) ::
           :ok | {:error, pos_integer()}
-  def check_rate(session_id, tool_name, limit, window_ms) do
+  def check_rate(session_id, tool_name, limit, window_ms, opts \\ []) do
     ensure_table_exists()
     key = {session_id, tool_name}
     now = System.monotonic_time(:millisecond)
@@ -70,8 +84,12 @@ defmodule JidoCode.Tools.Security.RateLimiter do
     else
       # Calculate retry_after based on oldest invocation in window
       oldest = Enum.min(invocations, fn -> now end)
-      retry_after = oldest + window_ms - now
-      {:error, max(retry_after, 1)}
+      retry_after = max(oldest + window_ms - now, 1)
+
+      # Emit telemetry for rate limiting
+      maybe_emit_telemetry(session_id, tool_name, limit, window_ms, retry_after, opts)
+
+      {:error, retry_after}
     end
   end
 
@@ -183,6 +201,23 @@ defmodule JidoCode.Tools.Security.RateLimiter do
 
       _ ->
         :ok
+    end
+  end
+
+  defp maybe_emit_telemetry(session_id, tool_name, limit, window_ms, retry_after, opts) do
+    emit_telemetry = Keyword.get(opts, :emit_telemetry, true)
+
+    if emit_telemetry do
+      :telemetry.execute(
+        [:jido_code, :security, :rate_limited],
+        %{retry_after_ms: retry_after},
+        %{
+          session_id: session_id,
+          tool: tool_name,
+          limit: limit,
+          window_ms: window_ms
+        }
+      )
     end
   end
 end

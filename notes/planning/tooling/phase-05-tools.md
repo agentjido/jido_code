@@ -583,7 +583,7 @@ Implement per-session, per-tool rate limiting.
   ```
 - [x] 5.8.5.5 Implement periodic cleanup of expired entries
 - [x] 5.8.5.6 Include retry-after in error response
-- [ ] 5.8.5.7 Emit telemetry: `[:jido_code, :security, :rate_limited]`
+- [x] 5.8.5.7 Emit telemetry: `[:jido_code, :security, :rate_limited]`
 
 ### 5.8.6 Audit Logging
 

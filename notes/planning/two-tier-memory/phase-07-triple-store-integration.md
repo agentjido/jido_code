@@ -135,11 +135,11 @@ lib/jido_code/memory/
 
 ---
 
-## 7.3 Create SPARQL Query Templates
+## 7.3 Create SPARQL Query Templates ✓
 
 ### 7.3.1 SPARQLQueries Module
 
-- [ ] 7.3.1.1 Create `lib/jido_code/memory/long_term/sparql_queries.ex`:
+- [x] 7.3.1.1 Create `lib/jido_code/memory/long_term/sparql_queries.ex`:
   ```elixir
   defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
     @moduledoc """
@@ -206,36 +206,37 @@ lib/jido_code/memory/
     def record_access(memory_id)
   end
   ```
-- [ ] 7.3.1.2 Implement insert_memory/1 SPARQL UPDATE
-- [ ] 7.3.1.3 Implement query_by_session/2 SPARQL SELECT
-- [ ] 7.3.1.4 Implement query_by_type/3 with type filtering
-- [ ] 7.3.1.5 Implement query_by_id/1 for single memory lookup
-- [ ] 7.3.1.6 Implement supersede_memory/2 UPDATE
-- [ ] 7.3.1.7 Implement delete_memory/1 (soft delete via supersession)
-- [ ] 7.3.1.8 Implement record_access/1 to update access count
-- [ ] 7.3.1.9 Add helper functions for escaping, formatting
+- [x] 7.3.1.2 Implement insert_memory/1 SPARQL UPDATE
+- [x] 7.3.1.3 Implement query_by_session/2 SPARQL SELECT
+- [x] 7.3.1.4 Implement query_by_type/3 with type filtering
+- [x] 7.3.1.5 Implement query_by_id/1 for single memory lookup
+- [x] 7.3.1.6 Implement supersede_memory/2 UPDATE
+- [x] 7.3.1.7 Implement delete_memory/1 (soft delete via supersession)
+- [x] 7.3.1.8 Implement record_access/1 to update access count
+- [x] 7.3.1.9 Add helper functions for escaping, formatting
+- [x] 7.3.1.10 Add type mapping helpers (memory_type_to_class, class_to_memory_type, etc.)
 
 ### 7.3.2 Advanced Queries
 
-- [ ] 7.3.2.1 Implement query_related/2 using ontology relationships:
-  ```elixir
-  @spec query_related(String.t(), atom()) :: String.t()
-  def query_related(memory_id, relationship) do
-    # e.g., find all memories that :refines a hypothesis
-    # or find :hasRootCause for an error
-  end
-  ```
-- [ ] 7.3.2.2 Implement query_by_evidence/1 for evidence-linked memories
-- [ ] 7.3.2.3 Implement query_decisions_with_alternatives/1
-- [ ] 7.3.2.4 Implement query_lessons_for_error/1
+- [x] 7.3.2.1 Implement query_related/2 using ontology relationships (refines, confirms, superseded_by)
+- [x] 7.3.2.2 Implement query_by_evidence/1 for evidence-linked memories
+- [x] 7.3.2.3 Implement query_decisions_with_alternatives/1
+- [x] 7.3.2.4 Implement query_lessons_for_error/1
 
 ### 7.3.3 SPARQL Query Tests
 
-- [ ] 7.3.3.1 Test insert_memory/1 generates valid SPARQL
-- [ ] 7.3.3.2 Test query_by_session/2 with various options
-- [ ] 7.3.3.3 Test query_by_type/3 filters correctly
-- [ ] 7.3.3.4 Test string escaping prevents injection
-- [ ] 7.3.3.5 Test queries execute successfully against triple_store
+- [x] 7.3.3.1 Test insert_memory/1 generates valid SPARQL (unit + integration)
+- [x] 7.3.3.2 Test query_by_session/2 with various options (53 unit tests)
+- [x] 7.3.3.3 Test query_by_type/3 filters correctly
+- [x] 7.3.3.4 Test string escaping prevents injection
+- [x] 7.3.3.5 Test queries execute successfully against triple_store (7 integration tests)
+
+### 7.3.4 Bug Workarounds
+
+- [x] 7.3.4.1 Workaround for FILTER NOT EXISTS bug in triple_store library
+  - The triple_store library returns 0 results when using `FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }`
+  - Fixed by using `OPTIONAL { ?mem jido:supersededBy ?superseded } FILTER(!BOUND(?superseded))` pattern
+  - Applied to: query_by_session, query_by_type, query_by_evidence, query_decisions_with_alternatives, query_lessons_for_error
 
 ---
 

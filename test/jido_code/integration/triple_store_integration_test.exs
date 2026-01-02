@@ -427,4 +427,227 @@ defmodule JidoCode.Integration.TripleStoreIntegrationTest do
       :ok = TripleStore.close(store)
     end
   end
+
+  # =============================================================================
+  # 7.3.3.5 - SPARQLQueries Integration Tests
+  # =============================================================================
+
+  describe "SPARQLQueries integration" do
+    alias JidoCode.Memory.LongTerm.SPARQLQueries
+    alias JidoCode.Memory.LongTerm.OntologyLoader
+
+    test "insert_memory generates executable SPARQL", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "insert_memory_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+
+      # Load ontology first so types are defined
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      # Create a memory to insert
+      memory = %{
+        id: "test_mem_001",
+        content: "This is a test fact about the project",
+        memory_type: :fact,
+        confidence: :high,
+        source_type: :agent,
+        session_id: "session_test"
+      }
+
+      # Generate and execute the insert query
+      insert_query = SPARQLQueries.insert_memory(memory)
+      assert {:ok, _} = TripleStore.update(store, insert_query)
+
+      # Verify the memory was inserted by querying for it
+      verify_query = """
+      PREFIX jido: <https://jido.ai/ontology#>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+      SELECT ?content ?confidence WHERE {
+        jido:memory_test_mem_001 jido:summary ?content ;
+                                  jido:hasConfidence ?confidence .
+      }
+      """
+
+      {:ok, results} = TripleStore.query(store, verify_query)
+      assert length(results) == 1
+
+      result = hd(results)
+      assert extract_value(result["content"]) == "This is a test fact about the project"
+      assert extract_iri_local_name(result["confidence"]) == "High"
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "query_by_session retrieves inserted memories", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "query_session_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      # Insert multiple memories
+      for i <- 1..3 do
+        memory = %{
+          id: "mem_#{i}",
+          content: "Memory content #{i}",
+          memory_type: :fact,
+          confidence: :high,
+          source_type: :agent,
+          session_id: "session_abc"
+        }
+
+        insert_query = SPARQLQueries.insert_memory(memory)
+        {:ok, _} = TripleStore.update(store, insert_query)
+      end
+
+      # Query by session
+      session_query = SPARQLQueries.query_by_session("session_abc")
+      {:ok, results} = TripleStore.query(store, session_query)
+
+      assert length(results) == 3
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "query_by_type filters memories by type", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "query_type_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      # Insert memories of different types
+      memories = [
+        %{id: "fact_1", content: "A fact", memory_type: :fact, session_id: "s1"},
+        %{id: "fact_2", content: "Another fact", memory_type: :fact, session_id: "s1"},
+        %{id: "hypo_1", content: "A hypothesis", memory_type: :hypothesis, session_id: "s1"}
+      ]
+
+      for memory <- memories do
+        insert_query = SPARQLQueries.insert_memory(memory)
+        {:ok, _} = TripleStore.update(store, insert_query)
+      end
+
+      # Query only facts
+      fact_query = SPARQLQueries.query_by_type("s1", :fact)
+      {:ok, fact_results} = TripleStore.query(store, fact_query)
+      assert length(fact_results) == 2
+
+      # Query only hypotheses
+      hypo_query = SPARQLQueries.query_by_type("s1", :hypothesis)
+      {:ok, hypo_results} = TripleStore.query(store, hypo_query)
+      assert length(hypo_results) == 1
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "supersede_memory marks memory as superseded", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "supersede_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      # Insert old and new memories
+      old_memory = %{id: "old_mem", content: "Old content", memory_type: :fact, session_id: "s1"}
+      new_memory = %{id: "new_mem", content: "Updated content", memory_type: :fact, session_id: "s1"}
+
+      {:ok, _} = TripleStore.update(store, SPARQLQueries.insert_memory(old_memory))
+      {:ok, _} = TripleStore.update(store, SPARQLQueries.insert_memory(new_memory))
+
+      # Supersede old with new
+      supersede_query = SPARQLQueries.supersede_memory("old_mem", "new_mem")
+      {:ok, _} = TripleStore.update(store, supersede_query)
+
+      # Query should exclude superseded by default
+      session_query = SPARQLQueries.query_by_session("s1")
+      {:ok, results} = TripleStore.query(store, session_query)
+      assert length(results) == 1
+
+      # The remaining result should be the new memory
+      result = hd(results)
+      assert extract_value(result["content"]) == "Updated content"
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "query_by_id retrieves single memory", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "query_by_id_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      memory = %{
+        id: "specific_mem",
+        content: "Specific content",
+        memory_type: :discovery,
+        confidence: :medium,
+        source_type: :user,
+        session_id: "s1",
+        rationale: "Found during exploration"
+      }
+
+      {:ok, _} = TripleStore.update(store, SPARQLQueries.insert_memory(memory))
+
+      # Query by ID
+      id_query = SPARQLQueries.query_by_id("specific_mem")
+      {:ok, results} = TripleStore.query(store, id_query)
+
+      assert length(results) == 1
+      result = hd(results)
+      assert extract_value(result["content"]) == "Specific content"
+      assert extract_iri_local_name(result["type"]) == "Discovery"
+      assert extract_iri_local_name(result["confidence"]) == "Medium"
+      assert extract_iri_local_name(result["source"]) == "UserSource"
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "delete_memory soft deletes via supersession", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "delete_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      # Insert a memory
+      memory = %{id: "to_delete", content: "Will be deleted", memory_type: :fact, session_id: "s1"}
+      {:ok, _} = TripleStore.update(store, SPARQLQueries.insert_memory(memory))
+
+      # Verify it exists
+      session_query = SPARQLQueries.query_by_session("s1")
+      {:ok, results_before} = TripleStore.query(store, session_query)
+      assert length(results_before) == 1
+
+      # Delete it
+      delete_query = SPARQLQueries.delete_memory("to_delete")
+      {:ok, _} = TripleStore.update(store, delete_query)
+
+      # Verify it's excluded from queries (soft deleted)
+      {:ok, results_after} = TripleStore.query(store, session_query)
+      assert length(results_after) == 0
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "string escaping prevents SPARQL injection", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "escaping_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      # Try to insert content with potentially dangerous characters
+      memory = %{
+        id: "escape_test",
+        content: ~s(Content with "quotes" and \\ backslashes and\nnewlines),
+        memory_type: :fact,
+        session_id: "s1"
+      }
+
+      insert_query = SPARQLQueries.insert_memory(memory)
+      # This should not crash or cause injection
+      assert {:ok, _} = TripleStore.update(store, insert_query)
+
+      # Verify content was stored correctly
+      id_query = SPARQLQueries.query_by_id("escape_test")
+      {:ok, results} = TripleStore.query(store, id_query)
+
+      assert length(results) == 1
+      content = extract_value(hd(results)["content"])
+      assert String.contains?(content, "quotes")
+      assert String.contains?(content, "backslashes")
+
+      :ok = TripleStore.close(store)
+    end
+  end
 end

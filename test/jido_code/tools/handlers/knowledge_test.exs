@@ -2,7 +2,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
   @moduledoc """
   Tests for the Knowledge tool handlers.
 
-  Section 7.1.3, 7.2.3, 7.3.3, and 7.5.3 of Phase 7 planning document.
+  Section 7.1.3, 7.2.3, 7.3.3, 7.4.3, 7.5.3, 7.6.3, and 7.7.3 of Phase 7 planning document.
 
   Note: These tests run with the full application started (via test_helper.exs).
   The Memory Supervisor and StoreManager must be running from the application supervision tree.
@@ -14,7 +14,10 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
   alias JidoCode.Tools.Handlers.Knowledge.KnowledgeRemember
   alias JidoCode.Tools.Handlers.Knowledge.KnowledgeRecall
   alias JidoCode.Tools.Handlers.Knowledge.KnowledgeSupersede
+  alias JidoCode.Tools.Handlers.Knowledge.KnowledgeUpdate
   alias JidoCode.Tools.Handlers.Knowledge.ProjectConventions
+  alias JidoCode.Tools.Handlers.Knowledge.ProjectDecisions
+  alias JidoCode.Tools.Handlers.Knowledge.ProjectRisks
 
   @moduletag :phase7
 
@@ -1000,11 +1003,14 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
     test "returns list of tool definitions" do
       tools = JidoCode.Tools.Definitions.Knowledge.all()
 
-      assert length(tools) == 4
+      assert length(tools) == 7
       assert Enum.any?(tools, fn t -> t.name == "knowledge_remember" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_recall" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_supersede" end)
+      assert Enum.any?(tools, fn t -> t.name == "knowledge_update" end)
       assert Enum.any?(tools, fn t -> t.name == "project_conventions" end)
+      assert Enum.any?(tools, fn t -> t.name == "project_decisions" end)
+      assert Enum.any?(tools, fn t -> t.name == "project_risks" end)
     end
   end
 
@@ -1383,6 +1389,610 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       {:ok, _} = KnowledgeRecall.execute(args, context)
 
       assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :recall], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert metadata.status == :success
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  # ============================================================================
+  # KnowledgeUpdate Handler Tests (Section 7.4.3)
+  # ============================================================================
+
+  describe "KnowledgeUpdate.execute/2" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create a memory to update
+      args = %{
+        "content" => "Original fact about the codebase",
+        "type" => "fact",
+        "confidence" => 0.7,
+        "rationale" => "Initial observation"
+      }
+
+      {:ok, json} = KnowledgeRemember.execute(args, context)
+      result = Jason.decode!(json)
+      memory_id = result["memory_id"]
+
+      {:ok, session_id: session_id, context: context, memory_id: memory_id}
+    end
+
+    test "updates confidence", %{context: context, memory_id: memory_id} do
+      args = %{
+        "memory_id" => memory_id,
+        "new_confidence" => 0.95
+      }
+
+      {:ok, json} = KnowledgeUpdate.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["id"] == memory_id
+      assert result["status"] == "updated"
+      assert result["confidence"] == 0.95
+    end
+
+    test "adds evidence refs", %{session_id: session_id, context: context, memory_id: memory_id} do
+      args = %{
+        "memory_id" => memory_id,
+        "add_evidence" => ["lib/module.ex", "test/module_test.exs"]
+      }
+
+      {:ok, json} = KnowledgeUpdate.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["status"] == "updated"
+      assert result["evidence_count"] == 2
+
+      # Verify the evidence was persisted
+      {:ok, memory} = Memory.get(session_id, memory_id)
+      assert "lib/module.ex" in memory.evidence_refs
+      assert "test/module_test.exs" in memory.evidence_refs
+    end
+
+    test "appends rationale", %{session_id: session_id, context: context, memory_id: memory_id} do
+      args = %{
+        "memory_id" => memory_id,
+        "add_rationale" => "Confirmed via code review"
+      }
+
+      {:ok, json} = KnowledgeUpdate.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["status"] == "updated"
+      assert result["rationale"] =~ "Initial observation"
+      assert result["rationale"] =~ "Confirmed via code review"
+
+      # Verify the rationale was persisted
+      {:ok, memory} = Memory.get(session_id, memory_id)
+      assert memory.rationale =~ "Initial observation"
+      assert memory.rationale =~ "Confirmed via code review"
+    end
+
+    test "validates ownership via session", %{memory_id: memory_id} do
+      # Different session should not be able to update this memory
+      different_session = Uniq.UUID.uuid4()
+      context = %{session_id: different_session}
+
+      args = %{
+        "memory_id" => memory_id,
+        "new_confidence" => 0.99
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, context)
+
+      assert message =~ "Memory not found"
+    end
+
+    test "validates confidence bounds", %{context: context, memory_id: memory_id} do
+      # Test confidence > 1.0
+      args = %{
+        "memory_id" => memory_id,
+        "new_confidence" => 1.5
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, context)
+      assert message =~ "Confidence must be between 0.0 and 1.0"
+
+      # Test confidence < 0.0
+      args_negative = %{
+        "memory_id" => memory_id,
+        "new_confidence" => -0.5
+      }
+
+      {:error, message_neg} = KnowledgeUpdate.execute(args_negative, context)
+      assert message_neg =~ "Confidence must be between 0.0 and 1.0"
+    end
+
+    test "handles non-existent memory", %{context: context} do
+      args = %{
+        "memory_id" => "mem-nonexistent12345",
+        "new_confidence" => 0.9
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, context)
+
+      assert message =~ "Memory not found"
+    end
+
+    test "requires at least one update", %{context: context, memory_id: memory_id} do
+      args = %{
+        "memory_id" => memory_id
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, context)
+
+      assert message =~ "At least one update"
+    end
+
+    test "requires session context" do
+      args = %{
+        "memory_id" => "mem-some-id",
+        "new_confidence" => 0.9
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, %{})
+
+      assert message =~ "requires a session context"
+    end
+
+    test "requires memory_id argument", %{context: context} do
+      args = %{
+        "new_confidence" => 0.9
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, context)
+
+      assert message =~ "memory_id is required"
+    end
+
+    test "combines multiple updates", %{session_id: session_id, context: context, memory_id: memory_id} do
+      args = %{
+        "memory_id" => memory_id,
+        "new_confidence" => 0.99,
+        "add_evidence" => ["docs/api.md"],
+        "add_rationale" => "Fully verified"
+      }
+
+      {:ok, json} = KnowledgeUpdate.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["status"] == "updated"
+      assert result["confidence"] == 0.99
+      assert result["evidence_count"] == 1
+      assert result["rationale"] =~ "Fully verified"
+
+      # Verify all updates persisted
+      {:ok, memory} = Memory.get(session_id, memory_id)
+      assert memory.confidence == 0.99
+      assert "docs/api.md" in memory.evidence_refs
+    end
+  end
+
+  # ============================================================================
+  # ProjectDecisions Handler Tests (Section 7.6.3)
+  # ============================================================================
+
+  describe "ProjectDecisions.execute/2" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Pre-populate some decisions
+      decisions = [
+        %{
+          "content" => "Use GenServer for state management",
+          "type" => "decision",
+          "confidence" => 0.9,
+          "rationale" => "OTP benefits"
+        },
+        %{
+          "content" => "Adopt Phoenix 1.7 for web layer",
+          "type" => "architectural_decision",
+          "confidence" => 0.95,
+          "rationale" => "Modern Elixir web framework"
+        },
+        %{
+          "content" => "Use ETS for caching",
+          "type" => "implementation_decision",
+          "confidence" => 0.85,
+          "rationale" => "Fast in-memory storage"
+        },
+        %{
+          "content" => "Considered Redis instead of ETS",
+          "type" => "alternative",
+          "confidence" => 0.7,
+          "rationale" => "External dependency, more complex"
+        }
+      ]
+
+      for decision <- decisions do
+        {:ok, _} = KnowledgeRemember.execute(decision, context)
+      end
+
+      {:ok, session_id: session_id, context: context}
+    end
+
+    test "retrieves all decisions", %{context: context} do
+      args = %{}
+
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should include decision, architectural_decision, implementation_decision
+      # but NOT alternative by default
+      assert result["count"] >= 3
+
+      # Should not include alternative type by default
+      types = Enum.map(result["decisions"], & &1["type"])
+      refute "alternative" in types
+    end
+
+    test "excludes superseded by default", %{session_id: session_id, context: context} do
+      # Create and supersede a decision
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Old decision to supersede",
+            "type" => "decision"
+          },
+          context
+        )
+
+      result1 = Jason.decode!(json1)
+      old_id = result1["memory_id"]
+
+      # Supersede it
+      :ok = Memory.supersede(session_id, old_id, nil)
+
+      # Query decisions
+      args = %{}
+      {:ok, json2} = ProjectDecisions.execute(args, context)
+      result2 = Jason.decode!(json2)
+
+      refute Enum.any?(result2["decisions"], fn d -> d["id"] == old_id end)
+    end
+
+    test "includes superseded when requested", %{session_id: session_id, context: context} do
+      # Create and supersede a decision
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Decision to be superseded for test",
+            "type" => "decision"
+          },
+          context
+        )
+
+      result1 = Jason.decode!(json1)
+      old_id = result1["memory_id"]
+
+      # Supersede it
+      :ok = Memory.supersede(session_id, old_id, nil)
+
+      # Query with include_superseded
+      args = %{"include_superseded" => true}
+      {:ok, json2} = ProjectDecisions.execute(args, context)
+      result2 = Jason.decode!(json2)
+
+      assert Enum.any?(result2["decisions"], fn d -> d["id"] == old_id end)
+    end
+
+    test "filters by decision type - architectural", %{context: context} do
+      args = %{"decision_type" => "architectural"}
+
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] >= 1
+
+      assert Enum.all?(result["decisions"], fn d ->
+               d["type"] == "architectural_decision"
+             end)
+    end
+
+    test "filters by decision type - implementation", %{context: context} do
+      args = %{"decision_type" => "implementation"}
+
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] >= 1
+
+      assert Enum.all?(result["decisions"], fn d ->
+               d["type"] == "implementation_decision"
+             end)
+    end
+
+    test "includes alternatives when requested", %{context: context} do
+      args = %{"include_alternatives" => true}
+
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      types = Enum.map(result["decisions"], & &1["type"]) |> Enum.uniq()
+      assert "alternative" in types
+    end
+
+    test "requires session context" do
+      args = %{}
+
+      {:error, message} = ProjectDecisions.execute(args, %{})
+
+      assert message =~ "requires a session context"
+    end
+
+    test "returns empty when no decisions exist" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+      args = %{}
+
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 0
+      assert result["decisions"] == []
+    end
+  end
+
+  # ============================================================================
+  # ProjectRisks Handler Tests (Section 7.7.3)
+  # ============================================================================
+
+  describe "ProjectRisks.execute/2" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Pre-populate some risks
+      risks = [
+        %{
+          "content" => "Memory leaks in long-running GenServers",
+          "type" => "risk",
+          "confidence" => 0.9,
+          "rationale" => "High severity, needs monitoring"
+        },
+        %{
+          "content" => "API rate limiting from external service",
+          "type" => "risk",
+          "confidence" => 0.7,
+          "rationale" => "Medium impact, can be mitigated"
+        },
+        %{
+          "content" => "Minor UI inconsistencies",
+          "type" => "risk",
+          "confidence" => 0.4,
+          "rationale" => "Low severity"
+        }
+      ]
+
+      for risk <- risks do
+        {:ok, _} = KnowledgeRemember.execute(risk, context)
+      end
+
+      {:ok, session_id: session_id, context: context}
+    end
+
+    test "retrieves all risks", %{context: context} do
+      # Set min_confidence to 0 to get all risks
+      args = %{"min_confidence" => 0}
+
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] >= 3
+
+      assert Enum.all?(result["risks"], fn r ->
+               r["type"] == "risk"
+             end)
+    end
+
+    test "filters by confidence threshold", %{context: context} do
+      args = %{"min_confidence" => 0.7}
+
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should include risks with confidence >= 0.7
+      assert result["count"] >= 2
+
+      assert Enum.all?(result["risks"], fn r ->
+               r["confidence"] >= 0.7
+             end)
+    end
+
+    test "sorts by confidence descending", %{context: context} do
+      args = %{"min_confidence" => 0}
+
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      confidences = Enum.map(result["risks"], & &1["confidence"])
+      assert confidences == Enum.sort(confidences, :desc)
+    end
+
+    test "excludes mitigated by default", %{session_id: session_id, context: context} do
+      # Create and supersede a risk (mitigate it)
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Risk that was mitigated",
+            "type" => "risk",
+            "confidence" => 0.8
+          },
+          context
+        )
+
+      result1 = Jason.decode!(json1)
+      old_id = result1["memory_id"]
+
+      # Supersede/mitigate it
+      :ok = Memory.supersede(session_id, old_id, nil)
+
+      # Query risks
+      args = %{"min_confidence" => 0}
+      {:ok, json2} = ProjectRisks.execute(args, context)
+      result2 = Jason.decode!(json2)
+
+      refute Enum.any?(result2["risks"], fn r -> r["id"] == old_id end)
+    end
+
+    test "includes mitigated when requested", %{session_id: session_id, context: context} do
+      # Create and supersede a risk (mitigate it)
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Risk that was mitigated for test",
+            "type" => "risk",
+            "confidence" => 0.8
+          },
+          context
+        )
+
+      result1 = Jason.decode!(json1)
+      old_id = result1["memory_id"]
+
+      # Supersede/mitigate it
+      :ok = Memory.supersede(session_id, old_id, nil)
+
+      # Query with include_mitigated
+      args = %{"include_mitigated" => true, "min_confidence" => 0}
+      {:ok, json2} = ProjectRisks.execute(args, context)
+      result2 = Jason.decode!(json2)
+
+      assert Enum.any?(result2["risks"], fn r -> r["id"] == old_id end)
+    end
+
+    test "requires session context" do
+      args = %{}
+
+      {:error, message} = ProjectRisks.execute(args, %{})
+
+      assert message =~ "requires a session context"
+    end
+
+    test "returns empty when no risks exist" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+      args = %{}
+
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 0
+      assert result["risks"] == []
+    end
+
+    test "uses default min_confidence of 0.5", %{context: context} do
+      # The low confidence risk (0.4) should be filtered out by default
+      args = %{}
+
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should not include the low confidence risk (0.4)
+      assert Enum.all?(result["risks"], fn r -> r["confidence"] >= 0.5 end)
+    end
+  end
+
+  # ============================================================================
+  # Phase 7C Telemetry Tests
+  # ============================================================================
+
+  describe "Phase 7C telemetry emission" do
+    test "emits telemetry for successful update" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create a memory first
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{"content" => "Memory for update telemetry test", "type" => "fact"},
+          context
+        )
+
+      result1 = Jason.decode!(json1)
+      memory_id = result1["memory_id"]
+
+      # Attach telemetry handler
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_update, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :update],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      # Execute update
+      args = %{"memory_id" => memory_id, "new_confidence" => 0.99}
+      {:ok, _} = KnowledgeUpdate.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :update], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert measurements.duration >= 0
+      assert metadata.status == :success
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for successful project_decisions" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_decisions, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :project_decisions],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{}
+      {:ok, _} = ProjectDecisions.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :project_decisions], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert metadata.status == :success
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for successful project_risks" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_risks, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :project_risks],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{}
+      {:ok, _} = ProjectRisks.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :project_risks], measurements, metadata}
       assert is_integer(measurements.duration)
       assert metadata.status == :success
       assert metadata.session_id == session_id

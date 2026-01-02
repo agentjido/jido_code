@@ -52,10 +52,10 @@ The canonical ontology is defined in TTL files:
 | `knowledge_remember` | P0 | Store new knowledge with ontology typing | ✅ Complete + Improved |
 | `knowledge_recall` | P0 | Query knowledge with semantic filters | ✅ Complete + Improved |
 | `knowledge_supersede` | P1 | Replace outdated knowledge | ✅ Complete |
-| `knowledge_update` | P2 | Update confidence/evidence on existing | ⬜ Initial |
+| `knowledge_update` | P2 | Update confidence/evidence on existing | ✅ Complete |
 | `project_conventions` | P1 | Get all conventions and standards | ✅ Complete |
-| `project_decisions` | P2 | Get architectural decisions | ⬜ Initial |
-| `project_risks` | P2 | Get known risks and issues | ⬜ Initial |
+| `project_decisions` | P2 | Get architectural decisions | ✅ Complete |
+| `project_risks` | P2 | Get known risks and issues | ✅ Complete |
 | `knowledge_graph_query` | P3 | Advanced relationship traversal | ⏸️ Deferred |
 | `knowledge_context` | P3 | Auto-retrieve relevant context | ⏸️ Deferred |
 
@@ -125,6 +125,28 @@ Based on code review findings, the following improvements were made to the P1 to
 **Test Count:** 69 → 95 tests (26 new tests added)
 **Summary Document:** `notes/summaries/2026-01-02-phase7b-improvements.md`
 **Review Document:** `notes/reviews/phase-7b-knowledge-tools-review.md`
+
+## Phase 7C Implementation (P2 Tools) ✅
+
+Phase 7C implements the P2 priority tools:
+
+| Tool | Description | Tests Added |
+|------|-------------|-------------|
+| `knowledge_update` | Update confidence/evidence on existing knowledge | 10 tests |
+| `project_decisions` | Query for decision-type memories | 8 tests |
+| `project_risks` | Query for risk-type memories | 8 tests |
+
+**Key Features:**
+- KnowledgeUpdate supports updating confidence, adding evidence, and appending rationale
+- ProjectDecisions supports filtering by decision_type and including alternatives
+- ProjectRisks sorts by confidence descending and supports include_mitigated
+
+**Memory Types Added:**
+- `:implementation_decision` - Low-to-medium level implementation choices
+- `:alternative` - Considered options that were not selected
+
+**Test Count:** 95 → 124 tests (29 new tests added)
+**Summary Document:** `notes/summaries/2026-01-02-phase7c-knowledge-tools.md`
 
 ## Memory Types (from TTL Ontology)
 
@@ -318,14 +340,14 @@ Mark knowledge as superseded and optionally create replacement.
 
 ---
 
-## 7.4 knowledge_update Tool (P2)
+## 7.4 knowledge_update Tool (P2) ✅
 
 Update confidence or add evidence to existing knowledge.
 
 ### 7.4.1 Tool Definition
 
-- [ ] Add `knowledge_update/0` to definitions
-- [ ] Define schema:
+- [x] Add `knowledge_update/0` to definitions
+- [x] Define schema:
   ```elixir
   %{
     name: "knowledge_update",
@@ -345,22 +367,22 @@ Update confidence or add evidence to existing knowledge.
 
 ### 7.4.2 Handler Implementation
 
-- [ ] Add `KnowledgeUpdate` handler module
-- [ ] Validate memory exists and owned by session
-- [ ] Update confidence if provided (validate 0.0-1.0)
-- [ ] Append evidence refs if provided
-- [ ] Append rationale if provided
-- [ ] Return updated memory summary
-- [ ] Emit telemetry `[:jido_code, :knowledge, :update]`
+- [x] Add `KnowledgeUpdate` handler module
+- [x] Validate memory exists and owned by session
+- [x] Update confidence if provided (validate 0.0-1.0)
+- [x] Append evidence refs if provided
+- [x] Append rationale if provided
+- [x] Return updated memory summary
+- [x] Emit telemetry `[:jido_code, :knowledge, :update]`
 
 ### 7.4.3 Unit Tests
 
-- [ ] Test updates confidence
-- [ ] Test adds evidence refs
-- [ ] Test appends rationale
-- [ ] Test validates ownership
-- [ ] Test validates confidence bounds
-- [ ] Test handles non-existent memory
+- [x] Test updates confidence
+- [x] Test adds evidence refs
+- [x] Test appends rationale
+- [x] Test validates ownership
+- [x] Test validates confidence bounds
+- [x] Test handles non-existent memory
 
 ---
 
@@ -410,14 +432,14 @@ Get all conventions and coding standards for the project.
 
 ---
 
-## 7.6 project_decisions Tool (P2)
+## 7.6 project_decisions Tool (P2) ✅
 
 Get architectural decisions with rationale.
 
 ### 7.6.1 Tool Definition
 
-- [ ] Add `project_decisions/0` to definitions
-- [ ] Define schema:
+- [x] Add `project_decisions/0` to definitions
+- [x] Define schema:
   ```elixir
   %{
     name: "project_decisions",
@@ -435,31 +457,31 @@ Get architectural decisions with rationale.
 
 ### 7.6.2 Handler Implementation
 
-- [ ] Add `ProjectDecisions` handler module
-- [ ] Query for types: [:decision, :architectural_decision, :implementation_decision]
-- [ ] Include/exclude superseded based on parameter
-- [ ] Optionally include :alternative type memories linked to decisions
-- [ ] Return with rationale field
-- [ ] Emit telemetry `[:jido_code, :knowledge, :project_decisions]`
+- [x] Add `ProjectDecisions` handler module
+- [x] Query for types: [:decision, :architectural_decision, :implementation_decision]
+- [x] Include/exclude superseded based on parameter
+- [x] Optionally include :alternative type memories linked to decisions
+- [x] Return with rationale field
+- [x] Emit telemetry `[:jido_code, :knowledge, :project_decisions]`
 
 ### 7.6.3 Unit Tests
 
-- [ ] Test retrieves decisions
-- [ ] Test excludes superseded by default
-- [ ] Test includes superseded when requested
-- [ ] Test filters by decision type
-- [ ] Test includes alternatives when requested
+- [x] Test retrieves decisions
+- [x] Test excludes superseded by default
+- [x] Test includes superseded when requested
+- [x] Test filters by decision type
+- [x] Test includes alternatives when requested
 
 ---
 
-## 7.7 project_risks Tool (P2)
+## 7.7 project_risks Tool (P2) ✅
 
 Get known risks and issues.
 
 ### 7.7.1 Tool Definition
 
-- [ ] Add `project_risks/0` to definitions
-- [ ] Define schema:
+- [x] Add `project_risks/0` to definitions
+- [x] Define schema:
   ```elixir
   %{
     name: "project_risks",
@@ -475,20 +497,20 @@ Get known risks and issues.
 
 ### 7.7.2 Handler Implementation
 
-- [ ] Add `ProjectRisks` handler module
-- [ ] Query for type: :risk
-- [ ] Filter by confidence threshold
-- [ ] Sort by confidence descending (highest risk first)
-- [ ] Support include_mitigated for superseded risks
-- [ ] Emit telemetry `[:jido_code, :knowledge, :project_risks]`
+- [x] Add `ProjectRisks` handler module
+- [x] Query for type: :risk
+- [x] Filter by confidence threshold
+- [x] Sort by confidence descending (highest risk first)
+- [x] Support include_mitigated for superseded risks
+- [x] Emit telemetry `[:jido_code, :knowledge, :project_risks]`
 
 ### 7.7.3 Unit Tests
 
-- [ ] Test retrieves risks
-- [ ] Test filters by confidence
-- [ ] Test sorts by confidence descending
-- [ ] Test excludes mitigated by default
-- [ ] Test includes mitigated when requested
+- [x] Test retrieves risks
+- [x] Test filters by confidence
+- [x] Test sorts by confidence descending
+- [x] Test excludes mitigated by default
+- [x] Test includes mitigated when requested
 
 ---
 
@@ -553,12 +575,12 @@ Get known risks and issues.
 | **knowledge_recall**: Query with filters + project_scope | P0 | ✅ Complete + Improved |
 | **knowledge_supersede**: Replace outdated knowledge | P1 | ✅ Complete + Improved |
 | **project_conventions**: List conventions/standards | P1 | ✅ Complete + Improved |
-| **knowledge_update**: Modify confidence/evidence | P2 | ⬜ Initial |
-| **project_decisions**: List decisions with rationale | P2 | ⬜ Initial |
-| **project_risks**: List risks by confidence | P2 | ⬜ Initial |
+| **knowledge_update**: Modify confidence/evidence | P2 | ✅ Complete |
+| **project_decisions**: List decisions with rationale | P2 | ✅ Complete |
+| **project_risks**: List risks by confidence | P2 | ✅ Complete |
 | **Cross-session queries**: project_scope=true works | P0 | ⬜ Initial |
 | **Session isolation**: Default queries session-scoped | P0 | ✅ Complete |
-| **Test coverage**: Minimum 80% | - | ✅ 95 tests |
+| **Test coverage**: Minimum 80% | - | ✅ 124 tests |
 | **knowledge_graph_query**: Traverse relationships | P3 | ⏸️ Deferred |
 | **knowledge_context**: Auto-relevance | P3 | ⏸️ Deferred |
 

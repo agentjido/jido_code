@@ -244,6 +244,8 @@ defmodule JidoCode.Memory.Types do
     :unknown,
     :decision,
     :architectural_decision,
+    :implementation_decision,
+    :alternative,
     :convention,
     :coding_standard,
     :lesson_learned

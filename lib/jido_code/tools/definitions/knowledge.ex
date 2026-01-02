@@ -10,7 +10,10 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
   - `knowledge_remember` - Store new knowledge with ontology typing
   - `knowledge_recall` - Query knowledge with semantic filters
   - `knowledge_supersede` - Mark knowledge as outdated and optionally replace
+  - `knowledge_update` - Update confidence or add evidence to existing knowledge
   - `project_conventions` - Retrieve project conventions and coding standards
+  - `project_decisions` - Retrieve architectural and implementation decisions
+  - `project_risks` - Retrieve known risks and potential issues
 
   ## Memory Types
 
@@ -76,7 +79,10 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
       knowledge_remember(),
       knowledge_recall(),
       knowledge_supersede(),
-      project_conventions()
+      knowledge_update(),
+      project_conventions(),
+      project_decisions(),
+      project_risks()
     ]
   end
 
@@ -322,6 +328,153 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
           name: "min_confidence",
           type: :number,
           description: "Minimum confidence threshold, 0.0 to 1.0 (default: 0.5)",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the knowledge_update tool definition.
+
+  Updates confidence level or adds evidence to existing knowledge without
+  replacing the entire memory. Use this to strengthen or weaken confidence
+  based on new information.
+
+  ## Parameters
+
+  - `memory_id` (required, string) - ID of the memory to update
+  - `new_confidence` (optional, float) - New confidence level (0.0-1.0)
+  - `add_evidence` (optional, array) - Evidence references to add
+  - `add_rationale` (optional, string) - Additional rationale to append
+
+  ## Output
+
+  Returns JSON with the updated memory's id, confidence, and rationale.
+  """
+  @spec knowledge_update() :: Tool.t()
+  def knowledge_update do
+    Tool.new!(%{
+      name: "knowledge_update",
+      description:
+        "Update confidence level or add evidence to existing knowledge. " <>
+          "Use this to strengthen or weaken confidence based on new information, " <>
+          "or to add supporting evidence without replacing the memory.",
+      handler: Handlers.KnowledgeUpdate,
+      parameters: [
+        %{
+          name: "memory_id",
+          type: :string,
+          description: "ID of the memory to update",
+          required: true
+        },
+        %{
+          name: "new_confidence",
+          type: :number,
+          description: "New confidence level, 0.0 to 1.0",
+          required: false
+        },
+        %{
+          name: "add_evidence",
+          type: :array,
+          description: "Evidence references to add (file paths, URLs, or memory IDs)",
+          required: false
+        },
+        %{
+          name: "add_rationale",
+          type: :string,
+          description: "Additional rationale to append to existing rationale",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the project_decisions tool definition.
+
+  Retrieves architectural and implementation decisions recorded for the project.
+  Decisions capture important choices made during development along with their
+  rationale.
+
+  ## Parameters
+
+  - `include_superseded` (optional, boolean) - Include superseded decisions (default: false)
+  - `decision_type` (optional, string) - Filter: architectural, implementation, or all
+  - `include_alternatives` (optional, boolean) - Include considered alternatives (default: false)
+
+  ## Output
+
+  Returns JSON with list of decisions including content, type, rationale, and confidence.
+  """
+  @spec project_decisions() :: Tool.t()
+  def project_decisions do
+    Tool.new!(%{
+      name: "project_decisions",
+      description:
+        "Retrieve architectural and implementation decisions for the project. " <>
+          "Use this to find past decisions, their rationale, and alternatives considered.",
+      handler: Handlers.ProjectDecisions,
+      parameters: [
+        %{
+          name: "include_superseded",
+          type: :boolean,
+          description: "Include superseded/outdated decisions (default: false)",
+          required: false
+        },
+        %{
+          name: "decision_type",
+          type: :string,
+          description:
+            "Filter by decision type: 'architectural' for high-level structural choices, " <>
+              "'implementation' for lower-level choices, or omit for all decisions.",
+          required: false
+        },
+        %{
+          name: "include_alternatives",
+          type: :boolean,
+          description: "Include alternative options that were considered (default: false)",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the project_risks tool definition.
+
+  Retrieves known risks and potential issues identified for the project.
+  Risks are sorted by confidence (severity/likelihood) in descending order.
+
+  ## Parameters
+
+  - `min_confidence` (optional, float) - Minimum confidence threshold (default: 0.5)
+  - `include_mitigated` (optional, boolean) - Include mitigated/superseded risks (default: false)
+
+  ## Output
+
+  Returns JSON with list of risks including content, confidence, and rationale.
+  """
+  @spec project_risks() :: Tool.t()
+  def project_risks do
+    Tool.new!(%{
+      name: "project_risks",
+      description:
+        "Retrieve known risks and potential issues for the project. " <>
+          "Use this to review identified risks, their severity, and mitigation status. " <>
+          "Risks are sorted by confidence (severity/likelihood) with highest first.",
+      handler: Handlers.ProjectRisks,
+      parameters: [
+        %{
+          name: "min_confidence",
+          type: :number,
+          description: "Minimum confidence threshold, 0.0 to 1.0 (default: 0.5)",
+          required: false
+        },
+        %{
+          name: "include_mitigated",
+          type: :boolean,
+          description: "Include mitigated/superseded risks (default: false)",
           required: false
         }
       ]

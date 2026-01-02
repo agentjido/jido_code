@@ -16,7 +16,10 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   - `KnowledgeRemember` - Stores new knowledge with ontology typing
   - `KnowledgeRecall` - Queries knowledge with semantic filters
   - `KnowledgeSupersede` - Marks knowledge as outdated, optionally replaces
+  - `KnowledgeUpdate` - Updates confidence/evidence on existing knowledge
   - `ProjectConventions` - Retrieves project conventions and standards
+  - `ProjectDecisions` - Retrieves architectural and implementation decisions
+  - `ProjectRisks` - Retrieves known risks and issues
 
   ## Usage
 
@@ -719,6 +722,342 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
     defp format_conventions(conventions) do
       Knowledge.format_memory_list(conventions, :conventions)
+    end
+  end
+
+  # ============================================================================
+  # KnowledgeUpdate Handler
+  # ============================================================================
+
+  defmodule KnowledgeUpdate do
+    @moduledoc """
+    Handler for updating existing knowledge in long-term memory.
+
+    Allows updating confidence levels and adding evidence or rationale to
+    existing memories without replacing the entire memory content.
+    """
+
+    alias JidoCode.Memory
+    alias JidoCode.Tools.Handlers.Knowledge
+
+    @doc """
+    Executes the knowledge_update tool.
+
+    ## Parameters
+
+    - `args` - Map containing:
+      - `"memory_id"` (required) - ID of the memory to update
+      - `"new_confidence"` (optional) - New confidence level 0.0-1.0
+      - `"add_evidence"` (optional) - Evidence references to add
+      - `"add_rationale"` (optional) - Additional rationale to append
+
+    - `context` - Map containing:
+      - `:session_id` (required) - Session identifier
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with updated memory summary
+    - `{:error, reason}` - Error message string
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(args, context) do
+      Knowledge.with_telemetry(:update, context, fn ->
+        do_execute(args, context)
+      end)
+    end
+
+    defp do_execute(args, context) do
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_update"),
+           {:ok, memory_id} <- Knowledge.get_required_string(args, "memory_id"),
+           {:ok, _} <- Knowledge.validate_memory_id(memory_id),
+           {:ok, memory} <- get_memory(session_id, memory_id),
+           {:ok, updates} <- validate_updates(args),
+           {:ok, updated_memory} <- apply_updates(memory, updates) do
+        # Re-persist the updated memory
+        case Memory.persist(updated_memory, session_id) do
+          {:ok, ^memory_id} ->
+            Knowledge.ok_json(%{
+              id: memory_id,
+              status: "updated",
+              confidence: updated_memory.confidence,
+              rationale: updated_memory.rationale,
+              evidence_count: length(updated_memory.evidence_refs)
+            })
+
+          {:error, reason} ->
+            {:error, "Failed to persist updated memory: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp get_memory(session_id, memory_id) do
+      case Memory.get(session_id, memory_id) do
+        {:ok, memory} -> {:ok, memory}
+        {:error, :not_found} -> {:error, "Memory not found: #{memory_id}"}
+        {:error, reason} -> {:error, "Failed to get memory: #{inspect(reason)}"}
+      end
+    end
+
+    defp validate_updates(args) do
+      updates = %{}
+
+      # Validate confidence if provided
+      updates =
+        case Map.get(args, "new_confidence") do
+          nil ->
+            updates
+
+          confidence when is_number(confidence) ->
+            if confidence >= 0.0 and confidence <= 1.0 do
+              Map.put(updates, :confidence, confidence)
+            else
+              {:error, "Confidence must be between 0.0 and 1.0"}
+            end
+
+          _ ->
+            {:error, "Confidence must be a number"}
+        end
+
+      # Check for error from confidence validation
+      case updates do
+        {:error, _} = error ->
+          error
+
+        updates ->
+          # Add evidence if provided
+          updates =
+            case Map.get(args, "add_evidence") do
+              nil -> updates
+              evidence when is_list(evidence) -> Map.put(updates, :add_evidence, evidence)
+              _ -> Map.put(updates, :add_evidence, [])
+            end
+
+          # Add rationale if provided
+          updates =
+            case Map.get(args, "add_rationale") do
+              nil -> updates
+              rationale when is_binary(rationale) -> Map.put(updates, :add_rationale, rationale)
+              _ -> updates
+            end
+
+          # Check that at least one update is provided
+          if map_size(updates) == 0 do
+            {:error, "At least one update (new_confidence, add_evidence, or add_rationale) is required"}
+          else
+            {:ok, updates}
+          end
+      end
+    end
+
+    defp apply_updates(memory, updates) do
+      updated_memory =
+        memory
+        |> normalize_timestamp()
+        |> maybe_update_confidence(Map.get(updates, :confidence))
+        |> maybe_add_evidence(Map.get(updates, :add_evidence))
+        |> maybe_append_rationale(Map.get(updates, :add_rationale))
+
+      {:ok, updated_memory}
+    end
+
+    # Convert timestamp back to created_at for persist compatibility
+    defp normalize_timestamp(memory) do
+      case Map.get(memory, :timestamp) do
+        nil -> memory
+        timestamp -> memory |> Map.put(:created_at, timestamp) |> Map.delete(:timestamp)
+      end
+    end
+
+    defp maybe_update_confidence(memory, nil), do: memory
+    defp maybe_update_confidence(memory, confidence), do: %{memory | confidence: confidence}
+
+    defp maybe_add_evidence(memory, nil), do: memory
+    defp maybe_add_evidence(memory, []), do: memory
+
+    defp maybe_add_evidence(memory, new_evidence) do
+      existing = Map.get(memory, :evidence_refs, [])
+      %{memory | evidence_refs: existing ++ new_evidence}
+    end
+
+    defp maybe_append_rationale(memory, nil), do: memory
+    defp maybe_append_rationale(memory, ""), do: memory
+
+    defp maybe_append_rationale(memory, new_rationale) do
+      existing = Map.get(memory, :rationale) || ""
+
+      updated_rationale =
+        if existing == "" do
+          new_rationale
+        else
+          "#{existing}\n\n#{new_rationale}"
+        end
+
+      %{memory | rationale: updated_rationale}
+    end
+  end
+
+  # ============================================================================
+  # ProjectDecisions Handler
+  # ============================================================================
+
+  defmodule ProjectDecisions do
+    @moduledoc """
+    Handler for retrieving project decisions.
+
+    Queries the knowledge graph for decision-type memories including
+    general decisions, architectural decisions, and implementation decisions.
+    """
+
+    alias JidoCode.Memory
+    alias JidoCode.Tools.Handlers.Knowledge
+
+    # Decision types from the ontology
+    @decision_types [:decision, :architectural_decision, :implementation_decision]
+
+    # Alternative type for considered options
+    @alternative_type :alternative
+
+    # Type mapping for filter
+    @type_filter %{
+      "architectural" => [:architectural_decision],
+      "implementation" => [:implementation_decision],
+      "all" => @decision_types
+    }
+
+    @doc """
+    Executes the project_decisions tool.
+
+    ## Parameters
+
+    - `args` - Map containing:
+      - `"include_superseded"` (optional) - Include superseded decisions (default: false)
+      - `"decision_type"` (optional) - Filter by type: architectural, implementation, all
+      - `"include_alternatives"` (optional) - Include considered alternatives (default: false)
+
+    - `context` - Map containing:
+      - `:session_id` (required) - Session identifier
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with list of decisions
+    - `{:error, reason}` - Error message string
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(args, context) do
+      Knowledge.with_telemetry(:project_decisions, context, fn ->
+        do_execute(args, context)
+      end)
+    end
+
+    defp do_execute(args, context) do
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "project_decisions") do
+        include_superseded = Map.get(args, "include_superseded", false)
+        include_alternatives = Map.get(args, "include_alternatives", false)
+        opts = [include_superseded: include_superseded]
+
+        # Get types to filter by based on decision_type parameter
+        filter_types = get_filter_types(Map.get(args, "decision_type"))
+
+        # Include alternative type if requested
+        filter_types =
+          if include_alternatives do
+            [@alternative_type | filter_types]
+          else
+            filter_types
+          end
+
+        case Memory.query(session_id, opts) do
+          {:ok, memories} ->
+            decisions =
+              memories
+              |> Enum.filter(fn memory -> memory.memory_type in filter_types end)
+              |> Enum.sort_by(& &1.confidence, :desc)
+
+            format_decisions(decisions)
+
+          {:error, reason} ->
+            {:error, "Failed to query decisions: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp get_filter_types(nil), do: @decision_types
+    defp get_filter_types(""), do: @decision_types
+
+    defp get_filter_types(type) when is_binary(type) do
+      type_lower = String.downcase(type)
+      Map.get(@type_filter, type_lower, @decision_types)
+    end
+
+    defp get_filter_types(_), do: @decision_types
+
+    defp format_decisions(decisions) do
+      Knowledge.format_memory_list(decisions, :decisions)
+    end
+  end
+
+  # ============================================================================
+  # ProjectRisks Handler
+  # ============================================================================
+
+  defmodule ProjectRisks do
+    @moduledoc """
+    Handler for retrieving project risks.
+
+    Queries the knowledge graph for risk-type memories, sorted by confidence
+    (severity/likelihood) in descending order.
+    """
+
+    alias JidoCode.Memory
+    alias JidoCode.Tools.Handlers.Knowledge
+
+    @doc """
+    Executes the project_risks tool.
+
+    ## Parameters
+
+    - `args` - Map containing:
+      - `"min_confidence"` (optional) - Minimum confidence threshold (default: 0.5)
+      - `"include_mitigated"` (optional) - Include mitigated/superseded risks (default: false)
+
+    - `context` - Map containing:
+      - `:session_id` (required) - Session identifier
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with list of risks
+    - `{:error, reason}` - Error message string
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(args, context) do
+      Knowledge.with_telemetry(:project_risks, context, fn ->
+        do_execute(args, context)
+      end)
+    end
+
+    defp do_execute(args, context) do
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "project_risks") do
+        min_confidence = Map.get(args, "min_confidence", 0.5)
+        include_mitigated = Map.get(args, "include_mitigated", false)
+        opts = [include_superseded: include_mitigated, min_confidence: min_confidence]
+
+        case Memory.query(session_id, opts) do
+          {:ok, memories} ->
+            risks =
+              memories
+              |> Enum.filter(fn memory -> memory.memory_type == :risk end)
+              |> Enum.sort_by(& &1.confidence, :desc)
+
+            format_risks(risks)
+
+          {:error, reason} ->
+            {:error, "Failed to query risks: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp format_risks(risks) do
+      Knowledge.format_memory_list(risks, :risks)
     end
   end
 

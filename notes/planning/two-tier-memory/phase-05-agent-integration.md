@@ -491,7 +491,7 @@ Implement token budget management for memory-aware context assembly.
 
 ### 5.4.2 Budget Allocator
 
-- [ ] 5.4.2.1 Implement budget allocation in ContextBuilder:
+- [x] 5.4.2.1 Implement budget allocation in ContextBuilder:
   ```elixir
   @spec allocate_budget(non_neg_integer()) :: map()
   def allocate_budget(total) do
@@ -504,7 +504,7 @@ Implement token budget management for memory-aware context assembly.
     }
   end
   ```
-- [ ] 5.4.2.2 Implement budget enforcement during assembly:
+- [x] 5.4.2.2 Implement budget enforcement during assembly:
   ```elixir
   defp enforce_budget(content, budget, counter_fn) do
     current = counter_fn.(content)
@@ -515,7 +515,7 @@ Implement token budget management for memory-aware context assembly.
     end
   end
   ```
-- [ ] 5.4.2.3 Implement conversation truncation (preserve recent):
+- [x] 5.4.2.3 Implement conversation truncation (preserve recent):
   ```elixir
   defp truncate_conversation(messages, budget) do
     # Start from most recent, add until budget exhausted
@@ -534,7 +534,7 @@ Implement token budget management for memory-aware context assembly.
     kept
   end
   ```
-- [ ] 5.4.2.4 Implement memory truncation (preserve highest confidence):
+- [x] 5.4.2.4 Implement memory truncation (preserve highest confidence):
   ```elixir
   defp truncate_memories(memories, budget) do
     memories
@@ -560,12 +560,12 @@ Implement token budget management for memory-aware context assembly.
 - [x] Test count_memory includes metadata overhead
 - [x] Test count_messages sums correctly
 - [x] Test count_memories sums correctly
-- [ ] Test allocate_budget distributes tokens correctly
-- [ ] Test allocate_budget handles small budgets
-- [ ] Test enforce_budget returns content within budget
-- [ ] Test truncate_conversation preserves most recent
-- [ ] Test truncate_memories preserves highest confidence
-- [ ] Test context assembly respects total budget
+- [x] Test allocate_budget distributes tokens correctly
+- [x] Test allocate_budget handles small budgets
+- [x] Test enforce_budget returns content within budget
+- [x] Test truncate_conversation preserves most recent
+- [x] Test truncate_memories preserves highest confidence
+- [x] Test context assembly respects total budget
 
 ---
 

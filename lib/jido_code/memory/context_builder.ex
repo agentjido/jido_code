@@ -51,6 +51,7 @@ defmodule JidoCode.Memory.ContextBuilder do
   require Logger
 
   alias JidoCode.Memory
+  alias JidoCode.Memory.TokenCounter
   alias JidoCode.Memory.Types
   alias JidoCode.Session.State
 
@@ -140,6 +141,52 @@ defmodule JidoCode.Memory.ContextBuilder do
   """
   @spec chars_per_token() :: pos_integer()
   def chars_per_token, do: @chars_per_token
+
+  @doc """
+  Allocates a token budget based on a total token count.
+
+  Distributes tokens across context components with the following ratios:
+  - `system`: ~6% (capped at 2,000)
+  - `conversation`: ~62.5%
+  - `working`: ~12.5%
+  - `long_term`: ~19%
+
+  These ratios prioritize conversation history as the primary context source,
+  with working context and long-term memories providing supplementary information.
+
+  ## Parameters
+
+  - `total` - Total tokens to allocate
+
+  ## Returns
+
+  A token budget map with allocations for each component.
+
+  ## Examples
+
+      iex> ContextBuilder.allocate_budget(32_000)
+      %{total: 32_000, system: 2_000, conversation: 20_000, working: 4_000, long_term: 6_000}
+
+      iex> ContextBuilder.allocate_budget(16_000)
+      %{total: 16_000, system: 1_000, conversation: 10_000, working: 2_000, long_term: 3_000}
+
+  """
+  @spec allocate_budget(pos_integer()) :: token_budget()
+  def allocate_budget(total) when is_integer(total) and total > 0 do
+    %{
+      total: total,
+      # ~6% but capped at 2,000
+      system: min(2_000, div(total, 16)),
+      # ~62.5%
+      conversation: div(total * 5, 8),
+      # ~12.5%
+      working: div(total, 8),
+      # ~19%
+      long_term: div(total * 3, 16)
+    }
+  end
+
+  def allocate_budget(_), do: @default_budget
 
   @doc """
   Validates a token budget map.
@@ -362,10 +409,11 @@ defmodule JidoCode.Memory.ContextBuilder do
   defp truncate_messages_to_budget(messages, budget) do
     # Keep most recent messages that fit within budget
     # Process in reverse to prioritize recent messages
+    # Uses TokenCounter for consistent token estimation
     messages
     |> Enum.reverse()
     |> Enum.reduce_while({[], 0}, fn msg, {acc, tokens} ->
-      msg_tokens = estimate_message_tokens(msg)
+      msg_tokens = TokenCounter.count_message(msg)
 
       if tokens + msg_tokens <= budget do
         {:cont, {[msg | acc], tokens + msg_tokens}}
@@ -377,12 +425,13 @@ defmodule JidoCode.Memory.ContextBuilder do
   end
 
   defp truncate_memories_to_budget(memories, budget) do
-    # Keep memories that fit within budget
-    # Already ordered by relevance from the query
-    # Use prepend + reverse for O(n) instead of O(n²) with ++
+    # Keep highest confidence memories that fit within budget
+    # Sort by confidence (descending) to preserve most reliable memories
+    # Uses TokenCounter for consistent token estimation
     memories
+    |> Enum.sort_by(&Map.get(&1, :confidence, 0), :desc)
     |> Enum.reduce_while({[], 0}, fn mem, {acc, tokens} ->
-      mem_tokens = estimate_memory_tokens(mem)
+      mem_tokens = TokenCounter.count_memory(mem)
 
       if tokens + mem_tokens <= budget do
         {:cont, {[mem | acc], tokens + mem_tokens}}
@@ -399,47 +448,15 @@ defmodule JidoCode.Memory.ContextBuilder do
   # =============================================================================
 
   defp estimate_conversation_tokens(messages) do
-    Enum.reduce(messages, 0, fn msg, acc ->
-      acc + estimate_message_tokens(msg)
-    end)
-  end
-
-  defp estimate_message_tokens(msg) do
-    content = Map.get(msg, :content, "")
-    role = Map.get(msg, :role, :user)
-
-    # Add overhead for message structure
-    role_overhead = String.length(Atom.to_string(role)) + 10
-    content_tokens = estimate_tokens(content)
-
-    div(role_overhead, @chars_per_token) + content_tokens
+    TokenCounter.count_messages(messages)
   end
 
   defp estimate_working_tokens(working) do
-    working
-    |> Enum.reduce(0, fn {key, value}, acc ->
-      key_tokens = estimate_tokens(format_key(key))
-      value_tokens = estimate_tokens(format_value(value))
-      acc + key_tokens + value_tokens + 5
-    end)
+    TokenCounter.count_working_context(working)
   end
 
   defp estimate_memories_tokens(memories) do
-    Enum.reduce(memories, 0, fn mem, acc ->
-      acc + estimate_memory_tokens(mem)
-    end)
-  end
-
-  defp estimate_memory_tokens(mem) do
-    content = Map.get(mem, :content, "")
-    type = Map.get(mem, :memory_type, :unknown)
-
-    # Add overhead for formatting (type badge, confidence badge, bullet)
-    overhead = 30
-    content_tokens = estimate_tokens(content)
-    type_tokens = estimate_tokens(Atom.to_string(type))
-
-    content_tokens + type_tokens + div(overhead, @chars_per_token)
+    TokenCounter.count_memories(memories)
   end
 
   # =============================================================================

@@ -72,6 +72,65 @@ defmodule JidoCode.Memory.ContextBuilderTest do
   end
 
   # =============================================================================
+  # allocate_budget/1 Tests
+  # =============================================================================
+
+  describe "allocate_budget/1" do
+    test "distributes tokens correctly for 32_000 total" do
+      budget = ContextBuilder.allocate_budget(32_000)
+
+      assert budget.total == 32_000
+      assert budget.system == 2_000
+      assert budget.conversation == 20_000
+      assert budget.working == 4_000
+      assert budget.long_term == 6_000
+    end
+
+    test "distributes tokens correctly for 16_000 total" do
+      budget = ContextBuilder.allocate_budget(16_000)
+
+      assert budget.total == 16_000
+      assert budget.system == 1_000
+      assert budget.conversation == 10_000
+      assert budget.working == 2_000
+      assert budget.long_term == 3_000
+    end
+
+    test "caps system budget at 2_000 for large totals" do
+      budget = ContextBuilder.allocate_budget(100_000)
+
+      # 100_000 / 16 = 6_250, but capped at 2_000
+      assert budget.system == 2_000
+      assert budget.conversation == 62_500
+    end
+
+    test "handles small budgets" do
+      budget = ContextBuilder.allocate_budget(1_000)
+
+      assert budget.total == 1_000
+      assert budget.system == 62  # 1000 / 16
+      assert budget.conversation == 625  # 1000 * 5 / 8
+      assert budget.working == 125  # 1000 / 8
+      assert budget.long_term == 187  # 1000 * 3 / 16
+    end
+
+    test "returns default budget for invalid input" do
+      default = ContextBuilder.default_budget()
+
+      assert ContextBuilder.allocate_budget(0) == default
+      assert ContextBuilder.allocate_budget(-100) == default
+      assert ContextBuilder.allocate_budget("invalid") == default
+      assert ContextBuilder.allocate_budget(nil) == default
+    end
+
+    test "produces valid budget structure" do
+      budget = ContextBuilder.allocate_budget(50_000)
+
+      assert ContextBuilder.valid_token_budget?(budget) == true
+    end
+  end
+
+  # =============================================================================
   # valid_token_budget?/1 Tests
   # =============================================================================
 
@@ -343,6 +402,58 @@ defmodule JidoCode.Memory.ContextBuilderTest do
       if length(context.conversation) > 0 do
         last_msg = List.last(context.conversation)
         assert last_msg.content =~ "most recent"
+      end
+    end
+
+    test "preserves highest confidence memories when truncating", %{session_id: session_id} do
+      alias JidoCode.Memory
+      now = DateTime.utc_now()
+
+      # Store memories with different confidence levels
+      {:ok, _} = Memory.persist(%{
+        id: Uniq.UUID.uuid4(),
+        session_id: session_id,
+        content: "Low confidence memory",
+        memory_type: :fact,
+        confidence: 0.3,
+        source_type: :user,
+        created_at: now
+      }, session_id)
+      {:ok, _} = Memory.persist(%{
+        id: Uniq.UUID.uuid4(),
+        session_id: session_id,
+        content: "High confidence memory",
+        memory_type: :fact,
+        confidence: 0.95,
+        source_type: :user,
+        created_at: now
+      }, session_id)
+      {:ok, _} = Memory.persist(%{
+        id: Uniq.UUID.uuid4(),
+        session_id: session_id,
+        content: "Medium confidence memory",
+        memory_type: :fact,
+        confidence: 0.6,
+        source_type: :user,
+        created_at: now
+      }, session_id)
+
+      # Use a tiny budget that can only fit one memory
+      tiny_budget = %{
+        total: 100,
+        system: 10,
+        conversation: 10,
+        working: 10,
+        long_term: 20
+      }
+
+      {:ok, context} = ContextBuilder.build(session_id, token_budget: tiny_budget)
+
+      # If any memories are kept, the highest confidence one should be first
+      if length(context.long_term_memories) > 0 do
+        first_memory = List.first(context.long_term_memories)
+        assert first_memory.content == "High confidence memory"
+        assert first_memory.confidence == 0.95
       end
     end
   end

@@ -53,6 +53,9 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   The StoreManager can be configured with:
   - `base_path` - Directory for store files (default: `~/.jido_code/memory_stores`)
   - `name` - GenServer name for registration (default: `__MODULE__`)
+  - `max_open_stores` - Maximum number of open stores before LRU eviction (default: 100)
+  - `idle_timeout_ms` - Time in ms before idle stores are closed (default: 30 minutes)
+  - `cleanup_interval_ms` - Interval for idle cleanup timer (default: 5 minutes)
 
   """
 
@@ -107,8 +110,16 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   # =============================================================================
 
   @default_base_path "~/.jido_code/memory_stores"
+  @default_max_open_stores 100
+  @default_idle_timeout_ms :timer.minutes(30)
+  @default_cleanup_interval_ms :timer.minutes(5)
+  @close_timeout_ms 5_000
+
   @default_config %{
-    create_if_missing: true
+    create_if_missing: true,
+    max_open_stores: @default_max_open_stores,
+    idle_timeout_ms: @default_idle_timeout_ms,
+    cleanup_interval_ms: @default_cleanup_interval_ms
   }
 
   # =============================================================================
@@ -122,12 +133,16 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   - `:base_path` - Base directory for store files (default: `~/.jido_code/memory_stores`)
   - `:name` - GenServer name (default: `#{__MODULE__}`)
-  - `:config` - Additional configuration options
+  - `:config` - Configuration map with:
+    - `:max_open_stores` - Maximum stores before LRU eviction (default: 100)
+    - `:idle_timeout_ms` - Idle time before auto-close (default: 30 min)
+    - `:cleanup_interval_ms` - Cleanup check interval (default: 5 min)
 
   ## Examples
 
       {:ok, pid} = StoreManager.start_link()
       {:ok, pid} = StoreManager.start_link(base_path: "/tmp/stores")
+      {:ok, pid} = StoreManager.start_link(config: %{max_open_stores: 50})
 
   """
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -198,7 +213,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   """
   @spec health(String.t(), GenServer.server()) ::
-          {:ok, :healthy} | {:error, :not_found | :unhealthy | term()}
+          {:ok, :healthy} | {:error, :not_found | {:unhealthy, term()} | term()}
   def health(session_id, server \\ __MODULE__) do
     GenServer.call(server, {:health, session_id})
   end
@@ -280,13 +295,17 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   @impl true
   def init(opts) do
     base_path = Keyword.get(opts, :base_path, @default_base_path)
-    config = Keyword.get(opts, :config, @default_config)
+    user_config = Keyword.get(opts, :config, %{})
+    config = Map.merge(@default_config, user_config)
 
-    expanded_path = expand_path(base_path)
+    expanded_path = Path.expand(base_path)
 
     # Ensure base directory exists
-    case ensure_directory(expanded_path) do
+    case File.mkdir_p(expanded_path) do
       :ok ->
+        # Schedule periodic idle cleanup
+        schedule_cleanup(config.cleanup_interval_ms)
+
         state = %{
           stores: %{},
           base_path: expanded_path,
@@ -303,11 +322,14 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   @impl true
   def handle_call({:get_or_create, session_id}, _from, state) do
     # Validate session ID to prevent atom exhaustion and path traversal attacks
-    if not Types.valid_session_id?(session_id) do
+    unless Types.valid_session_id?(session_id) do
       {:reply, {:error, :invalid_session_id}, state}
     else
       case Map.get(state.stores, session_id) do
         nil ->
+          # Evict LRU stores if at capacity
+          state = maybe_evict_lru(state)
+
           case open_store(session_id, state) do
             {:ok, store_ref, metadata} ->
               entry = %{store: store_ref, metadata: metadata}
@@ -318,12 +340,9 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
               {:reply, {:error, reason}, state}
           end
 
-        %{store: store_ref} = entry ->
-          # Update last accessed time
-          updated_metadata = %{entry.metadata | last_accessed: DateTime.utc_now()}
-          updated_entry = %{entry | metadata: updated_metadata}
-          new_stores = Map.put(state.stores, session_id, updated_entry)
-          {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
+        entry ->
+          {store_ref, new_state} = touch_last_accessed(state, session_id, entry)
+          {:reply, {:ok, store_ref}, new_state}
       end
     end
   end
@@ -334,12 +353,9 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
       nil ->
         {:reply, {:error, :not_found}, state}
 
-      %{store: store_ref} = entry ->
-        # Update last accessed time
-        updated_metadata = %{entry.metadata | last_accessed: DateTime.utc_now()}
-        updated_entry = %{entry | metadata: updated_metadata}
-        new_stores = Map.put(state.stores, session_id, updated_entry)
-        {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
+      entry ->
+        {store_ref, new_state} = touch_last_accessed(state, session_id, entry)
+        {:reply, {:ok, store_ref}, new_state}
     end
   end
 
@@ -358,12 +374,13 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
         {:reply, {:error, :not_found}, state}
 
       %{store: store_ref} ->
-        case TripleStore.health(store_ref) do
-          {:ok, %{status: :healthy}} -> {:reply, {:ok, :healthy}, state}
-          {:ok, %{status: status}} -> {:reply, {:error, {:unhealthy, status}}, state}
-          {:ok, :healthy} -> {:reply, {:ok, :healthy}, state}
-          {:ok, status} when is_map(status) -> {:reply, {:ok, :healthy}, state}
-          {:error, reason} -> {:reply, {:error, reason}, state}
+        # TripleStore.health/1 returns {:ok, %{status: :healthy | :degraded | :unhealthy, ...}}
+        {:ok, %{status: status}} = TripleStore.health(store_ref)
+
+        if status == :healthy do
+          {:reply, {:ok, :healthy}, state}
+        else
+          {:reply, {:error, {:unhealthy, status}}, state}
         end
     end
   end
@@ -383,10 +400,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   @impl true
   def handle_call(:close_all, _from, state) do
-    Enum.each(state.stores, fn {_session_id, %{store: store_ref}} ->
-      close_store(store_ref)
-    end)
-
+    close_all_stores(state.stores)
     {:reply, :ok, %{state | stores: %{}}}
   end
 
@@ -407,19 +421,22 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   end
 
   @impl true
+  def handle_info(:cleanup_idle_stores, state) do
+    new_state = cleanup_idle_stores(state)
+    schedule_cleanup(state.config.cleanup_interval_ms)
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_info(msg, state) do
-    Logger.warning("StoreManager received unexpected message: #{inspect(msg)}")
+    Logger.warning("StoreManager received unexpected message: #{inspect(msg, limit: 50)}")
     {:noreply, state}
   end
 
   @impl true
   def terminate(reason, state) do
-    Logger.debug("StoreManager terminating: #{inspect(reason)}")
-
-    Enum.each(state.stores, fn {_session_id, %{store: store_ref}} ->
-      close_store(store_ref)
-    end)
-
+    Logger.info("StoreManager terminating: #{inspect(reason)}, closing #{map_size(state.stores)} stores")
+    close_all_stores_with_timeout(state.stores)
     :ok
   end
 
@@ -433,35 +450,23 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
     Path.join(base_path, "session_" <> session_id)
   end
 
-  defp expand_path(path) do
-    path
-    |> Path.expand()
-  end
-
-  defp ensure_directory(path) do
-    case File.mkdir_p(path) do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  # ---------------------------------------------------------------------------
+  # Store Lifecycle
+  # ---------------------------------------------------------------------------
 
   defp open_store(session_id, state) do
-    # Create session-specific directory for the TripleStore
     session_path = store_path(state.base_path, session_id)
 
-    # Verify path containment - ensure resolved path is within base_path
-    # This is a defense-in-depth measure (session_id is already validated)
+    # Verify path containment - defense-in-depth (session_id is already validated)
     resolved_path = Path.expand(session_path)
     base_expanded = Path.expand(state.base_path)
 
-    if not String.starts_with?(resolved_path, base_expanded <> "/") and
-         resolved_path != base_expanded do
+    unless String.starts_with?(resolved_path, base_expanded <> "/") or
+             resolved_path == base_expanded do
       {:error, :path_traversal_detected}
     else
-      # Open TripleStore with RocksDB backend
       case TripleStore.open(session_path, create_if_missing: true) do
         {:ok, store} ->
-          # Ensure ontology is loaded
           case ensure_ontology_loaded(store) do
             :ok ->
               now = DateTime.utc_now()
@@ -472,17 +477,16 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
                 ontology_loaded: true
               }
 
-              Logger.debug("Opened TripleStore for session #{session_id} at #{session_path}")
+              Logger.debug("Opened TripleStore for session #{session_id}")
               {:ok, store, metadata}
 
             {:error, reason} ->
-              # Close the store if ontology loading fails
               TripleStore.close(store)
               {:error, {:ontology_load_failed, reason}}
           end
 
         {:error, reason} ->
-          Logger.error("Failed to open TripleStore for session #{session_id}: #{inspect(reason)}")
+          Logger.error("Failed to open TripleStore for session #{session_id}: #{inspect(reason, limit: 50)}")
           {:error, {:store_open_failed, reason}}
       end
     end
@@ -501,12 +505,118 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   defp close_store(store_ref) do
     case TripleStore.close(store_ref) do
-      :ok ->
-        :ok
-
+      :ok -> :ok
       {:error, reason} ->
-        Logger.warning("Error closing TripleStore: #{inspect(reason)}")
+        Logger.warning("Error closing TripleStore: #{inspect(reason, limit: 50)}")
         :ok
     end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Store Collection Helpers
+  # ---------------------------------------------------------------------------
+
+  defp close_all_stores(stores) do
+    Enum.each(stores, fn {_session_id, %{store: store_ref}} ->
+      close_store(store_ref)
+    end)
+  end
+
+  defp close_all_stores_with_timeout(stores) do
+    # Close stores in parallel with timeouts
+    tasks =
+      Enum.map(stores, fn {session_id, %{store: store_ref}} ->
+        {session_id, Task.async(fn -> TripleStore.close(store_ref) end)}
+      end)
+
+    results =
+      Enum.map(tasks, fn {session_id, task} ->
+        result = Task.yield(task, @close_timeout_ms) || Task.shutdown(task)
+        {session_id, result}
+      end)
+
+    failed = Enum.filter(results, fn {_, result} -> result != {:ok, :ok} end)
+
+    if failed != [] do
+      Logger.warning("Some stores failed to close cleanly: #{inspect(Enum.map(failed, &elem(&1, 0)))}")
+    end
+
+    :ok
+  end
+
+  # ---------------------------------------------------------------------------
+  # State Helpers
+  # ---------------------------------------------------------------------------
+
+  defp touch_last_accessed(state, session_id, entry) do
+    updated_metadata = %{entry.metadata | last_accessed: DateTime.utc_now()}
+    updated_entry = %{entry | metadata: updated_metadata}
+    new_stores = Map.put(state.stores, session_id, updated_entry)
+    {entry.store, %{state | stores: new_stores}}
+  end
+
+  # ---------------------------------------------------------------------------
+  # LRU Eviction
+  # ---------------------------------------------------------------------------
+
+  defp maybe_evict_lru(state) do
+    max_stores = state.config.max_open_stores
+
+    if map_size(state.stores) >= max_stores do
+      evict_lru_store(state)
+    else
+      state
+    end
+  end
+
+  defp evict_lru_store(state) do
+    # Find the store with the oldest last_accessed timestamp
+    case find_lru_session(state.stores) do
+      nil ->
+        state
+
+      {session_id, %{store: store_ref}} ->
+        Logger.info("Evicting LRU store for session #{session_id}")
+        close_store(store_ref)
+        %{state | stores: Map.delete(state.stores, session_id)}
+    end
+  end
+
+  defp find_lru_session(stores) when map_size(stores) == 0, do: nil
+
+  defp find_lru_session(stores) do
+    Enum.min_by(stores, fn {_id, %{metadata: %{last_accessed: ts}}} ->
+      DateTime.to_unix(ts, :microsecond)
+    end)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Idle Cleanup
+  # ---------------------------------------------------------------------------
+
+  defp schedule_cleanup(interval_ms) do
+    Process.send_after(self(), :cleanup_idle_stores, interval_ms)
+  end
+
+  defp cleanup_idle_stores(state) do
+    idle_timeout_ms = state.config.idle_timeout_ms
+    now = DateTime.utc_now()
+    threshold = DateTime.add(now, -idle_timeout_ms, :millisecond)
+
+    {idle, active} =
+      Enum.split_with(state.stores, fn {_id, %{metadata: %{last_accessed: ts}}} ->
+        DateTime.compare(ts, threshold) == :lt
+      end)
+
+    if idle != [] do
+      idle_ids = Enum.map(idle, fn {id, _} -> id end)
+      Logger.info("Closing #{length(idle)} idle stores: #{inspect(idle_ids)}")
+
+      Enum.each(idle, fn {_id, %{store: store_ref}} ->
+        close_store(store_ref)
+      end)
+    end
+
+    %{state | stores: Map.new(active)}
   end
 end

@@ -267,6 +267,22 @@ lib/jido_code/memory/
 - 37 tests pass for StoreManager with TripleStore backend
 - Note: TripleStoreAdapter (Section 7.5) still uses ETS and needs refactoring
 
+### 7.4.5 Post-Review Improvements (2026-01-02)
+
+Based on code review, the following improvements were implemented:
+
+- [x] Fixed health spec type mismatch (`{:unhealthy, status}` instead of `:unhealthy`)
+- [x] Added `max_open_stores` configuration with LRU eviction (default: 100)
+- [x] Added idle cleanup timer (`idle_timeout_ms`, `cleanup_interval_ms`)
+- [x] Extracted `touch_last_accessed/3` helper to reduce duplication
+- [x] Extracted `close_all_stores/1` and `close_all_stores_with_timeout/1` helpers
+- [x] Fixed `if not` anti-pattern to use `unless`
+- [x] Added timeout handling in `terminate/2` with parallel Task closing
+- [x] Inlined `expand_path/1` wrapper function
+- [x] Added test helpers (`unique_session_id/1`, `extract_rdf_value/1`, `@sparql_prefixes`)
+- [x] Added 6 new tests for LRU eviction, idle cleanup, and configuration
+- 43 tests pass for StoreManager (was 37)
+
 ---
 
 ## 7.5 Refactor TripleStoreAdapter

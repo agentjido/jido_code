@@ -68,7 +68,11 @@ defmodule JidoCode.Application do
 
       # ARCH-1 Fix: Task.Supervisor for monitored async tasks
       # Used by LLMAgent for chat operations to prevent silent failures
+      # Must start before BackgroundShell which uses it
       {Task.Supervisor, name: JidoCode.TaskSupervisor},
+
+      # Background shell manager for long-running processes
+      JidoCode.Tools.BackgroundShell,
 
       # DynamicSupervisor for agent processes
       JidoCode.AgentSupervisor,

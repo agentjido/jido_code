@@ -356,4 +356,91 @@ defmodule JidoCode.Tools.Handlers.Shell do
     defp maybe_truncate(output) when is_binary(output), do: output
     defp maybe_truncate(_), do: ""
   end
+
+  # ============================================================================
+  # BashBackground Handler
+  # ============================================================================
+
+  defmodule BashBackground do
+    @moduledoc """
+    Handler for the bash_background tool.
+
+    Starts a command in the background, returning a shell_id that can be used
+    to retrieve output later via bash_output or terminate the process via kill_shell.
+
+    Uses session-aware project root via `HandlerHelpers.get_project_root/1`.
+    """
+
+    alias JidoCode.Tools.BackgroundShell
+    alias JidoCode.Tools.Handlers.Shell
+
+    @doc """
+    Starts a background command.
+
+    ## Arguments
+
+    - `"command"` - Command to execute (must be in allowlist)
+    - `"args"` - Command arguments (optional, default: [])
+    - `"description"` - Optional description for tracking
+
+    ## Context
+
+    - `:session_id` - Session ID for process tracking (required)
+    - `:project_root` - Direct project root path (legacy)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with shell_id and description
+    - `{:error, reason}` - Error message
+
+    ## Security
+
+    - Command must be in the allowed commands list
+    - Shell interpreters (bash, sh, etc.) are blocked
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"command" => command} = args, context) when is_binary(command) do
+      start_time = System.monotonic_time(:microsecond)
+
+      with {:ok, session_id} <- get_session_id(context),
+           {:ok, project_root} <- Shell.get_project_root(context),
+           raw_args <- Map.get(args, "args", []),
+           cmd_args <- parse_args(raw_args),
+           description <- Map.get(args, "description"),
+           {:ok, shell_id} <-
+             BackgroundShell.start_command(command, cmd_args, session_id, project_root,
+               description: description
+             ) do
+        Shell.emit_shell_telemetry(:bash_background, start_time, command, context, :ok, 0)
+
+        result = %{
+          shell_id: shell_id,
+          description: description || "Background: #{command} #{Enum.join(cmd_args, " ")}"
+        }
+
+        {:ok, Jason.encode!(result)}
+      else
+        {:error, :no_session_id} ->
+          {:error, "bash_background requires a session context"}
+
+        {:error, reason} when is_binary(reason) ->
+          Shell.emit_shell_telemetry(:bash_background, start_time, command, context, :error, -1)
+          {:error, reason}
+
+        {:error, reason} ->
+          Shell.emit_shell_telemetry(:bash_background, start_time, command, context, :error, -1)
+          {:error, Shell.format_error(reason, command)}
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "bash_background requires a command argument"}
+    end
+
+    defp get_session_id(%{session_id: session_id}) when is_binary(session_id), do: {:ok, session_id}
+    defp get_session_id(_), do: {:error, :no_session_id}
+
+    defp parse_args(args) when is_list(args), do: Enum.map(args, &to_string/1)
+    defp parse_args(_args), do: []
+  end
 end

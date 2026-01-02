@@ -42,7 +42,8 @@ defmodule JidoCode.Tools.Definitions.Shell do
   @spec all() :: [Tool.t()]
   def all do
     [
-      run_command()
+      run_command(),
+      bash_background()
     ]
   end
 
@@ -99,6 +100,62 @@ defmodule JidoCode.Tools.Definitions.Shell do
           name: "timeout",
           type: :integer,
           description: "Timeout in milliseconds (default: 25000, i.e., 25 seconds)",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the bash_background tool definition.
+
+  Starts a command in the background and returns a shell_id for tracking.
+  Use bash_output to retrieve the output and kill_shell to terminate.
+
+  ## Parameters
+
+  - `command` (required, string) - Command to execute (must be in allowlist)
+  - `args` (optional, array) - Command arguments
+  - `description` (optional, string) - Description for tracking
+
+  ## Security
+
+  Commands must be in the allowed list: mix, git, npm, ls, cat, grep, etc.
+  Shell interpreters (bash, sh, zsh) are blocked to prevent command injection.
+
+  ## Output
+
+  Returns JSON with shell_id and description.
+  """
+  @spec bash_background() :: Tool.t()
+  def bash_background do
+    Tool.new!(%{
+      name: "bash_background",
+      description:
+        "Start a command in the background. Returns a shell_id for tracking. " <>
+          "Use bash_output to retrieve output later or kill_shell to terminate. " <>
+          "Only allowed commands can be executed (mix, git, npm, etc.). " <>
+          "Shell interpreters (bash, sh) are blocked.",
+      handler: Handlers.BashBackground,
+      parameters: [
+        %{
+          name: "command",
+          type: :string,
+          description:
+            "Command to execute (must be in allowlist: mix, git, npm, ls, cat, grep, etc.)",
+          required: true
+        },
+        %{
+          name: "args",
+          type: :array,
+          description:
+            "Command arguments as array (e.g., ['test', '--trace'])",
+          required: false
+        },
+        %{
+          name: "description",
+          type: :string,
+          description: "Optional description for tracking the background process",
           required: false
         }
       ]

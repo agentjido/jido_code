@@ -131,7 +131,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   Safely converts a type string to an existing atom.
 
   Normalizes the string by downcasing and replacing hyphens with underscores.
-  Returns :error if the atom doesn't exist (preventing atom exhaustion).
+  Returns `{:error, reason}` if the atom doesn't exist (preventing atom exhaustion).
 
   ## Parameters
 
@@ -140,21 +140,34 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   ## Returns
 
   - `{:ok, atom}` - Successfully converted atom
-  - `:error` - Atom doesn't exist or invalid input
+  - `{:error, reason}` - Atom doesn't exist or invalid input
   """
-  @spec safe_to_type_atom(String.t()) :: {:ok, atom()} | :error
+  @spec safe_to_type_atom(String.t()) :: {:ok, atom()} | {:error, String.t()}
   def safe_to_type_atom(type_str) when is_binary(type_str) do
     normalized =
       type_str
       |> String.downcase()
       |> String.replace("-", "_")
 
-    {:ok, String.to_existing_atom(normalized)}
-  rescue
-    ArgumentError -> :error
+    # Check if atom exists without creating it
+    if atom_exists?(normalized) do
+      {:ok, String.to_existing_atom(normalized)}
+    else
+      {:error, "unknown type: #{type_str}"}
+    end
   end
 
-  def safe_to_type_atom(_), do: :error
+  def safe_to_type_atom(_), do: {:error, "type must be a string"}
+
+  # Check if an atom exists without creating it
+  defp atom_exists?(string) do
+    try do
+      _ = String.to_existing_atom(string)
+      true
+    rescue
+      ArgumentError -> false
+    end
+  end
 
   # ============================================================================
   # Content Validation
@@ -258,7 +271,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
            {:ok, content} <- Knowledge.validate_content(Map.get(args, "content")),
            {:ok, memory_type} <- parse_memory_type(args),
            {:ok, confidence} <- parse_confidence(args, memory_type) do
-        memory_id = generate_memory_id()
+        memory_id = Knowledge.generate_memory_id()
 
         memory_input = %{
           id: memory_id,
@@ -320,7 +333,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
                 {:error, "Invalid memory type: #{type_string}. Valid types: #{valid_types_string()}"}
               end
 
-            :error ->
+            {:error, _reason} ->
               {:error, "Invalid memory type: #{type_string}. Valid types: #{valid_types_string()}"}
           end
 
@@ -343,10 +356,6 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         _ ->
           {:error, "Confidence must be a number between 0.0 and 1.0"}
       end
-    end
-
-    defp generate_memory_id do
-      "mem-" <> (:crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false))
     end
 
     defp valid_types_string do
@@ -454,7 +463,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         |> Enum.reduce(MapSet.new(), fn type_str, acc ->
           case Knowledge.safe_to_type_atom(type_str) do
             {:ok, atom} -> MapSet.put(acc, atom)
-            :error -> acc
+            {:error, _} -> acc
           end
         end)
 
@@ -477,19 +486,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     defp apply_limit(memories, _), do: Enum.take(memories, 10)
 
     defp format_results(memories) do
-      results =
-        Enum.map(memories, fn memory ->
-          %{
-            id: memory.id,
-            content: memory.content,
-            type: Atom.to_string(memory.memory_type),
-            confidence: memory.confidence,
-            timestamp: Knowledge.format_timestamp(memory.timestamp),
-            rationale: memory.rationale
-          }
-        end)
-
-      {:ok, Jason.encode!(%{memories: results, count: length(results)})}
+      Knowledge.format_memory_list(memories, :memories)
     end
   end
 
@@ -536,7 +533,8 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
     defp do_execute(args, context) do
       with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_supersede"),
-           {:ok, old_memory_id} <- get_required_string(args, "old_memory_id"),
+           {:ok, old_memory_id} <- Knowledge.get_required_string(args, "old_memory_id"),
+           {:ok, _} <- Knowledge.validate_memory_id(old_memory_id),
            {:ok, old_memory} <- get_memory(session_id, old_memory_id) do
         # Mark the old memory as superseded
         case Memory.supersede(session_id, old_memory_id, nil) do
@@ -545,13 +543,11 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
             case Map.get(args, "new_content") do
               nil ->
                 # No replacement, just superseded
-                result = %{
+                Knowledge.ok_json(%{
                   old_id: old_memory_id,
                   new_id: nil,
                   status: "superseded"
-                }
-
-                {:ok, Jason.encode!(result)}
+                })
 
               new_content ->
                 create_replacement(args, context, session_id, old_memory, new_content)
@@ -563,15 +559,6 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
           {:error, reason} ->
             {:error, "Failed to supersede memory: #{inspect(reason)}"}
         end
-      end
-    end
-
-    defp get_required_string(args, key) do
-      case Map.get(args, key) do
-        nil -> {:error, "#{key} is required"}
-        "" -> {:error, "#{key} cannot be empty"}
-        value when is_binary(value) -> {:ok, value}
-        _ -> {:error, "#{key} must be a string"}
       end
     end
 
@@ -592,7 +579,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
             type_str -> parse_type_or_default(type_str, old_memory.memory_type)
           end
 
-        memory_id = generate_memory_id()
+        memory_id = Knowledge.generate_memory_id()
 
         # Build replacement memory input
         memory_input = %{
@@ -611,14 +598,12 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
         case Memory.persist(memory_input, session_id) do
           {:ok, ^memory_id} ->
-            result = %{
+            Knowledge.ok_json(%{
               old_id: old_memory.id,
               new_id: memory_id,
               type: Atom.to_string(memory_type),
               status: "replaced"
-            }
-
-            {:ok, Jason.encode!(result)}
+            })
 
           {:error, reason} ->
             {:error, "Failed to create replacement memory: #{inspect(reason)}"}
@@ -631,13 +616,9 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         {:ok, type_atom} ->
           if Types.valid_memory_type?(type_atom), do: type_atom, else: default
 
-        :error ->
+        {:error, _} ->
           default
       end
-    end
-
-    defp generate_memory_id do
-      "mem-" <> (:crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false))
     end
   end
 
@@ -658,6 +639,9 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
     # Convention types from the ontology
     @convention_types [:convention, :coding_standard]
+
+    # Default limit for results
+    @default_limit 50
 
     # Category to type mapping
     @category_types %{
@@ -701,6 +685,9 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         # Get types to filter by based on category
         filter_types = get_filter_types(Map.get(args, "category"))
 
+        # Get limit from args
+        limit = Map.get(args, "limit", @default_limit)
+
         # Query all memories and filter to conventions
         case Memory.query(session_id, opts) do
           {:ok, memories} ->
@@ -710,6 +697,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
                 memory.memory_type in filter_types
               end)
               |> Enum.sort_by(& &1.confidence, :desc)
+              |> Enum.take(limit)
 
             format_conventions(conventions)
 
@@ -730,19 +718,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     defp get_filter_types(_), do: @convention_types
 
     defp format_conventions(conventions) do
-      results =
-        Enum.map(conventions, fn memory ->
-          %{
-            id: memory.id,
-            content: memory.content,
-            type: Atom.to_string(memory.memory_type),
-            confidence: memory.confidence,
-            timestamp: Knowledge.format_timestamp(memory.timestamp),
-            rationale: memory.rationale
-          }
-        end)
-
-      {:ok, Jason.encode!(%{conventions: results, count: length(results)})}
+      Knowledge.format_memory_list(conventions, :conventions)
     end
   end
 
@@ -752,4 +728,108 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
   @doc false
   def default_confidence, do: @default_confidence
+
+  @doc """
+  Generates a unique memory ID with cryptographic randomness.
+
+  ## Returns
+
+  A string in the format "mem-<base64>" where the base64 portion is
+  URL-safe encoded random bytes.
+  """
+  @spec generate_memory_id() :: String.t()
+  def generate_memory_id do
+    "mem-" <> (:crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false))
+  end
+
+  @doc """
+  Validates a required string argument from args map.
+
+  ## Parameters
+
+  - `args` - Map containing the argument
+  - `key` - String key to validate
+
+  ## Returns
+
+  - `{:ok, value}` - Valid non-empty string
+  - `{:error, message}` - Error with descriptive message
+  """
+  @spec get_required_string(map(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def get_required_string(args, key) do
+    case Map.get(args, key) do
+      nil -> {:error, "#{key} is required"}
+      "" -> {:error, "#{key} cannot be empty"}
+      value when is_binary(value) -> {:ok, value}
+      _ -> {:error, "#{key} must be a string"}
+    end
+  end
+
+  @doc """
+  Validates a memory ID format.
+
+  Memory IDs should follow the format "mem-<base64>".
+
+  ## Parameters
+
+  - `memory_id` - String to validate
+
+  ## Returns
+
+  - `{:ok, memory_id}` - Valid memory ID format
+  - `{:error, message}` - Error with descriptive message
+  """
+  @spec validate_memory_id(String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def validate_memory_id(memory_id) when is_binary(memory_id) do
+    if String.match?(memory_id, ~r/^mem-[A-Za-z0-9_-]+$/) do
+      {:ok, memory_id}
+    else
+      {:error, "invalid memory_id format: expected 'mem-<base64>'"}
+    end
+  end
+
+  def validate_memory_id(_), do: {:error, "memory_id must be a string"}
+
+  @doc """
+  Wraps a result in {:ok, json} format.
+
+  ## Parameters
+
+  - `data` - Map or list to encode as JSON
+
+  ## Returns
+
+  - `{:ok, json_string}` - Encoded JSON
+  """
+  @spec ok_json(map() | list()) :: {:ok, String.t()}
+  def ok_json(data), do: {:ok, Jason.encode!(data)}
+
+  @doc """
+  Formats a list of memories for JSON output.
+
+  ## Parameters
+
+  - `memories` - List of memory structs
+  - `key` - Atom key for the result (e.g., :memories, :conventions)
+
+  ## Returns
+
+  - `{:ok, json}` - JSON with list and count
+  """
+  @spec format_memory_list([map()], atom()) :: {:ok, String.t()}
+  def format_memory_list(memories, key) do
+    results =
+      Enum.map(memories, fn memory ->
+        %{
+          id: memory.id,
+          content: memory.content,
+          type: Atom.to_string(memory.memory_type),
+          confidence: memory.confidence,
+          timestamp: format_timestamp(memory.timestamp),
+          rationale: memory.rationale
+        }
+      end)
+
+    ok_json(%{key => results, count: length(results)})
+  end
 end

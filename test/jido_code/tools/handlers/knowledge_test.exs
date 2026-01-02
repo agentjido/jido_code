@@ -519,6 +519,21 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert original_id in new_memory.evidence_refs
     end
 
+    test "stores reason in replacement memory rationale", %{session_id: session_id, context: context, original_id: original_id} do
+      args = %{
+        "old_memory_id" => original_id,
+        "new_content" => "Updated decision with reason",
+        "reason" => "Performance testing showed better results"
+      }
+
+      {:ok, json} = KnowledgeSupersede.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Verify the reason is stored in the new memory's rationale
+      {:ok, new_memory} = Memory.get(session_id, result["new_id"])
+      assert new_memory.rationale == "Performance testing showed better results"
+    end
+
     test "inherits type from original when not specified", %{context: context, original_id: original_id} do
       args = %{
         "old_memory_id" => original_id,
@@ -571,6 +586,22 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       {:error, message} = KnowledgeSupersede.execute(args, context)
 
       assert message =~ "old_memory_id is required"
+    end
+
+    test "rejects empty string old_memory_id", %{context: context} do
+      args = %{"old_memory_id" => ""}
+
+      {:error, message} = KnowledgeSupersede.execute(args, context)
+
+      assert message =~ "old_memory_id cannot be empty"
+    end
+
+    test "rejects invalid memory_id format", %{context: context} do
+      args = %{"old_memory_id" => "invalid-format-123"}
+
+      {:error, message} = KnowledgeSupersede.execute(args, context)
+
+      assert message =~ "invalid memory_id format"
     end
 
     test "validates new_content size if provided", %{context: context, original_id: original_id} do
@@ -778,6 +809,62 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       # Should not include risk type
       refute Enum.any?(result["conventions"], fn c -> c["type"] == "risk" end)
     end
+
+    test "handles agent category", %{context: context} do
+      args = %{"category" => "agent"}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Agent category filters to convention types
+      assert Enum.all?(result["conventions"], fn c ->
+               c["type"] == "convention"
+             end)
+    end
+
+    test "handles process category", %{context: context} do
+      args = %{"category" => "process"}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Process category filters to convention types
+      assert Enum.all?(result["conventions"], fn c ->
+               c["type"] == "convention"
+             end)
+    end
+
+    test "handles all category", %{context: context} do
+      args = %{"category" => "all"}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # All category includes both convention and coding_standard types
+      assert result["count"] >= 4
+
+      types = Enum.map(result["conventions"], & &1["type"]) |> Enum.uniq() |> Enum.sort()
+      assert types == ["coding_standard", "convention"]
+    end
+
+    test "handles unknown category as all", %{context: context} do
+      args = %{"category" => "unknown_category"}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Unknown category defaults to all convention types
+      assert result["count"] >= 4
+    end
+
+    test "respects limit parameter", %{context: context} do
+      args = %{"limit" => 2}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert length(result["conventions"]) <= 2
+    end
   end
 
   # ============================================================================
@@ -850,6 +937,56 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert is_integer(measurements.duration)
       assert metadata.status == :success
       assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for failed supersede" do
+      context = %{}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_supersede_fail, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :supersede],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{"old_memory_id" => "mem-123"}
+      {:error, _} = KnowledgeSupersede.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :supersede], _measurements, metadata}
+      assert metadata.status == :error
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for failed project_conventions" do
+      context = %{}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_conventions_fail, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :project_conventions],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{}
+      {:error, _} = ProjectConventions.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :project_conventions], _measurements, metadata}
+      assert metadata.status == :error
 
       :telemetry.detach(handler_id)
     end
@@ -935,13 +1072,138 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert {:ok, :lesson_learned} = Knowledge.safe_to_type_atom("lesson-learned")
     end
 
-    test "returns error for non-existent atom" do
-      assert :error = Knowledge.safe_to_type_atom("nonexistent_type_xyz")
+    test "returns error tuple for non-existent atom" do
+      assert {:error, message} = Knowledge.safe_to_type_atom("nonexistent_type_xyz")
+      assert message =~ "unknown type"
     end
 
-    test "returns error for non-string input" do
-      assert :error = Knowledge.safe_to_type_atom(123)
-      assert :error = Knowledge.safe_to_type_atom(nil)
+    test "returns error tuple for non-string input" do
+      assert {:error, message} = Knowledge.safe_to_type_atom(123)
+      assert message =~ "type must be a string"
+      assert {:error, _} = Knowledge.safe_to_type_atom(nil)
+    end
+  end
+
+  describe "Knowledge.generate_memory_id/0" do
+    test "generates unique memory IDs with correct format" do
+      id1 = Knowledge.generate_memory_id()
+      id2 = Knowledge.generate_memory_id()
+
+      assert String.starts_with?(id1, "mem-")
+      assert String.starts_with?(id2, "mem-")
+      assert id1 != id2
+    end
+
+    test "generates memory IDs matching expected pattern" do
+      id = Knowledge.generate_memory_id()
+      assert String.match?(id, ~r/^mem-[A-Za-z0-9_-]+$/)
+    end
+  end
+
+  describe "Knowledge.get_required_string/2" do
+    test "returns value when valid string present" do
+      args = %{"key" => "value"}
+      assert {:ok, "value"} = Knowledge.get_required_string(args, "key")
+    end
+
+    test "returns error for nil value" do
+      args = %{"key" => nil}
+      assert {:error, message} = Knowledge.get_required_string(args, "key")
+      assert message =~ "key is required"
+    end
+
+    test "returns error for missing key" do
+      args = %{}
+      assert {:error, message} = Knowledge.get_required_string(args, "key")
+      assert message =~ "key is required"
+    end
+
+    test "returns error for empty string" do
+      args = %{"key" => ""}
+      assert {:error, message} = Knowledge.get_required_string(args, "key")
+      assert message =~ "key cannot be empty"
+    end
+
+    test "returns error for non-string value" do
+      args = %{"key" => 123}
+      assert {:error, message} = Knowledge.get_required_string(args, "key")
+      assert message =~ "key must be a string"
+    end
+  end
+
+  describe "Knowledge.validate_memory_id/1" do
+    test "accepts valid memory ID format" do
+      assert {:ok, "mem-abc123"} = Knowledge.validate_memory_id("mem-abc123")
+      assert {:ok, "mem-XyZ_-9"} = Knowledge.validate_memory_id("mem-XyZ_-9")
+    end
+
+    test "rejects memory ID without prefix" do
+      assert {:error, message} = Knowledge.validate_memory_id("abc123")
+      assert message =~ "invalid memory_id format"
+    end
+
+    test "rejects memory ID with invalid characters" do
+      assert {:error, message} = Knowledge.validate_memory_id("mem-abc@123")
+      assert message =~ "invalid memory_id format"
+    end
+
+    test "rejects empty string" do
+      assert {:error, message} = Knowledge.validate_memory_id("")
+      assert message =~ "invalid memory_id format"
+    end
+
+    test "rejects non-string input" do
+      assert {:error, message} = Knowledge.validate_memory_id(123)
+      assert message =~ "memory_id must be a string"
+    end
+  end
+
+  describe "Knowledge.ok_json/1" do
+    test "wraps map as ok tuple with JSON string" do
+      assert {:ok, json} = Knowledge.ok_json(%{key: "value"})
+      decoded = Jason.decode!(json)
+      assert decoded["key"] == "value"
+    end
+
+    test "wraps list as ok tuple with JSON string" do
+      assert {:ok, json} = Knowledge.ok_json([1, 2, 3])
+      decoded = Jason.decode!(json)
+      assert decoded == [1, 2, 3]
+    end
+  end
+
+  describe "Knowledge.format_memory_list/2" do
+    test "formats list of memories with given key" do
+      memories = [
+        %{
+          id: "mem-123",
+          content: "Test content",
+          memory_type: :fact,
+          confidence: 0.9,
+          timestamp: ~U[2024-01-15 10:30:00Z],
+          rationale: "Test rationale"
+        }
+      ]
+
+      {:ok, json} = Knowledge.format_memory_list(memories, :items)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 1
+      assert length(result["items"]) == 1
+
+      item = hd(result["items"])
+      assert item["id"] == "mem-123"
+      assert item["content"] == "Test content"
+      assert item["type"] == "fact"
+      assert item["confidence"] == 0.9
+    end
+
+    test "handles empty list" do
+      {:ok, json} = Knowledge.format_memory_list([], :items)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 0
+      assert result["items"] == []
     end
   end
 

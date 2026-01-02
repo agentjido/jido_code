@@ -100,6 +100,32 @@ Phase 7B implements the P1 priority tools:
 **Test Count:** 47 → 69 tests (22 new tests added)
 **Summary Document:** `notes/summaries/2026-01-02-phase7b-knowledge-tools.md`
 
+## Phase 7B Improvements (Review Findings) ✅
+
+Based on code review findings, the following improvements were made to the P1 tools:
+
+| Issue | Type | Resolution |
+|-------|------|------------|
+| Duplicate `generate_memory_id/0` | Concern | Extracted to parent Knowledge module |
+| Inconsistent error return types | Concern | Changed `safe_to_type_atom/1` to return `{:error, reason}` tuples |
+| Rescue for control flow | Concern | Isolated in `atom_exists?/1` helper function |
+| Missing edge case tests | Concern | Added 26 new tests for shared functions and edge cases |
+| No memory ID validation | Suggestion | Added `validate_memory_id/1` with format validation |
+| No default limit in ProjectConventions | Suggestion | Added `@default_limit 50` |
+| Duplicated result formatting | Suggestion | Extracted to shared `format_memory_list/2` helper |
+| Common helper patterns | Suggestion | Added `get_required_string/2`, `ok_json/1` helpers |
+
+**New Shared Functions in Parent Knowledge Module:**
+- `generate_memory_id/0` - Generate unique memory IDs
+- `get_required_string/2` - Validate and extract required string arguments
+- `validate_memory_id/1` - Validate memory ID format (`mem-<base64>`)
+- `ok_json/1` - Wrap data in `{:ok, json}` tuple
+- `format_memory_list/2` - Format list of memories for JSON output
+
+**Test Count:** 69 → 95 tests (26 new tests added)
+**Summary Document:** `notes/summaries/2026-01-02-phase7b-improvements.md`
+**Review Document:** `notes/reviews/phase-7b-knowledge-tools-review.md`
+
 ## Memory Types (from TTL Ontology)
 
 The following memory types are defined in the ontology and can be used with `knowledge_remember`:
@@ -523,16 +549,16 @@ Get known risks and issues.
 
 | Criterion | Priority | Status |
 |-----------|----------|--------|
-| **knowledge_remember**: Store with ontology types | P0 | ⬜ |
-| **knowledge_recall**: Query with filters + project_scope | P0 | ⬜ |
-| **knowledge_supersede**: Replace outdated knowledge | P1 | ⬜ |
-| **project_conventions**: List conventions/standards | P1 | ⬜ |
-| **knowledge_update**: Modify confidence/evidence | P2 | ⬜ |
-| **project_decisions**: List decisions with rationale | P2 | ⬜ |
-| **project_risks**: List risks by confidence | P2 | ⬜ |
-| **Cross-session queries**: project_scope=true works | P0 | ⬜ |
-| **Session isolation**: Default queries session-scoped | P0 | ⬜ |
-| **Test coverage**: Minimum 80% | - | ⬜ |
+| **knowledge_remember**: Store with ontology types | P0 | ✅ Complete + Improved |
+| **knowledge_recall**: Query with filters + project_scope | P0 | ✅ Complete + Improved |
+| **knowledge_supersede**: Replace outdated knowledge | P1 | ✅ Complete + Improved |
+| **project_conventions**: List conventions/standards | P1 | ✅ Complete + Improved |
+| **knowledge_update**: Modify confidence/evidence | P2 | ⬜ Initial |
+| **project_decisions**: List decisions with rationale | P2 | ⬜ Initial |
+| **project_risks**: List risks by confidence | P2 | ⬜ Initial |
+| **Cross-session queries**: project_scope=true works | P0 | ⬜ Initial |
+| **Session isolation**: Default queries session-scoped | P0 | ✅ Complete |
+| **Test coverage**: Minimum 80% | - | ✅ 95 tests |
 | **knowledge_graph_query**: Traverse relationships | P3 | ⏸️ Deferred |
 | **knowledge_context**: Auto-relevance | P3 | ⏸️ Deferred |
 

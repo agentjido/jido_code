@@ -1504,4 +1504,615 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
                       %{task: "#PID<0.1.0>", status: :error}}
     end
   end
+
+  # ============================================================================
+  # EtsInspect Tests (Section 5.5.3)
+  # ============================================================================
+
+  describe "EtsInspect.execute/2 - list operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "lists available project ETS tables", %{project_root: project_root} do
+      # Create a test ETS table
+      table = :ets.new(:test_ets_list_table, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "list"
+      assert is_list(result["tables"])
+      assert is_integer(result["count"])
+
+      # Our test table should be in the list
+      table_names = Enum.map(result["tables"], & &1["name"])
+      assert "test_ets_list_table" in table_names
+    end
+
+    test "excludes system tables from list", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      table_names = Enum.map(result["tables"], & &1["name"])
+
+      # System tables should not be in the list
+      refute "code" in table_names
+      refute "ac_tab" in table_names
+    end
+
+    test "returns table summary with type, size, and protection", %{project_root: project_root} do
+      table = :ets.new(:test_ets_summary_table, [:named_table, :public, :set])
+      :ets.insert(table, {:key1, "value1"})
+      :ets.insert(table, {:key2, "value2"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      table_info = Enum.find(result["tables"], & &1["name"] == "test_ets_summary_table")
+
+      assert table_info["type"] == "set"
+      assert table_info["size"] == 2
+      assert table_info["protection"] == "public"
+      assert is_integer(table_info["memory"])
+    end
+  end
+
+  describe "EtsInspect.execute/2 - info operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "returns detailed table info", %{project_root: project_root} do
+      table = :ets.new(:test_ets_info_table, [:named_table, :public, :ordered_set])
+      :ets.insert(table, {:a, 1})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "info", "table" => "test_ets_info_table"}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "info"
+      assert result["table"] == "test_ets_info_table"
+      assert is_map(result["info"])
+
+      info = result["info"]
+      assert info["type"] == "ordered_set"
+      assert info["protection"] == "public"
+      assert info["size"] == 1
+      assert is_binary(info["owner"])
+      assert info["named_table"] == true
+    end
+
+    test "returns error for non-existent table", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "non_existent_table_xyz"}, context)
+
+      assert error =~ "not found"
+    end
+
+    test "blocks system tables", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "code"}, context)
+
+      assert error =~ "blocked"
+    end
+
+    test "requires table parameter", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info"}, context)
+
+      assert error =~ "Missing required parameter: table"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - lookup operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "looks up entries by atom key", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_atom, [:named_table, :public])
+      :ets.insert(table, {:my_key, "my_value", 123})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_atom", "key" => ":my_key"}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "lookup"
+      assert result["count"] == 1
+      assert length(result["entries"]) == 1
+
+      # Entry should contain the tuple data
+      entry = hd(result["entries"])
+      assert entry =~ "my_key"
+      assert entry =~ "my_value"
+      assert entry =~ "123"
+    end
+
+    test "looks up entries by integer key", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_int, [:named_table, :public])
+      :ets.insert(table, {42, "forty-two"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_int", "key" => "42"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "looks up entries by string key", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_string, [:named_table, :public])
+      :ets.insert(table, {"string_key", "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_string", "key" => "\"string_key\""}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "returns empty list for non-existent key", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_empty, [:named_table, :public])
+      :ets.insert(table, {:existing, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_empty", "key" => ":nonexistent"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 0
+      assert result["entries"] == []
+    end
+
+    test "requires key parameter", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_no_key, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_no_key"}, context)
+
+      assert error =~ "Missing required parameter: key"
+    end
+
+    test "blocks private tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_private, [:named_table, :private])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_private", "key" => ":foo"}, context)
+
+      assert error =~ "private"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - sample operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "returns first N entries", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_basic, [:named_table, :public, :ordered_set])
+
+      for i <- 1..20 do
+        :ets.insert(table, {i, "value_#{i}"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_basic", "limit" => 5}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "sample"
+      assert result["count"] == 5
+      assert length(result["entries"]) == 5
+      assert result["total_size"] == 20
+      assert result["truncated"] == true
+    end
+
+    test "uses default limit of 10", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_default, [:named_table, :public])
+
+      for i <- 1..25 do
+        :ets.insert(table, {i, "value_#{i}"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_default"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 10
+    end
+
+    test "caps limit at 100", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_cap, [:named_table, :public])
+
+      for i <- 1..10 do
+        :ets.insert(table, {i, "value"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      # Should not error with very large limit
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_cap", "limit" => 999}, context)
+
+      result = Jason.decode!(json)
+      # Should return all 10 entries (less than max 100)
+      assert result["count"] == 10
+    end
+
+    test "handles empty table", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_empty, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_empty"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 0
+      assert result["entries"] == []
+      assert result["truncated"] == false
+    end
+
+    test "indicates truncation correctly", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_truncation, [:named_table, :public])
+
+      for i <- 1..5 do
+        :ets.insert(table, {i, "value"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+
+      # When limit >= total, should not be truncated
+      {:ok, json1} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_truncation", "limit" => 10}, context)
+      result1 = Jason.decode!(json1)
+      assert result1["truncated"] == false
+
+      # When limit < total, should be truncated
+      {:ok, json2} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_truncation", "limit" => 3}, context)
+      result2 = Jason.decode!(json2)
+      assert result2["truncated"] == true
+    end
+  end
+
+  describe "EtsInspect.execute/2 - security" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "blocks access to system ETS tables", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      # code table
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "code"}, context)
+      assert error =~ "blocked"
+
+      # ac_tab
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "ac_tab"}, context)
+      assert error =~ "blocked"
+    end
+
+    test "blocks lookup on private tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_private_lookup, [:named_table, :private])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_private_lookup", "key" => ":foo"}, context)
+
+      assert error =~ "private"
+    end
+
+    test "blocks sample on private tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_private_sample, [:named_table, :private])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_private_sample"}, context)
+
+      assert error =~ "private"
+    end
+
+    test "allows info on protected tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_protected_info, [:named_table, :protected])
+      :ets.insert(table, {:test, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "info", "table" => "test_ets_protected_info"}, context)
+
+      result = Jason.decode!(json)
+      assert result["info"]["protection"] == "protected"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "handles missing operation parameter" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = EtsInspect.execute(%{}, context)
+
+      assert error =~ "Missing required parameter: operation"
+    end
+
+    test "handles invalid operation", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "invalid_op"}, context)
+
+      assert error =~ "Invalid operation"
+    end
+
+    test "handles invalid operation type" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = EtsInspect.execute(%{"operation" => 123}, context)
+
+      assert error =~ "Invalid operation"
+    end
+
+    test "returns error for reference-based tables", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "#Ref<0.123.456.789>"}, context)
+
+      assert error =~ "Reference-based tables" or error =~ "not found"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      table = :ets.new(:test_ets_telemetry_success, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :ets_inspect]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = EtsInspect.execute(%{"operation" => "info", "table" => "test_ets_telemetry_success"}, context)
+
+      assert_receive {[:jido_code, :elixir, :ets_inspect], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "info", status: :ok}}
+    end
+
+    test "emits telemetry on error", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :ets_inspect]
+        ])
+
+      context = %{project_root: project_root}
+      {:error, _} = EtsInspect.execute(%{"operation" => "info", "table" => "nonexistent_table"}, context)
+
+      assert_receive {[:jido_code, :elixir, :ets_inspect], ^ref, %{duration: _, exit_code: 1},
+                      %{task: "info", status: :error}}
+    end
+
+    test "emits telemetry for list operation", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :ets_inspect]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      assert_receive {[:jido_code, :elixir, :ets_inspect], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "list", status: :ok}}
+    end
+  end
+
+  describe "EtsInspect.execute/2 - key parsing" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "parses boolean keys", %{project_root: project_root} do
+      table = :ets.new(:test_ets_bool_key, [:named_table, :public])
+      :ets.insert(table, {true, "value_true"})
+      :ets.insert(table, {false, "value_false"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+
+      {:ok, json_true} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_bool_key", "key" => "true"}, context)
+      result_true = Jason.decode!(json_true)
+      assert result_true["count"] == 1
+      assert hd(result_true["entries"]) =~ "value_true"
+
+      {:ok, json_false} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_bool_key", "key" => "false"}, context)
+      result_false = Jason.decode!(json_false)
+      assert result_false["count"] == 1
+      assert hd(result_false["entries"]) =~ "value_false"
+    end
+
+    test "parses float keys", %{project_root: project_root} do
+      table = :ets.new(:test_ets_float_key, [:named_table, :public])
+      :ets.insert(table, {3.14, "pi"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_float_key", "key" => "3.14"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "parses single-quoted string keys", %{project_root: project_root} do
+      table = :ets.new(:test_ets_single_quote_key, [:named_table, :public])
+      :ets.insert(table, {"my key", "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_single_quote_key", "key" => "'my key'"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "treats unquoted strings as-is", %{project_root: project_root} do
+      table = :ets.new(:test_ets_unquoted_key, [:named_table, :public])
+      :ets.insert(table, {"plain_key", "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_unquoted_key", "key" => "plain_key"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+  end
 end

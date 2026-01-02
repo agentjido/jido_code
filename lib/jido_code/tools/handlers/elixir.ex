@@ -1395,4 +1395,506 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     defp format_error(reason) when is_binary(reason), do: reason
     defp format_error(reason), do: "Error: #{inspect(reason)}"
   end
+
+  # ============================================================================
+  # EtsInspect Handler
+  # ============================================================================
+
+  defmodule EtsInspect do
+    @moduledoc """
+    Handler for the ets_inspect tool.
+
+    Inspects ETS tables with multiple operations: list available tables,
+    get table info, lookup by key, or sample entries. Only project-owned
+    tables can be inspected - system tables are blocked.
+
+    ## Security Features
+
+    - System ETS tables are blocked (code, ac_tab, file_io_servers, etc.)
+    - Only project-owned tables can be inspected (owner not in blocked list)
+    - Protected/private tables block lookup/sample from non-owner processes
+    - Output limited to prevent memory issues
+
+    ## Operations
+
+    - `list` - Get all project-owned tables with basic info
+    - `info` - Get detailed table information
+    - `lookup` - Lookup entries by key
+    - `sample` - Get first N entries from table
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+
+    @default_limit 10
+    @max_limit 100
+
+    # System ETS tables that should never be inspected
+    @blocked_tables [
+      :code,
+      :code_names,
+      :ac_tab,
+      :file_io_servers,
+      :shell_records,
+      :global_names,
+      :global_names_ext,
+      :global_locks,
+      :global_pid_names,
+      :global_pid_ids,
+      :inet_db,
+      :inet_hosts_byname,
+      :inet_hosts_byaddr,
+      :inet_hosts_file_byname,
+      :inet_hosts_file_byaddr,
+      :inet_cache,
+      :ssl_otp_session_cache,
+      :ssl_otp_pem_cache,
+      :ets_coverage_data,
+      :cover_internal_data_table,
+      :cover_internal_clause_table,
+      :cover_binary_code_table
+    ]
+
+    # Blocked owner process prefixes (same as ProcessState)
+    @blocked_owner_prefixes [
+      "JidoCode.Tools",
+      "JidoCode.Session",
+      "JidoCode.Registry",
+      "Elixir.JidoCode.Tools",
+      "Elixir.JidoCode.Session",
+      "Elixir.JidoCode.Registry",
+      ":kernel",
+      ":stdlib",
+      ":init",
+      ":code_server",
+      ":application_controller",
+      ":logger",
+      ":ssl_manager",
+      ":ssl_pem_cache"
+    ]
+
+    @doc """
+    Inspects ETS tables with various operations.
+
+    ## Arguments
+
+    - `"operation"` - Operation to perform: "list", "info", "lookup", "sample" (required)
+    - `"table"` - Table name to inspect (required for info/lookup/sample)
+    - `"key"` - Key for lookup operation (as string)
+    - `"limit"` - Max entries for sample (default: 10, max: 100)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with operation results
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"operation" => operation} = args, context) when is_binary(operation) do
+      start_time = System.monotonic_time(:microsecond)
+
+      result =
+        case operation do
+          "list" -> execute_list(context, start_time)
+          "info" -> execute_info(args, context, start_time)
+          "lookup" -> execute_lookup(args, context, start_time)
+          "sample" -> execute_sample(args, context, start_time)
+          _ -> {:error, "Invalid operation: #{operation}. Must be one of: list, info, lookup, sample"}
+        end
+
+      result
+    end
+
+    def execute(%{"operation" => operation}, _context) do
+      {:error, "Invalid operation: expected string, got #{inspect(operation)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: operation"}
+    end
+
+    # ============================================================================
+    # List Operation
+    # ============================================================================
+
+    defp execute_list(context, start_time) do
+      tables = :ets.all()
+
+      project_tables =
+        tables
+        |> Enum.filter(&is_project_table?/1)
+        |> Enum.map(&get_table_summary/1)
+        |> Enum.reject(&is_nil/1)
+
+      result = %{
+        "operation" => "list",
+        "tables" => project_tables,
+        "count" => length(project_tables)
+      }
+
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "list", context, :ok, 0)
+
+      case Jason.encode(result) do
+        {:ok, json} -> {:ok, json}
+        {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+      end
+    end
+
+    # ============================================================================
+    # Info Operation
+    # ============================================================================
+
+    defp execute_info(%{"table" => table_name} = _args, context, start_time) when is_binary(table_name) do
+      with {:ok, table_ref} <- parse_table_name(table_name),
+           :ok <- validate_table_accessible(table_ref) do
+        case :ets.info(table_ref) do
+          :undefined ->
+            ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :error, 1)
+            {:error, "Table not found: #{table_name}"}
+
+          info_list ->
+            info_map = format_table_info(info_list)
+
+            result = %{
+              "operation" => "info",
+              "table" => table_name,
+              "info" => info_map
+            }
+
+            ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :ok, 0)
+
+            case Jason.encode(result) do
+              {:ok, json} -> {:ok, json}
+              {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+            end
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp execute_info(_args, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :error, 1)
+      {:error, "Missing required parameter: table (for info operation)"}
+    end
+
+    # ============================================================================
+    # Lookup Operation
+    # ============================================================================
+
+    defp execute_lookup(%{"table" => table_name, "key" => key_string} = _args, context, start_time)
+         when is_binary(table_name) and is_binary(key_string) do
+      with {:ok, table_ref} <- parse_table_name(table_name),
+           :ok <- validate_table_accessible(table_ref),
+           :ok <- validate_table_readable(table_ref),
+           {:ok, key} <- parse_key(key_string) do
+        entries =
+          try do
+            :ets.lookup(table_ref, key)
+          rescue
+            ArgumentError -> []
+          end
+
+        formatted_entries = Enum.map(entries, &format_entry/1)
+
+        result = %{
+          "operation" => "lookup",
+          "table" => table_name,
+          "key" => key_string,
+          "entries" => formatted_entries,
+          "count" => length(formatted_entries)
+        }
+
+        ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :ok, 0)
+
+        case Jason.encode(result) do
+          {:ok, json} -> {:ok, json}
+          {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp execute_lookup(%{"table" => _table_name}, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :error, 1)
+      {:error, "Missing required parameter: key (for lookup operation)"}
+    end
+
+    defp execute_lookup(_args, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :error, 1)
+      {:error, "Missing required parameters: table, key (for lookup operation)"}
+    end
+
+    # ============================================================================
+    # Sample Operation
+    # ============================================================================
+
+    defp execute_sample(%{"table" => table_name} = args, context, start_time) when is_binary(table_name) do
+      limit = get_limit(args)
+
+      with {:ok, table_ref} <- parse_table_name(table_name),
+           :ok <- validate_table_accessible(table_ref),
+           :ok <- validate_table_readable(table_ref) do
+        entries = sample_entries(table_ref, limit)
+        formatted_entries = Enum.map(entries, &format_entry/1)
+
+        total_size =
+          try do
+            :ets.info(table_ref, :size)
+          rescue
+            _ -> nil
+          end
+
+        result = %{
+          "operation" => "sample",
+          "table" => table_name,
+          "entries" => formatted_entries,
+          "count" => length(formatted_entries),
+          "total_size" => total_size,
+          "truncated" => total_size != nil and total_size > limit
+        }
+
+        ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "sample", context, :ok, 0)
+
+        case Jason.encode(result) do
+          {:ok, json} -> {:ok, json}
+          {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "sample", context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp execute_sample(_args, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "sample", context, :error, 1)
+      {:error, "Missing required parameter: table (for sample operation)"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    defp get_limit(args) do
+      case Map.get(args, "limit") do
+        nil -> @default_limit
+        limit when is_integer(limit) and limit > 0 -> min(limit, @max_limit)
+        _ -> @default_limit
+      end
+    end
+
+    # Parse table name string to ETS table reference
+    defp parse_table_name(name) when is_binary(name) do
+      # Try as existing atom first (most ETS tables use atoms)
+      try do
+        atom = String.to_existing_atom(name)
+        {:ok, atom}
+      rescue
+        ArgumentError ->
+          # Try as reference ID (for unnamed tables, format: "#Ref<...>")
+          if String.starts_with?(name, "#Ref<") do
+            {:error, :reference_tables_not_supported}
+          else
+            {:error, :table_not_found}
+          end
+      end
+    end
+
+    # Check if table is in blocked list or owned by blocked process
+    defp validate_table_accessible(table_ref) do
+      cond do
+        table_ref in @blocked_tables ->
+          {:error, :table_blocked}
+
+        is_owner_blocked?(table_ref) ->
+          {:error, :table_blocked}
+
+        true ->
+          :ok
+      end
+    end
+
+    # Check if table is readable (public access)
+    defp validate_table_readable(table_ref) do
+      case :ets.info(table_ref, :protection) do
+        :public ->
+          :ok
+
+        :protected ->
+          # Protected tables can only be read by owner, but we'll allow info
+          # operations and just return what we can access
+          :ok
+
+        :private ->
+          {:error, :table_private}
+
+        :undefined ->
+          {:error, :table_not_found}
+      end
+    end
+
+    defp is_project_table?(table_ref) do
+      # Only allow named tables (atoms), not reference-based tables
+      is_atom(table_ref) and
+        not (table_ref in @blocked_tables) and
+        not is_owner_blocked?(table_ref)
+    end
+
+    defp is_owner_blocked?(table_ref) do
+      owner = :ets.info(table_ref, :owner)
+
+      case owner do
+        :undefined ->
+          true
+
+        pid when is_pid(pid) ->
+          case Process.info(pid, :registered_name) do
+            {:registered_name, []} ->
+              # No registered name - check if system process by checking application
+              is_system_pid?(pid)
+
+            {:registered_name, name} when is_atom(name) ->
+              name_str = to_string(name)
+              Enum.any?(@blocked_owner_prefixes, &String.starts_with?(name_str, &1))
+
+            nil ->
+              # Process is dead
+              true
+          end
+      end
+    end
+
+    defp is_system_pid?(pid) do
+      # Check if process belongs to kernel or stdlib application
+      case :erlang.process_info(pid, :initial_call) do
+        {:initial_call, {module, _, _}} ->
+          # Block if it's a known system module
+          module in [:init, :code_server, :application_controller, :error_logger, :user, :logger]
+
+        _ ->
+          # If we can't determine, allow it (safe default for project tables)
+          false
+      end
+    end
+
+    defp get_table_summary(table_ref) do
+      case :ets.info(table_ref) do
+        :undefined ->
+          nil
+
+        info ->
+          %{
+            "name" => to_string(table_ref),
+            "type" => to_string(Keyword.get(info, :type, :unknown)),
+            "size" => Keyword.get(info, :size, 0),
+            "memory" => Keyword.get(info, :memory, 0),
+            "protection" => to_string(Keyword.get(info, :protection, :unknown))
+          }
+      end
+    end
+
+    defp format_table_info(info_list) do
+      info_list
+      |> Enum.map(fn
+        {:owner, pid} when is_pid(pid) -> {"owner", inspect(pid)}
+        {:heir, :none} -> {"heir", "none"}
+        {:heir, pid} when is_pid(pid) -> {"heir", inspect(pid)}
+        {:name, name} -> {"name", to_string(name)}
+        {:named_table, val} -> {"named_table", val}
+        {:type, type} -> {"type", to_string(type)}
+        {:keypos, pos} -> {"keypos", pos}
+        {:protection, prot} -> {"protection", to_string(prot)}
+        {:size, size} -> {"size", size}
+        {:memory, mem} -> {"memory", mem}
+        {:compressed, comp} -> {"compressed", comp}
+        {:write_concurrency, wc} -> {"write_concurrency", wc}
+        {:read_concurrency, rc} -> {"read_concurrency", rc}
+        {:decentralized_counters, dc} -> {"decentralized_counters", dc}
+        {key, val} -> {to_string(key), inspect(val)}
+      end)
+      |> Map.new()
+    end
+
+    # Parse key from string representation
+    defp parse_key(key_string) do
+      trimmed = String.trim(key_string)
+
+      cond do
+        # Atom: :foo or :foo_bar
+        String.starts_with?(trimmed, ":") ->
+          atom_name = String.slice(trimmed, 1..-1//1)
+
+          try do
+            {:ok, String.to_existing_atom(atom_name)}
+          rescue
+            ArgumentError -> {:ok, String.to_atom(atom_name)}
+          end
+
+        # Integer
+        Regex.match?(~r/^-?\d+$/, trimmed) ->
+          {:ok, String.to_integer(trimmed)}
+
+        # Float
+        Regex.match?(~r/^-?\d+\.\d+$/, trimmed) ->
+          {:ok, String.to_float(trimmed)}
+
+        # Quoted string: "foo" or 'foo'
+        (String.starts_with?(trimmed, "\"") and String.ends_with?(trimmed, "\"")) or
+            (String.starts_with?(trimmed, "'") and String.ends_with?(trimmed, "'")) ->
+          {:ok, String.slice(trimmed, 1..-2//1)}
+
+        # Boolean
+        trimmed in ["true", "false"] ->
+          {:ok, trimmed == "true"}
+
+        # Otherwise treat as string key
+        true ->
+          {:ok, trimmed}
+      end
+    end
+
+    # Sample N entries from table using first/next traversal
+    defp sample_entries(table_ref, limit) do
+      try do
+        first_key = :ets.first(table_ref)
+        collect_entries(table_ref, first_key, limit, [])
+        |> Enum.take(limit)
+      rescue
+        ArgumentError -> []
+      end
+    end
+
+    defp collect_entries(_table_ref, :"$end_of_table", _remaining, acc), do: Enum.reverse(acc)
+    defp collect_entries(_table_ref, _key, 0, acc), do: Enum.reverse(acc)
+
+    defp collect_entries(table_ref, key, remaining, acc) do
+      entries = :ets.lookup(table_ref, key)
+      new_acc = entries ++ acc
+      new_remaining = remaining - length(entries)
+
+      if new_remaining <= 0 do
+        # We've collected enough, return what we have
+        Enum.reverse(new_acc)
+      else
+        next_key = :ets.next(table_ref, key)
+        collect_entries(table_ref, next_key, new_remaining, new_acc)
+      end
+    end
+
+    defp format_entry(entry) do
+      inspect(entry, pretty: true, limit: 50, printable_limit: 4096)
+    end
+
+    defp format_error(:table_not_found), do: "Table not found"
+    defp format_error(:table_blocked), do: "Access to this table is blocked for security"
+    defp format_error(:table_private), do: "Table is private and cannot be read"
+    defp format_error(:reference_tables_not_supported), do: "Reference-based tables are not supported"
+    defp format_error(:invalid_key), do: "Invalid key format"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
 end

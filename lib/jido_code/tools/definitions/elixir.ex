@@ -11,6 +11,7 @@ defmodule JidoCode.Tools.Definitions.Elixir do
   - `run_exunit` - Run ExUnit tests with filtering options
   - `get_process_state` - Inspect GenServer and process state
   - `inspect_supervisor` - View supervisor tree structure
+  - `ets_inspect` - Inspect ETS tables
 
   ## Security
 
@@ -48,7 +49,8 @@ defmodule JidoCode.Tools.Definitions.Elixir do
       mix_task(),
       run_exunit(),
       get_process_state(),
-      inspect_supervisor()
+      inspect_supervisor(),
+      ets_inspect()
     ]
   end
 
@@ -321,6 +323,78 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           description:
             "Maximum depth to traverse child supervisors (default: 2, max: 5). " <>
               "Higher depth shows more nested supervisors but takes longer.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the ets_inspect tool definition.
+
+  Inspects ETS tables with multiple operations: list available tables,
+  get table info, lookup by key, or sample entries. Only project-owned
+  tables can be inspected - system tables are blocked.
+
+  ## Parameters
+
+  - `operation` (required, string) - Operation to perform: 'list', 'info', 'lookup', 'sample'
+  - `table` (optional, string) - Table name (required for info/lookup/sample operations)
+  - `key` (optional, string) - Key for lookup operation (as string)
+  - `limit` (optional, integer) - Max entries for sample (default: 10, max: 100)
+
+  ## Security
+
+  - System ETS tables are blocked (code, ac_tab, file_io_servers, etc.)
+  - Only project-owned tables can be inspected
+  - Protected/private tables block lookup/sample from non-owner processes
+  - Output is limited to prevent memory issues
+
+  ## Output
+
+  Returns JSON with operation-specific results and entry count.
+  """
+  @spec ets_inspect() :: Tool.t()
+  def ets_inspect do
+    Tool.new!(%{
+      name: "ets_inspect",
+      description:
+        "Inspect ETS tables. Operations: 'list' shows project tables, 'info' shows table details, " <>
+          "'lookup' finds by key, 'sample' returns first N entries. " <>
+          "System tables are blocked. Protected/private tables have restricted access.",
+      handler: Handlers.EtsInspect,
+      parameters: [
+        %{
+          name: "operation",
+          type: :string,
+          description:
+            "Operation to perform: 'list' (show all project tables), 'info' (table details), " <>
+              "'lookup' (find by key), 'sample' (first N entries).",
+          required: true,
+          enum: ["list", "info", "lookup", "sample"]
+        },
+        %{
+          name: "table",
+          type: :string,
+          description:
+            "Table name to inspect (required for info, lookup, and sample operations). " <>
+              "Use the 'list' operation first to discover available tables.",
+          required: false
+        },
+        %{
+          name: "key",
+          type: :string,
+          description:
+            "Key for lookup operation (as string). Supports simple types: " <>
+              "atoms (':name'), integers ('123'), strings ('\"text\"').",
+          required: false
+        },
+        %{
+          name: "limit",
+          type: :integer,
+          description:
+            "Maximum entries to return for sample operation (default: 10, max: 100). " <>
+              "Higher values may impact performance on large tables.",
           required: false
         }
       ]

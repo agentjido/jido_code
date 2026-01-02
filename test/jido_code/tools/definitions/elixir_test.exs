@@ -25,13 +25,14 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
   describe "all/0" do
     test "returns Elixir tools" do
       tools = Definitions.all()
-      assert length(tools) == 4
+      assert length(tools) == 5
 
       names = Enum.map(tools, & &1.name)
       assert "mix_task" in names
       assert "run_exunit" in names
       assert "get_process_state" in names
       assert "inspect_supervisor" in names
+      assert "ets_inspect" in names
     end
   end
 
@@ -194,6 +195,47 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
     test "has correct handler" do
       tool = Definitions.inspect_supervisor()
       assert tool.handler == JidoCode.Tools.Handlers.Elixir.SupervisorTree
+    end
+  end
+
+  describe "ets_inspect/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.ets_inspect()
+      assert tool.name == "ets_inspect"
+      assert tool.description =~ "ETS"
+      assert tool.description =~ "tables"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.ets_inspect()
+      assert length(tool.parameters) == 4
+
+      operation_param = Enum.find(tool.parameters, &(&1.name == "operation"))
+      table_param = Enum.find(tool.parameters, &(&1.name == "table"))
+      key_param = Enum.find(tool.parameters, &(&1.name == "key"))
+      limit_param = Enum.find(tool.parameters, &(&1.name == "limit"))
+
+      assert operation_param.required == true
+      assert operation_param.type == :string
+      assert operation_param.enum == ["list", "info", "lookup", "sample"]
+      assert operation_param.description =~ "Operation"
+
+      assert table_param.required == false
+      assert table_param.type == :string
+      assert table_param.description =~ "Table name"
+
+      assert key_param.required == false
+      assert key_param.type == :string
+      assert key_param.description =~ "Key"
+
+      assert limit_param.required == false
+      assert limit_param.type == :integer
+      assert limit_param.description =~ "100"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.ets_inspect()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.EtsInspect
     end
   end
 
@@ -659,6 +701,86 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
         id: "call_inspect_supervisor",
         name: "inspect_supervisor",
         arguments: %{"supervisor" => ":kernel_sup"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "blocked"
+    end
+
+    test "ets_inspect tool is registered and executable - list operation", %{project_root: project_root} do
+      # Create a test ETS table
+      table = :ets.new(:test_definitions_ets_list, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      tool_call = %{
+        id: "call_ets_inspect_list",
+        name: "ets_inspect",
+        arguments: %{"operation" => "list"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert output["operation"] == "list"
+      assert is_list(output["tables"])
+    end
+
+    test "ets_inspect tool is registered and executable - info operation", %{project_root: project_root} do
+      table = :ets.new(:test_definitions_ets_info, [:named_table, :public])
+      :ets.insert(table, {:test, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      tool_call = %{
+        id: "call_ets_inspect_info",
+        name: "ets_inspect",
+        arguments: %{"operation" => "info", "table" => "test_definitions_ets_info"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert output["operation"] == "info"
+      assert is_map(output["info"])
+    end
+
+    test "ets_inspect validates required operation parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_ets_inspect",
+        name: "ets_inspect",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "missing required parameter"
+    end
+
+    test "ets_inspect blocks system tables", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_ets_inspect",
+        name: "ets_inspect",
+        arguments: %{"operation" => "info", "table" => "code"}
       }
 
       context = %{project_root: project_root}

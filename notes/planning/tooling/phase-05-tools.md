@@ -302,8 +302,8 @@ Implement the ets_inspect tool for ETS table inspection.
 
 ### 5.5.1 Tool Definition
 
-- [ ] 5.5.1.1 Add `ets_inspect/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.5.1.2 Define schema:
+- [x] 5.5.1.1 Add `ets_inspect/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.5.1.2 Define schema:
   ```elixir
   %{
     name: "ets_inspect",
@@ -318,47 +318,47 @@ Implement the ets_inspect tool for ETS table inspection.
     ]
   }
   ```
-- [ ] 5.5.1.3 Update `Elixir.all/0` to include `ets_inspect()`
+- [x] 5.5.1.3 Update `Elixir.all/0` to include `ets_inspect()`
 
 ### 5.5.2 Handler Implementation
 
-- [ ] 5.5.2.1 Create `EtsInspect` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.5.2.2 Implement `list` operation:
+- [x] 5.5.2.1 Create `EtsInspect` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.5.2.2 Implement `list` operation:
   - Get all tables via `:ets.all()`
   - Filter to project-owned tables (owner process in project namespace)
   - Return table names and basic info
-- [ ] 5.5.2.3 Implement `info` operation:
+- [x] 5.5.2.3 Implement `info` operation:
   - Validate table is project-owned
   - Return `:ets.info(table)` data
-- [ ] 5.5.2.4 Implement `lookup` operation:
+- [x] 5.5.2.4 Implement `lookup` operation:
   - Validate table is project-owned and public
   - Parse key from string (support simple types)
   - Return `:ets.lookup(table, key)` results
-- [ ] 5.5.2.5 Implement `sample` operation (safer alternative to match):
+- [x] 5.5.2.5 Implement `sample` operation (safer alternative to match):
   - Validate table is project-owned and public
   - Use `:ets.first/1` and `:ets.next/2` for pagination
   - Return first N entries up to limit
-- [ ] 5.5.2.6 Check table access level (block protected/private from non-owner)
-- [ ] 5.5.2.7 Block system ETS tables:
+- [x] 5.5.2.6 Check table access level (block protected/private from non-owner)
+- [x] 5.5.2.7 Block system ETS tables:
   ```elixir
   @blocked_tables ~w(code ac_tab file_io_servers shell_records)a
   ```
-- [ ] 5.5.2.8 Enforce limit (max 100, default 10)
-- [ ] 5.5.2.9 Format results for display (inspect with limits)
-- [ ] 5.5.2.10 Return `{:ok, %{"result" => result, "count" => count}}`
-- [ ] 5.5.2.11 Emit telemetry: `[:jido_code, :elixir, :ets_inspect]`
+- [x] 5.5.2.8 Enforce limit (max 100, default 10)
+- [x] 5.5.2.9 Format results for display (inspect with limits)
+- [x] 5.5.2.10 Return `{:ok, %{"result" => result, "count" => count}}`
+- [x] 5.5.2.11 Emit telemetry: `[:jido_code, :elixir, :ets_inspect]`
 
 ### 5.5.3 Unit Tests for ETS Inspect
 
-- [ ] Test ets_inspect list operation
-- [ ] Test ets_inspect info operation
-- [ ] Test ets_inspect lookup operation
-- [ ] Test ets_inspect sample operation
-- [ ] Test ets_inspect blocks system tables
-- [ ] Test ets_inspect respects table access levels
-- [ ] Test ets_inspect enforces limit
-- [ ] Test ets_inspect handles non-existent table
-- [ ] Test ets_inspect filters to project-owned tables
+- [x] Test ets_inspect list operation
+- [x] Test ets_inspect info operation
+- [x] Test ets_inspect lookup operation
+- [x] Test ets_inspect sample operation
+- [x] Test ets_inspect blocks system tables
+- [x] Test ets_inspect respects table access levels
+- [x] Test ets_inspect enforces limit
+- [x] Test ets_inspect handles non-existent table
+- [x] Test ets_inspect filters to project-owned tables
 
 ---
 

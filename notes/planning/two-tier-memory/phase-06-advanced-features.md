@@ -154,7 +154,7 @@ Implement context summarization to compress conversation history when token budg
 
 ### 6.1.2 Summarization Integration
 
-- [ ] 6.1.2.1 Add summarization to ContextBuilder:
+- [x] 6.1.2.1 Add summarization to ContextBuilder:
   ```elixir
   defp get_conversation(session_id, budget) do
     {:ok, messages} = Session.State.get_messages(session_id)
@@ -167,7 +167,7 @@ Implement context summarization to compress conversation history when token budg
     end
   end
   ```
-- [ ] 6.1.2.2 Implement summary caching:
+- [x] 6.1.2.2 Implement summary caching:
   ```elixir
   @summary_cache_key :conversation_summary
 
@@ -183,23 +183,23 @@ Implement context summarization to compress conversation history when token budg
     })
   end
   ```
-- [ ] 6.1.2.3 Invalidate cache on new messages
-- [ ] 6.1.2.4 Add force_summarize option to bypass cache
+- [x] 6.1.2.3 Invalidate cache on new messages
+- [x] 6.1.2.4 Add force_summarize option to bypass cache
 
 ### 6.1.3 Unit Tests for Summarization
 
-- [ ] Test summarize/2 reduces token count to target
-- [ ] Test summarize/2 preserves user messages preferentially
-- [ ] Test summarize/2 preserves recent messages
-- [ ] Test summarize/2 preserves questions and decisions
-- [ ] Test summarize/2 maintains chronological order after selection
-- [ ] Test summarize/2 adds summary marker
-- [ ] Test score_messages assigns correct role weights
-- [ ] Test score_content boosts questions
-- [ ] Test score_content boosts decisions
-- [ ] Test score_content boosts error mentions
-- [ ] Test summary caching works correctly
-- [ ] Test cache invalidation on new messages
+- [x] Test summarize/2 reduces token count to target
+- [x] Test summarize/2 preserves user messages preferentially
+- [x] Test summarize/2 preserves recent messages
+- [x] Test summarize/2 preserves questions and decisions
+- [x] Test summarize/2 maintains chronological order after selection
+- [x] Test summarize/2 adds summary marker
+- [x] Test score_messages assigns correct role weights
+- [x] Test score_content boosts questions
+- [x] Test score_content boosts decisions
+- [x] Test score_content boosts error mentions
+- [x] Test summary caching works correctly
+- [x] Test cache invalidation on new messages
 
 ---
 

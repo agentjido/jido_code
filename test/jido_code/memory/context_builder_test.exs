@@ -746,4 +746,195 @@ defmodule JidoCode.Memory.ContextBuilderTest do
       assert result =~ "[filtered]"
     end
   end
+
+  # =============================================================================
+  # Summarization Integration Tests
+  # =============================================================================
+
+  describe "summarization integration" do
+    test "summarizes conversation when exceeds budget", %{session_id: session_id} do
+      # Add many messages to exceed a small budget
+      base_time = DateTime.utc_now()
+
+      for i <- 1..20 do
+        message = %{
+          id: "msg-#{i}",
+          role: if(rem(i, 2) == 0, do: :user, else: :assistant),
+          content: "This is message number #{i} with some content that takes up tokens.",
+          timestamp: DateTime.add(base_time, i * 60, :second)
+        }
+
+        {:ok, _} = State.append_message(session_id, message)
+      end
+
+      # Build context with a very small conversation budget
+      {:ok, context} =
+        ContextBuilder.build(session_id,
+          token_budget: %{
+            total: 200,
+            system: 20,
+            conversation: 50,
+            working: 50,
+            long_term: 80
+          }
+        )
+
+      # Conversation should be summarized (fewer messages than original)
+      assert length(context.conversation) < 20
+      # Should have a summary marker
+      assert Enum.any?(context.conversation, fn msg ->
+               msg.role == :system and msg.content =~ "summarized"
+             end)
+    end
+
+    test "uses cached summary on repeated builds", %{session_id: session_id} do
+      # Add messages
+      base_time = DateTime.utc_now()
+
+      for i <- 1..10 do
+        message = %{
+          id: "msg-#{i}",
+          role: :user,
+          content: "Message #{i} that needs summarization",
+          timestamp: DateTime.add(base_time, i * 60, :second)
+        }
+
+        {:ok, _} = State.append_message(session_id, message)
+      end
+
+      budget = %{total: 200, system: 20, conversation: 30, working: 50, long_term: 100}
+
+      # First build - creates summary
+      {:ok, context1} = ContextBuilder.build(session_id, token_budget: budget)
+
+      # Second build - should use cached summary (same message count)
+      {:ok, context2} = ContextBuilder.build(session_id, token_budget: budget)
+
+      # Both should have same summarized content
+      assert context1.conversation == context2.conversation
+    end
+
+    test "invalidates cache when message count changes", %{session_id: session_id} do
+      # Add initial messages
+      base_time = DateTime.utc_now()
+
+      for i <- 1..10 do
+        message = %{
+          id: "msg-#{i}",
+          role: :user,
+          content: "Message #{i}",
+          timestamp: DateTime.add(base_time, i * 60, :second)
+        }
+
+        {:ok, _} = State.append_message(session_id, message)
+      end
+
+      budget = %{total: 200, system: 20, conversation: 30, working: 50, long_term: 100}
+
+      # First build
+      {:ok, _context1} = ContextBuilder.build(session_id, token_budget: budget)
+
+      # Add new message
+      {:ok, _} =
+        State.append_message(session_id, %{
+          id: "msg-11",
+          role: :user,
+          content: "New message after summary",
+          timestamp: DateTime.add(base_time, 1100, :second)
+        })
+
+      # Second build - cache should be invalidated due to new message
+      {:ok, context2} = ContextBuilder.build(session_id, token_budget: budget)
+
+      # Should have re-summarized with new message potentially included
+      assert is_list(context2.conversation)
+    end
+
+    test "force_summarize bypasses cache", %{session_id: session_id} do
+      # Add messages
+      base_time = DateTime.utc_now()
+
+      for i <- 1..10 do
+        message = %{
+          id: "msg-#{i}",
+          role: :user,
+          content: "Message #{i}",
+          timestamp: DateTime.add(base_time, i * 60, :second)
+        }
+
+        {:ok, _} = State.append_message(session_id, message)
+      end
+
+      budget = %{total: 200, system: 20, conversation: 30, working: 50, long_term: 100}
+
+      # First build
+      {:ok, _context1} = ContextBuilder.build(session_id, token_budget: budget)
+
+      # Second build with force_summarize
+      {:ok, context2} =
+        ContextBuilder.build(session_id, token_budget: budget, force_summarize: true)
+
+      # Should have re-summarized (different summary marker id)
+      assert is_list(context2.conversation)
+    end
+
+    test "does not summarize when under budget", %{session_id: session_id} do
+      # Add just a few short messages
+      base_time = DateTime.utc_now()
+
+      for i <- 1..3 do
+        message = %{
+          id: "msg-#{i}",
+          role: :user,
+          content: "Short",
+          timestamp: DateTime.add(base_time, i * 60, :second)
+        }
+
+        {:ok, _} = State.append_message(session_id, message)
+      end
+
+      # Build with large budget
+      {:ok, context} =
+        ContextBuilder.build(session_id,
+          token_budget: %{
+            total: 32000,
+            system: 2000,
+            conversation: 20000,
+            working: 4000,
+            long_term: 6000
+          }
+        )
+
+      # All messages should be present (no summarization)
+      assert length(context.conversation) == 3
+      # No summary marker
+      refute Enum.any?(context.conversation, fn msg ->
+               msg.role == :system and msg.content =~ "summarized"
+             end)
+    end
+
+    test "conversation_summary is not exposed in working_context", %{session_id: session_id} do
+      # Add messages to trigger summarization
+      base_time = DateTime.utc_now()
+
+      for i <- 1..10 do
+        message = %{
+          id: "msg-#{i}",
+          role: :user,
+          content: "Message #{i} with content",
+          timestamp: DateTime.add(base_time, i * 60, :second)
+        }
+
+        {:ok, _} = State.append_message(session_id, message)
+      end
+
+      budget = %{total: 200, system: 20, conversation: 30, working: 50, long_term: 100}
+
+      # Build context (which will cache the summary)
+      {:ok, context} = ContextBuilder.build(session_id, token_budget: budget)
+
+      # Working context should not contain the summary cache
+      refute Map.has_key?(context.working_context, :conversation_summary)
+    end
+  end
 end

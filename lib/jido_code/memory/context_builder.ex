@@ -51,6 +51,7 @@ defmodule JidoCode.Memory.ContextBuilder do
   require Logger
 
   alias JidoCode.Memory
+  alias JidoCode.Memory.Summarizer
   alias JidoCode.Memory.TokenCounter
   alias JidoCode.Memory.Types
   alias JidoCode.Session.State
@@ -122,6 +123,9 @@ defmodule JidoCode.Memory.ContextBuilder do
 
   # Maximum content length for formatted output (security limit)
   @max_content_display_length 2000
+
+  # Summary cache key for storing summarized conversations
+  @summary_cache_key :conversation_summary
 
   # =============================================================================
   # Public API
@@ -224,6 +228,13 @@ defmodule JidoCode.Memory.ContextBuilder do
     Note: The hint does not perform relevance scoring.
   - `:include_memories` - Whether to include long-term memories (default: true)
   - `:include_conversation` - Whether to include conversation history (default: true)
+  - `:force_summarize` - Force re-summarization, bypassing cache (default: false)
+
+  ## Summarization
+
+  When conversation history exceeds the token budget, it is automatically
+  summarized using extractive summarization. The summary is cached to avoid
+  redundant computation. The cache is invalidated when new messages are added.
 
   ## Returns
 
@@ -240,6 +251,9 @@ defmodule JidoCode.Memory.ContextBuilder do
         token_budget: %{total: 16_000, system: 1_000, conversation: 10_000, working: 2_000, long_term: 3_000}
       )
 
+      # Force re-summarization
+      {:ok, context} = ContextBuilder.build("session-123", force_summarize: true)
+
   """
   @spec build(String.t(), keyword()) :: {:ok, context()} | {:error, term()}
   def build(session_id, opts \\ []) when is_binary(session_id) do
@@ -248,8 +262,14 @@ defmodule JidoCode.Memory.ContextBuilder do
     query_hint = Keyword.get(opts, :query_hint)
     include_memories = Keyword.get(opts, :include_memories, true)
     include_conversation = Keyword.get(opts, :include_conversation, true)
+    force_summarize = Keyword.get(opts, :force_summarize, false)
 
-    with {:ok, conversation} <- get_conversation(session_id, token_budget.conversation, include_conversation),
+    conversation_opts = %{
+      budget: token_budget.conversation,
+      force_summarize: force_summarize
+    }
+
+    with {:ok, conversation} <- get_conversation(session_id, conversation_opts, include_conversation),
          {:ok, working} <- get_working_context(session_id),
          {:ok, long_term} <- get_relevant_memories(session_id, query_hint, include_memories, token_budget.long_term) do
       context = assemble_context(conversation, working, long_term)
@@ -318,15 +338,27 @@ defmodule JidoCode.Memory.ContextBuilder do
   # Private Functions - Data Retrieval
   # =============================================================================
 
-  defp get_conversation(_session_id, _budget, false) do
+  defp get_conversation(_session_id, _opts, false) do
     {:ok, []}
   end
 
-  defp get_conversation(session_id, budget, true) do
+  defp get_conversation(session_id, opts, true) do
+    budget = opts.budget
+    force_summarize = opts.force_summarize
+
     case State.get_messages(session_id) do
       {:ok, messages} ->
-        truncated = truncate_messages_to_budget(messages, budget)
-        {:ok, truncated}
+        current_tokens = TokenCounter.count_messages(messages)
+
+        cond do
+          # Under budget - no summarization needed
+          current_tokens <= budget ->
+            {:ok, messages}
+
+          # Over budget - check cache or summarize
+          true ->
+            get_or_create_summary(session_id, messages, budget, force_summarize)
+        end
 
       {:error, :not_found} ->
         {:error, :session_not_found}
@@ -336,10 +368,62 @@ defmodule JidoCode.Memory.ContextBuilder do
     end
   end
 
+  # Try to get cached summary or create new one
+  defp get_or_create_summary(session_id, messages, budget, force_summarize) do
+    message_count = length(messages)
+
+    if force_summarize do
+      # Force new summary
+      create_and_cache_summary(session_id, messages, budget, message_count)
+    else
+      # Try cache first
+      case get_cached_summary(session_id) do
+        {:ok, cached} when cached.message_count == message_count ->
+          # Cache is valid (same message count)
+          Logger.debug("ContextBuilder: Using cached summary for session #{session_id}")
+          {:ok, cached.summary}
+
+        _ ->
+          # Cache miss or stale - create new summary
+          create_and_cache_summary(session_id, messages, budget, message_count)
+      end
+    end
+  end
+
+  defp create_and_cache_summary(session_id, messages, budget, message_count) do
+    summary = Summarizer.summarize(messages, budget)
+    cache_summary(session_id, summary, message_count)
+
+    Logger.debug(
+      "ContextBuilder: Summarized conversation from #{message_count} messages to #{length(summary)} for session #{session_id}"
+    )
+
+    emit_summarization_telemetry(session_id, message_count, length(summary))
+    {:ok, summary}
+  end
+
+  defp get_cached_summary(session_id) do
+    State.get_context(session_id, @summary_cache_key)
+  end
+
+  defp cache_summary(session_id, summary, message_count) do
+    cache_data = %{
+      summary: summary,
+      message_count: message_count,
+      created_at: DateTime.utc_now()
+    }
+
+    # Store as working context - will be automatically excluded from user-visible context
+    State.update_context(session_id, @summary_cache_key, cache_data)
+  end
+
   defp get_working_context(session_id) do
     case State.get_all_context(session_id) do
       {:ok, context} ->
-        {:ok, context}
+        # Filter out internal cache keys (like conversation_summary)
+        # that shouldn't be exposed in the working context
+        filtered = Map.delete(context, @summary_cache_key)
+        {:ok, filtered}
 
       {:error, :not_found} ->
         # Session doesn't exist - consistent with get_conversation
@@ -402,24 +486,6 @@ defmodule JidoCode.Memory.ContextBuilder do
   # =============================================================================
   # Private Functions - Truncation
   # =============================================================================
-
-  defp truncate_messages_to_budget(messages, budget) do
-    # Keep most recent messages that fit within budget
-    # Process in reverse to prioritize recent messages
-    # Uses TokenCounter for consistent token estimation
-    messages
-    |> Enum.reverse()
-    |> Enum.reduce_while({[], 0}, fn msg, {acc, tokens} ->
-      msg_tokens = TokenCounter.count_message(msg)
-
-      if tokens + msg_tokens <= budget do
-        {:cont, {[msg | acc], tokens + msg_tokens}}
-      else
-        {:halt, {acc, tokens}}
-      end
-    end)
-    |> elem(0)
-  end
 
   defp truncate_memories_to_budget(memories, budget) do
     # Keep highest confidence memories that fit within budget
@@ -558,6 +624,14 @@ defmodule JidoCode.Memory.ContextBuilder do
     :telemetry.execute(
       [:jido_code, :memory, :context_build],
       %{duration_ms: duration_ms, tokens: token_counts.total},
+      %{session_id: session_id}
+    )
+  end
+
+  defp emit_summarization_telemetry(session_id, original_count, summarized_count) do
+    :telemetry.execute(
+      [:jido_code, :memory, :context_summarized],
+      %{original_messages: original_count, summarized_messages: summarized_count},
       %{session_id: session_id}
     )
   end

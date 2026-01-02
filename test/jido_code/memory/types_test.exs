@@ -174,7 +174,8 @@ defmodule JidoCode.Memory.TypesTest do
         :discovered_patterns,
         :active_errors,
         :pending_questions,
-        :file_relationships
+        :file_relationships,
+        :conversation_summary
       ]
 
       assert Types.context_keys() == expected
@@ -193,8 +194,8 @@ defmodule JidoCode.Memory.TypesTest do
       refute Types.valid_context_key?(nil)
     end
 
-    test "context_keys exhaustiveness - all 10 keys are defined" do
-      assert length(Types.context_keys()) == 10
+    test "context_keys exhaustiveness - all 11 keys are defined" do
+      assert length(Types.context_keys()) == 11
     end
   end
 

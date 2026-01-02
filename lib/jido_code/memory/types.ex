@@ -114,6 +114,7 @@ defmodule JidoCode.Memory.Types do
   - `:active_errors` - Current errors or issues being addressed
   - `:pending_questions` - Unresolved questions or clarifications needed
   - `:file_relationships` - Dependencies or relationships between files
+  - `:conversation_summary` - Cached summarized conversation (internal use)
   """
   @type context_key ::
           :active_file
@@ -126,6 +127,7 @@ defmodule JidoCode.Memory.Types do
           | :active_errors
           | :pending_questions
           | :file_relationships
+          | :conversation_summary
 
   @typedoc """
   A memory item staged for potential promotion to long-term storage.
@@ -263,7 +265,8 @@ defmodule JidoCode.Memory.Types do
     :discovered_patterns,
     :active_errors,
     :pending_questions,
-    :file_relationships
+    :file_relationships,
+    :conversation_summary
   ]
 
   @doc """

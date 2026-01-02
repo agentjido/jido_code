@@ -8,6 +8,9 @@ defmodule JidoCode.Tools.Definitions.Shell do
   ## Available Tools
 
   - `run_command` - Execute a shell command with arguments
+  - `bash_background` - Start a command in the background
+  - `bash_output` - Retrieve output from a background process
+  - `kill_shell` - Terminate a background process
 
   ## Security
 
@@ -43,7 +46,9 @@ defmodule JidoCode.Tools.Definitions.Shell do
   def all do
     [
       run_command(),
-      bash_background()
+      bash_background(),
+      bash_output(),
+      kill_shell()
     ]
   end
 
@@ -157,6 +162,85 @@ defmodule JidoCode.Tools.Definitions.Shell do
           type: :string,
           description: "Optional description for tracking the background process",
           required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the bash_output tool definition.
+
+  Retrieves output from a background shell process started with bash_background.
+
+  ## Parameters
+
+  - `shell_id` (required, string) - Shell ID returned by bash_background
+  - `block` (optional, boolean) - Wait for completion (default: true)
+  - `timeout` (optional, integer) - Max wait time in ms (default: 30000)
+
+  ## Output
+
+  Returns JSON with output, status (running/completed/failed/killed), and exit_code.
+  """
+  @spec bash_output() :: Tool.t()
+  def bash_output do
+    Tool.new!(%{
+      name: "bash_output",
+      description:
+        "Get output from a background shell process. " <>
+          "Returns output, status (running/completed/failed/killed), and exit_code. " <>
+          "Use block=true (default) to wait for completion, or block=false for immediate status.",
+      handler: Handlers.BashOutput,
+      parameters: [
+        %{
+          name: "shell_id",
+          type: :string,
+          description: "Shell ID returned by bash_background",
+          required: true
+        },
+        %{
+          name: "block",
+          type: :boolean,
+          description: "Wait for completion (default: true)",
+          required: false
+        },
+        %{
+          name: "timeout",
+          type: :integer,
+          description: "Max wait time in ms when blocking (default: 30000)",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the kill_shell tool definition.
+
+  Terminates a background shell process.
+
+  ## Parameters
+
+  - `shell_id` (required, string) - Shell ID returned by bash_background
+
+  ## Output
+
+  Returns JSON with success status and message.
+  """
+  @spec kill_shell() :: Tool.t()
+  def kill_shell do
+    Tool.new!(%{
+      name: "kill_shell",
+      description:
+        "Terminate a background shell process. " <>
+          "Returns success status. Use this to stop long-running processes.",
+      handler: Handlers.KillShell,
+      parameters: [
+        %{
+          name: "shell_id",
+          type: :string,
+          description: "Shell ID returned by bash_background",
+          required: true
         }
       ]
     })

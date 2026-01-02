@@ -1036,4 +1036,363 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     defp format_error(reason) when is_binary(reason), do: reason
     defp format_error(reason), do: "Error: #{inspect(reason)}"
   end
+
+  # ============================================================================
+  # SupervisorTree Handler
+  # ============================================================================
+
+  defmodule SupervisorTree do
+    @moduledoc """
+    Handler for the inspect_supervisor tool.
+
+    Inspects supervisor tree structure with security controls.
+    Only project supervisors can be inspected - system supervisors are blocked.
+
+    ## Security Features
+
+    - Only registered names allowed (raw PIDs blocked)
+    - System supervisors blocked (kernel, stdlib, init)
+    - JidoCode internal supervisors blocked
+    - Depth limited to prevent excessive recursion
+
+    ## Output
+
+    Returns JSON with:
+    - `tree` - Formatted tree structure as string
+    - `children` - List of child specs with details
+    - `supervisor_info` - Supervisor metadata
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.HandlerHelpers
+
+    @default_depth 2
+    @max_depth 5
+    @max_children_per_level 50
+
+    # Blocked supervisor prefixes (same as ProcessState for consistency)
+    @blocked_prefixes [
+      # JidoCode internal processes
+      "JidoCode.Tools",
+      "JidoCode.Session",
+      "JidoCode.Registry",
+      "Elixir.JidoCode.Tools",
+      "Elixir.JidoCode.Session",
+      "Elixir.JidoCode.Registry",
+      # Erlang kernel and runtime
+      ":kernel",
+      ":stdlib",
+      ":init",
+      ":code_server",
+      ":user",
+      ":application_controller",
+      ":error_logger",
+      ":logger",
+      # Distribution and networking
+      ":global_name_server",
+      ":global_group",
+      ":net_kernel",
+      ":auth",
+      ":inet_db",
+      ":erl_epmd",
+      # Code loading and file system
+      ":erl_prim_loader",
+      ":file_server_2",
+      ":erts_code_purger",
+      # Remote execution and signals
+      ":rex",
+      ":erl_signal_server",
+      # SSL/TLS processes
+      ":ssl_manager",
+      ":ssl_pem_cache",
+      # Disk logging
+      ":disk_log_server",
+      ":disk_log_sup",
+      # Standard server processes
+      ":standard_error",
+      ":standard_error_sup"
+    ]
+
+    @doc """
+    Inspects the structure of a supervisor tree.
+
+    ## Arguments
+
+    - `"supervisor"` - Registered name of the supervisor (required)
+    - `"depth"` - Maximum depth to traverse (optional, default: 2, max: 5)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with tree structure and children list
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"supervisor" => supervisor_name} = args, context) when is_binary(supervisor_name) do
+      start_time = System.monotonic_time(:microsecond)
+      depth = get_depth(args)
+
+      with :ok <- validate_supervisor_name(supervisor_name),
+           :ok <- validate_not_blocked(supervisor_name),
+           {:ok, pid} <- lookup_supervisor(supervisor_name) do
+        inspect_and_format_tree(pid, supervisor_name, depth, context, start_time)
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:supervisor_tree, start_time, supervisor_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    def execute(%{"supervisor" => supervisor_name}, _context) do
+      {:error, "Invalid supervisor name: expected string, got #{inspect(supervisor_name)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: supervisor"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    defp get_depth(args) do
+      case Map.get(args, "depth") do
+        nil -> @default_depth
+        depth when is_integer(depth) and depth > 0 -> min(depth, @max_depth)
+        _ -> @default_depth
+      end
+    end
+
+    # Validate supervisor name format - only allow registered names, not raw PIDs
+    defp validate_supervisor_name(name) do
+      cond do
+        # Block raw PID strings like "#PID<0.123.0>" or "<0.123.0>"
+        String.contains?(name, "<") and String.contains?(name, ".") ->
+          {:error, :raw_pid_not_allowed}
+
+        # Block empty or whitespace-only names
+        String.trim(name) == "" ->
+          {:error, :invalid_supervisor_name}
+
+        # Valid registered name
+        true ->
+          :ok
+      end
+    end
+
+    # Check if supervisor is in blocked list
+    defp validate_not_blocked(name) do
+      if Enum.any?(@blocked_prefixes, &String.starts_with?(name, &1)) do
+        {:error, :supervisor_blocked}
+      else
+        :ok
+      end
+    end
+
+    # Look up supervisor by registered name
+    defp lookup_supervisor(name) do
+      atom_name = try_to_atom(name)
+
+      case atom_name do
+        nil ->
+          {:error, :supervisor_not_found}
+
+        atom when is_atom(atom) ->
+          case GenServer.whereis(atom) do
+            nil -> {:error, :supervisor_not_found}
+            pid when is_pid(pid) -> {:ok, pid}
+          end
+      end
+    end
+
+    defp try_to_atom(name) do
+      try do
+        String.to_existing_atom(name)
+      rescue
+        ArgumentError ->
+          try do
+            String.to_existing_atom("Elixir." <> name)
+          rescue
+            ArgumentError -> nil
+          end
+      end
+    end
+
+    defp inspect_and_format_tree(pid, supervisor_name, depth, context, start_time) do
+      supervisor_info = get_supervisor_info(pid, supervisor_name)
+
+      children_result =
+        try do
+          children = Supervisor.which_children(pid)
+          {:ok, children}
+        catch
+          :exit, {:noproc, _} -> {:error, :supervisor_dead}
+          :exit, reason -> {:error, {:supervisor_error, reason}}
+        end
+
+      case children_result do
+        {:ok, children} ->
+          # Limit children count
+          limited_children = Enum.take(children, @max_children_per_level)
+          truncated = length(children) > @max_children_per_level
+
+          # Build tree structure
+          tree_data = build_tree(limited_children, depth - 1)
+          tree_string = format_tree_string(supervisor_name, tree_data, truncated)
+
+          result = %{
+            "tree" => tree_string,
+            "children" => format_children_list(tree_data),
+            "supervisor_info" => supervisor_info,
+            "children_count" => length(children),
+            "truncated" => truncated
+          }
+
+          ElixirHandler.emit_elixir_telemetry(:supervisor_tree, start_time, supervisor_name, context, :ok, 0)
+
+          case Jason.encode(result) do
+            {:ok, json} -> {:ok, json}
+            {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+          end
+
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:supervisor_tree, start_time, supervisor_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp get_supervisor_info(pid, name) do
+      info = Process.info(pid, [:status, :message_queue_len, :memory, :reductions])
+
+      case info do
+        nil ->
+          %{"status" => "dead", "name" => name}
+
+        info_list ->
+          %{
+            "name" => name,
+            "status" => to_string(info_list[:status]),
+            "message_queue_len" => info_list[:message_queue_len],
+            "memory" => info_list[:memory],
+            "reductions" => info_list[:reductions]
+          }
+      end
+    end
+
+    defp build_tree(children, remaining_depth) do
+      Enum.map(children, fn {id, child_pid, type, modules} ->
+        child_info = %{
+          id: format_id(id),
+          type: to_string(type),
+          modules: format_modules(modules),
+          pid: format_pid(child_pid),
+          status: get_child_status(child_pid)
+        }
+
+        # Recursively inspect supervisor children if depth allows
+        if remaining_depth > 0 and type == :supervisor and is_pid(child_pid) do
+          sub_children = get_safe_children(child_pid)
+          limited_sub = Enum.take(sub_children, @max_children_per_level)
+          sub_tree = build_tree(limited_sub, remaining_depth - 1)
+          Map.put(child_info, :children, sub_tree)
+        else
+          child_info
+        end
+      end)
+    end
+
+    defp get_safe_children(pid) do
+      try do
+        Supervisor.which_children(pid)
+      catch
+        :exit, _ -> []
+      end
+    end
+
+    defp format_id(id) when is_atom(id), do: to_string(id)
+    defp format_id(id), do: inspect(id)
+
+    defp format_modules(:dynamic), do: ["dynamic"]
+    defp format_modules(modules) when is_list(modules), do: Enum.map(modules, &to_string/1)
+    defp format_modules(_), do: []
+
+    defp format_pid(pid) when is_pid(pid), do: inspect(pid)
+    defp format_pid(:undefined), do: "undefined"
+    defp format_pid(:restarting), do: "restarting"
+    defp format_pid(other), do: inspect(other)
+
+    defp get_child_status(pid) when is_pid(pid) do
+      if Process.alive?(pid), do: "running", else: "dead"
+    end
+
+    defp get_child_status(:undefined), do: "not_started"
+    defp get_child_status(:restarting), do: "restarting"
+    defp get_child_status(_), do: "unknown"
+
+    defp format_tree_string(root_name, children, truncated) do
+      lines = [root_name | format_tree_lines(children, "")]
+      tree = Enum.join(lines, "\n")
+
+      if truncated do
+        tree <> "\n... (children truncated at #{@max_children_per_level})"
+      else
+        tree
+      end
+    end
+
+    defp format_tree_lines([], _prefix), do: []
+
+    defp format_tree_lines(children, prefix) do
+      children
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {child, index} ->
+        is_last = index == length(children) - 1
+        connector = if is_last, do: "└── ", else: "├── "
+        child_prefix = if is_last, do: "    ", else: "│   "
+
+        type_indicator = if child.type == "supervisor", do: "[S]", else: "[W]"
+        status_indicator = status_symbol(child.status)
+        child_line = "#{prefix}#{connector}#{type_indicator} #{child.id} #{status_indicator}"
+
+        sub_lines =
+          case Map.get(child, :children) do
+            nil -> []
+            sub_children -> format_tree_lines(sub_children, prefix <> child_prefix)
+          end
+
+        [child_line | sub_lines]
+      end)
+    end
+
+    defp status_symbol("running"), do: "●"
+    defp status_symbol("dead"), do: "○"
+    defp status_symbol("restarting"), do: "↻"
+    defp status_symbol("not_started"), do: "◌"
+    defp status_symbol(_), do: "?"
+
+    defp format_children_list(tree_data) do
+      Enum.map(tree_data, fn child ->
+        base = %{
+          "id" => child.id,
+          "type" => child.type,
+          "modules" => child.modules,
+          "pid" => child.pid,
+          "status" => child.status
+        }
+
+        case Map.get(child, :children) do
+          nil -> base
+          sub_children -> Map.put(base, "children", format_children_list(sub_children))
+        end
+      end)
+    end
+
+    defp format_error(:raw_pid_not_allowed), do: "Raw PIDs are not allowed. Use registered supervisor names."
+    defp format_error(:invalid_supervisor_name), do: "Invalid supervisor name"
+    defp format_error(:supervisor_blocked), do: "Access to this supervisor is blocked for security"
+    defp format_error(:supervisor_not_found), do: "Supervisor not found or not registered"
+    defp format_error(:supervisor_dead), do: "Supervisor is no longer running"
+    defp format_error({:supervisor_error, reason}), do: "Error inspecting supervisor: #{inspect(reason)}"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
 end

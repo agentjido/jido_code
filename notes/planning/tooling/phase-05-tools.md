@@ -254,8 +254,8 @@ Implement the inspect_supervisor tool for viewing supervisor tree structure.
 
 ### 5.4.1 Tool Definition
 
-- [ ] 5.4.1.1 Add `inspect_supervisor/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.4.1.2 Define schema:
+- [x] 5.4.1.1 Add `inspect_supervisor/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.4.1.2 Define schema:
   ```elixir
   %{
     name: "inspect_supervisor",
@@ -267,32 +267,32 @@ Implement the inspect_supervisor tool for viewing supervisor tree structure.
     ]
   }
   ```
-- [ ] 5.4.1.3 Update `Elixir.all/0` to include `inspect_supervisor()`
+- [x] 5.4.1.3 Update `Elixir.all/0` to include `inspect_supervisor()`
 
 ### 5.4.2 Handler Implementation
 
-- [ ] 5.4.2.1 Create `SupervisorTree` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.4.2.2 Parse supervisor identifier (registered name only)
-- [ ] 5.4.2.3 Validate supervisor is in project namespace
-- [ ] 5.4.2.4 Block system supervisors (same prefix list as process_state)
-- [ ] 5.4.2.5 Enforce depth limit (max 5, default 2)
-- [ ] 5.4.2.6 Use `Supervisor.which_children/1`
-- [ ] 5.4.2.7 Recursively inspect child supervisors up to depth
-- [ ] 5.4.2.8 Limit children count per level (max 50)
-- [ ] 5.4.2.9 Format tree structure for display
-- [ ] 5.4.2.10 Return `{:ok, %{"tree" => tree_string, "children" => list}}`
-- [ ] 5.4.2.11 Emit telemetry: `[:jido_code, :elixir, :supervisor_tree]`
+- [x] 5.4.2.1 Create `SupervisorTree` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.4.2.2 Parse supervisor identifier (registered name only)
+- [x] 5.4.2.3 Validate supervisor is in project namespace
+- [x] 5.4.2.4 Block system supervisors (same prefix list as process_state)
+- [x] 5.4.2.5 Enforce depth limit (max 5, default 2)
+- [x] 5.4.2.6 Use `Supervisor.which_children/1`
+- [x] 5.4.2.7 Recursively inspect child supervisors up to depth
+- [x] 5.4.2.8 Limit children count per level (max 50)
+- [x] 5.4.2.9 Format tree structure for display
+- [x] 5.4.2.10 Return `{:ok, %{"tree" => tree_string, "children" => list}}`
+- [x] 5.4.2.11 Emit telemetry: `[:jido_code, :elixir, :supervisor_tree]`
 
 ### 5.4.3 Unit Tests for Inspect Supervisor
 
-- [ ] Test inspect_supervisor with Application supervisor
-- [ ] Test inspect_supervisor shows children
-- [ ] Test inspect_supervisor respects depth limit
-- [ ] Test inspect_supervisor enforces max depth of 5
-- [ ] Test inspect_supervisor handles DynamicSupervisor
-- [ ] Test inspect_supervisor blocks system supervisors
-- [ ] Test inspect_supervisor handles dead supervisor
-- [ ] Test inspect_supervisor limits children count
+- [x] Test inspect_supervisor with Application supervisor
+- [x] Test inspect_supervisor shows children
+- [x] Test inspect_supervisor respects depth limit
+- [x] Test inspect_supervisor enforces max depth of 5
+- [x] Test inspect_supervisor handles DynamicSupervisor
+- [x] Test inspect_supervisor blocks system supervisors
+- [x] Test inspect_supervisor handles dead supervisor
+- [x] Test inspect_supervisor limits children count
 
 ---
 

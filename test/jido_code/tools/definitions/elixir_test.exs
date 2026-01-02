@@ -25,12 +25,13 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
   describe "all/0" do
     test "returns Elixir tools" do
       tools = Definitions.all()
-      assert length(tools) == 3
+      assert length(tools) == 4
 
       names = Enum.map(tools, & &1.name)
       assert "mix_task" in names
       assert "run_exunit" in names
       assert "get_process_state" in names
+      assert "inspect_supervisor" in names
     end
   end
 
@@ -163,6 +164,36 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
     test "has correct handler" do
       tool = Definitions.get_process_state()
       assert tool.handler == JidoCode.Tools.Handlers.Elixir.ProcessState
+    end
+  end
+
+  describe "inspect_supervisor/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.inspect_supervisor()
+      assert tool.name == "inspect_supervisor"
+      assert tool.description =~ "supervisor"
+      assert tool.description =~ "tree"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.inspect_supervisor()
+      assert length(tool.parameters) == 2
+
+      supervisor_param = Enum.find(tool.parameters, &(&1.name == "supervisor"))
+      depth_param = Enum.find(tool.parameters, &(&1.name == "depth"))
+
+      assert supervisor_param.required == true
+      assert supervisor_param.type == :string
+      assert supervisor_param.description =~ "Registered name"
+
+      assert depth_param.required == false
+      assert depth_param.type == :integer
+      assert depth_param.description =~ "depth"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.inspect_supervisor()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.SupervisorTree
     end
   end
 
@@ -560,6 +591,74 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
         id: "call_process_state",
         name: "get_process_state",
         arguments: %{"process" => ":kernel"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "blocked"
+    end
+
+    test "inspect_supervisor tool is registered and executable", %{project_root: project_root} do
+      # Start a test supervisor
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_definitions_supervisor)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{"supervisor" => "test_definitions_supervisor"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert is_binary(output["tree"])
+      assert is_list(output["children"])
+    end
+
+    test "inspect_supervisor validates required supervisor parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "missing required parameter"
+    end
+
+    test "inspect_supervisor blocks raw PIDs", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{"supervisor" => "#PID<0.123.0>"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Raw PIDs"
+    end
+
+    test "inspect_supervisor blocks system supervisors", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{"supervisor" => ":kernel_sup"}
       }
 
       context = %{project_root: project_root}

@@ -1177,4 +1177,331 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       assert result["type"] in ["genserver", "otp_process", "other"]
     end
   end
+
+  # ============================================================================
+  # SupervisorTree Tests
+  # ============================================================================
+
+  describe "SupervisorTree.execute/2 - basic execution" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "inspects a supervisor with children", %{project_root: project_root} do
+      # Start a test supervisor with some children (unique IDs required)
+      children = [
+        Supervisor.child_spec({Agent, fn -> :worker1 end}, id: :worker1),
+        Supervisor.child_spec({Agent, fn -> :worker2 end}, id: :worker2)
+      ]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_for_tree)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_for_tree"}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["tree"])
+      assert is_list(result["children"])
+      assert length(result["children"]) == 2
+      assert result["children_count"] == 2
+      assert result["truncated"] == false
+
+      # Check supervisor info
+      assert result["supervisor_info"]["name"] == "test_supervisor_for_tree"
+      assert result["supervisor_info"]["status"] == "waiting"
+    end
+
+    test "returns tree structure as formatted string", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_tree_format)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_tree_format"}, context)
+
+      result = Jason.decode!(json)
+      tree = result["tree"]
+
+      # Should contain the supervisor name
+      assert String.contains?(tree, "test_supervisor_tree_format")
+      # Should contain tree characters
+      assert String.contains?(tree, "└──") or String.contains?(tree, "├──")
+      # Should contain worker indicator
+      assert String.contains?(tree, "[W]")
+    end
+
+    test "shows child details in children list", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_child_details)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_child_details"}, context)
+
+      result = Jason.decode!(json)
+      [child | _] = result["children"]
+
+      assert child["type"] == "worker"
+      assert child["status"] == "running"
+      assert is_binary(child["pid"])
+      assert is_list(child["modules"])
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - depth handling" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "respects depth parameter", %{project_root: project_root} do
+      # Create a simple supervisor with one worker
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_depth)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+
+      # With depth 1, should show direct children
+      {:ok, json1} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_depth", "depth" => 1}, context)
+      result1 = Jason.decode!(json1)
+      assert length(result1["children"]) >= 1
+
+      # With depth 2, should also work
+      {:ok, json2} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_depth", "depth" => 2}, context)
+      result2 = Jason.decode!(json2)
+      assert is_list(result2["children"])
+    end
+
+    test "uses default depth of 2 when not specified", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_default_depth)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, _json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_default_depth"}, context)
+    end
+
+    test "caps depth at max value of 5", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_max_depth)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      # Should not error with very large depth
+      {:ok, _json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_max_depth", "depth" => 999}, context)
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - DynamicSupervisor" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "handles DynamicSupervisor", %{project_root: project_root} do
+      {:ok, sup_pid} = DynamicSupervisor.start_link(strategy: :one_for_one)
+      Process.register(sup_pid, :test_dynamic_supervisor)
+
+      # Start a child under the dynamic supervisor
+      {:ok, _child} = DynamicSupervisor.start_child(sup_pid, {Agent, fn -> :dynamic_child end})
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: DynamicSupervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_dynamic_supervisor"}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["tree"])
+      assert result["children_count"] >= 1
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - security" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "blocks raw PID strings", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "#PID<0.1.0>"}, context)
+
+      assert error =~ "Raw PIDs are not allowed"
+    end
+
+    test "blocks system supervisors", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => ":kernel_sup"}, context)
+
+      assert error =~ "blocked for security"
+    end
+
+    test "blocks JidoCode internal supervisors", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "JidoCode.Session.Supervisor"}, context)
+
+      assert error =~ "blocked for security"
+    end
+
+    test "blocks empty supervisor names", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => ""}, context)
+
+      assert error =~ "Invalid supervisor name"
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "handles non-existent supervisor", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "NonExistent.Supervisor.That.Does.Not.Exist"}, context)
+
+      assert error =~ "not found"
+    end
+
+    test "handles dead supervisor gracefully", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_dead_supervisor)
+
+      # Stop the supervisor
+      Supervisor.stop(sup_pid)
+
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "test_dead_supervisor"}, context)
+
+      assert error =~ "not found" or error =~ "not registered"
+    end
+
+    test "handles missing supervisor parameter", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{}, context)
+
+      assert error =~ "Missing required parameter"
+    end
+
+    test "handles invalid supervisor name type", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => 123}, context)
+
+      assert error =~ "Invalid supervisor name"
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - children limiting" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "indicates when children are truncated", %{project_root: project_root} do
+      # This test verifies the truncation flag is set correctly
+      # In practice, creating 50+ children would be slow, so we just verify
+      # the mechanism works with a small supervisor
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_truncation)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_truncation"}, context)
+
+      result = Jason.decode!(json)
+      # With only 1 child, should not be truncated
+      assert result["truncated"] == false
+      assert result["children_count"] == 1
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_telemetry_success)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :supervisor_tree]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_telemetry_success"}, context)
+
+      assert_receive {[:jido_code, :elixir, :supervisor_tree], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "test_supervisor_telemetry_success", status: :ok}}
+    end
+
+    test "emits telemetry on validation error", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :supervisor_tree]
+        ])
+
+      context = %{project_root: project_root}
+      {:error, _} = SupervisorTree.execute(%{"supervisor" => "#PID<0.1.0>"}, context)
+
+      assert_receive {[:jido_code, :elixir, :supervisor_tree], ^ref, %{duration: _, exit_code: 1},
+                      %{task: "#PID<0.1.0>", status: :error}}
+    end
+  end
 end

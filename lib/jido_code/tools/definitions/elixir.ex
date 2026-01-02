@@ -10,6 +10,7 @@ defmodule JidoCode.Tools.Definitions.Elixir do
   - `mix_task` - Run Mix tasks with security controls
   - `run_exunit` - Run ExUnit tests with filtering options
   - `get_process_state` - Inspect GenServer and process state
+  - `inspect_supervisor` - View supervisor tree structure
 
   ## Security
 
@@ -46,7 +47,8 @@ defmodule JidoCode.Tools.Definitions.Elixir do
     [
       mix_task(),
       run_exunit(),
-      get_process_state()
+      get_process_state(),
+      inspect_supervisor()
     ]
   end
 
@@ -267,6 +269,58 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           description:
             "Timeout in milliseconds for getting state (default: 5000). " <>
               "Useful for slow-responding processes.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the inspect_supervisor tool definition.
+
+  Views the structure of a supervisor tree, showing its children and their types.
+  Only project supervisors can be inspected - system supervisors are blocked.
+
+  ## Parameters
+
+  - `supervisor` (required, string) - Registered name of the supervisor
+  - `depth` (optional, integer) - Max tree depth (default: 2, max: 5)
+
+  ## Security
+
+  - Only registered names are allowed (raw PIDs are blocked)
+  - System supervisors are blocked (kernel, stdlib, etc.)
+  - JidoCode internal supervisors are blocked
+  - Depth is limited to prevent excessive recursion
+
+  ## Output
+
+  Returns JSON with tree structure showing children, their types, and restart strategies.
+  """
+  @spec inspect_supervisor() :: Tool.t()
+  def inspect_supervisor do
+    Tool.new!(%{
+      name: "inspect_supervisor",
+      description:
+        "View supervisor tree structure. Only project supervisors can be inspected. " <>
+          "System supervisors and JidoCode internals are blocked for security. " <>
+          "Shows children, types (worker/supervisor), and restart strategies.",
+      handler: Handlers.SupervisorTree,
+      parameters: [
+        %{
+          name: "supervisor",
+          type: :string,
+          description:
+            "Registered name of the supervisor (e.g., 'MyApp.Supervisor'). " <>
+              "Raw PIDs are not allowed for security reasons.",
+          required: true
+        },
+        %{
+          name: "depth",
+          type: :integer,
+          description:
+            "Maximum depth to traverse child supervisors (default: 2, max: 5). " <>
+              "Higher depth shows more nested supervisors but takes longer.",
           required: false
         }
       ]

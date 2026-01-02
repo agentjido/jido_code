@@ -433,45 +433,45 @@ Integration tests for Elixir-specific tools using the Handler pattern.
 
 Verify tools execute through the Executor → Handler chain correctly.
 
-- [ ] 5.7.1.1 Create `test/jido_code/integration/tools_phase5_test.exs`
-- [ ] 5.7.1.2 Test: All tools execute through `Tools.Executor` → Handler chain
-- [ ] 5.7.1.3 Test: Session context passed correctly to handlers
-- [ ] 5.7.1.4 Test: Telemetry events emitted for all operations
+- [x] 5.7.1.1 Create `test/jido_code/integration/tools_phase5_test.exs`
+- [x] 5.7.1.2 Test: All tools execute through `Tools.Executor` → Handler chain
+- [x] 5.7.1.3 Test: Session context passed correctly to handlers
+- [x] 5.7.1.4 Test: Telemetry events emitted for all operations
 
 ### 5.7.2 Mix/Test Integration
 
 Test Mix and ExUnit tools in realistic scenarios.
 
-- [ ] 5.7.2.1 Test: mix_task compile works in test project
-- [ ] 5.7.2.2 Test: mix_task test runs tests
-- [ ] 5.7.2.3 Test: run_exunit parses real test output
-- [ ] 5.7.2.4 Test: run_exunit handles test failures
+- [x] 5.7.2.1 Test: mix_task compile works in test project
+- [x] 5.7.2.2 Test: mix_task test runs tests
+- [x] 5.7.2.3 Test: run_exunit parses real test output
+- [x] 5.7.2.4 Test: run_exunit handles test failures
 
 ### 5.7.3 Runtime Introspection Integration
 
 Test runtime introspection tools with real processes.
 
-- [ ] 5.7.3.1 Test: get_process_state inspects test GenServer
-- [ ] 5.7.3.2 Test: inspect_supervisor shows test supervisor tree
-- [ ] 5.7.3.3 Test: ets_inspect lists test ETS tables
-- [ ] 5.7.3.4 Test: ets_inspect looks up test data
+- [x] 5.7.3.1 Test: get_process_state inspects test GenServer
+- [x] 5.7.3.2 Test: inspect_supervisor shows test supervisor tree
+- [x] 5.7.3.3 Test: ets_inspect lists test ETS tables
+- [x] 5.7.3.4 Test: ets_inspect looks up test data
 
 ### 5.7.4 Documentation Integration
 
 Test documentation retrieval.
 
-- [ ] 5.7.4.1 Test: fetch_elixir_docs retrieves Enum docs
-- [ ] 5.7.4.2 Test: fetch_elixir_docs retrieves project module docs
+- [x] 5.7.4.1 Test: fetch_elixir_docs retrieves Enum docs
+- [x] 5.7.4.2 Test: fetch_elixir_docs retrieves project module docs
 
 ### 5.7.5 Security Integration
 
 Test security controls are enforced.
 
-- [ ] 5.7.5.1 Test: mix_task rejects blocked tasks
-- [ ] 5.7.5.2 Test: run_exunit rejects path traversal
-- [ ] 5.7.5.3 Test: get_process_state rejects system processes
-- [ ] 5.7.5.4 Test: ets_inspect rejects system tables
-- [ ] 5.7.5.5 Test: All tools reject requests outside project boundary
+- [x] 5.7.5.1 Test: mix_task rejects blocked tasks
+- [x] 5.7.5.2 Test: run_exunit rejects path traversal
+- [x] 5.7.5.3 Test: get_process_state rejects system processes
+- [x] 5.7.5.4 Test: ets_inspect rejects system tables
+- [x] 5.7.5.5 Test: All tools reject requests outside project boundary
 
 ---
 

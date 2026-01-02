@@ -2,7 +2,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
   @moduledoc """
   Tests for the Knowledge tool handlers.
 
-  Section 7.1.3 and 7.2.3 of Phase 7 planning document.
+  Section 7.1.3, 7.2.3, 7.3.3, and 7.5.3 of Phase 7 planning document.
 
   Note: These tests run with the full application started (via test_helper.exs).
   The Memory Supervisor and StoreManager must be running from the application supervision tree.
@@ -13,6 +13,8 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
   alias JidoCode.Tools.Handlers.Knowledge
   alias JidoCode.Tools.Handlers.Knowledge.KnowledgeRemember
   alias JidoCode.Tools.Handlers.Knowledge.KnowledgeRecall
+  alias JidoCode.Tools.Handlers.Knowledge.KnowledgeSupersede
+  alias JidoCode.Tools.Handlers.Knowledge.ProjectConventions
 
   @moduletag :phase7
 
@@ -444,6 +446,416 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
   end
 
   # ============================================================================
+  # KnowledgeSupersede Handler Tests (Section 7.3.3)
+  # ============================================================================
+
+  describe "KnowledgeSupersede.execute/2" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create a memory to supersede
+      args = %{
+        "content" => "Original decision about database choice",
+        "type" => "decision",
+        "confidence" => 0.8
+      }
+
+      {:ok, json} = KnowledgeRemember.execute(args, context)
+      result = Jason.decode!(json)
+      original_id = result["memory_id"]
+
+      {:ok, session_id: session_id, context: context, original_id: original_id}
+    end
+
+    test "marks memory as superseded", %{context: context, original_id: original_id} do
+      args = %{
+        "old_memory_id" => original_id
+      }
+
+      {:ok, json} = KnowledgeSupersede.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["old_id"] == original_id
+      assert result["new_id"] == nil
+      assert result["status"] == "superseded"
+
+      # Verify the memory is now superseded (excluded from default recall)
+      recall_args = %{"query" => "database choice"}
+      {:ok, recall_json} = KnowledgeRecall.execute(recall_args, context)
+      recall_result = Jason.decode!(recall_json)
+
+      refute Enum.any?(recall_result["memories"], fn m -> m["id"] == original_id end)
+    end
+
+    test "creates replacement when content provided", %{context: context, original_id: original_id} do
+      args = %{
+        "old_memory_id" => original_id,
+        "new_content" => "Updated decision: use PostgreSQL for production",
+        "reason" => "Performance testing revealed PostgreSQL is faster for our workload"
+      }
+
+      {:ok, json} = KnowledgeSupersede.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["old_id"] == original_id
+      assert result["new_id"] != nil
+      assert String.starts_with?(result["new_id"], "mem-")
+      assert result["status"] == "replaced"
+      assert result["type"] == "decision"
+    end
+
+    test "links replacement to original memory", %{session_id: session_id, context: context, original_id: original_id} do
+      args = %{
+        "old_memory_id" => original_id,
+        "new_content" => "Replacement content linked to original"
+      }
+
+      {:ok, json} = KnowledgeSupersede.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Verify the new memory has evidence_ref linking to the old one
+      {:ok, new_memory} = Memory.get(session_id, result["new_id"])
+      assert original_id in new_memory.evidence_refs
+    end
+
+    test "inherits type from original when not specified", %{context: context, original_id: original_id} do
+      args = %{
+        "old_memory_id" => original_id,
+        "new_content" => "New content without specifying type"
+      }
+
+      {:ok, json} = KnowledgeSupersede.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should inherit "decision" from the original memory
+      assert result["type"] == "decision"
+    end
+
+    test "allows specifying new type for replacement", %{context: context, original_id: original_id} do
+      args = %{
+        "old_memory_id" => original_id,
+        "new_content" => "This is now a documented fact",
+        "new_type" => "fact"
+      }
+
+      {:ok, json} = KnowledgeSupersede.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["type"] == "fact"
+    end
+
+    test "handles non-existent memory_id", %{context: context} do
+      args = %{
+        "old_memory_id" => "mem-nonexistent12345"
+      }
+
+      {:error, message} = KnowledgeSupersede.execute(args, context)
+
+      assert message =~ "Memory not found"
+    end
+
+    test "requires session context" do
+      args = %{
+        "old_memory_id" => "mem-some-id"
+      }
+
+      {:error, message} = KnowledgeSupersede.execute(args, %{})
+
+      assert message =~ "requires a session context"
+    end
+
+    test "requires old_memory_id argument", %{context: context} do
+      args = %{}
+
+      {:error, message} = KnowledgeSupersede.execute(args, context)
+
+      assert message =~ "old_memory_id is required"
+    end
+
+    test "validates new_content size if provided", %{context: context, original_id: original_id} do
+      large_content = String.duplicate("x", Knowledge.max_content_size() + 1)
+
+      args = %{
+        "old_memory_id" => original_id,
+        "new_content" => large_content
+      }
+
+      {:error, message} = KnowledgeSupersede.execute(args, context)
+
+      assert message =~ "exceeds maximum size"
+    end
+
+    test "falls back to original type for invalid new_type", %{context: context, original_id: original_id} do
+      args = %{
+        "old_memory_id" => original_id,
+        "new_content" => "Replacement with invalid type",
+        "new_type" => "invalid_type_xyz"
+      }
+
+      {:ok, json} = KnowledgeSupersede.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should fall back to original type "decision"
+      assert result["type"] == "decision"
+    end
+  end
+
+  # ============================================================================
+  # ProjectConventions Handler Tests (Section 7.5.3)
+  # ============================================================================
+
+  describe "ProjectConventions.execute/2" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Pre-populate some conventions
+      conventions = [
+        %{
+          "content" => "Use 2-space indentation for all Elixir files",
+          "type" => "coding_standard",
+          "confidence" => 0.95
+        },
+        %{
+          "content" => "Follow Phoenix naming conventions for contexts",
+          "type" => "convention",
+          "confidence" => 0.85
+        },
+        %{
+          "content" => "Use GenServer for stateful processes",
+          "type" => "convention",
+          "confidence" => 0.9
+        },
+        %{
+          "content" => "Always use pattern matching in function heads",
+          "type" => "coding_standard",
+          "confidence" => 0.8
+        }
+      ]
+
+      for conv <- conventions do
+        {:ok, _} = KnowledgeRemember.execute(conv, context)
+      end
+
+      {:ok, session_id: session_id, context: context}
+    end
+
+    test "retrieves all conventions", %{context: context} do
+      args = %{}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] >= 4
+      assert length(result["conventions"]) >= 4
+
+      # All should be convention types
+      assert Enum.all?(result["conventions"], fn c ->
+               c["type"] in ["convention", "coding_standard"]
+             end)
+    end
+
+    test "retrieves coding standards specifically", %{context: context} do
+      args = %{"category" => "coding"}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] >= 2
+
+      # All should be coding_standard type
+      assert Enum.all?(result["conventions"], fn c ->
+               c["type"] == "coding_standard"
+             end)
+    end
+
+    test "retrieves architectural conventions", %{context: context} do
+      args = %{"category" => "architectural"}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should get the general conventions
+      assert result["count"] >= 2
+    end
+
+    test "filters by confidence threshold", %{context: context} do
+      args = %{"min_confidence" => 0.9}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should only include conventions with >= 0.9 confidence
+      assert Enum.all?(result["conventions"], fn c ->
+               c["confidence"] >= 0.9
+             end)
+    end
+
+    test "returns empty when no conventions exist" do
+      # New session with no conventions
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+      args = %{}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 0
+      assert result["conventions"] == []
+    end
+
+    test "requires session context" do
+      args = %{}
+
+      {:error, message} = ProjectConventions.execute(args, %{})
+
+      assert message =~ "requires a session context"
+    end
+
+    test "handles case-insensitive category", %{context: context} do
+      args = %{"category" => "CODING"}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert Enum.all?(result["conventions"], fn c ->
+               c["type"] == "coding_standard"
+             end)
+    end
+
+    test "sorts by confidence descending", %{context: context} do
+      args = %{}
+
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      confidences = Enum.map(result["conventions"], & &1["confidence"])
+      assert confidences == Enum.sort(confidences, :desc)
+    end
+
+    test "excludes superseded conventions", %{session_id: session_id, context: context} do
+      # Create and supersede a convention
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Old convention to supersede",
+            "type" => "convention"
+          },
+          context
+        )
+
+      result1 = Jason.decode!(json1)
+      old_id = result1["memory_id"]
+
+      # Supersede it
+      :ok = Memory.supersede(session_id, old_id, nil)
+
+      # Query conventions
+      args = %{}
+      {:ok, json2} = ProjectConventions.execute(args, context)
+      result2 = Jason.decode!(json2)
+
+      # Should not include the superseded convention
+      refute Enum.any?(result2["conventions"], fn c -> c["id"] == old_id end)
+    end
+
+    test "excludes non-convention memory types", %{context: context} do
+      # Add a non-convention memory
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "This is a risk, not a convention",
+            "type" => "risk"
+          },
+          context
+        )
+
+      args = %{}
+      {:ok, json} = ProjectConventions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should not include risk type
+      refute Enum.any?(result["conventions"], fn c -> c["type"] == "risk" end)
+    end
+  end
+
+  # ============================================================================
+  # Telemetry Tests for Phase 7B Handlers
+  # ============================================================================
+
+  describe "Phase 7B telemetry emission" do
+    test "emits telemetry for successful supersede" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create a memory first
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{"content" => "Memory for supersede telemetry test", "type" => "fact"},
+          context
+        )
+
+      result1 = Jason.decode!(json1)
+      memory_id = result1["memory_id"]
+
+      # Attach telemetry handler
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_supersede, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :supersede],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      # Execute supersede
+      args = %{"old_memory_id" => memory_id}
+      {:ok, _} = KnowledgeSupersede.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :supersede], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert measurements.duration >= 0
+      assert metadata.status == :success
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for successful project_conventions" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_conventions, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :project_conventions],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{}
+      {:ok, _} = ProjectConventions.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :project_conventions], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert metadata.status == :success
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  # ============================================================================
   # Tool Definition Tests
   # ============================================================================
 
@@ -451,9 +863,11 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
     test "returns list of tool definitions" do
       tools = JidoCode.Tools.Definitions.Knowledge.all()
 
-      assert length(tools) == 2
+      assert length(tools) == 4
       assert Enum.any?(tools, fn t -> t.name == "knowledge_remember" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_recall" end)
+      assert Enum.any?(tools, fn t -> t.name == "knowledge_supersede" end)
+      assert Enum.any?(tools, fn t -> t.name == "project_conventions" end)
     end
   end
 

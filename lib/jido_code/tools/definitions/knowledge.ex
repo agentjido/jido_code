@@ -9,6 +9,8 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
 
   - `knowledge_remember` - Store new knowledge with ontology typing
   - `knowledge_recall` - Query knowledge with semantic filters
+  - `knowledge_supersede` - Mark knowledge as outdated and optionally replace
+  - `project_conventions` - Retrieve project conventions and coding standards
 
   ## Memory Types
 
@@ -72,7 +74,9 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
   def all do
     [
       knowledge_remember(),
-      knowledge_recall()
+      knowledge_recall(),
+      knowledge_supersede(),
+      project_conventions()
     ]
   end
 
@@ -214,6 +218,110 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
           name: "limit",
           type: :integer,
           description: "Maximum number of results to return (default: 10)",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the knowledge_supersede tool definition.
+
+  Marks existing knowledge as outdated and optionally creates a replacement.
+  The old memory is marked as superseded but not deleted, preserving history.
+
+  ## Parameters
+
+  - `old_memory_id` (required, string) - ID of the memory to supersede
+  - `new_content` (optional, string) - Content for replacement memory
+  - `new_type` (optional, string) - Type for replacement (defaults to original)
+  - `reason` (optional, string) - Reason for superseding
+
+  ## Output
+
+  Returns JSON with old_id, new_id (if replacement created), and status.
+  """
+  @spec knowledge_supersede() :: Tool.t()
+  def knowledge_supersede do
+    Tool.new!(%{
+      name: "knowledge_supersede",
+      description:
+        "Mark existing knowledge as outdated. Use this when information has changed " <>
+          "or a decision has been revised. Optionally provide new content to create " <>
+          "a replacement memory that links to the original.",
+      handler: Handlers.KnowledgeSupersede,
+      parameters: [
+        %{
+          name: "old_memory_id",
+          type: :string,
+          description: "ID of the memory to mark as superseded",
+          required: true
+        },
+        %{
+          name: "new_content",
+          type: :string,
+          description:
+            "Content for the replacement memory. If provided, a new memory will be " <>
+              "created and linked to the superseded one.",
+          required: false
+        },
+        %{
+          name: "new_type",
+          type: :string,
+          description:
+            "Type for the replacement memory. Defaults to the same type as the original. " <>
+              "See knowledge_remember for valid types.",
+          required: false
+        },
+        %{
+          name: "reason",
+          type: :string,
+          description: "Explanation for why this knowledge is being superseded",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the project_conventions tool definition.
+
+  Retrieves all conventions and coding standards stored for the project.
+  Conventions define established patterns, rules, and standards that should
+  be followed consistently.
+
+  ## Parameters
+
+  - `category` (optional, string) - Filter by category: coding, architectural, agent, process
+  - `min_confidence` (optional, float) - Minimum confidence threshold
+
+  ## Output
+
+  Returns JSON with list of conventions including content, type, and confidence.
+  """
+  @spec project_conventions() :: Tool.t()
+  def project_conventions do
+    Tool.new!(%{
+      name: "project_conventions",
+      description:
+        "Retrieve conventions and coding standards for the project. Use this to find " <>
+          "established patterns, coding guidelines, architectural rules, or process " <>
+          "conventions that should be followed.",
+      handler: Handlers.ProjectConventions,
+      parameters: [
+        %{
+          name: "category",
+          type: :string,
+          description:
+            "Filter by convention category: 'coding' for coding_standard, " <>
+              "'architectural' for architectural patterns, 'agent' for agent rules, " <>
+              "'process' for workflow conventions, or omit for all.",
+          required: false
+        },
+        %{
+          name: "min_confidence",
+          type: :number,
+          description: "Minimum confidence threshold, 0.0 to 1.0 (default: 0.5)",
           required: false
         }
       ]

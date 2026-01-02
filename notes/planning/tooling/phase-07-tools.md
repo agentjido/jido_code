@@ -51,9 +51,9 @@ The canonical ontology is defined in TTL files:
 |------|----------|---------|--------|
 | `knowledge_remember` | P0 | Store new knowledge with ontology typing | ✅ Complete + Improved |
 | `knowledge_recall` | P0 | Query knowledge with semantic filters | ✅ Complete + Improved |
-| `knowledge_supersede` | P1 | Replace outdated knowledge | ⬜ Initial |
+| `knowledge_supersede` | P1 | Replace outdated knowledge | ✅ Complete |
 | `knowledge_update` | P2 | Update confidence/evidence on existing | ⬜ Initial |
-| `project_conventions` | P1 | Get all conventions and standards | ⬜ Initial |
+| `project_conventions` | P1 | Get all conventions and standards | ✅ Complete |
 | `project_decisions` | P2 | Get architectural decisions | ⬜ Initial |
 | `project_risks` | P2 | Get known risks and issues | ⬜ Initial |
 | `knowledge_graph_query` | P3 | Advanced relationship traversal | ⏸️ Deferred |
@@ -82,6 +82,23 @@ Based on code review findings, the following improvements were made to the P0 to
 **Test Count:** 25 → 47 tests (22 new tests added)
 **Summary Document:** `notes/summaries/2026-01-02-phase7a-improvements.md`
 **Review Document:** `notes/reviews/phase-7a-knowledge-tools-review.md`
+
+## Phase 7B Implementation (P1 Tools) ✅
+
+Phase 7B implements the P1 priority tools:
+
+| Tool | Description | Tests Added |
+|------|-------------|-------------|
+| `knowledge_supersede` | Mark memories as superseded, optionally create replacements | 10 tests |
+| `project_conventions` | Query for convention/coding_standard type memories | 10 tests |
+
+**Key Features:**
+- KnowledgeSupersede links replacement memories to originals via evidence_refs
+- ProjectConventions supports category filtering (coding, architectural, agent, process)
+- Both handlers emit telemetry and use shared helper functions
+
+**Test Count:** 47 → 69 tests (22 new tests added)
+**Summary Document:** `notes/summaries/2026-01-02-phase7b-knowledge-tools.md`
 
 ## Memory Types (from TTL Ontology)
 
@@ -225,14 +242,14 @@ Query the knowledge graph with semantic filters.
 
 ---
 
-## 7.3 knowledge_supersede Tool (P1)
+## 7.3 knowledge_supersede Tool (P1) ✅
 
 Mark knowledge as superseded and optionally create replacement.
 
 ### 7.3.1 Tool Definition
 
-- [ ] Add `knowledge_supersede/0` to definitions
-- [ ] Define schema:
+- [x] Add `knowledge_supersede/0` to definitions
+- [x] Define schema:
   ```elixir
   %{
     name: "knowledge_supersede",
@@ -252,23 +269,26 @@ Mark knowledge as superseded and optionally create replacement.
 
 ### 7.3.2 Handler Implementation
 
-- [ ] Add `KnowledgeSupersede` handler module
-- [ ] Validate old_memory_id exists
-- [ ] Validate session ownership
-- [ ] Call `TripleStoreAdapter.supersede/4`
-- [ ] If new_content provided, create replacement memory
-- [ ] Link new to old via supersededBy relationship
-- [ ] Return old_id, new_id (if created), status
-- [ ] Emit telemetry `[:jido_code, :knowledge, :supersede]`
+- [x] Add `KnowledgeSupersede` handler module
+- [x] Validate old_memory_id exists
+- [x] Validate session ownership (via session_id context)
+- [x] Call `Memory.supersede/3`
+- [x] If new_content provided, create replacement memory
+- [x] Link new to old via evidence_refs (supersededBy relationship)
+- [x] Return old_id, new_id (if created), status
+- [x] Emit telemetry `[:jido_code, :knowledge, :supersede]`
 
 ### 7.3.3 Unit Tests
 
-- [ ] Test marks memory as superseded
-- [ ] Test creates replacement when content provided
-- [ ] Test links replacement to original
-- [ ] Test handles non-existent memory_id
-- [ ] Test session ownership validation
-- [ ] Test inherits type from original when not specified
+- [x] Test marks memory as superseded
+- [x] Test creates replacement when content provided
+- [x] Test links replacement to original
+- [x] Test handles non-existent memory_id
+- [x] Test requires session context
+- [x] Test inherits type from original when not specified
+- [x] Test allows specifying new type
+- [x] Test validates new_content size
+- [x] Test falls back to original type for invalid new_type
 
 ---
 
@@ -318,14 +338,14 @@ Update confidence or add evidence to existing knowledge.
 
 ---
 
-## 7.5 project_conventions Tool (P1)
+## 7.5 project_conventions Tool (P1) ✅
 
 Get all conventions and coding standards for the project.
 
 ### 7.5.1 Tool Definition
 
-- [ ] Add `project_conventions/0` to definitions
-- [ ] Define schema:
+- [x] Add `project_conventions/0` to definitions
+- [x] Define schema:
   ```elixir
   %{
     name: "project_conventions",
@@ -333,28 +353,34 @@ Get all conventions and coding standards for the project.
     parameters: [
       %{name: "category", type: :string, required: false,
         description: "Filter by category: coding, architectural, agent, process"},
-      %{name: "enforcement_level", type: :string, required: false,
-        description: "Filter by enforcement: advisory, required, strict"}
+      %{name: "min_confidence", type: :float, required: false,
+        description: "Minimum confidence threshold (default: 0.5)"}
     ]
   }
   ```
 
 ### 7.5.2 Handler Implementation
 
-- [ ] Add `ProjectConventions` handler module
-- [ ] Query for types: [:convention, :coding_standard, :architectural_convention, :agent_rule, :process_convention]
-- [ ] Map category to specific types
-- [ ] Use project_scope to get all project conventions
-- [ ] Format as structured list with enforcement level
-- [ ] Emit telemetry `[:jido_code, :knowledge, :project_conventions]`
+- [x] Add `ProjectConventions` handler module
+- [x] Query for types: [:convention, :coding_standard]
+- [x] Map category to specific types (coding → coding_standard, architectural/agent/process → convention)
+- [x] Filter by min_confidence threshold
+- [x] Sort by confidence descending
+- [x] Exclude superseded conventions
+- [x] Emit telemetry `[:jido_code, :knowledge, :project_conventions]`
 
 ### 7.5.3 Unit Tests
 
-- [ ] Test retrieves all conventions
-- [ ] Test retrieves coding standards specifically
-- [ ] Test category filtering
-- [ ] Test enforcement level filtering
-- [ ] Test returns empty when none exist
+- [x] Test retrieves all conventions
+- [x] Test retrieves coding standards specifically
+- [x] Test category filtering (architectural)
+- [x] Test confidence threshold filtering
+- [x] Test returns empty when none exist
+- [x] Test requires session context
+- [x] Test handles case-insensitive category
+- [x] Test sorts by confidence descending
+- [x] Test excludes superseded conventions
+- [x] Test excludes non-convention memory types
 
 ---
 

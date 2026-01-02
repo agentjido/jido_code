@@ -15,6 +15,8 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
   - `KnowledgeRemember` - Stores new knowledge with ontology typing
   - `KnowledgeRecall` - Queries knowledge with semantic filters
+  - `KnowledgeSupersede` - Marks knowledge as outdated, optionally replaces
+  - `ProjectConventions` - Retrieves project conventions and standards
 
   ## Usage
 
@@ -488,6 +490,259 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         end)
 
       {:ok, Jason.encode!(%{memories: results, count: length(results)})}
+    end
+  end
+
+  # ============================================================================
+  # KnowledgeSupersede Handler
+  # ============================================================================
+
+  defmodule KnowledgeSupersede do
+    @moduledoc """
+    Handler for marking knowledge as superseded.
+
+    Marks existing memories as outdated and optionally creates a replacement
+    memory that is linked to the original. The superseded memory is not deleted,
+    preserving history.
+    """
+
+    alias JidoCode.Tools.Handlers.Knowledge
+
+    @doc """
+    Executes the knowledge_supersede tool.
+
+    ## Parameters
+
+    - `args` - Map containing:
+      - `"old_memory_id"` (required) - ID of memory to supersede
+      - `"new_content"` (optional) - Content for replacement memory
+      - `"new_type"` (optional) - Type for replacement (defaults to original)
+      - `"reason"` (optional) - Reason for superseding
+
+    - `context` - Map containing:
+      - `:session_id` (required) - Session identifier
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with old_id, new_id (if created), status
+    - `{:error, reason}` - Error message string
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(args, context) do
+      Knowledge.with_telemetry(:supersede, context, fn ->
+        do_execute(args, context)
+      end)
+    end
+
+    defp do_execute(args, context) do
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_supersede"),
+           {:ok, old_memory_id} <- get_required_string(args, "old_memory_id"),
+           {:ok, old_memory} <- get_memory(session_id, old_memory_id) do
+        # Mark the old memory as superseded
+        case Memory.supersede(session_id, old_memory_id, nil) do
+          :ok ->
+            # Check if we need to create a replacement
+            case Map.get(args, "new_content") do
+              nil ->
+                # No replacement, just superseded
+                result = %{
+                  old_id: old_memory_id,
+                  new_id: nil,
+                  status: "superseded"
+                }
+
+                {:ok, Jason.encode!(result)}
+
+              new_content ->
+                create_replacement(args, context, session_id, old_memory, new_content)
+            end
+
+          {:error, :not_found} ->
+            {:error, "Memory not found: #{old_memory_id}"}
+
+          {:error, reason} ->
+            {:error, "Failed to supersede memory: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp get_required_string(args, key) do
+      case Map.get(args, key) do
+        nil -> {:error, "#{key} is required"}
+        "" -> {:error, "#{key} cannot be empty"}
+        value when is_binary(value) -> {:ok, value}
+        _ -> {:error, "#{key} must be a string"}
+      end
+    end
+
+    defp get_memory(session_id, memory_id) do
+      case Memory.get(session_id, memory_id) do
+        {:ok, memory} -> {:ok, memory}
+        {:error, :not_found} -> {:error, "Memory not found: #{memory_id}"}
+        {:error, reason} -> {:error, "Failed to get memory: #{inspect(reason)}"}
+      end
+    end
+
+    defp create_replacement(args, context, session_id, old_memory, new_content) do
+      with {:ok, content} <- Knowledge.validate_content(new_content) do
+        # Determine type for replacement (default to original type)
+        memory_type =
+          case Map.get(args, "new_type") do
+            nil -> old_memory.memory_type
+            type_str -> parse_type_or_default(type_str, old_memory.memory_type)
+          end
+
+        memory_id = generate_memory_id()
+
+        # Build replacement memory input
+        memory_input = %{
+          id: memory_id,
+          content: content,
+          memory_type: memory_type,
+          confidence: old_memory.confidence,
+          source_type: :agent,
+          session_id: session_id,
+          created_at: DateTime.utc_now(),
+          rationale: Map.get(args, "reason"),
+          # Link to the superseded memory
+          evidence_refs: [old_memory.id],
+          project_id: Map.get(context, :project_id)
+        }
+
+        case Memory.persist(memory_input, session_id) do
+          {:ok, ^memory_id} ->
+            result = %{
+              old_id: old_memory.id,
+              new_id: memory_id,
+              type: Atom.to_string(memory_type),
+              status: "replaced"
+            }
+
+            {:ok, Jason.encode!(result)}
+
+          {:error, reason} ->
+            {:error, "Failed to create replacement memory: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp parse_type_or_default(type_str, default) do
+      case Knowledge.safe_to_type_atom(type_str) do
+        {:ok, type_atom} ->
+          if Types.valid_memory_type?(type_atom), do: type_atom, else: default
+
+        :error ->
+          default
+      end
+    end
+
+    defp generate_memory_id do
+      "mem-" <> (:crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false))
+    end
+  end
+
+  # ============================================================================
+  # ProjectConventions Handler
+  # ============================================================================
+
+  defmodule ProjectConventions do
+    @moduledoc """
+    Handler for retrieving project conventions and coding standards.
+
+    Queries the knowledge graph for convention-type memories including
+    coding standards, architectural conventions, agent rules, and process
+    conventions.
+    """
+
+    alias JidoCode.Tools.Handlers.Knowledge
+
+    # Convention types from the ontology
+    @convention_types [:convention, :coding_standard]
+
+    # Category to type mapping
+    @category_types %{
+      "coding" => [:coding_standard],
+      "architectural" => [:convention],
+      "agent" => [:convention],
+      "process" => [:convention],
+      "all" => @convention_types
+    }
+
+    @doc """
+    Executes the project_conventions tool.
+
+    ## Parameters
+
+    - `args` - Map containing:
+      - `"category"` (optional) - Filter by category
+      - `"min_confidence"` (optional) - Minimum confidence threshold
+
+    - `context` - Map containing:
+      - `:session_id` (required) - Session identifier
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with list of conventions
+    - `{:error, reason}` - Error message string
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(args, context) do
+      Knowledge.with_telemetry(:project_conventions, context, fn ->
+        do_execute(args, context)
+      end)
+    end
+
+    defp do_execute(args, context) do
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "project_conventions") do
+        # Build query options
+        min_confidence = Map.get(args, "min_confidence", 0.5)
+        opts = [min_confidence: min_confidence, include_superseded: false]
+
+        # Get types to filter by based on category
+        filter_types = get_filter_types(Map.get(args, "category"))
+
+        # Query all memories and filter to conventions
+        case Memory.query(session_id, opts) do
+          {:ok, memories} ->
+            conventions =
+              memories
+              |> Enum.filter(fn memory ->
+                memory.memory_type in filter_types
+              end)
+              |> Enum.sort_by(& &1.confidence, :desc)
+
+            format_conventions(conventions)
+
+          {:error, reason} ->
+            {:error, "Failed to query conventions: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp get_filter_types(nil), do: @convention_types
+    defp get_filter_types(""), do: @convention_types
+
+    defp get_filter_types(category) when is_binary(category) do
+      category_lower = String.downcase(category)
+      Map.get(@category_types, category_lower, @convention_types)
+    end
+
+    defp get_filter_types(_), do: @convention_types
+
+    defp format_conventions(conventions) do
+      results =
+        Enum.map(conventions, fn memory ->
+          %{
+            id: memory.id,
+            content: memory.content,
+            type: Atom.to_string(memory.memory_type),
+            confidence: memory.confidence,
+            timestamp: Knowledge.format_timestamp(memory.timestamp),
+            rationale: memory.rationale
+          }
+        end)
+
+      {:ok, Jason.encode!(%{conventions: results, count: length(results)})}
     end
   end
 

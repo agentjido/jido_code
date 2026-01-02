@@ -489,6 +489,145 @@ defmodule JidoCode.Memory.Actions.RecallTest do
   end
 
   # =============================================================================
+  # Search Mode Tests
+  # =============================================================================
+
+  describe "run/2 search_mode" do
+    test "accepts :text search mode", %{context: context} do
+      params = %{query: "phoenix", search_mode: :text}
+
+      {:ok, result} = Recall.run(params, context)
+
+      assert is_map(result)
+    end
+
+    test "accepts :semantic search mode", %{context: context} do
+      params = %{query: "phoenix", search_mode: :semantic}
+
+      {:ok, result} = Recall.run(params, context)
+
+      assert is_map(result)
+    end
+
+    test "accepts :hybrid search mode", %{context: context} do
+      params = %{query: "phoenix", search_mode: :hybrid}
+
+      {:ok, result} = Recall.run(params, context)
+
+      assert is_map(result)
+    end
+
+    test "defaults to :hybrid when no search_mode specified", %{context: context} do
+      ref = make_ref()
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-search-mode-#{inspect(ref)}",
+        [:jido_code, :memory, :recall],
+        fn _event, _measurements, metadata, _ ->
+          send(test_pid, {:telemetry, metadata})
+        end,
+        nil
+      )
+
+      {:ok, _result} = Recall.run(%{query: "phoenix"}, context)
+
+      assert_receive {:telemetry, metadata}
+      assert metadata.search_mode == :hybrid
+
+      :telemetry.detach("test-search-mode-#{inspect(ref)}")
+    end
+
+    test "rejects invalid search mode", %{context: context} do
+      params = %{query: "phoenix", search_mode: :invalid}
+
+      {:error, message} = Recall.run(params, context)
+
+      assert message =~ "Invalid search mode"
+      assert message =~ ":invalid"
+    end
+
+    test ":text mode does exact substring matching", %{context: context} do
+      # Create memory with exact match content
+      {:ok, _} =
+        Remember.run(
+          %{content: "Phoenix LiveView enables real-time features", type: :fact, confidence: 0.9},
+          context
+        )
+
+      # Text mode should find exact match
+      {:ok, result} = Recall.run(%{query: "LiveView", search_mode: :text}, context)
+
+      assert result.count >= 1
+      assert Enum.any?(result.memories, fn m -> String.contains?(m.content, "LiveView") end)
+    end
+
+    test ":semantic mode finds related content", %{context: context} do
+      # Create memories with related content
+      {:ok, _} =
+        Remember.run(
+          %{content: "Phoenix framework patterns and conventions", type: :fact, confidence: 0.9},
+          context
+        )
+
+      {:ok, _} =
+        Remember.run(
+          %{content: "Phoenix web framework architecture", type: :fact, confidence: 0.9},
+          context
+        )
+
+      # Semantic search should find memories with shared terms
+      {:ok, result} = Recall.run(%{query: "Phoenix framework", search_mode: :semantic}, context)
+
+      assert result.count >= 1
+    end
+
+    test ":hybrid mode combines text and semantic search", %{context: context} do
+      # Create memories with both exact and related content
+      {:ok, _} =
+        Remember.run(
+          %{content: "Phoenix routes configuration", type: :fact, confidence: 0.9},
+          context
+        )
+
+      # Hybrid should work
+      {:ok, result} = Recall.run(%{query: "Phoenix", search_mode: :hybrid}, context)
+
+      assert result.count >= 1
+    end
+
+    test "search mode is included in telemetry", %{session_id: session_id, context: context} do
+      ref = make_ref()
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-search-telemetry-#{inspect(ref)}",
+        [:jido_code, :memory, :recall],
+        fn _event, _measurements, metadata, _ ->
+          send(test_pid, {:telemetry, metadata})
+        end,
+        nil
+      )
+
+      {:ok, _result} = Recall.run(%{query: "test", search_mode: :semantic}, context)
+
+      assert_receive {:telemetry, metadata}
+      assert metadata.session_id == session_id
+      assert metadata.search_mode == :semantic
+
+      :telemetry.detach("test-search-telemetry-#{inspect(ref)}")
+    end
+
+    test "semantic search falls back to text when query has only stopwords", %{context: context} do
+      # Query with only stopwords should not crash
+      {:ok, result} = Recall.run(%{query: "the a is", search_mode: :semantic}, context)
+
+      # Should return empty or fall back gracefully
+      assert is_map(result)
+    end
+  end
+
+  # =============================================================================
   # Helpers Module Tests
   # =============================================================================
 

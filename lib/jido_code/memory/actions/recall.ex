@@ -8,7 +8,16 @@ defmodule JidoCode.Memory.Actions.Recall do
   - Patterns and conventions
   - Lessons learned from past issues
 
-  Supports filtering by memory type and minimum confidence level.
+  Supports filtering by memory type, minimum confidence level, and search mode.
+
+  ## Search Modes
+
+  - `:text` - Simple substring matching (fast, exact matches)
+  - `:semantic` - TF-IDF based semantic similarity (finds related content)
+  - `:hybrid` - Combines text matches with semantic ranking (default when query provided)
+
+  Semantic search uses TF-IDF embeddings to find memories with similar meaning,
+  even if they don't contain the exact search terms.
   """
 
   use Jido.Action,
@@ -20,7 +29,12 @@ defmodule JidoCode.Memory.Actions.Recall do
       query: [
         type: :string,
         required: false,
-        doc: "Search query or keywords (optional, for text matching, max 1000 chars)"
+        doc: "Search query or keywords (optional, max 1000 chars)"
+      ],
+      search_mode: [
+        type: {:in, [:text, :semantic, :hybrid]},
+        default: :hybrid,
+        doc: "Search mode: :text (substring), :semantic (TF-IDF similarity), :hybrid (both)"
       ],
       type: [
         type:
@@ -56,6 +70,7 @@ defmodule JidoCode.Memory.Actions.Recall do
 
   alias JidoCode.Memory
   alias JidoCode.Memory.Actions.Helpers
+  alias JidoCode.Memory.Embeddings
   alias JidoCode.Memory.Types
 
   # =============================================================================
@@ -72,6 +87,11 @@ defmodule JidoCode.Memory.Actions.Recall do
   # Note: :all is a pseudo-type for query purposes, not a memory type
   @valid_memory_types Types.memory_types()
   @valid_filter_types [:all | @valid_memory_types]
+
+  # Semantic search settings
+  @valid_search_modes [:text, :semantic, :hybrid]
+  @default_search_mode :hybrid
+  @semantic_similarity_threshold 0.2
 
   # =============================================================================
   # Public API
@@ -136,13 +156,15 @@ defmodule JidoCode.Memory.Actions.Recall do
     with {:ok, limit} <- validate_limit(params),
          {:ok, min_confidence} <- validate_min_confidence(params),
          {:ok, type} <- validate_type(params),
-         {:ok, query} <- validate_query(params) do
+         {:ok, query} <- validate_query(params),
+         {:ok, search_mode} <- validate_search_mode(params) do
       {:ok,
        %{
          limit: limit,
          min_confidence: min_confidence,
          type: type,
-         query: query
+         query: query,
+         search_mode: search_mode
        }}
     end
   end
@@ -185,14 +207,33 @@ defmodule JidoCode.Memory.Actions.Recall do
 
   defp validate_query(_), do: {:ok, nil}
 
+  defp validate_search_mode(%{search_mode: mode}) when mode in @valid_search_modes do
+    {:ok, mode}
+  end
+
+  defp validate_search_mode(%{search_mode: mode}) do
+    {:error, {:invalid_search_mode, mode}}
+  end
+
+  defp validate_search_mode(_), do: {:ok, @default_search_mode}
+
   # =============================================================================
   # Private Functions - Query
   # =============================================================================
 
   defp query_memories(params, session_id) do
+    # Fetch more memories than limit when using semantic search,
+    # since we'll rank and filter them
+    fetch_limit =
+      if params.query != nil and params.search_mode in [:semantic, :hybrid] do
+        min(params.limit * 3, @max_limit)
+      else
+        params.limit
+      end
+
     opts = [
       min_confidence: params.min_confidence,
-      limit: params.limit
+      limit: fetch_limit
     ]
 
     result =
@@ -204,22 +245,86 @@ defmodule JidoCode.Memory.Actions.Recall do
 
     case {result, params.query} do
       {{:ok, memories}, nil} ->
-        {:ok, memories}
+        # No query - just return memories (already limited)
+        {:ok, Enum.take(memories, params.limit)}
 
       {{:ok, memories}, query} ->
-        {:ok, filter_by_query(memories, query)}
+        # Apply search mode
+        filtered = search_memories(memories, query, params.search_mode, params.limit)
+        {:ok, filtered}
 
       {{:error, _} = error, _} ->
         error
     end
   end
 
-  defp filter_by_query(memories, query) do
+  # =============================================================================
+  # Private Functions - Search Modes
+  # =============================================================================
+
+  defp search_memories(memories, query, :text, limit) do
+    memories
+    |> filter_by_text(query)
+    |> Enum.take(limit)
+  end
+
+  defp search_memories(memories, query, :semantic, limit) do
+    case Embeddings.generate(query) do
+      {:ok, query_embedding} ->
+        memories
+        |> rank_by_semantic_similarity(query_embedding)
+        |> Enum.map(fn {mem, _score} -> mem end)
+        |> Enum.take(limit)
+
+      {:error, _} ->
+        # Fallback to text search if query produces no tokens
+        search_memories(memories, query, :text, limit)
+    end
+  end
+
+  defp search_memories(memories, query, :hybrid, limit) do
+    # Hybrid search: combine text matches with semantic ranking
+    # First, get text matches
+    text_matches = MapSet.new(filter_by_text(memories, query), & &1.id)
+
+    case Embeddings.generate(query) do
+      {:ok, query_embedding} ->
+        # Rank all memories by semantic similarity
+        ranked = rank_by_semantic_similarity(memories, query_embedding)
+
+        # Boost text matches by moving them to the front within their similarity tier
+        ranked
+        |> Enum.sort_by(fn {mem, score} ->
+          # Text matches get a significant boost
+          boost = if MapSet.member?(text_matches, mem.id), do: 0.5, else: 0.0
+          -(score + boost)
+        end)
+        |> Enum.map(fn {mem, _score} -> mem end)
+        |> Enum.take(limit)
+
+      {:error, _} ->
+        # Fallback to text search
+        search_memories(memories, query, :text, limit)
+    end
+  end
+
+  defp filter_by_text(memories, query) do
     query_lower = String.downcase(query)
 
     Enum.filter(memories, fn mem ->
       String.contains?(String.downcase(mem.content), query_lower)
     end)
+  end
+
+  defp rank_by_semantic_similarity(memories, query_embedding) do
+    memories
+    |> Enum.map(fn mem ->
+      mem_embedding = Embeddings.generate!(mem.content)
+      score = Embeddings.cosine_similarity(query_embedding, mem_embedding)
+      {mem, score}
+    end)
+    |> Enum.filter(fn {_, score} -> score >= @semantic_similarity_threshold end)
+    |> Enum.sort_by(fn {_, score} -> score end, :desc)
   end
 
   # =============================================================================
@@ -277,6 +382,10 @@ defmodule JidoCode.Memory.Actions.Recall do
     "Query exceeds maximum length (#{actual} > #{max} bytes)"
   end
 
+  defp format_action_error({:invalid_search_mode, mode}) do
+    "Invalid search mode: #{inspect(mode)}. Valid modes: #{inspect(@valid_search_modes)}"
+  end
+
   defp format_action_error(reason) do
     "Failed to recall: #{inspect(reason)}"
   end
@@ -295,7 +404,8 @@ defmodule JidoCode.Memory.Actions.Recall do
         session_id: session_id,
         memory_type: params.type,
         min_confidence: params.min_confidence,
-        has_query: params.query != nil
+        has_query: params.query != nil,
+        search_mode: params.search_mode
       }
     )
   end

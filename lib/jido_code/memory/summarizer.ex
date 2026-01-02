@@ -37,20 +37,12 @@ defmodule JidoCode.Memory.Summarizer do
   # Types
   # =============================================================================
 
-  @typedoc """
-  A conversation message with role and content.
-  """
-  @type message :: %{
-          required(:role) => :user | :assistant | :tool | :system | atom(),
-          required(:content) => String.t() | nil,
-          optional(:timestamp) => DateTime.t(),
-          optional(:id) => String.t()
-        }
+  alias JidoCode.Memory.Types
 
   @typedoc """
   A message with its computed importance score.
   """
-  @type scored_message :: {message(), float()}
+  @type scored_message :: {Types.message(), float()}
 
   # =============================================================================
   # Constants
@@ -111,7 +103,7 @@ defmodule JidoCode.Memory.Summarizer do
       # Returns the most important messages within 100 tokens
 
   """
-  @spec summarize([message()], non_neg_integer()) :: [message()]
+  @spec summarize([Types.message()], non_neg_integer()) :: [Types.message()]
   def summarize([], _target_tokens), do: []
 
   def summarize(messages, target_tokens) when is_list(messages) and target_tokens > 0 do
@@ -150,7 +142,7 @@ defmodule JidoCode.Memory.Summarizer do
       # Returns [{%{role: :user, ...}, 0.85}, ...]
 
   """
-  @spec score_messages([message()]) :: [scored_message()]
+  @spec score_messages([Types.message()]) :: [scored_message()]
   def score_messages([]), do: []
 
   def score_messages(messages) when is_list(messages) do
@@ -235,25 +227,20 @@ defmodule JidoCode.Memory.Summarizer do
 
   defp get_role_score(_), do: 0.5
 
-  @spec select_top_messages([scored_message()], non_neg_integer()) :: [message()]
   defp select_top_messages(scored_messages, target_tokens) do
     # Sort by score descending to prioritize highest-scoring messages
-    scored_messages
-    |> Enum.sort_by(fn {_msg, score} -> score end, :desc)
-    |> Enum.reduce_while({[], 0}, fn {msg, _score}, {acc, tokens} ->
-      msg_tokens = TokenCounter.count_message(msg)
+    sorted =
+      scored_messages
+      |> Enum.sort_by(fn {_msg, score} -> score end, :desc)
+      |> Enum.map(fn {msg, _score} -> msg end)
 
-      if tokens + msg_tokens <= target_tokens do
-        {:cont, {[msg | acc], tokens + msg_tokens}}
-      else
-        {:halt, {acc, tokens}}
-      end
-    end)
-    |> elem(0)
+    # Select messages within budget using shared utility
+    sorted
+    |> TokenCounter.select_within_budget(target_tokens, &TokenCounter.count_message/1)
     |> sort_chronologically()
   end
 
-  @spec sort_chronologically([message()]) :: [message()]
+  @spec sort_chronologically([Types.message()]) :: [Types.message()]
   defp sort_chronologically(messages) do
     # Sort by timestamp if available, otherwise maintain selection order
     Enum.sort_by(messages, fn msg ->
@@ -264,7 +251,7 @@ defmodule JidoCode.Memory.Summarizer do
     end)
   end
 
-  @spec add_summary_markers([message()]) :: [message()]
+  @spec add_summary_markers([Types.message()]) :: [Types.message()]
   defp add_summary_markers([]), do: []
 
   defp add_summary_markers(messages) do

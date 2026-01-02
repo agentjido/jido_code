@@ -379,15 +379,17 @@ defmodule JidoCode.Memory.ContextBuilderTest do
     end
 
     test "keeps most recent messages when truncating", %{session_id: session_id} do
-      # Add messages with identifiable content
-      msg1 = %{role: :user, content: "First message", id: "msg-1", timestamp: DateTime.utc_now()}
-      msg2 = %{role: :user, content: "Second message", id: "msg-2", timestamp: DateTime.utc_now()}
-      msg3 = %{role: :user, content: "Third message - most recent", id: "msg-3", timestamp: DateTime.utc_now()}
+      # Add messages with identifiable content and distinct timestamps
+      # Note: Timestamps must be distinct for chronological sorting to work correctly
+      base_time = ~U[2024-01-01 10:00:00Z]
+      msg1 = %{role: :user, content: "First message", id: "msg-1", timestamp: DateTime.add(base_time, 0, :second)}
+      msg2 = %{role: :user, content: "Second message", id: "msg-2", timestamp: DateTime.add(base_time, 60, :second)}
+      msg3 = %{role: :user, content: "Third message - most recent", id: "msg-3", timestamp: DateTime.add(base_time, 120, :second)}
       {:ok, _} = State.append_message(session_id, msg1)
       {:ok, _} = State.append_message(session_id, msg2)
       {:ok, _} = State.append_message(session_id, msg3)
 
-      # Use a budget that can only fit the last message
+      # Use a budget that can only fit 2 messages (each message ~7-10 tokens)
       tiny_budget = %{
         total: 100,
         system: 10,
@@ -399,6 +401,7 @@ defmodule JidoCode.Memory.ContextBuilderTest do
       {:ok, context} = ContextBuilder.build(session_id, token_budget: tiny_budget)
 
       # Should have at least one message (the most recent)
+      # After summarization, messages are sorted chronologically, so most recent is last
       if length(context.conversation) > 0 do
         last_msg = List.last(context.conversation)
         assert last_msg.content =~ "most recent"

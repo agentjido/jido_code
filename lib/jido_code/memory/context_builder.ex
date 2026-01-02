@@ -60,17 +60,8 @@ defmodule JidoCode.Memory.ContextBuilder do
   # Types
   # =============================================================================
 
-  @typedoc """
-  A message in the conversation history.
-  """
-  @type message :: %{
-          role: :user | :assistant | :system,
-          content: String.t(),
-          timestamp: DateTime.t() | nil
-        }
-
-  # Note: For stored_memory type, use Memory.stored_memory() directly.
-  # Removed pass-through type alias for clarity.
+  # Note: For message type, use Types.message() from the shared types module.
+  # For stored_memory type, use Memory.stored_memory() directly.
 
   @typedoc """
   Token budget allocation for context components.
@@ -97,7 +88,7 @@ defmodule JidoCode.Memory.ContextBuilder do
   The assembled context structure.
   """
   @type context :: %{
-          conversation: [message()],
+          conversation: [Types.message()],
           working_context: map(),
           long_term_memories: [Memory.stored_memory()],
           system_context: String.t() | nil,
@@ -125,7 +116,17 @@ defmodule JidoCode.Memory.ContextBuilder do
   @max_content_display_length 2000
 
   # Summary cache key for storing summarized conversations
-  @summary_cache_key :conversation_summary
+  # Imported from Types to make coupling explicit (see Types.summary_cache_key/0)
+  @summary_cache_key Types.summary_cache_key()
+
+  # Precompiled sanitization regexes for performance (Concern #5)
+  # These patterns detect common LLM jailbreak/prompt injection attempts
+  @regex_ignore_instructions ~r/\bignore\s+(all\s+)?previous\s+instructions?\b/i
+  @regex_you_are_now ~r/\byou\s+are\s+now\b/i
+  @regex_forget_previous ~r/\bforget\s+(all\s+)?previous\b/i
+  @regex_system_role ~r/\bsystem\s*:\s*/i
+  @regex_user_role ~r/\buser\s*:\s*/i
+  @regex_assistant_role ~r/\bassistant\s*:\s*/i
 
   # =============================================================================
   # Public API
@@ -490,20 +491,9 @@ defmodule JidoCode.Memory.ContextBuilder do
   defp truncate_memories_to_budget(memories, budget) do
     # Keep highest confidence memories that fit within budget
     # Sort by confidence (descending) to preserve most reliable memories
-    # Uses TokenCounter for consistent token estimation
     memories
     |> Enum.sort_by(&Map.get(&1, :confidence, 0), :desc)
-    |> Enum.reduce_while({[], 0}, fn mem, {acc, tokens} ->
-      mem_tokens = TokenCounter.count_memory(mem)
-
-      if tokens + mem_tokens <= budget do
-        {:cont, {[mem | acc], tokens + mem_tokens}}
-      else
-        {:halt, {acc, tokens}}
-      end
-    end)
-    |> elem(0)
-    |> Enum.reverse()
+    |> TokenCounter.select_within_budget(budget, &TokenCounter.count_memory/1)
   end
 
   # =============================================================================
@@ -596,7 +586,7 @@ defmodule JidoCode.Memory.ContextBuilder do
 
   # Sanitizes content to prevent markdown injection and potential prompt injection
   # Escapes markdown special characters and removes dangerous patterns
-  @spec sanitize_content(String.t()) :: String.t()
+  # Note: Removed @spec from private function to match implementation (Concern #11)
   defp sanitize_content(content) when is_binary(content) do
     content
     # Escape markdown special characters that could affect formatting
@@ -604,12 +594,13 @@ defmodule JidoCode.Memory.ContextBuilder do
     |> String.replace("__", "\\_\\_")
     |> String.replace("```", "\\`\\`\\`")
     # Remove potential instruction injection patterns (common LLM jailbreak attempts)
-    |> String.replace(~r/\bignore\s+(all\s+)?previous\s+instructions?\b/i, "[filtered]")
-    |> String.replace(~r/\byou\s+are\s+now\b/i, "[filtered]")
-    |> String.replace(~r/\bforget\s+(all\s+)?previous\b/i, "[filtered]")
-    |> String.replace(~r/\bsystem\s*:\s*/i, "system : ")
-    |> String.replace(~r/\buser\s*:\s*/i, "user : ")
-    |> String.replace(~r/\bassistant\s*:\s*/i, "assistant : ")
+    # Uses precompiled regexes for performance (Concern #5)
+    |> String.replace(@regex_ignore_instructions, "[filtered]")
+    |> String.replace(@regex_you_are_now, "[filtered]")
+    |> String.replace(@regex_forget_previous, "[filtered]")
+    |> String.replace(@regex_system_role, "system : ")
+    |> String.replace(@regex_user_role, "user : ")
+    |> String.replace(@regex_assistant_role, "assistant : ")
   end
 
   defp sanitize_content(content), do: to_string(content)
@@ -629,8 +620,10 @@ defmodule JidoCode.Memory.ContextBuilder do
   end
 
   defp emit_summarization_telemetry(session_id, original_count, summarized_count) do
+    # Concern #10: Standardized to [:jido_code, :memory, :context, :summarized]
+    # to match the planning doc convention (using 4-element tuple like promotion events)
     :telemetry.execute(
-      [:jido_code, :memory, :context_summarized],
+      [:jido_code, :memory, :context, :summarized],
       %{original_messages: original_count, summarized_messages: summarized_count},
       %{session_id: session_id}
     )

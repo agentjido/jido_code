@@ -117,12 +117,13 @@ defmodule JidoCode.Memory.SummarizerTest do
 
       non_marker = Enum.reject(result, &(&1[:id] && &1[:id] =~ "summary-marker"))
 
+      # Ensure we have messages to check (Concern #6: strengthen assertion)
+      assert length(non_marker) > 0, "Expected at least one non-marker message to be preserved"
+
       # Most recent messages should be preserved
-      if length(non_marker) > 0 do
-        contents = Enum.map(non_marker, & &1.content)
-        # At least one recent message should be included
-        assert Enum.any?(contents, &(&1 =~ "Recent"))
-      end
+      contents = Enum.map(non_marker, & &1.content)
+      # At least one recent message should be included
+      assert Enum.any?(contents, &(&1 =~ "Recent"))
     end
 
     test "preserves questions" do
@@ -235,7 +236,10 @@ defmodule JidoCode.Memory.SummarizerTest do
       assert second < third
     end
 
-    test "returns scores between 0 and 1" do
+    test "returns scores within valid range (0.0 to ~1.3 with boosts)" do
+      # Concern #7: Test name now reflects actual max score behavior
+      # Maximum theoretical score is ~1.3 (role 0.3 + recency 0.4 + content_cap 0.3 + boosts)
+      # Content score caps at 1.0, but combined score can exceed 1.0
       messages = make_timestamped_messages(10)
       scored = Summarizer.score_messages(messages)
 
@@ -334,6 +338,29 @@ defmodule JidoCode.Memory.SummarizerTest do
       content = "What is this critical error? I've decided it's important and must be fixed. Check file: error.ex ```code```"
       score = Summarizer.score_content(content)
       assert score == 1.0
+    end
+
+    # Concern #8: Test non-string input types
+    # Note: The implementation only handles nil, "", and binaries.
+    # Non-string inputs will raise FunctionClauseError as expected since
+    # the function signature is score_content(content) when is_binary(content)
+    test "only accepts binary strings (not other types)" do
+      # Verify nil and empty string work
+      assert Summarizer.score_content(nil) == 0.0
+      assert Summarizer.score_content("") == 0.0
+
+      # Verify non-binary types raise FunctionClauseError
+      assert_raise FunctionClauseError, fn ->
+        Summarizer.score_content(123)
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        Summarizer.score_content([:list, :of, :atoms])
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        Summarizer.score_content(%{key: "value"})
+      end
     end
   end
 

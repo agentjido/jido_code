@@ -175,6 +175,41 @@ defmodule JidoCode.Memory.Types do
           access_type: :read | :write | :query
         }
 
+  @typedoc """
+  A conversation message used in chat history and context building.
+
+  ## Fields
+
+  - `role` - The role of the message sender (user, assistant, system, tool)
+  - `content` - The message content (may be nil for some message types)
+  - `timestamp` - When the message was created (optional)
+  - `id` - Unique identifier for the message (optional)
+
+  ## Known Roles
+
+  - `:user` - Message from the user
+  - `:assistant` - Response from the AI assistant
+  - `:system` - System instructions or context
+  - `:tool` - Output from tool execution
+
+  Other roles may be used for extensibility.
+  """
+  @type message :: %{
+          required(:role) => atom(),
+          required(:content) => String.t() | nil,
+          optional(:timestamp) => DateTime.t(),
+          optional(:id) => String.t()
+        }
+
+  @doc """
+  Returns the summary cache key atom for internal use.
+
+  This is used by ContextBuilder to store cached conversation summaries
+  in the working context. Exposed here to make the coupling explicit.
+  """
+  @spec summary_cache_key() :: context_key()
+  def summary_cache_key, do: :conversation_summary
+
   # =============================================================================
   # Helper Functions
   # =============================================================================

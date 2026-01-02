@@ -44,13 +44,9 @@ defmodule JidoCode.Memory.TokenCounter do
   # Types
   # =============================================================================
 
-  @typedoc """
-  A conversation message with role and content.
-  """
-  @type message :: %{
-          required(:role) => atom() | String.t(),
-          required(:content) => String.t() | nil
-        }
+  alias JidoCode.Memory.Types
+
+  # Note: For message type, use Types.message() from the shared types module.
 
   @typedoc """
   A stored memory with content and metadata.
@@ -123,7 +119,7 @@ defmodule JidoCode.Memory.TokenCounter do
       4
 
   """
-  @spec count_message(message()) :: non_neg_integer()
+  @spec count_message(Types.message()) :: non_neg_integer()
   def count_message(%{content: content}) do
     estimate_tokens(content) + @message_overhead
   end
@@ -146,7 +142,7 @@ defmodule JidoCode.Memory.TokenCounter do
       9
 
   """
-  @spec count_messages([message()]) :: non_neg_integer()
+  @spec count_messages([Types.message()]) :: non_neg_integer()
   def count_messages(messages) when is_list(messages) do
     Enum.reduce(messages, 0, fn msg, acc -> count_message(msg) + acc end)
   end
@@ -250,4 +246,50 @@ defmodule JidoCode.Memory.TokenCounter do
   end
 
   def count_working_context(_), do: 0
+
+  # =============================================================================
+  # Public API - Budget Selection
+  # =============================================================================
+
+  @doc """
+  Selects items from a list that fit within a token budget.
+
+  Uses a counting function to estimate tokens for each item, accumulating
+  items until the budget is exceeded. Stops at the first item that would
+  exceed the budget (does not try to fit smaller items later).
+
+  ## Parameters
+
+  - `items` - List of items to select from (already sorted by priority)
+  - `budget` - Maximum token count allowed
+  - `count_fn` - Function that takes an item and returns its token count
+
+  ## Returns
+
+  List of items that fit within the budget, in the same order as input.
+
+  ## Examples
+
+      iex> messages = [%{role: :user, content: "Hello"}]
+      iex> TokenCounter.select_within_budget(messages, 100, &TokenCounter.count_message/1)
+      [%{role: :user, content: "Hello"}]
+
+  """
+  @spec select_within_budget(list(), non_neg_integer(), (any() -> non_neg_integer())) :: list()
+  def select_within_budget(items, budget, count_fn) when is_list(items) and is_integer(budget) and budget >= 0 do
+    items
+    |> Enum.reduce_while({[], 0}, fn item, {acc, tokens} ->
+      item_tokens = count_fn.(item)
+
+      if tokens + item_tokens <= budget do
+        {:cont, {[item | acc], tokens + item_tokens}}
+      else
+        {:halt, {acc, tokens}}
+      end
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+  end
+
+  def select_within_budget(_, _, _), do: []
 end

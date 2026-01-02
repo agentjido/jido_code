@@ -110,57 +110,28 @@ lib/jido_code/memory/
 
 ---
 
-## 7.2 Create Ontology Loader
+## 7.2 Create Ontology Loader ✓
 
 ### 7.2.1 OntologyLoader Module
 
-- [ ] 7.2.1.1 Create `lib/jido_code/memory/long_term/ontology_loader.ex`:
-  ```elixir
-  defmodule JidoCode.Memory.LongTerm.OntologyLoader do
-    @moduledoc """
-    Loads the Jido ontology TTL files into a TripleStore.
-
-    The ontology provides the class hierarchy, properties, and individuals
-    that define the structure of long-term memory.
-    """
-
-    @ontology_files [
-      "jido-core.ttl",
-      "jido-knowledge.ttl",
-      "jido-decision.ttl",
-      "jido-convention.ttl",
-      "jido-error.ttl",
-      "jido-session.ttl",
-      "jido-agent.ttl",
-      "jido-project.ttl",
-      "jido-task.ttl"
-    ]
-
-    @ontology_path "lib/ontology/long-term-context"
-
-    @spec load_ontology(TripleStore.store()) :: {:ok, non_neg_integer()} | {:error, term()}
-    def load_ontology(store) do
-      # Load each ontology file
-    end
-
-    @spec ontology_loaded?(TripleStore.store()) :: boolean()
-    def ontology_loaded?(store) do
-      # Check if jido:MemoryItem class exists
-    end
-  end
-  ```
-- [ ] 7.2.1.2 Implement `load_ontology/1` to load all TTL files
-- [ ] 7.2.1.3 Implement `ontology_loaded?/1` check
-- [ ] 7.2.1.4 Add `reload_ontology/1` for development/updates
-- [ ] 7.2.1.5 Cache ontology path resolution
+- [x] 7.2.1.1 Create `lib/jido_code/memory/long_term/ontology_loader.ex`
+- [x] 7.2.1.2 Implement `load_ontology/1` to load all TTL files
+- [x] 7.2.1.3 Implement `ontology_loaded?/1` check using ASK query for MemoryItem class
+- [x] 7.2.1.4 Add `reload_ontology/1` for development/updates
+- [x] 7.2.1.5 Cache ontology path resolution using `persistent_term`
+- [x] 7.2.1.6 Added helper functions: `namespace/0`, `ontology_files/0`, `ontology_path/0`
+- [x] 7.2.1.7 Added query functions: `list_classes/1`, `list_individuals/1`, `list_properties/1`
 
 ### 7.2.2 Ontology Loader Tests
 
-- [ ] 7.2.2.1 Test load_ontology/1 loads all files
-- [ ] 7.2.2.2 Test ontology_loaded?/1 returns true after load
-- [ ] 7.2.2.3 Test ontology classes are queryable via SPARQL
-- [ ] 7.2.2.4 Test ontology individuals (High, Medium, Low) exist
-- [ ] 7.2.2.5 Test ontology properties are defined
+- [x] 7.2.2.1 Test load_ontology/1 loads all files (10 TTL files, ~670 triples)
+- [x] 7.2.2.2 Test ontology_loaded?/1 returns true after load
+- [x] 7.2.2.3 Test ontology classes are queryable via SPARQL (MemoryItem, Entity, etc.)
+- [x] 7.2.2.4 Test ontology individuals (High, Medium, Low, UserSource, AgentSource, etc.)
+- [x] 7.2.2.5 Test ontology properties are defined (hasConfidence, summary, etc.)
+- [x] 7.2.2.6 Test knowledge type subclasses of MemoryItem (Fact, Assumption, Hypothesis)
+- [x] 7.2.2.7 Test list_classes/1, list_individuals/1, list_properties/1
+- [x] 7.2.2.8 Test reload_ontology/1 works correctly
 
 ---
 

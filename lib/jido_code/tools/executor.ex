@@ -84,8 +84,8 @@ defmodule JidoCode.Tools.Executor do
   @default_timeout 30_000
 
   # Memory tools are routed directly to Jido Actions, bypassing the Lua sandbox.
-  # See ADR 0002: Memory Tool Executor Routing
-  @memory_tools ["remember", "recall", "forget"]
+  # See ADR 0002: Memory Tool Executor Routing (notes/decisions/0002-memory-tool-executor-routing.md)
+  @memory_tools Memory.Actions.names()
 
   @typedoc """
   A parsed tool call from an LLM response.
@@ -636,19 +636,51 @@ defmodule JidoCode.Tools.Executor do
 
   defp format_memory_result(result), do: inspect(result)
 
+  # Whitelist of known valid keys for memory action arguments.
+  # This prevents atom table exhaustion attacks from arbitrary user input.
+  # Keys must match the schemas defined in Remember, Recall, and Forget actions.
+  @known_memory_action_keys MapSet.new([
+    "content",
+    "type",
+    "confidence",
+    "rationale",
+    "query",
+    "min_confidence",
+    "limit",
+    "memory_id",
+    "reason",
+    "replacement_id"
+  ])
+
   # Convert string keys to atoms for Jido.Action compatibility.
   # JSON-parsed arguments come with string keys, but Jido.Action expects atom keys.
+  # Only whitelisted keys are converted to atoms to prevent atom table exhaustion.
   defp atomize_keys(map) when is_map(map) do
     Map.new(map, fn
-      {key, value} when is_binary(key) -> {String.to_existing_atom(key), atomize_value(value)}
-      {key, value} -> {key, atomize_value(value)}
+      {key, value} when is_binary(key) ->
+        if MapSet.member?(@known_memory_action_keys, key) do
+          {String.to_existing_atom(key), atomize_value(value)}
+        else
+          # Unknown keys are kept as strings and will be rejected by schema validation
+          {key, atomize_value(value)}
+        end
+
+      {key, value} ->
+        {key, atomize_value(value)}
     end)
   rescue
+    # Fallback for atoms that exist but aren't in the whitelist (e.g., from tests)
     ArgumentError ->
-      # If atom doesn't exist, try creating it (for known schema keys)
       Map.new(map, fn
-        {key, value} when is_binary(key) -> {String.to_atom(key), atomize_value(value)}
-        {key, value} -> {key, atomize_value(value)}
+        {key, value} when is_binary(key) ->
+          if MapSet.member?(@known_memory_action_keys, key) do
+            {String.to_atom(key), atomize_value(value)}
+          else
+            {key, atomize_value(value)}
+          end
+
+        {key, value} ->
+          {key, atomize_value(value)}
       end)
   end
 

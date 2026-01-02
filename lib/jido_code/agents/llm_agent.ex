@@ -20,6 +20,32 @@ defmodule JidoCode.Agents.LLMAgent do
       # Send a chat message
       {:ok, response} = JidoCode.Agents.LLMAgent.chat(pid, "How do I reverse a list in Elixir?")
 
+  ## Memory Integration
+
+  The agent integrates with the two-tier memory system. Memory is enabled by default
+  and can be configured via the `:memory` option:
+
+      # Start with memory disabled
+      {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(
+        session_id: "my-session",
+        memory: [enabled: false]
+      )
+
+      # Start with custom token budget
+      {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(
+        session_id: "my-session",
+        memory: [token_budget: 16_000]
+      )
+
+  Memory options:
+  - `:enabled` - Whether to include memory context in prompts (default: `true`)
+  - `:token_budget` - Total token budget for context (default: `32_000`)
+
+  When memory is enabled, the agent:
+  - Assembles working context and long-term memories before each LLM call
+  - Includes formatted memory context in the system prompt
+  - Makes memory tools (remember, recall, forget) available for tool use
+
   ## PubSub Integration
 
   Responses are broadcast to the session-specific PubSub topic with the event type
@@ -47,15 +73,20 @@ defmodule JidoCode.Agents.LLMAgent do
   alias Jido.AI.Prompt
   alias JidoCode.Config
   alias JidoCode.Language
+  alias JidoCode.Memory.Actions, as: MemoryActions
+  alias JidoCode.Memory.ContextBuilder
+  alias JidoCode.Memory.ResponseProcessor
   alias JidoCode.PubSubTopics
   alias JidoCode.Session.ProcessRegistry
   alias JidoCode.Session.State, as: SessionState
   alias JidoCode.Tools.Executor
+  alias JidoCode.Tools.Registry, as: ToolRegistry
   alias JidoCode.Tools.Result
 
   @pubsub JidoCode.PubSub
   @default_timeout 60_000
   @max_message_length 10_000
+  @default_token_budget 32_000
 
   # System prompt should NOT include user input to prevent prompt injection attacks.
   # User messages are passed separately to the AI agent via chat_response/3.
@@ -96,6 +127,13 @@ defmodule JidoCode.Agents.LLMAgent do
   - `:max_tokens` - Override max tokens
   - `:name` - GenServer name for registration (optional)
   - `:session_id` - Session ID for PubSub topic isolation (optional, defaults to agent PID string)
+  - `:memory` - Memory configuration options (see below)
+
+  ## Memory Options
+
+  The `:memory` option accepts a keyword list:
+  - `:enabled` - Whether to include memory context in prompts (default: `true`)
+  - `:token_budget` - Total token budget for context assembly (default: `32_000`)
 
   ## Returns
 
@@ -107,6 +145,7 @@ defmodule JidoCode.Agents.LLMAgent do
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link()
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(session_id: "user-123")
       {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(name: {:via, Registry, {MyRegistry, :llm}})
+      {:ok, pid} = JidoCode.Agents.LLMAgent.start_link(session_id: "user-123", memory: [enabled: false])
   """
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -488,6 +527,48 @@ defmodule JidoCode.Agents.LLMAgent do
   defp get_model_name(%{model: name}) when is_binary(name), do: name
   defp get_model_name(_), do: nil
 
+  @doc """
+  Returns the list of available tools for the agent.
+
+  When memory is enabled, this includes both the base tools from the
+  Tools.Registry and the memory tools (remember, recall, forget).
+  When memory is disabled, only the base tools are returned.
+
+  ## Returns
+
+  - `{:ok, tools}` - List of tool definitions in LLM format
+
+  ## Examples
+
+      {:ok, tools} = JidoCode.Agents.LLMAgent.get_available_tools(pid)
+
+  """
+  @spec get_available_tools(GenServer.server()) :: {:ok, [map()]}
+  def get_available_tools(pid) do
+    GenServer.call(pid, :get_available_tools)
+  end
+
+  @doc """
+  Checks if a tool name is a memory tool.
+
+  Memory tools are: remember, recall, forget
+
+  ## Examples
+
+      JidoCode.Agents.LLMAgent.memory_tool?("remember")
+      # => true
+
+      JidoCode.Agents.LLMAgent.memory_tool?("read_file")
+      # => false
+
+  """
+  @spec memory_tool?(String.t()) :: boolean()
+  def memory_tool?(name) when is_binary(name) do
+    MemoryActions.memory_action?(name)
+  end
+
+  def memory_tool?(_), do: false
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -497,8 +578,12 @@ defmodule JidoCode.Agents.LLMAgent do
     # Trap exits so we can handle AI agent crashes gracefully
     Process.flag(:trap_exit, true)
 
-    # Extract session_id before building config
-    {session_id, config_opts} = Keyword.pop(opts, :session_id)
+    # Extract session_id and memory options before building config
+    {session_id, opts} = Keyword.pop(opts, :session_id)
+    {memory_opts, config_opts} = Keyword.pop(opts, :memory, [])
+
+    # Validate and normalize token_budget
+    token_budget = validate_token_budget(Keyword.get(memory_opts, :token_budget))
 
     case build_config(config_opts) do
       {:ok, config} ->
@@ -512,7 +597,10 @@ defmodule JidoCode.Agents.LLMAgent do
               config: config,
               session_id: actual_session_id,
               topic: build_topic(actual_session_id),
-              is_processing: false
+              is_processing: false,
+              # Memory integration
+              memory_enabled: Keyword.get(memory_opts, :enabled, true),
+              token_budget: token_budget
             }
 
             {:ok, state}
@@ -621,6 +709,12 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   @impl true
+  def handle_call(:get_available_tools, _from, state) do
+    tools = do_get_available_tools(state)
+    {:reply, {:ok, tools}, state}
+  end
+
+  @impl true
   def handle_call({:configure, opts}, _from, state) do
     # Build new config, merging with current config
     new_config = %{
@@ -645,13 +739,16 @@ defmodule JidoCode.Agents.LLMAgent do
     session_id = state.session_id
     agent_pid = self()
 
+    # Extract memory options for context assembly
+    memory_opts = extract_memory_opts(state)
+
     # ARCH-1 Fix: Use Task.Supervisor for monitored async streaming
     Task.Supervisor.start_child(JidoCode.TaskSupervisor, fn ->
       # Trap exits to prevent ReqLLM's internal cleanup tasks from crashing us
       Process.flag(:trap_exit, true)
 
       try do
-        do_chat_stream_with_timeout(config, message, topic, timeout, session_id)
+        do_chat_stream_with_timeout(config, message, topic, timeout, session_id, memory_opts)
         # Notify agent that streaming is complete
         send(agent_pid, :stream_complete)
       catch
@@ -680,9 +777,12 @@ defmodule JidoCode.Agents.LLMAgent do
   @impl true
   def terminate(_reason, state) do
     # Stop the AI agent if running - catch any errors silently
-    if state[:ai_pid] && Process.alive?(state.ai_pid) do
+    # Use consistent dot access since ai_pid is always present in state
+    ai_pid = state.ai_pid
+
+    if ai_pid && Process.alive?(ai_pid) do
       try do
-        GenServer.stop(state.ai_pid, :normal, 1000)
+        GenServer.stop(ai_pid, :normal, 1000)
       catch
         :exit, _ -> :ok
       end
@@ -788,12 +888,11 @@ defmodule JidoCode.Agents.LLMAgent do
   defp do_build_tool_context(nil), do: {:error, :no_session_id}
 
   defp do_build_tool_context(session_id) when is_binary(session_id) do
-    # Check if session_id looks like a PID string (e.g., "#PID<0.123.0>")
-    # In that case, the agent was started without a proper session_id
-    if String.starts_with?(session_id, "#PID<") do
-      {:error, :no_session_id}
-    else
+    # Reuse is_valid_session_id?/1 to avoid duplicating PID string check
+    if is_valid_session_id?(session_id) do
       Executor.build_context(session_id)
+    else
+      {:error, :no_session_id}
     end
   end
 
@@ -811,6 +910,18 @@ defmodule JidoCode.Agents.LLMAgent do
       batch_opts = Keyword.put(opts, :context, context)
       Executor.execute_batch(tool_calls, batch_opts)
     end
+  end
+
+  # Returns the list of available tools based on memory configuration.
+  # When memory is enabled, includes memory tools (remember, recall, forget).
+  @spec do_get_available_tools(map()) :: list(map())
+  defp do_get_available_tools(%{memory_enabled: true}) do
+    ToolRegistry.to_llm_format() ++ MemoryActions.to_tool_definitions()
+  end
+
+  # Default to base tools if memory_enabled is false or not in state (backwards compat)
+  defp do_get_available_tools(_state) do
+    ToolRegistry.to_llm_format()
   end
 
   defp broadcast_response(topic, response) do
@@ -836,18 +947,42 @@ defmodule JidoCode.Agents.LLMAgent do
     end_session_streaming(session_id)
     # Also broadcast for TUI (include session_id, content, and metadata for routing)
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_end, session_id, full_content, metadata})
+
+    # Process response for context extraction (async to not block stream completion)
+    process_response_async(full_content, session_id)
   end
+
+  # Asynchronously process LLM response for context extraction
+  # Runs in a separate task to avoid blocking stream completion
+  @spec process_response_async(String.t(), String.t()) :: :ok
+  defp process_response_async(full_content, session_id) when is_binary(session_id) do
+    if is_valid_session_id?(session_id) do
+      Task.start(fn ->
+        {:ok, extractions} = ResponseProcessor.process_response(full_content, session_id)
+
+        if map_size(extractions) > 0 do
+          Logger.debug(
+            "LLMAgent: Extracted #{map_size(extractions)} context items from response: #{inspect(Map.keys(extractions))}"
+          )
+        end
+      end)
+    end
+
+    :ok
+  end
+
+  defp process_response_async(_content, _session_id), do: :ok
 
   defp broadcast_stream_error(topic, reason) do
     Phoenix.PubSub.broadcast(@pubsub, topic, {:stream_error, reason})
   end
 
   # Wrapper that enforces timeout on stream operations
-  defp do_chat_stream_with_timeout(config, message, topic, timeout, session_id) do
+  defp do_chat_stream_with_timeout(config, message, topic, timeout, session_id, memory_opts) do
     # Use a Task to enforce timeout on the entire streaming operation
     task =
       Task.async(fn ->
-        do_chat_stream(config, message, topic, session_id)
+        do_chat_stream(config, message, topic, session_id, memory_opts)
       end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
@@ -861,7 +996,7 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp do_chat_stream(config, message, topic, session_id) do
+  defp do_chat_stream(config, message, topic, session_id, memory_opts) do
     # Build model from config
     model_tuple =
       {config.provider,
@@ -873,7 +1008,7 @@ defmodule JidoCode.Agents.LLMAgent do
 
     case Model.from(model_tuple) do
       {:ok, model} ->
-        execute_stream(model, message, topic, session_id)
+        execute_stream(model, message, topic, session_id, memory_opts)
 
       {:error, reason} ->
         Logger.error("Failed to create model for streaming: #{inspect(reason)}")
@@ -881,9 +1016,12 @@ defmodule JidoCode.Agents.LLMAgent do
     end
   end
 
-  defp execute_stream(model, message, topic, session_id) do
-    # Build dynamic system prompt with language-specific instructions
-    system_prompt = build_system_prompt(session_id)
+  defp execute_stream(model, message, topic, session_id, memory_opts) do
+    # Build memory context if enabled and session is valid
+    memory_context = build_memory_context(session_id, message, memory_opts)
+
+    # Build dynamic system prompt with language-specific instructions and memory context
+    system_prompt = build_system_prompt(session_id, memory_context)
 
     # Build prompt with system message and user message
     prompt =
@@ -1140,30 +1278,47 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   # Check if session_id is a valid session ID (not a PID string)
+  @spec is_valid_session_id?(String.t()) :: boolean()
   defp is_valid_session_id?(session_id) when is_binary(session_id) do
     not String.starts_with?(session_id, "#PID<")
+  end
+
+  # Extract memory options from agent state
+  # Provides consistent access with defaults for backwards compatibility
+  @spec extract_memory_opts(map()) :: map()
+  defp extract_memory_opts(state) do
+    %{
+      memory_enabled: Map.get(state, :memory_enabled, true),
+      token_budget: Map.get(state, :token_budget, @default_token_budget)
+    }
   end
 
   # ============================================================================
   # System Prompt Building
   # ============================================================================
 
-  # Build the system prompt with optional language-specific instructions
-  defp build_system_prompt(session_id) when is_binary(session_id) do
-    if is_valid_session_id?(session_id) do
-      case SessionState.get_state(session_id) do
-        {:ok, %{session: session}} when not is_nil(session.language) ->
-          add_language_instruction(@base_system_prompt, session.language)
+  # Build the system prompt with optional language-specific instructions and memory context
+  @spec build_system_prompt(String.t(), ContextBuilder.context() | nil) :: String.t()
+  defp build_system_prompt(session_id, memory_context) when is_binary(session_id) do
+    base_prompt =
+      if is_valid_session_id?(session_id) do
+        case SessionState.get_state(session_id) do
+          {:ok, %{session: session}} when not is_nil(session.language) ->
+            add_language_instruction(@base_system_prompt, session.language)
 
-        _ ->
-          @base_system_prompt
+          _ ->
+            @base_system_prompt
+        end
+      else
+        @base_system_prompt
       end
-    else
-      @base_system_prompt
-    end
+
+    add_memory_context(base_prompt, memory_context)
   end
 
-  defp build_system_prompt(_), do: @base_system_prompt
+  defp build_system_prompt(_, memory_context) do
+    add_memory_context(@base_system_prompt, memory_context)
+  end
 
   # Add language-specific instruction to the system prompt
   defp add_language_instruction(base_prompt, language) do
@@ -1178,9 +1333,80 @@ defmodule JidoCode.Agents.LLMAgent do
     base_prompt <> language_instruction
   end
 
+  # Add memory context to the system prompt if available
+  @spec add_memory_context(String.t(), ContextBuilder.context() | nil) :: String.t()
+  defp add_memory_context(prompt, nil), do: prompt
+
+  defp add_memory_context(prompt, memory_context) do
+    memory_section = ContextBuilder.format_for_prompt(memory_context)
+
+    if memory_section != "" do
+      prompt <> "\n\n" <> memory_section
+    else
+      prompt
+    end
+  end
+
+  # Build memory context for the current message
+  # Uses the token_budget from agent state, falling back to ContextBuilder defaults
+  @spec build_memory_context(String.t(), String.t(), map()) :: ContextBuilder.context() | nil
+  defp build_memory_context(session_id, message, memory_opts) do
+    if memory_opts.memory_enabled and is_valid_session_id?(session_id) do
+      # Build custom budget using agent's token_budget for total, with proportional splits
+      budget = build_token_budget(memory_opts.token_budget)
+
+      case ContextBuilder.build(session_id,
+             token_budget: budget,
+             query_hint: message
+           ) do
+        {:ok, context} ->
+          Logger.debug("LLMAgent: Built memory context with #{context.token_counts.total} tokens")
+          context
+
+        {:error, reason} ->
+          Logger.debug("LLMAgent: Failed to build memory context: #{inspect(reason)}")
+          nil
+      end
+    else
+      nil
+    end
+  end
+
+  # Build a proportional token budget based on the total budget
+  # Delegates to ContextBuilder.allocate_budget/1 for consistent allocation
+  @spec build_token_budget(pos_integer()) :: ContextBuilder.token_budget()
+  defp build_token_budget(total), do: ContextBuilder.allocate_budget(total)
+
   # ============================================================================
   # Validation Functions
   # ============================================================================
+
+  # Validate and normalize token_budget to a positive integer within bounds
+  # Returns the validated budget or the default if invalid
+  @min_token_budget 1_000
+  @max_token_budget 200_000
+
+  @spec validate_token_budget(term()) :: pos_integer()
+  defp validate_token_budget(nil), do: @default_token_budget
+
+  defp validate_token_budget(budget) when is_integer(budget) and budget >= @min_token_budget and budget <= @max_token_budget do
+    budget
+  end
+
+  defp validate_token_budget(budget) when is_integer(budget) and budget > 0 and budget < @min_token_budget do
+    Logger.warning("Token budget #{budget} is below minimum #{@min_token_budget}, using minimum")
+    @min_token_budget
+  end
+
+  defp validate_token_budget(budget) when is_integer(budget) and budget > @max_token_budget do
+    Logger.warning("Token budget #{budget} exceeds maximum #{@max_token_budget}, using maximum")
+    @max_token_budget
+  end
+
+  defp validate_token_budget(budget) do
+    Logger.warning("Invalid token_budget #{inspect(budget)}, using default #{@default_token_budget}")
+    @default_token_budget
+  end
 
   defp validate_message(message) when byte_size(message) > @max_message_length do
     {:error,

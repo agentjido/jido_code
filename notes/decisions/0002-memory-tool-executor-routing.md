@@ -140,6 +140,35 @@ Result.success/error                   Lua Sandbox → Bridge → Handler
 
 **Rejected**: Memory tools don't need security sandboxing (trusted internal operations), and the Lua bridge would add unnecessary complexity.
 
+## Implementation Note: Direct Persistence Path
+
+The planning document originally specified that the Remember action should call
+`Session.State.add_agent_memory_decision()` to add memories to the pending state
+for later promotion. However, the implementation directly calls `Memory.persist/2`.
+
+### Rationale for Direct Persistence
+
+1. **Agent-Initiated Memories Have Maximum Importance**: When an agent explicitly
+   calls the `remember` tool, it's making a deliberate decision to persist information.
+   This bypasses the normal importance threshold evaluation.
+
+2. **Immediate Availability**: Memories stored via the tool should be immediately
+   available for recall in the same or subsequent sessions.
+
+3. **Simplified Flow**: The pending state and promotion engine are designed for
+   implicitly detected patterns (from conversations, tool outputs). Explicit
+   agent decisions don't need the additional evaluation layer.
+
+4. **Consistency with Forget**: The `forget` action operates directly on persisted
+   memories. Having `remember` also operate directly maintains symmetry.
+
+### Impact
+
+- **Low**: The memory is still persisted correctly with all required fields
+- **Tradeoff**: Skips importance scoring, but this is intentional for agent-initiated memories
+- **Future Consideration**: If importance scoring becomes valuable for agent memories,
+  the implementation can be updated to go through pending state with auto-promotion
+
 ## References
 
 - `notes/planning/two-tier-memory/conciliation.md` - Parallel development conflict analysis

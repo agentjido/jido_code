@@ -42,11 +42,12 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
 
     test "has correct parameters" do
       tool = Definitions.mix_task()
-      assert length(tool.parameters) == 3
+      assert length(tool.parameters) == 4
 
       task_param = Enum.find(tool.parameters, &(&1.name == "task"))
       args_param = Enum.find(tool.parameters, &(&1.name == "args"))
       env_param = Enum.find(tool.parameters, &(&1.name == "env"))
+      timeout_param = Enum.find(tool.parameters, &(&1.name == "timeout"))
 
       assert task_param.required == true
       assert task_param.type == :string
@@ -60,6 +61,10 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       assert env_param.type == :string
       assert env_param.description =~ "prod"
       assert env_param.enum == ["dev", "test"]
+
+      assert timeout_param.required == false
+      assert timeout_param.type == :integer
+      assert timeout_param.description =~ "60000"
     end
 
     test "has correct handler" do

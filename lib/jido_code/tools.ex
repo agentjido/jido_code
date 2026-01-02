@@ -72,6 +72,7 @@ defmodule JidoCode.Tools do
       Definitions.FileSystem.all() ++
         Definitions.Search.all() ++
         Definitions.Shell.all() ++
+        Definitions.Elixir.all() ++
         GitCommand.all() ++
         Definitions.Livebook.all() ++
         Definitions.Web.all() ++

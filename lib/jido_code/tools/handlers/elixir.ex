@@ -52,6 +52,16 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     help credo dialyzer docs hex.info
   )
 
+  # Blocked tasks with security rationale:
+  # - release: Creates production releases, could deploy malicious code
+  # - archive.install: Installs global archives, modifies system state
+  # - escript.build: Creates executables, potential malware vector
+  # - local.hex/local.rebar: Modifies global package managers
+  # - hex.publish: Publishes packages publicly, irreversible
+  # - deps.update: Can introduce supply chain vulnerabilities
+  # - do: Allows arbitrary task chaining, bypasses allowlist
+  # - ecto.drop/ecto.reset: Destructive database operations
+  # - phx.gen.secret: Generates secrets, could expose sensitive data
   @blocked_tasks ~w(
     release archive.install escript.build
     local.hex local.rebar hex.publish
@@ -59,6 +69,9 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     ecto.drop ecto.reset
     phx.gen.secret
   )
+
+  # Valid task name pattern: alphanumeric, dots, underscores, hyphens only
+  @task_name_pattern ~r/^[a-zA-Z][a-zA-Z0-9._-]*$/
 
   @allowed_envs ~w(dev test)
 
@@ -91,15 +104,22 @@ defmodule JidoCode.Tools.Handlers.Elixir do
   @doc """
   Validates a Mix task against the allowlist and blocklist.
 
+  Also validates the task name format to prevent shell metacharacter injection.
+
   ## Returns
 
   - `{:ok, task}` - Task is allowed
+  - `{:error, :invalid_task_name}` - Task name contains invalid characters
   - `{:error, :task_blocked}` - Task is explicitly blocked
   - `{:error, :task_not_allowed}` - Task is not in allowlist
   """
   @spec validate_task(String.t()) :: {:ok, String.t()} | {:error, atom()}
   def validate_task(task) do
     cond do
+      # First validate task name format (defense in depth)
+      not Regex.match?(@task_name_pattern, task) ->
+        {:error, :invalid_task_name}
+
       task in @blocked_tasks ->
         {:error, :task_blocked}
 
@@ -149,12 +169,15 @@ defmodule JidoCode.Tools.Handlers.Elixir do
   # ============================================================================
 
   @doc false
-  @spec format_error(atom() | String.t(), String.t()) :: String.t()
+  @spec format_error(atom() | String.t() | tuple(), String.t()) :: String.t()
   def format_error(:task_not_allowed, task), do: "Mix task not allowed: #{task}"
   def format_error(:task_blocked, task), do: "Mix task is blocked: #{task}"
+  def format_error(:invalid_task_name, task), do: "Invalid task name format: #{task}"
   def format_error(:env_blocked, _task), do: "Environment 'prod' is blocked for safety"
   def format_error(:timeout, task), do: "Mix task timed out: #{task}"
   def format_error(:enoent, _task), do: "Mix command not found"
+  def format_error(:path_traversal_blocked, _task), do: "Path traversal not allowed in arguments"
+  def format_error({:path_traversal_blocked, arg}, _task), do: "Path traversal not allowed in argument: #{arg}"
   def format_error(reason, task) when is_atom(reason), do: "Error (#{reason}): mix #{task}"
   def format_error(reason, _task) when is_binary(reason), do: reason
   def format_error(reason, task), do: "Error (#{inspect(reason)}): mix #{task}"
@@ -172,9 +195,14 @@ defmodule JidoCode.Tools.Handlers.Elixir do
 
     Uses session-aware project root via `HandlerHelpers.get_project_root/1`.
 
-    ## Implementation Status
+    ## Security Features
 
-    This handler is a stub. Full implementation is in Section 5.1.2.
+    - Task allowlist/blocklist validation
+    - Task name format validation (prevents shell metacharacters)
+    - Path traversal detection in arguments
+    - Environment restriction (prod blocked)
+    - Timeout enforcement (default 60s, max 5min)
+    - Output truncation (max 1MB)
     """
 
     alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
@@ -212,14 +240,17 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
     def execute(%{"task" => task} = args, context) when is_binary(task) do
       start_time = System.monotonic_time(:microsecond)
+      task_args = Map.get(args, "args", [])
 
-      with {:ok, task} <- ElixirHandler.validate_task(task),
+      # Validate args early (before get_project_root) to surface validation errors first
+      with :ok <- validate_args(task_args),
+           :ok <- validate_args_security(task_args),
+           {:ok, task} <- ElixirHandler.validate_task(task),
            {:ok, env} <- ElixirHandler.validate_env(Map.get(args, "env")),
            {:ok, project_root} <- ElixirHandler.get_project_root(context) do
-        task_args = Map.get(args, "args", [])
         timeout = get_timeout(args)
 
-        execute_mix_task(task, task_args, env, project_root, timeout, context, start_time)
+        run_mix_command(task, task_args, env, project_root, timeout, context, start_time)
       else
         {:error, reason} ->
           ElixirHandler.emit_elixir_telemetry(:mix_task, start_time, task, context, :error, 1)
@@ -247,18 +278,6 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end
     end
 
-    defp execute_mix_task(task, task_args, env, project_root, timeout, context, start_time) do
-      # Validate all args are strings
-      case validate_args(task_args) do
-        :ok ->
-          run_mix_command(task, task_args, env, project_root, timeout, context, start_time)
-
-        {:error, reason} ->
-          ElixirHandler.emit_elixir_telemetry(:mix_task, start_time, task, context, :error, 1)
-          {:error, reason}
-      end
-    end
-
     defp validate_args(args) when is_list(args) do
       if Enum.all?(args, &is_binary/1) do
         :ok
@@ -268,6 +287,29 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     end
 
     defp validate_args(_), do: {:error, "Arguments must be a list"}
+
+    # Security validation for path traversal in arguments
+    defp validate_args_security(args) do
+      Enum.reduce_while(args, :ok, fn arg, _acc ->
+        if contains_path_traversal?(arg) do
+          {:halt, {:error, {:path_traversal_blocked, arg}}}
+        else
+          {:cont, :ok}
+        end
+      end)
+    end
+
+    # Check for path traversal patterns including URL-encoded variants
+    defp contains_path_traversal?(arg) do
+      lower = String.downcase(arg)
+
+      String.contains?(arg, "../") or
+        String.contains?(lower, "%2e%2e%2f") or
+        String.contains?(lower, "%2e%2e/") or
+        String.contains?(lower, "..%2f") or
+        String.contains?(lower, "%2e%2e%5c") or
+        String.contains?(lower, "..%5c")
+    end
 
     defp run_mix_command(task, task_args, env, project_root, timeout, context, start_time) do
       cmd_args = [task | task_args]
@@ -294,7 +336,11 @@ defmodule JidoCode.Tools.Handlers.Elixir do
               "exit_code" => exit_code
             }
 
-            {:ok, Jason.encode!(result)}
+            # Use Jason.encode/1 instead of encode!/1 for consistent error handling
+            case Jason.encode(result) do
+              {:ok, json} -> {:ok, json}
+              {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+            end
 
           nil ->
             ElixirHandler.emit_elixir_telemetry(:mix_task, start_time, task, context, :timeout, 1)

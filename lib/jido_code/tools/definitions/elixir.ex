@@ -76,7 +76,8 @@ defmodule JidoCode.Tools.Definitions.Elixir do
         "Run a Mix task in the project directory. Only allowlisted tasks are permitted. " <>
           "Allowed tasks include: compile, test, format, deps.get, deps.compile, deps.tree, " <>
           "deps.unlock, help, credo, dialyzer, docs, hex.info. " <>
-          "The prod environment is blocked. Tasks timeout after 60 seconds by default.",
+          "The prod environment is blocked. Tasks timeout after 60 seconds by default (max 5 minutes). " <>
+          "Output is truncated at 1MB.",
       handler: Handlers.MixTask,
       parameters: [
         %{
@@ -90,7 +91,8 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           name: "args",
           type: :array,
           description:
-            "Task arguments as array (e.g., ['--trace'] for test, ['--check'] for format)",
+            "Task arguments as array (e.g., ['--trace'] for test, ['--check'] for format). " <>
+              "Path traversal patterns (../) are blocked for security.",
           required: false
         },
         %{
@@ -100,6 +102,13 @@ defmodule JidoCode.Tools.Definitions.Elixir do
             "Mix environment to use ('dev' or 'test'). The 'prod' environment is blocked for safety.",
           required: false,
           enum: ["dev", "test"]
+        },
+        %{
+          name: "timeout",
+          type: :integer,
+          description:
+            "Timeout in milliseconds (default: 60000, max: 300000). Task is killed if it exceeds the timeout.",
+          required: false
         }
       ]
     })

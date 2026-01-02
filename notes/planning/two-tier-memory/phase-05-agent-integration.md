@@ -575,34 +575,34 @@ Comprehensive integration tests for LLMAgent memory integration.
 
 ### 5.5.1 Context Assembly Integration
 
-- [ ] 5.5.1.1 Create `test/jido_code/integration/agent_memory_test.exs`
-- [ ] 5.5.1.2 Test: Agent assembles context including working context
-- [ ] 5.5.1.3 Test: Agent assembles context including long-term memories
-- [ ] 5.5.1.4 Test: Agent context respects total token budget
-- [ ] 5.5.1.5 Test: Context updates after tool execution
-- [ ] 5.5.1.6 Test: Context reflects most recent session state
+- [x] 5.5.1.1 Create `test/jido_code/integration/agent_memory_test.exs`
+- [x] 5.5.1.2 Test: Agent assembles context including working context
+- [x] 5.5.1.3 Test: Agent assembles context including long-term memories
+- [x] 5.5.1.4 Test: Agent context respects total token budget
+- [x] 5.5.1.5 Test: Context updates after tool execution
+- [x] 5.5.1.6 Test: Context reflects most recent session state
 
 ### 5.5.2 Memory Tool Execution Integration
 
-- [ ] 5.5.2.1 Test: Agent can execute remember tool during chat
-- [ ] 5.5.2.2 Test: Agent can execute recall tool during chat
-- [ ] 5.5.2.3 Test: Agent can execute forget tool during chat
-- [ ] 5.5.2.4 Test: Memory tool results formatted correctly for LLM
-- [ ] 5.5.2.5 Test: Tool execution updates session state
+- [x] 5.5.2.1 Test: Agent can execute remember tool during chat
+- [x] 5.5.2.2 Test: Agent can execute recall tool during chat
+- [x] 5.5.2.3 Test: Agent can execute forget tool during chat
+- [x] 5.5.2.4 Test: Memory tool results formatted correctly for LLM
+- [x] 5.5.2.5 Test: Tool execution updates session state
 
 ### 5.5.3 Response Processing Integration
 
-- [ ] 5.5.3.1 Test: Response processor extracts context from real LLM responses
-- [ ] 5.5.3.2 Test: Extracted context appears in next context assembly
-- [ ] 5.5.3.3 Test: Response processing runs async (doesn't block)
-- [ ] 5.5.3.4 Test: Multiple responses accumulate context correctly
+- [x] 5.5.3.1 Test: Response processor extracts context from real LLM responses
+- [x] 5.5.3.2 Test: Extracted context appears in next context assembly
+- [x] 5.5.3.3 Test: Response processing runs async (doesn't block)
+- [x] 5.5.3.4 Test: Multiple responses accumulate context correctly
 
 ### 5.5.4 Token Budget Integration
 
-- [ ] 5.5.4.1 Test: Large conversations truncated to budget
-- [ ] 5.5.4.2 Test: Many memories truncated to budget
-- [ ] 5.5.4.3 Test: Budget allocation correct for various total budgets
-- [ ] 5.5.4.4 Test: Truncation preserves most important content
+- [x] 5.5.4.1 Test: Large conversations truncated to budget
+- [x] 5.5.4.2 Test: Many memories truncated to budget
+- [x] 5.5.4.3 Test: Budget allocation correct for various total budgets
+- [x] 5.5.4.4 Test: Truncation preserves most important content
 
 ---
 

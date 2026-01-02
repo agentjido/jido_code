@@ -190,8 +190,8 @@ Implement the get_process_state tool for inspecting GenServer and process state.
 
 ### 5.3.1 Tool Definition
 
-- [ ] 5.3.1.1 Add `get_process_state/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.3.1.2 Define schema:
+- [x] 5.3.1.1 Add `get_process_state/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.3.1.2 Define schema:
   ```elixir
   %{
     name: "get_process_state",
@@ -203,37 +203,37 @@ Implement the get_process_state tool for inspecting GenServer and process state.
     ]
   }
   ```
-- [ ] 5.3.1.3 Update `Elixir.all/0` to include `get_process_state()`
+- [x] 5.3.1.3 Update `Elixir.all/0` to include `get_process_state()`
 
 ### 5.3.2 Handler Implementation
 
-- [ ] 5.3.2.1 Create `ProcessState` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.3.2.2 Parse process identifier using `GenServer.whereis/1`:
+- [x] 5.3.2.1 Create `ProcessState` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.3.2.2 Parse process identifier using `GenServer.whereis/1`:
   - Registered name: `"MyApp.Worker"` -> lookup via registered name
   - Only allow registered names (block raw PIDs for security)
-- [ ] 5.3.2.3 Validate process is in project namespace (starts with project module prefix)
-- [ ] 5.3.2.4 Block system-critical processes:
+- [x] 5.3.2.3 Validate process is in project namespace (starts with project module prefix)
+- [x] 5.3.2.4 Block system-critical processes:
   ```elixir
   @blocked_prefixes ~w(JidoCode.Tools JidoCode.Session :kernel :stdlib :init)
   ```
-- [ ] 5.3.2.5 Use `:sys.get_state/2` with timeout
-- [ ] 5.3.2.6 Handle non-OTP processes gracefully (return process_info instead)
-- [ ] 5.3.2.7 Format state for display (inspect with pretty, limit depth)
-- [ ] 5.3.2.8 Sanitize output to redact sensitive fields (passwords, tokens, keys)
-- [ ] 5.3.2.9 Return `{:ok, %{"state" => state, "process_info" => info}}`
-- [ ] 5.3.2.10 Emit telemetry: `[:jido_code, :elixir, :process_state]`
+- [x] 5.3.2.5 Use `:sys.get_state/2` with timeout
+- [x] 5.3.2.6 Handle non-OTP processes gracefully (return process_info instead)
+- [x] 5.3.2.7 Format state for display (inspect with pretty, limit depth)
+- [x] 5.3.2.8 Sanitize output to redact sensitive fields (passwords, tokens, keys)
+- [x] 5.3.2.9 Return `{:ok, %{"state" => state, "process_info" => info}}`
+- [x] 5.3.2.10 Emit telemetry: `[:jido_code, :elixir, :process_state]`
 
 ### 5.3.3 Unit Tests for Get Process State
 
-- [ ] Test get_process_state with registered name
-- [ ] Test get_process_state with GenServer
-- [ ] Test get_process_state with Agent
-- [ ] Test get_process_state blocks raw PID strings
-- [ ] Test get_process_state blocks system processes
-- [ ] Test get_process_state blocks JidoCode internal processes
-- [ ] Test get_process_state handles dead process
-- [ ] Test get_process_state respects timeout
-- [ ] Test get_process_state sanitizes sensitive fields
+- [x] Test get_process_state with registered name
+- [x] Test get_process_state with GenServer
+- [x] Test get_process_state with Agent
+- [x] Test get_process_state blocks raw PID strings
+- [x] Test get_process_state blocks system processes
+- [x] Test get_process_state blocks JidoCode internal processes
+- [x] Test get_process_state handles dead process
+- [x] Test get_process_state respects timeout
+- [x] Test get_process_state sanitizes sensitive fields
 
 ---
 

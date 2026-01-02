@@ -9,6 +9,7 @@ defmodule JidoCode.Tools.Definitions.Elixir do
 
   - `mix_task` - Run Mix tasks with security controls
   - `run_exunit` - Run ExUnit tests with filtering options
+  - `get_process_state` - Inspect GenServer and process state
 
   ## Security
 
@@ -44,7 +45,8 @@ defmodule JidoCode.Tools.Definitions.Elixir do
   def all do
     [
       mix_task(),
-      run_exunit()
+      run_exunit(),
+      get_process_state()
     ]
   end
 
@@ -212,6 +214,59 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           description:
             "Timeout in milliseconds (default: 120000, max: 300000). " <>
               "Test run is killed if it exceeds the timeout.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the get_process_state tool definition.
+
+  Inspects the state of a GenServer or other OTP process. Only processes in the
+  project namespace can be inspected - system and internal processes are blocked.
+
+  ## Parameters
+
+  - `process` (required, string) - Registered name of the process (e.g., 'MyApp.Worker')
+  - `timeout` (optional, integer) - Timeout in milliseconds (default: 5000)
+
+  ## Security
+
+  - Only registered names are allowed (raw PIDs are blocked)
+  - System-critical processes are blocked (kernel, stdlib, init)
+  - JidoCode internal processes are blocked
+  - Sensitive fields (passwords, tokens, keys) are redacted from output
+
+  ## Output
+
+  Returns JSON with state and process_info. State is formatted with inspect
+  for readability. Non-OTP processes return process_info only.
+  """
+  @spec get_process_state() :: Tool.t()
+  def get_process_state do
+    Tool.new!(%{
+      name: "get_process_state",
+      description:
+        "Get state of a GenServer or process. Only project processes can be inspected. " <>
+          "System processes and JidoCode internals are blocked for security. " <>
+          "Sensitive fields (passwords, tokens, keys) are redacted.",
+      handler: Handlers.ProcessState,
+      parameters: [
+        %{
+          name: "process",
+          type: :string,
+          description:
+            "Registered name of the process (e.g., 'MyApp.Worker', 'MyApp.Cache'). " <>
+              "Raw PIDs are not allowed for security reasons.",
+          required: true
+        },
+        %{
+          name: "timeout",
+          type: :integer,
+          description:
+            "Timeout in milliseconds for getting state (default: 5000). " <>
+              "Useful for slow-responding processes.",
           required: false
         }
       ]

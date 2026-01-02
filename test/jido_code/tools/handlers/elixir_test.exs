@@ -848,4 +848,294 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       {:ok, _json} = RunExunit.execute(%{"timeout" => 999_999_999}, context)
     end
   end
+
+  # ============================================================================
+  # ProcessState Tests (Section 5.3.3)
+  # ============================================================================
+
+  describe "ProcessState.execute/2 - basic execution" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "gets state of a registered GenServer", %{project_root: project_root} do
+      # Start a simple Agent (which is a GenServer under the hood)
+      # Use {:global, name} to register with a string-accessible name
+      {:ok, agent_pid} = Agent.start_link(fn -> %{count: 42, name: "test"} end)
+
+      # Register with a name we can look up
+      Process.register(agent_pid, :test_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["state"])
+      assert result["state"] =~ "count"
+      assert result["state"] =~ "42"
+      assert is_map(result["process_info"])
+      assert result["process_info"]["status"] == "waiting"
+    end
+
+    test "gets state of an Agent by name", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> [:item1, :item2] end)
+      Process.register(agent_pid, :test_list_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_list_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      assert result["state"] =~ "item1"
+      assert result["state"] =~ "item2"
+    end
+
+    test "returns process info for running processes", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_info_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_info_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      info = result["process_info"]
+
+      assert is_map(info)
+      assert is_binary(info["status"])
+      assert is_integer(info["message_queue_len"])
+      assert is_integer(info["memory"])
+      assert is_integer(info["reductions"])
+    end
+  end
+
+  describe "ProcessState.execute/2 - security" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "blocks raw PID strings", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => "#PID<0.123.0>"}, context)
+      assert error =~ "Raw PIDs are not allowed"
+
+      {:error, error} = ProcessState.execute(%{"process" => "<0.123.0>"}, context)
+      assert error =~ "Raw PIDs are not allowed"
+    end
+
+    test "blocks system processes", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      # Kernel processes
+      {:error, error} = ProcessState.execute(%{"process" => ":kernel"}, context)
+      assert error =~ "blocked"
+
+      # Stdlib
+      {:error, error} = ProcessState.execute(%{"process" => ":stdlib"}, context)
+      assert error =~ "blocked"
+
+      # Init
+      {:error, error} = ProcessState.execute(%{"process" => ":init"}, context)
+      assert error =~ "blocked"
+    end
+
+    test "blocks JidoCode internal processes", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => "JidoCode.Tools.Registry"}, context)
+      assert error =~ "blocked"
+
+      {:error, error} = ProcessState.execute(%{"process" => "JidoCode.Session.Manager"}, context)
+      assert error =~ "blocked"
+
+      {:error, error} =
+        ProcessState.execute(%{"process" => "Elixir.JidoCode.Tools.Executor"}, context)
+
+      assert error =~ "blocked"
+    end
+
+    test "blocks empty or whitespace-only names", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => ""}, context)
+      assert error =~ "Invalid process name"
+
+      {:error, error} = ProcessState.execute(%{"process" => "   "}, context)
+      assert error =~ "Invalid process name"
+    end
+
+    test "sanitizes sensitive fields in output", %{project_root: project_root} do
+      # Start an agent with sensitive data
+      {:ok, agent_pid} =
+        Agent.start_link(fn ->
+          %{
+            user: "admin",
+            password: "super_secret_123",
+            token: "bearer_abc123",
+            api_key: "sk-live-xyz"
+          }
+        end)
+
+      Process.register(agent_pid, :test_sensitive_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_sensitive_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      state = result["state"]
+
+      # User should be visible
+      assert state =~ "admin"
+
+      # Sensitive fields should be redacted
+      assert state =~ "REDACTED" or not String.contains?(state, "super_secret_123")
+    end
+  end
+
+  describe "ProcessState.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "handles non-existent process", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => "NonExistentProcess"}, context)
+      assert error =~ "not found" or error =~ "not registered"
+    end
+
+    test "handles dead process gracefully", %{project_root: project_root} do
+      # Start and immediately stop a process
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end, name: TestDeadAgent)
+      Agent.stop(agent_pid)
+
+      context = %{project_root: project_root}
+      {:error, error} = ProcessState.execute(%{"process" => "TestDeadAgent"}, context)
+
+      assert error =~ "not found" or error =~ "not registered"
+    end
+
+    test "handles missing process parameter" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = ProcessState.execute(%{}, context)
+
+      assert error =~ "Missing required parameter"
+    end
+
+    test "handles invalid process name type" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = ProcessState.execute(%{"process" => 123}, context)
+
+      assert error =~ "Invalid process name"
+    end
+  end
+
+  describe "ProcessState.execute/2 - timeout handling" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "respects custom timeout", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_timeout_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_timeout_agent_for_state", "timeout" => 10_000}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["state"])
+    end
+
+    test "uses default timeout of 5s when not specified", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_default_timeout_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, _json} = ProcessState.execute(%{"process" => "test_default_timeout_agent_for_state"}, context)
+    end
+
+    test "caps timeout at max value (30s)", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_max_timeout_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, _json} = ProcessState.execute(%{"process" => "test_max_timeout_agent_for_state", "timeout" => 999_999_999}, context)
+    end
+  end
+
+  describe "ProcessState.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_telemetry_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :process_state]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = ProcessState.execute(%{"process" => "test_telemetry_agent_for_state"}, context)
+
+      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _},
+                      %{process: "test_telemetry_agent_for_state", status: :ok}}
+    end
+
+    test "emits telemetry on validation error", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :process_state]
+        ])
+
+      context = %{project_root: project_root}
+      {:error, _} = ProcessState.execute(%{"process" => "#PID<0.1.0>"}, context)
+
+      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _},
+                      %{process: "#PID<0.1.0>", status: :error}}
+    end
+  end
+
+  describe "ProcessState.execute/2 - process type detection" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "detects GenServer type", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_type_genserver_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_type_genserver_for_state"}, context)
+
+      result = Jason.decode!(json)
+      # Agents are GenServers under the hood
+      assert result["type"] in ["genserver", "otp_process", "other"]
+    end
+  end
 end

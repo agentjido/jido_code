@@ -25,11 +25,12 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
   describe "all/0" do
     test "returns Elixir tools" do
       tools = Definitions.all()
-      assert length(tools) == 2
+      assert length(tools) == 3
 
       names = Enum.map(tools, & &1.name)
       assert "mix_task" in names
       assert "run_exunit" in names
+      assert "get_process_state" in names
     end
   end
 
@@ -132,6 +133,36 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
     test "has correct handler" do
       tool = Definitions.run_exunit()
       assert tool.handler == JidoCode.Tools.Handlers.Elixir.RunExunit
+    end
+  end
+
+  describe "get_process_state/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.get_process_state()
+      assert tool.name == "get_process_state"
+      assert tool.description =~ "GenServer"
+      assert tool.description =~ "process"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.get_process_state()
+      assert length(tool.parameters) == 2
+
+      process_param = Enum.find(tool.parameters, &(&1.name == "process"))
+      timeout_param = Enum.find(tool.parameters, &(&1.name == "timeout"))
+
+      assert process_param.required == true
+      assert process_param.type == :string
+      assert process_param.description =~ "Registered name"
+
+      assert timeout_param.required == false
+      assert timeout_param.type == :integer
+      assert timeout_param.description =~ "5000"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.get_process_state()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.ProcessState
     end
   end
 
@@ -472,6 +503,69 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       context = %{project_root: project_root}
       assert {:ok, result} = Executor.execute(tool_call, context: context)
       assert result.status == :ok
+    end
+
+    test "get_process_state tool is registered and executable", %{project_root: project_root} do
+      # Start a test agent
+      {:ok, agent_pid} = Agent.start_link(fn -> %{test_key: "test_value"} end)
+      Process.register(agent_pid, :test_definitions_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{"process" => "test_definitions_agent_for_state"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert is_binary(output["state"])
+      assert output["state"] =~ "test_key"
+    end
+
+    test "get_process_state validates required process parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "missing required parameter"
+    end
+
+    test "get_process_state blocks raw PIDs", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{"process" => "#PID<0.123.0>"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Raw PIDs"
+    end
+
+    test "get_process_state blocks system processes", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{"process" => ":kernel"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "blocked"
     end
   end
 end

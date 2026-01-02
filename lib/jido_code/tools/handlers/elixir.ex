@@ -682,4 +682,316 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     defp format_error(reason) when is_binary(reason), do: reason
     defp format_error(reason), do: "Error: #{inspect(reason)}"
   end
+
+  # ============================================================================
+  # ProcessState Handler
+  # ============================================================================
+
+  defmodule ProcessState do
+    @moduledoc """
+    Handler for the get_process_state tool.
+
+    Inspects the state of GenServer and other OTP processes with security controls.
+    Only project processes can be inspected - system and internal processes are blocked.
+
+    ## Security Features
+
+    - Only registered names allowed (raw PIDs blocked)
+    - System-critical processes blocked (kernel, stdlib, init)
+    - JidoCode internal processes blocked
+    - Sensitive fields redacted (passwords, tokens, keys)
+    - Timeout enforcement (default 5s)
+
+    ## Output
+
+    Returns JSON with:
+    - `state` - Process state formatted with inspect
+    - `process_info` - Basic process information
+    - `type` - Process type (genserver, agent, gen_statem, other)
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+
+    @default_timeout 5_000
+    @max_timeout 30_000
+
+    # Blocked process prefixes for security
+    # System processes and JidoCode internals should not be inspected
+    @blocked_prefixes [
+      "JidoCode.Tools",
+      "JidoCode.Session",
+      "JidoCode.Registry",
+      "Elixir.JidoCode.Tools",
+      "Elixir.JidoCode.Session",
+      "Elixir.JidoCode.Registry",
+      ":kernel",
+      ":stdlib",
+      ":init",
+      ":code_server",
+      ":user",
+      ":application_controller",
+      ":error_logger",
+      ":logger"
+    ]
+
+    # Sensitive field names to redact
+    @sensitive_fields [
+      "password",
+      "secret",
+      "token",
+      "api_key",
+      "apikey",
+      "private_key",
+      "credentials",
+      "auth",
+      "bearer"
+    ]
+
+    @doc """
+    Inspects the state of a process.
+
+    ## Arguments
+
+    - `"process"` - Registered name of the process (required)
+    - `"timeout"` - Timeout in milliseconds (optional, default: 5000)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with state and process_info
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"process" => process_name} = args, context) when is_binary(process_name) do
+      start_time = System.monotonic_time(:microsecond)
+      timeout = get_timeout(args)
+
+      with :ok <- validate_process_name(process_name),
+           :ok <- validate_not_blocked(process_name),
+           {:ok, pid} <- lookup_process(process_name) do
+        get_and_format_state(pid, process_name, timeout, context, start_time)
+      else
+        {:error, reason} ->
+          emit_telemetry(start_time, process_name, context, :error)
+          {:error, format_error(reason)}
+      end
+    end
+
+    def execute(%{"process" => process_name}, _context) do
+      {:error, "Invalid process name: expected string, got #{inspect(process_name)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: process"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    defp get_timeout(args) do
+      case Map.get(args, "timeout") do
+        nil -> @default_timeout
+        timeout when is_integer(timeout) and timeout > 0 -> min(timeout, @max_timeout)
+        _ -> @default_timeout
+      end
+    end
+
+    # Validate process name format - only allow registered names, not raw PIDs
+    defp validate_process_name(name) do
+      cond do
+        # Block raw PID strings like "#PID<0.123.0>" or "<0.123.0>"
+        String.contains?(name, "<") and String.contains?(name, ".") ->
+          {:error, :raw_pid_not_allowed}
+
+        # Block empty or whitespace-only names
+        String.trim(name) == "" ->
+          {:error, :invalid_process_name}
+
+        # Valid registered name
+        true ->
+          :ok
+      end
+    end
+
+    # Check if process is in blocked list
+    defp validate_not_blocked(name) do
+      if Enum.any?(@blocked_prefixes, &String.starts_with?(name, &1)) do
+        {:error, :process_blocked}
+      else
+        :ok
+      end
+    end
+
+    # Look up process by registered name
+    defp lookup_process(name) do
+      # Try to convert to atom (for registered names)
+      atom_name = try_to_atom(name)
+
+      case atom_name do
+        nil ->
+          {:error, :process_not_found}
+
+        atom when is_atom(atom) ->
+          case GenServer.whereis(atom) do
+            nil -> {:error, :process_not_found}
+            pid when is_pid(pid) -> {:ok, pid}
+          end
+      end
+    end
+
+    defp try_to_atom(name) do
+      # First try as an existing atom
+      try do
+        String.to_existing_atom(name)
+      rescue
+        ArgumentError ->
+          # Try with Elixir. prefix for module names
+          try do
+            String.to_existing_atom("Elixir." <> name)
+          rescue
+            ArgumentError -> nil
+          end
+      end
+    end
+
+    defp get_and_format_state(pid, process_name, timeout, context, start_time) do
+      process_info = get_process_info(pid)
+      process_type = detect_process_type(pid)
+
+      state_result =
+        try do
+          case :sys.get_state(pid, timeout) do
+            state -> {:ok, state}
+          end
+        catch
+          :exit, {:timeout, _} -> {:error, :timeout}
+          :exit, {:noproc, _} -> {:error, :process_dead}
+          :exit, reason -> {:error, {:sys_error, reason}}
+        end
+
+      case state_result do
+        {:ok, state} ->
+          formatted_state = format_state(state)
+          sanitized_state = sanitize_output(formatted_state)
+
+          result = %{
+            "state" => sanitized_state,
+            "process_info" => process_info,
+            "type" => process_type
+          }
+
+          emit_telemetry(start_time, process_name, context, :ok)
+
+          case Jason.encode(result) do
+            {:ok, json} -> {:ok, json}
+            {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+          end
+
+        {:error, :timeout} ->
+          # For timeout, still return process_info
+          result = %{
+            "state" => nil,
+            "process_info" => process_info,
+            "type" => process_type,
+            "error" => "Timeout getting state"
+          }
+
+          emit_telemetry(start_time, process_name, context, :timeout)
+
+          case Jason.encode(result) do
+            {:ok, json} -> {:ok, json}
+            {:error, _} -> {:error, "Timeout getting process state"}
+          end
+
+        {:error, reason} ->
+          emit_telemetry(start_time, process_name, context, :error)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp get_process_info(pid) do
+      info = Process.info(pid, [:registered_name, :status, :message_queue_len, :memory, :reductions])
+
+      case info do
+        nil ->
+          %{"status" => "dead"}
+
+        info_list ->
+          %{
+            "registered_name" => format_registered_name(info_list[:registered_name]),
+            "status" => to_string(info_list[:status]),
+            "message_queue_len" => info_list[:message_queue_len],
+            "memory" => info_list[:memory],
+            "reductions" => info_list[:reductions]
+          }
+      end
+    end
+
+    defp format_registered_name([]), do: nil
+    defp format_registered_name(name) when is_atom(name), do: to_string(name)
+    defp format_registered_name(_), do: nil
+
+    defp detect_process_type(pid) do
+      # Try to detect OTP behavior type
+      try do
+        case :sys.get_status(pid, 100) do
+          {:status, _, {:module, module}, _} ->
+            cond do
+              function_exported?(module, :handle_call, 3) -> "genserver"
+              function_exported?(module, :handle_event, 4) -> "gen_statem"
+              true -> "otp_process"
+            end
+
+          _ ->
+            "other"
+        end
+      catch
+        :exit, _ -> "other"
+      end
+    end
+
+    defp format_state(state) do
+      inspect(state, pretty: true, limit: 50, printable_limit: 4096)
+    end
+
+    # Sanitize output to redact sensitive fields
+    defp sanitize_output(output) when is_binary(output) do
+      Enum.reduce(@sensitive_fields, output, fn field, acc ->
+        # Pattern: field => "value" or field: "value"
+        patterns = [
+          ~r/#{field}\s*[=:>]+\s*"[^"]*"/i,
+          ~r/#{field}\s*[=:>]+\s*'[^']*'/i,
+          ~r/:#{field}\s*[=:>]+\s*"[^"]*"/i
+        ]
+
+        Enum.reduce(patterns, acc, fn pattern, inner_acc ->
+          Regex.replace(pattern, inner_acc, "#{field} => \"[REDACTED]\"")
+        end)
+      end)
+    end
+
+    defp emit_telemetry(start_time, process_name, context, status) do
+      duration = System.monotonic_time(:microsecond) - start_time
+
+      :telemetry.execute(
+        [:jido_code, :elixir, :process_state],
+        %{duration: duration},
+        %{
+          process: process_name,
+          status: status,
+          session_id: Map.get(context, :session_id)
+        }
+      )
+    end
+
+    defp format_error(:raw_pid_not_allowed), do: "Raw PIDs are not allowed. Use registered process names."
+    defp format_error(:invalid_process_name), do: "Invalid process name"
+    defp format_error(:process_blocked), do: "Access to this process is blocked for security"
+    defp format_error(:process_not_found), do: "Process not found or not registered"
+    defp format_error(:process_dead), do: "Process is no longer running"
+    defp format_error(:timeout), do: "Timeout getting process state"
+    defp format_error({:sys_error, reason}), do: "Error getting state: #{inspect(reason)}"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
 end

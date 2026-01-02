@@ -93,28 +93,6 @@ Added 7 integration tests that verify SPARQL queries execute correctly against a
 - `delete_memory soft deletes via supersession`
 - `string escaping prevents SPARQL injection`
 
-## Bug Workaround
-
-During integration testing, discovered that `FILTER NOT EXISTS` clauses in the triple_store library return 0 results even when there are no matching triples.
-
-**Original pattern (broken):**
-```sparql
-FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }
-```
-
-**Working pattern:**
-```sparql
-OPTIONAL { ?mem jido:supersededBy ?superseded }
-FILTER(!BOUND(?superseded))
-```
-
-This workaround was applied to all query functions that filter out superseded memories:
-- `query_by_session/2`
-- `query_by_type/3`
-- `query_by_evidence/1`
-- `query_decisions_with_alternatives/1`
-- `query_lessons_for_error/1`
-
 ## Test Results
 
 ```
@@ -169,9 +147,7 @@ supersede_query = SPARQLQueries.supersede_memory("old_id", "new_id")
 
 ## Known Limitations
 
-1. **FILTER NOT EXISTS bug**: The triple_store library has a bug where `FILTER NOT EXISTS` returns 0 results. Workaround implemented using `OPTIONAL + FILTER(!BOUND(...))` pattern.
-
-2. **No SPARQL validation**: Generated queries are not validated at compile time. Integration tests verify correctness.
+1. **No SPARQL validation**: Generated queries are not validated at compile time. Integration tests verify correctness.
 
 ## Next Steps
 

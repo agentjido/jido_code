@@ -135,14 +135,12 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueriesTest do
 
     test "excludes superseded memories by default" do
       query = SPARQLQueries.query_by_session("s")
-      # Uses OPTIONAL + FILTER(!BOUND(...)) pattern instead of FILTER NOT EXISTS
-      assert String.contains?(query, "OPTIONAL { ?mem jido:supersededBy ?superseded }")
-      assert String.contains?(query, "FILTER(!BOUND(?superseded))")
+      assert String.contains?(query, "FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }")
     end
 
     test "includes superseded when requested" do
       query = SPARQLQueries.query_by_session("s", include_superseded: true)
-      refute String.contains?(query, "FILTER(!BOUND(?superseded))")
+      refute String.contains?(query, "FILTER NOT EXISTS")
     end
 
     test "applies limit when provided" do
@@ -261,7 +259,7 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueriesTest do
       query = SPARQLQueries.query_by_evidence("ev_123")
 
       assert String.contains?(query, "jido:derivedFrom jido:evidence_ev_123")
-      assert String.contains?(query, "FILTER(!BOUND(?superseded))")
+      assert String.contains?(query, "FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }")
     end
   end
 

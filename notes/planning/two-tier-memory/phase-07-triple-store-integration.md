@@ -231,13 +231,6 @@ lib/jido_code/memory/
 - [x] 7.3.3.4 Test string escaping prevents injection
 - [x] 7.3.3.5 Test queries execute successfully against triple_store (7 integration tests)
 
-### 7.3.4 Bug Workarounds
-
-- [x] 7.3.4.1 Workaround for FILTER NOT EXISTS bug in triple_store library
-  - The triple_store library returns 0 results when using `FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }`
-  - Fixed by using `OPTIONAL { ?mem jido:supersededBy ?superseded } FILTER(!BOUND(?superseded))` pattern
-  - Applied to: query_by_session, query_by_type, query_by_evidence, query_decisions_with_alternatives, query_lessons_for_error
-
 ---
 
 ## 7.4 Refactor StoreManager

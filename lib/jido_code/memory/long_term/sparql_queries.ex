@@ -170,15 +170,11 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
     order_by = opts[:order_by] || :timestamp
     order = opts[:order] || :desc
 
-    # Note: FILTER NOT EXISTS has issues in triple_store, so we use OPTIONAL + FILTER(!BOUND(...))
-    superseded_clause =
+    superseded_filter =
       if include_superseded do
         ""
       else
-        """
-        OPTIONAL { ?mem jido:supersededBy ?superseded }
-        FILTER(!BOUND(?superseded))
-        """
+        "FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }"
       end
 
     confidence_filter = min_confidence_filter(min_confidence)
@@ -199,9 +195,9 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
 
       OPTIONAL { ?mem jido:rationale ?rationale }
       OPTIONAL { ?mem jido:accessCount ?accessCount }
-      #{superseded_clause}
 
       FILTER(STRSTARTS(STR(?type), "#{@jido_ns}"))
+      #{superseded_filter}
       #{confidence_filter}
     }
     #{order_clause}
@@ -231,15 +227,11 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
 
     type_class = memory_type_to_class(memory_type)
 
-    # Note: FILTER NOT EXISTS has issues in triple_store, so we use OPTIONAL + FILTER(!BOUND(...))
-    superseded_clause =
+    superseded_filter =
       if include_superseded do
         ""
       else
-        """
-        OPTIONAL { ?mem jido:supersededBy ?superseded }
-        FILTER(!BOUND(?superseded))
-        """
+        "FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }"
       end
 
     confidence_filter = min_confidence_filter(min_confidence)
@@ -260,8 +252,8 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
 
       OPTIONAL { ?mem jido:rationale ?rationale }
       OPTIONAL { ?mem jido:accessCount ?accessCount }
-      #{superseded_clause}
 
+      #{superseded_filter}
       #{confidence_filter}
     }
     #{order_clause}
@@ -432,10 +424,8 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
            jido:hasConfidence ?confidence ;
            jido:hasTimestamp ?timestamp .
 
-      OPTIONAL { ?mem jido:supersededBy ?superseded }
-
       FILTER(STRSTARTS(STR(?type), "#{@jido_ns}"))
-      FILTER(!BOUND(?superseded))
+      FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }
     }
     ORDER BY DESC(?timestamp)
     """
@@ -465,8 +455,7 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
         ?alternative jido:summary ?altContent .
       }
 
-      OPTIONAL { ?decision jido:supersededBy ?superseded }
-      FILTER(!BOUND(?superseded))
+      FILTER NOT EXISTS { ?decision jido:supersededBy ?newer }
     }
     """
   end
@@ -491,8 +480,7 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
               jido:summary ?content ;
               jido:hasConfidence ?confidence .
 
-      OPTIONAL { ?lesson jido:supersededBy ?superseded }
-      FILTER(!BOUND(?superseded))
+      FILTER NOT EXISTS { ?lesson jido:supersededBy ?newer }
     }
     """
   end

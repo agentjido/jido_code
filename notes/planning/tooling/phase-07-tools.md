@@ -49,8 +49,8 @@ The canonical ontology is defined in TTL files:
 
 | Tool | Priority | Purpose | Status |
 |------|----------|---------|--------|
-| `knowledge_remember` | P0 | Store new knowledge with ontology typing | ⬜ Initial |
-| `knowledge_recall` | P0 | Query knowledge with semantic filters | ⬜ Initial |
+| `knowledge_remember` | P0 | Store new knowledge with ontology typing | ✅ Complete |
+| `knowledge_recall` | P0 | Query knowledge with semantic filters | ✅ Complete |
 | `knowledge_supersede` | P1 | Replace outdated knowledge | ⬜ Initial |
 | `knowledge_update` | P2 | Update confidence/evidence on existing | ⬜ Initial |
 | `project_conventions` | P1 | Get all conventions and standards | ⬜ Initial |
@@ -89,14 +89,14 @@ The following memory types are defined in the ontology and can be used with `kno
 
 ---
 
-## 7.1 knowledge_remember Tool (P0)
+## 7.1 knowledge_remember Tool (P0) ✅
 
 Store new knowledge in the graph with full ontology support.
 
 ### 7.1.1 Tool Definition
 
-- [ ] Create `lib/jido_code/tools/definitions/knowledge.ex`
-- [ ] Define schema:
+- [x] Create `lib/jido_code/tools/definitions/knowledge.ex`
+- [x] Define schema:
   ```elixir
   %{
     name: "knowledge_remember",
@@ -117,44 +117,44 @@ Store new knowledge in the graph with full ontology support.
     ]
   }
   ```
-- [ ] Register in `Knowledge.all/0`
+- [x] Register in `Knowledge.all/0`
 
 ### 7.1.2 Handler Implementation
 
-- [ ] Create `lib/jido_code/tools/handlers/knowledge.ex`
-- [ ] Add `KnowledgeRemember` handler module
-- [ ] Validate memory type against ontology types
-- [ ] Get session_id and project_id from context via HandlerHelpers
-- [ ] Apply default confidence based on type:
+- [x] Create `lib/jido_code/tools/handlers/knowledge.ex`
+- [x] Add `KnowledgeRemember` handler module
+- [x] Validate memory type against ontology types
+- [x] Get session_id and project_id from context via HandlerHelpers
+- [x] Apply default confidence based on type:
   - Facts: 0.8
   - Assumptions/Hypotheses: 0.5
   - Risks: 0.6
-- [ ] Build memory input with ontology mappings
-- [ ] Call `TripleStoreAdapter.persist/2`
-- [ ] Return JSON with memory_id, type, confidence
-- [ ] Emit telemetry `[:jido_code, :knowledge, :remember]`
+- [x] Build memory input with ontology mappings
+- [x] Call `TripleStoreAdapter.persist/2`
+- [x] Return JSON with memory_id, type, confidence
+- [x] Emit telemetry `[:jido_code, :knowledge, :remember]`
 
 ### 7.1.3 Unit Tests
 
-- [ ] Test stores fact with high confidence
-- [ ] Test stores assumption with medium confidence
-- [ ] Test validates memory type enum
-- [ ] Test validates confidence bounds (0.0-1.0)
-- [ ] Test requires session context
-- [ ] Test handles evidence_refs
-- [ ] Test handles related_to linking
-- [ ] Test applies default confidence by type
+- [x] Test stores fact with high confidence
+- [x] Test stores assumption with medium confidence
+- [x] Test validates memory type enum
+- [x] Test validates confidence bounds (0.0-1.0)
+- [x] Test requires session context
+- [x] Test handles evidence_refs
+- [x] Test handles related_to linking
+- [x] Test applies default confidence by type
 
 ---
 
-## 7.2 knowledge_recall Tool (P0)
+## 7.2 knowledge_recall Tool (P0) ✅
 
 Query the knowledge graph with semantic filters.
 
 ### 7.2.1 Tool Definition
 
-- [ ] Add `knowledge_recall/0` to definitions
-- [ ] Define schema:
+- [x] Add `knowledge_recall/0` to definitions
+- [x] Define schema:
   ```elixir
   %{
     name: "knowledge_recall",
@@ -178,28 +178,28 @@ Query the knowledge graph with semantic filters.
 
 ### 7.2.2 Handler Implementation
 
-- [ ] Add `KnowledgeRecall` handler module
-- [ ] Support text search via `query` parameter (substring match in content)
-- [ ] Support type filtering via `types` array
-- [ ] Support confidence threshold filtering
-- [ ] Support cross-session project queries via `project_scope`
-- [ ] Support include_superseded option
-- [ ] Format results with id, content, type, confidence, created_at
-- [ ] Record access via `TripleStoreAdapter.record_access/3`
-- [ ] Emit telemetry `[:jido_code, :knowledge, :recall]`
+- [x] Add `KnowledgeRecall` handler module
+- [x] Support text search via `query` parameter (substring match in content)
+- [x] Support type filtering via `types` array
+- [x] Support confidence threshold filtering
+- [ ] Support cross-session project queries via `project_scope` (deferred to 7B)
+- [x] Support include_superseded option
+- [x] Format results with id, content, type, confidence, created_at
+- [ ] Record access via `TripleStoreAdapter.record_access/3` (deferred)
+- [x] Emit telemetry `[:jido_code, :knowledge, :recall]`
 
 ### 7.2.3 Unit Tests
 
-- [ ] Test retrieves all memories for session
-- [ ] Test filters by single type
-- [ ] Test filters by multiple types
-- [ ] Test filters by confidence threshold
-- [ ] Test text search within content
-- [ ] Test respects limit
-- [ ] Test returns empty for no matches
-- [ ] Test excludes superseded by default
-- [ ] Test includes superseded when requested
-- [ ] Test project_scope queries across sessions
+- [x] Test retrieves all memories for session
+- [x] Test filters by single type
+- [x] Test filters by multiple types
+- [x] Test filters by confidence threshold
+- [x] Test text search within content
+- [x] Test respects limit
+- [x] Test returns empty for no matches
+- [x] Test excludes superseded by default
+- [x] Test includes superseded when requested
+- [ ] Test project_scope queries across sessions (deferred to 7B)
 
 ---
 

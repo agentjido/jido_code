@@ -493,17 +493,33 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   Converts a memory type atom to its Jido ontology class name.
   """
   @spec memory_type_to_class(Types.memory_type()) :: String.t()
+  # Knowledge types (jido-knowledge.ttl)
   def memory_type_to_class(:fact), do: "Fact"
   def memory_type_to_class(:assumption), do: "Assumption"
   def memory_type_to_class(:hypothesis), do: "Hypothesis"
   def memory_type_to_class(:discovery), do: "Discovery"
   def memory_type_to_class(:risk), do: "Risk"
   def memory_type_to_class(:unknown), do: "Unknown"
+  # Decision types (jido-decision.ttl)
   def memory_type_to_class(:decision), do: "Decision"
   def memory_type_to_class(:architectural_decision), do: "ArchitecturalDecision"
+  def memory_type_to_class(:implementation_decision), do: "ImplementationDecision"
+  def memory_type_to_class(:alternative), do: "Alternative"
+  def memory_type_to_class(:trade_off), do: "TradeOff"
+  # Convention types (jido-convention.ttl)
   def memory_type_to_class(:convention), do: "Convention"
   def memory_type_to_class(:coding_standard), do: "CodingStandard"
+  def memory_type_to_class(:architectural_convention), do: "ArchitecturalConvention"
+  def memory_type_to_class(:agent_rule), do: "AgentRule"
+  def memory_type_to_class(:process_convention), do: "ProcessConvention"
+  # Error types (jido-error.ttl)
+  def memory_type_to_class(:error), do: "Error"
+  def memory_type_to_class(:bug), do: "Bug"
+  def memory_type_to_class(:failure), do: "Failure"
+  def memory_type_to_class(:incident), do: "Incident"
+  def memory_type_to_class(:root_cause), do: "RootCause"
   def memory_type_to_class(:lesson_learned), do: "LessonLearned"
+  # Fallback
   def memory_type_to_class(type), do: Macro.camelize(to_string(type))
 
   @doc """
@@ -520,17 +536,33 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
       end
 
     case local_name do
+      # Knowledge types
       "Fact" -> :fact
       "Assumption" -> :assumption
       "Hypothesis" -> :hypothesis
       "Discovery" -> :discovery
       "Risk" -> :risk
       "Unknown" -> :unknown
+      # Decision types
       "Decision" -> :decision
       "ArchitecturalDecision" -> :architectural_decision
+      "ImplementationDecision" -> :implementation_decision
+      "Alternative" -> :alternative
+      "TradeOff" -> :trade_off
+      # Convention types
       "Convention" -> :convention
       "CodingStandard" -> :coding_standard
+      "ArchitecturalConvention" -> :architectural_convention
+      "AgentRule" -> :agent_rule
+      "ProcessConvention" -> :process_convention
+      # Error types
+      "Error" -> :error
+      "Bug" -> :bug
+      "Failure" -> :failure
+      "Incident" -> :incident
+      "RootCause" -> :root_cause
       "LessonLearned" -> :lesson_learned
+      # Fallback
       _ -> :unknown
     end
   end

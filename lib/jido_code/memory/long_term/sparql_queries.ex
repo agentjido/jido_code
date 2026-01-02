@@ -691,6 +691,11 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
     "FILTER(?confidence = jido:High)"
   end
 
+  # Handle float values by converting to confidence levels
+  defp min_confidence_filter(value) when is_float(value) do
+    min_confidence_filter(Types.confidence_to_level(value))
+  end
+
   defp order_by_clause(:timestamp, :desc), do: "ORDER BY DESC(?timestamp)"
   defp order_by_clause(:timestamp, :asc), do: "ORDER BY ASC(?timestamp)"
   defp order_by_clause(:access_count, :desc), do: "ORDER BY DESC(?accessCount)"

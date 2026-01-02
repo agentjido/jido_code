@@ -8,6 +8,7 @@ defmodule JidoCode.Tools.Definitions.Elixir do
   ## Available Tools
 
   - `mix_task` - Run Mix tasks with security controls
+  - `run_exunit` - Run ExUnit tests with filtering options
 
   ## Security
 
@@ -42,7 +43,8 @@ defmodule JidoCode.Tools.Definitions.Elixir do
   @spec all() :: [Tool.t()]
   def all do
     [
-      mix_task()
+      mix_task(),
+      run_exunit()
     ]
   end
 
@@ -108,6 +110,101 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           type: :integer,
           description:
             "Timeout in milliseconds (default: 60000, max: 300000). Task is killed if it exceeds the timeout.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the run_exunit tool definition.
+
+  Runs ExUnit tests with comprehensive filtering and configuration options.
+  This provides more granular control than the generic mix_task tool.
+
+  ## Parameters
+
+  - `path` (optional, string) - Test file or directory path (relative to project root)
+  - `line` (optional, integer) - Run test at specific line number (requires path)
+  - `tag` (optional, string) - Run only tests with specific tag
+  - `exclude_tag` (optional, string) - Exclude tests with specific tag
+  - `max_failures` (optional, integer) - Stop after N test failures
+  - `seed` (optional, integer) - Random seed for test ordering
+  - `timeout` (optional, integer) - Timeout in milliseconds (default: 120000, max: 300000)
+
+  ## Security
+
+  - Path traversal patterns (../) are blocked
+  - prod environment is always blocked
+  - Uses same security model as mix_task
+
+  ## Output
+
+  Returns JSON with output, exit_code, and parsed test summary when available.
+  """
+  @spec run_exunit() :: Tool.t()
+  def run_exunit do
+    Tool.new!(%{
+      name: "run_exunit",
+      description:
+        "Run ExUnit tests with filtering options. Provides granular control over test execution " <>
+          "including file/line targeting, tag filtering, and failure limits. " <>
+          "Tests timeout after 120 seconds by default (max 5 minutes). Output is truncated at 1MB.",
+      handler: Handlers.RunExunit,
+      parameters: [
+        %{
+          name: "path",
+          type: :string,
+          description:
+            "Test file or directory path relative to project root (e.g., 'test/my_test.exs' or 'test/unit'). " <>
+              "Path traversal patterns (../) are blocked.",
+          required: false
+        },
+        %{
+          name: "line",
+          type: :integer,
+          description:
+            "Run test at specific line number. Requires 'path' to be specified. " <>
+              "Useful for running a single test or describe block.",
+          required: false
+        },
+        %{
+          name: "tag",
+          type: :string,
+          description:
+            "Run only tests with specific tag (e.g., 'integration', 'slow'). " <>
+              "Use @tag :tagname in test files to mark tests.",
+          required: false
+        },
+        %{
+          name: "exclude_tag",
+          type: :string,
+          description:
+            "Exclude tests with specific tag (e.g., 'skip', 'pending'). " <>
+              "Useful for excluding slow or flaky tests.",
+          required: false
+        },
+        %{
+          name: "max_failures",
+          type: :integer,
+          description:
+            "Stop test run after N failures. Useful for fast feedback during development.",
+          required: false
+        },
+        %{
+          name: "seed",
+          type: :integer,
+          description:
+            "Random seed for test ordering. Use 0 for deterministic order. " <>
+              "Reproduce a specific test order by providing the seed from a previous run.",
+          required: false
+        },
+        %{
+          name: "timeout",
+          type: :integer,
+          description:
+            "Timeout in milliseconds (default: 120000, max: 300000). " <>
+              "Test run is killed if it exceeds the timeout.",
           required: false
         }
       ]

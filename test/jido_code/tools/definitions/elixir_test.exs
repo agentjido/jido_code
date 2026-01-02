@@ -25,10 +25,11 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
   describe "all/0" do
     test "returns Elixir tools" do
       tools = Definitions.all()
-      assert length(tools) == 1
+      assert length(tools) == 2
 
       names = Enum.map(tools, & &1.name)
       assert "mix_task" in names
+      assert "run_exunit" in names
     end
   end
 
@@ -70,6 +71,62 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
     test "has correct handler" do
       tool = Definitions.mix_task()
       assert tool.handler == JidoCode.Tools.Handlers.Elixir.MixTask
+    end
+  end
+
+  describe "run_exunit/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.run_exunit()
+      assert tool.name == "run_exunit"
+      assert tool.description =~ "ExUnit"
+      assert tool.description =~ "filtering"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.run_exunit()
+      assert length(tool.parameters) == 7
+
+      path_param = Enum.find(tool.parameters, &(&1.name == "path"))
+      line_param = Enum.find(tool.parameters, &(&1.name == "line"))
+      tag_param = Enum.find(tool.parameters, &(&1.name == "tag"))
+      exclude_tag_param = Enum.find(tool.parameters, &(&1.name == "exclude_tag"))
+      max_failures_param = Enum.find(tool.parameters, &(&1.name == "max_failures"))
+      seed_param = Enum.find(tool.parameters, &(&1.name == "seed"))
+      timeout_param = Enum.find(tool.parameters, &(&1.name == "timeout"))
+
+      # All parameters are optional
+      assert path_param.required == false
+      assert path_param.type == :string
+      assert path_param.description =~ "test"
+
+      assert line_param.required == false
+      assert line_param.type == :integer
+      assert line_param.description =~ "line"
+
+      assert tag_param.required == false
+      assert tag_param.type == :string
+      assert tag_param.description =~ "tag"
+
+      assert exclude_tag_param.required == false
+      assert exclude_tag_param.type == :string
+      assert exclude_tag_param.description =~ "Exclude"
+
+      assert max_failures_param.required == false
+      assert max_failures_param.type == :integer
+      assert max_failures_param.description =~ "failures"
+
+      assert seed_param.required == false
+      assert seed_param.type == :integer
+      assert seed_param.description =~ "seed"
+
+      assert timeout_param.required == false
+      assert timeout_param.type == :integer
+      assert timeout_param.description =~ "120000"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.run_exunit()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.RunExunit
     end
   end
 
@@ -273,6 +330,143 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       assert message.role == "tool"
       assert message.tool_call_id == "call_abc"
       assert is_binary(message.content)
+    end
+
+    test "run_exunit tool is registered and executable", %{project_root: project_root} do
+      # Create a minimal mix project with a simple test
+      File.write!(Path.join(project_root, "mix.exs"), """
+      defmodule TestProject.MixProject do
+        use Mix.Project
+        def project do
+          [app: :test_project, version: "0.1.0", elixir: "~> 1.14"]
+        end
+      end
+      """)
+
+      File.mkdir_p!(Path.join(project_root, "test"))
+
+      File.write!(Path.join(project_root, "test/test_helper.exs"), """
+      ExUnit.start()
+      """)
+
+      File.write!(Path.join(project_root, "test/simple_test.exs"), """
+      defmodule SimpleTest do
+        use ExUnit.Case
+        test "passes" do
+          assert 1 + 1 == 2
+        end
+      end
+      """)
+
+      tool_call = %{
+        id: "call_exunit",
+        name: "run_exunit",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert is_integer(output["exit_code"])
+      assert is_binary(output["output"])
+    end
+
+    test "run_exunit blocks path traversal", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_exunit",
+        name: "run_exunit",
+        arguments: %{"path" => "../../../etc/passwd"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Path traversal"
+    end
+
+    test "run_exunit accepts filtering parameters", %{project_root: project_root} do
+      # Create a minimal mix project with a tagged test
+      File.write!(Path.join(project_root, "mix.exs"), """
+      defmodule TestProject.MixProject do
+        use Mix.Project
+        def project do
+          [app: :test_project, version: "0.1.0", elixir: "~> 1.14"]
+        end
+      end
+      """)
+
+      File.mkdir_p!(Path.join(project_root, "test"))
+
+      File.write!(Path.join(project_root, "test/test_helper.exs"), """
+      ExUnit.start()
+      """)
+
+      File.write!(Path.join(project_root, "test/tagged_test.exs"), """
+      defmodule TaggedTest do
+        use ExUnit.Case
+
+        @tag :integration
+        test "integration test" do
+          assert true
+        end
+
+        test "unit test" do
+          assert true
+        end
+      end
+      """)
+
+      # Test with tag filter
+      tool_call = %{
+        id: "call_exunit_tag",
+        name: "run_exunit",
+        arguments: %{"tag" => "integration"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert output["exit_code"] == 0
+    end
+
+    test "run_exunit with max_failures", %{project_root: project_root} do
+      File.write!(Path.join(project_root, "mix.exs"), """
+      defmodule TestProject.MixProject do
+        use Mix.Project
+        def project do
+          [app: :test_project, version: "0.1.0", elixir: "~> 1.14"]
+        end
+      end
+      """)
+
+      File.mkdir_p!(Path.join(project_root, "test"))
+
+      File.write!(Path.join(project_root, "test/test_helper.exs"), """
+      ExUnit.start()
+      """)
+
+      File.write!(Path.join(project_root, "test/pass_test.exs"), """
+      defmodule PassTest do
+        use ExUnit.Case
+        test "passes" do
+          assert true
+        end
+      end
+      """)
+
+      tool_call = %{
+        id: "call_exunit_max",
+        name: "run_exunit",
+        arguments: %{"max_failures" => 1}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
     end
   end
 end

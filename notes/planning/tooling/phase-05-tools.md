@@ -131,8 +131,8 @@ Implement the run_exunit tool for running ExUnit tests with filtering.
 
 ### 5.2.1 Tool Definition
 
-- [ ] 5.2.1.1 Add `run_exunit/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.2.1.2 Define schema:
+- [x] 5.2.1.1 Add `run_exunit/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.2.1.2 Define schema:
   ```elixir
   %{
     name: "run_exunit",
@@ -144,11 +144,12 @@ Implement the run_exunit tool for running ExUnit tests with filtering.
       %{name: "tag", type: :string, required: false, description: "Run tests with specific tag"},
       %{name: "exclude_tag", type: :string, required: false, description: "Exclude tests with tag"},
       %{name: "max_failures", type: :integer, required: false, description: "Stop after N failures"},
-      %{name: "seed", type: :integer, required: false, description: "Random seed"}
+      %{name: "seed", type: :integer, required: false, description: "Random seed"},
+      %{name: "timeout", type: :integer, required: false, description: "Timeout in milliseconds"}
     ]
   }
   ```
-- [ ] 5.2.1.3 Update `Elixir.all/0` to include `run_exunit()`
+- [x] 5.2.1.3 Update `Elixir.all/0` to include `run_exunit()`
 
 ### 5.2.2 Handler Implementation
 

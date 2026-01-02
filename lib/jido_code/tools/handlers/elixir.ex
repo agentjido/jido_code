@@ -360,4 +360,234 @@ defmodule JidoCode.Tools.Handlers.Elixir do
 
     defp truncate_output(output), do: output
   end
+
+  # ============================================================================
+  # RunExunit Handler
+  # ============================================================================
+
+  defmodule RunExunit do
+    @moduledoc """
+    Handler for the run_exunit tool.
+
+    Runs ExUnit tests with comprehensive filtering and configuration options.
+    Provides granular control over test execution including file/line targeting,
+    tag filtering, and failure limits.
+
+    Uses session-aware project root via `HandlerHelpers.get_project_root/1`.
+
+    ## Security Features
+
+    - Path traversal detection in test paths
+    - Environment restriction (always uses test env)
+    - Timeout enforcement (default 120s, max 5min)
+    - Output truncation (max 1MB)
+
+    ## Implementation Note
+
+    This is a stub handler. Full implementation is in Section 5.2.2.
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+
+    @default_timeout 120_000
+    @max_timeout 300_000
+    @max_output_size 1_048_576
+
+    @doc """
+    Executes ExUnit tests with filtering options.
+
+    ## Arguments
+
+    - `"path"` - Test file or directory (optional)
+    - `"line"` - Line number for targeted test (optional, requires path)
+    - `"tag"` - Run only tests with tag (optional)
+    - `"exclude_tag"` - Exclude tests with tag (optional)
+    - `"max_failures"` - Stop after N failures (optional)
+    - `"seed"` - Random seed for ordering (optional)
+    - `"timeout"` - Timeout in milliseconds (optional)
+
+    ## Context
+
+    - `:session_id` - Session ID for project root lookup (preferred)
+    - `:project_root` - Direct project root path (legacy)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with output, exit_code, and test summary
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(args, context) do
+      start_time = System.monotonic_time(:microsecond)
+      path = Map.get(args, "path")
+
+      with :ok <- validate_path(path),
+           {:ok, project_root} <- ElixirHandler.get_project_root(context) do
+        timeout = get_timeout(args)
+        cmd_args = build_test_args(args)
+
+        run_test_command(cmd_args, project_root, timeout, context, start_time)
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:run_exunit, start_time, "test", context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    defp get_timeout(args) do
+      case Map.get(args, "timeout") do
+        nil -> @default_timeout
+        timeout when is_integer(timeout) and timeout > 0 -> min(timeout, @max_timeout)
+        _ -> @default_timeout
+      end
+    end
+
+    defp validate_path(nil), do: :ok
+
+    defp validate_path(path) when is_binary(path) do
+      if contains_path_traversal?(path) do
+        {:error, {:path_traversal_blocked, path}}
+      else
+        :ok
+      end
+    end
+
+    defp validate_path(_), do: {:error, :invalid_path}
+
+    defp contains_path_traversal?(path) do
+      lower = String.downcase(path)
+
+      String.contains?(path, "../") or
+        String.contains?(lower, "%2e%2e%2f") or
+        String.contains?(lower, "%2e%2e/") or
+        String.contains?(lower, "..%2f") or
+        String.contains?(lower, "%2e%2e%5c") or
+        String.contains?(lower, "..%5c")
+    end
+
+    defp build_test_args(args) do
+      base_args = ["test"]
+
+      base_args
+      |> add_path_arg(args)
+      |> add_line_arg(args)
+      |> add_tag_arg(args)
+      |> add_exclude_tag_arg(args)
+      |> add_max_failures_arg(args)
+      |> add_seed_arg(args)
+    end
+
+    defp add_path_arg(cmd_args, %{"path" => path}) when is_binary(path) and path != "" do
+      cmd_args ++ [path]
+    end
+
+    defp add_path_arg(cmd_args, _), do: cmd_args
+
+    defp add_line_arg(cmd_args, %{"line" => line, "path" => path})
+         when is_integer(line) and is_binary(path) and path != "" do
+      # Replace path with path:line format
+      List.update_at(cmd_args, -1, fn p -> "#{p}:#{line}" end)
+    end
+
+    defp add_line_arg(cmd_args, _), do: cmd_args
+
+    defp add_tag_arg(cmd_args, %{"tag" => tag}) when is_binary(tag) and tag != "" do
+      cmd_args ++ ["--only", tag]
+    end
+
+    defp add_tag_arg(cmd_args, _), do: cmd_args
+
+    defp add_exclude_tag_arg(cmd_args, %{"exclude_tag" => tag}) when is_binary(tag) and tag != "" do
+      cmd_args ++ ["--exclude", tag]
+    end
+
+    defp add_exclude_tag_arg(cmd_args, _), do: cmd_args
+
+    defp add_max_failures_arg(cmd_args, %{"max_failures" => n}) when is_integer(n) and n > 0 do
+      cmd_args ++ ["--max-failures", Integer.to_string(n)]
+    end
+
+    defp add_max_failures_arg(cmd_args, _), do: cmd_args
+
+    defp add_seed_arg(cmd_args, %{"seed" => seed}) when is_integer(seed) do
+      cmd_args ++ ["--seed", Integer.to_string(seed)]
+    end
+
+    defp add_seed_arg(cmd_args, _), do: cmd_args
+
+    defp run_test_command(cmd_args, project_root, timeout, context, start_time) do
+      opts = [
+        cd: project_root,
+        stderr_to_stdout: true,
+        env: [{"MIX_ENV", "test"}]
+      ]
+
+      try do
+        task_ref =
+          Task.async(fn ->
+            System.cmd("mix", cmd_args, opts)
+          end)
+
+        case Task.yield(task_ref, timeout) || Task.shutdown(task_ref, :brutal_kill) do
+          {:ok, {output, exit_code}} ->
+            truncated_output = truncate_output(output)
+            ElixirHandler.emit_elixir_telemetry(:run_exunit, start_time, "test", context, :ok, exit_code)
+
+            result = %{
+              "output" => truncated_output,
+              "exit_code" => exit_code,
+              "summary" => parse_test_summary(output)
+            }
+
+            case Jason.encode(result) do
+              {:ok, json} -> {:ok, json}
+              {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+            end
+
+          nil ->
+            ElixirHandler.emit_elixir_telemetry(:run_exunit, start_time, "test", context, :timeout, 1)
+            {:error, format_error(:timeout)}
+        end
+      rescue
+        e ->
+          ElixirHandler.emit_elixir_telemetry(:run_exunit, start_time, "test", context, :error, 1)
+          {:error, "Test execution error: #{Exception.message(e)}"}
+      end
+    end
+
+    defp truncate_output(output) when byte_size(output) > @max_output_size do
+      truncated = binary_part(output, 0, @max_output_size)
+      truncated <> "\n... [output truncated at 1MB]"
+    end
+
+    defp truncate_output(output), do: output
+
+    # Parse ExUnit summary from output (e.g., "10 tests, 0 failures")
+    defp parse_test_summary(output) do
+      case Regex.run(~r/(\d+) tests?, (\d+) failures?(?:, (\d+) excluded)?/, output) do
+        [_, tests, failures] ->
+          %{"tests" => String.to_integer(tests), "failures" => String.to_integer(failures)}
+
+        [_, tests, failures, excluded] ->
+          %{
+            "tests" => String.to_integer(tests),
+            "failures" => String.to_integer(failures),
+            "excluded" => String.to_integer(excluded)
+          }
+
+        _ ->
+          nil
+      end
+    end
+
+    defp format_error(:timeout), do: "Test execution timed out"
+    defp format_error(:invalid_path), do: "Invalid path: expected string"
+    defp format_error({:path_traversal_blocked, path}), do: "Path traversal not allowed: #{path}"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
 end

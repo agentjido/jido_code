@@ -526,6 +526,286 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   end
 
   # =============================================================================
+  # Relationship Traversal API
+  # =============================================================================
+
+  @typedoc """
+  Supported relationship types for memory traversal.
+
+  - `:derived_from` - Evidence chain (memory → evidence)
+  - `:superseded_by` - Replacement chain (old → new memory)
+  - `:supersedes` - Reverse replacement chain (new → old memory)
+  - `:same_type` - Memories of the same type
+  - `:same_project` - Memories in the same project
+  """
+  @type relationship ::
+          :derived_from
+          | :superseded_by
+          | :supersedes
+          | :same_type
+          | :same_project
+
+  @relationship_types [:derived_from, :superseded_by, :supersedes, :same_type, :same_project]
+
+  @doc """
+  Returns the list of valid relationship types.
+  """
+  @spec relationship_types() :: [relationship()]
+  def relationship_types, do: @relationship_types
+
+  @doc """
+  Queries memories related to a starting memory via the specified relationship.
+
+  Traverses the knowledge graph from a starting memory following the specified
+  relationship type to find connected memories.
+
+  ## Relationship Types
+
+  - `:derived_from` - Finds memories referenced in the starting memory's evidence_refs
+  - `:superseded_by` - Finds the memory that superseded the starting memory
+  - `:supersedes` - Finds memories that were superseded by the starting memory
+  - `:same_type` - Finds other memories of the same type
+  - `:same_project` - Finds memories in the same project
+
+  ## Options
+
+  - `:depth` - Maximum traversal depth (default: 1, max: 5)
+  - `:limit` - Maximum results per level (default: 10)
+  - `:include_superseded` - Include superseded memories (default: false)
+
+  ## Examples
+
+      # Find evidence chain
+      {:ok, related} = TripleStoreAdapter.query_related(
+        store, "session-123", "mem-456", :derived_from
+      )
+
+      # Find replacement chain with depth
+      {:ok, chain} = TripleStoreAdapter.query_related(
+        store, "session-123", "mem-123", :superseded_by, depth: 3
+      )
+
+  """
+  @spec query_related(store_ref(), String.t(), String.t(), relationship(), keyword()) ::
+          {:ok, [stored_memory()]} | {:error, term()}
+  def query_related(store, session_id, start_memory_id, relationship, opts \\ [])
+      when relationship in @relationship_types do
+    depth = opts |> Keyword.get(:depth, 1) |> min(5) |> max(1)
+    limit = Keyword.get(opts, :limit, 10)
+    include_superseded = Keyword.get(opts, :include_superseded, false)
+
+    with_ets_store(store, fn ->
+      case query_by_id(store, session_id, start_memory_id) do
+        {:ok, start_memory} ->
+          results = traverse_relationship(
+            store,
+            session_id,
+            start_memory,
+            relationship,
+            depth,
+            limit,
+            include_superseded,
+            MapSet.new([start_memory_id])
+          )
+          {:ok, results}
+
+        {:error, :not_found} ->
+          {:error, :not_found}
+      end
+    end)
+  end
+
+  # Traverses relationships recursively up to the specified depth
+  defp traverse_relationship(_store, _session_id, _memory, _rel, 0, _limit, _include, _visited) do
+    []
+  end
+
+  defp traverse_relationship(store, session_id, memory, relationship, depth, limit, include_superseded, visited) do
+    # Find directly related memories
+    related_ids = find_related_ids(store, session_id, memory, relationship, include_superseded)
+
+    # Filter out already visited and resolve to full memories
+    new_ids = Enum.reject(related_ids, &MapSet.member?(visited, &1))
+    |> Enum.take(limit)
+
+    current_level =
+      new_ids
+      |> Enum.map(&query_by_id(store, session_id, &1))
+      |> Enum.filter(&match?({:ok, _}, &1))
+      |> Enum.map(fn {:ok, mem} -> mem end)
+
+    if depth > 1 and length(current_level) > 0 do
+      # Recursively traverse for deeper relationships
+      new_visited = Enum.reduce(new_ids, visited, &MapSet.put(&2, &1))
+
+      deeper_results =
+        current_level
+        |> Enum.flat_map(fn mem ->
+          traverse_relationship(
+            store, session_id, mem, relationship,
+            depth - 1, limit, include_superseded, new_visited
+          )
+        end)
+
+      current_level ++ deeper_results
+    else
+      current_level
+    end
+  end
+
+  # Finds IDs of memories related via the specified relationship type
+  defp find_related_ids(_store, _session_id, memory, :derived_from, _include_superseded) do
+    # Evidence refs can be memory IDs or other references
+    # Filter to only those that look like memory IDs
+    (memory.evidence_refs || [])
+    |> Enum.filter(&String.starts_with?(&1, "mem-"))
+  end
+
+  defp find_related_ids(_store, _session_id, memory, :superseded_by, _include_superseded) do
+    case memory.superseded_by do
+      nil -> []
+      id -> [id]
+    end
+  end
+
+  defp find_related_ids(store, session_id, memory, :supersedes, include_superseded) do
+    # Find memories that have been superseded by this memory
+    store
+    |> ets_to_list()
+    |> Enum.filter(fn {_id, record} ->
+      record.session_id == session_id and
+        record.superseded_by == memory.id and
+        (include_superseded or true)  # Always include since we're looking for superseded
+    end)
+    |> Enum.map(fn {id, _record} -> id end)
+  end
+
+  defp find_related_ids(store, session_id, memory, :same_type, include_superseded) do
+    # Find memories of the same type (excluding the source memory)
+    store
+    |> ets_to_list()
+    |> Enum.filter(fn {id, record} ->
+      id != memory.id and
+        record.session_id == session_id and
+        record.memory_type == memory.memory_type and
+        (include_superseded or record.superseded_at == nil)
+    end)
+    |> Enum.map(fn {id, _record} -> id end)
+  end
+
+  defp find_related_ids(store, session_id, memory, :same_project, include_superseded) do
+    # Find memories in the same project (excluding the source memory)
+    case memory.project_id do
+      nil ->
+        []
+
+      project_id ->
+        store
+        |> ets_to_list()
+        |> Enum.filter(fn {id, record} ->
+          id != memory.id and
+            record.session_id == session_id and
+            record.project_id == project_id and
+            (include_superseded or record.superseded_at == nil)
+        end)
+        |> Enum.map(fn {id, _record} -> id end)
+    end
+  end
+
+  # =============================================================================
+  # Statistics API
+  # =============================================================================
+
+  @doc """
+  Returns statistics about memories for a session.
+
+  Provides aggregated information about the session's memory store including
+  counts by type, confidence distribution, and relationship statistics.
+
+  ## Returns
+
+  A map containing:
+  - `:total_count` - Total number of active memories
+  - `:superseded_count` - Number of superseded memories
+  - `:by_type` - Map of memory types to counts
+  - `:by_confidence` - Map of confidence levels (:high, :medium, :low) to counts
+  - `:with_evidence` - Count of memories with evidence refs
+  - `:with_rationale` - Count of memories with rationale
+
+  ## Examples
+
+      {:ok, stats} = TripleStoreAdapter.get_stats(store, "session-123")
+      # => {:ok, %{
+      #      total_count: 42,
+      #      superseded_count: 5,
+      #      by_type: %{fact: 20, assumption: 15, decision: 7},
+      #      by_confidence: %{high: 30, medium: 10, low: 2},
+      #      with_evidence: 25,
+      #      with_rationale: 18
+      #    }}
+
+  """
+  @spec get_stats(store_ref(), String.t()) :: {:ok, map()} | {:error, term()}
+  def get_stats(store, session_id) do
+    with_ets_store(store, fn ->
+      all_records =
+        store
+        |> ets_to_list()
+        |> Enum.filter(fn {_id, record} -> record.session_id == session_id end)
+        |> Enum.map(fn {_id, record} -> record end)
+
+      active_records = Enum.filter(all_records, &is_nil(&1.superseded_at))
+      superseded_records = Enum.reject(all_records, &is_nil(&1.superseded_at))
+
+      stats = %{
+        total_count: length(active_records),
+        superseded_count: length(superseded_records),
+        by_type: count_by_type(active_records),
+        by_confidence: count_by_confidence(active_records),
+        with_evidence: Enum.count(active_records, &has_evidence?/1),
+        with_rationale: Enum.count(active_records, &has_rationale?/1)
+      }
+
+      {:ok, stats}
+    end)
+  end
+
+  defp count_by_type(records) do
+    records
+    |> Enum.group_by(& &1.memory_type)
+    |> Enum.map(fn {type, items} -> {type, length(items)} end)
+    |> Map.new()
+  end
+
+  defp count_by_confidence(records) do
+    records
+    |> Enum.group_by(fn record ->
+      cond do
+        record.confidence >= 0.8 -> :high
+        record.confidence >= 0.5 -> :medium
+        true -> :low
+      end
+    end)
+    |> Enum.map(fn {level, items} -> {level, length(items)} end)
+    |> Map.new()
+  end
+
+  defp has_evidence?(record) do
+    case record.evidence_refs do
+      refs when is_list(refs) and length(refs) > 0 -> true
+      _ -> false
+    end
+  end
+
+  defp has_rationale?(record) do
+    case record.rationale do
+      nil -> false
+      "" -> false
+      _ -> true
+    end
+  end
+
+  # =============================================================================
   # IRI Utilities
   # =============================================================================
 

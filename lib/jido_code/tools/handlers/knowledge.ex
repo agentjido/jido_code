@@ -20,6 +20,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   - `ProjectConventions` - Retrieves project conventions and standards
   - `ProjectDecisions` - Retrieves architectural and implementation decisions
   - `ProjectRisks` - Retrieves known risks and issues
+  - `KnowledgeGraphQuery` - Traverses knowledge graph relationships
 
   ## Usage
 
@@ -1067,6 +1068,134 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
     defp format_risks(risks) do
       Knowledge.format_memory_list(risks, :risks)
+    end
+  end
+
+  # ============================================================================
+  # KnowledgeGraphQuery Handler
+  # ============================================================================
+
+  defmodule KnowledgeGraphQuery do
+    @moduledoc """
+    Handler for traversing the knowledge graph to find related memories.
+
+    Supports various relationship types for exploring connections between
+    memories, including evidence chains, replacement history, and similarity.
+    """
+
+    alias JidoCode.Memory
+    alias JidoCode.Tools.Handlers.Knowledge
+
+    @valid_relationships [:derived_from, :superseded_by, :supersedes, :same_type, :same_project]
+    @default_depth 1
+    @max_depth 5
+    @default_limit 10
+
+    @doc """
+    Executes the knowledge_graph_query tool.
+
+    ## Parameters
+
+    - `args` - Map containing:
+      - `"start_from"` (required) - Memory ID to start traversal from
+      - `"relationship"` (required) - Relationship type to follow
+      - `"depth"` (optional) - Maximum traversal depth (1-5)
+      - `"limit"` (optional) - Maximum results per level
+      - `"include_superseded"` (optional) - Include superseded memories
+    - `context` - Must contain `:session_id`
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with related memories list
+    - `{:error, message}` - Error message string
+    """
+    def execute(args, context) do
+      Knowledge.with_telemetry(:graph_query, context, fn ->
+        do_execute(args, context)
+      end)
+    end
+
+    defp do_execute(args, context) do
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_graph_query"),
+           {:ok, start_from} <- Knowledge.get_required_string(args, "start_from"),
+           {:ok, _} <- Knowledge.validate_memory_id(start_from),
+           {:ok, relationship} <- validate_relationship(Map.get(args, "relationship")),
+           {:ok, opts} <- build_query_opts(args) do
+        case Memory.query_related(session_id, start_from, relationship, opts) do
+          {:ok, memories} ->
+            format_results(memories, start_from, relationship)
+
+          {:error, :not_found} ->
+            {:error, "Memory not found: #{start_from}"}
+
+          {:error, reason} ->
+            {:error, "Failed to query related memories: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp validate_relationship(nil), do: {:error, "relationship is required"}
+    defp validate_relationship(""), do: {:error, "relationship cannot be empty"}
+
+    defp validate_relationship(rel) when is_binary(rel) do
+      normalized =
+        rel
+        |> String.downcase()
+        |> String.replace("-", "_")
+
+      case safe_to_relationship_atom(normalized) do
+        {:ok, atom} when atom in @valid_relationships ->
+          {:ok, atom}
+
+        _ ->
+          valid_list = @valid_relationships |> Enum.map(&Atom.to_string/1) |> Enum.join(", ")
+          {:error, "Invalid relationship: #{rel}. Must be one of: #{valid_list}"}
+      end
+    end
+
+    defp validate_relationship(_), do: {:error, "relationship must be a string"}
+
+    defp safe_to_relationship_atom(string) do
+      try do
+        {:ok, String.to_existing_atom(string)}
+      rescue
+        ArgumentError -> {:error, :unknown}
+      end
+    end
+
+    defp build_query_opts(args) do
+      depth = args |> Map.get("depth", @default_depth) |> clamp_depth()
+      limit = args |> Map.get("limit", @default_limit) |> normalize_limit()
+      include_superseded = Map.get(args, "include_superseded", false) == true
+
+      {:ok, [depth: depth, limit: limit, include_superseded: include_superseded]}
+    end
+
+    defp clamp_depth(depth) when is_integer(depth), do: depth |> max(1) |> min(@max_depth)
+    defp clamp_depth(_), do: @default_depth
+
+    defp normalize_limit(limit) when is_integer(limit) and limit > 0, do: limit
+    defp normalize_limit(_), do: @default_limit
+
+    defp format_results(memories, start_from, relationship) do
+      results =
+        Enum.map(memories, fn memory ->
+          %{
+            id: memory.id,
+            content: memory.content,
+            type: Atom.to_string(memory.memory_type),
+            confidence: memory.confidence,
+            timestamp: Knowledge.format_timestamp(memory.timestamp),
+            rationale: memory.rationale
+          }
+        end)
+
+      Knowledge.ok_json(%{
+        start_from: start_from,
+        relationship: Atom.to_string(relationship),
+        related: results,
+        count: length(results)
+      })
     end
   end
 

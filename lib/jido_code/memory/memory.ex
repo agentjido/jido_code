@@ -397,6 +397,115 @@ defmodule JidoCode.Memory do
   end
 
   # =============================================================================
+  # Relationship Traversal API
+  # =============================================================================
+
+  @typedoc """
+  Supported relationship types for memory traversal.
+  See `JidoCode.Memory.LongTerm.TripleStoreAdapter.relationship()` for details.
+  """
+  @type relationship :: TripleStoreAdapter.relationship()
+
+  @doc """
+  Returns the list of valid relationship types for traversal.
+
+  ## Examples
+
+      [:derived_from, :superseded_by, :supersedes, :same_type, :same_project] =
+        JidoCode.Memory.relationship_types()
+
+  """
+  @spec relationship_types() :: [relationship()]
+  def relationship_types, do: TripleStoreAdapter.relationship_types()
+
+  @doc """
+  Queries memories related to a starting memory via the specified relationship.
+
+  Traverses the knowledge graph from a starting memory following the specified
+  relationship type to find connected memories.
+
+  ## Relationship Types
+
+  - `:derived_from` - Finds memories referenced in the starting memory's evidence_refs
+  - `:superseded_by` - Finds the memory that superseded the starting memory
+  - `:supersedes` - Finds memories that were superseded by the starting memory
+  - `:same_type` - Finds other memories of the same type
+  - `:same_project` - Finds memories in the same project
+
+  ## Options
+
+  - `:depth` - Maximum traversal depth (default: 1, max: 5)
+  - `:limit` - Maximum results per level (default: 10)
+  - `:include_superseded` - Include superseded memories (default: false)
+
+  ## Examples
+
+      # Find evidence chain for a memory
+      {:ok, related} = JidoCode.Memory.query_related(
+        "session-abc", "mem-456", :derived_from
+      )
+
+      # Find replacement chain with depth
+      {:ok, chain} = JidoCode.Memory.query_related(
+        "session-abc", "mem-123", :superseded_by, depth: 3
+      )
+
+      # Find all memories of the same type
+      {:ok, similar} = JidoCode.Memory.query_related(
+        "session-abc", "mem-789", :same_type, limit: 20
+      )
+
+  """
+  @spec query_related(String.t(), String.t(), relationship(), keyword()) ::
+          {:ok, [stored_memory()]} | {:error, term()}
+  def query_related(session_id, memory_id, relationship, opts \\ [])
+      when is_binary(session_id) and is_binary(memory_id) and is_atom(relationship) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.query_related(store, session_id, memory_id, relationship, opts)
+    end
+  end
+
+  # =============================================================================
+  # Statistics API
+  # =============================================================================
+
+  @doc """
+  Returns statistics about memories for a session.
+
+  Provides aggregated information about the session's memory store including
+  counts by type, confidence distribution, and relationship statistics.
+
+  ## Returns
+
+  A map containing:
+  - `:total_count` - Total number of active memories
+  - `:superseded_count` - Number of superseded memories
+  - `:by_type` - Map of memory types to counts
+  - `:by_confidence` - Map of confidence levels (:high, :medium, :low) to counts
+  - `:with_evidence` - Count of memories with evidence refs
+  - `:with_rationale` - Count of memories with rationale
+
+  ## Examples
+
+      {:ok, stats} = JidoCode.Memory.get_stats("session-abc")
+      # => {:ok, %{
+      #      total_count: 42,
+      #      superseded_count: 5,
+      #      by_type: %{fact: 20, assumption: 15, decision: 7},
+      #      by_confidence: %{high: 30, medium: 10, low: 2},
+      #      with_evidence: 25,
+      #      with_rationale: 18
+      #    }}
+
+  """
+  @spec get_stats(String.t()) :: {:ok, map()} | {:error, term()}
+  def get_stats(session_id) when is_binary(session_id) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.get_stats(store, session_id)
+    end
+  end
+
+  # =============================================================================
   # Ontology API
   # =============================================================================
 

@@ -56,10 +56,10 @@ The canonical ontology is defined in TTL files:
 | `project_conventions` | P1 | Get all conventions and standards | ✅ Complete |
 | `project_decisions` | P2 | Get architectural decisions | ✅ Complete |
 | `project_risks` | P2 | Get known risks and issues | ✅ Complete |
-| `knowledge_graph_query` | P3 | Advanced relationship traversal | ⏸️ Deferred |
+| `knowledge_graph_query` | P3 | Advanced relationship traversal | ✅ Complete |
 | `knowledge_context` | P3 | Auto-retrieve relevant context | ⏸️ Deferred |
 
-> **Note:** P0-P2 tools (7 total) will be implemented initially. P3 tools are deferred for a later phase.
+> **Note:** P0-P2 tools (7 total) were implemented initially. `knowledge_graph_query` (P3) was implemented in Phase 7D. `knowledge_context` remains deferred.
 
 ## Phase 7A Improvements (Review Findings) ✅
 
@@ -514,19 +514,74 @@ Get known risks and issues.
 
 ---
 
-## 7.8 knowledge_graph_query Tool (P3) ⏸️ DEFERRED
+## 7.8 knowledge_graph_query Tool (P3) ✅
 
-> **Deferred**: Advanced relationship traversal will be implemented in a future phase.
+Traverse the knowledge graph to find memories related to a starting memory via relationship types.
 
-### 7.8.1 Tool Definition (Deferred)
+### 7.8.1 Tool Definition
 
-- Parameters: start_from, relationship, depth
-- Relationship types from ontology:
-  - `derivedFrom` - Evidence chain
-  - `supersededBy` - Replacement chain
-  - `refines` - Hypothesis refinement
-  - `confirms` / `contradicts` - Evidence relationships
-  - `hasAlternative` - Decision alternatives
+- [x] Add `knowledge_graph_query/0` to definitions
+- [x] Define schema:
+  ```elixir
+  %{
+    name: "knowledge_graph_query",
+    description: "Traverse the knowledge graph to find related memories.",
+    parameters: [
+      %{name: "start_from", type: :string, required: true,
+        description: "Memory ID to start traversal from"},
+      %{name: "relationship", type: :string, required: true,
+        description: "Relationship type: derived_from, superseded_by, supersedes, same_type, same_project"},
+      %{name: "depth", type: :integer, required: false,
+        description: "Maximum traversal depth (default: 1, max: 5)"},
+      %{name: "limit", type: :integer, required: false,
+        description: "Maximum results per level (default: 10)"},
+      %{name: "include_superseded", type: :boolean, required: false,
+        description: "Include superseded memories (default: false)"}
+    ]
+  }
+  ```
+
+### 7.8.2 Handler Implementation
+
+- [x] Add `KnowledgeGraphQuery` handler module
+- [x] Validate start_from memory ID format
+- [x] Validate relationship type against allowed values
+- [x] Call `Memory.query_related/4` with options
+- [x] Support recursive traversal with cycle detection
+- [x] Return list of related memories with relationship info
+- [x] Emit telemetry `[:jido_code, :knowledge, :graph_query]`
+
+### 7.8.3 API Additions
+
+- [x] Add `TripleStoreAdapter.query_related/5` for relationship traversal
+- [x] Add `TripleStoreAdapter.get_stats/2` for memory statistics
+- [x] Add `Memory.query_related/4` facade method
+- [x] Add `Memory.get_stats/1` facade method
+- [x] Add `Memory.relationship_types/0` for listing valid relationships
+
+### 7.8.4 Relationship Types
+
+- `derived_from` - Follow evidence chain to find referenced memories
+- `superseded_by` - Find the memory that replaced this one
+- `supersedes` - Find memories that this one replaced
+- `same_type` - Find other memories of the same type
+- `same_project` - Find memories in the same project (session)
+
+### 7.8.5 Unit Tests
+
+- [x] Test validates start_from parameter
+- [x] Test validates relationship parameter
+- [x] Test handles invalid memory ID format
+- [x] Test handles invalid relationship type
+- [x] Test depth option (1-5)
+- [x] Test limit option
+- [x] Test include_superseded option
+- [x] Test telemetry emission
+- [x] Test each relationship type traversal
+- [x] Test empty results handling
+
+**Test Count:** 124 → 173 tests (49 new tests added)
+**Summary Document:** `notes/summaries/phase7d-knowledge-graph-query.md`
 
 ---
 
@@ -580,8 +635,8 @@ Get known risks and issues.
 | **project_risks**: List risks by confidence | P2 | ✅ Complete |
 | **Cross-session queries**: project_scope=true works | P0 | ⬜ Initial |
 | **Session isolation**: Default queries session-scoped | P0 | ✅ Complete |
-| **Test coverage**: Minimum 80% | - | ✅ 124 tests |
-| **knowledge_graph_query**: Traverse relationships | P3 | ⏸️ Deferred |
+| **Test coverage**: Minimum 80% | - | ✅ 173 tests |
+| **knowledge_graph_query**: Traverse relationships | P3 | ✅ Complete |
 | **knowledge_context**: Auto-relevance | P3 | ⏸️ Deferred |
 
 ---
@@ -650,9 +705,9 @@ Get known risks and issues.
 4. Full integration tests
 5. Update planning document
 
-### Phase 7D: Advanced Tools (P3 - Deferred)
-1. Add `knowledge_graph_query` - relationship traversal
-2. Add `knowledge_context` - auto-relevance
+### Phase 7D: Advanced Tools (P3)
+1. ✅ Add `knowledge_graph_query` - relationship traversal (complete)
+2. Add `knowledge_context` - auto-relevance (deferred)
 3. Advanced integration tests
 
 ---

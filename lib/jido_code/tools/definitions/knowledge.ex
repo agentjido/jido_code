@@ -86,7 +86,8 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
       knowledge_update(),
       project_conventions(),
       project_decisions(),
-      project_risks()
+      project_risks(),
+      knowledge_graph_query()
     ]
   end
 
@@ -493,6 +494,82 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
           name: "limit",
           type: :integer,
           description: "Maximum number of results to return (default: 50)",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the knowledge_graph_query tool definition.
+
+  Traverses the knowledge graph to find memories related to a starting memory
+  via various relationship types. Supports recursive traversal up to a maximum depth.
+
+  ## Parameters
+
+  - `start_from` (required, string) - Memory ID to start traversal from
+  - `relationship` (required, string) - Relationship type to follow
+  - `depth` (optional, integer) - Maximum traversal depth (default: 1, max: 5)
+  - `limit` (optional, integer) - Maximum results per level (default: 10)
+  - `include_superseded` (optional, boolean) - Include superseded memories (default: false)
+
+  ## Relationship Types
+
+  - `derived_from` - Follow evidence chain to find referenced memories
+  - `superseded_by` - Find the memory that replaced this one
+  - `supersedes` - Find memories that this one replaced
+  - `same_type` - Find other memories of the same type
+  - `same_project` - Find memories in the same project
+
+  ## Output
+
+  Returns JSON with list of related memories including id, content, type, confidence.
+  """
+  @spec knowledge_graph_query() :: Tool.t()
+  def knowledge_graph_query do
+    Tool.new!(%{
+      name: "knowledge_graph_query",
+      description:
+        "Traverse the knowledge graph to find related memories. Use this to explore " <>
+          "connections between memories, such as evidence chains (derived_from), " <>
+          "replacement history (superseded_by/supersedes), or find similar memories " <>
+          "(same_type, same_project).",
+      handler: Handlers.KnowledgeGraphQuery,
+      parameters: [
+        %{
+          name: "start_from",
+          type: :string,
+          description: "Memory ID to start traversal from",
+          required: true
+        },
+        %{
+          name: "relationship",
+          type: :string,
+          description:
+            "Relationship type to follow. One of: derived_from (evidence chain), " <>
+              "superseded_by (replacement chain forward), supersedes (replacement chain backward), " <>
+              "same_type (memories of same type), same_project (memories in same project)",
+          required: true
+        },
+        %{
+          name: "depth",
+          type: :integer,
+          description:
+            "Maximum traversal depth (default: 1, max: 5). Higher values find more " <>
+              "distant relationships but may return more results.",
+          required: false
+        },
+        %{
+          name: "limit",
+          type: :integer,
+          description: "Maximum results per traversal level (default: 10)",
+          required: false
+        },
+        %{
+          name: "include_superseded",
+          type: :boolean,
+          description: "Include superseded/outdated memories in results (default: false)",
           required: false
         }
       ]

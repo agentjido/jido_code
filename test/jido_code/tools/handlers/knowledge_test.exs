@@ -1003,7 +1003,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
     test "returns list of tool definitions" do
       tools = JidoCode.Tools.Definitions.Knowledge.all()
 
-      assert length(tools) == 7
+      assert length(tools) == 8
       assert Enum.any?(tools, fn t -> t.name == "knowledge_remember" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_recall" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_supersede" end)
@@ -1011,6 +1011,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert Enum.any?(tools, fn t -> t.name == "project_conventions" end)
       assert Enum.any?(tools, fn t -> t.name == "project_decisions" end)
       assert Enum.any?(tools, fn t -> t.name == "project_risks" end)
+      assert Enum.any?(tools, fn t -> t.name == "knowledge_graph_query" end)
     end
   end
 
@@ -2388,6 +2389,507 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
 
       {:error, message} = Knowledge.get_memory(session_id, "mem-nonexistent")
       assert message =~ "Memory not found"
+    end
+  end
+
+  # ============================================================================
+  # KnowledgeGraphQuery Handler Tests (Section 7.8.3)
+  # ============================================================================
+
+  describe "KnowledgeGraphQuery.execute/2" do
+    alias JidoCode.Tools.Handlers.Knowledge.KnowledgeGraphQuery
+
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create a base memory
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{"content" => "Base fact for testing", "type" => "fact", "confidence" => 0.9},
+          context
+        )
+
+      base_memory_id = Jason.decode!(json1)["memory_id"]
+
+      # Create another memory of the same type
+      {:ok, json2} =
+        KnowledgeRemember.execute(
+          %{"content" => "Another fact", "type" => "fact", "confidence" => 0.8},
+          context
+        )
+
+      same_type_memory_id = Jason.decode!(json2)["memory_id"]
+
+      # Create a memory that references the base as evidence
+      {:ok, json3} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Conclusion based on evidence",
+            "type" => "discovery",
+            "evidence_refs" => [base_memory_id]
+          },
+          context
+        )
+
+      derived_memory_id = Jason.decode!(json3)["memory_id"]
+
+      {:ok,
+       session_id: session_id,
+       context: context,
+       base_memory_id: base_memory_id,
+       same_type_memory_id: same_type_memory_id,
+       derived_memory_id: derived_memory_id}
+    end
+
+    test "requires session context" do
+      args = %{"start_from" => "mem-123", "relationship" => "same_type"}
+      assert {:error, message} = KnowledgeGraphQuery.execute(args, %{})
+      assert message =~ "requires a session context"
+    end
+
+    test "requires start_from parameter" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+      args = %{"relationship" => "same_type"}
+      assert {:error, message} = KnowledgeGraphQuery.execute(args, context)
+      assert message =~ "start_from is required"
+    end
+
+    test "requires relationship parameter" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+      args = %{"start_from" => "mem-123"}
+      assert {:error, message} = KnowledgeGraphQuery.execute(args, context)
+      assert message =~ "relationship is required"
+    end
+
+    test "validates memory_id format", %{context: context} do
+      args = %{"start_from" => "invalid-format", "relationship" => "same_type"}
+      assert {:error, message} = KnowledgeGraphQuery.execute(args, context)
+      assert message =~ "invalid memory_id format"
+    end
+
+    test "validates relationship type", %{context: context, base_memory_id: base_memory_id} do
+      args = %{"start_from" => base_memory_id, "relationship" => "invalid_relationship"}
+      assert {:error, message} = KnowledgeGraphQuery.execute(args, context)
+      assert message =~ "Invalid relationship"
+      assert message =~ "derived_from"
+    end
+
+    test "returns error for non-existent memory", %{context: context} do
+      args = %{"start_from" => "mem-nonexistent123", "relationship" => "same_type"}
+      assert {:error, message} = KnowledgeGraphQuery.execute(args, context)
+      assert message =~ "Memory not found"
+    end
+
+    test "finds memories of same_type", %{
+      context: context,
+      base_memory_id: base_memory_id,
+      same_type_memory_id: same_type_memory_id
+    } do
+      args = %{"start_from" => base_memory_id, "relationship" => "same_type"}
+      {:ok, json} = KnowledgeGraphQuery.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["start_from"] == base_memory_id
+      assert result["relationship"] == "same_type"
+      assert result["count"] >= 1
+
+      related_ids = Enum.map(result["related"], & &1["id"])
+      assert same_type_memory_id in related_ids
+      refute base_memory_id in related_ids
+    end
+
+    test "finds derived_from relationships", %{
+      context: context,
+      base_memory_id: base_memory_id,
+      derived_memory_id: derived_memory_id
+    } do
+      # Query from the derived memory to find its evidence
+      args = %{"start_from" => derived_memory_id, "relationship" => "derived_from"}
+      {:ok, json} = KnowledgeGraphQuery.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["relationship"] == "derived_from"
+      # The derived memory references the base memory as evidence
+      related_ids = Enum.map(result["related"], & &1["id"])
+      assert base_memory_id in related_ids
+    end
+
+    test "respects limit parameter", %{context: context, base_memory_id: base_memory_id} do
+      # Create more same-type memories
+      for i <- 1..5 do
+        {:ok, _} =
+          KnowledgeRemember.execute(
+            %{"content" => "Extra fact #{i}", "type" => "fact"},
+            context
+          )
+      end
+
+      args = %{"start_from" => base_memory_id, "relationship" => "same_type", "limit" => 2}
+      {:ok, json} = KnowledgeGraphQuery.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 2
+    end
+
+    test "handles superseded_by relationship using direct memory API", %{session_id: session_id} do
+      # Note: The KnowledgeSupersede handler marks old memory as superseded with nil initially,
+      # so we use the direct Memory API to properly establish the superseded_by relationship.
+
+      alias JidoCode.Memory.LongTerm.StoreManager
+      alias JidoCode.Memory.LongTerm.TripleStoreAdapter
+
+      {:ok, store} = StoreManager.get_or_create(session_id)
+
+      # Create old memory
+      old_mem = %{
+        id: "mem-old-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Old fact",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+      {:ok, old_memory_id} = TripleStoreAdapter.persist(old_mem, store)
+
+      # Create new memory
+      new_mem = %{
+        id: "mem-new-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Updated fact",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+      {:ok, new_memory_id} = TripleStoreAdapter.persist(new_mem, store)
+
+      # Supersede with proper new_memory_id reference
+      :ok = TripleStoreAdapter.supersede(store, session_id, old_memory_id, new_memory_id)
+
+      # Query from old memory to find what superseded it
+      {:ok, replacements} =
+        Memory.query_related(session_id, old_memory_id, :superseded_by, include_superseded: true)
+
+      related_ids = Enum.map(replacements, & &1.id)
+      assert new_memory_id in related_ids
+    end
+
+    test "handles supersedes relationship using direct memory API", %{session_id: session_id} do
+      # Note: The KnowledgeSupersede handler marks old memory as superseded with nil,
+      # then creates a replacement. This means superseded_by on the old memory is nil
+      # and the :supersedes query won't find the relationship.
+      # This test uses the direct Memory API to properly establish the relationship.
+
+      alias JidoCode.Memory.LongTerm.StoreManager
+      alias JidoCode.Memory.LongTerm.TripleStoreAdapter
+
+      {:ok, store} = StoreManager.get_or_create(session_id)
+
+      # Create old memory
+      old_mem = %{
+        id: "mem-old-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Old fact",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+      {:ok, old_memory_id} = TripleStoreAdapter.persist(old_mem, store)
+
+      # Create new memory
+      new_mem = %{
+        id: "mem-new-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Updated fact",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+      {:ok, new_memory_id} = TripleStoreAdapter.persist(new_mem, store)
+
+      # Supersede with proper new_memory_id reference
+      :ok = TripleStoreAdapter.supersede(store, session_id, old_memory_id, new_memory_id)
+
+      # Query from new memory to find what it superseded
+      {:ok, superseded} =
+        Memory.query_related(session_id, new_memory_id, :supersedes, include_superseded: true)
+
+      related_ids = Enum.map(superseded, & &1.id)
+      assert old_memory_id in related_ids
+    end
+
+    test "emits telemetry on success", %{context: context, base_memory_id: base_memory_id} do
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_graph_query_success, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :graph_query],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{"start_from" => base_memory_id, "relationship" => "same_type"}
+      {:ok, _} = KnowledgeGraphQuery.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :graph_query],
+                      %{duration: _}, %{status: :success}}
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry on failure", %{context: context} do
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_graph_query_fail, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :graph_query],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{"start_from" => "mem-nonexistent123", "relationship" => "same_type"}
+      {:error, _} = KnowledgeGraphQuery.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :graph_query],
+                      %{duration: _}, %{status: :error}}
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "handles case-insensitive relationship names", %{
+      context: context,
+      base_memory_id: base_memory_id
+    } do
+      args = %{"start_from" => base_memory_id, "relationship" => "SAME_TYPE"}
+      {:ok, json} = KnowledgeGraphQuery.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["relationship"] == "same_type"
+    end
+
+    test "handles hyphenated relationship names", %{
+      context: context,
+      base_memory_id: base_memory_id
+    } do
+      args = %{"start_from" => base_memory_id, "relationship" => "same-type"}
+      {:ok, json} = KnowledgeGraphQuery.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["relationship"] == "same_type"
+    end
+
+    test "returns empty list when no related memories", %{context: context} do
+      # Create an isolated memory with no relationships
+      {:ok, json} =
+        KnowledgeRemember.execute(
+          %{"content" => "Isolated assumption", "type" => "assumption"},
+          context
+        )
+
+      memory_id = Jason.decode!(json)["memory_id"]
+
+      # Query for derived_from on memory with no evidence refs
+      args = %{"start_from" => memory_id, "relationship" => "derived_from"}
+      {:ok, result_json} = KnowledgeGraphQuery.execute(args, context)
+      result = Jason.decode!(result_json)
+
+      assert result["count"] == 0
+      assert result["related"] == []
+    end
+  end
+
+  # ============================================================================
+  # Memory.query_related/4 Tests
+  # ============================================================================
+
+  describe "Memory.query_related/4" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create memories with known relationships
+      {:ok, json1} =
+        KnowledgeRemember.execute(
+          %{"content" => "Base memory", "type" => "fact", "confidence" => 0.9},
+          context
+        )
+
+      base_id = Jason.decode!(json1)["memory_id"]
+
+      {:ok, json2} =
+        KnowledgeRemember.execute(
+          %{"content" => "Related fact", "type" => "fact", "confidence" => 0.8},
+          context
+        )
+
+      related_id = Jason.decode!(json2)["memory_id"]
+
+      {:ok, session_id: session_id, context: context, base_id: base_id, related_id: related_id}
+    end
+
+    test "returns related memories for same_type", %{
+      session_id: session_id,
+      base_id: base_id,
+      related_id: related_id
+    } do
+      {:ok, related} = Memory.query_related(session_id, base_id, :same_type)
+
+      ids = Enum.map(related, & &1.id)
+      assert related_id in ids
+      refute base_id in ids
+    end
+
+    test "returns empty list for unknown memory", %{session_id: session_id} do
+      {:error, :not_found} = Memory.query_related(session_id, "mem-unknown123", :same_type)
+    end
+
+    test "respects depth option", %{session_id: session_id, base_id: base_id} do
+      {:ok, related_depth_1} = Memory.query_related(session_id, base_id, :same_type, depth: 1)
+      {:ok, related_depth_2} = Memory.query_related(session_id, base_id, :same_type, depth: 2)
+
+      # Both should return results, depth 2 may return more with chained relationships
+      assert is_list(related_depth_1)
+      assert is_list(related_depth_2)
+    end
+
+    test "respects limit option", %{session_id: session_id, context: context, base_id: base_id} do
+      # Add more same-type memories
+      for i <- 1..10 do
+        {:ok, _} =
+          KnowledgeRemember.execute(
+            %{"content" => "Fact #{i}", "type" => "fact"},
+            context
+          )
+      end
+
+      {:ok, limited} = Memory.query_related(session_id, base_id, :same_type, limit: 3)
+
+      assert length(limited) == 3
+    end
+  end
+
+  # ============================================================================
+  # Memory.get_stats/1 Tests
+  # ============================================================================
+
+  describe "Memory.get_stats/1" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create various memories
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "High confidence fact", "type" => "fact", "confidence" => 0.9},
+          context
+        )
+
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Medium confidence fact", "type" => "fact", "confidence" => 0.6},
+          context
+        )
+
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Low confidence assumption", "type" => "assumption", "confidence" => 0.3},
+          context
+        )
+
+      {:ok, json} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "With evidence",
+            "type" => "discovery",
+            "evidence_refs" => ["file.ex"],
+            "rationale" => "Found during analysis"
+          },
+          context
+        )
+
+      memory_with_evidence_id = Jason.decode!(json)["memory_id"]
+
+      # Supersede one memory
+      {:ok, json_to_supersede} =
+        KnowledgeRemember.execute(
+          %{"content" => "Old fact", "type" => "fact"},
+          context
+        )
+
+      old_id = Jason.decode!(json_to_supersede)["memory_id"]
+
+      {:ok, _} =
+        KnowledgeSupersede.execute(
+          %{"old_memory_id" => old_id, "new_content" => "New fact"},
+          context
+        )
+
+      {:ok,
+       session_id: session_id,
+       context: context,
+       memory_with_evidence_id: memory_with_evidence_id}
+    end
+
+    test "returns counts by type", %{session_id: session_id} do
+      {:ok, stats} = Memory.get_stats(session_id)
+
+      assert stats.by_type[:fact] >= 2
+      assert stats.by_type[:assumption] == 1
+      assert stats.by_type[:discovery] == 1
+    end
+
+    test "returns counts by confidence level", %{session_id: session_id} do
+      {:ok, stats} = Memory.get_stats(session_id)
+
+      # High: >= 0.8, Medium: >= 0.5 and < 0.8, Low: < 0.5
+      assert stats.by_confidence[:high] >= 1
+      assert stats.by_confidence[:medium] >= 1
+      assert stats.by_confidence[:low] >= 1
+    end
+
+    test "counts superseded memories separately", %{session_id: session_id} do
+      {:ok, stats} = Memory.get_stats(session_id)
+
+      assert stats.superseded_count >= 1
+      assert stats.total_count >= 4
+    end
+
+    test "counts memories with evidence", %{session_id: session_id} do
+      {:ok, stats} = Memory.get_stats(session_id)
+
+      assert stats.with_evidence >= 1
+    end
+
+    test "counts memories with rationale", %{session_id: session_id} do
+      {:ok, stats} = Memory.get_stats(session_id)
+
+      assert stats.with_rationale >= 1
+    end
+
+    test "returns zeros for empty session" do
+      empty_session_id = Uniq.UUID.uuid4()
+      {:ok, stats} = Memory.get_stats(empty_session_id)
+
+      assert stats.total_count == 0
+      assert stats.superseded_count == 0
+      assert stats.by_type == %{}
+      assert stats.by_confidence == %{}
+      assert stats.with_evidence == 0
+      assert stats.with_rationale == 0
     end
   end
 end

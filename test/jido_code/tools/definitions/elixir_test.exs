@@ -84,7 +84,7 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
 
     test "has correct parameters" do
       tool = Definitions.run_exunit()
-      assert length(tool.parameters) == 7
+      assert length(tool.parameters) == 8
 
       path_param = Enum.find(tool.parameters, &(&1.name == "path"))
       line_param = Enum.find(tool.parameters, &(&1.name == "line"))
@@ -92,6 +92,7 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       exclude_tag_param = Enum.find(tool.parameters, &(&1.name == "exclude_tag"))
       max_failures_param = Enum.find(tool.parameters, &(&1.name == "max_failures"))
       seed_param = Enum.find(tool.parameters, &(&1.name == "seed"))
+      trace_param = Enum.find(tool.parameters, &(&1.name == "trace"))
       timeout_param = Enum.find(tool.parameters, &(&1.name == "timeout"))
 
       # All parameters are optional
@@ -118,6 +119,10 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       assert seed_param.required == false
       assert seed_param.type == :integer
       assert seed_param.description =~ "seed"
+
+      assert trace_param.required == false
+      assert trace_param.type == :boolean
+      assert trace_param.description =~ "trace"
 
       assert timeout_param.required == false
       assert timeout_param.type == :integer

@@ -153,34 +153,34 @@ Implement the run_exunit tool for running ExUnit tests with filtering.
 
 ### 5.2.2 Handler Implementation
 
-- [ ] 5.2.2.1 Create `RunExunit` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.2.2.2 Validate path is within project boundary (use `HandlerHelpers.validate_path/2`)
-- [ ] 5.2.2.3 Validate path is within `test/` directory
-- [ ] 5.2.2.4 Build mix test command with options:
+- [x] 5.2.2.1 Create `RunExunit` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.2.2.2 Validate path is within project boundary (use `HandlerHelpers.validate_path/2`)
+- [x] 5.2.2.3 Validate path is within `test/` directory
+- [x] 5.2.2.4 Build mix test command with options:
   - `--trace` for verbose output
   - `--only tag:value` for tag filtering
   - `--exclude tag:value` for exclusion
   - `--max-failures N` for early stop
   - `--seed N` for reproducibility
-- [ ] 5.2.2.5 Execute via `System.cmd("mix", ["test" | args], opts)`
-- [ ] 5.2.2.6 Parse test output for structured results:
+- [x] 5.2.2.5 Execute via `System.cmd("mix", ["test" | args], opts)`
+- [x] 5.2.2.6 Parse test output for structured results:
   - Total tests, passed, failed, skipped
   - Failure details with file/line
   - Timing information
-- [ ] 5.2.2.7 Return `{:ok, %{"summary" => summary, "failures" => failures, "output" => output}}`
-- [ ] 5.2.2.8 Emit telemetry: `[:jido_code, :elixir, :run_exunit]`
+- [x] 5.2.2.7 Return `{:ok, %{"summary" => summary, "failures" => failures, "output" => output}}`
+- [x] 5.2.2.8 Emit telemetry: `[:jido_code, :elixir, :run_exunit]`
 
 ### 5.2.3 Unit Tests for Run ExUnit
 
-- [ ] Test run_exunit runs all tests
-- [ ] Test run_exunit runs specific file
-- [ ] Test run_exunit runs specific line
-- [ ] Test run_exunit filters by tag
-- [ ] Test run_exunit excludes by tag
-- [ ] Test run_exunit parses failures
-- [ ] Test run_exunit respects max_failures
-- [ ] Test run_exunit blocks path traversal
-- [ ] Test run_exunit blocks paths outside test/
+- [x] Test run_exunit runs all tests
+- [x] Test run_exunit runs specific file
+- [x] Test run_exunit runs specific line
+- [x] Test run_exunit filters by tag
+- [x] Test run_exunit excludes by tag
+- [x] Test run_exunit parses failures
+- [x] Test run_exunit respects max_failures
+- [x] Test run_exunit blocks path traversal
+- [x] Test run_exunit blocks paths outside test/
 
 ---
 

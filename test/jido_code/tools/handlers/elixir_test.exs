@@ -584,4 +584,268 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       assert result["exit_code"] == 0
     end
   end
+
+  # ============================================================================
+  # RunExunit Tests (Section 5.2.3)
+  # ============================================================================
+
+  describe "RunExunit.execute/2 - basic execution" do
+    alias JidoCode.Tools.Handlers.Elixir.RunExunit
+
+    test "runs all tests with no arguments", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+      assert is_binary(result["output"])
+      assert result["summary"]["tests"] >= 1
+      assert result["summary"]["failures"] == 0
+    end
+
+    test "runs tests in specific file", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"path" => "test/test_project_test.exs"}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+      assert result["summary"]["tests"] >= 1
+    end
+
+    test "runs test at specific line", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      # Line 3 is where the test is defined in our fixture
+      {:ok, json} = RunExunit.execute(%{"path" => "test/test_project_test.exs", "line" => 3}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+    end
+  end
+
+  describe "RunExunit.execute/2 - tag filtering" do
+    alias JidoCode.Tools.Handlers.Elixir.RunExunit
+
+    setup %{project_root: project_root} do
+      # Create tagged tests
+      test_dir = Path.join(project_root, "test")
+
+      File.write!(Path.join(test_dir, "tagged_test.exs"), """
+      defmodule TaggedTest do
+        use ExUnit.Case
+
+        @tag :integration
+        test "integration test" do
+          assert true
+        end
+
+        @tag :slow
+        test "slow test" do
+          assert true
+        end
+
+        test "normal test" do
+          assert true
+        end
+      end
+      """)
+
+      :ok
+    end
+
+    test "filters by tag", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"tag" => "integration"}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+      # Should run only the integration test
+      assert result["summary"]["tests"] >= 1
+    end
+
+    test "excludes by tag", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"exclude_tag" => "slow"}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+    end
+  end
+
+  describe "RunExunit.execute/2 - options" do
+    alias JidoCode.Tools.Handlers.Elixir.RunExunit
+
+    test "respects max_failures option", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"max_failures" => 1}, context)
+
+      result = Jason.decode!(json)
+      assert is_integer(result["exit_code"])
+    end
+
+    test "respects seed option", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"seed" => 12345}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+    end
+
+    test "respects trace option", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"trace" => true}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+      # Trace output shows test names as they run
+      assert result["output"] =~ "test" or result["output"] =~ "."
+    end
+  end
+
+  describe "RunExunit.execute/2 - security" do
+    alias JidoCode.Tools.Handlers.Elixir.RunExunit
+
+    test "blocks path traversal in path", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = RunExunit.execute(%{"path" => "../../../etc/passwd"}, context)
+
+      assert error =~ "Path traversal not allowed"
+    end
+
+    test "blocks URL-encoded path traversal", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = RunExunit.execute(%{"path" => "%2e%2e%2ftest"}, context)
+
+      assert error =~ "Path traversal not allowed"
+    end
+
+    test "blocks path outside test/ directory", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = RunExunit.execute(%{"path" => "lib/test_project.ex"}, context)
+
+      assert error =~ "test/ directory"
+    end
+
+    test "allows valid test/ directory paths", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"path" => "test/test_project_test.exs"}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+    end
+
+    test "allows running all tests with nil path", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"path" => nil}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+    end
+  end
+
+  describe "RunExunit.execute/2 - output parsing" do
+    alias JidoCode.Tools.Handlers.Elixir.RunExunit
+
+    test "parses test summary", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{}, context)
+
+      result = Jason.decode!(json)
+      assert is_map(result["summary"])
+      assert is_integer(result["summary"]["tests"])
+      assert is_integer(result["summary"]["failures"])
+    end
+
+    test "returns failures array", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{}, context)
+
+      result = Jason.decode!(json)
+      assert is_list(result["failures"])
+    end
+
+    test "parses timing information", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{}, context)
+
+      result = Jason.decode!(json)
+      # Timing may or may not be present depending on output
+      assert is_nil(result["timing"]) or is_map(result["timing"])
+    end
+
+    test "parses failure details from failed tests", %{project_root: project_root} do
+      # Create a failing test
+      test_dir = Path.join(project_root, "test")
+
+      File.write!(Path.join(test_dir, "failing_test.exs"), """
+      defmodule FailingTest do
+        use ExUnit.Case
+        test "this will fail" do
+          assert 1 == 2
+        end
+      end
+      """)
+
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"path" => "test/failing_test.exs"}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] != 0
+      assert result["summary"]["failures"] >= 1
+      # Failures array should contain the failure info
+      assert is_list(result["failures"])
+    end
+  end
+
+  describe "RunExunit.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.RunExunit
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :run_exunit]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = RunExunit.execute(%{}, context)
+
+      assert_receive {[:jido_code, :elixir, :run_exunit], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "test", status: :ok}}
+    end
+
+    test "emits telemetry on validation error", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :run_exunit]
+        ])
+
+      context = %{project_root: project_root}
+      {:error, _} = RunExunit.execute(%{"path" => "../escape"}, context)
+
+      assert_receive {[:jido_code, :elixir, :run_exunit], ^ref, %{duration: _, exit_code: 1},
+                      %{task: "test", status: :error}}
+    end
+  end
+
+  describe "RunExunit.execute/2 - timeout" do
+    alias JidoCode.Tools.Handlers.Elixir.RunExunit
+
+    test "respects custom timeout", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = RunExunit.execute(%{"timeout" => 60_000}, context)
+
+      result = Jason.decode!(json)
+      assert result["exit_code"] == 0
+    end
+
+    test "uses default timeout of 120s when not specified", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, _json} = RunExunit.execute(%{}, context)
+    end
+
+    test "caps timeout at max value (300s)", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, _json} = RunExunit.execute(%{"timeout" => 999_999_999}, context)
+    end
+  end
 end

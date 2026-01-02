@@ -200,6 +200,13 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           required: false
         },
         %{
+          name: "trace",
+          type: :boolean,
+          description:
+            "Enable verbose trace output for each test. Shows test name as it runs.",
+          required: false
+        },
+        %{
           name: "timeout",
           type: :integer,
           description:

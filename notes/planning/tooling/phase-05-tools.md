@@ -93,35 +93,35 @@ Create the mix_task tool definition.
 
 Implement the Handler for Mix task execution.
 
-- [ ] 5.1.2.1 Create `lib/jido_code/tools/handlers/elixir.ex` with `MixTask` module
-- [ ] 5.1.2.2 Define allowed tasks:
+- [x] 5.1.2.1 Create `lib/jido_code/tools/handlers/elixir.ex` with `MixTask` module
+- [x] 5.1.2.2 Define allowed tasks:
   ```elixir
   @allowed_tasks ~w(compile test format deps.get deps.compile deps.tree deps.unlock help credo dialyzer docs hex.info)
   ```
-- [ ] 5.1.2.3 Define blocked tasks:
+- [x] 5.1.2.3 Define blocked tasks:
   ```elixir
   @blocked_tasks ~w(release archive.install escript.build local.hex local.rebar hex.publish deps.update do ecto.drop ecto.reset phx.gen.secret)
   ```
-- [ ] 5.1.2.4 Validate task against allowlist (reject if not in allowlist or in blocklist)
-- [ ] 5.1.2.5 Build mix command: `System.cmd("mix", [task | args], opts)`
-- [ ] 5.1.2.6 Set MIX_ENV via environment option (block "prod")
-- [ ] 5.1.2.7 Execute in project directory with timeout (default: 60000ms)
-- [ ] 5.1.2.8 Capture stdout/stderr
-- [ ] 5.1.2.9 Return `{:ok, %{"output" => output, "exit_code" => code}}`
-- [ ] 5.1.2.10 Emit telemetry: `[:jido_code, :elixir, :mix_task]`
+- [x] 5.1.2.4 Validate task against allowlist (reject if not in allowlist or in blocklist)
+- [x] 5.1.2.5 Build mix command: `System.cmd("mix", [task | args], opts)`
+- [x] 5.1.2.6 Set MIX_ENV via environment option (block "prod")
+- [x] 5.1.2.7 Execute in project directory with timeout (default: 60000ms)
+- [x] 5.1.2.8 Capture stdout/stderr
+- [x] 5.1.2.9 Return `{:ok, %{"output" => output, "exit_code" => code}}`
+- [x] 5.1.2.10 Emit telemetry: `[:jido_code, :elixir, :mix_task]`
 
 ### 5.1.3 Unit Tests for Mix Task
 
-- [ ] Test mix_task runs compile
-- [ ] Test mix_task runs test
-- [ ] Test mix_task runs format
-- [ ] Test mix_task runs deps.get
-- [ ] Test mix_task blocks tasks not in allowlist
-- [ ] Test mix_task blocks explicitly blocked tasks
-- [ ] Test mix_task blocks prod environment
-- [ ] Test mix_task handles task errors
-- [ ] Test mix_task respects timeout
-- [ ] Test mix_task validates args are strings
+- [x] Test mix_task runs compile
+- [x] Test mix_task runs test
+- [x] Test mix_task runs format
+- [x] Test mix_task runs deps.get
+- [x] Test mix_task blocks tasks not in allowlist
+- [x] Test mix_task blocks explicitly blocked tasks
+- [x] Test mix_task blocks prod environment
+- [x] Test mix_task handles task errors
+- [x] Test mix_task respects timeout
+- [x] Test mix_task validates args are strings
 
 ---
 

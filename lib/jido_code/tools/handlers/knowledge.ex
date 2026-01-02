@@ -538,7 +538,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_supersede"),
            {:ok, old_memory_id} <- Knowledge.get_required_string(args, "old_memory_id"),
            {:ok, _} <- Knowledge.validate_memory_id(old_memory_id),
-           {:ok, old_memory} <- get_memory(session_id, old_memory_id) do
+           {:ok, old_memory} <- Knowledge.get_memory(session_id, old_memory_id) do
         # Mark the old memory as superseded
         case Memory.supersede(session_id, old_memory_id, nil) do
           :ok ->
@@ -562,14 +562,6 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
           {:error, reason} ->
             {:error, "Failed to supersede memory: #{inspect(reason)}"}
         end
-      end
-    end
-
-    defp get_memory(session_id, memory_id) do
-      case Memory.get(session_id, memory_id) do
-        {:ok, memory} -> {:ok, memory}
-        {:error, :not_found} -> {:error, "Memory not found: #{memory_id}"}
-        {:error, reason} -> {:error, "Failed to get memory: #{inspect(reason)}"}
       end
     end
 
@@ -686,7 +678,11 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         opts = [min_confidence: min_confidence, include_superseded: false]
 
         # Get types to filter by based on category
-        filter_types = get_filter_types(Map.get(args, "category"))
+        filter_types = Knowledge.resolve_filter_types(
+          Map.get(args, "category"),
+          @category_types,
+          @convention_types
+        )
 
         # Get limit from args
         limit = Map.get(args, "limit", @default_limit)
@@ -709,16 +705,6 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         end
       end
     end
-
-    defp get_filter_types(nil), do: @convention_types
-    defp get_filter_types(""), do: @convention_types
-
-    defp get_filter_types(category) when is_binary(category) do
-      category_lower = String.downcase(category)
-      Map.get(@category_types, category_lower, @convention_types)
-    end
-
-    defp get_filter_types(_), do: @convention_types
 
     defp format_conventions(conventions) do
       Knowledge.format_memory_list(conventions, :conventions)
@@ -766,12 +752,18 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       end)
     end
 
+    # Maximum evidence references per memory to prevent unbounded growth
+    @max_evidence_refs 100
+
+    # Maximum rationale size in bytes (16KB)
+    @max_rationale_size 16_384
+
     defp do_execute(args, context) do
       with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_update"),
            {:ok, memory_id} <- Knowledge.get_required_string(args, "memory_id"),
            {:ok, _} <- Knowledge.validate_memory_id(memory_id),
-           {:ok, memory} <- get_memory(session_id, memory_id),
-           {:ok, updates} <- validate_updates(args),
+           {:ok, memory} <- Knowledge.get_memory(session_id, memory_id),
+           {:ok, updates} <- validate_updates(args, memory),
            {:ok, updated_memory} <- apply_updates(memory, updates) do
         # Re-persist the updated memory
         case Memory.persist(updated_memory, session_id) do
@@ -790,82 +782,91 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       end
     end
 
-    defp get_memory(session_id, memory_id) do
-      case Memory.get(session_id, memory_id) do
-        {:ok, memory} -> {:ok, memory}
-        {:error, :not_found} -> {:error, "Memory not found: #{memory_id}"}
-        {:error, reason} -> {:error, "Failed to get memory: #{inspect(reason)}"}
+    defp validate_updates(args, memory) do
+      with {:ok, updates} <- validate_confidence(args),
+           {:ok, updates} <- validate_evidence(args, memory, updates),
+           {:ok, updates} <- validate_rationale(args, memory, updates),
+           :ok <- require_at_least_one(updates) do
+        {:ok, updates}
       end
     end
 
-    defp validate_updates(args) do
-      updates = %{}
+    defp validate_confidence(args) do
+      case Map.get(args, "new_confidence") do
+        nil ->
+          {:ok, %{}}
 
-      # Validate confidence if provided
-      updates =
-        case Map.get(args, "new_confidence") do
-          nil ->
-            updates
+        confidence when is_number(confidence) and confidence >= 0.0 and confidence <= 1.0 ->
+          {:ok, %{confidence: confidence}}
 
-          confidence when is_number(confidence) ->
-            if confidence >= 0.0 and confidence <= 1.0 do
-              Map.put(updates, :confidence, confidence)
-            else
-              {:error, "Confidence must be between 0.0 and 1.0"}
-            end
+        confidence when is_number(confidence) ->
+          {:error, "Confidence must be between 0.0 and 1.0"}
 
-          _ ->
-            {:error, "Confidence must be a number"}
-        end
+        _ ->
+          {:error, "Confidence must be a number"}
+      end
+    end
 
-      # Check for error from confidence validation
-      case updates do
-        {:error, _} = error ->
-          error
+    defp validate_evidence(args, memory, updates) do
+      case Map.get(args, "add_evidence") do
+        nil ->
+          {:ok, updates}
 
-        updates ->
-          # Add evidence if provided
-          updates =
-            case Map.get(args, "add_evidence") do
-              nil -> updates
-              evidence when is_list(evidence) -> Map.put(updates, :add_evidence, evidence)
-              _ -> Map.put(updates, :add_evidence, [])
-            end
+        evidence when is_list(evidence) ->
+          # Validate each element is a string
+          valid_evidence = Enum.filter(evidence, &is_binary/1)
+          existing_count = length(Map.get(memory, :evidence_refs, []))
+          new_count = length(valid_evidence)
 
-          # Add rationale if provided
-          updates =
-            case Map.get(args, "add_rationale") do
-              nil -> updates
-              rationale when is_binary(rationale) -> Map.put(updates, :add_rationale, rationale)
-              _ -> updates
-            end
-
-          # Check that at least one update is provided
-          if map_size(updates) == 0 do
-            {:error, "At least one update (new_confidence, add_evidence, or add_rationale) is required"}
+          if existing_count + new_count > @max_evidence_refs do
+            {:error, "Evidence refs would exceed maximum of #{@max_evidence_refs}"}
           else
-            {:ok, updates}
+            {:ok, Map.put(updates, :add_evidence, valid_evidence)}
           end
+
+        _ ->
+          {:ok, updates}
       end
     end
+
+    defp validate_rationale(args, memory, updates) do
+      case Map.get(args, "add_rationale") do
+        nil ->
+          {:ok, updates}
+
+        rationale when is_binary(rationale) ->
+          existing_size = byte_size(Map.get(memory, :rationale) || "")
+          new_size = byte_size(rationale)
+          # Account for the separator "\n\n"
+          separator_size = if existing_size > 0, do: 2, else: 0
+          total_size = existing_size + separator_size + new_size
+
+          if total_size > @max_rationale_size do
+            {:error, "Rationale would exceed maximum of #{@max_rationale_size} bytes"}
+          else
+            {:ok, Map.put(updates, :add_rationale, rationale)}
+          end
+
+        _ ->
+          {:ok, updates}
+      end
+    end
+
+    defp require_at_least_one(updates) when map_size(updates) == 0 do
+      {:error, "At least one update (new_confidence, add_evidence, or add_rationale) is required"}
+    end
+
+    defp require_at_least_one(_updates), do: :ok
 
     defp apply_updates(memory, updates) do
       updated_memory =
         memory
-        |> normalize_timestamp()
+        |> Knowledge.normalize_timestamp()
         |> maybe_update_confidence(Map.get(updates, :confidence))
         |> maybe_add_evidence(Map.get(updates, :add_evidence))
         |> maybe_append_rationale(Map.get(updates, :add_rationale))
 
       {:ok, updated_memory}
-    end
-
-    # Convert timestamp back to created_at for persist compatibility
-    defp normalize_timestamp(memory) do
-      case Map.get(memory, :timestamp) do
-        nil -> memory
-        timestamp -> memory |> Map.put(:created_at, timestamp) |> Map.delete(:timestamp)
-      end
     end
 
     defp maybe_update_confidence(memory, nil), do: memory
@@ -917,6 +918,9 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     # Alternative type for considered options
     @alternative_type :alternative
 
+    # Default limit for results
+    @default_limit 50
+
     # Type mapping for filter
     @type_filter %{
       "architectural" => [:architectural_decision],
@@ -933,6 +937,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       - `"include_superseded"` (optional) - Include superseded decisions (default: false)
       - `"decision_type"` (optional) - Filter by type: architectural, implementation, all
       - `"include_alternatives"` (optional) - Include considered alternatives (default: false)
+      - `"limit"` (optional) - Maximum results to return (default: 50)
 
     - `context` - Map containing:
       - `:session_id` (required) - Session identifier
@@ -956,7 +961,11 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         opts = [include_superseded: include_superseded]
 
         # Get types to filter by based on decision_type parameter
-        filter_types = get_filter_types(Map.get(args, "decision_type"))
+        filter_types = Knowledge.resolve_filter_types(
+          Map.get(args, "decision_type"),
+          @type_filter,
+          @decision_types
+        )
 
         # Include alternative type if requested
         filter_types =
@@ -966,12 +975,16 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
             filter_types
           end
 
+        # Get limit from args
+        limit = Map.get(args, "limit", @default_limit)
+
         case Memory.query(session_id, opts) do
           {:ok, memories} ->
             decisions =
               memories
               |> Enum.filter(fn memory -> memory.memory_type in filter_types end)
               |> Enum.sort_by(& &1.confidence, :desc)
+              |> Enum.take(limit)
 
             format_decisions(decisions)
 
@@ -980,16 +993,6 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         end
       end
     end
-
-    defp get_filter_types(nil), do: @decision_types
-    defp get_filter_types(""), do: @decision_types
-
-    defp get_filter_types(type) when is_binary(type) do
-      type_lower = String.downcase(type)
-      Map.get(@type_filter, type_lower, @decision_types)
-    end
-
-    defp get_filter_types(_), do: @decision_types
 
     defp format_decisions(decisions) do
       Knowledge.format_memory_list(decisions, :decisions)
@@ -1011,6 +1014,9 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     alias JidoCode.Memory
     alias JidoCode.Tools.Handlers.Knowledge
 
+    # Default limit for results
+    @default_limit 50
+
     @doc """
     Executes the project_risks tool.
 
@@ -1019,6 +1025,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     - `args` - Map containing:
       - `"min_confidence"` (optional) - Minimum confidence threshold (default: 0.5)
       - `"include_mitigated"` (optional) - Include mitigated/superseded risks (default: false)
+      - `"limit"` (optional) - Maximum results to return (default: 50)
 
     - `context` - Map containing:
       - `:session_id` (required) - Session identifier
@@ -1039,6 +1046,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       with {:ok, session_id} <- Knowledge.get_session_id(context, "project_risks") do
         min_confidence = Map.get(args, "min_confidence", 0.5)
         include_mitigated = Map.get(args, "include_mitigated", false)
+        limit = Map.get(args, "limit", @default_limit)
         opts = [include_superseded: include_mitigated, min_confidence: min_confidence]
 
         case Memory.query(session_id, opts) do
@@ -1047,6 +1055,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
               memories
               |> Enum.filter(fn memory -> memory.memory_type == :risk end)
               |> Enum.sort_by(& &1.confidence, :desc)
+              |> Enum.take(limit)
 
             format_risks(risks)
 
@@ -1142,6 +1151,77 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   """
   @spec ok_json(map() | list()) :: {:ok, String.t()}
   def ok_json(data), do: {:ok, Jason.encode!(data)}
+
+  @doc """
+  Fetches a memory by ID with session ownership validation.
+
+  ## Parameters
+
+  - `session_id` - Session identifier for ownership validation
+  - `memory_id` - Memory ID to fetch
+
+  ## Returns
+
+  - `{:ok, memory}` - Memory map on success
+  - `{:error, message}` - Error message string
+  """
+  @spec get_memory(String.t(), String.t()) :: {:ok, map()} | {:error, String.t()}
+  def get_memory(session_id, memory_id) do
+    case Memory.get(session_id, memory_id) do
+      {:ok, memory} -> {:ok, memory}
+      {:error, :not_found} -> {:error, "Memory not found: #{memory_id}"}
+      {:error, reason} -> {:error, "Failed to get memory: #{inspect(reason)}"}
+    end
+  end
+
+  @doc """
+  Resolves filter types from a category/type input using a mapping.
+
+  This shared helper handles the common pattern of mapping category strings
+  to lists of memory types for filtering queries.
+
+  ## Parameters
+
+  - `input` - Category/type string to resolve (e.g., "architectural", "coding")
+  - `type_mapping` - Map of string category names to type lists
+  - `default_types` - Default list of types if input is nil/empty/unknown
+
+  ## Returns
+
+  List of memory type atoms to filter by.
+  """
+  @spec resolve_filter_types(term(), map(), [atom()]) :: [atom()]
+  def resolve_filter_types(nil, _type_mapping, default_types), do: default_types
+  def resolve_filter_types("", _type_mapping, default_types), do: default_types
+
+  def resolve_filter_types(input, type_mapping, default_types) when is_binary(input) do
+    input_lower = String.downcase(input)
+    Map.get(type_mapping, input_lower, default_types)
+  end
+
+  def resolve_filter_types(_input, _type_mapping, default_types), do: default_types
+
+  @doc """
+  Normalizes a memory's timestamp field to created_at for persist compatibility.
+
+  The Memory.get/2 function returns memories with a :timestamp field, but
+  Memory.persist/2 expects :created_at. This function handles that conversion.
+
+  ## Parameters
+
+  - `memory` - Memory map to normalize
+
+  ## Returns
+
+  Memory map with :created_at field (and :timestamp removed if present)
+  """
+  @spec normalize_timestamp(map()) :: map()
+  def normalize_timestamp(memory) do
+    case Map.get(memory, :timestamp) do
+      nil -> memory
+      timestamp -> memory |> Map.put(:created_at, timestamp) |> Map.delete(:timestamp)
+    end
+  end
 
   @doc """
   Formats a list of memories for JSON output.

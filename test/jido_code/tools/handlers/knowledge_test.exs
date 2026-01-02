@@ -1999,5 +1999,395 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
 
       :telemetry.detach(handler_id)
     end
+
+    test "emits telemetry for failed update (non-existent memory)" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_update_fail, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :update],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{"memory_id" => "mem-nonexistent123", "new_confidence" => 0.9}
+      {:error, _} = KnowledgeUpdate.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :update], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert metadata.status == :error
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for failed project_decisions (missing session)" do
+      context = %{}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_decisions_fail, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :project_decisions],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{}
+      {:error, _} = ProjectDecisions.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :project_decisions], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert metadata.status == :error
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for failed project_risks (missing session)" do
+      context = %{}
+
+      test_pid = self()
+      ref = make_ref()
+      handler_id = {:test_risks_fail, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :project_risks],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{}
+      {:error, _} = ProjectRisks.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :project_risks], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert metadata.status == :error
+
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  # ============================================================================
+  # Phase 7C Review Fixes - Additional Edge Case Tests
+  # ============================================================================
+
+  describe "KnowledgeUpdate edge cases (Phase 7C fixes)" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create a memory for testing
+      {:ok, json} =
+        KnowledgeRemember.execute(
+          %{"content" => "Test memory for edge cases", "type" => "fact"},
+          context
+        )
+
+      result = Jason.decode!(json)
+      {:ok, session_id: session_id, context: context, memory_id: result["memory_id"]}
+    end
+
+    test "filters out non-string evidence refs", %{context: context, memory_id: memory_id} do
+      args = %{
+        "memory_id" => memory_id,
+        "add_evidence" => ["valid.txt", 123, %{"bad" => "value"}, "also_valid.md"]
+      }
+
+      {:ok, json} = KnowledgeUpdate.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Only valid strings should be counted
+      assert result["evidence_count"] == 2
+    end
+
+    test "rejects update when evidence refs would exceed limit", %{context: context, memory_id: memory_id} do
+      # First add many evidence refs
+      large_evidence = Enum.map(1..95, &"evidence_#{&1}.txt")
+
+      {:ok, _} =
+        KnowledgeUpdate.execute(
+          %{"memory_id" => memory_id, "add_evidence" => large_evidence},
+          context
+        )
+
+      # Now try to add more that would exceed the limit
+      args = %{
+        "memory_id" => memory_id,
+        "add_evidence" => Enum.map(1..10, &"more_#{&1}.txt")
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, context)
+      assert message =~ "Evidence refs would exceed maximum of 100"
+    end
+
+    test "rejects update when rationale would exceed size limit", %{context: context, memory_id: memory_id} do
+      # Create a very large rationale string (over 16KB)
+      large_rationale = String.duplicate("x", 17_000)
+
+      args = %{
+        "memory_id" => memory_id,
+        "add_rationale" => large_rationale
+      }
+
+      {:error, message} = KnowledgeUpdate.execute(args, context)
+      assert message =~ "Rationale would exceed maximum of 16384 bytes"
+    end
+
+    test "handles empty evidence array gracefully", %{context: context, memory_id: memory_id} do
+      args = %{
+        "memory_id" => memory_id,
+        "add_evidence" => [],
+        "new_confidence" => 0.9
+      }
+
+      {:ok, json} = KnowledgeUpdate.execute(args, context)
+      result = Jason.decode!(json)
+      assert result["status"] == "updated"
+      assert result["confidence"] == 0.9
+    end
+  end
+
+  describe "ProjectDecisions edge cases (Phase 7C fixes)" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create various decision types
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Use Phoenix for web", "type" => "architectural_decision"},
+          context
+        )
+
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Use GenServer for state", "type" => "implementation_decision"},
+          context
+        )
+
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Considered Ecto.Multi", "type" => "alternative"},
+          context
+        )
+
+      {:ok, session_id: session_id, context: context}
+    end
+
+    test "filters by decision_type 'all' returns all decision types", %{context: context} do
+      args = %{"decision_type" => "all"}
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should include architectural_decision and implementation_decision but not alternative
+      assert result["count"] == 2
+      types = Enum.map(result["decisions"], & &1["type"])
+      assert "architectural_decision" in types
+      assert "implementation_decision" in types
+      refute "alternative" in types
+    end
+
+    test "respects limit parameter", %{context: context} do
+      # Add more decisions
+      for i <- 1..10 do
+        {:ok, _} =
+          KnowledgeRemember.execute(
+            %{"content" => "Decision #{i}", "type" => "decision"},
+            context
+          )
+      end
+
+      args = %{"limit" => 3}
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 3
+    end
+
+    test "combines decision_type with include_alternatives", %{context: context} do
+      args = %{
+        "decision_type" => "architectural",
+        "include_alternatives" => true
+      }
+
+      {:ok, json} = ProjectDecisions.execute(args, context)
+      result = Jason.decode!(json)
+
+      types = Enum.map(result["decisions"], & &1["type"])
+      # Should include architectural_decision and alternative
+      assert "architectural_decision" in types
+      assert "alternative" in types
+      refute "implementation_decision" in types
+    end
+  end
+
+  describe "ProjectRisks edge cases (Phase 7C fixes)" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create risks with various confidence levels
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "High risk", "type" => "risk", "confidence" => 0.95},
+          context
+        )
+
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Low risk", "type" => "risk", "confidence" => 0.3},
+          context
+        )
+
+      {:ok, session_id: session_id, context: context}
+    end
+
+    test "respects limit parameter", %{context: context} do
+      # Add more risks
+      for i <- 1..10 do
+        {:ok, _} =
+          KnowledgeRemember.execute(
+            %{"content" => "Risk #{i}", "type" => "risk", "confidence" => 0.6},
+            context
+          )
+      end
+
+      args = %{"limit" => 5, "min_confidence" => 0.0}
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] == 5
+    end
+
+    test "high min_confidence filters most risks", %{context: context} do
+      args = %{"min_confidence" => 0.9}
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Only the high risk (0.95) should pass
+      assert result["count"] == 1
+      assert hd(result["risks"])["content"] == "High risk"
+    end
+
+    test "min_confidence of 1.0 may return no risks", %{context: context} do
+      args = %{"min_confidence" => 1.0}
+      {:ok, json} = ProjectRisks.execute(args, context)
+      result = Jason.decode!(json)
+
+      # No risks have confidence of exactly 1.0
+      assert result["count"] == 0
+    end
+  end
+
+  # ============================================================================
+  # Shared Helper Function Tests (Phase 7C fixes)
+  # ============================================================================
+
+  describe "Knowledge.resolve_filter_types/3" do
+    test "returns default types for nil input" do
+      default = [:a, :b, :c]
+      result = Knowledge.resolve_filter_types(nil, %{}, default)
+      assert result == default
+    end
+
+    test "returns default types for empty string input" do
+      default = [:a, :b, :c]
+      result = Knowledge.resolve_filter_types("", %{}, default)
+      assert result == default
+    end
+
+    test "returns mapped types for known category" do
+      mapping = %{"coding" => [:coding_standard], "architectural" => [:convention]}
+      default = [:all_types]
+
+      result = Knowledge.resolve_filter_types("coding", mapping, default)
+      assert result == [:coding_standard]
+    end
+
+    test "handles case-insensitive category lookup" do
+      mapping = %{"coding" => [:coding_standard]}
+      default = [:all_types]
+
+      result = Knowledge.resolve_filter_types("CODING", mapping, default)
+      assert result == [:coding_standard]
+    end
+
+    test "returns default for unknown category" do
+      mapping = %{"coding" => [:coding_standard]}
+      default = [:all_types]
+
+      result = Knowledge.resolve_filter_types("unknown", mapping, default)
+      assert result == default
+    end
+
+    test "returns default for non-string input" do
+      mapping = %{"coding" => [:coding_standard]}
+      default = [:all_types]
+
+      result = Knowledge.resolve_filter_types(123, mapping, default)
+      assert result == default
+    end
+  end
+
+  describe "Knowledge.normalize_timestamp/1" do
+    test "converts timestamp to created_at" do
+      now = DateTime.utc_now()
+      memory = %{id: "test", timestamp: now, content: "test"}
+
+      result = Knowledge.normalize_timestamp(memory)
+
+      assert result.created_at == now
+      refute Map.has_key?(result, :timestamp)
+    end
+
+    test "returns memory unchanged if no timestamp" do
+      now = DateTime.utc_now()
+      memory = %{id: "test", created_at: now, content: "test"}
+
+      result = Knowledge.normalize_timestamp(memory)
+
+      assert result == memory
+    end
+  end
+
+  describe "Knowledge.get_memory/2" do
+    test "returns memory when found" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      {:ok, json} =
+        KnowledgeRemember.execute(
+          %{"content" => "Test memory", "type" => "fact"},
+          context
+        )
+
+      result = Jason.decode!(json)
+      memory_id = result["memory_id"]
+
+      {:ok, memory} = Knowledge.get_memory(session_id, memory_id)
+      assert memory.id == memory_id
+      assert memory.content == "Test memory"
+    end
+
+    test "returns error for non-existent memory" do
+      session_id = Uniq.UUID.uuid4()
+
+      {:error, message} = Knowledge.get_memory(session_id, "mem-nonexistent")
+      assert message =~ "Memory not found"
+    end
   end
 end

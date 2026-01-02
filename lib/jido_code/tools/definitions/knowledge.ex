@@ -34,6 +34,8 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
   **Decision Types:**
   - `:decision` - General committed choice impacting the project
   - `:architectural_decision` - High-impact structural or architectural choice
+  - `:implementation_decision` - Lower-level implementation choice with rationale
+  - `:alternative` - Considered option that was not selected
   - `:lesson_learned` - Insights gained from past experiences
 
   ## Usage
@@ -61,6 +63,8 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
   - unknown: Information gap that needs investigation
   - decision: Choice made with rationale
   - architectural_decision: Significant architectural choice
+  - implementation_decision: Lower-level implementation choice
+  - alternative: Considered option that was not selected
   - convention: Established pattern or standard
   - coding_standard: Specific coding practice or guideline
   - lesson_learned: Insight gained from experience
@@ -402,6 +406,7 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
   - `include_superseded` (optional, boolean) - Include superseded decisions (default: false)
   - `decision_type` (optional, string) - Filter: architectural, implementation, or all
   - `include_alternatives` (optional, boolean) - Include considered alternatives (default: false)
+  - `limit` (optional, integer) - Maximum results to return (default: 50)
 
   ## Output
 
@@ -435,6 +440,12 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
           type: :boolean,
           description: "Include alternative options that were considered (default: false)",
           required: false
+        },
+        %{
+          name: "limit",
+          type: :integer,
+          description: "Maximum number of results to return (default: 50)",
+          required: false
         }
       ]
     })
@@ -450,6 +461,7 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
 
   - `min_confidence` (optional, float) - Minimum confidence threshold (default: 0.5)
   - `include_mitigated` (optional, boolean) - Include mitigated/superseded risks (default: false)
+  - `limit` (optional, integer) - Maximum results to return (default: 50)
 
   ## Output
 
@@ -475,6 +487,12 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
           name: "include_mitigated",
           type: :boolean,
           description: "Include mitigated/superseded risks (default: false)",
+          required: false
+        },
+        %{
+          name: "limit",
+          type: :integer,
+          description: "Maximum number of results to return (default: 50)",
           required: false
         }
       ]

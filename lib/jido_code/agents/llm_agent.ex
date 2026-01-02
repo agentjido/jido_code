@@ -958,18 +958,12 @@ defmodule JidoCode.Agents.LLMAgent do
   defp process_response_async(full_content, session_id) when is_binary(session_id) do
     if is_valid_session_id?(session_id) do
       Task.start(fn ->
-        case ResponseProcessor.process_response(full_content, session_id) do
-          {:ok, extractions} when map_size(extractions) > 0 ->
-            Logger.debug(
-              "LLMAgent: Extracted #{map_size(extractions)} context items from response: #{inspect(Map.keys(extractions))}"
-            )
+        {:ok, extractions} = ResponseProcessor.process_response(full_content, session_id)
 
-          {:ok, _empty} ->
-            # No context extracted, nothing to log
-            :ok
-
-          {:error, reason} ->
-            Logger.warning("LLMAgent: Response processing failed: #{inspect(reason)}")
+        if map_size(extractions) > 0 do
+          Logger.debug(
+            "LLMAgent: Extracted #{map_size(extractions)} context items from response: #{inspect(Map.keys(extractions))}"
+          )
         end
       end)
     end
@@ -1379,21 +1373,9 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   # Build a proportional token budget based on the total budget
-  # Uses the same proportions as ContextBuilder.default_budget()
+  # Delegates to ContextBuilder.allocate_budget/1 for consistent allocation
   @spec build_token_budget(pos_integer()) :: ContextBuilder.token_budget()
-  defp build_token_budget(total) when is_integer(total) and total > 0 do
-    # Proportions from default: system=2k, conversation=20k, working=4k, long_term=6k
-    # Total = 32k, so: system=6.25%, conversation=62.5%, working=12.5%, long_term=18.75%
-    %{
-      total: total,
-      system: max(div(total * 625, 10000), 500),
-      conversation: max(div(total * 625, 1000), 5000),
-      working: max(div(total * 125, 1000), 1000),
-      long_term: max(div(total * 1875, 10000), 1500)
-    }
-  end
-
-  defp build_token_budget(_), do: ContextBuilder.default_budget()
+  defp build_token_budget(total), do: ContextBuilder.allocate_budget(total)
 
   # ============================================================================
   # Validation Functions

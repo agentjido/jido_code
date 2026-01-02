@@ -115,9 +115,6 @@ defmodule JidoCode.Memory.ContextBuilder do
     long_term: 6_000
   }
 
-  # Approximate tokens per character (conservative estimate for English)
-  @chars_per_token 4
-
   # Default limits for memory queries
   @default_memory_limit 10
   @high_confidence_limit 5
@@ -138,9 +135,11 @@ defmodule JidoCode.Memory.ContextBuilder do
 
   @doc """
   Returns the characters per token ratio used for estimation.
+
+  Delegates to `TokenCounter.chars_per_token/0` for consistency.
   """
   @spec chars_per_token() :: pos_integer()
-  def chars_per_token, do: @chars_per_token
+  defdelegate chars_per_token, to: TokenCounter
 
   @doc """
   Allocates a token budget based on a total token count.
@@ -186,7 +185,10 @@ defmodule JidoCode.Memory.ContextBuilder do
     }
   end
 
-  def allocate_budget(_), do: @default_budget
+  def allocate_budget(invalid) do
+    Logger.warning("ContextBuilder: Invalid budget total #{inspect(invalid)}, using default")
+    @default_budget
+  end
 
   @doc """
   Validates a token budget map.
@@ -300,9 +302,8 @@ defmodule JidoCode.Memory.ContextBuilder do
   @doc """
   Estimates the token count for a given string.
 
-  Uses a simple character-based estimation (approximately 4 characters per token
-  for English text). Uses `String.length/1` to correctly handle multi-byte
-  Unicode characters. This is a conservative estimate suitable for budget planning.
+  Delegates to `TokenCounter.estimate_tokens/1` for consistent estimation
+  across the codebase. Uses a character-based approximation (4 chars ≈ 1 token).
 
   ## Examples
 
@@ -310,12 +311,8 @@ defmodule JidoCode.Memory.ContextBuilder do
       # => 3
 
   """
-  @spec estimate_tokens(String.t()) :: non_neg_integer()
-  def estimate_tokens(text) when is_binary(text) do
-    div(String.length(text), @chars_per_token)
-  end
-
-  def estimate_tokens(_), do: 0
+  @spec estimate_tokens(String.t() | nil) :: non_neg_integer()
+  defdelegate estimate_tokens(text), to: TokenCounter
 
   # =============================================================================
   # Private Functions - Data Retrieval

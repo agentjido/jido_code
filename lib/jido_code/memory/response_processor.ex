@@ -32,7 +32,7 @@ defmodule JidoCode.Memory.ResponseProcessor do
 
   require Logger
 
-  alias JidoCode.Session.State, as: SessionState
+  alias JidoCode.Session.State
 
   # =============================================================================
   # Constants
@@ -103,7 +103,6 @@ defmodule JidoCode.Memory.ResponseProcessor do
   ## Returns
 
   - `{:ok, map()}` - Map of extracted context (may be empty)
-  - `{:error, term()}` - If session update fails
 
   ## Examples
 
@@ -113,8 +112,9 @@ defmodule JidoCode.Memory.ResponseProcessor do
       iex> ResponseProcessor.process_response("Hello!", "session-123")
       {:ok, %{}}
   """
-  @spec process_response(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  @spec process_response(String.t(), String.t()) :: {:ok, map()}
   def process_response(response, session_id) when is_binary(response) and is_binary(session_id) do
+    start_time = System.monotonic_time(:millisecond)
     extractions = extract_context(response)
 
     if map_size(extractions) > 0 do
@@ -122,11 +122,8 @@ defmodule JidoCode.Memory.ResponseProcessor do
       update_working_context(extractions, session_id)
     end
 
+    emit_telemetry(session_id, map_size(extractions), start_time)
     {:ok, extractions}
-  rescue
-    error ->
-      Logger.warning("ResponseProcessor: Failed to process response: #{inspect(error)}")
-      {:error, {:extraction_failed, error}}
   end
 
   def process_response(nil, _session_id), do: {:ok, %{}}
@@ -258,7 +255,7 @@ defmodule JidoCode.Memory.ResponseProcessor do
   @spec update_working_context(map(), String.t()) :: :ok
   defp update_working_context(extractions, session_id) do
     Enum.each(extractions, fn {key, value} ->
-      case SessionState.update_context(session_id, key, value,
+      case State.update_context(session_id, key, value,
              source: :inferred,
              confidence: @inferred_confidence
            ) do
@@ -271,5 +268,19 @@ defmodule JidoCode.Memory.ResponseProcessor do
     end)
 
     :ok
+  end
+
+  # =============================================================================
+  # Private Functions - Telemetry
+  # =============================================================================
+
+  defp emit_telemetry(session_id, extractions_count, start_time) do
+    duration_ms = System.monotonic_time(:millisecond) - start_time
+
+    :telemetry.execute(
+      [:jido_code, :memory, :response_process],
+      %{duration_ms: duration_ms, extractions: extractions_count},
+      %{session_id: session_id}
+    )
   end
 end

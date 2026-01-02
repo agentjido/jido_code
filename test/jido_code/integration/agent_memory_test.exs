@@ -523,16 +523,21 @@ defmodule JidoCode.Integration.AgentMemoryTest do
         created_at: now
       }, session_id)
 
-      # Build context with tiny memory budget
+      # Build context with tiny memory budget that only fits one memory
+      # Each memory is ~15 tokens (content ~50 chars / 4 + 10 overhead)
+      # Budget of 20 should only fit one memory
       {:ok, context2} = ContextBuilder.build(session_id, token_budget: %{
         total: 200,
         system: 20,
         conversation: 20,
         working: 20,
-        long_term: 50
+        long_term: 20
       })
 
-      # If only one memory fits, high confidence should be preserved
+      # With such a small budget, at most one memory should fit
+      assert length(context2.long_term_memories) <= 1
+
+      # If a memory fits, it should be the high confidence one
       if length(context2.long_term_memories) == 1 do
         memory = hd(context2.long_term_memories)
         assert memory.content =~ "HIGH_CONFIDENCE"

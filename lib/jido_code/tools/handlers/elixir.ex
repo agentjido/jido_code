@@ -75,6 +75,21 @@ defmodule JidoCode.Tools.Handlers.Elixir do
 
   @allowed_envs ~w(dev test)
 
+  # Shared constants are defined in JidoCode.Tools.Handlers.Elixir.Constants
+  # to allow nested modules to access them during compilation
+
+  @doc """
+  Returns the shared list of blocked process prefixes.
+  """
+  @spec blocked_prefixes() :: [String.t()]
+  defdelegate blocked_prefixes, to: __MODULE__.Constants
+
+  @doc """
+  Returns the shared list of sensitive field names for redaction.
+  """
+  @spec sensitive_fields() :: [String.t()]
+  defdelegate sensitive_fields, to: __MODULE__.Constants
+
   # ============================================================================
   # Shared Helpers
   # ============================================================================
@@ -711,91 +726,17 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     """
 
     alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.Elixir.Constants
     alias JidoCode.Tools.HandlerHelpers
 
     @default_timeout 5_000
     @max_timeout 30_000
 
-    # Blocked process prefixes for security
-    # System processes and JidoCode internals should not be inspected
-    # Comprehensive list of BEAM/OTP system processes
-    @blocked_prefixes [
-      # JidoCode internal processes
-      "JidoCode.Tools",
-      "JidoCode.Session",
-      "JidoCode.Registry",
-      "Elixir.JidoCode.Tools",
-      "Elixir.JidoCode.Session",
-      "Elixir.JidoCode.Registry",
-      # Erlang kernel and runtime
-      ":kernel",
-      ":stdlib",
-      ":init",
-      ":code_server",
-      ":user",
-      ":application_controller",
-      ":error_logger",
-      ":logger",
-      # Distribution and networking
-      ":global_name_server",
-      ":global_group",
-      ":net_kernel",
-      ":auth",
-      ":inet_db",
-      ":erl_epmd",
-      # Code loading and file system
-      ":erl_prim_loader",
-      ":file_server_2",
-      ":erts_code_purger",
-      # Remote execution and signals
-      ":rex",
-      ":erl_signal_server",
-      # SSL/TLS processes
-      ":ssl_manager",
-      ":ssl_pem_cache",
-      # Disk logging
-      ":disk_log_server",
-      ":disk_log_sup",
-      # Standard server processes
-      ":standard_error",
-      ":standard_error_sup"
-    ]
+    # Use shared blocked prefixes from Constants module
+    @blocked_prefixes Constants.blocked_prefixes()
 
-    # Sensitive field names to redact (comprehensive list)
-    @sensitive_fields [
-      # Authentication
-      "password",
-      "passwd",
-      "pwd",
-      "passphrase",
-      # Tokens and keys
-      "secret",
-      "token",
-      "api_key",
-      "apikey",
-      "private_key",
-      "secret_key",
-      "signing_key",
-      "encryption_key",
-      # Credentials
-      "credentials",
-      "auth",
-      "bearer",
-      "authorization",
-      # Session and client secrets
-      "session_secret",
-      "client_secret",
-      "consumer_secret",
-      # Database and connection
-      "database_url",
-      "connection_string",
-      "db_password",
-      # Cryptographic materials
-      "salt",
-      "nonce",
-      "iv",
-      "hmac"
-    ]
+    # Use shared sensitive fields from Constants module
+    @sensitive_fields Constants.sensitive_fields()
 
     @doc """
     Inspects the state of a process.
@@ -1064,54 +1005,15 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     """
 
     alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.Elixir.Constants
     alias JidoCode.Tools.HandlerHelpers
 
     @default_depth 2
     @max_depth 5
     @max_children_per_level 50
 
-    # Blocked supervisor prefixes (same as ProcessState for consistency)
-    @blocked_prefixes [
-      # JidoCode internal processes
-      "JidoCode.Tools",
-      "JidoCode.Session",
-      "JidoCode.Registry",
-      "Elixir.JidoCode.Tools",
-      "Elixir.JidoCode.Session",
-      "Elixir.JidoCode.Registry",
-      # Erlang kernel and runtime
-      ":kernel",
-      ":stdlib",
-      ":init",
-      ":code_server",
-      ":user",
-      ":application_controller",
-      ":error_logger",
-      ":logger",
-      # Distribution and networking
-      ":global_name_server",
-      ":global_group",
-      ":net_kernel",
-      ":auth",
-      ":inet_db",
-      ":erl_epmd",
-      # Code loading and file system
-      ":erl_prim_loader",
-      ":file_server_2",
-      ":erts_code_purger",
-      # Remote execution and signals
-      ":rex",
-      ":erl_signal_server",
-      # SSL/TLS processes
-      ":ssl_manager",
-      ":ssl_pem_cache",
-      # Disk logging
-      ":disk_log_server",
-      ":disk_log_sup",
-      # Standard server processes
-      ":standard_error",
-      ":standard_error_sup"
-    ]
+    # Use shared blocked prefixes from Constants module
+    @blocked_prefixes Constants.blocked_prefixes()
 
     @doc """
     Inspects the structure of a supervisor tree.
@@ -1424,9 +1326,12 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     """
 
     alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.Elixir.Constants
+    alias JidoCode.Tools.HandlerHelpers
 
     @default_limit 10
     @max_limit 100
+    @max_entry_size 10_000
 
     # System ETS tables that should never be inspected
     @blocked_tables [
@@ -1454,23 +1359,11 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       :cover_binary_code_table
     ]
 
-    # Blocked owner process prefixes (same as ProcessState)
-    @blocked_owner_prefixes [
-      "JidoCode.Tools",
-      "JidoCode.Session",
-      "JidoCode.Registry",
-      "Elixir.JidoCode.Tools",
-      "Elixir.JidoCode.Session",
-      "Elixir.JidoCode.Registry",
-      ":kernel",
-      ":stdlib",
-      ":init",
-      ":code_server",
-      ":application_controller",
-      ":logger",
-      ":ssl_manager",
-      ":ssl_pem_cache"
-    ]
+    # Use shared blocked prefixes from Constants module
+    @blocked_owner_prefixes Constants.blocked_prefixes()
+
+    # Use shared sensitive fields from Constants module for redaction
+    @sensitive_fields Constants.sensitive_fields()
 
     @doc """
     Inspects ETS tables with various operations.
@@ -1679,15 +1572,13 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     # Private Helpers
     # ============================================================================
 
+    @spec get_limit(map()) :: pos_integer()
     defp get_limit(args) do
-      case Map.get(args, "limit") do
-        nil -> @default_limit
-        limit when is_integer(limit) and limit > 0 -> min(limit, @max_limit)
-        _ -> @default_limit
-      end
+      HandlerHelpers.get_bounded_integer(args, "limit", @default_limit, @max_limit)
     end
 
     # Parse table name string to ETS table reference
+    @spec parse_table_name(String.t()) :: {:ok, atom()} | {:error, atom()}
     defp parse_table_name(name) when is_binary(name) do
       # Try as existing atom first (most ETS tables use atoms)
       try do
@@ -1705,6 +1596,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     end
 
     # Check if table is in blocked list or owned by blocked process
+    @spec validate_table_accessible(atom()) :: :ok | {:error, :table_blocked}
     defp validate_table_accessible(table_ref) do
       cond do
         table_ref in @blocked_tables ->
@@ -1719,15 +1611,20 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     end
 
     # Check if table is readable (public access)
+    @spec validate_table_readable(atom()) :: :ok | {:error, atom()}
     defp validate_table_readable(table_ref) do
       case :ets.info(table_ref, :protection) do
         :public ->
           :ok
 
         :protected ->
-          # Protected tables can only be read by owner, but we'll allow info
-          # operations and just return what we can access
-          :ok
+          # Protected tables can only be read by owner - check if we own it
+          owner = :ets.info(table_ref, :owner)
+          if owner == self() do
+            :ok
+          else
+            {:error, :table_protected_not_owner}
+          end
 
         :private ->
           {:error, :table_private}
@@ -1737,6 +1634,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end
     end
 
+    @spec is_project_table?(term()) :: boolean()
     defp is_project_table?(table_ref) do
       # Only allow named tables (atoms), not reference-based tables
       is_atom(table_ref) and
@@ -1744,6 +1642,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
         not is_owner_blocked?(table_ref)
     end
 
+    @spec is_owner_blocked?(atom()) :: boolean()
     defp is_owner_blocked?(table_ref) do
       owner = :ets.info(table_ref, :owner)
 
@@ -1768,6 +1667,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end
     end
 
+    @spec is_system_pid?(pid()) :: boolean()
     defp is_system_pid?(pid) do
       # Check if process belongs to kernel or stdlib application
       case :erlang.process_info(pid, :initial_call) do
@@ -1776,11 +1676,12 @@ defmodule JidoCode.Tools.Handlers.Elixir do
           module in [:init, :code_server, :application_controller, :error_logger, :user, :logger]
 
         _ ->
-          # If we can't determine, allow it (safe default for project tables)
-          false
+          # If we can't determine, block it (safe default - better to block unknown than expose)
+          true
       end
     end
 
+    @spec get_table_summary(atom()) :: map() | nil
     defp get_table_summary(table_ref) do
       case :ets.info(table_ref) do
         :undefined ->
@@ -1797,6 +1698,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end
     end
 
+    @spec format_table_info(keyword()) :: map()
     defp format_table_info(info_list) do
       info_list
       |> Enum.map(fn
@@ -1820,18 +1722,19 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     end
 
     # Parse key from string representation
+    @spec parse_key(String.t()) :: {:ok, term()} | {:error, :atom_not_found}
     defp parse_key(key_string) do
       trimmed = String.trim(key_string)
 
       cond do
-        # Atom: :foo or :foo_bar
+        # Atom: :foo or :foo_bar (only existing atoms to prevent atom table exhaustion)
         String.starts_with?(trimmed, ":") ->
           atom_name = String.slice(trimmed, 1..-1//1)
 
           try do
             {:ok, String.to_existing_atom(atom_name)}
           rescue
-            ArgumentError -> {:ok, String.to_atom(atom_name)}
+            ArgumentError -> {:error, :atom_not_found}
           end
 
         # Integer
@@ -1857,43 +1760,336 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end
     end
 
-    # Sample N entries from table using first/next traversal
+    # Sample N entries from table using first/next traversal with memory limit
+    @spec sample_entries(atom(), pos_integer()) :: [term()]
     defp sample_entries(table_ref, limit) do
       try do
         first_key = :ets.first(table_ref)
-        collect_entries(table_ref, first_key, limit, [])
-        |> Enum.take(limit)
+        # Track both count and total size to prevent memory issues
+        collect_entries(table_ref, first_key, limit, [], 0)
       rescue
         ArgumentError -> []
       end
     end
 
-    defp collect_entries(_table_ref, :"$end_of_table", _remaining, acc), do: Enum.reverse(acc)
-    defp collect_entries(_table_ref, _key, 0, acc), do: Enum.reverse(acc)
+    @spec collect_entries(atom(), term(), non_neg_integer(), [term()], non_neg_integer()) :: [term()]
+    defp collect_entries(_table_ref, :"$end_of_table", _remaining, acc, _total_size), do: Enum.reverse(acc)
+    defp collect_entries(_table_ref, _key, 0, acc, _total_size), do: Enum.reverse(acc)
+    # Stop if we've collected too much data (memory limit)
+    defp collect_entries(_table_ref, _key, _remaining, acc, total_size) when total_size > @max_entry_size do
+      Enum.reverse(acc)
+    end
 
-    defp collect_entries(table_ref, key, remaining, acc) do
+    defp collect_entries(table_ref, key, remaining, acc, total_size) do
       entries = :ets.lookup(table_ref, key)
+      # Estimate entry size using :erts_debug.size (word count)
+      entry_size = Enum.reduce(entries, 0, fn entry, size -> size + :erts_debug.size(entry) end)
+      new_total_size = total_size + entry_size
       new_acc = entries ++ acc
       new_remaining = remaining - length(entries)
 
-      if new_remaining <= 0 do
-        # We've collected enough, return what we have
+      if new_remaining <= 0 or new_total_size > @max_entry_size do
+        # We've collected enough or hit memory limit
         Enum.reverse(new_acc)
       else
         next_key = :ets.next(table_ref, key)
-        collect_entries(table_ref, next_key, new_remaining, new_acc)
+        collect_entries(table_ref, next_key, new_remaining, new_acc, new_total_size)
       end
     end
 
+    @spec format_entry(term()) :: String.t()
     defp format_entry(entry) do
-      inspect(entry, pretty: true, limit: 50, printable_limit: 4096)
+      entry
+      |> inspect(pretty: true, limit: 50, printable_limit: 4096)
+      |> sanitize_output()
     end
 
+    # Sanitize output to redact sensitive fields (same pattern as ProcessState)
+    @spec sanitize_output(String.t()) :: String.t()
+    defp sanitize_output(output) when is_binary(output) do
+      Enum.reduce(@sensitive_fields, output, fn field, acc ->
+        patterns = [
+          # Double-quoted strings: password => "secret" or password: "secret"
+          {~r/(#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Single-quoted strings (charlists): password => 'secret'
+          {~r/(#{field})\s*[=:>]+\s*'[^']*'/i, "\\1 => '[REDACTED]'"},
+          # Atom prefix format: :password => "secret"
+          {~r/(:\s*#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Atom values: password => :secret_value
+          {~r/(#{field})\s*[=:>]+\s*:[a-zA-Z_][a-zA-Z0-9_]*/i, "\\1 => :[REDACTED]"},
+          # Integer values: password => 12345
+          {~r/(#{field})\s*[=:>]+\s*\d+/i, "\\1 => [REDACTED]"},
+          # Charlist syntax: password => ~c"secret"
+          {~r/(#{field})\s*[=:>]+\s*~c"[^"]*"/i, "\\1 => ~c\"[REDACTED]\""},
+          # Binary syntax: password => <<"secret">>
+          {~r/(#{field})\s*[=:>]+\s*<<[^>]*>>/i, "\\1 => <<[REDACTED]>>"},
+          # Unquoted barewords (identifiers): password => secret_value
+          {~r/(#{field})\s*[=:>]+\s*([a-zA-Z_][a-zA-Z0-9_]*)\b(?!\s*[=:>\(\[])/i, "\\1 => [REDACTED]"}
+        ]
+
+        Enum.reduce(patterns, acc, fn {pattern, replacement}, inner_acc ->
+          Regex.replace(pattern, inner_acc, replacement)
+        end)
+      end)
+    end
+
+    @spec format_error(atom() | String.t()) :: String.t()
     defp format_error(:table_not_found), do: "Table not found"
     defp format_error(:table_blocked), do: "Access to this table is blocked for security"
     defp format_error(:table_private), do: "Table is private and cannot be read"
+    defp format_error(:table_protected_not_owner), do: "Table is protected and can only be read by its owner process"
     defp format_error(:reference_tables_not_supported), do: "Reference-based tables are not supported"
     defp format_error(:invalid_key), do: "Invalid key format"
+    defp format_error(:atom_not_found), do: "Atom key does not exist (only existing atoms are allowed)"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
+
+  # ============================================================================
+  # FetchDocs Handler
+  # ============================================================================
+
+  defmodule FetchDocs do
+    @moduledoc """
+    Handler for the fetch_elixir_docs tool.
+
+    Retrieves documentation for Elixir modules and functions using `Code.fetch_docs/1`
+    and type specifications using `Code.Typespec.fetch_specs/1`.
+
+    ## Security Features
+
+    - Uses `String.to_existing_atom/1` to prevent atom table exhaustion
+    - Only existing (loaded) modules can be queried
+    - Non-existent modules return an error
+
+    ## Output Format
+
+    Returns JSON with:
+    - `moduledoc` - Module-level documentation
+    - `docs` - Function documentation (filtered if function/arity specified)
+    - `specs` - Type specifications for functions
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+
+    @doc """
+    Fetches documentation for an Elixir module or function.
+
+    ## Arguments
+
+    - `"module"` - Module name (required, e.g., "Enum", "String")
+    - `"function"` - Function name to filter (optional)
+    - `"arity"` - Function arity to filter (optional, requires function)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with moduledoc, docs, and specs
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"module" => module_name} = args, context) when is_binary(module_name) do
+      start_time = System.monotonic_time(:microsecond)
+
+      with {:ok, module} <- parse_module_name(module_name),
+           {:ok, docs_chunk} <- fetch_docs(module) do
+        function_filter = Map.get(args, "function")
+        arity_filter = Map.get(args, "arity")
+
+        moduledoc = extract_moduledoc(docs_chunk)
+        function_docs = extract_function_docs(docs_chunk, function_filter, arity_filter)
+        specs = fetch_specs(module, function_filter, arity_filter)
+
+        result = %{
+          "module" => module_name,
+          "moduledoc" => moduledoc,
+          "docs" => function_docs,
+          "specs" => specs
+        }
+
+        ElixirHandler.emit_elixir_telemetry(:fetch_docs, start_time, module_name, context, :ok, 0)
+
+        case Jason.encode(result) do
+          {:ok, json} -> {:ok, json}
+          {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:fetch_docs, start_time, module_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    def execute(%{"module" => module}, _context) do
+      {:error, "Invalid module: expected string, got #{inspect(module)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: module"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    # Parse module name string to module atom using existing atoms only
+    @spec parse_module_name(String.t()) :: {:ok, module()} | {:error, atom()}
+    defp parse_module_name(name) when is_binary(name) do
+      # Handle "Elixir." prefix automatically
+      normalized_name =
+        if String.starts_with?(name, "Elixir.") do
+          name
+        else
+          "Elixir." <> name
+        end
+
+      try do
+        atom = String.to_existing_atom(normalized_name)
+
+        # Verify the module is loaded
+        if Code.ensure_loaded?(atom) do
+          {:ok, atom}
+        else
+          {:error, :module_not_loaded}
+        end
+      rescue
+        ArgumentError ->
+          {:error, :module_not_found}
+      end
+    end
+
+    # Fetch documentation chunk for a module
+    @spec fetch_docs(module()) :: {:ok, tuple()} | {:error, atom()}
+    defp fetch_docs(module) do
+      case Code.fetch_docs(module) do
+        {:docs_v1, _, _, _, _, _, _} = docs ->
+          {:ok, docs}
+
+        {:error, :chunk_not_found} ->
+          {:error, :no_docs}
+
+        {:error, :module_not_found} ->
+          {:error, :module_not_found}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+
+    # Extract module-level documentation
+    @spec extract_moduledoc(tuple()) :: String.t() | nil
+    defp extract_moduledoc({:docs_v1, _, _, _, moduledoc, _, _}) do
+      case moduledoc do
+        %{"en" => doc} when is_binary(doc) -> doc
+        :hidden -> nil
+        :none -> nil
+        _ -> nil
+      end
+    end
+
+    # Extract function documentation, optionally filtered by function name and arity
+    @spec extract_function_docs(tuple(), String.t() | nil, integer() | nil) :: [map()]
+    defp extract_function_docs({:docs_v1, _, _, _, _, _, docs}, function_filter, arity_filter) do
+      docs
+      |> Enum.filter(fn
+        {{kind, _name, _arity}, _, _, _, _} when kind in [:function, :macro] -> true
+        _ -> false
+      end)
+      |> Enum.filter(fn {{_kind, name, arity}, _, _, _, _} ->
+        matches_filter?(name, arity, function_filter, arity_filter)
+      end)
+      |> Enum.map(fn {{kind, name, arity}, _line, signature, doc, metadata} ->
+        %{
+          "name" => Atom.to_string(name),
+          "arity" => arity,
+          "kind" => Atom.to_string(kind),
+          "signature" => format_signature(signature),
+          "doc" => extract_doc_text(doc),
+          "deprecated" => Map.get(metadata, :deprecated)
+        }
+      end)
+    end
+
+    # Check if a function matches the filter criteria
+    @spec matches_filter?(atom(), integer(), String.t() | nil, integer() | nil) :: boolean()
+    defp matches_filter?(_name, _arity, nil, nil), do: true
+
+    defp matches_filter?(name, _arity, function_filter, nil) when is_binary(function_filter) do
+      Atom.to_string(name) == function_filter
+    end
+
+    defp matches_filter?(name, arity, function_filter, arity_filter)
+         when is_binary(function_filter) and is_integer(arity_filter) do
+      Atom.to_string(name) == function_filter and arity == arity_filter
+    end
+
+    defp matches_filter?(_name, _arity, _function_filter, _arity_filter), do: true
+
+    # Format function signature for display
+    @spec format_signature([binary()]) :: String.t() | nil
+    defp format_signature(signature) when is_list(signature) do
+      case signature do
+        [] -> nil
+        [head | _] -> head
+      end
+    end
+
+    defp format_signature(_), do: nil
+
+    # Extract documentation text from doc chunk
+    @spec extract_doc_text(map() | atom()) :: String.t() | nil
+    defp extract_doc_text(%{"en" => doc}) when is_binary(doc), do: doc
+    defp extract_doc_text(:hidden), do: nil
+    defp extract_doc_text(:none), do: nil
+    defp extract_doc_text(_), do: nil
+
+    # Fetch type specifications for a module, optionally filtered
+    @spec fetch_specs(module(), String.t() | nil, integer() | nil) :: [map()]
+    defp fetch_specs(module, function_filter, arity_filter) do
+      case Code.Typespec.fetch_specs(module) do
+        {:ok, specs} ->
+          specs
+          |> Enum.filter(fn {{name, arity}, _spec} ->
+            matches_spec_filter?(name, arity, function_filter, arity_filter)
+          end)
+          |> Enum.map(fn {{name, arity}, spec_list} ->
+            formatted_specs =
+              Enum.map(spec_list, fn spec ->
+                Code.Typespec.spec_to_quoted(name, spec)
+                |> Macro.to_string()
+              end)
+
+            %{
+              "name" => Atom.to_string(name),
+              "arity" => arity,
+              "specs" => formatted_specs
+            }
+          end)
+
+        :error ->
+          []
+      end
+    end
+
+    # Check if a spec matches the filter criteria
+    @spec matches_spec_filter?(atom(), integer(), String.t() | nil, integer() | nil) :: boolean()
+    defp matches_spec_filter?(_name, _arity, nil, nil), do: true
+
+    defp matches_spec_filter?(name, _arity, function_filter, nil) when is_binary(function_filter) do
+      Atom.to_string(name) == function_filter
+    end
+
+    defp matches_spec_filter?(name, arity, function_filter, arity_filter)
+         when is_binary(function_filter) and is_integer(arity_filter) do
+      Atom.to_string(name) == function_filter and arity == arity_filter
+    end
+
+    defp matches_spec_filter?(_name, _arity, _function_filter, _arity_filter), do: true
+
+    # Format error messages
+    @spec format_error(atom() | String.t()) :: String.t()
+    defp format_error(:module_not_found), do: "Module not found (only existing modules can be queried)"
+    defp format_error(:module_not_loaded), do: "Module exists but is not loaded"
+    defp format_error(:no_docs), do: "Module has no embedded documentation"
     defp format_error(reason) when is_binary(reason), do: reason
     defp format_error(reason), do: "Error: #{inspect(reason)}"
   end

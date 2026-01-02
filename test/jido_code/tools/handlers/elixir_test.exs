@@ -1696,7 +1696,7 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       assert result["count"] == 1
     end
 
-    test "returns empty list for non-existent key", %{project_root: project_root} do
+    test "returns empty list for key not in table", %{project_root: project_root} do
       table = :ets.new(:test_ets_lookup_empty, [:named_table, :public])
       :ets.insert(table, {:existing, "value"})
 
@@ -1709,7 +1709,8 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       end)
 
       context = %{project_root: project_root}
-      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_empty", "key" => ":nonexistent"}, context)
+      # Use an existing atom that's just not in the table
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_empty", "key" => ":ok"}, context)
 
       result = Jason.decode!(json)
       assert result["count"] == 0
@@ -1942,6 +1943,53 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       result = Jason.decode!(json)
       assert result["info"]["protection"] == "protected"
     end
+
+    test "blocks lookup on protected tables not owned by current process", %{project_root: project_root} do
+      # Create a table from another process so we're not the owner
+      test_pid = self()
+      spawn(fn ->
+        table = :ets.new(:test_ets_protected_other_owner, [:named_table, :protected])
+        :ets.insert(table, {:test_key, "value"})
+        send(test_pid, {:table_created, table})
+        # Keep the process alive so the table persists
+        receive do
+          :done -> :ok
+        end
+      end)
+
+      receive do
+        {:table_created, table} ->
+          on_exit(fn ->
+            try do
+              :ets.delete(table)
+            catch
+              :error, _ -> :ok
+            end
+          end)
+
+          context = %{project_root: project_root}
+          {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_protected_other_owner", "key" => ":test_key"}, context)
+
+          assert error =~ "protected" and error =~ "owner"
+      after
+        1000 -> flunk("Table not created in time")
+      end
+    end
+
+    test "blocks tables owned by system processes from list", %{project_root: project_root} do
+      # The list operation should not include tables owned by system processes
+      # We verify this by checking that system tables like :code are not in the list
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      table_names = Enum.map(result["tables"], & &1["name"])
+
+      # System tables should not appear in list
+      refute "code" in table_names
+      refute "ac_tab" in table_names
+      refute "file_io_servers" in table_names
+    end
   end
 
   describe "EtsInspect.execute/2 - error handling" do
@@ -2113,6 +2161,336 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
 
       result = Jason.decode!(json)
       assert result["count"] == 1
+    end
+
+    test "rejects non-existent atoms to prevent atom table exhaustion", %{project_root: project_root} do
+      table = :ets.new(:test_ets_nonexistent_atom, [:named_table, :public])
+      :ets.insert(table, {:existing_key, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      # Use a random unique atom name that definitely doesn't exist
+      unique_atom_name = ":nonexistent_atom_#{System.unique_integer([:positive])}"
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_nonexistent_atom", "key" => unique_atom_name}, context)
+
+      assert error =~ "Atom key does not exist"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - sensitive data redaction" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "redacts sensitive fields in sample output", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sensitive_data, [:named_table, :public])
+      :ets.insert(table, {:user, %{name: "Alice", password: "secret123", token: "abc-xyz"}})
+      :ets.insert(table, {:config, %{api_key: "sk-12345", database_url: "postgres://user:pass@host/db"}})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sensitive_data", "limit" => 10}, context)
+
+      result = Jason.decode!(json)
+
+      # Verify entries exist
+      assert result["count"] >= 1
+
+      # Verify sensitive data is redacted
+      entries_str = Enum.join(result["entries"], " ")
+      refute entries_str =~ "secret123"
+      refute entries_str =~ "abc-xyz"
+      refute entries_str =~ "sk-12345"
+      refute entries_str =~ "postgres://user:pass"
+
+      # Verify [REDACTED] is present
+      assert entries_str =~ "[REDACTED]"
+    end
+
+    test "redacts sensitive fields in lookup output", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sensitive_lookup, [:named_table, :public])
+      :ets.insert(table, {:credentials, %{secret: "super_secret", bearer: "token123"}})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_sensitive_lookup", "key" => ":credentials"}, context)
+
+      result = Jason.decode!(json)
+      entries_str = Enum.join(result["entries"], " ")
+
+      # Sensitive data should be redacted
+      refute entries_str =~ "super_secret"
+      refute entries_str =~ "token123"
+      assert entries_str =~ "[REDACTED]"
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - standard library module" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "fetches docs for Enum module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      result = Jason.decode!(json)
+
+      assert result["module"] == "Enum"
+      assert is_binary(result["moduledoc"])
+      assert String.contains?(result["moduledoc"], "Enum")
+      assert is_list(result["docs"])
+      assert length(result["docs"]) > 0
+      assert is_list(result["specs"])
+    end
+
+    test "fetches docs for String module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "String"}, context)
+
+      result = Jason.decode!(json)
+
+      assert result["module"] == "String"
+      assert is_binary(result["moduledoc"])
+      assert is_list(result["docs"])
+    end
+
+    test "handles Elixir. prefix automatically", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Elixir.Enum"}, context)
+
+      result = Jason.decode!(json)
+      assert result["module"] == "Elixir.Enum"
+      assert is_binary(result["moduledoc"])
+    end
+  end
+
+  describe "FetchDocs.execute/2 - specific function" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "filters docs to specific function", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map"}, context)
+
+      result = Jason.decode!(json)
+
+      assert result["module"] == "Enum"
+      assert is_list(result["docs"])
+      assert length(result["docs"]) > 0
+
+      # All returned docs should be for "map" function
+      Enum.each(result["docs"], fn doc ->
+        assert doc["name"] == "map"
+      end)
+    end
+
+    test "filters specs to specific function", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map"}, context)
+
+      result = Jason.decode!(json)
+
+      # Specs should also be filtered
+      Enum.each(result["specs"], fn spec ->
+        assert spec["name"] == "map"
+      end)
+    end
+  end
+
+  describe "FetchDocs.execute/2 - function with arity" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "filters docs to specific function and arity", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+
+      assert is_list(result["docs"])
+
+      # All returned docs should be for "map/2"
+      Enum.each(result["docs"], fn doc ->
+        assert doc["name"] == "map"
+        assert doc["arity"] == 2
+      end)
+    end
+
+    test "filters specs to specific arity", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "reduce", "arity" => 3}, context)
+
+      result = Jason.decode!(json)
+
+      # Specs should be filtered by arity too
+      Enum.each(result["specs"], fn spec ->
+        assert spec["name"] == "reduce"
+        assert spec["arity"] == 3
+      end)
+    end
+  end
+
+  describe "FetchDocs.execute/2 - includes specs" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "includes type specifications", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      result = Jason.decode!(json)
+
+      assert is_list(result["specs"])
+      assert length(result["specs"]) > 0
+
+      # Each spec should have name, arity, and specs list
+      first_spec = hd(result["specs"])
+      assert is_binary(first_spec["name"])
+      assert is_integer(first_spec["arity"])
+      assert is_list(first_spec["specs"])
+    end
+
+    test "spec format is readable", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+
+      if length(result["specs"]) > 0 do
+        spec = hd(result["specs"])
+        spec_string = hd(spec["specs"])
+        assert is_binary(spec_string)
+        # Should look like a function spec
+        assert String.contains?(spec_string, "map")
+      end
+    end
+  end
+
+  describe "FetchDocs.execute/2 - undocumented module" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "handles module with no docs gracefully", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # :erlang module has no Elixir docs
+      result = FetchDocs.execute(%{"module" => "erlang"}, context)
+
+      # Should return an error for :erlang (not an Elixir module)
+      assert {:error, msg} = result
+      assert msg =~ "Module not found" or msg =~ "no embedded documentation"
+    end
+  end
+
+  describe "FetchDocs.execute/2 - non-existent module" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "rejects non-existent module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, msg} = FetchDocs.execute(%{"module" => "NonExistentModuleThatDoesNotExist"}, context)
+
+      assert msg =~ "Module not found"
+    end
+
+    test "does not create new atoms for non-existent modules", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      random_name = "RandomModule#{:rand.uniform(1_000_000)}"
+
+      # Execute should fail without creating the atom
+      {:error, _} = FetchDocs.execute(%{"module" => random_name}, context)
+
+      # Verify atom was not created
+      assert_raise ArgumentError, fn ->
+        String.to_existing_atom("Elixir." <> random_name)
+      end
+    end
+  end
+
+  describe "FetchDocs.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "returns error for missing module parameter", %{project_root: _project_root} do
+      context = %{}
+      {:error, msg} = FetchDocs.execute(%{}, context)
+
+      assert msg =~ "Missing required parameter: module"
+    end
+
+    test "returns error for non-string module", %{project_root: _project_root} do
+      context = %{}
+      {:error, msg} = FetchDocs.execute(%{"module" => 123}, context)
+
+      assert msg =~ "Invalid module: expected string"
+    end
+  end
+
+  describe "FetchDocs.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      ref = :telemetry_test.attach_event_handlers(self(), [[:jido_code, :elixir, :fetch_docs]])
+
+      context = %{project_root: project_root}
+      {:ok, _} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      assert_receive {[:jido_code, :elixir, :fetch_docs], ^ref, %{duration: _, exit_code: 0}, %{status: :ok, task: "Enum"}}
+    end
+
+    test "emits telemetry on error", %{project_root: project_root} do
+      ref = :telemetry_test.attach_event_handlers(self(), [[:jido_code, :elixir, :fetch_docs]])
+
+      context = %{project_root: project_root}
+      {:error, _} = FetchDocs.execute(%{"module" => "NonExistentModule"}, context)
+
+      assert_receive {[:jido_code, :elixir, :fetch_docs], ^ref, %{duration: _, exit_code: 1}, %{status: :error, task: "NonExistentModule"}}
+    end
+  end
+
+  describe "FetchDocs.execute/2 - doc structure" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "doc entries have expected structure", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+
+      if length(result["docs"]) > 0 do
+        doc = hd(result["docs"])
+        assert Map.has_key?(doc, "name")
+        assert Map.has_key?(doc, "arity")
+        assert Map.has_key?(doc, "kind")
+        assert Map.has_key?(doc, "signature")
+        assert Map.has_key?(doc, "doc")
+        assert Map.has_key?(doc, "deprecated")
+      end
+    end
+
+    test "returns function and macro kinds", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Kernel"}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      assert "function" in kinds or "macro" in kinds
     end
   end
 end

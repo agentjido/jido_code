@@ -368,8 +368,8 @@ Implement the fetch_elixir_docs tool for retrieving module and function document
 
 ### 5.6.1 Tool Definition
 
-- [ ] 5.6.1.1 Add `fetch_elixir_docs/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.6.1.2 Define schema:
+- [x] 5.6.1.1 Add `fetch_elixir_docs/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.6.1.2 Define schema:
   ```elixir
   %{
     name: "fetch_elixir_docs",
@@ -382,32 +382,32 @@ Implement the fetch_elixir_docs tool for retrieving module and function document
     ]
   }
   ```
-- [ ] 5.6.1.3 Update `Elixir.all/0` to include `fetch_elixir_docs()`
+- [x] 5.6.1.3 Update `Elixir.all/0` to include `fetch_elixir_docs()`
 
 ### 5.6.2 Handler Implementation
 
-- [ ] 5.6.2.1 Create `FetchDocs` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.6.2.2 Parse module name safely:
+- [x] 5.6.2.1 Create `FetchDocs` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.6.2.2 Parse module name safely:
   - Use `String.to_existing_atom/1` to prevent atom table exhaustion
   - Handle "Elixir." prefix automatically
   - Return error for non-existent modules
-- [ ] 5.6.2.3 Use `Code.fetch_docs/1` for documentation
-- [ ] 5.6.2.4 Filter to specific function/arity if specified
-- [ ] 5.6.2.5 Include type specs via `Code.Typespec.fetch_specs/1`
-- [ ] 5.6.2.6 Format documentation (preserve markdown)
-- [ ] 5.6.2.7 Handle undocumented modules gracefully
-- [ ] 5.6.2.8 Return `{:ok, %{"moduledoc" => doc, "docs" => function_docs, "specs" => specs}}`
-- [ ] 5.6.2.9 Emit telemetry: `[:jido_code, :elixir, :fetch_docs]`
+- [x] 5.6.2.3 Use `Code.fetch_docs/1` for documentation
+- [x] 5.6.2.4 Filter to specific function/arity if specified
+- [x] 5.6.2.5 Include type specs via `Code.Typespec.fetch_specs/1`
+- [x] 5.6.2.6 Format documentation (preserve markdown)
+- [x] 5.6.2.7 Handle undocumented modules gracefully
+- [x] 5.6.2.8 Return `{:ok, %{"moduledoc" => doc, "docs" => function_docs, "specs" => specs}}`
+- [x] 5.6.2.9 Emit telemetry: `[:jido_code, :elixir, :fetch_docs]`
 
 ### 5.6.3 Unit Tests for Fetch Elixir Docs
 
-- [ ] Test fetch_elixir_docs for standard library module (Enum)
-- [ ] Test fetch_elixir_docs for specific function
-- [ ] Test fetch_elixir_docs for function with arity
-- [ ] Test fetch_elixir_docs includes specs
-- [ ] Test fetch_elixir_docs handles undocumented module
-- [ ] Test fetch_elixir_docs rejects non-existent module
-- [ ] Test fetch_elixir_docs uses existing atoms only (no atom table exhaustion)
+- [x] Test fetch_elixir_docs for standard library module (Enum)
+- [x] Test fetch_elixir_docs for specific function
+- [x] Test fetch_elixir_docs for function with arity
+- [x] Test fetch_elixir_docs includes specs
+- [x] Test fetch_elixir_docs handles undocumented module
+- [x] Test fetch_elixir_docs rejects non-existent module
+- [x] Test fetch_elixir_docs uses existing atoms only (no atom table exhaustion)
 
 ---
 

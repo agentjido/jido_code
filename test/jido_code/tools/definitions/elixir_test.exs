@@ -25,7 +25,7 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
   describe "all/0" do
     test "returns Elixir tools" do
       tools = Definitions.all()
-      assert length(tools) == 5
+      assert length(tools) == 6
 
       names = Enum.map(tools, & &1.name)
       assert "mix_task" in names
@@ -33,6 +33,7 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       assert "get_process_state" in names
       assert "inspect_supervisor" in names
       assert "ets_inspect" in names
+      assert "fetch_elixir_docs" in names
     end
   end
 
@@ -787,6 +788,127 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       assert {:ok, result} = Executor.execute(tool_call, context: context)
       assert result.status == :error
       assert result.content =~ "blocked"
+    end
+  end
+
+  describe "fetch_elixir_docs/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.fetch_elixir_docs()
+      assert tool.name == "fetch_elixir_docs"
+      assert tool.description =~ "documentation"
+      assert tool.description =~ "module"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.fetch_elixir_docs()
+      assert length(tool.parameters) == 3
+
+      module_param = Enum.find(tool.parameters, &(&1.name == "module"))
+      function_param = Enum.find(tool.parameters, &(&1.name == "function"))
+      arity_param = Enum.find(tool.parameters, &(&1.name == "arity"))
+
+      assert module_param.required == true
+      assert module_param.type == :string
+      assert module_param.description =~ "Enum"
+
+      assert function_param.required == false
+      assert function_param.type == :string
+      assert function_param.description =~ "Function name"
+
+      assert arity_param.required == false
+      assert arity_param.type == :integer
+      assert arity_param.description =~ "arity"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.fetch_elixir_docs()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.FetchDocs
+    end
+  end
+
+  describe "fetch_elixir_docs executor integration" do
+    test "fetch_elixir_docs tool is registered and executable", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "Enum"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert output["module"] == "Enum"
+      assert is_binary(output["moduledoc"])
+      assert is_list(output["docs"])
+      assert is_list(output["specs"])
+    end
+
+    test "fetch_elixir_docs returns error for non-existent module", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "NonExistentModule"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Module not found"
+    end
+
+    test "fetch_elixir_docs filters by function name", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "Enum", "function" => "map"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert is_list(output["docs"])
+
+      # All returned docs should be for "map"
+      Enum.each(output["docs"], fn doc ->
+        assert doc["name"] == "map"
+      end)
+    end
+
+    test "fetch_elixir_docs filters by function and arity", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "Enum", "function" => "map", "arity" => 2}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+
+      # All returned docs should be for "map/2"
+      Enum.each(output["docs"], fn doc ->
+        assert doc["name"] == "map"
+        assert doc["arity"] == 2
+      end)
+    end
+
+    test "fetch_elixir_docs requires module parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Missing required parameter" or result.content =~ "missing required"
     end
   end
 end

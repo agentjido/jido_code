@@ -341,6 +341,46 @@ defmodule JidoCode.Tools.HandlerHelpers do
 
   def contains_path_traversal?(_), do: false
 
+  @doc """
+  Extracts and validates a bounded integer from arguments.
+
+  Ensures the value is:
+  - A positive integer
+  - At most `max_value`
+  - Falls back to `default_value` if invalid or missing
+
+  Similar to `get_timeout/3` but for general bounded integers like limits, depths, etc.
+
+  ## Parameters
+
+  - `args` - Arguments map
+  - `key` - The key to look up (string)
+  - `default_value` - Default value if missing or invalid
+  - `max_value` - Maximum allowed value
+
+  ## Examples
+
+      iex> HandlerHelpers.get_bounded_integer(%{"limit" => 50}, "limit", 10, 100)
+      50
+
+      iex> HandlerHelpers.get_bounded_integer(%{"limit" => 150}, "limit", 10, 100)
+      100  # Capped at max
+
+      iex> HandlerHelpers.get_bounded_integer(%{}, "limit", 10, 100)
+      10  # Default
+
+      iex> HandlerHelpers.get_bounded_integer(%{"limit" => -1}, "limit", 10, 100)
+      10  # Invalid, falls back to default
+  """
+  @spec get_bounded_integer(map(), String.t(), pos_integer(), pos_integer()) :: pos_integer()
+  def get_bounded_integer(args, key, default_value, max_value) do
+    case Map.get(args, key) do
+      nil -> default_value
+      value when is_integer(value) and value > 0 -> min(value, max_value)
+      _ -> default_value
+    end
+  end
+
   # ============================================================================
   # Private Functions
   # ============================================================================

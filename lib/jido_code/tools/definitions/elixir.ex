@@ -50,7 +50,8 @@ defmodule JidoCode.Tools.Definitions.Elixir do
       run_exunit(),
       get_process_state(),
       inspect_supervisor(),
-      ets_inspect()
+      ets_inspect(),
+      fetch_elixir_docs()
     ]
   end
 
@@ -395,6 +396,65 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           description:
             "Maximum entries to return for sample operation (default: 10, max: 100). " <>
               "Higher values may impact performance on large tables.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the fetch_elixir_docs tool definition.
+
+  Retrieves documentation for Elixir modules and functions. Uses `Code.fetch_docs/1`
+  for documentation and `Code.Typespec.fetch_specs/1` for type specifications.
+
+  ## Parameters
+
+  - `module` (required, string) - Module name (e.g., 'Enum', 'String', 'MyApp.Worker')
+  - `function` (optional, string) - Function name to filter docs
+  - `arity` (optional, integer) - Function arity to filter docs
+
+  ## Security
+
+  - Only uses `String.to_existing_atom/1` to prevent atom table exhaustion
+  - Non-existent modules return an error rather than creating new atoms
+
+  ## Output
+
+  Returns JSON with moduledoc, function docs, and type specs.
+  """
+  @spec fetch_elixir_docs() :: Tool.t()
+  def fetch_elixir_docs do
+    Tool.new!(%{
+      name: "fetch_elixir_docs",
+      description:
+        "Retrieve documentation for Elixir module or function. " <>
+          "Returns module documentation, function docs, and type specifications. " <>
+          "Only existing (loaded) modules can be queried to prevent atom table exhaustion.",
+      handler: Handlers.FetchDocs,
+      parameters: [
+        %{
+          name: "module",
+          type: :string,
+          description:
+            "Module name (e.g., 'Enum', 'String', 'GenServer', 'MyApp.Worker'). " <>
+              "The 'Elixir.' prefix is optional and handled automatically.",
+          required: true
+        },
+        %{
+          name: "function",
+          type: :string,
+          description:
+            "Function name to filter documentation (e.g., 'map', 'reduce'). " <>
+              "When specified, only docs for this function are returned.",
+          required: false
+        },
+        %{
+          name: "arity",
+          type: :integer,
+          description:
+            "Function arity to filter documentation (e.g., 2 for Enum.map/2). " <>
+              "Requires 'function' to be specified. Use when multiple arities exist.",
           required: false
         }
       ]

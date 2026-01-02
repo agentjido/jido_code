@@ -1853,14 +1853,25 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     @moduledoc """
     Handler for the fetch_elixir_docs tool.
 
-    Retrieves documentation for Elixir modules and functions using `Code.fetch_docs/1`
-    and type specifications using `Code.Typespec.fetch_specs/1`.
+    Retrieves documentation for Elixir and Erlang modules and functions using
+    `Code.fetch_docs/1` and type specifications using `Code.Typespec.fetch_specs/1`.
+
+    ## Supported Modules
+
+    - **Elixir modules**: `"Enum"`, `"String"`, `"GenServer"` (with or without "Elixir." prefix)
+    - **Erlang modules**: `":gen_server"`, `":ets"`, `"gen_server"`, `"ets"` (lowercase)
 
     ## Security Features
 
     - Uses `String.to_existing_atom/1` to prevent atom table exhaustion
     - Only existing (loaded) modules can be queried
     - Non-existent modules return an error
+
+    ## Context Parameter
+
+    The `context` parameter is accepted for API consistency with other handlers but
+    is only used for telemetry emission. Unlike file-based handlers, FetchDocs queries
+    loaded BEAM modules directly and does not require project root validation.
 
     ## Output Format
 
@@ -1871,15 +1882,17 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     """
 
     alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.HandlerHelpers
 
     @doc """
-    Fetches documentation for an Elixir module or function.
+    Fetches documentation for an Elixir or Erlang module or function.
 
     ## Arguments
 
-    - `"module"` - Module name (required, e.g., "Enum", "String")
+    - `"module"` - Module name (required, e.g., "Enum", "String", ":gen_server")
     - `"function"` - Function name to filter (optional)
     - `"arity"` - Function arity to filter (optional, requires function)
+    - `"include_callbacks"` - Include callback docs for behaviour modules (optional, default: false)
 
     ## Returns
 
@@ -1894,9 +1907,10 @@ defmodule JidoCode.Tools.Handlers.Elixir do
            {:ok, docs_chunk} <- fetch_docs(module) do
         function_filter = Map.get(args, "function")
         arity_filter = Map.get(args, "arity")
+        include_callbacks = Map.get(args, "include_callbacks", false)
 
         moduledoc = extract_moduledoc(docs_chunk)
-        function_docs = extract_function_docs(docs_chunk, function_filter, arity_filter)
+        function_docs = extract_function_docs(docs_chunk, function_filter, arity_filter, include_callbacks)
         specs = fetch_specs(module, function_filter, arity_filter)
 
         result = %{
@@ -1931,15 +1945,33 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     # Private Helpers
     # ============================================================================
 
-    # Parse module name string to module atom using existing atoms only
+    # Parse module name string to module atom using existing atoms only.
+    # Supports both Elixir modules (with or without "Elixir." prefix) and
+    # Erlang modules (lowercase, with or without leading colon).
     @spec parse_module_name(String.t()) :: {:ok, module()} | {:error, atom()}
     defp parse_module_name(name) when is_binary(name) do
-      # Handle "Elixir." prefix automatically
+      # Normalize module name based on format:
+      # - "Elixir.Module" -> keep as-is (explicit Elixir module)
+      # - ":erlang_mod" -> strip colon, use as Erlang module
+      # - "erlang_mod" (lowercase, no dots) -> Erlang module
+      # - "Module" (capitalized) -> prepend "Elixir."
       normalized_name =
-        if String.starts_with?(name, "Elixir.") do
-          name
-        else
-          "Elixir." <> name
+        cond do
+          # Already has Elixir. prefix
+          String.starts_with?(name, "Elixir.") ->
+            name
+
+          # Erlang module with leading colon (e.g., ":gen_server")
+          String.starts_with?(name, ":") ->
+            String.trim_leading(name, ":")
+
+          # Erlang module (lowercase, no dots) - matches :gen_server, :ets, :erlang, etc.
+          String.match?(name, ~r/^[a-z_][a-z0-9_]*$/) ->
+            name
+
+          # Elixir module without prefix - prepend "Elixir."
+          true ->
+            "Elixir." <> name
         end
 
       try do
@@ -1958,7 +1990,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     end
 
     # Fetch documentation chunk for a module
-    @spec fetch_docs(module()) :: {:ok, tuple()} | {:error, atom()}
+    @spec fetch_docs(module()) :: {:ok, tuple()} | {:error, atom() | tuple()}
     defp fetch_docs(module) do
       case Code.fetch_docs(module) do
         {:docs_v1, _, _, _, _, _, _} = docs ->
@@ -1969,6 +2001,13 @@ defmodule JidoCode.Tools.Handlers.Elixir do
 
         {:error, :module_not_found} ->
           {:error, :module_not_found}
+
+        # Handle invalid BEAM file errors with specific messages
+        {:error, {:invalid_chunk, _binary}} ->
+          {:error, :invalid_beam_file}
+
+        {:error, :invalid_beam} ->
+          {:error, :invalid_beam_file}
 
         {:error, reason} ->
           {:error, reason}
@@ -1986,16 +2025,20 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end
     end
 
-    # Extract function documentation, optionally filtered by function name and arity
-    @spec extract_function_docs(tuple(), String.t() | nil, integer() | nil) :: [map()]
-    defp extract_function_docs({:docs_v1, _, _, _, _, _, docs}, function_filter, arity_filter) do
+    # Extract function documentation, optionally filtered by function name and arity.
+    # When include_callbacks is true, also includes callback documentation for behaviours.
+    @spec extract_function_docs(tuple(), String.t() | nil, integer() | nil, boolean()) :: [map()]
+    defp extract_function_docs({:docs_v1, _, _, _, _, _, docs}, function_filter, arity_filter, include_callbacks) do
       docs
       |> Enum.filter(fn
-        {{kind, _name, _arity}, _, _, _, _} when kind in [:function, :macro] -> true
-        _ -> false
+        {{kind, _name, _arity}, _, _, _, _} ->
+          kind_allowed?(kind, include_callbacks)
+
+        _ ->
+          false
       end)
       |> Enum.filter(fn {{_kind, name, arity}, _, _, _, _} ->
-        matches_filter?(name, arity, function_filter, arity_filter)
+        matches_name_arity_filter?(name, arity, function_filter, arity_filter)
       end)
       |> Enum.map(fn {{kind, name, arity}, _line, signature, doc, metadata} ->
         %{
@@ -2009,20 +2052,31 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end)
     end
 
-    # Check if a function matches the filter criteria
-    @spec matches_filter?(atom(), integer(), String.t() | nil, integer() | nil) :: boolean()
-    defp matches_filter?(_name, _arity, nil, nil), do: true
+    # Check if a doc kind is allowed based on include_callbacks flag.
+    @spec kind_allowed?(atom(), boolean()) :: boolean()
+    defp kind_allowed?(kind, true) when kind in [:function, :macro, :callback, :macrocallback],
+      do: true
 
-    defp matches_filter?(name, _arity, function_filter, nil) when is_binary(function_filter) do
+    defp kind_allowed?(kind, false) when kind in [:function, :macro], do: true
+    defp kind_allowed?(_kind, _include_callbacks), do: false
+
+    # Check if a function/spec matches the filter criteria.
+    # Used by both extract_function_docs and fetch_specs to avoid duplication.
+    @spec matches_name_arity_filter?(atom(), integer(), String.t() | nil, integer() | nil) ::
+            boolean()
+    defp matches_name_arity_filter?(_name, _arity, nil, nil), do: true
+
+    defp matches_name_arity_filter?(name, _arity, function_filter, nil)
+         when is_binary(function_filter) do
       Atom.to_string(name) == function_filter
     end
 
-    defp matches_filter?(name, arity, function_filter, arity_filter)
+    defp matches_name_arity_filter?(name, arity, function_filter, arity_filter)
          when is_binary(function_filter) and is_integer(arity_filter) do
       Atom.to_string(name) == function_filter and arity == arity_filter
     end
 
-    defp matches_filter?(_name, _arity, _function_filter, _arity_filter), do: true
+    defp matches_name_arity_filter?(_name, _arity, _function_filter, _arity_filter), do: true
 
     # Format function signature for display
     @spec format_signature([binary()]) :: String.t() | nil
@@ -2049,7 +2103,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
         {:ok, specs} ->
           specs
           |> Enum.filter(fn {{name, arity}, _spec} ->
-            matches_spec_filter?(name, arity, function_filter, arity_filter)
+            matches_name_arity_filter?(name, arity, function_filter, arity_filter)
           end)
           |> Enum.map(fn {{name, arity}, spec_list} ->
             formatted_specs =
@@ -2070,26 +2124,12 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       end
     end
 
-    # Check if a spec matches the filter criteria
-    @spec matches_spec_filter?(atom(), integer(), String.t() | nil, integer() | nil) :: boolean()
-    defp matches_spec_filter?(_name, _arity, nil, nil), do: true
-
-    defp matches_spec_filter?(name, _arity, function_filter, nil) when is_binary(function_filter) do
-      Atom.to_string(name) == function_filter
-    end
-
-    defp matches_spec_filter?(name, arity, function_filter, arity_filter)
-         when is_binary(function_filter) and is_integer(arity_filter) do
-      Atom.to_string(name) == function_filter and arity == arity_filter
-    end
-
-    defp matches_spec_filter?(_name, _arity, _function_filter, _arity_filter), do: true
-
     # Format error messages
     @spec format_error(atom() | String.t()) :: String.t()
     defp format_error(:module_not_found), do: "Module not found (only existing modules can be queried)"
     defp format_error(:module_not_loaded), do: "Module exists but is not loaded"
     defp format_error(:no_docs), do: "Module has no embedded documentation"
+    defp format_error(:invalid_beam_file), do: "Module has a corrupted or invalid BEAM file"
     defp format_error(reason) when is_binary(reason), do: reason
     defp format_error(reason), do: "Error: #{inspect(reason)}"
   end

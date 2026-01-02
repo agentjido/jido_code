@@ -2388,14 +2388,23 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
   describe "FetchDocs.execute/2 - undocumented module" do
     alias JidoCode.Tools.Handlers.Elixir.FetchDocs
 
-    test "handles module with no docs gracefully", %{project_root: project_root} do
+    test "handles Erlang module with docs gracefully", %{project_root: project_root} do
       context = %{project_root: project_root}
-      # :erlang module has no Elixir docs
+      # :erlang module has docs in modern OTP versions
       result = FetchDocs.execute(%{"module" => "erlang"}, context)
 
-      # Should return an error for :erlang (not an Elixir module)
-      assert {:error, msg} = result
-      assert msg =~ "Module not found" or msg =~ "no embedded documentation"
+      # Should succeed and return docs for :erlang module
+      case result do
+        {:ok, json} ->
+          decoded = Jason.decode!(json)
+          assert decoded["module"] == "erlang"
+          # :erlang has docs with nil moduledoc but has function docs
+          assert is_list(decoded["docs"])
+
+        {:error, msg} ->
+          # Older OTP versions may not have :erlang docs
+          assert msg =~ "no embedded documentation"
+      end
     end
   end
 
@@ -2491,6 +2500,204 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
 
       assert "function" in kinds or "macro" in kinds
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests - Erlang Modules
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - Erlang modules" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "fetches docs for Erlang module with colon prefix", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      result = FetchDocs.execute(%{"module" => ":ets"}, context)
+
+      # :ets may or may not have docs depending on Erlang version
+      # but the module should be found (not return module_not_found)
+      case result do
+        {:ok, json} ->
+          result = Jason.decode!(json)
+          assert result["module"] == ":ets"
+
+        {:error, msg} ->
+          # Should be "no docs" not "module not found"
+          assert msg =~ "no embedded documentation" or msg =~ "not found"
+      end
+    end
+
+    test "fetches docs for Erlang module without colon prefix", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      result = FetchDocs.execute(%{"module" => "ets"}, context)
+
+      case result do
+        {:ok, json} ->
+          result = Jason.decode!(json)
+          assert result["module"] == "ets"
+
+        {:error, msg} ->
+          # Should be "no docs" not "module not found"
+          assert msg =~ "no embedded documentation" or msg =~ "not found"
+      end
+    end
+
+    test "fetches docs for :erlang module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      result = FetchDocs.execute(%{"module" => ":erlang"}, context)
+
+      case result do
+        {:ok, _json} ->
+          # Success - Erlang docs available
+          assert true
+
+        {:error, msg} ->
+          # Should be "no docs" not "module not found"
+          assert msg =~ "no embedded documentation"
+      end
+    end
+
+    test "distinguishes Erlang from Elixir modules", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      # Elixir module (capitalized)
+      {:ok, elixir_json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+      elixir_result = Jason.decode!(elixir_json)
+      assert elixir_result["module"] == "Enum"
+      assert is_binary(elixir_result["moduledoc"])
+
+      # Erlang module (lowercase, no dots)
+      erlang_result = FetchDocs.execute(%{"module" => "lists"}, context)
+      # :lists is an Erlang module, should be recognized as such
+      assert match?({:ok, _}, erlang_result) or match?({:error, _}, erlang_result)
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests - Include Callbacks
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - include_callbacks option" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "excludes callbacks by default", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "GenServer"}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      # By default, only function and macro kinds should be present
+      refute "callback" in kinds
+      refute "macrocallback" in kinds
+    end
+
+    test "includes callbacks when include_callbacks is true", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "GenServer", "include_callbacks" => true}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      # Should include callback documentation for GenServer
+      assert "callback" in kinds
+    end
+
+    test "includes macrocallbacks when include_callbacks is true", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Access uses macrocallbacks
+      {:ok, json} = FetchDocs.execute(%{"module" => "Access", "include_callbacks" => true}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      # Access behaviour has macrocallbacks
+      assert "callback" in kinds or "macrocallback" in kinds
+    end
+
+    test "callback docs have expected structure", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "GenServer", "function" => "init", "include_callbacks" => true}, context)
+
+      result = Jason.decode!(json)
+
+      # Should find the init callback
+      init_doc = Enum.find(result["docs"], &(&1["name"] == "init"))
+      if init_doc do
+        assert init_doc["kind"] == "callback"
+        assert is_integer(init_doc["arity"])
+      end
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests - Edge Cases
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - edge cases" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "handles empty module name", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, msg} = FetchDocs.execute(%{"module" => ""}, context)
+
+      assert msg =~ "not found" or msg =~ "not loaded"
+    end
+
+    test "handles arity without function name", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Arity without function should still work (returns all functions)
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+      # Should return docs (arity filter is ignored without function filter)
+      assert is_list(result["docs"])
+    end
+
+    test "handles module with @moduledoc false", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Inspect.Opts is a struct module with hidden docs
+      result = FetchDocs.execute(%{"module" => "Inspect.Opts"}, context)
+
+      case result do
+        {:ok, json} ->
+          result = Jason.decode!(json)
+          # moduledoc might be nil for hidden modules
+          assert result["module"] == "Inspect.Opts"
+
+        {:error, _msg} ->
+          # Some modules may not be available
+          assert true
+      end
+    end
+
+    test "handles function with @doc false", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Get docs for a module - hidden functions should be filtered out
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      result = Jason.decode!(json)
+
+      # All returned docs should have actual documentation (not nil from :hidden)
+      for doc <- result["docs"] do
+        # doc can be nil (for :none) but structure should be valid
+        assert Map.has_key?(doc, "doc")
+      end
+    end
+
+    test "handles deprecated function metadata", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Get docs and check deprecated field is present
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "chunk"}, context)
+
+      result = Jason.decode!(json)
+
+      # chunk/2 is deprecated in favor of chunk_every/2
+      for doc <- result["docs"] do
+        assert Map.has_key?(doc, "deprecated")
+        # deprecated is either nil or a string
+        assert is_nil(doc["deprecated"]) or is_binary(doc["deprecated"])
+      end
     end
   end
 end

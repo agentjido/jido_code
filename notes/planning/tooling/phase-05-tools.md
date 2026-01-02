@@ -409,6 +409,20 @@ Implement the fetch_elixir_docs tool for retrieving module and function document
 - [x] Test fetch_elixir_docs rejects non-existent module
 - [x] Test fetch_elixir_docs uses existing atoms only (no atom table exhaustion)
 
+### 5.6.4 Review Fixes (2026-01-02)
+
+Post-implementation review fixes based on `notes/reviews/phase-05-section-5.6-fetch-docs-review.md`:
+
+- [x] 5.6.4.1 Add Erlang module support (`:gen_server`, `:ets`, etc.)
+- [x] 5.6.4.2 Consolidate duplicate filter logic (`matches_name_arity_filter?/4`)
+- [x] 5.6.4.3 Document context parameter usage in moduledoc
+- [x] 5.6.4.4 Add HandlerHelpers alias for consistency
+- [x] 5.6.4.5 Add `include_callbacks` parameter for behaviour modules
+- [x] 5.6.4.6 Improve error handling for invalid BEAM files
+- [x] 5.6.4.7 Add edge case tests (Erlang modules, callbacks, empty module, etc.)
+
+See: `notes/summaries/phase-05-section-5.6-review-fixes.md`
+
 ---
 
 ## 5.7 Phase 5 Integration Tests

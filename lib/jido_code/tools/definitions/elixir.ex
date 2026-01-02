@@ -428,8 +428,9 @@ defmodule JidoCode.Tools.Definitions.Elixir do
     Tool.new!(%{
       name: "fetch_elixir_docs",
       description:
-        "Retrieve documentation for Elixir module or function. " <>
+        "Retrieve documentation for Elixir or Erlang module or function. " <>
           "Returns module documentation, function docs, and type specifications. " <>
+          "Supports both Elixir modules (e.g., 'Enum') and Erlang modules (e.g., ':gen_server', 'ets'). " <>
           "Only existing (loaded) modules can be queried to prevent atom table exhaustion.",
       handler: Handlers.FetchDocs,
       parameters: [
@@ -438,6 +439,7 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           type: :string,
           description:
             "Module name (e.g., 'Enum', 'String', 'GenServer', 'MyApp.Worker'). " <>
+              "For Erlang modules use ':gen_server', ':ets', or just 'ets' (lowercase). " <>
               "The 'Elixir.' prefix is optional and handled automatically.",
           required: true
         },
@@ -455,6 +457,14 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           description:
             "Function arity to filter documentation (e.g., 2 for Enum.map/2). " <>
               "Requires 'function' to be specified. Use when multiple arities exist.",
+          required: false
+        },
+        %{
+          name: "include_callbacks",
+          type: :boolean,
+          description:
+            "Include callback documentation for behaviour modules (e.g., GenServer, Supervisor). " <>
+              "When true, callback and macrocallback documentation is included in the output.",
           required: false
         }
       ]

@@ -801,15 +801,17 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
 
     test "has correct parameters" do
       tool = Definitions.fetch_elixir_docs()
-      assert length(tool.parameters) == 3
+      assert length(tool.parameters) == 4
 
       module_param = Enum.find(tool.parameters, &(&1.name == "module"))
       function_param = Enum.find(tool.parameters, &(&1.name == "function"))
       arity_param = Enum.find(tool.parameters, &(&1.name == "arity"))
+      include_callbacks_param = Enum.find(tool.parameters, &(&1.name == "include_callbacks"))
 
       assert module_param.required == true
       assert module_param.type == :string
       assert module_param.description =~ "Enum"
+      assert module_param.description =~ "Erlang"
 
       assert function_param.required == false
       assert function_param.type == :string
@@ -818,6 +820,10 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       assert arity_param.required == false
       assert arity_param.type == :integer
       assert arity_param.description =~ "arity"
+
+      assert include_callbacks_param.required == false
+      assert include_callbacks_param.type == :boolean
+      assert include_callbacks_param.description =~ "callback"
     end
 
     test "has correct handler" do

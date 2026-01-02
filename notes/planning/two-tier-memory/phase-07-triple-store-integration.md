@@ -80,33 +80,33 @@ lib/jido_code/memory/
 
 ---
 
-## 7.1 Add TripleStore Dependency
+## 7.1 Add TripleStore Dependency ✓
 
 ### 7.1.1 Update mix.exs
 
-- [ ] 7.1.1.1 Add triple_store as local dependency:
+- [x] 7.1.1.1 Add triple_store as local dependency:
   ```elixir
   # In deps()
-  {:triple_store, path: "../triple_store"}
+  {:triple_store, path: "../../triple_store"}
   ```
-- [ ] 7.1.1.2 Run `mix deps.get` to fetch dependency
-- [ ] 7.1.1.3 Verify compilation with `mix compile`
-- [ ] 7.1.1.4 Update application.ex if needed for TripleStore.Application
+- [x] 7.1.1.2 Run `mix deps.get` to fetch dependency
+- [x] 7.1.1.3 Verify compilation with `mix compile`
+- [x] 7.1.1.4 Update application.ex if needed for TripleStore.Application (not needed - TripleStore handles its own supervision)
 
 ### 7.1.2 Verify TripleStore Integration
 
-- [ ] 7.1.2.1 Create simple integration test to verify triple_store works:
+- [x] 7.1.2.1 Create simple integration test to verify triple_store works:
   ```elixir
   test "can open, insert, query, and close store" do
     {:ok, store} = TripleStore.open(temp_path())
-    {:ok, 1} = TripleStore.insert(store, {~I<http://ex/s>, ~I<http://ex/p>, "object"})
+    {:ok, 1} = TripleStore.insert(store, {RDF.iri("http://ex/s"), RDF.iri("http://ex/p"), RDF.iri("http://ex/o")})
     {:ok, results} = TripleStore.query(store, "SELECT ?s WHERE { ?s ?p ?o }")
     assert length(results) == 1
     :ok = TripleStore.close(store)
   end
   ```
-- [ ] 7.1.2.2 Test loading a TTL file from ontology directory
-- [ ] 7.1.2.3 Test SPARQL query against loaded ontology
+- [x] 7.1.2.2 Test loading a TTL file from ontology directory
+- [x] 7.1.2.3 Test SPARQL query against loaded ontology
 
 ---
 

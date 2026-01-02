@@ -56,7 +56,8 @@ defmodule JidoCode.MixProject do
       # Lua sandbox for tool execution
       {:luerl, "~> 1.2"},
 
-      # Knowledge graph
+      # Knowledge graph / Triple store
+      {:triple_store, path: "../../triple_store"},
       {:rdf, "~> 2.0"},
       {:libgraph, "~> 0.16"},
 

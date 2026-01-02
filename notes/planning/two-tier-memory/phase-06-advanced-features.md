@@ -53,7 +53,7 @@ Implement context summarization to compress conversation history when token budg
 
 ### 6.1.1 Summarizer Module
 
-- [ ] 6.1.1.1 Create `lib/jido_code/memory/summarizer.ex` with moduledoc:
+- [x] 6.1.1.1 Create `lib/jido_code/memory/summarizer.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Extracts key information from conversation history for compression.
@@ -68,7 +68,7 @@ Implement context summarization to compress conversation history when token budg
   - Tool results summarized to outcomes only
   """
   ```
-- [ ] 6.1.1.2 Define message importance weights:
+- [x] 6.1.1.2 Define message importance weights:
   ```elixir
   @role_weights %{
     user: 1.0,
@@ -84,7 +84,7 @@ Implement context summarization to compress conversation history when token budg
     important: {~r/(?:important|critical|must|required)/i, 0.2}
   }
   ```
-- [ ] 6.1.1.3 Implement `summarize/2`:
+- [x] 6.1.1.3 Implement `summarize/2`:
   ```elixir
   @spec summarize([message()], non_neg_integer()) :: [message()]
   def summarize(messages, target_tokens) do
@@ -94,7 +94,7 @@ Implement context summarization to compress conversation history when token budg
     |> add_summary_markers()
   end
   ```
-- [ ] 6.1.1.4 Implement `score_messages/1`:
+- [x] 6.1.1.4 Implement `score_messages/1`:
   ```elixir
   defp score_messages(messages) do
     total = length(messages)
@@ -111,7 +111,7 @@ Implement context summarization to compress conversation history when token budg
     end)
   end
   ```
-- [ ] 6.1.1.5 Implement `score_content/1`:
+- [x] 6.1.1.5 Implement `score_content/1`:
   ```elixir
   defp score_content(content) do
     @content_indicators
@@ -121,7 +121,7 @@ Implement context summarization to compress conversation history when token budg
     |> min(1.0)
   end
   ```
-- [ ] 6.1.1.6 Implement `select_top_messages/2`:
+- [x] 6.1.1.6 Implement `select_top_messages/2`:
   ```elixir
   defp select_top_messages(scored_messages, target_tokens) do
     scored_messages
@@ -138,7 +138,7 @@ Implement context summarization to compress conversation history when token budg
     |> Enum.sort_by(& &1.timestamp)  # Restore chronological order
   end
   ```
-- [ ] 6.1.1.7 Implement `add_summary_markers/1`:
+- [x] 6.1.1.7 Implement `add_summary_markers/1`:
   ```elixir
   defp add_summary_markers(messages) do
     # Add marker indicating summarization occurred

@@ -3,27 +3,29 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   Session-isolated triple store lifecycle management.
 
   The StoreManager is a GenServer that manages the lifecycle of session-specific
-  stores for long-term memory persistence. Each session gets its own isolated
-  store, identified by its session ID.
+  TripleStore instances for long-term memory persistence. Each session gets its
+  own isolated RDF triple store backed by RocksDB.
 
   ## Architecture
 
   ```
   StoreManager (GenServer)
        │
-       ├── stores: %{session_id => store_ref}
+       ├── stores: %{session_id => %{store: store_ref, metadata: %{...}}}
        │
        └── base_path: ~/.jido_code/memory_stores/
-            ├── session_abc123/
-            ├── session_def456/
-            └── session_ghi789/
+            ├── session_abc123/   (RocksDB instance)
+            ├── session_def456/   (RocksDB instance)
+            └── session_ghi789/   (RocksDB instance)
   ```
 
   ## Store Backend
 
-  The current implementation uses ETS tables as the backing store. Each session
-  gets its own ETS table for storing RDF-like triples. This can be upgraded to
-  a persistent triple store (like RocksDB-backed) in the future.
+  Uses the TripleStore library backed by RocksDB for persistent RDF storage.
+  Each session gets its own TripleStore instance with:
+  - SPARQL 1.1 Query and Update support
+  - Ontology loaded on first open
+  - Persistent storage across restarts
 
   ## Example Usage
 
@@ -33,6 +35,9 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
       # Get an existing store (fails if not open)
       {:ok, store} = StoreManager.get("session-123")
       {:error, :not_found} = StoreManager.get("unknown-session")
+
+      # Check store health
+      {:ok, :healthy} = StoreManager.health("session-123")
 
       # Close a specific session's store
       :ok = StoreManager.close("session-123")
@@ -55,6 +60,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   require Logger
 
+  alias JidoCode.Memory.LongTerm.OntologyLoader
   alias JidoCode.Memory.Types
 
   # =============================================================================
@@ -62,19 +68,36 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   # =============================================================================
 
   @typedoc """
-  Reference to an open store. Currently an ETS table reference.
+  Reference to an open TripleStore instance.
   """
-  @type store_ref :: :ets.tid()
+  @type store_ref :: TripleStore.store()
+
+  @typedoc """
+  Metadata tracked for each open store.
+  """
+  @type store_metadata :: %{
+          opened_at: DateTime.t(),
+          last_accessed: DateTime.t(),
+          ontology_loaded: boolean()
+        }
+
+  @typedoc """
+  Entry for a store in the stores map.
+  """
+  @type store_entry :: %{
+          store: store_ref(),
+          metadata: store_metadata()
+        }
 
   @typedoc """
   StoreManager state.
 
-  - `stores` - Map of session_id to store reference
-  - `base_path` - Base directory for persistent storage (future use)
+  - `stores` - Map of session_id to store entry (store ref + metadata)
+  - `base_path` - Base directory for persistent storage
   - `config` - Store configuration options
   """
   @type state :: %{
-          stores: %{String.t() => store_ref()},
+          stores: %{String.t() => store_entry()},
           base_path: String.t(),
           config: map()
         }
@@ -117,7 +140,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   Gets or creates a store for the given session.
 
   If a store already exists for the session, returns the existing reference.
-  If not, creates a new store and returns its reference.
+  If not, opens a new TripleStore and loads the ontology.
 
   ## Examples
 
@@ -144,6 +167,40 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   @spec get(String.t(), GenServer.server()) :: {:ok, store_ref()} | {:error, :not_found}
   def get(session_id, server \\ __MODULE__) do
     GenServer.call(server, {:get, session_id})
+  end
+
+  @doc """
+  Gets store metadata for the given session.
+
+  Returns metadata including open time, last access time, and ontology status.
+
+  ## Examples
+
+      {:ok, %{opened_at: ~U[...], last_accessed: ~U[...], ontology_loaded: true}} =
+        StoreManager.get_metadata("session-123")
+
+  """
+  @spec get_metadata(String.t(), GenServer.server()) ::
+          {:ok, store_metadata()} | {:error, :not_found}
+  def get_metadata(session_id, server \\ __MODULE__) do
+    GenServer.call(server, {:get_metadata, session_id})
+  end
+
+  @doc """
+  Checks the health of a session's store.
+
+  Returns `{:ok, :healthy}` if the store is operational.
+
+  ## Examples
+
+      {:ok, :healthy} = StoreManager.health("session-123")
+      {:error, :not_found} = StoreManager.health("unknown-session")
+
+  """
+  @spec health(String.t(), GenServer.server()) ::
+          {:ok, :healthy} | {:error, :not_found | :unhealthy | term()}
+  def health(session_id, server \\ __MODULE__) do
+    GenServer.call(server, {:health, session_id})
   end
 
   @doc """
@@ -252,16 +309,21 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
       case Map.get(state.stores, session_id) do
         nil ->
           case open_store(session_id, state) do
-            {:ok, store_ref} ->
-              new_stores = Map.put(state.stores, session_id, store_ref)
+            {:ok, store_ref, metadata} ->
+              entry = %{store: store_ref, metadata: metadata}
+              new_stores = Map.put(state.stores, session_id, entry)
               {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
 
             {:error, reason} ->
               {:reply, {:error, reason}, state}
           end
 
-        store_ref ->
-          {:reply, {:ok, store_ref}, state}
+        %{store: store_ref} = entry ->
+          # Update last accessed time
+          updated_metadata = %{entry.metadata | last_accessed: DateTime.utc_now()}
+          updated_entry = %{entry | metadata: updated_metadata}
+          new_stores = Map.put(state.stores, session_id, updated_entry)
+          {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
       end
     end
   end
@@ -269,8 +331,40 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   @impl true
   def handle_call({:get, session_id}, _from, state) do
     case Map.get(state.stores, session_id) do
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      %{store: store_ref} = entry ->
+        # Update last accessed time
+        updated_metadata = %{entry.metadata | last_accessed: DateTime.utc_now()}
+        updated_entry = %{entry | metadata: updated_metadata}
+        new_stores = Map.put(state.stores, session_id, updated_entry)
+        {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
+    end
+  end
+
+  @impl true
+  def handle_call({:get_metadata, session_id}, _from, state) do
+    case Map.get(state.stores, session_id) do
       nil -> {:reply, {:error, :not_found}, state}
-      store_ref -> {:reply, {:ok, store_ref}, state}
+      %{metadata: metadata} -> {:reply, {:ok, metadata}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:health, session_id}, _from, state) do
+    case Map.get(state.stores, session_id) do
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      %{store: store_ref} ->
+        case TripleStore.health(store_ref) do
+          {:ok, %{status: :healthy}} -> {:reply, {:ok, :healthy}, state}
+          {:ok, %{status: status}} -> {:reply, {:error, {:unhealthy, status}}, state}
+          {:ok, :healthy} -> {:reply, {:ok, :healthy}, state}
+          {:ok, status} when is_map(status) -> {:reply, {:ok, :healthy}, state}
+          {:error, reason} -> {:reply, {:error, reason}, state}
+        end
     end
   end
 
@@ -280,7 +374,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
       nil ->
         {:reply, :ok, state}
 
-      store_ref ->
+      %{store: store_ref} ->
         close_store(store_ref)
         new_stores = Map.delete(state.stores, session_id)
         {:reply, :ok, %{state | stores: new_stores}}
@@ -289,7 +383,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
   @impl true
   def handle_call(:close_all, _from, state) do
-    Enum.each(state.stores, fn {_session_id, store_ref} ->
+    Enum.each(state.stores, fn {_session_id, %{store: store_ref}} ->
       close_store(store_ref)
     end)
 
@@ -322,7 +416,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   def terminate(reason, state) do
     Logger.debug("StoreManager terminating: #{inspect(reason)}")
 
-    Enum.each(state.stores, fn {_session_id, store_ref} ->
+    Enum.each(state.stores, fn {_session_id, %{store: store_ref}} ->
       close_store(store_ref)
     end)
 
@@ -352,7 +446,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   end
 
   defp open_store(session_id, state) do
-    # Create session-specific directory for future persistence
+    # Create session-specific directory for the TripleStore
     session_path = store_path(state.base_path, session_id)
 
     # Verify path containment - ensure resolved path is within base_path
@@ -364,36 +458,55 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
          resolved_path != base_expanded do
       {:error, :path_traversal_detected}
     else
-      ensure_directory(session_path)
+      # Open TripleStore with RocksDB backend
+      case TripleStore.open(session_path, create_if_missing: true) do
+        {:ok, store} ->
+          # Ensure ontology is loaded
+          case ensure_ontology_loaded(store) do
+            :ok ->
+              now = DateTime.utc_now()
 
-      # Create an ETS table as the backing store
-      # Using :set for key-value storage, :public for accessibility
-      # Note: Public access is required because TripleStoreAdapter writes from
-      # the calling process. A future improvement could route all writes through
-      # the StoreManager GenServer to enable :protected access.
-      # Session isolation is enforced at the API layer through session_id validation.
-      table_name = :"jido_memory_#{session_id}"
+              metadata = %{
+                opened_at: now,
+                last_accessed: now,
+                ontology_loaded: true
+              }
 
-      try do
-        table = :ets.new(table_name, [:set, :public, :named_table])
-        {:ok, table}
-      rescue
-        ArgumentError ->
-          # Table already exists (shouldn't happen, but handle it)
-          {:ok, :ets.whereis(table_name)}
+              Logger.debug("Opened TripleStore for session #{session_id} at #{session_path}")
+              {:ok, store, metadata}
+
+            {:error, reason} ->
+              # Close the store if ontology loading fails
+              TripleStore.close(store)
+              {:error, {:ontology_load_failed, reason}}
+          end
+
+        {:error, reason} ->
+          Logger.error("Failed to open TripleStore for session #{session_id}: #{inspect(reason)}")
+          {:error, {:store_open_failed, reason}}
+      end
+    end
+  end
+
+  defp ensure_ontology_loaded(store) do
+    if OntologyLoader.ontology_loaded?(store) do
+      :ok
+    else
+      case OntologyLoader.load_ontology(store) do
+        {:ok, _count} -> :ok
+        {:error, reason} -> {:error, reason}
       end
     end
   end
 
   defp close_store(store_ref) do
-    try do
-      :ets.delete(store_ref)
-    rescue
-      ArgumentError ->
-        # Table already deleted
+    case TripleStore.close(store_ref) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Error closing TripleStore: #{inspect(reason)}")
         :ok
     end
-
-    :ok
   end
 end

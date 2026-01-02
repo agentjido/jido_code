@@ -711,19 +711,23 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     """
 
     alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.HandlerHelpers
 
     @default_timeout 5_000
     @max_timeout 30_000
 
     # Blocked process prefixes for security
     # System processes and JidoCode internals should not be inspected
+    # Comprehensive list of BEAM/OTP system processes
     @blocked_prefixes [
+      # JidoCode internal processes
       "JidoCode.Tools",
       "JidoCode.Session",
       "JidoCode.Registry",
       "Elixir.JidoCode.Tools",
       "Elixir.JidoCode.Session",
       "Elixir.JidoCode.Registry",
+      # Erlang kernel and runtime
       ":kernel",
       ":stdlib",
       ":init",
@@ -731,20 +735,66 @@ defmodule JidoCode.Tools.Handlers.Elixir do
       ":user",
       ":application_controller",
       ":error_logger",
-      ":logger"
+      ":logger",
+      # Distribution and networking
+      ":global_name_server",
+      ":global_group",
+      ":net_kernel",
+      ":auth",
+      ":inet_db",
+      ":erl_epmd",
+      # Code loading and file system
+      ":erl_prim_loader",
+      ":file_server_2",
+      ":erts_code_purger",
+      # Remote execution and signals
+      ":rex",
+      ":erl_signal_server",
+      # SSL/TLS processes
+      ":ssl_manager",
+      ":ssl_pem_cache",
+      # Disk logging
+      ":disk_log_server",
+      ":disk_log_sup",
+      # Standard server processes
+      ":standard_error",
+      ":standard_error_sup"
     ]
 
-    # Sensitive field names to redact
+    # Sensitive field names to redact (comprehensive list)
     @sensitive_fields [
+      # Authentication
       "password",
+      "passwd",
+      "pwd",
+      "passphrase",
+      # Tokens and keys
       "secret",
       "token",
       "api_key",
       "apikey",
       "private_key",
+      "secret_key",
+      "signing_key",
+      "encryption_key",
+      # Credentials
       "credentials",
       "auth",
-      "bearer"
+      "bearer",
+      "authorization",
+      # Session and client secrets
+      "session_secret",
+      "client_secret",
+      "consumer_secret",
+      # Database and connection
+      "database_url",
+      "connection_string",
+      "db_password",
+      # Cryptographic materials
+      "salt",
+      "nonce",
+      "iv",
+      "hmac"
     ]
 
     @doc """
@@ -763,7 +813,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
     def execute(%{"process" => process_name} = args, context) when is_binary(process_name) do
       start_time = System.monotonic_time(:microsecond)
-      timeout = get_timeout(args)
+      timeout = HandlerHelpers.get_timeout(args, @default_timeout, @max_timeout)
 
       with :ok <- validate_process_name(process_name),
            :ok <- validate_not_blocked(process_name),
@@ -771,7 +821,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
         get_and_format_state(pid, process_name, timeout, context, start_time)
       else
         {:error, reason} ->
-          emit_telemetry(start_time, process_name, context, :error)
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :error, 1)
           {:error, format_error(reason)}
       end
     end
@@ -787,14 +837,6 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     # ============================================================================
     # Private Helpers
     # ============================================================================
-
-    defp get_timeout(args) do
-      case Map.get(args, "timeout") do
-        nil -> @default_timeout
-        timeout when is_integer(timeout) and timeout > 0 -> min(timeout, @max_timeout)
-        _ -> @default_timeout
-      end
-    end
 
     # Validate process name format - only allow registered names, not raw PIDs
     defp validate_process_name(name) do
@@ -880,7 +922,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
             "type" => process_type
           }
 
-          emit_telemetry(start_time, process_name, context, :ok)
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :ok, 0)
 
           case Jason.encode(result) do
             {:ok, json} -> {:ok, json}
@@ -896,7 +938,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
             "error" => "Timeout getting state"
           }
 
-          emit_telemetry(start_time, process_name, context, :timeout)
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :timeout, 1)
 
           case Jason.encode(result) do
             {:ok, json} -> {:ok, json}
@@ -904,7 +946,7 @@ defmodule JidoCode.Tools.Handlers.Elixir do
           end
 
         {:error, reason} ->
-          emit_telemetry(start_time, process_name, context, :error)
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :error, 1)
           {:error, format_error(reason)}
       end
     end
@@ -955,33 +997,33 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     end
 
     # Sanitize output to redact sensitive fields
+    # Handles multiple formats: quoted strings, atoms, unquoted values, charlists, binaries
     defp sanitize_output(output) when is_binary(output) do
       Enum.reduce(@sensitive_fields, output, fn field, acc ->
-        # Pattern: field => "value" or field: "value"
+        # Comprehensive patterns for different Elixir inspect output formats
         patterns = [
-          ~r/#{field}\s*[=:>]+\s*"[^"]*"/i,
-          ~r/#{field}\s*[=:>]+\s*'[^']*'/i,
-          ~r/:#{field}\s*[=:>]+\s*"[^"]*"/i
+          # Double-quoted strings: password => "secret" or password: "secret"
+          {~r/(#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Single-quoted strings (charlists): password => 'secret'
+          {~r/(#{field})\s*[=:>]+\s*'[^']*'/i, "\\1 => '[REDACTED]'"},
+          # Atom prefix format: :password => "secret"
+          {~r/(:\s*#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Atom values: password => :secret_value
+          {~r/(#{field})\s*[=:>]+\s*:[a-zA-Z_][a-zA-Z0-9_]*/i, "\\1 => :[REDACTED]"},
+          # Integer values: password => 12345
+          {~r/(#{field})\s*[=:>]+\s*\d+/i, "\\1 => [REDACTED]"},
+          # Charlist syntax: password => ~c"secret"
+          {~r/(#{field})\s*[=:>]+\s*~c"[^"]*"/i, "\\1 => ~c\"[REDACTED]\""},
+          # Binary syntax: password => <<"secret">>
+          {~r/(#{field})\s*[=:>]+\s*<<[^>]*>>/i, "\\1 => <<[REDACTED]>>"},
+          # Unquoted barewords (identifiers): password => secret_value
+          {~r/(#{field})\s*[=:>]+\s*([a-zA-Z_][a-zA-Z0-9_]*)\b(?!\s*[=:>\(\[])/i, "\\1 => [REDACTED]"}
         ]
 
-        Enum.reduce(patterns, acc, fn pattern, inner_acc ->
-          Regex.replace(pattern, inner_acc, "#{field} => \"[REDACTED]\"")
+        Enum.reduce(patterns, acc, fn {pattern, replacement}, inner_acc ->
+          Regex.replace(pattern, inner_acc, replacement)
         end)
       end)
-    end
-
-    defp emit_telemetry(start_time, process_name, context, status) do
-      duration = System.monotonic_time(:microsecond) - start_time
-
-      :telemetry.execute(
-        [:jido_code, :elixir, :process_state],
-        %{duration: duration},
-        %{
-          process: process_name,
-          status: status,
-          session_id: Map.get(context, :session_id)
-        }
-      )
     end
 
     defp format_error(:raw_pid_not_allowed), do: "Raw PIDs are not allowed. Use registered process names."

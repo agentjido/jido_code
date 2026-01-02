@@ -1080,6 +1080,45 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       context = %{project_root: project_root}
       {:ok, _json} = ProcessState.execute(%{"process" => "test_max_timeout_agent_for_state", "timeout" => 999_999_999}, context)
     end
+
+    test "returns partial result when sys.get_state times out", %{project_root: project_root} do
+      # Start a process that won't respond to :sys messages in time
+      # We use a receive loop with a sleep to simulate slow response
+      pid = spawn(fn ->
+        Process.flag(:trap_exit, true)
+        slow_loop()
+      end)
+      Process.register(pid, :test_slow_state_for_timeout)
+
+      on_exit(fn ->
+        if Process.alive?(pid), do: Process.exit(pid, :kill)
+      end)
+
+      context = %{project_root: project_root}
+      # Use very short timeout (10ms) to trigger timeout
+      {:ok, json} = ProcessState.execute(%{"process" => "test_slow_state_for_timeout", "timeout" => 10}, context)
+
+      result = Jason.decode!(json)
+      # Should return partial result with nil state and error field
+      assert result["state"] == nil
+      assert result["error"] == "Timeout getting state"
+      # Should still have process_info
+      assert is_map(result["process_info"])
+      assert result["process_info"]["registered_name"] == "test_slow_state_for_timeout"
+    end
+
+    # Helper function for slow process loop - delays on sys messages
+    defp slow_loop do
+      receive do
+        {:system, from, :get_state} ->
+          # Delay before responding to :sys.get_state
+          Process.sleep(5_000)
+          send(from, {:ok, :delayed_state})
+          slow_loop()
+        _ ->
+          slow_loop()
+      end
+    end
   end
 
   describe "ProcessState.execute/2 - telemetry" do
@@ -1101,8 +1140,8 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       context = %{project_root: project_root}
       {:ok, _json} = ProcessState.execute(%{"process" => "test_telemetry_agent_for_state"}, context)
 
-      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _},
-                      %{process: "test_telemetry_agent_for_state", status: :ok}}
+      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "test_telemetry_agent_for_state", status: :ok}}
     end
 
     test "emits telemetry on validation error", %{project_root: project_root} do
@@ -1114,8 +1153,8 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       context = %{project_root: project_root}
       {:error, _} = ProcessState.execute(%{"process" => "#PID<0.1.0>"}, context)
 
-      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _},
-                      %{process: "#PID<0.1.0>", status: :error}}
+      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _, exit_code: 1},
+                      %{task: "#PID<0.1.0>", status: :error}}
     end
   end
 

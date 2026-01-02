@@ -268,6 +268,79 @@ defmodule JidoCode.Tools.HandlerHelpers do
   defp format_fallback_error(reason, path) when is_atom(reason), do: "Error (#{reason}): #{path}"
   defp format_fallback_error(reason, path), do: "Error (#{inspect(reason)}): #{path}"
 
+  @doc """
+  Extracts and validates a timeout value from arguments.
+
+  Ensures the timeout is:
+  - A positive integer
+  - At most `max_timeout` milliseconds
+  - Falls back to `default_timeout` if invalid or missing
+
+  ## Parameters
+
+  - `args` - Arguments map with optional "timeout" key
+  - `default_timeout` - Default timeout in milliseconds
+  - `max_timeout` - Maximum allowed timeout in milliseconds
+
+  ## Examples
+
+      iex> HandlerHelpers.get_timeout(%{"timeout" => 10_000}, 5_000, 30_000)
+      10_000
+
+      iex> HandlerHelpers.get_timeout(%{"timeout" => 100_000}, 5_000, 30_000)
+      30_000  # Capped at max
+
+      iex> HandlerHelpers.get_timeout(%{}, 5_000, 30_000)
+      5_000  # Default
+
+      iex> HandlerHelpers.get_timeout(%{"timeout" => -1}, 5_000, 30_000)
+      5_000  # Invalid, falls back to default
+  """
+  @spec get_timeout(map(), pos_integer(), pos_integer()) :: pos_integer()
+  def get_timeout(args, default_timeout, max_timeout) do
+    case Map.get(args, "timeout") do
+      nil -> default_timeout
+      timeout when is_integer(timeout) and timeout > 0 -> min(timeout, max_timeout)
+      _ -> default_timeout
+    end
+  end
+
+  @doc """
+  Checks if a string contains path traversal patterns.
+
+  Detects attempts to escape directory boundaries using:
+  - `..` (parent directory traversal)
+  - URL-encoded variants (`%2e%2e`, `%2E%2E`)
+  - Null bytes (`%00`)
+
+  ## Parameters
+
+  - `path` - String to check for path traversal
+
+  ## Examples
+
+      iex> HandlerHelpers.contains_path_traversal?("../etc/passwd")
+      true
+
+      iex> HandlerHelpers.contains_path_traversal?("src/lib/file.ex")
+      false
+
+      iex> HandlerHelpers.contains_path_traversal?("%2e%2e/secrets")
+      true
+
+      iex> HandlerHelpers.contains_path_traversal?("file%00.txt")
+      true
+  """
+  @spec contains_path_traversal?(String.t()) :: boolean()
+  def contains_path_traversal?(path) when is_binary(path) do
+    String.contains?(path, "..") or
+      String.contains?(path, "%2e") or
+      String.contains?(path, "%2E") or
+      String.contains?(path, "%00")
+  end
+
+  def contains_path_traversal?(_), do: false
+
   # ============================================================================
   # Private Functions
   # ============================================================================

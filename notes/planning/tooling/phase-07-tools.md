@@ -49,8 +49,8 @@ The canonical ontology is defined in TTL files:
 
 | Tool | Priority | Purpose | Status |
 |------|----------|---------|--------|
-| `knowledge_remember` | P0 | Store new knowledge with ontology typing | ✅ Complete |
-| `knowledge_recall` | P0 | Query knowledge with semantic filters | ✅ Complete |
+| `knowledge_remember` | P0 | Store new knowledge with ontology typing | ✅ Complete + Improved |
+| `knowledge_recall` | P0 | Query knowledge with semantic filters | ✅ Complete + Improved |
 | `knowledge_supersede` | P1 | Replace outdated knowledge | ⬜ Initial |
 | `knowledge_update` | P2 | Update confidence/evidence on existing | ⬜ Initial |
 | `project_conventions` | P1 | Get all conventions and standards | ⬜ Initial |
@@ -60,6 +60,28 @@ The canonical ontology is defined in TTL files:
 | `knowledge_context` | P3 | Auto-retrieve relevant context | ⏸️ Deferred |
 
 > **Note:** P0-P2 tools (7 total) will be implemented initially. P3 tools are deferred for a later phase.
+
+## Phase 7A Improvements (Review Findings) ✅
+
+Based on code review findings, the following improvements were made to the P0 tools:
+
+| Issue | Type | Resolution |
+|-------|------|------------|
+| Overly broad rescue clause in filter_by_types | Concern | Extracted safe_to_existing_atom/1 with narrow rescue scope |
+| Missing session ID validation | Concern | Added get_session_id/2 with byte_size check |
+| Potential nil crash in DateTime.to_iso8601 | Concern | Added format_timestamp/1 helper |
+| Duplicated get_session_id/1 | Concern | Extracted to parent Knowledge module |
+| Missing content size limits | Concern | Added @max_content_size (64KB) and validate_content/1 |
+| Process.sleep in tests | Concern | Removed - operations are synchronous |
+| Telemetry duplication | Suggestion | Added with_telemetry/3 wrapper |
+| Type normalization duplication | Suggestion | Added safe_to_type_atom/1 to parent module |
+| Variable rebinding in build_query_opts | Suggestion | Refactored to pipeline pattern |
+| Missing telemetry tests | Suggestion | Added 3 telemetry emission tests |
+| Missing edge case tests | Suggestion | Added 19 tests for edge cases and shared functions |
+
+**Test Count:** 25 → 47 tests (22 new tests added)
+**Summary Document:** `notes/summaries/2026-01-02-phase7a-improvements.md`
+**Review Document:** `notes/reviews/phase-7a-knowledge-tools-review.md`
 
 ## Memory Types (from TTL Ontology)
 

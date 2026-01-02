@@ -10,6 +10,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
   use ExUnit.Case, async: false
 
   alias JidoCode.Memory
+  alias JidoCode.Tools.Handlers.Knowledge
   alias JidoCode.Tools.Handlers.Knowledge.KnowledgeRemember
   alias JidoCode.Tools.Handlers.Knowledge.KnowledgeRecall
 
@@ -266,12 +267,10 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
 
       context = %{session_id: session_id}
 
+      # Store memories synchronously - each execute call completes before returning
       for memory <- memories do
         {:ok, _} = KnowledgeRemember.execute(memory, context)
       end
-
-      # Small delay to ensure all memories are stored
-      Process.sleep(50)
 
       {:ok, session_id: session_id, context: context}
     end
@@ -455,6 +454,264 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert length(tools) == 2
       assert Enum.any?(tools, fn t -> t.name == "knowledge_remember" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_recall" end)
+    end
+  end
+
+  # ============================================================================
+  # Shared Functions Tests (Added per review suggestions)
+  # ============================================================================
+
+  describe "Knowledge.get_session_id/2" do
+    test "returns session_id when valid" do
+      context = %{session_id: "valid-session-id"}
+      assert {:ok, "valid-session-id"} = Knowledge.get_session_id(context, "test_tool")
+    end
+
+    test "rejects empty session_id" do
+      context = %{session_id: ""}
+      assert {:error, message} = Knowledge.get_session_id(context, "test_tool")
+      assert message =~ "non-empty session_id"
+    end
+
+    test "rejects missing session_id" do
+      assert {:error, message} = Knowledge.get_session_id(%{}, "test_tool")
+      assert message =~ "requires a session context"
+    end
+  end
+
+  describe "Knowledge.validate_content/1" do
+    test "accepts valid content" do
+      assert {:ok, "valid content"} = Knowledge.validate_content("valid content")
+    end
+
+    test "rejects nil content" do
+      assert {:error, "content is required"} = Knowledge.validate_content(nil)
+    end
+
+    test "rejects empty string content" do
+      assert {:error, "content cannot be empty"} = Knowledge.validate_content("")
+    end
+
+    test "rejects non-string content" do
+      assert {:error, "content must be a string"} = Knowledge.validate_content(123)
+      assert {:error, "content must be a string"} = Knowledge.validate_content(%{})
+    end
+
+    test "rejects content exceeding size limit" do
+      large_content = String.duplicate("x", Knowledge.max_content_size() + 1)
+      assert {:error, message} = Knowledge.validate_content(large_content)
+      assert message =~ "exceeds maximum size"
+    end
+
+    test "accepts content at size limit" do
+      max_content = String.duplicate("x", Knowledge.max_content_size())
+      assert {:ok, ^max_content} = Knowledge.validate_content(max_content)
+    end
+  end
+
+  describe "Knowledge.safe_to_type_atom/1" do
+    test "converts valid type string" do
+      assert {:ok, :fact} = Knowledge.safe_to_type_atom("fact")
+      assert {:ok, :fact} = Knowledge.safe_to_type_atom("FACT")
+      assert {:ok, :fact} = Knowledge.safe_to_type_atom("Fact")
+    end
+
+    test "handles hyphenated types" do
+      # lesson_learned exists as an atom
+      assert {:ok, :lesson_learned} = Knowledge.safe_to_type_atom("lesson-learned")
+    end
+
+    test "returns error for non-existent atom" do
+      assert :error = Knowledge.safe_to_type_atom("nonexistent_type_xyz")
+    end
+
+    test "returns error for non-string input" do
+      assert :error = Knowledge.safe_to_type_atom(123)
+      assert :error = Knowledge.safe_to_type_atom(nil)
+    end
+  end
+
+  describe "Knowledge.format_timestamp/1" do
+    test "formats DateTime to ISO8601" do
+      {:ok, dt, _} = DateTime.from_iso8601("2024-01-15T10:30:00Z")
+      assert "2024-01-15T10:30:00Z" = Knowledge.format_timestamp(dt)
+    end
+
+    test "handles nil" do
+      assert nil == Knowledge.format_timestamp(nil)
+    end
+  end
+
+  # ============================================================================
+  # Edge Case Tests (Added per review suggestions)
+  # ============================================================================
+
+  describe "KnowledgeRemember edge cases" do
+    test "handles Unicode content" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      args = %{
+        "content" => "日本語テスト content with émojis 🚀 and ñ special chars",
+        "type" => "fact"
+      }
+
+      {:ok, json} = KnowledgeRemember.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["status"] == "stored"
+
+      # Verify stored correctly
+      {:ok, memory} = Memory.get(session_id, result["memory_id"])
+      assert memory.content == "日本語テスト content with émojis 🚀 and ñ special chars"
+    end
+
+    test "handles confidence boundary value 0.0" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      args = %{
+        "content" => "Zero confidence content",
+        "type" => "hypothesis",
+        "confidence" => 0.0
+      }
+
+      {:ok, json} = KnowledgeRemember.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["confidence"] == 0.0
+    end
+
+    test "handles confidence boundary value 1.0" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      args = %{
+        "content" => "Maximum confidence content",
+        "type" => "fact",
+        "confidence" => 1.0
+      }
+
+      {:ok, json} = KnowledgeRemember.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["confidence"] == 1.0
+    end
+
+    test "rejects content exceeding size limit" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      large_content = String.duplicate("x", Knowledge.max_content_size() + 1)
+
+      args = %{
+        "content" => large_content,
+        "type" => "fact"
+      }
+
+      {:error, message} = KnowledgeRemember.execute(args, context)
+      assert message =~ "exceeds maximum size"
+    end
+  end
+
+  # ============================================================================
+  # Telemetry Tests (Added per review suggestions)
+  # ============================================================================
+
+  describe "telemetry emission" do
+    test "emits telemetry for successful remember" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Attach telemetry handler
+      test_pid = self()
+      ref = make_ref()
+
+      handler_id = {:test_remember, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :remember],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{
+        "content" => "Telemetry test content",
+        "type" => "fact"
+      }
+
+      {:ok, _} = KnowledgeRemember.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :remember], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert measurements.duration >= 0
+      assert metadata.status == :success
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for failed remember" do
+      context = %{}
+
+      test_pid = self()
+      ref = make_ref()
+
+      handler_id = {:test_remember_fail, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :remember],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{
+        "content" => "Test content",
+        "type" => "fact"
+      }
+
+      {:error, _} = KnowledgeRemember.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :remember], _measurements, metadata}
+      assert metadata.status == :error
+
+      :telemetry.detach(handler_id)
+    end
+
+    test "emits telemetry for successful recall" do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      test_pid = self()
+      ref = make_ref()
+
+      handler_id = {:test_recall, ref}
+
+      :telemetry.attach(
+        handler_id,
+        [:jido_code, :knowledge, :recall],
+        fn event, measurements, metadata, _config ->
+          send(test_pid, {:telemetry, ref, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      args = %{}
+
+      {:ok, _} = KnowledgeRecall.execute(args, context)
+
+      assert_receive {:telemetry, ^ref, [:jido_code, :knowledge, :recall], measurements, metadata}
+      assert is_integer(measurements.duration)
+      assert metadata.status == :success
+      assert metadata.session_id == session_id
+
+      :telemetry.detach(handler_id)
     end
   end
 end

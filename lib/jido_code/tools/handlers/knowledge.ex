@@ -47,6 +47,9 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     lesson_learned: 0.7
   }
 
+  # Maximum content size in bytes (64KB)
+  @max_content_size 65_536
+
   # ============================================================================
   # Telemetry
   # ============================================================================
@@ -65,6 +68,146 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       }
     )
   end
+
+  @doc """
+  Wraps an operation with telemetry emission.
+
+  ## Parameters
+
+  - `operation` - Atom identifying the operation (e.g., :remember, :recall)
+  - `context` - Context map containing session_id
+  - `fun` - Zero-arity function to execute
+
+  ## Returns
+
+  The result of `fun.()` after emitting telemetry.
+  """
+  @spec with_telemetry(atom(), map(), (-> any())) :: any()
+  def with_telemetry(operation, context, fun) do
+    start_time = System.monotonic_time(:microsecond)
+    result = fun.()
+    status = if match?({:ok, _}, result), do: :success, else: :error
+    emit_knowledge_telemetry(operation, start_time, context, status)
+    result
+  end
+
+  # ============================================================================
+  # Shared Session Validation
+  # ============================================================================
+
+  @doc """
+  Validates and extracts session_id from context.
+
+  ## Parameters
+
+  - `context` - Context map that should contain `:session_id`
+  - `tool_name` - Name of the tool for error messages
+
+  ## Returns
+
+  - `{:ok, session_id}` - Valid non-empty session ID string
+  - `{:error, message}` - Error with descriptive message
+  """
+  @spec get_session_id(map(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  def get_session_id(%{session_id: session_id}, tool_name) when is_binary(session_id) do
+    if byte_size(session_id) > 0 do
+      {:ok, session_id}
+    else
+      {:error, "#{tool_name} requires a non-empty session_id"}
+    end
+  end
+
+  def get_session_id(_context, tool_name) do
+    {:error, "#{tool_name} requires a session context"}
+  end
+
+  # ============================================================================
+  # Shared Type Normalization
+  # ============================================================================
+
+  @doc """
+  Safely converts a type string to an existing atom.
+
+  Normalizes the string by downcasing and replacing hyphens with underscores.
+  Returns :error if the atom doesn't exist (preventing atom exhaustion).
+
+  ## Parameters
+
+  - `type_str` - String to convert
+
+  ## Returns
+
+  - `{:ok, atom}` - Successfully converted atom
+  - `:error` - Atom doesn't exist or invalid input
+  """
+  @spec safe_to_type_atom(String.t()) :: {:ok, atom()} | :error
+  def safe_to_type_atom(type_str) when is_binary(type_str) do
+    normalized =
+      type_str
+      |> String.downcase()
+      |> String.replace("-", "_")
+
+    {:ok, String.to_existing_atom(normalized)}
+  rescue
+    ArgumentError -> :error
+  end
+
+  def safe_to_type_atom(_), do: :error
+
+  # ============================================================================
+  # Content Validation
+  # ============================================================================
+
+  @doc """
+  Validates content string is non-empty and within size limits.
+
+  ## Parameters
+
+  - `content` - Content string to validate
+
+  ## Returns
+
+  - `{:ok, content}` - Valid content
+  - `{:error, message}` - Error with descriptive message
+  """
+  @spec validate_content(any()) :: {:ok, String.t()} | {:error, String.t()}
+  def validate_content(nil), do: {:error, "content is required"}
+  def validate_content(""), do: {:error, "content cannot be empty"}
+
+  def validate_content(content) when is_binary(content) do
+    if byte_size(content) > @max_content_size do
+      {:error, "content exceeds maximum size of #{@max_content_size} bytes"}
+    else
+      {:ok, content}
+    end
+  end
+
+  def validate_content(_), do: {:error, "content must be a string"}
+
+  @doc """
+  Returns the maximum allowed content size in bytes.
+  """
+  @spec max_content_size() :: pos_integer()
+  def max_content_size, do: @max_content_size
+
+  # ============================================================================
+  # Timestamp Formatting
+  # ============================================================================
+
+  @doc """
+  Safely formats a DateTime to ISO8601 string, handling nil values.
+
+  ## Parameters
+
+  - `datetime` - DateTime struct or nil
+
+  ## Returns
+
+  - ISO8601 string or nil
+  """
+  @spec format_timestamp(DateTime.t() | nil) :: String.t() | nil
+  def format_timestamp(nil), do: nil
+  def format_timestamp(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
 
   # ============================================================================
   # KnowledgeRemember Handler
@@ -103,19 +246,14 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     """
     @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
     def execute(args, context) do
-      start_time = System.monotonic_time(:microsecond)
-
-      result = do_execute(args, context)
-
-      status = if match?({:ok, _}, result), do: :success, else: :error
-      Knowledge.emit_knowledge_telemetry(:remember, start_time, context, status)
-
-      result
+      Knowledge.with_telemetry(:remember, context, fn ->
+        do_execute(args, context)
+      end)
     end
 
     defp do_execute(args, context) do
-      with {:ok, session_id} <- get_session_id(context),
-           {:ok, content} <- get_required_string(args, "content"),
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_remember"),
+           {:ok, content} <- Knowledge.validate_content(Map.get(args, "content")),
            {:ok, memory_type} <- parse_memory_type(args),
            {:ok, confidence} <- parse_confidence(args, memory_type) do
         memory_id = generate_memory_id()
@@ -166,48 +304,27 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       end
     end
 
-    defp get_session_id(%{session_id: session_id}) when is_binary(session_id) do
-      {:ok, session_id}
-    end
-
-    defp get_session_id(_context) do
-      {:error, "knowledge_remember requires a session context"}
-    end
-
-    defp get_required_string(args, key) do
-      case Map.get(args, key) do
-        nil -> {:error, "#{key} is required"}
-        "" -> {:error, "#{key} cannot be empty"}
-        value when is_binary(value) -> {:ok, value}
-        _ -> {:error, "#{key} must be a string"}
-      end
-    end
-
     defp parse_memory_type(args) do
       case Map.get(args, "type") do
         nil ->
           {:error, "type is required"}
 
         type_string when is_binary(type_string) ->
-          type_atom =
-            type_string
-            |> String.downcase()
-            |> String.replace("-", "_")
-            |> String.to_existing_atom()
+          case Knowledge.safe_to_type_atom(type_string) do
+            {:ok, type_atom} ->
+              if Types.valid_memory_type?(type_atom) do
+                {:ok, type_atom}
+              else
+                {:error, "Invalid memory type: #{type_string}. Valid types: #{valid_types_string()}"}
+              end
 
-          if Types.valid_memory_type?(type_atom) do
-            {:ok, type_atom}
-          else
-            {:error, "Invalid memory type: #{type_string}. Valid types: #{valid_types_string()}"}
+            :error ->
+              {:error, "Invalid memory type: #{type_string}. Valid types: #{valid_types_string()}"}
           end
 
         _ ->
           {:error, "type must be a string"}
       end
-    rescue
-      ArgumentError ->
-        {:error,
-         "Invalid memory type: #{args["type"]}. Valid types: #{valid_types_string()}"}
     end
 
     defp parse_confidence(args, memory_type) do
@@ -275,57 +392,22 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     """
     @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
     def execute(args, context) do
-      start_time = System.monotonic_time(:microsecond)
-
-      result = do_execute(args, context)
-
-      status = if match?({:ok, _}, result), do: :success, else: :error
-      Knowledge.emit_knowledge_telemetry(:recall, start_time, context, status)
-
-      result
+      Knowledge.with_telemetry(:recall, context, fn ->
+        do_execute(args, context)
+      end)
     end
 
     defp do_execute(args, context) do
-      with {:ok, session_id} <- get_session_id(context),
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_recall"),
            {:ok, opts} <- build_query_opts(args) do
         # Query memories
         case Memory.query(session_id, opts) do
           {:ok, memories} ->
-            # Apply text search filter if query provided
-            filtered =
-              case Map.get(args, "query") do
-                nil -> memories
-                "" -> memories
-                query_text -> filter_by_text(memories, query_text)
-              end
-
-            # Apply type filter if types provided
-            filtered =
-              case Map.get(args, "types") do
-                nil -> filtered
-                [] -> filtered
-                types when is_list(types) -> filter_by_types(filtered, types)
-                _ -> filtered
-              end
-
-            # Apply limit
-            limit = Map.get(args, "limit", 10)
-            limited = Enum.take(filtered, limit)
-
-            # Format results
-            results =
-              Enum.map(limited, fn memory ->
-                %{
-                  id: memory.id,
-                  content: memory.content,
-                  type: Atom.to_string(memory.memory_type),
-                  confidence: memory.confidence,
-                  timestamp: DateTime.to_iso8601(memory.timestamp),
-                  rationale: memory.rationale
-                }
-              end)
-
-            {:ok, Jason.encode!(%{memories: results, count: length(results)})}
+            memories
+            |> apply_text_filter(Map.get(args, "query"))
+            |> apply_type_filter(Map.get(args, "types"))
+            |> apply_limit(Map.get(args, "limit", 10))
+            |> format_results()
 
           {:error, reason} ->
             {:error, "Failed to query memories: #{inspect(reason)}"}
@@ -333,36 +415,26 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       end
     end
 
-    defp get_session_id(%{session_id: session_id}) when is_binary(session_id) do
-      {:ok, session_id}
-    end
-
-    defp get_session_id(_context) do
-      {:error, "knowledge_recall requires a session context"}
-    end
-
     defp build_query_opts(args) do
-      opts = []
-
-      # Add min_confidence option
       opts =
-        case Map.get(args, "min_confidence") do
-          nil -> Keyword.put(opts, :min_confidence, 0.5)
-          conf when is_number(conf) -> Keyword.put(opts, :min_confidence, conf)
-          _ -> opts
-        end
-
-      # Add include_superseded option
-      opts =
-        case Map.get(args, "include_superseded") do
-          true -> Keyword.put(opts, :include_superseded, true)
-          _ -> Keyword.put(opts, :include_superseded, false)
-        end
+        []
+        |> add_min_confidence(Map.get(args, "min_confidence"))
+        |> add_include_superseded(Map.get(args, "include_superseded"))
 
       {:ok, opts}
     end
 
-    defp filter_by_text(memories, query_text) do
+    defp add_min_confidence(opts, nil), do: Keyword.put(opts, :min_confidence, 0.5)
+    defp add_min_confidence(opts, conf) when is_number(conf), do: Keyword.put(opts, :min_confidence, conf)
+    defp add_min_confidence(opts, _), do: opts
+
+    defp add_include_superseded(opts, true), do: Keyword.put(opts, :include_superseded, true)
+    defp add_include_superseded(opts, _), do: Keyword.put(opts, :include_superseded, false)
+
+    defp apply_text_filter(memories, nil), do: memories
+    defp apply_text_filter(memories, ""), do: memories
+
+    defp apply_text_filter(memories, query_text) do
       query_lower = String.downcase(query_text)
 
       Enum.filter(memories, fn memory ->
@@ -371,22 +443,51 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       end)
     end
 
-    defp filter_by_types(memories, types) do
+    defp apply_type_filter(memories, nil), do: memories
+    defp apply_type_filter(memories, []), do: memories
+
+    defp apply_type_filter(memories, types) when is_list(types) do
       type_atoms =
         types
-        |> Enum.map(fn type_str ->
-          type_str
-          |> String.downcase()
-          |> String.replace("-", "_")
-          |> String.to_existing_atom()
+        |> Enum.reduce(MapSet.new(), fn type_str, acc ->
+          case Knowledge.safe_to_type_atom(type_str) do
+            {:ok, atom} -> MapSet.put(acc, atom)
+            :error -> acc
+          end
         end)
-        |> MapSet.new()
 
-      Enum.filter(memories, fn memory ->
-        MapSet.member?(type_atoms, memory.memory_type)
-      end)
-    rescue
-      ArgumentError -> memories
+      # If no valid types found, return all memories
+      if MapSet.size(type_atoms) == 0 do
+        memories
+      else
+        Enum.filter(memories, fn memory ->
+          MapSet.member?(type_atoms, memory.memory_type)
+        end)
+      end
+    end
+
+    defp apply_type_filter(memories, _), do: memories
+
+    defp apply_limit(memories, limit) when is_integer(limit) and limit > 0 do
+      Enum.take(memories, limit)
+    end
+
+    defp apply_limit(memories, _), do: Enum.take(memories, 10)
+
+    defp format_results(memories) do
+      results =
+        Enum.map(memories, fn memory ->
+          %{
+            id: memory.id,
+            content: memory.content,
+            type: Atom.to_string(memory.memory_type),
+            confidence: memory.confidence,
+            timestamp: Knowledge.format_timestamp(memory.timestamp),
+            rationale: memory.rationale
+          }
+        end)
+
+      {:ok, Jason.encode!(%{memories: results, count: length(results)})}
     end
   end
 

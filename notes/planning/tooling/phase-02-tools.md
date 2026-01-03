@@ -42,11 +42,11 @@ All search and shell tools follow this execution flow:
 |------|----------------|---------|--------|
 | grep | Handler pattern | Regex-based code searching | ✅ Implemented |
 | run_command | Handler pattern | Foreground command execution | ✅ Implemented |
-| bash_background | - | Background process spawning | ❌ Deferred |
-| bash_output | - | Background output retrieval | ❌ Deferred |
-| kill_shell | - | Background process termination | ❌ Deferred |
+| bash_background | Handler pattern | Background process spawning | ✅ Implemented |
+| bash_output | Handler pattern | Background output retrieval | ✅ Implemented |
+| kill_shell | Handler pattern | Background process termination | ✅ Implemented |
 
-> **Note:** The implementation uses the Handler pattern (direct Elixir execution) instead of the Lua bridge pattern for grep and run_command. Background shell tools (2.3-2.5) are deferred to a future phase.
+> **Note:** All tools use the Handler pattern (direct Elixir execution) instead of the originally planned Lua bridge pattern. Background shell tools (bash_background, bash_output, kill_shell) share the BackgroundShell GenServer for process management.
 
 ---
 
@@ -126,189 +126,137 @@ Note: Uses Handler pattern instead of Lua bridge.
 
 ---
 
-## 2.3 Bash Background Tool ❌ Deferred
+## 2.3 Bash Background Tool ✅
 
-> **Note:** Background shell tools are deferred to a future phase. The current implementation focuses on foreground execution via `run_command`.
+Implemented the bash_background tool for starting long-running processes. Uses the Handler pattern (consistent with run_command) with a BackgroundShell GenServer for process management.
 
-Implement the bash_background tool for starting long-running processes through the Lua sandbox.
+> **Note:** Implementation uses Handler pattern instead of Lua bridge for consistency. See [summary document](../../summaries/phase-02-section-2.3-bash-background.md) for details.
 
-### 2.3.1 Tool Definition
+### 2.3.1 Tool Definition ✅
 
-Create the bash_background tool definition for background processes.
+Tool definition added to `lib/jido_code/tools/definitions/shell.ex`.
 
-- [ ] 2.3.1.1 Create `lib/jido_code/tools/definitions/bash_background.ex`
-- [ ] 2.3.1.2 Define schema:
-  ```elixir
-  %{
-    name: "bash_background",
-    description: "Start command in background. Returns shell_id for output retrieval.",
-    parameters: [
-      %{name: "command", type: :string, required: true, description: "Command to run"},
-      %{name: "description", type: :string, required: false, description: "Description for tracking"}
-    ]
-  }
-  ```
-- [ ] 2.3.1.3 Register tool in definitions module
+- [x] 2.3.1.1 Add `bash_background/0` to `lib/jido_code/tools/definitions/shell.ex`
+- [x] 2.3.1.2 Define schema with command, args, description parameters
+- [x] 2.3.1.3 Register tool via `Shell.all/0`
 
-### 2.3.2 Bridge Function Implementation
+### 2.3.2 Handler Implementation ✅
 
-Implement the Bridge function for background process management.
+Handler added to `lib/jido_code/tools/handlers/shell.ex`.
 
-- [ ] 2.3.2.1 Add `lua_shell_background/3` to `lib/jido_code/tools/bridge.ex`
-  ```elixir
-  def lua_shell_background(args, state, project_root) do
-    case args do
-      [command] -> do_shell_background(command, %{}, state, project_root)
-      [command, opts] -> do_shell_background(command, decode_opts(opts), state, project_root)
-      _ -> {[nil, "shell_background requires command argument"], state}
-    end
-  end
-  ```
-- [ ] 2.3.2.2 Use `Security.validate_command/1` to check against allowlist
-- [ ] 2.3.2.3 Start command as supervised Task
-- [ ] 2.3.2.4 Generate unique shell_id (UUID or short hash)
-- [ ] 2.3.2.5 Store process reference in session-scoped registry (in state)
-- [ ] 2.3.2.6 Set up output streaming to accumulator
-- [ ] 2.3.2.7 Return `{[%{shell_id: id, description: desc}], state}` with updated state
-- [ ] 2.3.2.8 Register in `Bridge.register/2`
+- [x] 2.3.2.1 Add `BashBackground` handler module to `lib/jido_code/tools/handlers/shell.ex`
+- [x] 2.3.2.2 Use `Shell.validate_command/1` to check against allowlist
+- [x] 2.3.2.3 Delegate to BackgroundShell GenServer for process management
+- [x] 2.3.2.4 Generate unique shell_id (base64-encoded random bytes)
+- [x] 2.3.2.5 Store process reference in ETS-backed registry
+- [x] 2.3.2.6 Set up output streaming to ETS accumulator
+- [x] 2.3.2.7 Return JSON with shell_id and description
+- [x] 2.3.2.8 Emit telemetry events
 
-### 2.3.3 Manager API
+### 2.3.3 BackgroundShell GenServer ✅
 
-- [ ] 2.3.3.1 Add `shell_background/2` to `Tools.Manager`
-- [ ] 2.3.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 2.3.3.3 Call bridge function through Lua: `jido.shell_background(command, opts)`
+Created `lib/jido_code/tools/background_shell.ex` with:
 
-### 2.3.4 Unit Tests for Bash Background
+- [x] 2.3.3.1 ETS-backed shell registry and output accumulator
+- [x] 2.3.3.2 `start_command/5` for starting background commands
+- [x] 2.3.3.3 `get_output/2` for retrieving output (blocking/non-blocking)
+- [x] 2.3.3.4 `kill/1` for terminating running processes
+- [x] 2.3.3.5 `list/1` for listing shells by session
+- [x] 2.3.3.6 Added to supervision tree in `application.ex`
 
-- [ ] Test bash_background through sandbox starts process
-- [ ] Test bash_background returns unique shell_id
-- [ ] Test bash_background process runs in background
-- [ ] Test bash_background validates commands through Security module
-- [ ] Test bash_background stores process in session state
-- [ ] Test bash_background handles process crash
+### 2.3.4 Unit Tests for Bash Background ✅
+
+Tests in `test/jido_code/tools/background_shell_test.exs`:
+
+- [x] Test bash_background starts process and returns shell_id
+- [x] Test bash_background returns unique shell_ids
+- [x] Test bash_background validates commands against allowlist
+- [x] Test bash_background blocks shell interpreters
+- [x] Test get_output retrieves output from completed process
+- [x] Test get_output returns not_found for invalid shell_id
+- [x] Test kill terminates running process
+- [x] Test kill returns not_found for invalid shell_id
+- [x] Test list returns shells for session
+- [x] Test BashBackground handler requires session_id
+- [x] Test BashBackground handler requires command
 
 ---
 
-## 2.4 Bash Output Tool ❌ Deferred
+## 2.4 Bash Output Tool ✅
 
-> **Note:** Background shell tools are deferred to a future phase.
+Implemented the bash_output tool for retrieving output from background processes. Uses the Handler pattern (consistent with bash_background) instead of Lua bridge.
 
-Implement the bash_output tool for retrieving output from background processes through the Lua sandbox.
+> **Note:** Implementation uses Handler pattern for consistency. See [summary document](../../summaries/phase-02-sections-2.4-2.5-bash-output-kill-shell.md).
 
-### 2.4.1 Tool Definition
+### 2.4.1 Tool Definition ✅
 
-Create the bash_output tool definition for output retrieval.
+Tool definition added to `lib/jido_code/tools/definitions/shell.ex`.
 
-- [ ] 2.4.1.1 Create `lib/jido_code/tools/definitions/bash_output.ex`
-- [ ] 2.4.1.2 Define schema:
-  ```elixir
-  %{
-    name: "bash_output",
-    description: "Get output from background shell process.",
-    parameters: [
-      %{name: "shell_id", type: :string, required: true, description: "ID from bash_background"},
-      %{name: "block", type: :boolean, required: false, description: "Wait for completion (default: true)"},
-      %{name: "timeout", type: :integer, required: false, description: "Max wait time in ms (default: 30000)"}
-    ]
-  }
-  ```
-- [ ] 2.4.1.3 Register tool in definitions module
+- [x] 2.4.1.1 Add `bash_output/0` to `lib/jido_code/tools/definitions/shell.ex`
+- [x] 2.4.1.2 Define schema with shell_id, block, timeout parameters
+- [x] 2.4.1.3 Register tool via `Shell.all/0`
 
-### 2.4.2 Bridge Function Implementation
+### 2.4.2 Handler Implementation ✅
 
-Implement the Bridge function for background output retrieval.
+Handler added to `lib/jido_code/tools/handlers/shell.ex`.
 
-- [ ] 2.4.2.1 Add `lua_shell_output/3` to `lib/jido_code/tools/bridge.ex`
-  ```elixir
-  def lua_shell_output(args, state, project_root) do
-    case args do
-      [shell_id] -> do_shell_output(shell_id, %{block: true}, state, project_root)
-      [shell_id, opts] -> do_shell_output(shell_id, decode_opts(opts), state, project_root)
-      _ -> {[nil, "shell_output requires shell_id argument"], state}
-    end
-  end
-  ```
-- [ ] 2.4.2.2 Look up process by shell_id in session state
-- [ ] 2.4.2.3 Handle non-existent shell_id gracefully
-- [ ] 2.4.2.4 Retrieve accumulated output from process
-- [ ] 2.4.2.5 Determine status (running/completed/failed)
-- [ ] 2.4.2.6 If block=true, wait for completion up to timeout
-- [ ] 2.4.2.7 Truncate output at 30,000 characters
-- [ ] 2.4.2.8 Return `{[%{output: output, status: status, exit_code: code}], state}` or `{[nil, error], state}`
-- [ ] 2.4.2.9 Register in `Bridge.register/2`
+- [x] 2.4.2.1 Add `BashOutput` handler module to `lib/jido_code/tools/handlers/shell.ex`
+- [x] 2.4.2.2 Look up process by shell_id via BackgroundShell.get_output/2
+- [x] 2.4.2.3 Handle non-existent shell_id gracefully
+- [x] 2.4.2.4 Retrieve accumulated output from ETS
+- [x] 2.4.2.5 Return status (running/completed/failed/killed)
+- [x] 2.4.2.6 Support block=true to wait for completion up to timeout
+- [x] 2.4.2.7 Output truncated at 30,000 characters (in BackgroundShell)
+- [x] 2.4.2.8 Return JSON with output, status, exit_code
+- [x] 2.4.2.9 Emit telemetry events
 
-### 2.4.3 Manager API
+### 2.4.3 Unit Tests for Bash Output ✅
 
-- [ ] 2.4.3.1 Add `shell_output/2` to `Tools.Manager`
-- [ ] 2.4.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 2.4.3.3 Call bridge function through Lua: `jido.shell_output(shell_id, opts)`
+Tests in `test/jido_code/tools/background_shell_test.exs`:
 
-### 2.4.4 Unit Tests for Bash Output
-
-- [ ] Test bash_output through sandbox retrieves output from running process
-- [ ] Test bash_output retrieves output from completed process
-- [ ] Test bash_output returns correct status
-- [ ] Test bash_output blocking mode waits for completion
-- [ ] Test bash_output non-blocking mode returns immediately
-- [ ] Test bash_output handles timeout
-- [ ] Test bash_output for non-existent shell_id
+- [x] Test bash_output retrieves output from completed process
+- [x] Test bash_output returns running status for in-progress process
+- [x] Test bash_output blocking mode waits for completion
+- [x] Test bash_output non-blocking mode returns immediately
+- [x] Test bash_output for non-existent shell_id
+- [x] Test bash_output requires shell_id argument
 
 ---
 
-## 2.5 Kill Shell Tool ❌ Deferred
+## 2.5 Kill Shell Tool ✅
 
-> **Note:** Background shell tools are deferred to a future phase.
+Implemented the kill_shell tool for terminating background processes. Uses the Handler pattern (consistent with bash_background) instead of Lua bridge.
 
-Implement the kill_shell tool for terminating background processes through the Lua sandbox.
+> **Note:** Implementation uses Handler pattern for consistency. See [summary document](../../summaries/phase-02-sections-2.4-2.5-bash-output-kill-shell.md).
 
-### 2.5.1 Tool Definition
+### 2.5.1 Tool Definition ✅
 
-Create the kill_shell tool definition.
+Tool definition added to `lib/jido_code/tools/definitions/shell.ex`.
 
-- [ ] 2.5.1.1 Create `lib/jido_code/tools/definitions/kill_shell.ex`
-- [ ] 2.5.1.2 Define schema:
-  ```elixir
-  %{
-    name: "kill_shell",
-    description: "Terminate a background shell process.",
-    parameters: [
-      %{name: "shell_id", type: :string, required: true, description: "ID of background shell to kill"}
-    ]
-  }
-  ```
-- [ ] 2.5.1.3 Register tool in definitions module
+- [x] 2.5.1.1 Add `kill_shell/0` to `lib/jido_code/tools/definitions/shell.ex`
+- [x] 2.5.1.2 Define schema with shell_id parameter
+- [x] 2.5.1.3 Register tool via `Shell.all/0`
 
-### 2.5.2 Bridge Function Implementation
+### 2.5.2 Handler Implementation ✅
 
-Implement the Bridge function for process termination.
+Handler added to `lib/jido_code/tools/handlers/shell.ex`.
 
-- [ ] 2.5.2.1 Add `lua_shell_kill/3` to `lib/jido_code/tools/bridge.ex`
-  ```elixir
-  def lua_shell_kill(args, state, _project_root) do
-    case args do
-      [shell_id] -> do_shell_kill(shell_id, state)
-      _ -> {[nil, "shell_kill requires shell_id argument"], state}
-    end
-  end
-  ```
-- [ ] 2.5.2.2 Look up process by shell_id in session state
-- [ ] 2.5.2.3 Send termination signal (Process.exit or Task.shutdown)
-- [ ] 2.5.2.4 Remove from session state registry
-- [ ] 2.5.2.5 Return `{[true], updated_state}` or `{[nil, error], state}`
-- [ ] 2.5.2.6 Register in `Bridge.register/2`
+- [x] 2.5.2.1 Add `KillShell` handler module to `lib/jido_code/tools/handlers/shell.ex`
+- [x] 2.5.2.2 Look up process by shell_id via BackgroundShell.kill/1
+- [x] 2.5.2.3 Send termination signal via Process.exit
+- [x] 2.5.2.4 Update status to :killed in ETS
+- [x] 2.5.2.5 Return JSON with success status and message
+- [x] 2.5.2.6 Handle already-finished processes gracefully
+- [x] 2.5.2.7 Emit telemetry events
 
-### 2.5.3 Manager API
+### 2.5.3 Unit Tests for Kill Shell ✅
 
-- [ ] 2.5.3.1 Add `shell_kill/2` to `Tools.Manager`
-- [ ] 2.5.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 2.5.3.3 Call bridge function through Lua: `jido.shell_kill(shell_id)`
+Tests in `test/jido_code/tools/background_shell_test.exs`:
 
-### 2.5.4 Unit Tests for Kill Shell
-
-- [ ] Test kill_shell through sandbox terminates running process
-- [ ] Test kill_shell handles already-terminated process
-- [ ] Test kill_shell handles non-existent shell_id
-- [ ] Test kill_shell removes process from session state
+- [x] Test kill_shell terminates running process
+- [x] Test kill_shell handles already-finished process
+- [x] Test kill_shell handles non-existent shell_id
+- [x] Test kill_shell requires shell_id argument
 
 ---
 
@@ -346,8 +294,8 @@ Test shell tools in realistic scenarios.
 - [x] 2.6.3.2 Test: run_command captures exit code correctly
 - [x] 2.6.3.3 Test: run_command merges stderr into stdout
 - [x] 2.6.3.4 Test: run_command respects timeout
-- [ ] 2.6.3.5 Test: bash_background starts long-running process (deferred - not implemented)
-- [ ] 2.6.3.6 Test: kill_shell terminates running background process (deferred - not implemented)
+- [x] 2.6.3.5 Test: bash_background starts long-running process
+- [x] 2.6.3.6 Test: kill_shell terminates running background process
 
 ### 2.6.4 Security Integration ✅
 
@@ -367,9 +315,9 @@ Test security measures across shell tools.
 |-----------|--------|
 | **grep**: Regex search via Handler pattern | ✅ Implemented |
 | **run_command**: Foreground execution via Handler pattern | ✅ Implemented |
-| **bash_background**: Background spawning | ❌ Deferred |
-| **bash_output**: Output retrieval | ❌ Deferred |
-| **kill_shell**: Process termination | ❌ Deferred |
+| **bash_background**: Background spawning via Handler pattern | ✅ Implemented |
+| **bash_output**: Output retrieval via Handler pattern | ✅ Implemented |
+| **kill_shell**: Process termination via Handler pattern | ✅ Implemented |
 | **Handler pattern execution**: Tools execute through Executor → Handler chain | ✅ Implemented |
 | **Security validation**: Path boundaries and command allowlist enforced | ✅ Implemented |
 | **Session isolation**: Session-scoped execution via HandlerHelpers | ✅ Implemented |
@@ -383,16 +331,13 @@ Test security measures across shell tools.
 
 **Implemented Files:**
 - `lib/jido_code/tools/definitions/search.ex` - grep, find_files tool definitions
-- `lib/jido_code/tools/definitions/shell.ex` - run_command tool definition
+- `lib/jido_code/tools/definitions/shell.ex` - run_command, bash_background, bash_output, kill_shell tool definitions
 - `lib/jido_code/tools/handlers/search.ex` - Grep, FindFiles handlers
-- `lib/jido_code/tools/handlers/shell.ex` - RunCommand handler
+- `lib/jido_code/tools/handlers/shell.ex` - RunCommand, BashBackground, BashOutput, KillShell handlers
+- `lib/jido_code/tools/background_shell.ex` - BackgroundShell GenServer for process management
 - `lib/jido_code/tools/handler_helpers.ex` - Session-aware path validation
 - `lib/jido_code/tools/security.ex` - Path boundary validation
 - `test/jido_code/tools/handlers/search_test.exs` - Search handler tests
 - `test/jido_code/tools/handlers/shell_test.exs` - Shell handler tests
+- `test/jido_code/tools/background_shell_test.exs` - BackgroundShell and handler tests (21 tests)
 - `test/jido_code/integration/tools_phase2_test.exs` - Integration tests
-
-**Deferred Files (not implemented):**
-- `lib/jido_code/tools/definitions/bash_background.ex`
-- `lib/jido_code/tools/definitions/bash_output.ex`
-- `lib/jido_code/tools/definitions/kill_shell.ex`

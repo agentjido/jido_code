@@ -420,6 +420,470 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   end
 
   # =============================================================================
+  # Relationship Traversal API
+  # =============================================================================
+
+  @typedoc """
+  Supported relationship types for memory traversal.
+
+  - `:derived_from` - Evidence chain (memory → evidence)
+  - `:superseded_by` - Replacement chain (old → new memory)
+  - `:supersedes` - Reverse replacement chain (new → old memory)
+  - `:same_type` - Memories of the same type
+  - `:same_project` - Memories in the same project
+  """
+  @type relationship ::
+          :derived_from
+          | :superseded_by
+          | :supersedes
+          | :same_type
+          | :same_project
+
+  @relationship_types [:derived_from, :superseded_by, :supersedes, :same_type, :same_project]
+
+  @doc """
+  Returns the list of valid relationship types.
+  """
+  @spec relationship_types() :: [relationship()]
+  def relationship_types, do: @relationship_types
+
+  @doc """
+  Queries memories related to a starting memory via the specified relationship.
+
+  Traverses the knowledge graph from a starting memory following the specified
+  relationship type to find connected memories.
+
+  ## Relationship Types
+
+  - `:derived_from` - Finds memories referenced in the starting memory's evidence_refs
+  - `:superseded_by` - Finds the memory that superseded the starting memory
+  - `:supersedes` - Finds memories that were superseded by the starting memory
+  - `:same_type` - Finds other memories of the same type
+  - `:same_project` - Finds memories in the same project
+
+  ## Options
+
+  - `:depth` - Maximum traversal depth (default: 1, max: 5)
+  - `:limit` - Maximum results per level (default: 10)
+  - `:include_superseded` - Include superseded memories (default: false)
+
+  ## Examples
+
+      # Find evidence chain
+      {:ok, related} = TripleStoreAdapter.query_related(
+        store, "session-123", "mem-456", :derived_from
+      )
+
+      # Find replacement chain with depth
+      {:ok, chain} = TripleStoreAdapter.query_related(
+        store, "session-123", "mem-123", :superseded_by, depth: 3
+      )
+
+  """
+  @spec query_related(store_ref(), String.t(), String.t(), relationship(), keyword()) ::
+          {:ok, [stored_memory()]} | {:error, term()}
+  def query_related(store, session_id, start_memory_id, relationship, opts \\ [])
+      when relationship in @relationship_types do
+    depth = opts |> Keyword.get(:depth, 1) |> min(5) |> max(1)
+    limit = Keyword.get(opts, :limit, 10)
+    include_superseded = Keyword.get(opts, :include_superseded, false)
+
+    with_ets_store(store, fn ->
+      case query_by_id(store, session_id, start_memory_id) do
+        {:ok, start_memory} ->
+          results = traverse_relationship(
+            store,
+            session_id,
+            start_memory,
+            relationship,
+            depth,
+            limit,
+            include_superseded,
+            MapSet.new([start_memory_id])
+          )
+          {:ok, results}
+
+        {:error, :not_found} ->
+          {:error, :not_found}
+      end
+    end)
+  end
+
+  # Traverses relationships recursively up to the specified depth
+  defp traverse_relationship(_store, _session_id, _memory, _rel, 0, _limit, _include, _visited) do
+    []
+  end
+
+  defp traverse_relationship(store, session_id, memory, relationship, depth, limit, include_superseded, visited) do
+    # Find directly related memories
+    related_ids = find_related_ids(store, session_id, memory, relationship, include_superseded)
+
+    # Filter out already visited and resolve to full memories
+    new_ids =
+      related_ids
+      |> Enum.reject(&MapSet.member?(visited, &1))
+      |> Enum.take(limit)
+
+    current_level =
+      new_ids
+      |> Enum.map(&query_by_id(store, session_id, &1))
+      |> Enum.filter(&match?({:ok, _}, &1))
+      |> Enum.map(fn {:ok, mem} -> mem end)
+
+    if depth > 1 and length(current_level) > 0 do
+      # Recursively traverse for deeper relationships
+      new_visited = Enum.reduce(new_ids, visited, &MapSet.put(&2, &1))
+
+      deeper_results =
+        current_level
+        |> Enum.flat_map(fn mem ->
+          traverse_relationship(
+            store, session_id, mem, relationship,
+            depth - 1, limit, include_superseded, new_visited
+          )
+        end)
+
+      current_level ++ deeper_results
+    else
+      current_level
+    end
+  end
+
+  # Finds IDs of memories related via the specified relationship type
+  defp find_related_ids(_store, _session_id, memory, :derived_from, _include_superseded) do
+    # Evidence refs can be memory IDs or other references
+    # Filter to only those that look like memory IDs
+    (memory.evidence_refs || [])
+    |> Enum.filter(&String.starts_with?(&1, "mem-"))
+  end
+
+  defp find_related_ids(_store, _session_id, memory, :superseded_by, _include_superseded) do
+    case memory.superseded_by do
+      nil -> []
+      id -> [id]
+    end
+  end
+
+  # For :supersedes relationship, we're finding memories that were superseded BY this memory.
+  # These are inherently superseded memories, so include_superseded doesn't apply - we must
+  # search superseded memories to find what this memory replaced.
+  defp find_related_ids(store, session_id, memory, :supersedes, _include_superseded) do
+    store
+    |> ets_to_list()
+    |> Enum.filter(fn {_id, record} ->
+      record.session_id == session_id and record.superseded_by == memory.id
+    end)
+    |> Enum.map(fn {id, _record} -> id end)
+  end
+
+  # NOTE: The following relationship types (:same_type, :same_project) require full ETS table
+  # scans via ets_to_list(). For sessions with many memories (up to 10,000 allowed), these
+  # queries may have O(n) performance. The `limit` option reduces result processing but the
+  # full scan still occurs. Consider adding secondary indices if performance becomes an issue.
+
+  defp find_related_ids(store, session_id, memory, :same_type, include_superseded) do
+    # Find memories of the same type (excluding the source memory)
+    store
+    |> ets_to_list()
+    |> Enum.filter(fn {id, record} ->
+      id != memory.id and
+        record.session_id == session_id and
+        record.memory_type == memory.memory_type and
+        (include_superseded or record.superseded_at == nil)
+    end)
+    |> Enum.map(fn {id, _record} -> id end)
+  end
+
+  defp find_related_ids(store, session_id, memory, :same_project, include_superseded) do
+    # Find memories in the same project (excluding the source memory)
+    case memory.project_id do
+      nil ->
+        []
+
+      project_id ->
+        store
+        |> ets_to_list()
+        |> Enum.filter(fn {id, record} ->
+          id != memory.id and
+            record.session_id == session_id and
+            record.project_id == project_id and
+            (include_superseded or record.superseded_at == nil)
+        end)
+        |> Enum.map(fn {id, _record} -> id end)
+    end
+  end
+
+  # =============================================================================
+  # Statistics API
+  # =============================================================================
+
+  @doc """
+  Returns statistics about memories for a session.
+
+  Provides aggregated information about the session's memory store including
+  counts by type, confidence distribution, and relationship statistics.
+
+  ## Returns
+
+  A map containing:
+  - `:total_count` - Total number of active memories
+  - `:superseded_count` - Number of superseded memories
+  - `:by_type` - Map of memory types to counts
+  - `:by_confidence` - Map of confidence levels (:high, :medium, :low) to counts
+  - `:with_evidence` - Count of memories with evidence refs
+  - `:with_rationale` - Count of memories with rationale
+
+  ## Examples
+
+      {:ok, stats} = TripleStoreAdapter.get_stats(store, "session-123")
+      # => {:ok, %{
+      #      total_count: 42,
+      #      superseded_count: 5,
+      #      by_type: %{fact: 20, assumption: 15, decision: 7},
+      #      by_confidence: %{high: 30, medium: 10, low: 2},
+      #      with_evidence: 25,
+      #      with_rationale: 18
+      #    }}
+
+  """
+  @spec get_stats(store_ref(), String.t()) :: {:ok, map()} | {:error, term()}
+  def get_stats(store, session_id) do
+    with_ets_store(store, fn ->
+      all_records =
+        store
+        |> ets_to_list()
+        |> Enum.filter(fn {_id, record} -> record.session_id == session_id end)
+        |> Enum.map(fn {_id, record} -> record end)
+
+      active_records = Enum.filter(all_records, &is_nil(&1.superseded_at))
+      superseded_records = Enum.reject(all_records, &is_nil(&1.superseded_at))
+
+      stats = %{
+        total_count: length(active_records),
+        superseded_count: length(superseded_records),
+        by_type: count_by_type(active_records),
+        by_confidence: count_by_confidence(active_records),
+        with_evidence: Enum.count(active_records, &has_evidence?/1),
+        with_rationale: Enum.count(active_records, &has_rationale?/1)
+      }
+
+      {:ok, stats}
+    end)
+  end
+
+  defp count_by_type(records) do
+    Enum.frequencies_by(records, & &1.memory_type)
+  end
+
+  defp count_by_confidence(records) do
+    records
+    |> Enum.group_by(fn record ->
+      cond do
+        record.confidence >= 0.8 -> :high
+        record.confidence >= 0.5 -> :medium
+        true -> :low
+      end
+    end)
+    |> Enum.map(fn {level, items} -> {level, length(items)} end)
+    |> Map.new()
+  end
+
+  defp has_evidence?(%{evidence_refs: [_ | _]}), do: true
+  defp has_evidence?(_), do: false
+
+  defp has_rationale?(%{rationale: rationale}) when rationale not in [nil, ""], do: true
+  defp has_rationale?(_), do: false
+
+  # =============================================================================
+  # Context Retrieval
+  # =============================================================================
+
+  @doc """
+  Retrieves contextually relevant memories using relevance scoring.
+
+  Uses a multi-factor scoring algorithm that considers:
+  - Text similarity (40%): Word overlap between context and content
+  - Recency (configurable): Time since last access or creation
+  - Confidence (20%): Memory's confidence level
+  - Access frequency (10%): Normalized access count
+
+  ## Parameters
+
+  - `store` - The ETS store reference
+  - `session_id` - Session identifier
+  - `context_hint` - Description of what context is needed
+  - `opts` - Keyword list of options
+
+  ## Options
+
+  - `:max_results` - Maximum results (default: 5)
+  - `:min_confidence` - Minimum confidence threshold (default: 0.5)
+  - `:recency_weight` - Weight for recency in scoring (default: 0.3)
+  - `:include_superseded` - Include superseded memories (default: false)
+  - `:include_types` - Filter to specific memory types (default: nil)
+
+  ## Returns
+
+  - `{:ok, [{memory, score}, ...]}` - List of {memory, relevance_score} tuples
+  - `{:error, reason}` - Error tuple
+  """
+  @spec get_context(store_ref(), String.t(), String.t(), keyword()) ::
+          {:ok, [{stored_memory(), float()}]} | {:error, term()}
+  def get_context(store, session_id, context_hint, opts \\ []) do
+    with_ets_store(store, fn ->
+      max_results = Keyword.get(opts, :max_results, 5)
+      min_confidence = Keyword.get(opts, :min_confidence, 0.5)
+      recency_weight = Keyword.get(opts, :recency_weight, 0.3)
+      include_superseded = Keyword.get(opts, :include_superseded, false)
+      include_types = Keyword.get(opts, :include_types)
+
+      # Get all session records
+      all_records =
+        store
+        |> ets_to_list()
+        |> Enum.filter(fn {_id, record} -> record.session_id == session_id end)
+        |> Enum.map(fn {_id, record} -> record end)
+
+      # Filter by superseded status
+      records =
+        if include_superseded do
+          all_records
+        else
+          Enum.filter(all_records, &is_nil(&1.superseded_at))
+        end
+
+      # Filter by confidence
+      records = Enum.filter(records, &(&1.confidence >= min_confidence))
+
+      # Filter by types if specified
+      records =
+        case include_types do
+          nil -> records
+          types when is_list(types) -> Enum.filter(records, &(&1.memory_type in types))
+        end
+
+      # Calculate max access count for normalization
+      max_access = records |> Enum.map(& &1.access_count) |> Enum.max(fn -> 1 end) |> max(1)
+
+      # Extract context words for matching
+      context_words = extract_words(context_hint)
+
+      # Score each memory
+      now = DateTime.utc_now()
+
+      scored =
+        records
+        |> Enum.map(fn record ->
+          score = calculate_relevance_score(record, context_words, max_access, now, recency_weight)
+          memory = to_stored_memory(record)
+          {memory, score}
+        end)
+        |> Enum.filter(fn {_memory, score} -> score > 0.0 end)
+        |> Enum.sort_by(fn {_memory, score} -> score end, :desc)
+        |> Enum.take(max_results)
+
+      {:ok, scored}
+    end)
+  end
+
+  # Calculates relevance score for a memory based on multiple factors
+  # Weights: text_similarity=0.4, recency=configurable, confidence=0.2, access=0.1
+  defp calculate_relevance_score(record, context_words, max_access, now, recency_weight) do
+    # Text similarity (40%)
+    content_words = extract_words(record.content)
+    rationale_words = if record.rationale, do: extract_words(record.rationale), else: MapSet.new()
+    all_memory_words = MapSet.union(content_words, rationale_words)
+    text_score = calculate_text_similarity(context_words, all_memory_words)
+
+    # Recency score (configurable weight, default 30%)
+    recency_score = calculate_recency_score(record, now)
+
+    # Confidence score (20%)
+    confidence_score = record.confidence
+
+    # Access frequency score (10%)
+    # C10 fix: max_access is guaranteed >= 1 by line 872, no need for guard
+    access_score = record.access_count / max_access
+
+    # Calculate remaining weight for text, confidence, and access
+    # Total = 1.0 = text_weight + recency_weight + confidence_weight + access_weight
+    # Given recency_weight, and fixed access_weight=0.1, confidence_weight=0.2
+    # text_weight = 1.0 - recency_weight - 0.2 - 0.1 = 0.7 - recency_weight
+    # C3 fix: Ensure text_weight doesn't go negative when recency_weight is high
+    access_weight = 0.1
+    confidence_weight = 0.2
+    text_weight = max(0.0, 1.0 - recency_weight - confidence_weight - access_weight)
+
+    text_weight * text_score +
+      recency_weight * recency_score +
+      confidence_weight * confidence_score +
+      access_weight * access_score
+  end
+
+  # S5: Common stop words to filter out for better similarity scores
+  @stop_words MapSet.new([
+    "the", "is", "at", "which", "on", "a", "an", "and", "or", "but",
+    "in", "to", "of", "for", "with", "as", "by", "be", "it", "that",
+    "this", "was", "are", "been", "have", "has", "had", "will", "would",
+    "could", "should", "may", "might", "can", "do", "does", "did", "not",
+    "no", "yes", "so", "if", "then", "else", "when", "where", "what",
+    "who", "how", "why", "all", "each", "every", "some", "any", "most",
+    "other", "into", "over", "such", "up", "down", "out", "about", "from"
+  ])
+
+  # S6: Maximum number of words to extract (prevents memory pressure)
+  @max_word_count 500
+
+  # Extracts words from text, lowercased and normalized
+  # S5: Filters stop words, S6: Limits word count
+  defp extract_words(text) when is_binary(text) do
+    text
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9\s]/, " ")
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.filter(&(byte_size(&1) >= 2))
+    |> Enum.reject(&MapSet.member?(@stop_words, &1))
+    |> Enum.take(@max_word_count)
+    |> MapSet.new()
+  end
+
+  defp extract_words(_), do: MapSet.new()
+
+  # Calculates text similarity using Jaccard-like overlap
+  defp calculate_text_similarity(context_words, memory_words) do
+    if MapSet.size(context_words) == 0 or MapSet.size(memory_words) == 0 do
+      0.0
+    else
+      intersection = MapSet.intersection(context_words, memory_words)
+      overlap = MapSet.size(intersection)
+
+      # Score based on how many context words appear in memory
+      # Plus bonus for memory words that appear in context
+      context_coverage = overlap / MapSet.size(context_words)
+      memory_coverage = overlap / MapSet.size(memory_words)
+
+      # Weighted average favoring context coverage
+      0.7 * context_coverage + 0.3 * memory_coverage
+    end
+  end
+
+  # Calculates recency score based on last access or creation time
+  # More recent = higher score (exponential decay over 7 days)
+  defp calculate_recency_score(record, now) do
+    reference_time = record.last_accessed || record.created_at
+
+    if reference_time do
+      seconds_ago = DateTime.diff(now, reference_time, :second) |> max(0)
+      # Decay over 7 days (604800 seconds)
+      # After 7 days, score approaches 0
+      decay_period = 604_800
+      :math.exp(-seconds_ago / decay_period)
+    else
+      0.5
+    end
+  end
+
+  # =============================================================================
   # IRI Utilities
   # =============================================================================
 

@@ -9,6 +9,9 @@ defmodule JidoCode.Tools.Definitions.Elixir do
 
   - `mix_task` - Run Mix tasks with security controls
   - `run_exunit` - Run ExUnit tests with filtering options
+  - `get_process_state` - Inspect GenServer and process state
+  - `inspect_supervisor` - View supervisor tree structure
+  - `ets_inspect` - Inspect ETS tables
 
   ## Security
 
@@ -44,7 +47,11 @@ defmodule JidoCode.Tools.Definitions.Elixir do
   def all do
     [
       mix_task(),
-      run_exunit()
+      run_exunit(),
+      get_process_state(),
+      inspect_supervisor(),
+      ets_inspect(),
+      fetch_elixir_docs()
     ]
   end
 
@@ -212,6 +219,252 @@ defmodule JidoCode.Tools.Definitions.Elixir do
           description:
             "Timeout in milliseconds (default: 120000, max: 300000). " <>
               "Test run is killed if it exceeds the timeout.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the get_process_state tool definition.
+
+  Inspects the state of a GenServer or other OTP process. Only processes in the
+  project namespace can be inspected - system and internal processes are blocked.
+
+  ## Parameters
+
+  - `process` (required, string) - Registered name of the process (e.g., 'MyApp.Worker')
+  - `timeout` (optional, integer) - Timeout in milliseconds (default: 5000)
+
+  ## Security
+
+  - Only registered names are allowed (raw PIDs are blocked)
+  - System-critical processes are blocked (kernel, stdlib, init)
+  - JidoCode internal processes are blocked
+  - Sensitive fields (passwords, tokens, keys) are redacted from output
+
+  ## Output
+
+  Returns JSON with state and process_info. State is formatted with inspect
+  for readability. Non-OTP processes return process_info only.
+  """
+  @spec get_process_state() :: Tool.t()
+  def get_process_state do
+    Tool.new!(%{
+      name: "get_process_state",
+      description:
+        "Get state of a GenServer or process. Only project processes can be inspected. " <>
+          "System processes and JidoCode internals are blocked for security. " <>
+          "Sensitive fields (passwords, tokens, keys) are redacted.",
+      handler: Handlers.ProcessState,
+      parameters: [
+        %{
+          name: "process",
+          type: :string,
+          description:
+            "Registered name of the process (e.g., 'MyApp.Worker', 'MyApp.Cache'). " <>
+              "Raw PIDs are not allowed for security reasons.",
+          required: true
+        },
+        %{
+          name: "timeout",
+          type: :integer,
+          description:
+            "Timeout in milliseconds for getting state (default: 5000). " <>
+              "Useful for slow-responding processes.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the inspect_supervisor tool definition.
+
+  Views the structure of a supervisor tree, showing its children and their types.
+  Only project supervisors can be inspected - system supervisors are blocked.
+
+  ## Parameters
+
+  - `supervisor` (required, string) - Registered name of the supervisor
+  - `depth` (optional, integer) - Max tree depth (default: 2, max: 5)
+
+  ## Security
+
+  - Only registered names are allowed (raw PIDs are blocked)
+  - System supervisors are blocked (kernel, stdlib, etc.)
+  - JidoCode internal supervisors are blocked
+  - Depth is limited to prevent excessive recursion
+
+  ## Output
+
+  Returns JSON with tree structure showing children, their types, and restart strategies.
+  """
+  @spec inspect_supervisor() :: Tool.t()
+  def inspect_supervisor do
+    Tool.new!(%{
+      name: "inspect_supervisor",
+      description:
+        "View supervisor tree structure. Only project supervisors can be inspected. " <>
+          "System supervisors and JidoCode internals are blocked for security. " <>
+          "Shows children, types (worker/supervisor), and restart strategies.",
+      handler: Handlers.SupervisorTree,
+      parameters: [
+        %{
+          name: "supervisor",
+          type: :string,
+          description:
+            "Registered name of the supervisor (e.g., 'MyApp.Supervisor'). " <>
+              "Raw PIDs are not allowed for security reasons.",
+          required: true
+        },
+        %{
+          name: "depth",
+          type: :integer,
+          description:
+            "Maximum depth to traverse child supervisors (default: 2, max: 5). " <>
+              "Higher depth shows more nested supervisors but takes longer.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the ets_inspect tool definition.
+
+  Inspects ETS tables with multiple operations: list available tables,
+  get table info, lookup by key, or sample entries. Only project-owned
+  tables can be inspected - system tables are blocked.
+
+  ## Parameters
+
+  - `operation` (required, string) - Operation to perform: 'list', 'info', 'lookup', 'sample'
+  - `table` (optional, string) - Table name (required for info/lookup/sample operations)
+  - `key` (optional, string) - Key for lookup operation (as string)
+  - `limit` (optional, integer) - Max entries for sample (default: 10, max: 100)
+
+  ## Security
+
+  - System ETS tables are blocked (code, ac_tab, file_io_servers, etc.)
+  - Only project-owned tables can be inspected
+  - Protected/private tables block lookup/sample from non-owner processes
+  - Output is limited to prevent memory issues
+
+  ## Output
+
+  Returns JSON with operation-specific results and entry count.
+  """
+  @spec ets_inspect() :: Tool.t()
+  def ets_inspect do
+    Tool.new!(%{
+      name: "ets_inspect",
+      description:
+        "Inspect ETS tables. Operations: 'list' shows project tables, 'info' shows table details, " <>
+          "'lookup' finds by key, 'sample' returns first N entries. " <>
+          "System tables are blocked. Protected/private tables have restricted access.",
+      handler: Handlers.EtsInspect,
+      parameters: [
+        %{
+          name: "operation",
+          type: :string,
+          description:
+            "Operation to perform: 'list' (show all project tables), 'info' (table details), " <>
+              "'lookup' (find by key), 'sample' (first N entries).",
+          required: true,
+          enum: ["list", "info", "lookup", "sample"]
+        },
+        %{
+          name: "table",
+          type: :string,
+          description:
+            "Table name to inspect (required for info, lookup, and sample operations). " <>
+              "Use the 'list' operation first to discover available tables.",
+          required: false
+        },
+        %{
+          name: "key",
+          type: :string,
+          description:
+            "Key for lookup operation (as string). Supports simple types: " <>
+              "atoms (':name'), integers ('123'), strings ('\"text\"').",
+          required: false
+        },
+        %{
+          name: "limit",
+          type: :integer,
+          description:
+            "Maximum entries to return for sample operation (default: 10, max: 100). " <>
+              "Higher values may impact performance on large tables.",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the fetch_elixir_docs tool definition.
+
+  Retrieves documentation for Elixir modules and functions. Uses `Code.fetch_docs/1`
+  for documentation and `Code.Typespec.fetch_specs/1` for type specifications.
+
+  ## Parameters
+
+  - `module` (required, string) - Module name (e.g., 'Enum', 'String', 'MyApp.Worker')
+  - `function` (optional, string) - Function name to filter docs
+  - `arity` (optional, integer) - Function arity to filter docs
+
+  ## Security
+
+  - Only uses `String.to_existing_atom/1` to prevent atom table exhaustion
+  - Non-existent modules return an error rather than creating new atoms
+
+  ## Output
+
+  Returns JSON with moduledoc, function docs, and type specs.
+  """
+  @spec fetch_elixir_docs() :: Tool.t()
+  def fetch_elixir_docs do
+    Tool.new!(%{
+      name: "fetch_elixir_docs",
+      description:
+        "Retrieve documentation for Elixir or Erlang module or function. " <>
+          "Returns module documentation, function docs, and type specifications. " <>
+          "Supports both Elixir modules (e.g., 'Enum') and Erlang modules (e.g., ':gen_server', 'ets'). " <>
+          "Only existing (loaded) modules can be queried to prevent atom table exhaustion.",
+      handler: Handlers.FetchDocs,
+      parameters: [
+        %{
+          name: "module",
+          type: :string,
+          description:
+            "Module name (e.g., 'Enum', 'String', 'GenServer', 'MyApp.Worker'). " <>
+              "For Erlang modules use ':gen_server', ':ets', or just 'ets' (lowercase). " <>
+              "The 'Elixir.' prefix is optional and handled automatically.",
+          required: true
+        },
+        %{
+          name: "function",
+          type: :string,
+          description:
+            "Function name to filter documentation (e.g., 'map', 'reduce'). " <>
+              "When specified, only docs for this function are returned.",
+          required: false
+        },
+        %{
+          name: "arity",
+          type: :integer,
+          description:
+            "Function arity to filter documentation (e.g., 2 for Enum.map/2). " <>
+              "Requires 'function' to be specified. Use when multiple arities exist.",
+          required: false
+        },
+        %{
+          name: "include_callbacks",
+          type: :boolean,
+          description:
+            "Include callback documentation for behaviour modules (e.g., GenServer, Supervisor). " <>
+              "When true, callback and macrocallback documentation is included in the output.",
           required: false
         }
       ]

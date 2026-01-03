@@ -190,8 +190,8 @@ Implement the get_process_state tool for inspecting GenServer and process state.
 
 ### 5.3.1 Tool Definition
 
-- [ ] 5.3.1.1 Add `get_process_state/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.3.1.2 Define schema:
+- [x] 5.3.1.1 Add `get_process_state/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.3.1.2 Define schema:
   ```elixir
   %{
     name: "get_process_state",
@@ -203,37 +203,48 @@ Implement the get_process_state tool for inspecting GenServer and process state.
     ]
   }
   ```
-- [ ] 5.3.1.3 Update `Elixir.all/0` to include `get_process_state()`
+- [x] 5.3.1.3 Update `Elixir.all/0` to include `get_process_state()`
 
 ### 5.3.2 Handler Implementation
 
-- [ ] 5.3.2.1 Create `ProcessState` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.3.2.2 Parse process identifier using `GenServer.whereis/1`:
+- [x] 5.3.2.1 Create `ProcessState` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.3.2.2 Parse process identifier using `GenServer.whereis/1`:
   - Registered name: `"MyApp.Worker"` -> lookup via registered name
   - Only allow registered names (block raw PIDs for security)
-- [ ] 5.3.2.3 Validate process is in project namespace (starts with project module prefix)
-- [ ] 5.3.2.4 Block system-critical processes:
+- [x] 5.3.2.3 Validate process is in project namespace (starts with project module prefix)
+- [x] 5.3.2.4 Block system-critical processes:
   ```elixir
   @blocked_prefixes ~w(JidoCode.Tools JidoCode.Session :kernel :stdlib :init)
   ```
-- [ ] 5.3.2.5 Use `:sys.get_state/2` with timeout
-- [ ] 5.3.2.6 Handle non-OTP processes gracefully (return process_info instead)
-- [ ] 5.3.2.7 Format state for display (inspect with pretty, limit depth)
-- [ ] 5.3.2.8 Sanitize output to redact sensitive fields (passwords, tokens, keys)
-- [ ] 5.3.2.9 Return `{:ok, %{"state" => state, "process_info" => info}}`
-- [ ] 5.3.2.10 Emit telemetry: `[:jido_code, :elixir, :process_state]`
+- [x] 5.3.2.5 Use `:sys.get_state/2` with timeout
+- [x] 5.3.2.6 Handle non-OTP processes gracefully (return process_info instead)
+- [x] 5.3.2.7 Format state for display (inspect with pretty, limit depth)
+- [x] 5.3.2.8 Sanitize output to redact sensitive fields (passwords, tokens, keys)
+- [x] 5.3.2.9 Return `{:ok, %{"state" => state, "process_info" => info}}`
+- [x] 5.3.2.10 Emit telemetry: `[:jido_code, :elixir, :process_state]`
 
 ### 5.3.3 Unit Tests for Get Process State
 
-- [ ] Test get_process_state with registered name
-- [ ] Test get_process_state with GenServer
-- [ ] Test get_process_state with Agent
-- [ ] Test get_process_state blocks raw PID strings
-- [ ] Test get_process_state blocks system processes
-- [ ] Test get_process_state blocks JidoCode internal processes
-- [ ] Test get_process_state handles dead process
-- [ ] Test get_process_state respects timeout
-- [ ] Test get_process_state sanitizes sensitive fields
+- [x] Test get_process_state with registered name
+- [x] Test get_process_state with GenServer
+- [x] Test get_process_state with Agent
+- [x] Test get_process_state blocks raw PID strings
+- [x] Test get_process_state blocks system processes
+- [x] Test get_process_state blocks JidoCode internal processes
+- [x] Test get_process_state handles dead process
+- [x] Test get_process_state respects timeout
+- [x] Test get_process_state sanitizes sensitive fields
+- [x] Test get_process_state returns partial result on timeout
+
+### 5.3.4 Review Fixes (Post-Implementation)
+
+Fixes applied based on parallel code review:
+
+- [x] 5.3.4.1 Expand sensitive field redaction (28 fields covering passwords, tokens, keys, credentials, connection strings)
+- [x] 5.3.4.2 Complete system process blocklist (30 prefixes including distribution, SSL, code loading)
+- [x] 5.3.4.3 Unify telemetry with shared `ElixirHandler.emit_elixir_telemetry/6` (includes exit_code)
+- [x] 5.3.4.4 Add timeout behavior test (verifies partial result on `:sys.get_state/2` timeout)
+- [x] 5.3.4.5 Extract shared helpers to `HandlerHelpers` (`get_timeout/3`, `contains_path_traversal?/1`)
 
 ---
 
@@ -243,8 +254,8 @@ Implement the inspect_supervisor tool for viewing supervisor tree structure.
 
 ### 5.4.1 Tool Definition
 
-- [ ] 5.4.1.1 Add `inspect_supervisor/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.4.1.2 Define schema:
+- [x] 5.4.1.1 Add `inspect_supervisor/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.4.1.2 Define schema:
   ```elixir
   %{
     name: "inspect_supervisor",
@@ -256,32 +267,32 @@ Implement the inspect_supervisor tool for viewing supervisor tree structure.
     ]
   }
   ```
-- [ ] 5.4.1.3 Update `Elixir.all/0` to include `inspect_supervisor()`
+- [x] 5.4.1.3 Update `Elixir.all/0` to include `inspect_supervisor()`
 
 ### 5.4.2 Handler Implementation
 
-- [ ] 5.4.2.1 Create `SupervisorTree` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.4.2.2 Parse supervisor identifier (registered name only)
-- [ ] 5.4.2.3 Validate supervisor is in project namespace
-- [ ] 5.4.2.4 Block system supervisors (same prefix list as process_state)
-- [ ] 5.4.2.5 Enforce depth limit (max 5, default 2)
-- [ ] 5.4.2.6 Use `Supervisor.which_children/1`
-- [ ] 5.4.2.7 Recursively inspect child supervisors up to depth
-- [ ] 5.4.2.8 Limit children count per level (max 50)
-- [ ] 5.4.2.9 Format tree structure for display
-- [ ] 5.4.2.10 Return `{:ok, %{"tree" => tree_string, "children" => list}}`
-- [ ] 5.4.2.11 Emit telemetry: `[:jido_code, :elixir, :supervisor_tree]`
+- [x] 5.4.2.1 Create `SupervisorTree` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.4.2.2 Parse supervisor identifier (registered name only)
+- [x] 5.4.2.3 Validate supervisor is in project namespace
+- [x] 5.4.2.4 Block system supervisors (same prefix list as process_state)
+- [x] 5.4.2.5 Enforce depth limit (max 5, default 2)
+- [x] 5.4.2.6 Use `Supervisor.which_children/1`
+- [x] 5.4.2.7 Recursively inspect child supervisors up to depth
+- [x] 5.4.2.8 Limit children count per level (max 50)
+- [x] 5.4.2.9 Format tree structure for display
+- [x] 5.4.2.10 Return `{:ok, %{"tree" => tree_string, "children" => list}}`
+- [x] 5.4.2.11 Emit telemetry: `[:jido_code, :elixir, :supervisor_tree]`
 
 ### 5.4.3 Unit Tests for Inspect Supervisor
 
-- [ ] Test inspect_supervisor with Application supervisor
-- [ ] Test inspect_supervisor shows children
-- [ ] Test inspect_supervisor respects depth limit
-- [ ] Test inspect_supervisor enforces max depth of 5
-- [ ] Test inspect_supervisor handles DynamicSupervisor
-- [ ] Test inspect_supervisor blocks system supervisors
-- [ ] Test inspect_supervisor handles dead supervisor
-- [ ] Test inspect_supervisor limits children count
+- [x] Test inspect_supervisor with Application supervisor
+- [x] Test inspect_supervisor shows children
+- [x] Test inspect_supervisor respects depth limit
+- [x] Test inspect_supervisor enforces max depth of 5
+- [x] Test inspect_supervisor handles DynamicSupervisor
+- [x] Test inspect_supervisor blocks system supervisors
+- [x] Test inspect_supervisor handles dead supervisor
+- [x] Test inspect_supervisor limits children count
 
 ---
 
@@ -291,8 +302,8 @@ Implement the ets_inspect tool for ETS table inspection.
 
 ### 5.5.1 Tool Definition
 
-- [ ] 5.5.1.1 Add `ets_inspect/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.5.1.2 Define schema:
+- [x] 5.5.1.1 Add `ets_inspect/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.5.1.2 Define schema:
   ```elixir
   %{
     name: "ets_inspect",
@@ -307,47 +318,47 @@ Implement the ets_inspect tool for ETS table inspection.
     ]
   }
   ```
-- [ ] 5.5.1.3 Update `Elixir.all/0` to include `ets_inspect()`
+- [x] 5.5.1.3 Update `Elixir.all/0` to include `ets_inspect()`
 
 ### 5.5.2 Handler Implementation
 
-- [ ] 5.5.2.1 Create `EtsInspect` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.5.2.2 Implement `list` operation:
+- [x] 5.5.2.1 Create `EtsInspect` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.5.2.2 Implement `list` operation:
   - Get all tables via `:ets.all()`
   - Filter to project-owned tables (owner process in project namespace)
   - Return table names and basic info
-- [ ] 5.5.2.3 Implement `info` operation:
+- [x] 5.5.2.3 Implement `info` operation:
   - Validate table is project-owned
   - Return `:ets.info(table)` data
-- [ ] 5.5.2.4 Implement `lookup` operation:
+- [x] 5.5.2.4 Implement `lookup` operation:
   - Validate table is project-owned and public
   - Parse key from string (support simple types)
   - Return `:ets.lookup(table, key)` results
-- [ ] 5.5.2.5 Implement `sample` operation (safer alternative to match):
+- [x] 5.5.2.5 Implement `sample` operation (safer alternative to match):
   - Validate table is project-owned and public
   - Use `:ets.first/1` and `:ets.next/2` for pagination
   - Return first N entries up to limit
-- [ ] 5.5.2.6 Check table access level (block protected/private from non-owner)
-- [ ] 5.5.2.7 Block system ETS tables:
+- [x] 5.5.2.6 Check table access level (block protected/private from non-owner)
+- [x] 5.5.2.7 Block system ETS tables:
   ```elixir
   @blocked_tables ~w(code ac_tab file_io_servers shell_records)a
   ```
-- [ ] 5.5.2.8 Enforce limit (max 100, default 10)
-- [ ] 5.5.2.9 Format results for display (inspect with limits)
-- [ ] 5.5.2.10 Return `{:ok, %{"result" => result, "count" => count}}`
-- [ ] 5.5.2.11 Emit telemetry: `[:jido_code, :elixir, :ets_inspect]`
+- [x] 5.5.2.8 Enforce limit (max 100, default 10)
+- [x] 5.5.2.9 Format results for display (inspect with limits)
+- [x] 5.5.2.10 Return `{:ok, %{"result" => result, "count" => count}}`
+- [x] 5.5.2.11 Emit telemetry: `[:jido_code, :elixir, :ets_inspect]`
 
 ### 5.5.3 Unit Tests for ETS Inspect
 
-- [ ] Test ets_inspect list operation
-- [ ] Test ets_inspect info operation
-- [ ] Test ets_inspect lookup operation
-- [ ] Test ets_inspect sample operation
-- [ ] Test ets_inspect blocks system tables
-- [ ] Test ets_inspect respects table access levels
-- [ ] Test ets_inspect enforces limit
-- [ ] Test ets_inspect handles non-existent table
-- [ ] Test ets_inspect filters to project-owned tables
+- [x] Test ets_inspect list operation
+- [x] Test ets_inspect info operation
+- [x] Test ets_inspect lookup operation
+- [x] Test ets_inspect sample operation
+- [x] Test ets_inspect blocks system tables
+- [x] Test ets_inspect respects table access levels
+- [x] Test ets_inspect enforces limit
+- [x] Test ets_inspect handles non-existent table
+- [x] Test ets_inspect filters to project-owned tables
 
 ---
 
@@ -357,8 +368,8 @@ Implement the fetch_elixir_docs tool for retrieving module and function document
 
 ### 5.6.1 Tool Definition
 
-- [ ] 5.6.1.1 Add `fetch_elixir_docs/0` function to `lib/jido_code/tools/definitions/elixir.ex`
-- [ ] 5.6.1.2 Define schema:
+- [x] 5.6.1.1 Add `fetch_elixir_docs/0` function to `lib/jido_code/tools/definitions/elixir.ex`
+- [x] 5.6.1.2 Define schema:
   ```elixir
   %{
     name: "fetch_elixir_docs",
@@ -371,32 +382,46 @@ Implement the fetch_elixir_docs tool for retrieving module and function document
     ]
   }
   ```
-- [ ] 5.6.1.3 Update `Elixir.all/0` to include `fetch_elixir_docs()`
+- [x] 5.6.1.3 Update `Elixir.all/0` to include `fetch_elixir_docs()`
 
 ### 5.6.2 Handler Implementation
 
-- [ ] 5.6.2.1 Create `FetchDocs` module in `lib/jido_code/tools/handlers/elixir.ex`
-- [ ] 5.6.2.2 Parse module name safely:
+- [x] 5.6.2.1 Create `FetchDocs` module in `lib/jido_code/tools/handlers/elixir.ex`
+- [x] 5.6.2.2 Parse module name safely:
   - Use `String.to_existing_atom/1` to prevent atom table exhaustion
   - Handle "Elixir." prefix automatically
   - Return error for non-existent modules
-- [ ] 5.6.2.3 Use `Code.fetch_docs/1` for documentation
-- [ ] 5.6.2.4 Filter to specific function/arity if specified
-- [ ] 5.6.2.5 Include type specs via `Code.Typespec.fetch_specs/1`
-- [ ] 5.6.2.6 Format documentation (preserve markdown)
-- [ ] 5.6.2.7 Handle undocumented modules gracefully
-- [ ] 5.6.2.8 Return `{:ok, %{"moduledoc" => doc, "docs" => function_docs, "specs" => specs}}`
-- [ ] 5.6.2.9 Emit telemetry: `[:jido_code, :elixir, :fetch_docs]`
+- [x] 5.6.2.3 Use `Code.fetch_docs/1` for documentation
+- [x] 5.6.2.4 Filter to specific function/arity if specified
+- [x] 5.6.2.5 Include type specs via `Code.Typespec.fetch_specs/1`
+- [x] 5.6.2.6 Format documentation (preserve markdown)
+- [x] 5.6.2.7 Handle undocumented modules gracefully
+- [x] 5.6.2.8 Return `{:ok, %{"moduledoc" => doc, "docs" => function_docs, "specs" => specs}}`
+- [x] 5.6.2.9 Emit telemetry: `[:jido_code, :elixir, :fetch_docs]`
 
 ### 5.6.3 Unit Tests for Fetch Elixir Docs
 
-- [ ] Test fetch_elixir_docs for standard library module (Enum)
-- [ ] Test fetch_elixir_docs for specific function
-- [ ] Test fetch_elixir_docs for function with arity
-- [ ] Test fetch_elixir_docs includes specs
-- [ ] Test fetch_elixir_docs handles undocumented module
-- [ ] Test fetch_elixir_docs rejects non-existent module
-- [ ] Test fetch_elixir_docs uses existing atoms only (no atom table exhaustion)
+- [x] Test fetch_elixir_docs for standard library module (Enum)
+- [x] Test fetch_elixir_docs for specific function
+- [x] Test fetch_elixir_docs for function with arity
+- [x] Test fetch_elixir_docs includes specs
+- [x] Test fetch_elixir_docs handles undocumented module
+- [x] Test fetch_elixir_docs rejects non-existent module
+- [x] Test fetch_elixir_docs uses existing atoms only (no atom table exhaustion)
+
+### 5.6.4 Review Fixes (2026-01-02)
+
+Post-implementation review fixes based on `notes/reviews/phase-05-section-5.6-fetch-docs-review.md`:
+
+- [x] 5.6.4.1 Add Erlang module support (`:gen_server`, `:ets`, etc.)
+- [x] 5.6.4.2 Consolidate duplicate filter logic (`matches_name_arity_filter?/4`)
+- [x] 5.6.4.3 Document context parameter usage in moduledoc
+- [x] 5.6.4.4 Add HandlerHelpers alias for consistency
+- [x] 5.6.4.5 Add `include_callbacks` parameter for behaviour modules
+- [x] 5.6.4.6 Improve error handling for invalid BEAM files
+- [x] 5.6.4.7 Add edge case tests (Erlang modules, callbacks, empty module, etc.)
+
+See: `notes/summaries/phase-05-section-5.6-review-fixes.md`
 
 ---
 
@@ -408,45 +433,45 @@ Integration tests for Elixir-specific tools using the Handler pattern.
 
 Verify tools execute through the Executor → Handler chain correctly.
 
-- [ ] 5.7.1.1 Create `test/jido_code/integration/tools_phase5_test.exs`
-- [ ] 5.7.1.2 Test: All tools execute through `Tools.Executor` → Handler chain
-- [ ] 5.7.1.3 Test: Session context passed correctly to handlers
-- [ ] 5.7.1.4 Test: Telemetry events emitted for all operations
+- [x] 5.7.1.1 Create `test/jido_code/integration/tools_phase5_test.exs`
+- [x] 5.7.1.2 Test: All tools execute through `Tools.Executor` → Handler chain
+- [x] 5.7.1.3 Test: Session context passed correctly to handlers
+- [x] 5.7.1.4 Test: Telemetry events emitted for all operations
 
 ### 5.7.2 Mix/Test Integration
 
 Test Mix and ExUnit tools in realistic scenarios.
 
-- [ ] 5.7.2.1 Test: mix_task compile works in test project
-- [ ] 5.7.2.2 Test: mix_task test runs tests
-- [ ] 5.7.2.3 Test: run_exunit parses real test output
-- [ ] 5.7.2.4 Test: run_exunit handles test failures
+- [x] 5.7.2.1 Test: mix_task compile works in test project
+- [x] 5.7.2.2 Test: mix_task test runs tests
+- [x] 5.7.2.3 Test: run_exunit parses real test output
+- [x] 5.7.2.4 Test: run_exunit handles test failures
 
 ### 5.7.3 Runtime Introspection Integration
 
 Test runtime introspection tools with real processes.
 
-- [ ] 5.7.3.1 Test: get_process_state inspects test GenServer
-- [ ] 5.7.3.2 Test: inspect_supervisor shows test supervisor tree
-- [ ] 5.7.3.3 Test: ets_inspect lists test ETS tables
-- [ ] 5.7.3.4 Test: ets_inspect looks up test data
+- [x] 5.7.3.1 Test: get_process_state inspects test GenServer
+- [x] 5.7.3.2 Test: inspect_supervisor shows test supervisor tree
+- [x] 5.7.3.3 Test: ets_inspect lists test ETS tables
+- [x] 5.7.3.4 Test: ets_inspect looks up test data
 
 ### 5.7.4 Documentation Integration
 
 Test documentation retrieval.
 
-- [ ] 5.7.4.1 Test: fetch_elixir_docs retrieves Enum docs
-- [ ] 5.7.4.2 Test: fetch_elixir_docs retrieves project module docs
+- [x] 5.7.4.1 Test: fetch_elixir_docs retrieves Enum docs
+- [x] 5.7.4.2 Test: fetch_elixir_docs retrieves project module docs
 
 ### 5.7.5 Security Integration
 
 Test security controls are enforced.
 
-- [ ] 5.7.5.1 Test: mix_task rejects blocked tasks
-- [ ] 5.7.5.2 Test: run_exunit rejects path traversal
-- [ ] 5.7.5.3 Test: get_process_state rejects system processes
-- [ ] 5.7.5.4 Test: ets_inspect rejects system tables
-- [ ] 5.7.5.5 Test: All tools reject requests outside project boundary
+- [x] 5.7.5.1 Test: mix_task rejects blocked tasks
+- [x] 5.7.5.2 Test: run_exunit rejects path traversal
+- [x] 5.7.5.3 Test: get_process_state rejects system processes
+- [x] 5.7.5.4 Test: ets_inspect rejects system tables
+- [x] 5.7.5.5 Test: All tools reject requests outside project boundary
 
 ---
 

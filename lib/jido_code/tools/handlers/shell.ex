@@ -356,4 +356,213 @@ defmodule JidoCode.Tools.Handlers.Shell do
     defp maybe_truncate(output) when is_binary(output), do: output
     defp maybe_truncate(_), do: ""
   end
+
+  # ============================================================================
+  # BashBackground Handler
+  # ============================================================================
+
+  defmodule BashBackground do
+    @moduledoc """
+    Handler for the bash_background tool.
+
+    Starts a command in the background, returning a shell_id that can be used
+    to retrieve output later via bash_output or terminate the process via kill_shell.
+
+    Uses session-aware project root via `HandlerHelpers.get_project_root/1`.
+    """
+
+    alias JidoCode.Tools.BackgroundShell
+    alias JidoCode.Tools.Handlers.Shell
+
+    @doc """
+    Starts a background command.
+
+    ## Arguments
+
+    - `"command"` - Command to execute (must be in allowlist)
+    - `"args"` - Command arguments (optional, default: [])
+    - `"description"` - Optional description for tracking
+
+    ## Context
+
+    - `:session_id` - Session ID for process tracking (required)
+    - `:project_root` - Direct project root path (legacy)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with shell_id and description
+    - `{:error, reason}` - Error message
+
+    ## Security
+
+    - Command must be in the allowed commands list
+    - Shell interpreters (bash, sh, etc.) are blocked
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"command" => command} = args, context) when is_binary(command) do
+      start_time = System.monotonic_time(:microsecond)
+
+      with {:ok, session_id} <- get_session_id(context),
+           {:ok, project_root} <- Shell.get_project_root(context),
+           raw_args <- Map.get(args, "args", []),
+           cmd_args <- parse_args(raw_args),
+           description <- Map.get(args, "description"),
+           {:ok, shell_id} <-
+             BackgroundShell.start_command(command, cmd_args, session_id, project_root,
+               description: description
+             ) do
+        Shell.emit_shell_telemetry(:bash_background, start_time, command, context, :ok, 0)
+
+        result = %{
+          shell_id: shell_id,
+          description: description || "Background: #{command} #{Enum.join(cmd_args, " ")}"
+        }
+
+        {:ok, Jason.encode!(result)}
+      else
+        {:error, :no_session_id} ->
+          {:error, "bash_background requires a session context"}
+
+        {:error, reason} when is_binary(reason) ->
+          Shell.emit_shell_telemetry(:bash_background, start_time, command, context, :error, -1)
+          {:error, reason}
+
+        {:error, reason} ->
+          Shell.emit_shell_telemetry(:bash_background, start_time, command, context, :error, -1)
+          {:error, Shell.format_error(reason, command)}
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "bash_background requires a command argument"}
+    end
+
+    defp get_session_id(%{session_id: session_id}) when is_binary(session_id), do: {:ok, session_id}
+    defp get_session_id(_), do: {:error, :no_session_id}
+
+    defp parse_args(args) when is_list(args), do: Enum.map(args, &to_string/1)
+    defp parse_args(_args), do: []
+  end
+
+  # ============================================================================
+  # BashOutput Handler
+  # ============================================================================
+
+  defmodule BashOutput do
+    @moduledoc """
+    Handler for the bash_output tool.
+
+    Retrieves output from a background shell process started with bash_background.
+    Supports blocking (wait for completion) and non-blocking modes.
+    """
+
+    alias JidoCode.Tools.BackgroundShell
+    alias JidoCode.Tools.Handlers.Shell
+
+    @default_timeout 30_000
+
+    @doc """
+    Gets output from a background shell process.
+
+    ## Arguments
+
+    - `"shell_id"` - Shell ID returned by bash_background (required)
+    - `"block"` - Wait for completion (optional, default: true)
+    - `"timeout"` - Max wait time in ms when blocking (optional, default: 30000)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with output, status, exit_code
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"shell_id" => shell_id} = args, context) when is_binary(shell_id) do
+      start_time = System.monotonic_time(:microsecond)
+      block = Map.get(args, "block", true)
+      timeout = Map.get(args, "timeout", @default_timeout)
+
+      opts = [block: block, timeout: timeout]
+
+      case BackgroundShell.get_output(shell_id, opts) do
+        {:ok, result} ->
+          Shell.emit_shell_telemetry(:bash_output, start_time, shell_id, context, :ok, result.exit_code || 0)
+
+          {:ok, Jason.encode!(%{
+            output: result.output,
+            status: to_string(result.status),
+            exit_code: result.exit_code
+          })}
+
+        {:error, :not_found} ->
+          Shell.emit_shell_telemetry(:bash_output, start_time, shell_id, context, :error, -1)
+          {:error, "Shell not found: #{shell_id}"}
+
+        {:error, :timeout} ->
+          Shell.emit_shell_telemetry(:bash_output, start_time, shell_id, context, :timeout, -1)
+          {:error, "Timeout waiting for shell: #{shell_id}"}
+
+        {:error, reason} ->
+          Shell.emit_shell_telemetry(:bash_output, start_time, shell_id, context, :error, -1)
+          {:error, "Error getting output: #{inspect(reason)}"}
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "bash_output requires a shell_id argument"}
+    end
+  end
+
+  # ============================================================================
+  # KillShell Handler
+  # ============================================================================
+
+  defmodule KillShell do
+    @moduledoc """
+    Handler for the kill_shell tool.
+
+    Terminates a background shell process.
+    """
+
+    alias JidoCode.Tools.BackgroundShell
+    alias JidoCode.Tools.Handlers.Shell
+
+    @doc """
+    Kills a background shell process.
+
+    ## Arguments
+
+    - `"shell_id"` - Shell ID returned by bash_background (required)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with success status
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"shell_id" => shell_id} = _args, context) when is_binary(shell_id) do
+      start_time = System.monotonic_time(:microsecond)
+
+      case BackgroundShell.kill(shell_id) do
+        :ok ->
+          Shell.emit_shell_telemetry(:kill_shell, start_time, shell_id, context, :ok, 0)
+          {:ok, Jason.encode!(%{success: true, message: "Shell terminated: #{shell_id}"})}
+
+        {:error, :not_found} ->
+          Shell.emit_shell_telemetry(:kill_shell, start_time, shell_id, context, :error, -1)
+          {:error, "Shell not found: #{shell_id}"}
+
+        {:error, :already_finished} ->
+          Shell.emit_shell_telemetry(:kill_shell, start_time, shell_id, context, :ok, 0)
+          {:ok, Jason.encode!(%{success: true, message: "Shell already finished: #{shell_id}"})}
+
+        {:error, reason} ->
+          Shell.emit_shell_telemetry(:kill_shell, start_time, shell_id, context, :error, -1)
+          {:error, "Error killing shell: #{inspect(reason)}"}
+      end
+    end
+
+    def execute(_args, _context) do
+      {:error, "kill_shell requires a shell_id argument"}
+    end
+  end
 end

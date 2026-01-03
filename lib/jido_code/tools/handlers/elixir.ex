@@ -75,6 +75,21 @@ defmodule JidoCode.Tools.Handlers.Elixir do
 
   @allowed_envs ~w(dev test)
 
+  # Shared constants are defined in JidoCode.Tools.Handlers.Elixir.Constants
+  # to allow nested modules to access them during compilation
+
+  @doc """
+  Returns the shared list of blocked process prefixes.
+  """
+  @spec blocked_prefixes() :: [String.t()]
+  defdelegate blocked_prefixes, to: __MODULE__.Constants
+
+  @doc """
+  Returns the shared list of sensitive field names for redaction.
+  """
+  @spec sensitive_fields() :: [String.t()]
+  defdelegate sensitive_fields, to: __MODULE__.Constants
+
   # ============================================================================
   # Shared Helpers
   # ============================================================================
@@ -679,6 +694,1442 @@ defmodule JidoCode.Tools.Handlers.Elixir do
     defp format_error(:path_not_in_test_dir), do: "Path must be within the test/ directory"
     defp format_error(:path_escapes_boundary), do: "Path escapes project boundary"
     defp format_error({:path_traversal_blocked, path}), do: "Path traversal not allowed: #{path}"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
+
+  # ============================================================================
+  # ProcessState Handler
+  # ============================================================================
+
+  defmodule ProcessState do
+    @moduledoc """
+    Handler for the get_process_state tool.
+
+    Inspects the state of GenServer and other OTP processes with security controls.
+    Only project processes can be inspected - system and internal processes are blocked.
+
+    ## Security Features
+
+    - Only registered names allowed (raw PIDs blocked)
+    - System-critical processes blocked (kernel, stdlib, init)
+    - JidoCode internal processes blocked
+    - Sensitive fields redacted (passwords, tokens, keys)
+    - Timeout enforcement (default 5s)
+
+    ## Output
+
+    Returns JSON with:
+    - `state` - Process state formatted with inspect
+    - `process_info` - Basic process information
+    - `type` - Process type (genserver, agent, gen_statem, other)
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.Elixir.Constants
+    alias JidoCode.Tools.HandlerHelpers
+
+    @default_timeout 5_000
+    @max_timeout 30_000
+
+    # Use shared blocked prefixes from Constants module
+    @blocked_prefixes Constants.blocked_prefixes()
+
+    # Use shared sensitive fields from Constants module
+    @sensitive_fields Constants.sensitive_fields()
+
+    @doc """
+    Inspects the state of a process.
+
+    ## Arguments
+
+    - `"process"` - Registered name of the process (required)
+    - `"timeout"` - Timeout in milliseconds (optional, default: 5000)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with state and process_info
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"process" => process_name} = args, context) when is_binary(process_name) do
+      start_time = System.monotonic_time(:microsecond)
+      timeout = HandlerHelpers.get_timeout(args, @default_timeout, @max_timeout)
+
+      with :ok <- validate_process_name(process_name),
+           :ok <- validate_not_blocked(process_name),
+           {:ok, pid} <- lookup_process(process_name) do
+        get_and_format_state(pid, process_name, timeout, context, start_time)
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    def execute(%{"process" => process_name}, _context) do
+      {:error, "Invalid process name: expected string, got #{inspect(process_name)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: process"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    # Validate process name format - only allow registered names, not raw PIDs
+    defp validate_process_name(name) do
+      cond do
+        # Block raw PID strings like "#PID<0.123.0>" or "<0.123.0>"
+        String.contains?(name, "<") and String.contains?(name, ".") ->
+          {:error, :raw_pid_not_allowed}
+
+        # Block empty or whitespace-only names
+        String.trim(name) == "" ->
+          {:error, :invalid_process_name}
+
+        # Valid registered name
+        true ->
+          :ok
+      end
+    end
+
+    # Check if process is in blocked list
+    defp validate_not_blocked(name) do
+      if Enum.any?(@blocked_prefixes, &String.starts_with?(name, &1)) do
+        {:error, :process_blocked}
+      else
+        :ok
+      end
+    end
+
+    # Look up process by registered name
+    defp lookup_process(name) do
+      # Try to convert to atom (for registered names)
+      atom_name = try_to_atom(name)
+
+      case atom_name do
+        nil ->
+          {:error, :process_not_found}
+
+        atom when is_atom(atom) ->
+          case GenServer.whereis(atom) do
+            nil -> {:error, :process_not_found}
+            pid when is_pid(pid) -> {:ok, pid}
+          end
+      end
+    end
+
+    defp try_to_atom(name) do
+      # First try as an existing atom
+      try do
+        String.to_existing_atom(name)
+      rescue
+        ArgumentError ->
+          # Try with Elixir. prefix for module names
+          try do
+            String.to_existing_atom("Elixir." <> name)
+          rescue
+            ArgumentError -> nil
+          end
+      end
+    end
+
+    defp get_and_format_state(pid, process_name, timeout, context, start_time) do
+      process_info = get_process_info(pid)
+      process_type = detect_process_type(pid)
+
+      state_result =
+        try do
+          case :sys.get_state(pid, timeout) do
+            state -> {:ok, state}
+          end
+        catch
+          :exit, {:timeout, _} -> {:error, :timeout}
+          :exit, {:noproc, _} -> {:error, :process_dead}
+          :exit, reason -> {:error, {:sys_error, reason}}
+        end
+
+      case state_result do
+        {:ok, state} ->
+          formatted_state = format_state(state)
+          sanitized_state = sanitize_output(formatted_state)
+
+          result = %{
+            "state" => sanitized_state,
+            "process_info" => process_info,
+            "type" => process_type
+          }
+
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :ok, 0)
+
+          case Jason.encode(result) do
+            {:ok, json} -> {:ok, json}
+            {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+          end
+
+        {:error, :timeout} ->
+          # For timeout, still return process_info
+          result = %{
+            "state" => nil,
+            "process_info" => process_info,
+            "type" => process_type,
+            "error" => "Timeout getting state"
+          }
+
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :timeout, 1)
+
+          case Jason.encode(result) do
+            {:ok, json} -> {:ok, json}
+            {:error, _} -> {:error, "Timeout getting process state"}
+          end
+
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:process_state, start_time, process_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp get_process_info(pid) do
+      info = Process.info(pid, [:registered_name, :status, :message_queue_len, :memory, :reductions])
+
+      case info do
+        nil ->
+          %{"status" => "dead"}
+
+        info_list ->
+          %{
+            "registered_name" => format_registered_name(info_list[:registered_name]),
+            "status" => to_string(info_list[:status]),
+            "message_queue_len" => info_list[:message_queue_len],
+            "memory" => info_list[:memory],
+            "reductions" => info_list[:reductions]
+          }
+      end
+    end
+
+    defp format_registered_name([]), do: nil
+    defp format_registered_name(name) when is_atom(name), do: to_string(name)
+    defp format_registered_name(_), do: nil
+
+    defp detect_process_type(pid) do
+      # Try to detect OTP behavior type
+      try do
+        case :sys.get_status(pid, 100) do
+          {:status, _, {:module, module}, _} ->
+            cond do
+              function_exported?(module, :handle_call, 3) -> "genserver"
+              function_exported?(module, :handle_event, 4) -> "gen_statem"
+              true -> "otp_process"
+            end
+
+          _ ->
+            "other"
+        end
+      catch
+        :exit, _ -> "other"
+      end
+    end
+
+    defp format_state(state) do
+      inspect(state, pretty: true, limit: 50, printable_limit: 4096)
+    end
+
+    # Sanitize output to redact sensitive fields
+    # Handles multiple formats: quoted strings, atoms, unquoted values, charlists, binaries
+    defp sanitize_output(output) when is_binary(output) do
+      Enum.reduce(@sensitive_fields, output, fn field, acc ->
+        # Comprehensive patterns for different Elixir inspect output formats
+        patterns = [
+          # Double-quoted strings: password => "secret" or password: "secret"
+          {~r/(#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Single-quoted strings (charlists): password => 'secret'
+          {~r/(#{field})\s*[=:>]+\s*'[^']*'/i, "\\1 => '[REDACTED]'"},
+          # Atom prefix format: :password => "secret"
+          {~r/(:\s*#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Atom values: password => :secret_value
+          {~r/(#{field})\s*[=:>]+\s*:[a-zA-Z_][a-zA-Z0-9_]*/i, "\\1 => :[REDACTED]"},
+          # Integer values: password => 12345
+          {~r/(#{field})\s*[=:>]+\s*\d+/i, "\\1 => [REDACTED]"},
+          # Charlist syntax: password => ~c"secret"
+          {~r/(#{field})\s*[=:>]+\s*~c"[^"]*"/i, "\\1 => ~c\"[REDACTED]\""},
+          # Binary syntax: password => <<"secret">>
+          {~r/(#{field})\s*[=:>]+\s*<<[^>]*>>/i, "\\1 => <<[REDACTED]>>"},
+          # Unquoted barewords (identifiers): password => secret_value
+          {~r/(#{field})\s*[=:>]+\s*([a-zA-Z_][a-zA-Z0-9_]*)\b(?!\s*[=:>\(\[])/i, "\\1 => [REDACTED]"}
+        ]
+
+        Enum.reduce(patterns, acc, fn {pattern, replacement}, inner_acc ->
+          Regex.replace(pattern, inner_acc, replacement)
+        end)
+      end)
+    end
+
+    defp format_error(:raw_pid_not_allowed), do: "Raw PIDs are not allowed. Use registered process names."
+    defp format_error(:invalid_process_name), do: "Invalid process name"
+    defp format_error(:process_blocked), do: "Access to this process is blocked for security"
+    defp format_error(:process_not_found), do: "Process not found or not registered"
+    defp format_error(:process_dead), do: "Process is no longer running"
+    defp format_error(:timeout), do: "Timeout getting process state"
+    defp format_error({:sys_error, reason}), do: "Error getting state: #{inspect(reason)}"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
+
+  # ============================================================================
+  # SupervisorTree Handler
+  # ============================================================================
+
+  defmodule SupervisorTree do
+    @moduledoc """
+    Handler for the inspect_supervisor tool.
+
+    Inspects supervisor tree structure with security controls.
+    Only project supervisors can be inspected - system supervisors are blocked.
+
+    ## Security Features
+
+    - Only registered names allowed (raw PIDs blocked)
+    - System supervisors blocked (kernel, stdlib, init)
+    - JidoCode internal supervisors blocked
+    - Depth limited to prevent excessive recursion
+
+    ## Output
+
+    Returns JSON with:
+    - `tree` - Formatted tree structure as string
+    - `children` - List of child specs with details
+    - `supervisor_info` - Supervisor metadata
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.Elixir.Constants
+    alias JidoCode.Tools.HandlerHelpers
+
+    @default_depth 2
+    @max_depth 5
+    @max_children_per_level 50
+
+    # Use shared blocked prefixes from Constants module
+    @blocked_prefixes Constants.blocked_prefixes()
+
+    @doc """
+    Inspects the structure of a supervisor tree.
+
+    ## Arguments
+
+    - `"supervisor"` - Registered name of the supervisor (required)
+    - `"depth"` - Maximum depth to traverse (optional, default: 2, max: 5)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with tree structure and children list
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"supervisor" => supervisor_name} = args, context) when is_binary(supervisor_name) do
+      start_time = System.monotonic_time(:microsecond)
+      depth = get_depth(args)
+
+      with :ok <- validate_supervisor_name(supervisor_name),
+           :ok <- validate_not_blocked(supervisor_name),
+           {:ok, pid} <- lookup_supervisor(supervisor_name) do
+        inspect_and_format_tree(pid, supervisor_name, depth, context, start_time)
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:supervisor_tree, start_time, supervisor_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    def execute(%{"supervisor" => supervisor_name}, _context) do
+      {:error, "Invalid supervisor name: expected string, got #{inspect(supervisor_name)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: supervisor"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    defp get_depth(args) do
+      case Map.get(args, "depth") do
+        nil -> @default_depth
+        depth when is_integer(depth) and depth > 0 -> min(depth, @max_depth)
+        _ -> @default_depth
+      end
+    end
+
+    # Validate supervisor name format - only allow registered names, not raw PIDs
+    defp validate_supervisor_name(name) do
+      cond do
+        # Block raw PID strings like "#PID<0.123.0>" or "<0.123.0>"
+        String.contains?(name, "<") and String.contains?(name, ".") ->
+          {:error, :raw_pid_not_allowed}
+
+        # Block empty or whitespace-only names
+        String.trim(name) == "" ->
+          {:error, :invalid_supervisor_name}
+
+        # Valid registered name
+        true ->
+          :ok
+      end
+    end
+
+    # Check if supervisor is in blocked list
+    defp validate_not_blocked(name) do
+      if Enum.any?(@blocked_prefixes, &String.starts_with?(name, &1)) do
+        {:error, :supervisor_blocked}
+      else
+        :ok
+      end
+    end
+
+    # Look up supervisor by registered name
+    defp lookup_supervisor(name) do
+      atom_name = try_to_atom(name)
+
+      case atom_name do
+        nil ->
+          {:error, :supervisor_not_found}
+
+        atom when is_atom(atom) ->
+          case GenServer.whereis(atom) do
+            nil -> {:error, :supervisor_not_found}
+            pid when is_pid(pid) -> {:ok, pid}
+          end
+      end
+    end
+
+    defp try_to_atom(name) do
+      try do
+        String.to_existing_atom(name)
+      rescue
+        ArgumentError ->
+          try do
+            String.to_existing_atom("Elixir." <> name)
+          rescue
+            ArgumentError -> nil
+          end
+      end
+    end
+
+    defp inspect_and_format_tree(pid, supervisor_name, depth, context, start_time) do
+      supervisor_info = get_supervisor_info(pid, supervisor_name)
+
+      children_result =
+        try do
+          children = Supervisor.which_children(pid)
+          {:ok, children}
+        catch
+          :exit, {:noproc, _} -> {:error, :supervisor_dead}
+          :exit, reason -> {:error, {:supervisor_error, reason}}
+        end
+
+      case children_result do
+        {:ok, children} ->
+          # Limit children count
+          limited_children = Enum.take(children, @max_children_per_level)
+          truncated = length(children) > @max_children_per_level
+
+          # Build tree structure
+          tree_data = build_tree(limited_children, depth - 1)
+          tree_string = format_tree_string(supervisor_name, tree_data, truncated)
+
+          result = %{
+            "tree" => tree_string,
+            "children" => format_children_list(tree_data),
+            "supervisor_info" => supervisor_info,
+            "children_count" => length(children),
+            "truncated" => truncated
+          }
+
+          ElixirHandler.emit_elixir_telemetry(:supervisor_tree, start_time, supervisor_name, context, :ok, 0)
+
+          case Jason.encode(result) do
+            {:ok, json} -> {:ok, json}
+            {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+          end
+
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:supervisor_tree, start_time, supervisor_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp get_supervisor_info(pid, name) do
+      info = Process.info(pid, [:status, :message_queue_len, :memory, :reductions])
+
+      case info do
+        nil ->
+          %{"status" => "dead", "name" => name}
+
+        info_list ->
+          %{
+            "name" => name,
+            "status" => to_string(info_list[:status]),
+            "message_queue_len" => info_list[:message_queue_len],
+            "memory" => info_list[:memory],
+            "reductions" => info_list[:reductions]
+          }
+      end
+    end
+
+    defp build_tree(children, remaining_depth) do
+      Enum.map(children, fn {id, child_pid, type, modules} ->
+        child_info = %{
+          id: format_id(id),
+          type: to_string(type),
+          modules: format_modules(modules),
+          pid: format_pid(child_pid),
+          status: get_child_status(child_pid)
+        }
+
+        # Recursively inspect supervisor children if depth allows
+        if remaining_depth > 0 and type == :supervisor and is_pid(child_pid) do
+          sub_children = get_safe_children(child_pid)
+          limited_sub = Enum.take(sub_children, @max_children_per_level)
+          sub_tree = build_tree(limited_sub, remaining_depth - 1)
+          Map.put(child_info, :children, sub_tree)
+        else
+          child_info
+        end
+      end)
+    end
+
+    defp get_safe_children(pid) do
+      try do
+        Supervisor.which_children(pid)
+      catch
+        :exit, _ -> []
+      end
+    end
+
+    defp format_id(id) when is_atom(id), do: to_string(id)
+    defp format_id(id), do: inspect(id)
+
+    defp format_modules(:dynamic), do: ["dynamic"]
+    defp format_modules(modules) when is_list(modules), do: Enum.map(modules, &to_string/1)
+    defp format_modules(_), do: []
+
+    defp format_pid(pid) when is_pid(pid), do: inspect(pid)
+    defp format_pid(:undefined), do: "undefined"
+    defp format_pid(:restarting), do: "restarting"
+    defp format_pid(other), do: inspect(other)
+
+    defp get_child_status(pid) when is_pid(pid) do
+      if Process.alive?(pid), do: "running", else: "dead"
+    end
+
+    defp get_child_status(:undefined), do: "not_started"
+    defp get_child_status(:restarting), do: "restarting"
+    defp get_child_status(_), do: "unknown"
+
+    defp format_tree_string(root_name, children, truncated) do
+      lines = [root_name | format_tree_lines(children, "")]
+      tree = Enum.join(lines, "\n")
+
+      if truncated do
+        tree <> "\n... (children truncated at #{@max_children_per_level})"
+      else
+        tree
+      end
+    end
+
+    defp format_tree_lines([], _prefix), do: []
+
+    defp format_tree_lines(children, prefix) do
+      children
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {child, index} ->
+        is_last = index == length(children) - 1
+        connector = if is_last, do: "└── ", else: "├── "
+        child_prefix = if is_last, do: "    ", else: "│   "
+
+        type_indicator = if child.type == "supervisor", do: "[S]", else: "[W]"
+        status_indicator = status_symbol(child.status)
+        child_line = "#{prefix}#{connector}#{type_indicator} #{child.id} #{status_indicator}"
+
+        sub_lines =
+          case Map.get(child, :children) do
+            nil -> []
+            sub_children -> format_tree_lines(sub_children, prefix <> child_prefix)
+          end
+
+        [child_line | sub_lines]
+      end)
+    end
+
+    defp status_symbol("running"), do: "●"
+    defp status_symbol("dead"), do: "○"
+    defp status_symbol("restarting"), do: "↻"
+    defp status_symbol("not_started"), do: "◌"
+    defp status_symbol(_), do: "?"
+
+    defp format_children_list(tree_data) do
+      Enum.map(tree_data, fn child ->
+        base = %{
+          "id" => child.id,
+          "type" => child.type,
+          "modules" => child.modules,
+          "pid" => child.pid,
+          "status" => child.status
+        }
+
+        case Map.get(child, :children) do
+          nil -> base
+          sub_children -> Map.put(base, "children", format_children_list(sub_children))
+        end
+      end)
+    end
+
+    defp format_error(:raw_pid_not_allowed), do: "Raw PIDs are not allowed. Use registered supervisor names."
+    defp format_error(:invalid_supervisor_name), do: "Invalid supervisor name"
+    defp format_error(:supervisor_blocked), do: "Access to this supervisor is blocked for security"
+    defp format_error(:supervisor_not_found), do: "Supervisor not found or not registered"
+    defp format_error(:supervisor_dead), do: "Supervisor is no longer running"
+    defp format_error({:supervisor_error, reason}), do: "Error inspecting supervisor: #{inspect(reason)}"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
+
+  # ============================================================================
+  # EtsInspect Handler
+  # ============================================================================
+
+  defmodule EtsInspect do
+    @moduledoc """
+    Handler for the ets_inspect tool.
+
+    Inspects ETS tables with multiple operations: list available tables,
+    get table info, lookup by key, or sample entries. Only project-owned
+    tables can be inspected - system tables are blocked.
+
+    ## Security Features
+
+    - System ETS tables are blocked (code, ac_tab, file_io_servers, etc.)
+    - Only project-owned tables can be inspected (owner not in blocked list)
+    - Protected/private tables block lookup/sample from non-owner processes
+    - Output limited to prevent memory issues
+
+    ## Operations
+
+    - `list` - Get all project-owned tables with basic info
+    - `info` - Get detailed table information
+    - `lookup` - Lookup entries by key
+    - `sample` - Get first N entries from table
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.Elixir.Constants
+    alias JidoCode.Tools.HandlerHelpers
+
+    @default_limit 10
+    @max_limit 100
+    @max_entry_size 10_000
+
+    # System ETS tables that should never be inspected
+    @blocked_tables [
+      :code,
+      :code_names,
+      :ac_tab,
+      :file_io_servers,
+      :shell_records,
+      :global_names,
+      :global_names_ext,
+      :global_locks,
+      :global_pid_names,
+      :global_pid_ids,
+      :inet_db,
+      :inet_hosts_byname,
+      :inet_hosts_byaddr,
+      :inet_hosts_file_byname,
+      :inet_hosts_file_byaddr,
+      :inet_cache,
+      :ssl_otp_session_cache,
+      :ssl_otp_pem_cache,
+      :ets_coverage_data,
+      :cover_internal_data_table,
+      :cover_internal_clause_table,
+      :cover_binary_code_table
+    ]
+
+    # Use shared blocked prefixes from Constants module
+    @blocked_owner_prefixes Constants.blocked_prefixes()
+
+    # Use shared sensitive fields from Constants module for redaction
+    @sensitive_fields Constants.sensitive_fields()
+
+    @doc """
+    Inspects ETS tables with various operations.
+
+    ## Arguments
+
+    - `"operation"` - Operation to perform: "list", "info", "lookup", "sample" (required)
+    - `"table"` - Table name to inspect (required for info/lookup/sample)
+    - `"key"` - Key for lookup operation (as string)
+    - `"limit"` - Max entries for sample (default: 10, max: 100)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with operation results
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"operation" => operation} = args, context) when is_binary(operation) do
+      start_time = System.monotonic_time(:microsecond)
+
+      result =
+        case operation do
+          "list" -> execute_list(context, start_time)
+          "info" -> execute_info(args, context, start_time)
+          "lookup" -> execute_lookup(args, context, start_time)
+          "sample" -> execute_sample(args, context, start_time)
+          _ -> {:error, "Invalid operation: #{operation}. Must be one of: list, info, lookup, sample"}
+        end
+
+      result
+    end
+
+    def execute(%{"operation" => operation}, _context) do
+      {:error, "Invalid operation: expected string, got #{inspect(operation)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: operation"}
+    end
+
+    # ============================================================================
+    # List Operation
+    # ============================================================================
+
+    defp execute_list(context, start_time) do
+      tables = :ets.all()
+
+      project_tables =
+        tables
+        |> Enum.filter(&is_project_table?/1)
+        |> Enum.map(&get_table_summary/1)
+        |> Enum.reject(&is_nil/1)
+
+      result = %{
+        "operation" => "list",
+        "tables" => project_tables,
+        "count" => length(project_tables)
+      }
+
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "list", context, :ok, 0)
+
+      case Jason.encode(result) do
+        {:ok, json} -> {:ok, json}
+        {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+      end
+    end
+
+    # ============================================================================
+    # Info Operation
+    # ============================================================================
+
+    defp execute_info(%{"table" => table_name} = _args, context, start_time) when is_binary(table_name) do
+      with {:ok, table_ref} <- parse_table_name(table_name),
+           :ok <- validate_table_accessible(table_ref) do
+        case :ets.info(table_ref) do
+          :undefined ->
+            ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :error, 1)
+            {:error, "Table not found: #{table_name}"}
+
+          info_list ->
+            info_map = format_table_info(info_list)
+
+            result = %{
+              "operation" => "info",
+              "table" => table_name,
+              "info" => info_map
+            }
+
+            ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :ok, 0)
+
+            case Jason.encode(result) do
+              {:ok, json} -> {:ok, json}
+              {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+            end
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp execute_info(_args, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "info", context, :error, 1)
+      {:error, "Missing required parameter: table (for info operation)"}
+    end
+
+    # ============================================================================
+    # Lookup Operation
+    # ============================================================================
+
+    defp execute_lookup(%{"table" => table_name, "key" => key_string} = _args, context, start_time)
+         when is_binary(table_name) and is_binary(key_string) do
+      with {:ok, table_ref} <- parse_table_name(table_name),
+           :ok <- validate_table_accessible(table_ref),
+           :ok <- validate_table_readable(table_ref),
+           {:ok, key} <- parse_key(key_string) do
+        entries =
+          try do
+            :ets.lookup(table_ref, key)
+          rescue
+            ArgumentError -> []
+          end
+
+        formatted_entries = Enum.map(entries, &format_entry/1)
+
+        result = %{
+          "operation" => "lookup",
+          "table" => table_name,
+          "key" => key_string,
+          "entries" => formatted_entries,
+          "count" => length(formatted_entries)
+        }
+
+        ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :ok, 0)
+
+        case Jason.encode(result) do
+          {:ok, json} -> {:ok, json}
+          {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp execute_lookup(%{"table" => _table_name}, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :error, 1)
+      {:error, "Missing required parameter: key (for lookup operation)"}
+    end
+
+    defp execute_lookup(_args, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "lookup", context, :error, 1)
+      {:error, "Missing required parameters: table, key (for lookup operation)"}
+    end
+
+    # ============================================================================
+    # Sample Operation
+    # ============================================================================
+
+    defp execute_sample(%{"table" => table_name} = args, context, start_time) when is_binary(table_name) do
+      limit = get_limit(args)
+
+      with {:ok, table_ref} <- parse_table_name(table_name),
+           :ok <- validate_table_accessible(table_ref),
+           :ok <- validate_table_readable(table_ref) do
+        entries = sample_entries(table_ref, limit)
+        formatted_entries = Enum.map(entries, &format_entry/1)
+
+        total_size =
+          try do
+            :ets.info(table_ref, :size)
+          rescue
+            _ -> nil
+          end
+
+        result = %{
+          "operation" => "sample",
+          "table" => table_name,
+          "entries" => formatted_entries,
+          "count" => length(formatted_entries),
+          "total_size" => total_size,
+          "truncated" => total_size != nil and total_size > limit
+        }
+
+        ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "sample", context, :ok, 0)
+
+        case Jason.encode(result) do
+          {:ok, json} -> {:ok, json}
+          {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "sample", context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    defp execute_sample(_args, context, start_time) do
+      ElixirHandler.emit_elixir_telemetry(:ets_inspect, start_time, "sample", context, :error, 1)
+      {:error, "Missing required parameter: table (for sample operation)"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    @spec get_limit(map()) :: pos_integer()
+    defp get_limit(args) do
+      HandlerHelpers.get_bounded_integer(args, "limit", @default_limit, @max_limit)
+    end
+
+    # Parse table name string to ETS table reference
+    @spec parse_table_name(String.t()) :: {:ok, atom()} | {:error, atom()}
+    defp parse_table_name(name) when is_binary(name) do
+      # Try as existing atom first (most ETS tables use atoms)
+      try do
+        atom = String.to_existing_atom(name)
+        {:ok, atom}
+      rescue
+        ArgumentError ->
+          # Try as reference ID (for unnamed tables, format: "#Ref<...>")
+          if String.starts_with?(name, "#Ref<") do
+            {:error, :reference_tables_not_supported}
+          else
+            {:error, :table_not_found}
+          end
+      end
+    end
+
+    # Check if table is in blocked list or owned by blocked process
+    @spec validate_table_accessible(atom()) :: :ok | {:error, :table_blocked}
+    defp validate_table_accessible(table_ref) do
+      cond do
+        table_ref in @blocked_tables ->
+          {:error, :table_blocked}
+
+        is_owner_blocked?(table_ref) ->
+          {:error, :table_blocked}
+
+        true ->
+          :ok
+      end
+    end
+
+    # Check if table is readable (public access)
+    @spec validate_table_readable(atom()) :: :ok | {:error, atom()}
+    defp validate_table_readable(table_ref) do
+      case :ets.info(table_ref, :protection) do
+        :public ->
+          :ok
+
+        :protected ->
+          # Protected tables can only be read by owner - check if we own it
+          owner = :ets.info(table_ref, :owner)
+          if owner == self() do
+            :ok
+          else
+            {:error, :table_protected_not_owner}
+          end
+
+        :private ->
+          {:error, :table_private}
+
+        :undefined ->
+          {:error, :table_not_found}
+      end
+    end
+
+    @spec is_project_table?(term()) :: boolean()
+    defp is_project_table?(table_ref) do
+      # Only allow named tables (atoms), not reference-based tables
+      is_atom(table_ref) and
+        not (table_ref in @blocked_tables) and
+        not is_owner_blocked?(table_ref)
+    end
+
+    @spec is_owner_blocked?(atom()) :: boolean()
+    defp is_owner_blocked?(table_ref) do
+      owner = :ets.info(table_ref, :owner)
+
+      case owner do
+        :undefined ->
+          true
+
+        pid when is_pid(pid) ->
+          case Process.info(pid, :registered_name) do
+            {:registered_name, []} ->
+              # No registered name - check if system process by checking application
+              is_system_pid?(pid)
+
+            {:registered_name, name} when is_atom(name) ->
+              name_str = to_string(name)
+              Enum.any?(@blocked_owner_prefixes, &String.starts_with?(name_str, &1))
+
+            nil ->
+              # Process is dead
+              true
+          end
+      end
+    end
+
+    @spec is_system_pid?(pid()) :: boolean()
+    defp is_system_pid?(pid) do
+      # Check if process belongs to kernel or stdlib application
+      case :erlang.process_info(pid, :initial_call) do
+        {:initial_call, {module, _, _}} ->
+          # Block if it's a known system module
+          module in [:init, :code_server, :application_controller, :error_logger, :user, :logger]
+
+        _ ->
+          # If we can't determine, block it (safe default - better to block unknown than expose)
+          true
+      end
+    end
+
+    @spec get_table_summary(atom()) :: map() | nil
+    defp get_table_summary(table_ref) do
+      case :ets.info(table_ref) do
+        :undefined ->
+          nil
+
+        info ->
+          %{
+            "name" => to_string(table_ref),
+            "type" => to_string(Keyword.get(info, :type, :unknown)),
+            "size" => Keyword.get(info, :size, 0),
+            "memory" => Keyword.get(info, :memory, 0),
+            "protection" => to_string(Keyword.get(info, :protection, :unknown))
+          }
+      end
+    end
+
+    @spec format_table_info(keyword()) :: map()
+    defp format_table_info(info_list) do
+      info_list
+      |> Enum.map(fn
+        {:owner, pid} when is_pid(pid) -> {"owner", inspect(pid)}
+        {:heir, :none} -> {"heir", "none"}
+        {:heir, pid} when is_pid(pid) -> {"heir", inspect(pid)}
+        {:name, name} -> {"name", to_string(name)}
+        {:named_table, val} -> {"named_table", val}
+        {:type, type} -> {"type", to_string(type)}
+        {:keypos, pos} -> {"keypos", pos}
+        {:protection, prot} -> {"protection", to_string(prot)}
+        {:size, size} -> {"size", size}
+        {:memory, mem} -> {"memory", mem}
+        {:compressed, comp} -> {"compressed", comp}
+        {:write_concurrency, wc} -> {"write_concurrency", wc}
+        {:read_concurrency, rc} -> {"read_concurrency", rc}
+        {:decentralized_counters, dc} -> {"decentralized_counters", dc}
+        {key, val} -> {to_string(key), inspect(val)}
+      end)
+      |> Map.new()
+    end
+
+    # Parse key from string representation
+    @spec parse_key(String.t()) :: {:ok, term()} | {:error, :atom_not_found}
+    defp parse_key(key_string) do
+      trimmed = String.trim(key_string)
+
+      cond do
+        # Atom: :foo or :foo_bar (only existing atoms to prevent atom table exhaustion)
+        String.starts_with?(trimmed, ":") ->
+          atom_name = String.slice(trimmed, 1..-1//1)
+
+          try do
+            {:ok, String.to_existing_atom(atom_name)}
+          rescue
+            ArgumentError -> {:error, :atom_not_found}
+          end
+
+        # Integer
+        Regex.match?(~r/^-?\d+$/, trimmed) ->
+          {:ok, String.to_integer(trimmed)}
+
+        # Float
+        Regex.match?(~r/^-?\d+\.\d+$/, trimmed) ->
+          {:ok, String.to_float(trimmed)}
+
+        # Quoted string: "foo" or 'foo'
+        (String.starts_with?(trimmed, "\"") and String.ends_with?(trimmed, "\"")) or
+            (String.starts_with?(trimmed, "'") and String.ends_with?(trimmed, "'")) ->
+          {:ok, String.slice(trimmed, 1..-2//1)}
+
+        # Boolean
+        trimmed in ["true", "false"] ->
+          {:ok, trimmed == "true"}
+
+        # Otherwise treat as string key
+        true ->
+          {:ok, trimmed}
+      end
+    end
+
+    # Sample N entries from table using first/next traversal with memory limit
+    @spec sample_entries(atom(), pos_integer()) :: [term()]
+    defp sample_entries(table_ref, limit) do
+      try do
+        first_key = :ets.first(table_ref)
+        # Track both count and total size to prevent memory issues
+        collect_entries(table_ref, first_key, limit, [], 0)
+      rescue
+        ArgumentError -> []
+      end
+    end
+
+    @spec collect_entries(atom(), term(), non_neg_integer(), [term()], non_neg_integer()) :: [term()]
+    defp collect_entries(_table_ref, :"$end_of_table", _remaining, acc, _total_size), do: Enum.reverse(acc)
+    defp collect_entries(_table_ref, _key, 0, acc, _total_size), do: Enum.reverse(acc)
+    # Stop if we've collected too much data (memory limit)
+    defp collect_entries(_table_ref, _key, _remaining, acc, total_size) when total_size > @max_entry_size do
+      Enum.reverse(acc)
+    end
+
+    defp collect_entries(table_ref, key, remaining, acc, total_size) do
+      entries = :ets.lookup(table_ref, key)
+      # Estimate entry size using :erts_debug.size (word count)
+      entry_size = Enum.reduce(entries, 0, fn entry, size -> size + :erts_debug.size(entry) end)
+      new_total_size = total_size + entry_size
+      new_acc = entries ++ acc
+      new_remaining = remaining - length(entries)
+
+      if new_remaining <= 0 or new_total_size > @max_entry_size do
+        # We've collected enough or hit memory limit
+        Enum.reverse(new_acc)
+      else
+        next_key = :ets.next(table_ref, key)
+        collect_entries(table_ref, next_key, new_remaining, new_acc, new_total_size)
+      end
+    end
+
+    @spec format_entry(term()) :: String.t()
+    defp format_entry(entry) do
+      entry
+      |> inspect(pretty: true, limit: 50, printable_limit: 4096)
+      |> sanitize_output()
+    end
+
+    # Sanitize output to redact sensitive fields (same pattern as ProcessState)
+    @spec sanitize_output(String.t()) :: String.t()
+    defp sanitize_output(output) when is_binary(output) do
+      Enum.reduce(@sensitive_fields, output, fn field, acc ->
+        patterns = [
+          # Double-quoted strings: password => "secret" or password: "secret"
+          {~r/(#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Single-quoted strings (charlists): password => 'secret'
+          {~r/(#{field})\s*[=:>]+\s*'[^']*'/i, "\\1 => '[REDACTED]'"},
+          # Atom prefix format: :password => "secret"
+          {~r/(:\s*#{field})\s*[=:>]+\s*"[^"]*"/i, "\\1 => \"[REDACTED]\""},
+          # Atom values: password => :secret_value
+          {~r/(#{field})\s*[=:>]+\s*:[a-zA-Z_][a-zA-Z0-9_]*/i, "\\1 => :[REDACTED]"},
+          # Integer values: password => 12345
+          {~r/(#{field})\s*[=:>]+\s*\d+/i, "\\1 => [REDACTED]"},
+          # Charlist syntax: password => ~c"secret"
+          {~r/(#{field})\s*[=:>]+\s*~c"[^"]*"/i, "\\1 => ~c\"[REDACTED]\""},
+          # Binary syntax: password => <<"secret">>
+          {~r/(#{field})\s*[=:>]+\s*<<[^>]*>>/i, "\\1 => <<[REDACTED]>>"},
+          # Unquoted barewords (identifiers): password => secret_value
+          {~r/(#{field})\s*[=:>]+\s*([a-zA-Z_][a-zA-Z0-9_]*)\b(?!\s*[=:>\(\[])/i, "\\1 => [REDACTED]"}
+        ]
+
+        Enum.reduce(patterns, acc, fn {pattern, replacement}, inner_acc ->
+          Regex.replace(pattern, inner_acc, replacement)
+        end)
+      end)
+    end
+
+    @spec format_error(atom() | String.t()) :: String.t()
+    defp format_error(:table_not_found), do: "Table not found"
+    defp format_error(:table_blocked), do: "Access to this table is blocked for security"
+    defp format_error(:table_private), do: "Table is private and cannot be read"
+    defp format_error(:table_protected_not_owner), do: "Table is protected and can only be read by its owner process"
+    defp format_error(:reference_tables_not_supported), do: "Reference-based tables are not supported"
+    defp format_error(:invalid_key), do: "Invalid key format"
+    defp format_error(:atom_not_found), do: "Atom key does not exist (only existing atoms are allowed)"
+    defp format_error(reason) when is_binary(reason), do: reason
+    defp format_error(reason), do: "Error: #{inspect(reason)}"
+  end
+
+  # ============================================================================
+  # FetchDocs Handler
+  # ============================================================================
+
+  defmodule FetchDocs do
+    @moduledoc """
+    Handler for the fetch_elixir_docs tool.
+
+    Retrieves documentation for Elixir and Erlang modules and functions using
+    `Code.fetch_docs/1` and type specifications using `Code.Typespec.fetch_specs/1`.
+
+    ## Supported Modules
+
+    - **Elixir modules**: `"Enum"`, `"String"`, `"GenServer"` (with or without "Elixir." prefix)
+    - **Erlang modules**: `":gen_server"`, `":ets"`, `"gen_server"`, `"ets"` (lowercase)
+
+    ## Security Features
+
+    - Uses `String.to_existing_atom/1` to prevent atom table exhaustion
+    - Only existing (loaded) modules can be queried
+    - Non-existent modules return an error
+
+    ## Context Parameter
+
+    The `context` parameter is accepted for API consistency with other handlers but
+    is only used for telemetry emission. Unlike file-based handlers, FetchDocs queries
+    loaded BEAM modules directly and does not require project root validation.
+
+    ## Output Format
+
+    Returns JSON with:
+    - `moduledoc` - Module-level documentation
+    - `docs` - Function documentation (filtered if function/arity specified)
+    - `specs` - Type specifications for functions
+    """
+
+    alias JidoCode.Tools.Handlers.Elixir, as: ElixirHandler
+    alias JidoCode.Tools.Handlers.HandlerHelpers
+
+    @doc """
+    Fetches documentation for an Elixir or Erlang module or function.
+
+    ## Arguments
+
+    - `"module"` - Module name (required, e.g., "Enum", "String", ":gen_server")
+    - `"function"` - Function name to filter (optional)
+    - `"arity"` - Function arity to filter (optional, requires function)
+    - `"include_callbacks"` - Include callback docs for behaviour modules (optional, default: false)
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with moduledoc, docs, and specs
+    - `{:error, reason}` - Error message
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(%{"module" => module_name} = args, context) when is_binary(module_name) do
+      start_time = System.monotonic_time(:microsecond)
+
+      with {:ok, module} <- parse_module_name(module_name),
+           {:ok, docs_chunk} <- fetch_docs(module) do
+        function_filter = Map.get(args, "function")
+        arity_filter = Map.get(args, "arity")
+        include_callbacks = Map.get(args, "include_callbacks", false)
+
+        moduledoc = extract_moduledoc(docs_chunk)
+        function_docs = extract_function_docs(docs_chunk, function_filter, arity_filter, include_callbacks)
+        specs = fetch_specs(module, function_filter, arity_filter)
+
+        result = %{
+          "module" => module_name,
+          "moduledoc" => moduledoc,
+          "docs" => function_docs,
+          "specs" => specs
+        }
+
+        ElixirHandler.emit_elixir_telemetry(:fetch_docs, start_time, module_name, context, :ok, 0)
+
+        case Jason.encode(result) do
+          {:ok, json} -> {:ok, json}
+          {:error, reason} -> {:error, "Failed to encode result: #{inspect(reason)}"}
+        end
+      else
+        {:error, reason} ->
+          ElixirHandler.emit_elixir_telemetry(:fetch_docs, start_time, module_name, context, :error, 1)
+          {:error, format_error(reason)}
+      end
+    end
+
+    def execute(%{"module" => module}, _context) do
+      {:error, "Invalid module: expected string, got #{inspect(module)}"}
+    end
+
+    def execute(_args, _context) do
+      {:error, "Missing required parameter: module"}
+    end
+
+    # ============================================================================
+    # Private Helpers
+    # ============================================================================
+
+    # Parse module name string to module atom using existing atoms only.
+    # Supports both Elixir modules (with or without "Elixir." prefix) and
+    # Erlang modules (lowercase, with or without leading colon).
+    @spec parse_module_name(String.t()) :: {:ok, module()} | {:error, atom()}
+    defp parse_module_name(name) when is_binary(name) do
+      # Normalize module name based on format:
+      # - "Elixir.Module" -> keep as-is (explicit Elixir module)
+      # - ":erlang_mod" -> strip colon, use as Erlang module
+      # - "erlang_mod" (lowercase, no dots) -> Erlang module
+      # - "Module" (capitalized) -> prepend "Elixir."
+      normalized_name =
+        cond do
+          # Already has Elixir. prefix
+          String.starts_with?(name, "Elixir.") ->
+            name
+
+          # Erlang module with leading colon (e.g., ":gen_server")
+          String.starts_with?(name, ":") ->
+            String.trim_leading(name, ":")
+
+          # Erlang module (lowercase, no dots) - matches :gen_server, :ets, :erlang, etc.
+          String.match?(name, ~r/^[a-z_][a-z0-9_]*$/) ->
+            name
+
+          # Elixir module without prefix - prepend "Elixir."
+          true ->
+            "Elixir." <> name
+        end
+
+      try do
+        atom = String.to_existing_atom(normalized_name)
+
+        # Verify the module is loaded
+        if Code.ensure_loaded?(atom) do
+          {:ok, atom}
+        else
+          {:error, :module_not_loaded}
+        end
+      rescue
+        ArgumentError ->
+          {:error, :module_not_found}
+      end
+    end
+
+    # Fetch documentation chunk for a module
+    @spec fetch_docs(module()) :: {:ok, tuple()} | {:error, atom() | tuple()}
+    defp fetch_docs(module) do
+      case Code.fetch_docs(module) do
+        {:docs_v1, _, _, _, _, _, _} = docs ->
+          {:ok, docs}
+
+        {:error, :chunk_not_found} ->
+          {:error, :no_docs}
+
+        {:error, :module_not_found} ->
+          {:error, :module_not_found}
+
+        # Handle invalid BEAM file errors with specific messages
+        {:error, {:invalid_chunk, _binary}} ->
+          {:error, :invalid_beam_file}
+
+        {:error, :invalid_beam} ->
+          {:error, :invalid_beam_file}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+
+    # Extract module-level documentation
+    @spec extract_moduledoc(tuple()) :: String.t() | nil
+    defp extract_moduledoc({:docs_v1, _, _, _, moduledoc, _, _}) do
+      case moduledoc do
+        %{"en" => doc} when is_binary(doc) -> doc
+        :hidden -> nil
+        :none -> nil
+        _ -> nil
+      end
+    end
+
+    # Extract function documentation, optionally filtered by function name and arity.
+    # When include_callbacks is true, also includes callback documentation for behaviours.
+    @spec extract_function_docs(tuple(), String.t() | nil, integer() | nil, boolean()) :: [map()]
+    defp extract_function_docs({:docs_v1, _, _, _, _, _, docs}, function_filter, arity_filter, include_callbacks) do
+      docs
+      |> Enum.filter(fn
+        {{kind, _name, _arity}, _, _, _, _} ->
+          kind_allowed?(kind, include_callbacks)
+
+        _ ->
+          false
+      end)
+      |> Enum.filter(fn {{_kind, name, arity}, _, _, _, _} ->
+        matches_name_arity_filter?(name, arity, function_filter, arity_filter)
+      end)
+      |> Enum.map(fn {{kind, name, arity}, _line, signature, doc, metadata} ->
+        %{
+          "name" => Atom.to_string(name),
+          "arity" => arity,
+          "kind" => Atom.to_string(kind),
+          "signature" => format_signature(signature),
+          "doc" => extract_doc_text(doc),
+          "deprecated" => Map.get(metadata, :deprecated)
+        }
+      end)
+    end
+
+    # Check if a doc kind is allowed based on include_callbacks flag.
+    @spec kind_allowed?(atom(), boolean()) :: boolean()
+    defp kind_allowed?(kind, true) when kind in [:function, :macro, :callback, :macrocallback],
+      do: true
+
+    defp kind_allowed?(kind, false) when kind in [:function, :macro], do: true
+    defp kind_allowed?(_kind, _include_callbacks), do: false
+
+    # Check if a function/spec matches the filter criteria.
+    # Used by both extract_function_docs and fetch_specs to avoid duplication.
+    @spec matches_name_arity_filter?(atom(), integer(), String.t() | nil, integer() | nil) ::
+            boolean()
+    defp matches_name_arity_filter?(_name, _arity, nil, nil), do: true
+
+    defp matches_name_arity_filter?(name, _arity, function_filter, nil)
+         when is_binary(function_filter) do
+      Atom.to_string(name) == function_filter
+    end
+
+    defp matches_name_arity_filter?(name, arity, function_filter, arity_filter)
+         when is_binary(function_filter) and is_integer(arity_filter) do
+      Atom.to_string(name) == function_filter and arity == arity_filter
+    end
+
+    defp matches_name_arity_filter?(_name, _arity, _function_filter, _arity_filter), do: true
+
+    # Format function signature for display
+    @spec format_signature([binary()]) :: String.t() | nil
+    defp format_signature(signature) when is_list(signature) do
+      case signature do
+        [] -> nil
+        [head | _] -> head
+      end
+    end
+
+    defp format_signature(_), do: nil
+
+    # Extract documentation text from doc chunk
+    @spec extract_doc_text(map() | atom()) :: String.t() | nil
+    defp extract_doc_text(%{"en" => doc}) when is_binary(doc), do: doc
+    defp extract_doc_text(:hidden), do: nil
+    defp extract_doc_text(:none), do: nil
+    defp extract_doc_text(_), do: nil
+
+    # Fetch type specifications for a module, optionally filtered
+    @spec fetch_specs(module(), String.t() | nil, integer() | nil) :: [map()]
+    defp fetch_specs(module, function_filter, arity_filter) do
+      case Code.Typespec.fetch_specs(module) do
+        {:ok, specs} ->
+          specs
+          |> Enum.filter(fn {{name, arity}, _spec} ->
+            matches_name_arity_filter?(name, arity, function_filter, arity_filter)
+          end)
+          |> Enum.map(fn {{name, arity}, spec_list} ->
+            formatted_specs =
+              Enum.map(spec_list, fn spec ->
+                Code.Typespec.spec_to_quoted(name, spec)
+                |> Macro.to_string()
+              end)
+
+            %{
+              "name" => Atom.to_string(name),
+              "arity" => arity,
+              "specs" => formatted_specs
+            }
+          end)
+
+        :error ->
+          []
+      end
+    end
+
+    # Format error messages
+    @spec format_error(atom() | String.t()) :: String.t()
+    defp format_error(:module_not_found), do: "Module not found (only existing modules can be queried)"
+    defp format_error(:module_not_loaded), do: "Module exists but is not loaded"
+    defp format_error(:no_docs), do: "Module has no embedded documentation"
+    defp format_error(:invalid_beam_file), do: "Module has a corrupted or invalid BEAM file"
     defp format_error(reason) when is_binary(reason), do: reason
     defp format_error(reason), do: "Error: #{inspect(reason)}"
   end

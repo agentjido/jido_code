@@ -20,19 +20,21 @@ defmodule JidoCode.Memory.Types do
 
   Types in this module correspond to Jido ontology classes:
 
-  | Elixir Type              | Jido Ontology Class           |
-  |--------------------------|-------------------------------|
-  | `:fact`                  | `jido:Fact`                   |
-  | `:assumption`            | `jido:Assumption`             |
-  | `:hypothesis`            | `jido:Hypothesis`             |
-  | `:discovery`             | `jido:Discovery`              |
-  | `:risk`                  | `jido:Risk`                   |
-  | `:unknown`               | `jido:Unknown`                |
-  | `:decision`              | `jido:Decision`               |
-  | `:architectural_decision`| `jido:ArchitecturalDecision`  |
-  | `:convention`            | `jido:Convention`             |
-  | `:coding_standard`       | `jido:CodingStandard`         |
-  | `:lesson_learned`        | `jido:LessonLearned`          |
+  | Elixir Type               | Jido Ontology Class            |
+  |---------------------------|--------------------------------|
+  | `:fact`                   | `jido:Fact`                    |
+  | `:assumption`             | `jido:Assumption`              |
+  | `:hypothesis`             | `jido:Hypothesis`              |
+  | `:discovery`              | `jido:Discovery`               |
+  | `:risk`                   | `jido:Risk`                    |
+  | `:unknown`                | `jido:Unknown`                 |
+  | `:decision`               | `jido:Decision`                |
+  | `:architectural_decision` | `jido:ArchitecturalDecision`   |
+  | `:implementation_decision`| `jido:ImplementationDecision`  |
+  | `:alternative`            | `jido:Alternative`             |
+  | `:convention`             | `jido:Convention`              |
+  | `:coding_standard`        | `jido:CodingStandard`          |
+  | `:lesson_learned`         | `jido:LessonLearned`           |
 
   ## Confidence Level Mapping
 
@@ -63,6 +65,8 @@ defmodule JidoCode.Memory.Types do
   - `:unknown` - Information gaps that need investigation
   - `:decision` - Choices made with their rationale
   - `:architectural_decision` - Significant architectural choices with rationale
+  - `:implementation_decision` - Lower-level implementation choices with rationale
+  - `:alternative` - Considered options that were not selected
   - `:convention` - Established patterns or standards to follow
   - `:coding_standard` - Specific coding practices and style guidelines
   - `:lesson_learned` - Insights gained from past experiences
@@ -76,6 +80,8 @@ defmodule JidoCode.Memory.Types do
           | :unknown
           | :decision
           | :architectural_decision
+          | :implementation_decision
+          | :alternative
           | :convention
           | :coding_standard
           | :lesson_learned
@@ -281,6 +287,8 @@ defmodule JidoCode.Memory.Types do
     :unknown,
     :decision,
     :architectural_decision,
+    :implementation_decision,
+    :alternative,
     :convention,
     :coding_standard,
     :lesson_learned

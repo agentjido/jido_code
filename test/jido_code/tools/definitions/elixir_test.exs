@@ -25,11 +25,15 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
   describe "all/0" do
     test "returns Elixir tools" do
       tools = Definitions.all()
-      assert length(tools) == 2
+      assert length(tools) == 6
 
       names = Enum.map(tools, & &1.name)
       assert "mix_task" in names
       assert "run_exunit" in names
+      assert "get_process_state" in names
+      assert "inspect_supervisor" in names
+      assert "ets_inspect" in names
+      assert "fetch_elixir_docs" in names
     end
   end
 
@@ -132,6 +136,107 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
     test "has correct handler" do
       tool = Definitions.run_exunit()
       assert tool.handler == JidoCode.Tools.Handlers.Elixir.RunExunit
+    end
+  end
+
+  describe "get_process_state/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.get_process_state()
+      assert tool.name == "get_process_state"
+      assert tool.description =~ "GenServer"
+      assert tool.description =~ "process"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.get_process_state()
+      assert length(tool.parameters) == 2
+
+      process_param = Enum.find(tool.parameters, &(&1.name == "process"))
+      timeout_param = Enum.find(tool.parameters, &(&1.name == "timeout"))
+
+      assert process_param.required == true
+      assert process_param.type == :string
+      assert process_param.description =~ "Registered name"
+
+      assert timeout_param.required == false
+      assert timeout_param.type == :integer
+      assert timeout_param.description =~ "5000"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.get_process_state()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.ProcessState
+    end
+  end
+
+  describe "inspect_supervisor/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.inspect_supervisor()
+      assert tool.name == "inspect_supervisor"
+      assert tool.description =~ "supervisor"
+      assert tool.description =~ "tree"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.inspect_supervisor()
+      assert length(tool.parameters) == 2
+
+      supervisor_param = Enum.find(tool.parameters, &(&1.name == "supervisor"))
+      depth_param = Enum.find(tool.parameters, &(&1.name == "depth"))
+
+      assert supervisor_param.required == true
+      assert supervisor_param.type == :string
+      assert supervisor_param.description =~ "Registered name"
+
+      assert depth_param.required == false
+      assert depth_param.type == :integer
+      assert depth_param.description =~ "depth"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.inspect_supervisor()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.SupervisorTree
+    end
+  end
+
+  describe "ets_inspect/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.ets_inspect()
+      assert tool.name == "ets_inspect"
+      assert tool.description =~ "ETS"
+      assert tool.description =~ "tables"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.ets_inspect()
+      assert length(tool.parameters) == 4
+
+      operation_param = Enum.find(tool.parameters, &(&1.name == "operation"))
+      table_param = Enum.find(tool.parameters, &(&1.name == "table"))
+      key_param = Enum.find(tool.parameters, &(&1.name == "key"))
+      limit_param = Enum.find(tool.parameters, &(&1.name == "limit"))
+
+      assert operation_param.required == true
+      assert operation_param.type == :string
+      assert operation_param.enum == ["list", "info", "lookup", "sample"]
+      assert operation_param.description =~ "Operation"
+
+      assert table_param.required == false
+      assert table_param.type == :string
+      assert table_param.description =~ "Table name"
+
+      assert key_param.required == false
+      assert key_param.type == :string
+      assert key_param.description =~ "Key"
+
+      assert limit_param.required == false
+      assert limit_param.type == :integer
+      assert limit_param.description =~ "100"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.ets_inspect()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.EtsInspect
     end
   end
 
@@ -472,6 +577,344 @@ defmodule JidoCode.Tools.Definitions.ElixirTest do
       context = %{project_root: project_root}
       assert {:ok, result} = Executor.execute(tool_call, context: context)
       assert result.status == :ok
+    end
+
+    test "get_process_state tool is registered and executable", %{project_root: project_root} do
+      # Start a test agent
+      {:ok, agent_pid} = Agent.start_link(fn -> %{test_key: "test_value"} end)
+      Process.register(agent_pid, :test_definitions_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{"process" => "test_definitions_agent_for_state"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert is_binary(output["state"])
+      assert output["state"] =~ "test_key"
+    end
+
+    test "get_process_state validates required process parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "missing required parameter"
+    end
+
+    test "get_process_state blocks raw PIDs", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{"process" => "#PID<0.123.0>"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Raw PIDs"
+    end
+
+    test "get_process_state blocks system processes", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_process_state",
+        name: "get_process_state",
+        arguments: %{"process" => ":kernel"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "blocked"
+    end
+
+    test "inspect_supervisor tool is registered and executable", %{project_root: project_root} do
+      # Start a test supervisor
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_definitions_supervisor)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{"supervisor" => "test_definitions_supervisor"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert is_binary(output["tree"])
+      assert is_list(output["children"])
+    end
+
+    test "inspect_supervisor validates required supervisor parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "missing required parameter"
+    end
+
+    test "inspect_supervisor blocks raw PIDs", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{"supervisor" => "#PID<0.123.0>"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Raw PIDs"
+    end
+
+    test "inspect_supervisor blocks system supervisors", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_inspect_supervisor",
+        name: "inspect_supervisor",
+        arguments: %{"supervisor" => ":kernel_sup"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "blocked"
+    end
+
+    test "ets_inspect tool is registered and executable - list operation", %{project_root: project_root} do
+      # Create a test ETS table
+      table = :ets.new(:test_definitions_ets_list, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      tool_call = %{
+        id: "call_ets_inspect_list",
+        name: "ets_inspect",
+        arguments: %{"operation" => "list"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert output["operation"] == "list"
+      assert is_list(output["tables"])
+    end
+
+    test "ets_inspect tool is registered and executable - info operation", %{project_root: project_root} do
+      table = :ets.new(:test_definitions_ets_info, [:named_table, :public])
+      :ets.insert(table, {:test, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      tool_call = %{
+        id: "call_ets_inspect_info",
+        name: "ets_inspect",
+        arguments: %{"operation" => "info", "table" => "test_definitions_ets_info"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert output["operation"] == "info"
+      assert is_map(output["info"])
+    end
+
+    test "ets_inspect validates required operation parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_ets_inspect",
+        name: "ets_inspect",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "missing required parameter"
+    end
+
+    test "ets_inspect blocks system tables", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_ets_inspect",
+        name: "ets_inspect",
+        arguments: %{"operation" => "info", "table" => "code"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "blocked"
+    end
+  end
+
+  describe "fetch_elixir_docs/0 tool definition" do
+    test "has correct name and description" do
+      tool = Definitions.fetch_elixir_docs()
+      assert tool.name == "fetch_elixir_docs"
+      assert tool.description =~ "documentation"
+      assert tool.description =~ "module"
+    end
+
+    test "has correct parameters" do
+      tool = Definitions.fetch_elixir_docs()
+      assert length(tool.parameters) == 4
+
+      module_param = Enum.find(tool.parameters, &(&1.name == "module"))
+      function_param = Enum.find(tool.parameters, &(&1.name == "function"))
+      arity_param = Enum.find(tool.parameters, &(&1.name == "arity"))
+      include_callbacks_param = Enum.find(tool.parameters, &(&1.name == "include_callbacks"))
+
+      assert module_param.required == true
+      assert module_param.type == :string
+      assert module_param.description =~ "Enum"
+      assert module_param.description =~ "Erlang"
+
+      assert function_param.required == false
+      assert function_param.type == :string
+      assert function_param.description =~ "Function name"
+
+      assert arity_param.required == false
+      assert arity_param.type == :integer
+      assert arity_param.description =~ "arity"
+
+      assert include_callbacks_param.required == false
+      assert include_callbacks_param.type == :boolean
+      assert include_callbacks_param.description =~ "callback"
+    end
+
+    test "has correct handler" do
+      tool = Definitions.fetch_elixir_docs()
+      assert tool.handler == JidoCode.Tools.Handlers.Elixir.FetchDocs
+    end
+  end
+
+  describe "fetch_elixir_docs executor integration" do
+    test "fetch_elixir_docs tool is registered and executable", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "Enum"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert output["module"] == "Enum"
+      assert is_binary(output["moduledoc"])
+      assert is_list(output["docs"])
+      assert is_list(output["specs"])
+    end
+
+    test "fetch_elixir_docs returns error for non-existent module", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "NonExistentModule"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Module not found"
+    end
+
+    test "fetch_elixir_docs filters by function name", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "Enum", "function" => "map"}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+      assert is_list(output["docs"])
+
+      # All returned docs should be for "map"
+      Enum.each(output["docs"], fn doc ->
+        assert doc["name"] == "map"
+      end)
+    end
+
+    test "fetch_elixir_docs filters by function and arity", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{"module" => "Enum", "function" => "map", "arity" => 2}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :ok
+
+      output = Jason.decode!(result.content)
+
+      # All returned docs should be for "map/2"
+      Enum.each(output["docs"], fn doc ->
+        assert doc["name"] == "map"
+        assert doc["arity"] == 2
+      end)
+    end
+
+    test "fetch_elixir_docs requires module parameter", %{project_root: project_root} do
+      tool_call = %{
+        id: "call_fetch_docs",
+        name: "fetch_elixir_docs",
+        arguments: %{}
+      }
+
+      context = %{project_root: project_root}
+      assert {:ok, result} = Executor.execute(tool_call, context: context)
+      assert result.status == :error
+      assert result.content =~ "Missing required parameter" or result.content =~ "missing required"
     end
   end
 end

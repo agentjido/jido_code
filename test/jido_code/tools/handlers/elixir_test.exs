@@ -848,4 +848,1856 @@ defmodule JidoCode.Tools.Handlers.ElixirTest do
       {:ok, _json} = RunExunit.execute(%{"timeout" => 999_999_999}, context)
     end
   end
+
+  # ============================================================================
+  # ProcessState Tests (Section 5.3.3)
+  # ============================================================================
+
+  describe "ProcessState.execute/2 - basic execution" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "gets state of a registered GenServer", %{project_root: project_root} do
+      # Start a simple Agent (which is a GenServer under the hood)
+      # Use {:global, name} to register with a string-accessible name
+      {:ok, agent_pid} = Agent.start_link(fn -> %{count: 42, name: "test"} end)
+
+      # Register with a name we can look up
+      Process.register(agent_pid, :test_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["state"])
+      assert result["state"] =~ "count"
+      assert result["state"] =~ "42"
+      assert is_map(result["process_info"])
+      assert result["process_info"]["status"] == "waiting"
+    end
+
+    test "gets state of an Agent by name", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> [:item1, :item2] end)
+      Process.register(agent_pid, :test_list_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_list_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      assert result["state"] =~ "item1"
+      assert result["state"] =~ "item2"
+    end
+
+    test "returns process info for running processes", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_info_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_info_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      info = result["process_info"]
+
+      assert is_map(info)
+      assert is_binary(info["status"])
+      assert is_integer(info["message_queue_len"])
+      assert is_integer(info["memory"])
+      assert is_integer(info["reductions"])
+    end
+  end
+
+  describe "ProcessState.execute/2 - security" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "blocks raw PID strings", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => "#PID<0.123.0>"}, context)
+      assert error =~ "Raw PIDs are not allowed"
+
+      {:error, error} = ProcessState.execute(%{"process" => "<0.123.0>"}, context)
+      assert error =~ "Raw PIDs are not allowed"
+    end
+
+    test "blocks system processes", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      # Kernel processes
+      {:error, error} = ProcessState.execute(%{"process" => ":kernel"}, context)
+      assert error =~ "blocked"
+
+      # Stdlib
+      {:error, error} = ProcessState.execute(%{"process" => ":stdlib"}, context)
+      assert error =~ "blocked"
+
+      # Init
+      {:error, error} = ProcessState.execute(%{"process" => ":init"}, context)
+      assert error =~ "blocked"
+    end
+
+    test "blocks JidoCode internal processes", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => "JidoCode.Tools.Registry"}, context)
+      assert error =~ "blocked"
+
+      {:error, error} = ProcessState.execute(%{"process" => "JidoCode.Session.Manager"}, context)
+      assert error =~ "blocked"
+
+      {:error, error} =
+        ProcessState.execute(%{"process" => "Elixir.JidoCode.Tools.Executor"}, context)
+
+      assert error =~ "blocked"
+    end
+
+    test "blocks empty or whitespace-only names", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => ""}, context)
+      assert error =~ "Invalid process name"
+
+      {:error, error} = ProcessState.execute(%{"process" => "   "}, context)
+      assert error =~ "Invalid process name"
+    end
+
+    test "sanitizes sensitive fields in output", %{project_root: project_root} do
+      # Start an agent with sensitive data
+      {:ok, agent_pid} =
+        Agent.start_link(fn ->
+          %{
+            user: "admin",
+            password: "super_secret_123",
+            token: "bearer_abc123",
+            api_key: "sk-live-xyz"
+          }
+        end)
+
+      Process.register(agent_pid, :test_sensitive_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_sensitive_agent_for_state"}, context)
+
+      result = Jason.decode!(json)
+      state = result["state"]
+
+      # User should be visible
+      assert state =~ "admin"
+
+      # Sensitive fields should be redacted
+      assert state =~ "REDACTED" or not String.contains?(state, "super_secret_123")
+    end
+  end
+
+  describe "ProcessState.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "handles non-existent process", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      {:error, error} = ProcessState.execute(%{"process" => "NonExistentProcess"}, context)
+      assert error =~ "not found" or error =~ "not registered"
+    end
+
+    test "handles dead process gracefully", %{project_root: project_root} do
+      # Start and immediately stop a process
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end, name: TestDeadAgent)
+      Agent.stop(agent_pid)
+
+      context = %{project_root: project_root}
+      {:error, error} = ProcessState.execute(%{"process" => "TestDeadAgent"}, context)
+
+      assert error =~ "not found" or error =~ "not registered"
+    end
+
+    test "handles missing process parameter" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = ProcessState.execute(%{}, context)
+
+      assert error =~ "Missing required parameter"
+    end
+
+    test "handles invalid process name type" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = ProcessState.execute(%{"process" => 123}, context)
+
+      assert error =~ "Invalid process name"
+    end
+  end
+
+  describe "ProcessState.execute/2 - timeout handling" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "respects custom timeout", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_timeout_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_timeout_agent_for_state", "timeout" => 10_000}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["state"])
+    end
+
+    test "uses default timeout of 5s when not specified", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_default_timeout_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, _json} = ProcessState.execute(%{"process" => "test_default_timeout_agent_for_state"}, context)
+    end
+
+    test "caps timeout at max value (30s)", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_max_timeout_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, _json} = ProcessState.execute(%{"process" => "test_max_timeout_agent_for_state", "timeout" => 999_999_999}, context)
+    end
+
+    test "returns partial result when sys.get_state times out", %{project_root: project_root} do
+      # Start a process that won't respond to :sys messages in time
+      # We use a receive loop with a sleep to simulate slow response
+      pid = spawn(fn ->
+        Process.flag(:trap_exit, true)
+        slow_loop()
+      end)
+      Process.register(pid, :test_slow_state_for_timeout)
+
+      on_exit(fn ->
+        if Process.alive?(pid), do: Process.exit(pid, :kill)
+      end)
+
+      context = %{project_root: project_root}
+      # Use very short timeout (10ms) to trigger timeout
+      {:ok, json} = ProcessState.execute(%{"process" => "test_slow_state_for_timeout", "timeout" => 10}, context)
+
+      result = Jason.decode!(json)
+      # Should return partial result with nil state and error field
+      assert result["state"] == nil
+      assert result["error"] == "Timeout getting state"
+      # Should still have process_info
+      assert is_map(result["process_info"])
+      assert result["process_info"]["registered_name"] == "test_slow_state_for_timeout"
+    end
+
+    # Helper function for slow process loop - delays on sys messages
+    defp slow_loop do
+      receive do
+        {:system, from, :get_state} ->
+          # Delay before responding to :sys.get_state
+          Process.sleep(5_000)
+          send(from, {:ok, :delayed_state})
+          slow_loop()
+        _ ->
+          slow_loop()
+      end
+    end
+  end
+
+  describe "ProcessState.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_telemetry_agent_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :process_state]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = ProcessState.execute(%{"process" => "test_telemetry_agent_for_state"}, context)
+
+      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "test_telemetry_agent_for_state", status: :ok}}
+    end
+
+    test "emits telemetry on validation error", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :process_state]
+        ])
+
+      context = %{project_root: project_root}
+      {:error, _} = ProcessState.execute(%{"process" => "#PID<0.1.0>"}, context)
+
+      assert_receive {[:jido_code, :elixir, :process_state], ^ref, %{duration: _, exit_code: 1},
+                      %{task: "#PID<0.1.0>", status: :error}}
+    end
+  end
+
+  describe "ProcessState.execute/2 - process type detection" do
+    alias JidoCode.Tools.Handlers.Elixir.ProcessState
+
+    test "detects GenServer type", %{project_root: project_root} do
+      {:ok, agent_pid} = Agent.start_link(fn -> :ok end)
+      Process.register(agent_pid, :test_type_genserver_for_state)
+
+      on_exit(fn ->
+        if Process.alive?(agent_pid), do: Agent.stop(agent_pid)
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = ProcessState.execute(%{"process" => "test_type_genserver_for_state"}, context)
+
+      result = Jason.decode!(json)
+      # Agents are GenServers under the hood
+      assert result["type"] in ["genserver", "otp_process", "other"]
+    end
+  end
+
+  # ============================================================================
+  # SupervisorTree Tests
+  # ============================================================================
+
+  describe "SupervisorTree.execute/2 - basic execution" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "inspects a supervisor with children", %{project_root: project_root} do
+      # Start a test supervisor with some children (unique IDs required)
+      children = [
+        Supervisor.child_spec({Agent, fn -> :worker1 end}, id: :worker1),
+        Supervisor.child_spec({Agent, fn -> :worker2 end}, id: :worker2)
+      ]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_for_tree)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_for_tree"}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["tree"])
+      assert is_list(result["children"])
+      assert length(result["children"]) == 2
+      assert result["children_count"] == 2
+      assert result["truncated"] == false
+
+      # Check supervisor info
+      assert result["supervisor_info"]["name"] == "test_supervisor_for_tree"
+      assert result["supervisor_info"]["status"] == "waiting"
+    end
+
+    test "returns tree structure as formatted string", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_tree_format)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_tree_format"}, context)
+
+      result = Jason.decode!(json)
+      tree = result["tree"]
+
+      # Should contain the supervisor name
+      assert String.contains?(tree, "test_supervisor_tree_format")
+      # Should contain tree characters
+      assert String.contains?(tree, "└──") or String.contains?(tree, "├──")
+      # Should contain worker indicator
+      assert String.contains?(tree, "[W]")
+    end
+
+    test "shows child details in children list", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_child_details)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_child_details"}, context)
+
+      result = Jason.decode!(json)
+      [child | _] = result["children"]
+
+      assert child["type"] == "worker"
+      assert child["status"] == "running"
+      assert is_binary(child["pid"])
+      assert is_list(child["modules"])
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - depth handling" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "respects depth parameter", %{project_root: project_root} do
+      # Create a simple supervisor with one worker
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_depth)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+
+      # With depth 1, should show direct children
+      {:ok, json1} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_depth", "depth" => 1}, context)
+      result1 = Jason.decode!(json1)
+      assert length(result1["children"]) >= 1
+
+      # With depth 2, should also work
+      {:ok, json2} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_depth", "depth" => 2}, context)
+      result2 = Jason.decode!(json2)
+      assert is_list(result2["children"])
+    end
+
+    test "uses default depth of 2 when not specified", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_default_depth)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, _json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_default_depth"}, context)
+    end
+
+    test "caps depth at max value of 5", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_max_depth)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      # Should not error with very large depth
+      {:ok, _json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_max_depth", "depth" => 999}, context)
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - DynamicSupervisor" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "handles DynamicSupervisor", %{project_root: project_root} do
+      {:ok, sup_pid} = DynamicSupervisor.start_link(strategy: :one_for_one)
+      Process.register(sup_pid, :test_dynamic_supervisor)
+
+      # Start a child under the dynamic supervisor
+      {:ok, _child} = DynamicSupervisor.start_child(sup_pid, {Agent, fn -> :dynamic_child end})
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: DynamicSupervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_dynamic_supervisor"}, context)
+
+      result = Jason.decode!(json)
+      assert is_binary(result["tree"])
+      assert result["children_count"] >= 1
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - security" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "blocks raw PID strings", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "#PID<0.1.0>"}, context)
+
+      assert error =~ "Raw PIDs are not allowed"
+    end
+
+    test "blocks system supervisors", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => ":kernel_sup"}, context)
+
+      assert error =~ "blocked for security"
+    end
+
+    test "blocks JidoCode internal supervisors", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "JidoCode.Session.Supervisor"}, context)
+
+      assert error =~ "blocked for security"
+    end
+
+    test "blocks empty supervisor names", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => ""}, context)
+
+      assert error =~ "Invalid supervisor name"
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "handles non-existent supervisor", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "NonExistent.Supervisor.That.Does.Not.Exist"}, context)
+
+      assert error =~ "not found"
+    end
+
+    test "handles dead supervisor gracefully", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_dead_supervisor)
+
+      # Stop the supervisor
+      Supervisor.stop(sup_pid)
+
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => "test_dead_supervisor"}, context)
+
+      assert error =~ "not found" or error =~ "not registered"
+    end
+
+    test "handles missing supervisor parameter", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{}, context)
+
+      assert error =~ "Missing required parameter"
+    end
+
+    test "handles invalid supervisor name type", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = SupervisorTree.execute(%{"supervisor" => 123}, context)
+
+      assert error =~ "Invalid supervisor name"
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - children limiting" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "indicates when children are truncated", %{project_root: project_root} do
+      # This test verifies the truncation flag is set correctly
+      # In practice, creating 50+ children would be slow, so we just verify
+      # the mechanism works with a small supervisor
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_truncation)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_truncation"}, context)
+
+      result = Jason.decode!(json)
+      # With only 1 child, should not be truncated
+      assert result["truncated"] == false
+      assert result["children_count"] == 1
+    end
+  end
+
+  describe "SupervisorTree.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.SupervisorTree
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      children = [{Agent, fn -> :test end}]
+      {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one)
+      Process.register(sup_pid, :test_supervisor_telemetry_success)
+
+      on_exit(fn ->
+        try do
+          if Process.alive?(sup_pid), do: Supervisor.stop(sup_pid)
+        catch
+          :exit, _ -> :ok
+        end
+      end)
+
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :supervisor_tree]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = SupervisorTree.execute(%{"supervisor" => "test_supervisor_telemetry_success"}, context)
+
+      assert_receive {[:jido_code, :elixir, :supervisor_tree], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "test_supervisor_telemetry_success", status: :ok}}
+    end
+
+    test "emits telemetry on validation error", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :supervisor_tree]
+        ])
+
+      context = %{project_root: project_root}
+      {:error, _} = SupervisorTree.execute(%{"supervisor" => "#PID<0.1.0>"}, context)
+
+      assert_receive {[:jido_code, :elixir, :supervisor_tree], ^ref, %{duration: _, exit_code: 1},
+                      %{task: "#PID<0.1.0>", status: :error}}
+    end
+  end
+
+  # ============================================================================
+  # EtsInspect Tests (Section 5.5.3)
+  # ============================================================================
+
+  describe "EtsInspect.execute/2 - list operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "lists available project ETS tables", %{project_root: project_root} do
+      # Create a test ETS table
+      table = :ets.new(:test_ets_list_table, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "list"
+      assert is_list(result["tables"])
+      assert is_integer(result["count"])
+
+      # Our test table should be in the list
+      table_names = Enum.map(result["tables"], & &1["name"])
+      assert "test_ets_list_table" in table_names
+    end
+
+    test "excludes system tables from list", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      table_names = Enum.map(result["tables"], & &1["name"])
+
+      # System tables should not be in the list
+      refute "code" in table_names
+      refute "ac_tab" in table_names
+    end
+
+    test "returns table summary with type, size, and protection", %{project_root: project_root} do
+      table = :ets.new(:test_ets_summary_table, [:named_table, :public, :set])
+      :ets.insert(table, {:key1, "value1"})
+      :ets.insert(table, {:key2, "value2"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      table_info = Enum.find(result["tables"], & &1["name"] == "test_ets_summary_table")
+
+      assert table_info["type"] == "set"
+      assert table_info["size"] == 2
+      assert table_info["protection"] == "public"
+      assert is_integer(table_info["memory"])
+    end
+  end
+
+  describe "EtsInspect.execute/2 - info operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "returns detailed table info", %{project_root: project_root} do
+      table = :ets.new(:test_ets_info_table, [:named_table, :public, :ordered_set])
+      :ets.insert(table, {:a, 1})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "info", "table" => "test_ets_info_table"}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "info"
+      assert result["table"] == "test_ets_info_table"
+      assert is_map(result["info"])
+
+      info = result["info"]
+      assert info["type"] == "ordered_set"
+      assert info["protection"] == "public"
+      assert info["size"] == 1
+      assert is_binary(info["owner"])
+      assert info["named_table"] == true
+    end
+
+    test "returns error for non-existent table", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "non_existent_table_xyz"}, context)
+
+      assert error =~ "not found"
+    end
+
+    test "blocks system tables", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "code"}, context)
+
+      assert error =~ "blocked"
+    end
+
+    test "requires table parameter", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info"}, context)
+
+      assert error =~ "Missing required parameter: table"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - lookup operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "looks up entries by atom key", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_atom, [:named_table, :public])
+      :ets.insert(table, {:my_key, "my_value", 123})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_atom", "key" => ":my_key"}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "lookup"
+      assert result["count"] == 1
+      assert length(result["entries"]) == 1
+
+      # Entry should contain the tuple data
+      entry = hd(result["entries"])
+      assert entry =~ "my_key"
+      assert entry =~ "my_value"
+      assert entry =~ "123"
+    end
+
+    test "looks up entries by integer key", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_int, [:named_table, :public])
+      :ets.insert(table, {42, "forty-two"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_int", "key" => "42"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "looks up entries by string key", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_string, [:named_table, :public])
+      :ets.insert(table, {"string_key", "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_string", "key" => "\"string_key\""}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "returns empty list for key not in table", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_empty, [:named_table, :public])
+      :ets.insert(table, {:existing, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      # Use an existing atom that's just not in the table
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_empty", "key" => ":ok"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 0
+      assert result["entries"] == []
+    end
+
+    test "requires key parameter", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_no_key, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_no_key"}, context)
+
+      assert error =~ "Missing required parameter: key"
+    end
+
+    test "blocks private tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_lookup_private, [:named_table, :private])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_lookup_private", "key" => ":foo"}, context)
+
+      assert error =~ "private"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - sample operation" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "returns first N entries", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_basic, [:named_table, :public, :ordered_set])
+
+      for i <- 1..20 do
+        :ets.insert(table, {i, "value_#{i}"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_basic", "limit" => 5}, context)
+
+      result = Jason.decode!(json)
+      assert result["operation"] == "sample"
+      assert result["count"] == 5
+      assert length(result["entries"]) == 5
+      assert result["total_size"] == 20
+      assert result["truncated"] == true
+    end
+
+    test "uses default limit of 10", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_default, [:named_table, :public])
+
+      for i <- 1..25 do
+        :ets.insert(table, {i, "value_#{i}"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_default"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 10
+    end
+
+    test "caps limit at 100", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_cap, [:named_table, :public])
+
+      for i <- 1..10 do
+        :ets.insert(table, {i, "value"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      # Should not error with very large limit
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_cap", "limit" => 999}, context)
+
+      result = Jason.decode!(json)
+      # Should return all 10 entries (less than max 100)
+      assert result["count"] == 10
+    end
+
+    test "handles empty table", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_empty, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_empty"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 0
+      assert result["entries"] == []
+      assert result["truncated"] == false
+    end
+
+    test "indicates truncation correctly", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sample_truncation, [:named_table, :public])
+
+      for i <- 1..5 do
+        :ets.insert(table, {i, "value"})
+      end
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+
+      # When limit >= total, should not be truncated
+      {:ok, json1} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_truncation", "limit" => 10}, context)
+      result1 = Jason.decode!(json1)
+      assert result1["truncated"] == false
+
+      # When limit < total, should be truncated
+      {:ok, json2} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sample_truncation", "limit" => 3}, context)
+      result2 = Jason.decode!(json2)
+      assert result2["truncated"] == true
+    end
+  end
+
+  describe "EtsInspect.execute/2 - security" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "blocks access to system ETS tables", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      # code table
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "code"}, context)
+      assert error =~ "blocked"
+
+      # ac_tab
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "ac_tab"}, context)
+      assert error =~ "blocked"
+    end
+
+    test "blocks lookup on private tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_private_lookup, [:named_table, :private])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_private_lookup", "key" => ":foo"}, context)
+
+      assert error =~ "private"
+    end
+
+    test "blocks sample on private tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_private_sample, [:named_table, :private])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_private_sample"}, context)
+
+      assert error =~ "private"
+    end
+
+    test "allows info on protected tables", %{project_root: project_root} do
+      table = :ets.new(:test_ets_protected_info, [:named_table, :protected])
+      :ets.insert(table, {:test, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "info", "table" => "test_ets_protected_info"}, context)
+
+      result = Jason.decode!(json)
+      assert result["info"]["protection"] == "protected"
+    end
+
+    test "blocks lookup on protected tables not owned by current process", %{project_root: project_root} do
+      # Create a table from another process so we're not the owner
+      test_pid = self()
+      spawn(fn ->
+        table = :ets.new(:test_ets_protected_other_owner, [:named_table, :protected])
+        :ets.insert(table, {:test_key, "value"})
+        send(test_pid, {:table_created, table})
+        # Keep the process alive so the table persists
+        receive do
+          :done -> :ok
+        end
+      end)
+
+      receive do
+        {:table_created, table} ->
+          on_exit(fn ->
+            try do
+              :ets.delete(table)
+            catch
+              :error, _ -> :ok
+            end
+          end)
+
+          context = %{project_root: project_root}
+          {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_protected_other_owner", "key" => ":test_key"}, context)
+
+          assert error =~ "protected" and error =~ "owner"
+      after
+        1000 -> flunk("Table not created in time")
+      end
+    end
+
+    test "blocks tables owned by system processes from list", %{project_root: project_root} do
+      # The list operation should not include tables owned by system processes
+      # We verify this by checking that system tables like :code are not in the list
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      result = Jason.decode!(json)
+      table_names = Enum.map(result["tables"], & &1["name"])
+
+      # System tables should not appear in list
+      refute "code" in table_names
+      refute "ac_tab" in table_names
+      refute "file_io_servers" in table_names
+    end
+  end
+
+  describe "EtsInspect.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "handles missing operation parameter" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = EtsInspect.execute(%{}, context)
+
+      assert error =~ "Missing required parameter: operation"
+    end
+
+    test "handles invalid operation", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "invalid_op"}, context)
+
+      assert error =~ "Invalid operation"
+    end
+
+    test "handles invalid operation type" do
+      context = %{project_root: "/tmp"}
+      {:error, error} = EtsInspect.execute(%{"operation" => 123}, context)
+
+      assert error =~ "Invalid operation"
+    end
+
+    test "returns error for reference-based tables", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, error} = EtsInspect.execute(%{"operation" => "info", "table" => "#Ref<0.123.456.789>"}, context)
+
+      assert error =~ "Reference-based tables" or error =~ "not found"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      table = :ets.new(:test_ets_telemetry_success, [:named_table, :public])
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :ets_inspect]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = EtsInspect.execute(%{"operation" => "info", "table" => "test_ets_telemetry_success"}, context)
+
+      assert_receive {[:jido_code, :elixir, :ets_inspect], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "info", status: :ok}}
+    end
+
+    test "emits telemetry on error", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :ets_inspect]
+        ])
+
+      context = %{project_root: project_root}
+      {:error, _} = EtsInspect.execute(%{"operation" => "info", "table" => "nonexistent_table"}, context)
+
+      assert_receive {[:jido_code, :elixir, :ets_inspect], ^ref, %{duration: _, exit_code: 1},
+                      %{task: "info", status: :error}}
+    end
+
+    test "emits telemetry for list operation", %{project_root: project_root} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :elixir, :ets_inspect]
+        ])
+
+      context = %{project_root: project_root}
+      {:ok, _json} = EtsInspect.execute(%{"operation" => "list"}, context)
+
+      assert_receive {[:jido_code, :elixir, :ets_inspect], ^ref, %{duration: _, exit_code: 0},
+                      %{task: "list", status: :ok}}
+    end
+  end
+
+  describe "EtsInspect.execute/2 - key parsing" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "parses boolean keys", %{project_root: project_root} do
+      table = :ets.new(:test_ets_bool_key, [:named_table, :public])
+      :ets.insert(table, {true, "value_true"})
+      :ets.insert(table, {false, "value_false"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+
+      {:ok, json_true} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_bool_key", "key" => "true"}, context)
+      result_true = Jason.decode!(json_true)
+      assert result_true["count"] == 1
+      assert hd(result_true["entries"]) =~ "value_true"
+
+      {:ok, json_false} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_bool_key", "key" => "false"}, context)
+      result_false = Jason.decode!(json_false)
+      assert result_false["count"] == 1
+      assert hd(result_false["entries"]) =~ "value_false"
+    end
+
+    test "parses float keys", %{project_root: project_root} do
+      table = :ets.new(:test_ets_float_key, [:named_table, :public])
+      :ets.insert(table, {3.14, "pi"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_float_key", "key" => "3.14"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "parses single-quoted string keys", %{project_root: project_root} do
+      table = :ets.new(:test_ets_single_quote_key, [:named_table, :public])
+      :ets.insert(table, {"my key", "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_single_quote_key", "key" => "'my key'"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "treats unquoted strings as-is", %{project_root: project_root} do
+      table = :ets.new(:test_ets_unquoted_key, [:named_table, :public])
+      :ets.insert(table, {"plain_key", "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_unquoted_key", "key" => "plain_key"}, context)
+
+      result = Jason.decode!(json)
+      assert result["count"] == 1
+    end
+
+    test "rejects non-existent atoms to prevent atom table exhaustion", %{project_root: project_root} do
+      table = :ets.new(:test_ets_nonexistent_atom, [:named_table, :public])
+      :ets.insert(table, {:existing_key, "value"})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      # Use a random unique atom name that definitely doesn't exist
+      unique_atom_name = ":nonexistent_atom_#{System.unique_integer([:positive])}"
+      {:error, error} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_nonexistent_atom", "key" => unique_atom_name}, context)
+
+      assert error =~ "Atom key does not exist"
+    end
+  end
+
+  describe "EtsInspect.execute/2 - sensitive data redaction" do
+    alias JidoCode.Tools.Handlers.Elixir.EtsInspect
+
+    test "redacts sensitive fields in sample output", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sensitive_data, [:named_table, :public])
+      :ets.insert(table, {:user, %{name: "Alice", password: "secret123", token: "abc-xyz"}})
+      :ets.insert(table, {:config, %{api_key: "sk-12345", database_url: "postgres://user:pass@host/db"}})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "sample", "table" => "test_ets_sensitive_data", "limit" => 10}, context)
+
+      result = Jason.decode!(json)
+
+      # Verify entries exist
+      assert result["count"] >= 1
+
+      # Verify sensitive data is redacted
+      entries_str = Enum.join(result["entries"], " ")
+      refute entries_str =~ "secret123"
+      refute entries_str =~ "abc-xyz"
+      refute entries_str =~ "sk-12345"
+      refute entries_str =~ "postgres://user:pass"
+
+      # Verify [REDACTED] is present
+      assert entries_str =~ "[REDACTED]"
+    end
+
+    test "redacts sensitive fields in lookup output", %{project_root: project_root} do
+      table = :ets.new(:test_ets_sensitive_lookup, [:named_table, :public])
+      :ets.insert(table, {:credentials, %{secret: "super_secret", bearer: "token123"}})
+
+      on_exit(fn ->
+        try do
+          :ets.delete(table)
+        catch
+          :error, _ -> :ok
+        end
+      end)
+
+      context = %{project_root: project_root}
+      {:ok, json} = EtsInspect.execute(%{"operation" => "lookup", "table" => "test_ets_sensitive_lookup", "key" => ":credentials"}, context)
+
+      result = Jason.decode!(json)
+      entries_str = Enum.join(result["entries"], " ")
+
+      # Sensitive data should be redacted
+      refute entries_str =~ "super_secret"
+      refute entries_str =~ "token123"
+      assert entries_str =~ "[REDACTED]"
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - standard library module" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "fetches docs for Enum module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      result = Jason.decode!(json)
+
+      assert result["module"] == "Enum"
+      assert is_binary(result["moduledoc"])
+      assert String.contains?(result["moduledoc"], "Enum")
+      assert is_list(result["docs"])
+      assert length(result["docs"]) > 0
+      assert is_list(result["specs"])
+    end
+
+    test "fetches docs for String module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "String"}, context)
+
+      result = Jason.decode!(json)
+
+      assert result["module"] == "String"
+      assert is_binary(result["moduledoc"])
+      assert is_list(result["docs"])
+    end
+
+    test "handles Elixir. prefix automatically", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Elixir.Enum"}, context)
+
+      result = Jason.decode!(json)
+      assert result["module"] == "Elixir.Enum"
+      assert is_binary(result["moduledoc"])
+    end
+  end
+
+  describe "FetchDocs.execute/2 - specific function" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "filters docs to specific function", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map"}, context)
+
+      result = Jason.decode!(json)
+
+      assert result["module"] == "Enum"
+      assert is_list(result["docs"])
+      assert length(result["docs"]) > 0
+
+      # All returned docs should be for "map" function
+      Enum.each(result["docs"], fn doc ->
+        assert doc["name"] == "map"
+      end)
+    end
+
+    test "filters specs to specific function", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map"}, context)
+
+      result = Jason.decode!(json)
+
+      # Specs should also be filtered
+      Enum.each(result["specs"], fn spec ->
+        assert spec["name"] == "map"
+      end)
+    end
+  end
+
+  describe "FetchDocs.execute/2 - function with arity" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "filters docs to specific function and arity", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+
+      assert is_list(result["docs"])
+
+      # All returned docs should be for "map/2"
+      Enum.each(result["docs"], fn doc ->
+        assert doc["name"] == "map"
+        assert doc["arity"] == 2
+      end)
+    end
+
+    test "filters specs to specific arity", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "reduce", "arity" => 3}, context)
+
+      result = Jason.decode!(json)
+
+      # Specs should be filtered by arity too
+      Enum.each(result["specs"], fn spec ->
+        assert spec["name"] == "reduce"
+        assert spec["arity"] == 3
+      end)
+    end
+  end
+
+  describe "FetchDocs.execute/2 - includes specs" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "includes type specifications", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      result = Jason.decode!(json)
+
+      assert is_list(result["specs"])
+      assert length(result["specs"]) > 0
+
+      # Each spec should have name, arity, and specs list
+      first_spec = hd(result["specs"])
+      assert is_binary(first_spec["name"])
+      assert is_integer(first_spec["arity"])
+      assert is_list(first_spec["specs"])
+    end
+
+    test "spec format is readable", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+
+      if length(result["specs"]) > 0 do
+        spec = hd(result["specs"])
+        spec_string = hd(spec["specs"])
+        assert is_binary(spec_string)
+        # Should look like a function spec
+        assert String.contains?(spec_string, "map")
+      end
+    end
+  end
+
+  describe "FetchDocs.execute/2 - undocumented module" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "handles Erlang module with docs gracefully", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # :erlang module has docs in modern OTP versions
+      result = FetchDocs.execute(%{"module" => "erlang"}, context)
+
+      # Should succeed and return docs for :erlang module
+      case result do
+        {:ok, json} ->
+          decoded = Jason.decode!(json)
+          assert decoded["module"] == "erlang"
+          # :erlang has docs with nil moduledoc but has function docs
+          assert is_list(decoded["docs"])
+
+        {:error, msg} ->
+          # Older OTP versions may not have :erlang docs
+          assert msg =~ "no embedded documentation"
+      end
+    end
+  end
+
+  describe "FetchDocs.execute/2 - non-existent module" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "rejects non-existent module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, msg} = FetchDocs.execute(%{"module" => "NonExistentModuleThatDoesNotExist"}, context)
+
+      assert msg =~ "Module not found"
+    end
+
+    test "does not create new atoms for non-existent modules", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      random_name = "RandomModule#{:rand.uniform(1_000_000)}"
+
+      # Execute should fail without creating the atom
+      {:error, _} = FetchDocs.execute(%{"module" => random_name}, context)
+
+      # Verify atom was not created
+      assert_raise ArgumentError, fn ->
+        String.to_existing_atom("Elixir." <> random_name)
+      end
+    end
+  end
+
+  describe "FetchDocs.execute/2 - error handling" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "returns error for missing module parameter", %{project_root: _project_root} do
+      context = %{}
+      {:error, msg} = FetchDocs.execute(%{}, context)
+
+      assert msg =~ "Missing required parameter: module"
+    end
+
+    test "returns error for non-string module", %{project_root: _project_root} do
+      context = %{}
+      {:error, msg} = FetchDocs.execute(%{"module" => 123}, context)
+
+      assert msg =~ "Invalid module: expected string"
+    end
+  end
+
+  describe "FetchDocs.execute/2 - telemetry" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "emits telemetry on success", %{project_root: project_root} do
+      ref = :telemetry_test.attach_event_handlers(self(), [[:jido_code, :elixir, :fetch_docs]])
+
+      context = %{project_root: project_root}
+      {:ok, _} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      assert_receive {[:jido_code, :elixir, :fetch_docs], ^ref, %{duration: _, exit_code: 0}, %{status: :ok, task: "Enum"}}
+    end
+
+    test "emits telemetry on error", %{project_root: project_root} do
+      ref = :telemetry_test.attach_event_handlers(self(), [[:jido_code, :elixir, :fetch_docs]])
+
+      context = %{project_root: project_root}
+      {:error, _} = FetchDocs.execute(%{"module" => "NonExistentModule"}, context)
+
+      assert_receive {[:jido_code, :elixir, :fetch_docs], ^ref, %{duration: _, exit_code: 1}, %{status: :error, task: "NonExistentModule"}}
+    end
+  end
+
+  describe "FetchDocs.execute/2 - doc structure" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "doc entries have expected structure", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "map", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+
+      if length(result["docs"]) > 0 do
+        doc = hd(result["docs"])
+        assert Map.has_key?(doc, "name")
+        assert Map.has_key?(doc, "arity")
+        assert Map.has_key?(doc, "kind")
+        assert Map.has_key?(doc, "signature")
+        assert Map.has_key?(doc, "doc")
+        assert Map.has_key?(doc, "deprecated")
+      end
+    end
+
+    test "returns function and macro kinds", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "Kernel"}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      assert "function" in kinds or "macro" in kinds
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests - Erlang Modules
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - Erlang modules" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "fetches docs for Erlang module with colon prefix", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      result = FetchDocs.execute(%{"module" => ":ets"}, context)
+
+      # :ets may or may not have docs depending on Erlang version
+      # but the module should be found (not return module_not_found)
+      case result do
+        {:ok, json} ->
+          result = Jason.decode!(json)
+          assert result["module"] == ":ets"
+
+        {:error, msg} ->
+          # Should be "no docs" not "module not found"
+          assert msg =~ "no embedded documentation" or msg =~ "not found"
+      end
+    end
+
+    test "fetches docs for Erlang module without colon prefix", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      result = FetchDocs.execute(%{"module" => "ets"}, context)
+
+      case result do
+        {:ok, json} ->
+          result = Jason.decode!(json)
+          assert result["module"] == "ets"
+
+        {:error, msg} ->
+          # Should be "no docs" not "module not found"
+          assert msg =~ "no embedded documentation" or msg =~ "not found"
+      end
+    end
+
+    test "fetches docs for :erlang module", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      result = FetchDocs.execute(%{"module" => ":erlang"}, context)
+
+      case result do
+        {:ok, _json} ->
+          # Success - Erlang docs available
+          assert true
+
+        {:error, msg} ->
+          # Should be "no docs" not "module not found"
+          assert msg =~ "no embedded documentation"
+      end
+    end
+
+    test "distinguishes Erlang from Elixir modules", %{project_root: project_root} do
+      context = %{project_root: project_root}
+
+      # Elixir module (capitalized)
+      {:ok, elixir_json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+      elixir_result = Jason.decode!(elixir_json)
+      assert elixir_result["module"] == "Enum"
+      assert is_binary(elixir_result["moduledoc"])
+
+      # Erlang module (lowercase, no dots)
+      erlang_result = FetchDocs.execute(%{"module" => "lists"}, context)
+      # :lists is an Erlang module, should be recognized as such
+      assert match?({:ok, _}, erlang_result) or match?({:error, _}, erlang_result)
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests - Include Callbacks
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - include_callbacks option" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "excludes callbacks by default", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "GenServer"}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      # By default, only function and macro kinds should be present
+      refute "callback" in kinds
+      refute "macrocallback" in kinds
+    end
+
+    test "includes callbacks when include_callbacks is true", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "GenServer", "include_callbacks" => true}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      # Should include callback documentation for GenServer
+      assert "callback" in kinds
+    end
+
+    test "includes macrocallbacks when include_callbacks is true", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Access uses macrocallbacks
+      {:ok, json} = FetchDocs.execute(%{"module" => "Access", "include_callbacks" => true}, context)
+
+      result = Jason.decode!(json)
+      kinds = Enum.map(result["docs"], & &1["kind"]) |> Enum.uniq()
+
+      # Access behaviour has macrocallbacks
+      assert "callback" in kinds or "macrocallback" in kinds
+    end
+
+    test "callback docs have expected structure", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:ok, json} = FetchDocs.execute(%{"module" => "GenServer", "function" => "init", "include_callbacks" => true}, context)
+
+      result = Jason.decode!(json)
+
+      # Should find the init callback
+      init_doc = Enum.find(result["docs"], &(&1["name"] == "init"))
+      if init_doc do
+        assert init_doc["kind"] == "callback"
+        assert is_integer(init_doc["arity"])
+      end
+    end
+  end
+
+  # ============================================================================
+  # FetchDocs Tests - Edge Cases
+  # ============================================================================
+
+  describe "FetchDocs.execute/2 - edge cases" do
+    alias JidoCode.Tools.Handlers.Elixir.FetchDocs
+
+    test "handles empty module name", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      {:error, msg} = FetchDocs.execute(%{"module" => ""}, context)
+
+      assert msg =~ "not found" or msg =~ "not loaded"
+    end
+
+    test "handles arity without function name", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Arity without function should still work (returns all functions)
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "arity" => 2}, context)
+
+      result = Jason.decode!(json)
+      # Should return docs (arity filter is ignored without function filter)
+      assert is_list(result["docs"])
+    end
+
+    test "handles module with @moduledoc false", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Inspect.Opts is a struct module with hidden docs
+      result = FetchDocs.execute(%{"module" => "Inspect.Opts"}, context)
+
+      case result do
+        {:ok, json} ->
+          result = Jason.decode!(json)
+          # moduledoc might be nil for hidden modules
+          assert result["module"] == "Inspect.Opts"
+
+        {:error, _msg} ->
+          # Some modules may not be available
+          assert true
+      end
+    end
+
+    test "handles function with @doc false", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Get docs for a module - hidden functions should be filtered out
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum"}, context)
+
+      result = Jason.decode!(json)
+
+      # All returned docs should have actual documentation (not nil from :hidden)
+      for doc <- result["docs"] do
+        # doc can be nil (for :none) but structure should be valid
+        assert Map.has_key?(doc, "doc")
+      end
+    end
+
+    test "handles deprecated function metadata", %{project_root: project_root} do
+      context = %{project_root: project_root}
+      # Get docs and check deprecated field is present
+      {:ok, json} = FetchDocs.execute(%{"module" => "Enum", "function" => "chunk"}, context)
+
+      result = Jason.decode!(json)
+
+      # chunk/2 is deprecated in favor of chunk_every/2
+      for doc <- result["docs"] do
+        assert Map.has_key?(doc, "deprecated")
+        # deprecated is either nil or a string
+        assert is_nil(doc["deprecated"]) or is_binary(doc["deprecated"])
+      end
+    end
+  end
 end

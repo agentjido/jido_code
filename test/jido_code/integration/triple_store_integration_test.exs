@@ -650,4 +650,466 @@ defmodule JidoCode.Integration.TripleStoreIntegrationTest do
       :ok = TripleStore.close(store)
     end
   end
+
+  # =============================================================================
+  # 7.11.1 - End-to-End Integration Tests
+  # =============================================================================
+
+  describe "7.11.1 end-to-end workflow" do
+    alias JidoCode.Memory
+    alias JidoCode.Memory.LongTerm.StoreManager
+
+    setup do
+      # Use unique session IDs for each test
+      session_id = "integration_test_#{:erlang.unique_integer([:positive])}"
+
+      on_exit(fn ->
+        # Clean up session store
+        StoreManager.close(session_id)
+      end)
+
+      {:ok, session_id: session_id}
+    end
+
+    test "7.11.1.1 full workflow: remember → recall → forget", %{session_id: session_id} do
+      # Step 1: Remember (persist) a fact
+      memory = %{
+        id: "workflow_test_1",
+        content: "Phoenix uses Plug middleware for HTTP handling",
+        memory_type: :fact,
+        confidence: 0.9,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:ok, "workflow_test_1"} = Memory.persist(memory, session_id)
+
+      # Step 2: Recall the memory
+      assert {:ok, memories} = Memory.query(session_id)
+      assert length(memories) == 1
+      assert hd(memories).content == "Phoenix uses Plug middleware for HTTP handling"
+      assert hd(memories).memory_type == :fact
+
+      # Step 3: Forget the memory
+      assert :ok = Memory.forget(session_id, "workflow_test_1")
+
+      # Step 4: Verify memory is no longer in normal queries
+      assert {:ok, memories_after} = Memory.query(session_id)
+      assert memories_after == []
+
+      # Step 5: Verify memory still exists with include_superseded
+      assert {:ok, [superseded]} = Memory.query(session_id, include_superseded: true)
+      assert superseded.id == "workflow_test_1"
+    end
+
+    test "7.11.1.2 memory type filtering works correctly", %{session_id: session_id} do
+      # Create memories of different types
+      memories = [
+        %{id: "fact_1", content: "Elixir is functional", memory_type: :fact},
+        %{id: "fact_2", content: "Elixir runs on BEAM", memory_type: :fact},
+        %{id: "decision_1", content: "Use GenServer for state", memory_type: :decision},
+        %{id: "convention_1", content: "Use snake_case", memory_type: :convention}
+      ]
+
+      for mem <- memories do
+        full_mem = Map.merge(mem, %{
+          confidence: 0.8,
+          source_type: :agent,
+          session_id: session_id,
+          created_at: DateTime.utc_now()
+        })
+
+        assert {:ok, _} = Memory.persist(full_mem, session_id)
+      end
+
+      # Query by type
+      assert {:ok, facts} = Memory.query_by_type(session_id, :fact)
+      assert length(facts) == 2
+
+      assert {:ok, decisions} = Memory.query_by_type(session_id, :decision)
+      assert length(decisions) == 1
+
+      assert {:ok, conventions} = Memory.query_by_type(session_id, :convention)
+      assert length(conventions) == 1
+
+      # Query all
+      assert {:ok, all} = Memory.query(session_id)
+      assert length(all) == 4
+    end
+
+    test "7.11.1.3 persistence across store close/open cycles", %{session_id: session_id} do
+      # Create a memory
+      memory = %{
+        id: "persistent_memory",
+        content: "This should persist across restarts",
+        memory_type: :fact,
+        confidence: 0.95,
+        source_type: :user,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:ok, _} = Memory.persist(memory, session_id)
+
+      # Close the store
+      :ok = StoreManager.close(session_id)
+
+      # Re-open by querying (get_or_create will reopen)
+      assert {:ok, memories} = Memory.query(session_id)
+      assert length(memories) == 1
+      assert hd(memories).content == "This should persist across restarts"
+    end
+
+    test "7.11.1.4 multiple sessions with isolated stores", %{session_id: session_id} do
+      session_2 = "#{session_id}_isolated_2"
+
+      on_exit(fn ->
+        StoreManager.close(session_2)
+      end)
+
+      # Create memory in session 1
+      mem1 = %{
+        id: "session1_mem",
+        content: "Session 1 memory",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:ok, _} = Memory.persist(mem1, session_id)
+
+      # Create memory in session 2
+      mem2 = %{
+        id: "session2_mem",
+        content: "Session 2 memory",
+        memory_type: :assumption,
+        confidence: 0.7,
+        source_type: :user,
+        session_id: session_2,
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:ok, _} = Memory.persist(mem2, session_2)
+
+      # Verify isolation
+      assert {:ok, s1_mems} = Memory.query(session_id)
+      assert length(s1_mems) == 1
+      assert hd(s1_mems).content == "Session 1 memory"
+
+      assert {:ok, s2_mems} = Memory.query(session_2)
+      assert length(s2_mems) == 1
+      assert hd(s2_mems).content == "Session 2 memory"
+
+      # Cross-session get should fail
+      assert {:error, :not_found} = Memory.get(session_id, "session2_mem")
+      assert {:error, :not_found} = Memory.get(session_2, "session1_mem")
+    end
+
+    test "7.11.1.5 supersession chain works correctly", %{session_id: session_id} do
+      # Create original memory
+      original = %{
+        id: "original_info",
+        content: "Phoenix version is 1.6",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :tool,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:ok, _} = Memory.persist(original, session_id)
+
+      # Create updated memory
+      updated = %{
+        id: "updated_info",
+        content: "Phoenix version is 1.7",
+        memory_type: :fact,
+        confidence: 0.95,
+        source_type: :tool,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:ok, _} = Memory.persist(updated, session_id)
+
+      # Supersede original with updated
+      assert :ok = Memory.supersede(session_id, "original_info", "updated_info")
+
+      # Normal query should only show updated
+      assert {:ok, active} = Memory.query(session_id)
+      assert length(active) == 1
+      assert hd(active).content == "Phoenix version is 1.7"
+
+      # Query with superseded should show both
+      assert {:ok, all} = Memory.query(session_id, include_superseded: true)
+      assert length(all) == 2
+    end
+  end
+
+  # =============================================================================
+  # 7.11.2 - Performance Integration Tests
+  # =============================================================================
+
+  describe "7.11.2 performance" do
+    alias JidoCode.Memory
+    alias JidoCode.Memory.LongTerm.StoreManager
+
+    setup do
+      session_id = "perf_test_#{:erlang.unique_integer([:positive])}"
+
+      on_exit(fn ->
+        StoreManager.close(session_id)
+      end)
+
+      {:ok, session_id: session_id}
+    end
+
+    test "7.11.2.1 handles large number of memories (100+)", %{session_id: session_id} do
+      # Insert 100 memories
+      count = 100
+
+      for i <- 1..count do
+        memory = %{
+          id: "perf_mem_#{i}",
+          content: "Performance test memory number #{i} with some additional content",
+          memory_type: Enum.random([:fact, :assumption, :hypothesis]),
+          confidence: 0.5 + :rand.uniform() * 0.5,
+          source_type: :agent,
+          session_id: session_id,
+          created_at: DateTime.utc_now()
+        }
+
+        assert {:ok, _} = Memory.persist(memory, session_id)
+      end
+
+      # Query all and verify count
+      assert {:ok, memories} = Memory.query(session_id)
+      assert length(memories) == count
+
+      # Query with limit
+      assert {:ok, limited} = Memory.query(session_id, limit: 10)
+      assert length(limited) == 10
+
+      # Query by type
+      assert {:ok, facts} = Memory.query_by_type(session_id, :fact)
+      assert length(facts) > 0
+
+      # Verify memory count
+      assert {:ok, total} = Memory.count(session_id)
+      assert total == count
+    end
+
+    test "7.11.2.2 concurrent read operations", %{session_id: session_id} do
+      # Pre-populate with some memories
+      for i <- 1..20 do
+        memory = %{
+          id: "concurrent_#{i}",
+          content: "Content #{i}",
+          memory_type: :fact,
+          confidence: 0.8,
+          source_type: :agent,
+          session_id: session_id,
+          created_at: DateTime.utc_now()
+        }
+
+        {:ok, _} = Memory.persist(memory, session_id)
+      end
+
+      # Spawn multiple concurrent read tasks
+      tasks =
+        for _i <- 1..10 do
+          Task.async(fn ->
+            {:ok, memories} = Memory.query(session_id)
+            length(memories)
+          end)
+        end
+
+      # Wait for all tasks
+      results = Task.await_many(tasks, 5000)
+
+      # All should return 20
+      assert Enum.all?(results, &(&1 == 20))
+    end
+
+    test "7.11.2.3 SPARQL query response time is reasonable", %{session_id: session_id} do
+      # Insert 50 memories
+      for i <- 1..50 do
+        memory = %{
+          id: "timing_#{i}",
+          content: "Timing test #{i}",
+          memory_type: :fact,
+          confidence: 0.8,
+          source_type: :agent,
+          session_id: session_id,
+          created_at: DateTime.utc_now()
+        }
+
+        {:ok, _} = Memory.persist(memory, session_id)
+      end
+
+      # Measure query time
+      start = System.monotonic_time(:millisecond)
+      {:ok, _} = Memory.query(session_id)
+      elapsed = System.monotonic_time(:millisecond) - start
+
+      # Should complete within 2 seconds (generous for CI environments)
+      assert elapsed < 2000, "Query took #{elapsed}ms, expected < 2000ms"
+
+      # Measure count time
+      start = System.monotonic_time(:millisecond)
+      {:ok, _} = Memory.count(session_id)
+      elapsed = System.monotonic_time(:millisecond) - start
+
+      assert elapsed < 1000, "Count took #{elapsed}ms, expected < 1000ms"
+    end
+  end
+
+  # =============================================================================
+  # 7.11.3 - Ontology Consistency Tests
+  # =============================================================================
+
+  describe "7.11.3 ontology consistency" do
+    alias JidoCode.Memory.LongTerm.OntologyLoader
+    alias JidoCode.Memory.LongTerm.SPARQLQueries
+    alias JidoCode.Memory.Types
+
+    test "7.11.3.1 all memory types map to ontology classes" do
+      # Get all defined memory types
+      memory_types = Types.memory_types()
+
+      # Verify each type has a valid class mapping
+      for type <- memory_types do
+        class = SPARQLQueries.memory_type_to_class(type)
+        assert is_binary(class), "Type #{type} should map to a class string"
+        assert String.length(class) > 0, "Type #{type} should have non-empty class"
+
+        # Verify round-trip conversion
+        back_type = SPARQLQueries.class_to_memory_type(class)
+        assert back_type == type, "Round-trip failed: #{type} -> #{class} -> #{back_type}"
+      end
+    end
+
+    test "7.11.3.2 all confidence levels map to ontology individuals" do
+      confidence_levels = Types.confidence_levels()
+
+      for level <- confidence_levels do
+        individual = SPARQLQueries.confidence_to_individual(level)
+        assert is_binary(individual)
+        assert individual in ["High", "Medium", "Low"]
+
+        # Verify round-trip
+        back_level = SPARQLQueries.individual_to_confidence(individual)
+        assert back_level == level
+      end
+    end
+
+    test "7.11.3.3 all source types map to ontology individuals" do
+      source_types = Types.source_types()
+
+      for source <- source_types do
+        individual = SPARQLQueries.source_type_to_individual(source)
+        assert is_binary(individual)
+        assert String.ends_with?(individual, "Source")
+
+        # Verify round-trip
+        back_source = SPARQLQueries.individual_to_source_type(individual)
+        assert back_source == source
+      end
+    end
+
+    test "7.11.3.4 ontology classes exist in loaded TTL files", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "ontology_verify_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      # Verify key memory type classes exist
+      expected_classes = ["Fact", "Assumption", "Hypothesis", "Decision", "Convention"]
+
+      for class <- expected_classes do
+        query = """
+        PREFIX jido: <https://jido.ai/ontology#>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+        ASK { jido:#{class} rdfs:subClassOf ?parent }
+        """
+
+        {:ok, result} = TripleStore.query(store, query)
+        assert result == true, "Class #{class} should exist in ontology"
+      end
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "7.11.3.5 ontology individuals exist for confidence levels", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "confidence_verify_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      expected_individuals = ["High", "Medium", "Low"]
+
+      for individual <- expected_individuals do
+        query = """
+        PREFIX jido: <https://jido.ai/ontology#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+        ASK { jido:#{individual} rdf:type jido:ConfidenceLevel }
+        """
+
+        {:ok, result} = TripleStore.query(store, query)
+        assert result == true, "Individual #{individual} should exist as ConfidenceLevel"
+      end
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "7.11.3.6 ontology individuals exist for source types", %{temp_dir: temp_dir} do
+      store_path = Path.join(temp_dir, "source_verify_test")
+      {:ok, store} = TripleStore.open(store_path, create_if_missing: true)
+      {:ok, _} = OntologyLoader.load_ontology(store)
+
+      expected_individuals = ["UserSource", "AgentSource", "ToolSource", "ExternalDocumentSource"]
+
+      for individual <- expected_individuals do
+        query = """
+        PREFIX jido: <https://jido.ai/ontology#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+        ASK { jido:#{individual} rdf:type jido:SourceType }
+        """
+
+        {:ok, result} = TripleStore.query(store, query)
+        assert result == true, "Individual #{individual} should exist as SourceType"
+      end
+
+      :ok = TripleStore.close(store)
+    end
+
+    test "7.11.3.7 memory IRI extraction works correctly" do
+      # Test full IRI extraction
+      full_iri = "https://jido.ai/ontology#memory_abc123"
+      assert SPARQLQueries.extract_memory_id(full_iri) == "abc123"
+
+      # Test local name extraction
+      local_iri = "memory_def456"
+      assert SPARQLQueries.extract_memory_id(local_iri) == "def456"
+
+      # Test session extraction
+      session_iri = "https://jido.ai/ontology#session_my_session"
+      assert SPARQLQueries.extract_session_id(session_iri) == "my_session"
+    end
+
+    test "7.11.3.8 SPARQL prefixes are correctly formed" do
+      prefixes = SPARQLQueries.prefixes()
+
+      assert String.contains?(prefixes, "PREFIX jido:")
+      assert String.contains?(prefixes, "PREFIX rdf:")
+      assert String.contains?(prefixes, "PREFIX rdfs:")
+      assert String.contains?(prefixes, "PREFIX xsd:")
+      assert String.contains?(prefixes, "PREFIX owl:")
+      assert String.contains?(prefixes, "https://jido.ai/ontology#")
+    end
+  end
 end

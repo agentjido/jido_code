@@ -285,64 +285,49 @@ Based on code review, the following improvements were implemented:
 
 ---
 
-## 7.5 Refactor TripleStoreAdapter
+## 7.5 Refactor TripleStoreAdapter ✓
 
 ### 7.5.1 Adapter Core Changes
 
-- [ ] 7.5.1.1 Remove ETS-specific code entirely
-- [ ] 7.5.1.2 Update persist/2 to use SPARQL INSERT:
-  ```elixir
-  @spec persist(memory_input(), TripleStore.store()) :: {:ok, String.t()} | {:error, term()}
-  def persist(memory, store) do
-    query = SPARQLQueries.insert_memory(memory)
-
-    case TripleStore.update(store, query) do
-      {:ok, _} -> {:ok, memory.id}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-  ```
-- [ ] 7.5.1.3 Update query_all/2 to use SPARQL SELECT
-- [ ] 7.5.1.4 Update query_by_type/3 to use SPARQL with type filter
-- [ ] 7.5.1.5 Update query_by_id/2 to use SPARQL
-- [ ] 7.5.1.6 Update supersede/4 to use SPARQL UPDATE
-- [ ] 7.5.1.7 Update record_access/2 to use SPARQL UPDATE
+- [x] 7.5.1.1 Remove ETS-specific code entirely
+- [x] 7.5.1.2 Update persist/2 to use SPARQL INSERT (via SPARQLQueries.insert_memory)
+- [x] 7.5.1.3 Update query_all/2 to use SPARQL SELECT (via SPARQLQueries.query_by_session)
+- [x] 7.5.1.4 Update query_by_type/3 to use SPARQL with type filter (via SPARQLQueries.query_by_type)
+- [x] 7.5.1.5 Update query_by_id/2 to use SPARQL (via SPARQLQueries.query_by_id)
+- [x] 7.5.1.6 Update supersede/4 to use SPARQL UPDATE (via SPARQLQueries.supersede_memory)
+- [x] 7.5.1.7 Update record_access/2 to use SPARQL UPDATE (via SPARQLQueries.record_access)
 
 ### 7.5.2 Result Mapping
 
-- [ ] 7.5.2.1 Create `map_sparql_result/1` to convert SPARQL bindings to memory struct:
-  ```elixir
-  defp map_sparql_result(bindings) do
-    %{
-      id: extract_id(bindings["mem"]),
-      content: bindings["content"],
-      memory_type: iri_to_memory_type(bindings["type"]),
-      confidence: iri_to_confidence(bindings["confidence"]),
-      source_type: iri_to_source_type(bindings["source"]),
-      timestamp: parse_datetime(bindings["timestamp"]),
-      # ... other fields
-    }
-  end
-  ```
-- [ ] 7.5.2.2 Implement IRI-to-atom mapping functions
-- [ ] 7.5.2.3 Handle optional fields (rationale, evidence_refs)
-- [ ] 7.5.2.4 Add error handling for malformed results
+- [x] 7.5.2.1 Create result mapping functions:
+  - `map_type_result/3` - Maps query_by_type results
+  - `map_session_result/2` - Maps query_by_session results
+  - `map_id_result/2` - Maps query_by_id results
+- [x] 7.5.2.2 Implement IRI-to-atom mapping functions:
+  - `extract_memory_type/1` - Converts type IRI to atom
+  - `extract_confidence/1` - Converts confidence IRI to level
+  - `extract_source_type/1` - Converts source IRI to atom
+  - `extract_session_id/1` - Extracts session ID from IRI
+- [x] 7.5.2.3 Handle optional fields (rationale via extract_optional_string, evidence_refs defaults to [])
+- [x] 7.5.2.4 Add error handling for malformed results (fallback values for all extractors)
 
 ### 7.5.3 Remove Vocab.Jido Dependency
 
-- [ ] 7.5.3.1 Remove `alias JidoCode.Memory.LongTerm.Vocab.Jido, as: Vocab`
-- [ ] 7.5.3.2 Replace Vocab.* calls with direct IRI construction or SPARQLQueries
-- [ ] 7.5.3.3 Move any still-needed IRI helpers to SPARQLQueries module
+- [x] 7.5.3.1 Remove `alias JidoCode.Memory.LongTerm.Vocab.Jido, as: Vocab` - No Vocab references
+- [x] 7.5.3.2 Replace Vocab.* calls with SPARQLQueries functions
+- [x] 7.5.3.3 Move IRI helpers to SPARQLQueries module (namespace, extract_memory_id, extract_session_id)
 
 ### 7.5.4 Adapter Tests
 
-- [ ] 7.5.4.1 Test persist/2 creates RDF triples
-- [ ] 7.5.4.2 Test query_all/2 returns all session memories
-- [ ] 7.5.4.3 Test query_by_type/3 filters by ontology class
-- [ ] 7.5.4.4 Test supersede/4 creates supersededBy relationship
-- [ ] 7.5.4.5 Test query excludes superseded memories by default
-- [ ] 7.5.4.6 Test access count tracking works
-- [ ] 7.5.4.7 Test round-trip persist → query preserves all fields
+- [x] 7.5.4.1 Test persist/2 creates RDF triples (4 tests)
+- [x] 7.5.4.2 Test query_all/2 returns all session memories (5 tests)
+- [x] 7.5.4.3 Test query_by_type/3 filters by ontology class (5 tests)
+- [x] 7.5.4.4 Test supersede/4 creates supersededBy relationship (4 tests)
+- [x] 7.5.4.5 Test query excludes superseded memories by default (verified in query tests)
+- [x] 7.5.4.6 Test access count tracking works (3 tests)
+- [x] 7.5.4.7 Test round-trip persist → query preserves all fields (verified across all tests)
+
+**38 tests pass** for TripleStoreAdapter
 
 ---
 

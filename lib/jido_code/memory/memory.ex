@@ -505,6 +505,52 @@ defmodule JidoCode.Memory do
     end
   end
 
+  @doc """
+  Retrieves contextually relevant memories using relevance scoring.
+
+  This function finds memories that are most relevant to the given context hint
+  using a multi-factor scoring algorithm that considers:
+  - Text similarity between context and memory content
+  - Recency of access or creation
+  - Memory confidence level
+  - Access frequency
+
+  ## Parameters
+
+  - `session_id` - Session identifier
+  - `context_hint` - Description of what context is needed
+  - `opts` - Keyword list of options:
+    - `:max_results` - Maximum results to return (default: 5)
+    - `:min_confidence` - Minimum confidence threshold (default: 0.5)
+    - `:recency_weight` - Weight for recency in scoring (default: 0.3)
+    - `:include_superseded` - Include superseded memories (default: false)
+    - `:include_types` - Filter to specific memory types (default: nil, all types)
+
+  ## Returns
+
+  - `{:ok, [{memory, score}, ...]}` - List of {memory, relevance_score} tuples
+  - `{:error, reason}` - Error tuple
+
+  ## Examples
+
+      {:ok, scored} = Memory.get_context("session-abc", "authentication flow")
+      # Returns memories related to authentication, sorted by relevance
+
+      {:ok, scored} = Memory.get_context("session-abc", "error handling",
+        include_types: [:convention, :decision],
+        max_results: 3
+      )
+
+  """
+  @spec get_context(String.t(), String.t(), keyword()) ::
+          {:ok, [{map(), float()}]} | {:error, term()}
+  def get_context(session_id, context_hint, opts \\ [])
+      when is_binary(session_id) and is_binary(context_hint) and is_list(opts) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.get_context(store, session_id, context_hint, opts)
+    end
+  end
+
   # =============================================================================
   # Ontology API
   # =============================================================================

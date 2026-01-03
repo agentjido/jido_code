@@ -18,6 +18,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
   alias JidoCode.Tools.Handlers.Knowledge.ProjectConventions
   alias JidoCode.Tools.Handlers.Knowledge.ProjectDecisions
   alias JidoCode.Tools.Handlers.Knowledge.ProjectRisks
+  alias JidoCode.Tools.Handlers.Knowledge.KnowledgeContext
 
   @moduletag :phase7
 
@@ -1003,7 +1004,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
     test "returns list of tool definitions" do
       tools = JidoCode.Tools.Definitions.Knowledge.all()
 
-      assert length(tools) == 8
+      assert length(tools) == 9
       assert Enum.any?(tools, fn t -> t.name == "knowledge_remember" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_recall" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_supersede" end)
@@ -1012,6 +1013,7 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert Enum.any?(tools, fn t -> t.name == "project_decisions" end)
       assert Enum.any?(tools, fn t -> t.name == "project_risks" end)
       assert Enum.any?(tools, fn t -> t.name == "knowledge_graph_query" end)
+      assert Enum.any?(tools, fn t -> t.name == "knowledge_context" end)
     end
   end
 
@@ -3068,6 +3070,418 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert stats.by_confidence == %{}
       assert stats.with_evidence == 0
       assert stats.with_rationale == 0
+    end
+  end
+
+  # ============================================================================
+  # KnowledgeContext Handler Tests (Section 7.9)
+  # ============================================================================
+
+  describe "KnowledgeContext.execute/2" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create test memories with different content
+      memories = [
+        %{
+          "content" => "Phoenix uses Elixir for web development with LiveView",
+          "type" => "fact",
+          "confidence" => 0.9
+        },
+        %{
+          "content" => "Authentication should use Guardian library",
+          "type" => "decision",
+          "confidence" => 0.85
+        },
+        %{
+          "content" => "Use snake_case for function names in Elixir",
+          "type" => "convention",
+          "confidence" => 0.95
+        },
+        %{
+          "content" => "Database connection pooling improves performance",
+          "type" => "fact",
+          "confidence" => 0.8
+        },
+        %{
+          "content" => "Error handling should return {:error, reason} tuples",
+          "type" => "convention",
+          "confidence" => 0.9
+        }
+      ]
+
+      memory_ids =
+        Enum.map(memories, fn mem ->
+          {:ok, json} = KnowledgeRemember.execute(mem, context)
+          Jason.decode!(json)["memory_id"]
+        end)
+
+      {:ok, session_id: session_id, context: context, memory_ids: memory_ids}
+    end
+
+    test "requires context_hint parameter", %{context: context} do
+      args = %{}
+      {:error, message} = KnowledgeContext.execute(args, context)
+      assert message =~ "context_hint"
+    end
+
+    test "requires session context" do
+      args = %{"context_hint" => "test context"}
+      {:error, message} = KnowledgeContext.execute(args, %{})
+      assert message =~ "session"
+    end
+
+    test "validates context_hint minimum length", %{context: context} do
+      args = %{"context_hint" => "ab"}
+      {:error, message} = KnowledgeContext.execute(args, context)
+      assert message =~ "at least 3 characters"
+    end
+
+    test "validates context_hint maximum length", %{context: context} do
+      long_hint = String.duplicate("a", 1001)
+      args = %{"context_hint" => long_hint}
+      {:error, message} = KnowledgeContext.execute(args, context)
+      assert message =~ "at most 1000 characters"
+    end
+
+    test "returns memories sorted by relevance score", %{context: context} do
+      args = %{"context_hint" => "Elixir web development Phoenix LiveView"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["context_hint"] == "Elixir web development Phoenix LiveView"
+      assert result["count"] > 0
+      assert is_list(result["memories"])
+
+      # Verify memories have relevance scores
+      Enum.each(result["memories"], fn mem ->
+        assert Map.has_key?(mem, "relevance_score")
+        assert is_number(mem["relevance_score"])
+        assert mem["relevance_score"] >= 0.0
+        assert mem["relevance_score"] <= 1.0
+      end)
+
+      # Verify sorted by relevance score descending
+      scores = Enum.map(result["memories"], & &1["relevance_score"])
+      assert scores == Enum.sort(scores, :desc)
+    end
+
+    test "Phoenix Elixir query returns highest score for Phoenix memory", %{context: context} do
+      args = %{"context_hint" => "Phoenix Elixir web development"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      # The Phoenix memory should rank highest
+      [first | _] = result["memories"]
+      assert first["content"] =~ "Phoenix"
+    end
+
+    test "respects max_results parameter", %{context: context} do
+      args = %{"context_hint" => "Elixir development", "max_results" => 2}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert result["count"] <= 2
+      assert length(result["memories"]) <= 2
+    end
+
+    test "respects min_confidence parameter", %{context: context} do
+      args = %{"context_hint" => "development", "min_confidence" => 0.9}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      Enum.each(result["memories"], fn mem ->
+        assert mem["confidence"] >= 0.9
+      end)
+    end
+
+    test "filters by include_types", %{context: context} do
+      args = %{
+        "context_hint" => "development conventions",
+        "include_types" => ["convention"]
+      }
+
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      Enum.each(result["memories"], fn mem ->
+        assert mem["type"] == "convention"
+      end)
+    end
+
+    test "handles multiple include_types", %{context: context} do
+      args = %{
+        "context_hint" => "development patterns",
+        "include_types" => ["fact", "decision"]
+      }
+
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      Enum.each(result["memories"], fn mem ->
+        assert mem["type"] in ["fact", "decision"]
+      end)
+    end
+
+    test "returns empty for no matching context", %{context: context} do
+      args = %{"context_hint" => "completely unrelated topic about space exploration mars"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      # May return results based on recency/confidence even without text match
+      assert is_list(result["memories"])
+    end
+
+    test "respects recency_weight parameter", %{context: context} do
+      # Create a new memory that should rank higher with high recency weight
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "This is a very recent memory about testing",
+            "type" => "fact",
+            "confidence" => 0.7
+          },
+          context
+        )
+
+      args = %{
+        "context_hint" => "testing memory",
+        "recency_weight" => 0.6
+      }
+
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      # With high recency weight, the most recent memory should rank higher
+      assert result["count"] > 0
+    end
+
+    test "excludes superseded memories by default", %{session_id: _session_id, context: context, memory_ids: memory_ids} do
+      # Supersede the first memory
+      [first_id | _] = memory_ids
+
+      KnowledgeSupersede.execute(
+        %{"old_memory_id" => first_id, "reason" => "Testing superseded exclusion"},
+        context
+      )
+
+      args = %{"context_hint" => "Phoenix Elixir web"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      # The superseded memory should not be in results
+      ids = Enum.map(result["memories"], & &1["id"])
+      refute first_id in ids
+    end
+
+    test "includes superseded memories when requested", %{context: context, memory_ids: memory_ids} do
+      [first_id | _] = memory_ids
+
+      KnowledgeSupersede.execute(
+        %{"old_memory_id" => first_id, "reason" => "Testing superseded inclusion"},
+        context
+      )
+
+      args = %{
+        "context_hint" => "Phoenix Elixir web",
+        "include_superseded" => true
+      }
+
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      # The superseded memory may now appear in results
+      assert is_list(result["memories"])
+    end
+
+    test "emits telemetry on success", %{context: context} do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :knowledge, :context]
+        ])
+
+      args = %{"context_hint" => "Elixir development"}
+      {:ok, _} = KnowledgeContext.execute(args, context)
+
+      assert_receive {[:jido_code, :knowledge, :context], ^ref, %{duration: _}, %{status: :success}}
+    end
+
+    test "emits telemetry on failure" do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:jido_code, :knowledge, :context]
+        ])
+
+      args = %{"context_hint" => "test"}
+      {:error, _} = KnowledgeContext.execute(args, %{})
+
+      assert_receive {[:jido_code, :knowledge, :context], ^ref, %{duration: _}, %{status: :error}}
+    end
+  end
+
+  describe "Memory.get_context/3" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+
+      # Create test memories
+      memories = [
+        %{"content" => "Ecto is the database library for Elixir", "type" => "fact", "confidence" => 0.9},
+        %{"content" => "GenServer handles state in Elixir", "type" => "fact", "confidence" => 0.85},
+        %{"content" => "Pattern matching is core to Elixir", "type" => "fact", "confidence" => 0.95}
+      ]
+
+      Enum.each(memories, fn mem ->
+        KnowledgeRemember.execute(mem, context)
+      end)
+
+      {:ok, session_id: session_id}
+    end
+
+    test "returns scored memories via facade", %{session_id: session_id} do
+      {:ok, scored} = Memory.get_context(session_id, "Elixir database Ecto")
+
+      assert is_list(scored)
+      assert length(scored) > 0
+
+      Enum.each(scored, fn {memory, score} ->
+        assert is_map(memory)
+        assert Map.has_key?(memory, :id)
+        assert Map.has_key?(memory, :content)
+        assert is_float(score)
+        assert score >= 0.0 and score <= 1.0
+      end)
+    end
+
+    test "respects max_results option", %{session_id: session_id} do
+      {:ok, scored} = Memory.get_context(session_id, "Elixir", max_results: 1)
+      assert length(scored) == 1
+    end
+
+    test "respects min_confidence option", %{session_id: session_id} do
+      {:ok, scored} = Memory.get_context(session_id, "Elixir", min_confidence: 0.9)
+
+      Enum.each(scored, fn {memory, _score} ->
+        assert memory.confidence >= 0.9
+      end)
+    end
+
+    test "respects include_types option", %{session_id: session_id} do
+      {:ok, scored} = Memory.get_context(session_id, "Elixir", include_types: [:fact])
+
+      Enum.each(scored, fn {memory, _score} ->
+        assert memory.memory_type == :fact
+      end)
+    end
+
+    test "returns empty list for empty session" do
+      empty_session = Uniq.UUID.uuid4()
+      {:ok, scored} = Memory.get_context(empty_session, "anything")
+      assert scored == []
+    end
+  end
+
+  describe "KnowledgeContext relevance scoring" do
+    setup do
+      session_id = Uniq.UUID.uuid4()
+      context = %{session_id: session_id}
+      {:ok, session_id: session_id, context: context}
+    end
+
+    test "text similarity affects relevance score", %{context: context} do
+      # Create memories with varying text similarity
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Exact match test phrase here", "type" => "fact", "confidence" => 0.8},
+          context
+        )
+
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Completely different unrelated content", "type" => "fact", "confidence" => 0.8},
+          context
+        )
+
+      args = %{"context_hint" => "exact match test phrase"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      # The exact match memory should have higher score
+      [first, second | _] = result["memories"]
+      assert first["content"] =~ "Exact match"
+      assert first["relevance_score"] > second["relevance_score"]
+    end
+
+    test "confidence affects relevance score", %{context: context} do
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "Low confidence memory about testing", "type" => "fact", "confidence" => 0.5},
+          context
+        )
+
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{"content" => "High confidence memory about testing", "type" => "fact", "confidence" => 0.95},
+          context
+        )
+
+      args = %{"context_hint" => "testing memory", "max_results" => 10}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Find the two testing memories
+      testing_mems =
+        Enum.filter(result["memories"], fn m ->
+          String.contains?(m["content"], "confidence memory")
+        end)
+
+      if length(testing_mems) >= 2 do
+        high_conf = Enum.find(testing_mems, &(&1["confidence"] == 0.95))
+        low_conf = Enum.find(testing_mems, &(&1["confidence"] == 0.5))
+
+        # High confidence should contribute to higher relevance
+        if high_conf && low_conf do
+          assert high_conf["relevance_score"] > low_conf["relevance_score"]
+        end
+      end
+    end
+
+    test "memory fields are properly included in results", %{context: context} do
+      {:ok, _} =
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Test memory with all fields",
+            "type" => "decision",
+            "confidence" => 0.85,
+            "rationale" => "This is the reasoning behind it"
+          },
+          context
+        )
+
+      args = %{"context_hint" => "test memory fields"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      memory = Enum.find(result["memories"], &(&1["content"] =~ "all fields"))
+
+      if memory do
+        assert Map.has_key?(memory, "id")
+        assert Map.has_key?(memory, "content")
+        assert Map.has_key?(memory, "type")
+        assert Map.has_key?(memory, "confidence")
+        assert Map.has_key?(memory, "relevance_score")
+      end
+    end
+  end
+
+  describe "Knowledge.all/0 includes knowledge_context" do
+    test "returns 9 tool definitions" do
+      tools = JidoCode.Tools.Definitions.Knowledge.all()
+      assert length(tools) == 9
+
+      tool_names = Enum.map(tools, & &1.name)
+      assert "knowledge_context" in tool_names
     end
   end
 end

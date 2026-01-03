@@ -87,7 +87,8 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
       project_conventions(),
       project_decisions(),
       project_risks(),
-      knowledge_graph_query()
+      knowledge_graph_query(),
+      knowledge_context()
     ]
   end
 
@@ -570,6 +571,92 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
           name: "include_superseded",
           type: :boolean,
           description: "Include superseded/outdated memories in results (default: false)",
+          required: false
+        }
+      ]
+    })
+  end
+
+  @doc """
+  Returns the knowledge_context tool definition.
+
+  Automatically retrieves the most relevant memories based on a context hint.
+  Unlike knowledge_recall which requires explicit queries, knowledge_context
+  uses relevance scoring to find memories that are contextually appropriate.
+
+  ## Parameters
+
+  - `context_hint` (required, string) - Description of the current task or question
+  - `include_types` (optional, array) - Filter to specific memory types
+  - `min_confidence` (optional, number) - Minimum confidence threshold (default: 0.5)
+  - `max_results` (optional, integer) - Maximum results (default: 5)
+  - `recency_weight` (optional, number) - Weight for recency in scoring (default: 0.3)
+  - `include_superseded` (optional, boolean) - Include superseded memories (default: false)
+
+  ## Relevance Scoring
+
+  Each memory is scored based on:
+  - **Text similarity (40%)** - How well the context hint matches memory content
+  - **Recency (30%)** - How recently the memory was accessed or created
+  - **Confidence (20%)** - The memory's confidence level
+  - **Access frequency (10%)** - How often the memory has been accessed
+
+  ## Output
+
+  Returns JSON with context_hint, count, and scored memories array.
+  """
+  @spec knowledge_context() :: Tool.t()
+  def knowledge_context do
+    Tool.new!(%{
+      name: "knowledge_context",
+      description:
+        "Automatically retrieve the most relevant memories for the current context. " <>
+          "Provide a hint describing what you're working on, and this tool will find " <>
+          "the most relevant knowledge using text matching, recency, confidence, and " <>
+          "access frequency. Use this when you need contextual knowledge without " <>
+          "knowing exactly what to search for.",
+      handler: Handlers.KnowledgeContext,
+      parameters: [
+        %{
+          name: "context_hint",
+          type: :string,
+          description:
+            "Description of what you're working on or looking for. " <>
+              "This is matched against memory content to find relevant knowledge.",
+          required: true
+        },
+        %{
+          name: "include_types",
+          type: :array,
+          description:
+            "Filter to specific memory types. Example: [\"fact\", \"decision\"]. " <>
+              "If not provided, searches all types.",
+          required: false
+        },
+        %{
+          name: "min_confidence",
+          type: :number,
+          description: "Minimum confidence threshold, 0.0 to 1.0 (default: 0.5)",
+          required: false
+        },
+        %{
+          name: "max_results",
+          type: :integer,
+          description: "Maximum number of results to return (default: 5)",
+          required: false
+        },
+        %{
+          name: "recency_weight",
+          type: :number,
+          description:
+            "Weight for recency in relevance scoring, 0.0 to 1.0 (default: 0.3). " <>
+              "Higher values favor recently accessed memories.",
+          required: false
+        },
+        %{
+          name: "include_superseded",
+          type: :boolean,
+          description: "Include superseded/outdated memories (default: false)",
           required: false
         }
       ]

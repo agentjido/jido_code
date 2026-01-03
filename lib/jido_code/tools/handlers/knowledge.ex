@@ -21,6 +21,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   - `ProjectDecisions` - Retrieves architectural and implementation decisions
   - `ProjectRisks` - Retrieves known risks and issues
   - `KnowledgeGraphQuery` - Traverses knowledge graph relationships
+  - `KnowledgeContext` - Auto-retrieves relevant context using relevance scoring
 
   ## Usage
 
@@ -1189,6 +1190,165 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
         count: length(results)
       })
     end
+  end
+
+  # ============================================================================
+  # KnowledgeContext Handler
+  # ============================================================================
+
+  defmodule KnowledgeContext do
+    @moduledoc """
+    Handler for automatically retrieving relevant context using relevance scoring.
+
+    Unlike knowledge_recall which requires explicit queries, this handler uses
+    a multi-factor relevance algorithm to find the most contextually appropriate
+    memories based on text similarity, recency, confidence, and access patterns.
+
+    ## Relevance Scoring Algorithm
+
+    Each memory is scored on a 0.0-1.0 scale based on:
+    - **Text Similarity (40%)** - Word overlap between context hint and memory content
+    - **Recency (30%)** - How recently the memory was accessed or created
+    - **Confidence (20%)** - The memory's confidence level
+    - **Access Frequency (10%)** - Normalized access count
+
+    Memories are sorted by relevance score descending.
+    """
+
+    alias JidoCode.Memory
+    alias JidoCode.Tools.Handlers.Knowledge
+
+    @default_max_results 5
+    @max_results_limit 50
+    @default_min_confidence 0.5
+    @default_recency_weight 0.3
+
+    # Scoring weights
+    @text_similarity_weight 0.4
+    @confidence_weight 0.2
+    @access_weight 0.1
+
+    @doc """
+    Executes the knowledge_context tool.
+
+    ## Parameters
+
+    - `args` - Map containing:
+      - `"context_hint"` (required) - Description of current task/question
+      - `"include_types"` (optional) - List of memory types to filter
+      - `"min_confidence"` (optional) - Minimum confidence threshold
+      - `"max_results"` (optional) - Maximum results to return
+      - `"recency_weight"` (optional) - Weight for recency in scoring
+      - `"include_superseded"` (optional) - Include superseded memories
+    - `context` - Must contain `:session_id`
+
+    ## Returns
+
+    - `{:ok, json}` - JSON with scored memories
+    - `{:error, message}` - Error message string
+    """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
+    def execute(args, context) do
+      Knowledge.with_telemetry(:context, context, fn ->
+        do_execute(args, context)
+      end)
+    end
+
+    defp do_execute(args, context) do
+      with {:ok, session_id} <- Knowledge.get_session_id(context, "knowledge_context"),
+           {:ok, context_hint} <- Knowledge.get_required_string(args, "context_hint"),
+           {:ok, _} <- validate_context_hint(context_hint),
+           {:ok, opts} <- build_query_opts(args) do
+        case Memory.get_context(session_id, context_hint, opts) do
+          {:ok, scored_memories} ->
+            format_results(scored_memories, context_hint)
+
+          {:error, reason} ->
+            {:error, "Failed to retrieve context: #{inspect(reason)}"}
+        end
+      end
+    end
+
+    defp validate_context_hint(hint) when byte_size(hint) < 3 do
+      {:error, "context_hint must be at least 3 characters"}
+    end
+
+    defp validate_context_hint(hint) when byte_size(hint) > 1000 do
+      {:error, "context_hint must be at most 1000 characters"}
+    end
+
+    defp validate_context_hint(_hint), do: {:ok, :valid}
+
+    defp build_query_opts(args) do
+      max_results = args |> Map.get("max_results", @default_max_results) |> normalize_max_results()
+      min_confidence = args |> Map.get("min_confidence", @default_min_confidence) |> normalize_confidence()
+      recency_weight = args |> Map.get("recency_weight", @default_recency_weight) |> normalize_weight()
+      include_superseded = Map.get(args, "include_superseded", false) == true
+      include_types = parse_include_types(Map.get(args, "include_types"))
+
+      {:ok,
+       [
+         max_results: max_results,
+         min_confidence: min_confidence,
+         recency_weight: recency_weight,
+         include_superseded: include_superseded,
+         include_types: include_types
+       ]}
+    end
+
+    defp normalize_max_results(n) when is_integer(n) and n > 0, do: min(n, @max_results_limit)
+    defp normalize_max_results(_), do: @default_max_results
+
+    defp normalize_confidence(c) when is_number(c) and c >= 0.0 and c <= 1.0, do: c
+    defp normalize_confidence(_), do: @default_min_confidence
+
+    defp normalize_weight(w) when is_number(w) and w >= 0.0 and w <= 1.0, do: w
+    defp normalize_weight(_), do: @default_recency_weight
+
+    defp parse_include_types(nil), do: nil
+    defp parse_include_types(types) when is_list(types) do
+      types
+      |> Enum.map(&safe_to_type_atom/1)
+      |> Enum.filter(&match?({:ok, _}, &1))
+      |> Enum.map(fn {:ok, atom} -> atom end)
+      |> case do
+        [] -> nil
+        atoms -> atoms
+      end
+    end
+    defp parse_include_types(_), do: nil
+
+    defp safe_to_type_atom(type) when is_binary(type) do
+      try do
+        {:ok, String.to_existing_atom(type)}
+      rescue
+        ArgumentError -> {:error, :unknown}
+      end
+    end
+    defp safe_to_type_atom(_), do: {:error, :invalid}
+
+    defp format_results(scored_memories, context_hint) do
+      results =
+        Enum.map(scored_memories, fn {memory, score} ->
+          memory
+          |> Knowledge.memory_to_map()
+          |> Map.put(:relevance_score, Float.round(score, 3))
+        end)
+
+      Knowledge.ok_json(%{
+        context_hint: context_hint,
+        count: length(results),
+        memories: results
+      })
+    end
+
+    # Public functions for testing scoring algorithm
+    @doc false
+    def text_similarity_weight, do: @text_similarity_weight
+    @doc false
+    def confidence_weight, do: @confidence_weight
+    @doc false
+    def access_weight, do: @access_weight
   end
 
   # ============================================================================

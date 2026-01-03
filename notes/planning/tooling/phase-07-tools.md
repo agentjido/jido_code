@@ -57,9 +57,9 @@ The canonical ontology is defined in TTL files:
 | `project_decisions` | P2 | Get architectural decisions | ✅ Complete |
 | `project_risks` | P2 | Get known risks and issues | ✅ Complete |
 | `knowledge_graph_query` | P3 | Advanced relationship traversal | ✅ Complete |
-| `knowledge_context` | P3 | Auto-retrieve relevant context | ⏸️ Deferred |
+| `knowledge_context` | P3 | Auto-retrieve relevant context | ✅ Complete |
 
-> **Note:** P0-P2 tools (7 total) were implemented initially. `knowledge_graph_query` (P3) was implemented in Phase 7D. `knowledge_context` remains deferred.
+> **Note:** All 9 knowledge tools are now complete. P0-P2 tools (7 total) were implemented initially. P3 tools (`knowledge_graph_query`, `knowledge_context`) completed Phase 7.
 
 ## Phase 7A Improvements (Review Findings) ✅
 
@@ -606,15 +606,72 @@ Based on code review findings (`notes/reviews/phase-7.8-knowledge-graph-query-re
 
 ---
 
-## 7.9 knowledge_context Tool (P3) ⏸️ DEFERRED
+## 7.9 knowledge_context Tool (P3) ✅
 
-> **Deferred**: Auto-relevance context will be implemented in a future phase.
+Automatically retrieve contextually relevant memories using multi-factor relevance scoring.
 
-### 7.9.1 Tool Definition (Deferred)
+### 7.9.1 Tool Definition
 
-- Parameters: context_hint, include_types
-- Auto-scoring based on current task context
-- Retrieves most relevant memories without explicit query
+- [x] Add `knowledge_context/0` to definitions
+- [x] Define schema:
+  ```elixir
+  %{
+    name: "knowledge_context",
+    description: "Automatically retrieve the most relevant memories for the current context.",
+    parameters: [
+      %{name: "context_hint", type: :string, required: true,
+        description: "Description of what context is needed (3-1000 chars)"},
+      %{name: "include_types", type: :array, required: false,
+        description: "Filter to specific memory types"},
+      %{name: "min_confidence", type: :number, required: false,
+        description: "Minimum confidence threshold (default: 0.5)"},
+      %{name: "max_results", type: :integer, required: false,
+        description: "Maximum results (default: 5, max: 50)"},
+      %{name: "recency_weight", type: :number, required: false,
+        description: "Weight for recency in scoring (default: 0.3)"},
+      %{name: "include_superseded", type: :boolean, required: false,
+        description: "Include superseded memories (default: false)"}
+    ]
+  }
+  ```
+
+### 7.9.2 Handler Implementation
+
+- [x] Add `KnowledgeContext` handler module
+- [x] Validate context_hint length (3-1000 chars)
+- [x] Implement multi-factor relevance scoring
+- [x] Call `Memory.get_context/3` with options
+- [x] Return scored memories with relevance_score field
+- [x] Emit telemetry `[:jido_code, :knowledge, :context]`
+
+### 7.9.3 Relevance Scoring Algorithm
+
+- **Text Similarity (40%)** - Word overlap between context and content
+- **Recency (30%)** - Exponential decay (7-day half-life)
+- **Confidence (20%)** - Memory's confidence level
+- **Access Frequency (10%)** - Normalized access count
+
+### 7.9.4 API Additions
+
+- [x] Add `TripleStoreAdapter.get_context/4` with scoring algorithm
+- [x] Add `Memory.get_context/3` facade method
+
+### 7.9.5 Unit Tests
+
+- [x] Test requires context_hint parameter
+- [x] Test validates context_hint length
+- [x] Test returns memories sorted by relevance score
+- [x] Test respects max_results parameter
+- [x] Test respects min_confidence parameter
+- [x] Test respects include_types filter
+- [x] Test respects recency_weight parameter
+- [x] Test excludes superseded by default
+- [x] Test includes superseded when requested
+- [x] Test telemetry emission
+- [x] Test Memory.get_context/3 facade
+
+**Test Count:** 180 → 205 tests (25 new tests added)
+**Summary Document:** `notes/summaries/phase7.9-knowledge-context.md`
 
 ---
 
@@ -656,9 +713,9 @@ Based on code review findings (`notes/reviews/phase-7.8-knowledge-graph-query-re
 | **project_risks**: List risks by confidence | P2 | ✅ Complete |
 | **Cross-session queries**: project_scope=true works | P0 | ⬜ Initial |
 | **Session isolation**: Default queries session-scoped | P0 | ✅ Complete |
-| **Test coverage**: Minimum 80% | - | ✅ 173 tests |
+| **Test coverage**: Minimum 80% | - | ✅ 205 tests |
 | **knowledge_graph_query**: Traverse relationships | P3 | ✅ Complete |
-| **knowledge_context**: Auto-relevance | P3 | ⏸️ Deferred |
+| **knowledge_context**: Auto-relevance | P3 | ✅ Complete |
 
 ---
 
@@ -694,11 +751,11 @@ Based on code review findings (`notes/reviews/phase-7.8-knowledge-graph-query-re
 
 2. **Tool Naming**: Use `knowledge_*` prefix for core tools, `project_*` for specialized query tools
 
-3. **Initial Scope**: All P0-P2 tools (7 tools total)
+3. **Final Scope**: All 9 knowledge tools
    - `knowledge_remember`, `knowledge_recall` (P0)
    - `knowledge_supersede`, `project_conventions` (P1)
    - `knowledge_update`, `project_decisions`, `project_risks` (P2)
-   - P3 tools (`knowledge_graph_query`, `knowledge_context`) deferred
+   - `knowledge_graph_query`, `knowledge_context` (P3) - all complete
 
 4. **Ontology Source**: TTL files in `lib/ontology/long-term-context/` are the canonical source; `vocab/jido.ex` provides Elixir mappings
 
@@ -726,10 +783,10 @@ Based on code review findings (`notes/reviews/phase-7.8-knowledge-graph-query-re
 4. Full integration tests
 5. Update planning document
 
-### Phase 7D: Advanced Tools (P3)
+### Phase 7D: Advanced Tools (P3) ✅
 1. ✅ Add `knowledge_graph_query` - relationship traversal (complete)
-2. Add `knowledge_context` - auto-relevance (deferred)
-3. Advanced integration tests
+2. ✅ Add `knowledge_context` - auto-relevance (complete)
+3. Advanced integration tests (pending)
 
 ---
 

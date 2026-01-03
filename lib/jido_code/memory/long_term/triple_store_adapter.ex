@@ -801,6 +801,176 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   defp has_rationale?(_), do: false
 
   # =============================================================================
+  # Context Retrieval
+  # =============================================================================
+
+  @doc """
+  Retrieves contextually relevant memories using relevance scoring.
+
+  Uses a multi-factor scoring algorithm that considers:
+  - Text similarity (40%): Word overlap between context and content
+  - Recency (configurable): Time since last access or creation
+  - Confidence (20%): Memory's confidence level
+  - Access frequency (10%): Normalized access count
+
+  ## Parameters
+
+  - `store` - The ETS store reference
+  - `session_id` - Session identifier
+  - `context_hint` - Description of what context is needed
+  - `opts` - Keyword list of options
+
+  ## Options
+
+  - `:max_results` - Maximum results (default: 5)
+  - `:min_confidence` - Minimum confidence threshold (default: 0.5)
+  - `:recency_weight` - Weight for recency in scoring (default: 0.3)
+  - `:include_superseded` - Include superseded memories (default: false)
+  - `:include_types` - Filter to specific memory types (default: nil)
+
+  ## Returns
+
+  - `{:ok, [{memory, score}, ...]}` - List of {memory, relevance_score} tuples
+  - `{:error, reason}` - Error tuple
+  """
+  @spec get_context(store_ref(), String.t(), String.t(), keyword()) ::
+          {:ok, [{stored_memory(), float()}]} | {:error, term()}
+  def get_context(store, session_id, context_hint, opts \\ []) do
+    with_ets_store(store, fn ->
+      max_results = Keyword.get(opts, :max_results, 5)
+      min_confidence = Keyword.get(opts, :min_confidence, 0.5)
+      recency_weight = Keyword.get(opts, :recency_weight, 0.3)
+      include_superseded = Keyword.get(opts, :include_superseded, false)
+      include_types = Keyword.get(opts, :include_types)
+
+      # Get all session records
+      all_records =
+        store
+        |> ets_to_list()
+        |> Enum.filter(fn {_id, record} -> record.session_id == session_id end)
+        |> Enum.map(fn {_id, record} -> record end)
+
+      # Filter by superseded status
+      records =
+        if include_superseded do
+          all_records
+        else
+          Enum.filter(all_records, &is_nil(&1.superseded_at))
+        end
+
+      # Filter by confidence
+      records = Enum.filter(records, &(&1.confidence >= min_confidence))
+
+      # Filter by types if specified
+      records =
+        case include_types do
+          nil -> records
+          types when is_list(types) -> Enum.filter(records, &(&1.memory_type in types))
+        end
+
+      # Calculate max access count for normalization
+      max_access = records |> Enum.map(& &1.access_count) |> Enum.max(fn -> 1 end) |> max(1)
+
+      # Extract context words for matching
+      context_words = extract_words(context_hint)
+
+      # Score each memory
+      now = DateTime.utc_now()
+
+      scored =
+        records
+        |> Enum.map(fn record ->
+          score = calculate_relevance_score(record, context_words, max_access, now, recency_weight)
+          memory = to_stored_memory(record)
+          {memory, score}
+        end)
+        |> Enum.filter(fn {_memory, score} -> score > 0.0 end)
+        |> Enum.sort_by(fn {_memory, score} -> score end, :desc)
+        |> Enum.take(max_results)
+
+      {:ok, scored}
+    end)
+  end
+
+  # Calculates relevance score for a memory based on multiple factors
+  # Weights: text_similarity=0.4, recency=configurable, confidence=0.2, access=0.1
+  defp calculate_relevance_score(record, context_words, max_access, now, recency_weight) do
+    # Text similarity (40%)
+    content_words = extract_words(record.content)
+    rationale_words = if record.rationale, do: extract_words(record.rationale), else: MapSet.new()
+    all_memory_words = MapSet.union(content_words, rationale_words)
+    text_score = calculate_text_similarity(context_words, all_memory_words)
+
+    # Recency score (configurable weight, default 30%)
+    recency_score = calculate_recency_score(record, now)
+
+    # Confidence score (20%)
+    confidence_score = record.confidence
+
+    # Access frequency score (10%)
+    access_score = if max_access > 0, do: record.access_count / max_access, else: 0.0
+
+    # Calculate remaining weight for text, confidence, and access
+    # Total = 1.0 = text_weight + recency_weight + confidence_weight + access_weight
+    # Given recency_weight, and fixed access_weight=0.1, confidence_weight=0.2
+    # text_weight = 1.0 - recency_weight - 0.2 - 0.1 = 0.7 - recency_weight
+    access_weight = 0.1
+    confidence_weight = 0.2
+    text_weight = 1.0 - recency_weight - confidence_weight - access_weight
+
+    text_weight * text_score +
+      recency_weight * recency_score +
+      confidence_weight * confidence_score +
+      access_weight * access_score
+  end
+
+  # Extracts words from text, lowercased and normalized
+  defp extract_words(text) when is_binary(text) do
+    text
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9\s]/, " ")
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.filter(&(byte_size(&1) >= 2))
+    |> MapSet.new()
+  end
+
+  defp extract_words(_), do: MapSet.new()
+
+  # Calculates text similarity using Jaccard-like overlap
+  defp calculate_text_similarity(context_words, memory_words) do
+    if MapSet.size(context_words) == 0 or MapSet.size(memory_words) == 0 do
+      0.0
+    else
+      intersection = MapSet.intersection(context_words, memory_words)
+      overlap = MapSet.size(intersection)
+
+      # Score based on how many context words appear in memory
+      # Plus bonus for memory words that appear in context
+      context_coverage = overlap / MapSet.size(context_words)
+      memory_coverage = overlap / MapSet.size(memory_words)
+
+      # Weighted average favoring context coverage
+      0.7 * context_coverage + 0.3 * memory_coverage
+    end
+  end
+
+  # Calculates recency score based on last access or creation time
+  # More recent = higher score (exponential decay over 7 days)
+  defp calculate_recency_score(record, now) do
+    reference_time = record.last_accessed || record.created_at
+
+    if reference_time do
+      seconds_ago = DateTime.diff(now, reference_time, :second) |> max(0)
+      # Decay over 7 days (604800 seconds)
+      # After 7 days, score approaches 0
+      decay_period = 604_800
+      :math.exp(-seconds_ago / decay_period)
+    else
+      0.5
+    end
+  end
+
+  # =============================================================================
   # IRI Utilities
   # =============================================================================
 

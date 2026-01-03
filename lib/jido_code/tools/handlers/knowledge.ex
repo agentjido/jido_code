@@ -1218,8 +1218,9 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     alias JidoCode.Memory
     alias JidoCode.Tools.Handlers.Knowledge
 
-    @default_max_results 5
-    @max_results_limit 50
+    # C1 fix: Renamed max_results to limit for consistency with other handlers
+    @default_limit 5
+    @max_limit 50
     @default_min_confidence 0.5
     @default_recency_weight 0.3
 
@@ -1237,7 +1238,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       - `"context_hint"` (required) - Description of current task/question
       - `"include_types"` (optional) - List of memory types to filter
       - `"min_confidence"` (optional) - Minimum confidence threshold
-      - `"max_results"` (optional) - Maximum results to return
+      - `"limit"` (optional) - Maximum results to return
       - `"recency_weight"` (optional) - Weight for recency in scoring
       - `"include_superseded"` (optional) - Include superseded memories
     - `context` - Must contain `:session_id`
@@ -1269,6 +1270,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       end
     end
 
+    # S10: Return the validated hint instead of :valid atom
     defp validate_context_hint(hint) when byte_size(hint) < 3 do
       {:error, "context_hint must be at least 3 characters"}
     end
@@ -1277,10 +1279,12 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
       {:error, "context_hint must be at most 1000 characters"}
     end
 
-    defp validate_context_hint(_hint), do: {:ok, :valid}
+    defp validate_context_hint(hint), do: {:ok, hint}
 
     defp build_query_opts(args) do
-      max_results = args |> Map.get("max_results", @default_max_results) |> normalize_max_results()
+      # C1 fix: Accept both "limit" (preferred) and "max_results" (legacy) for compatibility
+      limit_value = Map.get(args, "limit") || Map.get(args, "max_results", @default_limit)
+      limit = normalize_limit(limit_value)
       min_confidence = args |> Map.get("min_confidence", @default_min_confidence) |> normalize_confidence()
       recency_weight = args |> Map.get("recency_weight", @default_recency_weight) |> normalize_weight()
       include_superseded = Map.get(args, "include_superseded", false) == true
@@ -1288,7 +1292,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
 
       {:ok,
        [
-         max_results: max_results,
+         max_results: limit,
          min_confidence: min_confidence,
          recency_weight: recency_weight,
          include_superseded: include_superseded,
@@ -1296,8 +1300,8 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
        ]}
     end
 
-    defp normalize_max_results(n) when is_integer(n) and n > 0, do: min(n, @max_results_limit)
-    defp normalize_max_results(_), do: @default_max_results
+    defp normalize_limit(n) when is_integer(n) and n > 0, do: min(n, @max_limit)
+    defp normalize_limit(_), do: @default_limit
 
     defp normalize_confidence(c) when is_number(c) and c >= 0.0 and c <= 1.0, do: c
     defp normalize_confidence(_), do: @default_min_confidence
@@ -1306,26 +1310,25 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     defp normalize_weight(_), do: @default_recency_weight
 
     defp parse_include_types(nil), do: nil
-    defp parse_include_types(types) when is_list(types) do
-      types
-      |> Enum.map(&safe_to_type_atom/1)
-      |> Enum.filter(&match?({:ok, _}, &1))
-      |> Enum.map(fn {:ok, atom} -> atom end)
-      |> case do
-        [] -> nil
-        atoms -> atoms
-      end
-    end
-    defp parse_include_types(_), do: nil
 
-    defp safe_to_type_atom(type) when is_binary(type) do
-      try do
-        {:ok, String.to_existing_atom(type)}
-      rescue
-        ArgumentError -> {:error, :unknown}
+    # C2 fix: Use shared Knowledge.safe_to_type_atom/1 instead of private duplicate
+    # S7: Use Enum.flat_map for more idiomatic type parsing
+    defp parse_include_types(types) when is_list(types) do
+      atoms =
+        Enum.flat_map(types, fn type ->
+          case Knowledge.safe_to_type_atom(type) do
+            {:ok, atom} -> [atom]
+            {:error, _} -> []
+          end
+        end)
+
+      case atoms do
+        [] -> nil
+        _ -> atoms
       end
     end
-    defp safe_to_type_atom(_), do: {:error, :invalid}
+
+    defp parse_include_types(_), do: nil
 
     defp format_results(scored_memories, context_hint) do
       results =

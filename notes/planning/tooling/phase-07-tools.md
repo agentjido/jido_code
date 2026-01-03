@@ -625,7 +625,7 @@ Automatically retrieve contextually relevant memories using multi-factor relevan
         description: "Filter to specific memory types"},
       %{name: "min_confidence", type: :number, required: false,
         description: "Minimum confidence threshold (default: 0.5)"},
-      %{name: "max_results", type: :integer, required: false,
+      %{name: "limit", type: :integer, required: false,
         description: "Maximum results (default: 5, max: 50)"},
       %{name: "recency_weight", type: :number, required: false,
         description: "Weight for recency in scoring (default: 0.3)"},
@@ -673,6 +673,28 @@ Automatically retrieve contextually relevant memories using multi-factor relevan
 **Test Count:** 180 → 205 tests (25 new tests added)
 **Summary Document:** `notes/summaries/phase7.9-knowledge-context.md`
 
+### 7.9.6 Review Fixes (Post-Implementation) ✅
+
+Based on code review, the following improvements were made:
+
+| Issue | Type | Resolution |
+|-------|------|------------|
+| C1: max_results vs limit naming | Concern | Renamed to `limit` for consistency |
+| C2: Duplicate safe_to_type_atom | Concern | Use shared Knowledge.safe_to_type_atom/1 |
+| C3: Weight sum can go negative | Concern | Added max(0.0, ...) guard |
+| C10: Redundant max_access > 0 | Concern | Removed redundant check |
+| C4: Missing boundary tests | Concern | Added 4 boundary tests |
+| C5: Missing type validation tests | Concern | Added 6 invalid type tests |
+| C6: Missing scoring unit tests | Concern | Added weight constant tests |
+| S5: Stop word filtering | Suggestion | Added 60+ stop words |
+| S6: Word count limit | Suggestion | Added 500 word limit |
+| S7: Use flat_map | Suggestion | Refactored type parsing |
+| S10: Return validated hint | Suggestion | Validator returns hint |
+
+**Test Count:** 205 → 218 tests (13 new tests added)
+**Summary Document:** `notes/summaries/phase7.9-review-fixes.md`
+**Review Document:** `notes/reviews/phase-7.9-knowledge-context-review.md`
+
 ---
 
 ## 7.10 Phase 7 Integration Tests
@@ -713,7 +735,7 @@ Automatically retrieve contextually relevant memories using multi-factor relevan
 | **project_risks**: List risks by confidence | P2 | ✅ Complete |
 | **Cross-session queries**: project_scope=true works | P0 | ⬜ Initial |
 | **Session isolation**: Default queries session-scoped | P0 | ✅ Complete |
-| **Test coverage**: Minimum 80% | - | ✅ 205 tests |
+| **Test coverage**: Minimum 80% | - | ✅ 218 tests |
 | **knowledge_graph_query**: Traverse relationships | P3 | ✅ Complete |
 | **knowledge_context**: Auto-relevance | P3 | ✅ Complete |
 

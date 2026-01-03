@@ -908,15 +908,17 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
     confidence_score = record.confidence
 
     # Access frequency score (10%)
-    access_score = if max_access > 0, do: record.access_count / max_access, else: 0.0
+    # C10 fix: max_access is guaranteed >= 1 by line 872, no need for guard
+    access_score = record.access_count / max_access
 
     # Calculate remaining weight for text, confidence, and access
     # Total = 1.0 = text_weight + recency_weight + confidence_weight + access_weight
     # Given recency_weight, and fixed access_weight=0.1, confidence_weight=0.2
     # text_weight = 1.0 - recency_weight - 0.2 - 0.1 = 0.7 - recency_weight
+    # C3 fix: Ensure text_weight doesn't go negative when recency_weight is high
     access_weight = 0.1
     confidence_weight = 0.2
-    text_weight = 1.0 - recency_weight - confidence_weight - access_weight
+    text_weight = max(0.0, 1.0 - recency_weight - confidence_weight - access_weight)
 
     text_weight * text_score +
       recency_weight * recency_score +
@@ -924,13 +926,30 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
       access_weight * access_score
   end
 
+  # S5: Common stop words to filter out for better similarity scores
+  @stop_words MapSet.new([
+    "the", "is", "at", "which", "on", "a", "an", "and", "or", "but",
+    "in", "to", "of", "for", "with", "as", "by", "be", "it", "that",
+    "this", "was", "are", "been", "have", "has", "had", "will", "would",
+    "could", "should", "may", "might", "can", "do", "does", "did", "not",
+    "no", "yes", "so", "if", "then", "else", "when", "where", "what",
+    "who", "how", "why", "all", "each", "every", "some", "any", "most",
+    "other", "into", "over", "such", "up", "down", "out", "about", "from"
+  ])
+
+  # S6: Maximum number of words to extract (prevents memory pressure)
+  @max_word_count 500
+
   # Extracts words from text, lowercased and normalized
+  # S5: Filters stop words, S6: Limits word count
   defp extract_words(text) when is_binary(text) do
     text
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9\s]/, " ")
     |> String.split(~r/\s+/, trim: true)
     |> Enum.filter(&(byte_size(&1) >= 2))
+    |> Enum.reject(&MapSet.member?(@stop_words, &1))
+    |> Enum.take(@max_word_count)
     |> MapSet.new()
   end
 

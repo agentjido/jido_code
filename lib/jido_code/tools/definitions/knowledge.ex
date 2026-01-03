@@ -589,7 +589,7 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
   - `context_hint` (required, string) - Description of the current task or question
   - `include_types` (optional, array) - Filter to specific memory types
   - `min_confidence` (optional, number) - Minimum confidence threshold (default: 0.5)
-  - `max_results` (optional, integer) - Maximum results (default: 5)
+  - `limit` (optional, integer) - Maximum results (default: 5)
   - `recency_weight` (optional, number) - Weight for recency in scoring (default: 0.3)
   - `include_superseded` (optional, boolean) - Include superseded memories (default: false)
 
@@ -640,7 +640,7 @@ defmodule JidoCode.Tools.Definitions.Knowledge do
           required: false
         },
         %{
-          name: "max_results",
+          name: "limit",
           type: :integer,
           description: "Maximum number of results to return (default: 5)",
           required: false

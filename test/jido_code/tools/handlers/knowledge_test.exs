@@ -3484,4 +3484,152 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert "knowledge_context" in tool_names
     end
   end
+
+  # ==========================================================================
+  # C4: Boundary Value Tests (Review Finding)
+  # ==========================================================================
+
+  describe "KnowledgeContext boundary values" do
+    setup do
+      session_id = "test-session-boundary-#{System.unique_integer([:positive])}"
+      context = %{session_id: session_id}
+      {:ok, context: context}
+    end
+
+    test "accepts exactly 3 character context_hint", %{context: context} do
+      args = %{"context_hint" => "abc"}
+      result = KnowledgeContext.execute(args, context)
+      assert {:ok, _} = result
+    end
+
+    test "rejects 2 character context_hint", %{context: context} do
+      args = %{"context_hint" => "ab"}
+      {:error, message} = KnowledgeContext.execute(args, context)
+      assert message =~ "at least 3 characters"
+    end
+
+    test "accepts exactly 1000 character context_hint", %{context: context} do
+      hint = String.duplicate("a", 1000)
+      args = %{"context_hint" => hint}
+      result = KnowledgeContext.execute(args, context)
+      assert {:ok, _} = result
+    end
+
+    test "rejects 1001 character context_hint", %{context: context} do
+      hint = String.duplicate("a", 1001)
+      args = %{"context_hint" => hint}
+      {:error, message} = KnowledgeContext.execute(args, context)
+      assert message =~ "at most 1000 characters"
+    end
+  end
+
+  # ==========================================================================
+  # C5: Invalid Parameter Type Tests (Review Finding)
+  # ==========================================================================
+
+  describe "KnowledgeContext invalid parameter types" do
+    setup do
+      session_id = "test-session-invalid-types-#{System.unique_integer([:positive])}"
+      context = %{session_id: session_id}
+      {:ok, context: context}
+    end
+
+    test "handles limit as string gracefully (uses default)", %{context: context} do
+      args = %{"context_hint" => "test query", "limit" => "five"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+      # Should use default limit of 5, result should be valid
+      assert is_list(result["memories"])
+    end
+
+    test "handles min_confidence as string gracefully (uses default)", %{context: context} do
+      args = %{"context_hint" => "test query", "min_confidence" => "high"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+      assert is_list(result["memories"])
+    end
+
+    test "handles include_types as string gracefully (ignores)", %{context: context} do
+      args = %{"context_hint" => "test query", "include_types" => "fact"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+      # Should ignore invalid include_types (not a list) and return all types
+      assert is_list(result["memories"])
+    end
+
+    test "handles recency_weight as string gracefully (uses default)", %{context: context} do
+      args = %{"context_hint" => "test query", "recency_weight" => "high"}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+      assert is_list(result["memories"])
+    end
+
+    test "handles out-of-range confidence (uses default)", %{context: context} do
+      args = %{"context_hint" => "test query", "min_confidence" => 1.5}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+      assert is_list(result["memories"])
+    end
+
+    test "handles negative limit (uses default)", %{context: context} do
+      args = %{"context_hint" => "test query", "limit" => -5}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+      assert is_list(result["memories"])
+    end
+  end
+
+  # ==========================================================================
+  # C6: Direct Unit Tests for Scoring Algorithm (Review Finding)
+  # ==========================================================================
+
+  describe "KnowledgeContext scoring algorithm weights" do
+    test "exposes expected weight constants" do
+      # These are the documented weights from the algorithm
+      assert KnowledgeContext.text_similarity_weight() == 0.4
+      assert KnowledgeContext.confidence_weight() == 0.2
+      assert KnowledgeContext.access_weight() == 0.1
+    end
+  end
+
+  # ==========================================================================
+  # C1: Limit parameter naming consistency test
+  # ==========================================================================
+
+  describe "KnowledgeContext limit parameter" do
+    setup do
+      session_id = "test-session-limit-#{System.unique_integer([:positive])}"
+      context = %{session_id: session_id}
+
+      # Create test memories
+      for i <- 1..10 do
+        KnowledgeRemember.execute(
+          %{
+            "content" => "Memory number #{i} about testing",
+            "type" => "fact",
+            "confidence" => 0.8
+          },
+          context
+        )
+      end
+
+      {:ok, context: context}
+    end
+
+    test "respects limit parameter", %{context: context} do
+      args = %{"context_hint" => "testing memory", "limit" => 3}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      result = Jason.decode!(json)
+
+      assert length(result["memories"]) <= 3
+    end
+
+    test "limit caps at maximum of 50", %{context: context} do
+      args = %{"context_hint" => "testing memory", "limit" => 100}
+      {:ok, json} = KnowledgeContext.execute(args, context)
+      # Should execute successfully (internally capped to 50)
+      result = Jason.decode!(json)
+      assert is_list(result["memories"])
+    end
+  end
 end

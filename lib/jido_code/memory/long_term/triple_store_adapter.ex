@@ -625,8 +625,10 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
     related_ids = find_related_ids(store, session_id, memory, relationship, include_superseded)
 
     # Filter out already visited and resolve to full memories
-    new_ids = Enum.reject(related_ids, &MapSet.member?(visited, &1))
-    |> Enum.take(limit)
+    new_ids =
+      related_ids
+      |> Enum.reject(&MapSet.member?(visited, &1))
+      |> Enum.take(limit)
 
     current_level =
       new_ids
@@ -668,17 +670,22 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
     end
   end
 
-  defp find_related_ids(store, session_id, memory, :supersedes, include_superseded) do
-    # Find memories that have been superseded by this memory
+  # For :supersedes relationship, we're finding memories that were superseded BY this memory.
+  # These are inherently superseded memories, so include_superseded doesn't apply - we must
+  # search superseded memories to find what this memory replaced.
+  defp find_related_ids(store, session_id, memory, :supersedes, _include_superseded) do
     store
     |> ets_to_list()
     |> Enum.filter(fn {_id, record} ->
-      record.session_id == session_id and
-        record.superseded_by == memory.id and
-        (include_superseded or true)  # Always include since we're looking for superseded
+      record.session_id == session_id and record.superseded_by == memory.id
     end)
     |> Enum.map(fn {id, _record} -> id end)
   end
+
+  # NOTE: The following relationship types (:same_type, :same_project) require full ETS table
+  # scans via ets_to_list(). For sessions with many memories (up to 10,000 allowed), these
+  # queries may have O(n) performance. The `limit` option reduces result processing but the
+  # full scan still occurs. Consider adding secondary indices if performance becomes an issue.
 
   defp find_related_ids(store, session_id, memory, :same_type, include_superseded) do
     # Find memories of the same type (excluding the source memory)
@@ -771,10 +778,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   end
 
   defp count_by_type(records) do
-    records
-    |> Enum.group_by(& &1.memory_type)
-    |> Enum.map(fn {type, items} -> {type, length(items)} end)
-    |> Map.new()
+    Enum.frequencies_by(records, & &1.memory_type)
   end
 
   defp count_by_confidence(records) do
@@ -790,20 +794,11 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
     |> Map.new()
   end
 
-  defp has_evidence?(record) do
-    case record.evidence_refs do
-      refs when is_list(refs) and length(refs) > 0 -> true
-      _ -> false
-    end
-  end
+  defp has_evidence?(%{evidence_refs: [_ | _]}), do: true
+  defp has_evidence?(_), do: false
 
-  defp has_rationale?(record) do
-    case record.rationale do
-      nil -> false
-      "" -> false
-      _ -> true
-    end
-  end
+  defp has_rationale?(%{rationale: rationale}) when rationale not in [nil, ""], do: true
+  defp has_rationale?(_), do: false
 
   # =============================================================================
   # IRI Utilities

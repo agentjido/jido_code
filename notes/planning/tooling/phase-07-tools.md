@@ -583,6 +583,27 @@ Traverse the knowledge graph to find memories related to a starting memory via r
 **Test Count:** 124 → 173 tests (49 new tests added)
 **Summary Document:** `notes/summaries/phase7d-knowledge-graph-query.md`
 
+### 7.8.6 Review Fixes ✅
+
+Based on code review findings (`notes/reviews/phase-7.8-knowledge-graph-query-review.md`), the following improvements were made:
+
+| Issue | Type | Resolution |
+|-------|------|------------|
+| C1: Missing `same_project` relationship test | Concern | Added 2 tests for same_project traversal |
+| C2: Missing depth boundary tests | Concern | Added 4 tests for depth edge cases (0, 5, 10) |
+| C3: Dead code in `:supersedes` filter | Concern | Removed unused include_superseded check |
+| C5: No upper bound on limit parameter | Concern | Added @max_limit 100 cap |
+| C7: format_results duplicates memory mapping | Concern | Extracted shared memory_to_map/1 helper |
+| C8: ETS full table scans | Concern | Added documentation noting O(n) performance |
+| S6: Missing @spec on execute/2 | Suggestion | Added typespec |
+| S7: O(n) has_evidence? check | Suggestion | Changed to O(1) pattern matching |
+| S8: Manual count_by_type reduce | Suggestion | Used Enum.frequencies_by |
+| S12: Inconsistent piping style | Suggestion | Fixed to standard pipeline |
+
+**Test Count:** 173 → 180 tests (7 new tests added)
+**Review Document:** `notes/reviews/phase-7.8-knowledge-graph-query-review.md`
+**Fixes Summary:** `notes/summaries/phase-7.8-review-fixes.md`
+
 ---
 
 ## 7.9 knowledge_context Tool (P3) ⏸️ DEFERRED

@@ -1090,6 +1090,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     @default_depth 1
     @max_depth 5
     @default_limit 10
+    @max_limit 100
 
     @doc """
     Executes the knowledge_graph_query tool.
@@ -1109,6 +1110,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     - `{:ok, json}` - JSON with related memories list
     - `{:error, message}` - Error message string
     """
+    @spec execute(map(), map()) :: {:ok, String.t()} | {:error, String.t()}
     def execute(args, context) do
       Knowledge.with_telemetry(:graph_query, context, fn ->
         do_execute(args, context)
@@ -1174,21 +1176,11 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
     defp clamp_depth(depth) when is_integer(depth), do: depth |> max(1) |> min(@max_depth)
     defp clamp_depth(_), do: @default_depth
 
-    defp normalize_limit(limit) when is_integer(limit) and limit > 0, do: limit
+    defp normalize_limit(limit) when is_integer(limit) and limit > 0, do: min(limit, @max_limit)
     defp normalize_limit(_), do: @default_limit
 
     defp format_results(memories, start_from, relationship) do
-      results =
-        Enum.map(memories, fn memory ->
-          %{
-            id: memory.id,
-            content: memory.content,
-            type: Atom.to_string(memory.memory_type),
-            confidence: memory.confidence,
-            timestamp: Knowledge.format_timestamp(memory.timestamp),
-            rationale: memory.rationale
-          }
-        end)
+      results = Enum.map(memories, &Knowledge.memory_to_map/1)
 
       Knowledge.ok_json(%{
         start_from: start_from,
@@ -1353,6 +1345,29 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   end
 
   @doc """
+  Converts a memory struct to a standardized map for JSON output.
+
+  ## Parameters
+
+  - `memory` - Memory struct or map
+
+  ## Returns
+
+  Map with standardized fields: id, content, type, confidence, timestamp, rationale
+  """
+  @spec memory_to_map(map()) :: map()
+  def memory_to_map(memory) do
+    %{
+      id: memory.id,
+      content: memory.content,
+      type: Atom.to_string(memory.memory_type),
+      confidence: memory.confidence,
+      timestamp: format_timestamp(memory.timestamp),
+      rationale: memory.rationale
+    }
+  end
+
+  @doc """
   Formats a list of memories for JSON output.
 
   ## Parameters
@@ -1366,18 +1381,7 @@ defmodule JidoCode.Tools.Handlers.Knowledge do
   """
   @spec format_memory_list([map()], atom()) :: {:ok, String.t()}
   def format_memory_list(memories, key) do
-    results =
-      Enum.map(memories, fn memory ->
-        %{
-          id: memory.id,
-          content: memory.content,
-          type: Atom.to_string(memory.memory_type),
-          confidence: memory.confidence,
-          timestamp: format_timestamp(memory.timestamp),
-          rationale: memory.rationale
-        }
-      end)
-
+    results = Enum.map(memories, &memory_to_map/1)
     ok_json(%{key => results, count: length(results)})
   end
 end

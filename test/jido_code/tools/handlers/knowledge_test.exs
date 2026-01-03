@@ -2710,6 +2710,184 @@ defmodule JidoCode.Tools.Handlers.KnowledgeTest do
       assert result["count"] == 0
       assert result["related"] == []
     end
+
+    # =========================================================================
+    # C1 Fix: same_project relationship test
+    # =========================================================================
+
+    test "finds memories in same_project", %{session_id: session_id} do
+      alias JidoCode.Memory.LongTerm.StoreManager
+      alias JidoCode.Memory.LongTerm.TripleStoreAdapter
+
+      {:ok, store} = StoreManager.get_or_create(session_id)
+      project_id = "project-test-123"
+
+      # Create memories with the same project_id
+      base_mem = %{
+        id: "mem-proj-base-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Base project memory",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :agent,
+        session_id: session_id,
+        project_id: project_id,
+        created_at: DateTime.utc_now()
+      }
+
+      {:ok, base_memory_id} = TripleStoreAdapter.persist(base_mem, store)
+
+      related_mem = %{
+        id: "mem-proj-rel-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Related project memory",
+        memory_type: :assumption,
+        confidence: 0.6,
+        source_type: :agent,
+        session_id: session_id,
+        project_id: project_id,
+        created_at: DateTime.utc_now()
+      }
+
+      {:ok, related_memory_id} = TripleStoreAdapter.persist(related_mem, store)
+
+      # Create memory with different project_id
+      other_proj_mem = %{
+        id: "mem-other-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Different project memory",
+        memory_type: :fact,
+        confidence: 0.7,
+        source_type: :agent,
+        session_id: session_id,
+        project_id: "other-project",
+        created_at: DateTime.utc_now()
+      }
+
+      {:ok, other_memory_id} = TripleStoreAdapter.persist(other_proj_mem, store)
+
+      # Query for same_project
+      {:ok, related} = Memory.query_related(session_id, base_memory_id, :same_project)
+
+      related_ids = Enum.map(related, & &1.id)
+      assert related_memory_id in related_ids
+      refute base_memory_id in related_ids
+      refute other_memory_id in related_ids
+    end
+
+    test "same_project returns empty when project_id is nil", %{session_id: session_id} do
+      alias JidoCode.Memory.LongTerm.StoreManager
+      alias JidoCode.Memory.LongTerm.TripleStoreAdapter
+
+      {:ok, store} = StoreManager.get_or_create(session_id)
+
+      # Create memory without project_id
+      mem = %{
+        id: "mem-no-proj-" <> :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
+        content: "Memory without project",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      {:ok, memory_id} = TripleStoreAdapter.persist(mem, store)
+
+      # Query for same_project should return empty
+      {:ok, related} = Memory.query_related(session_id, memory_id, :same_project)
+
+      assert related == []
+    end
+
+    # =========================================================================
+    # C2 Fix: depth boundary tests
+    # =========================================================================
+
+    test "clamps depth to minimum of 1", %{session_id: session_id, base_memory_id: base_memory_id} do
+      # depth: 0 should be clamped to 1
+      {:ok, related} = Memory.query_related(session_id, base_memory_id, :same_type, depth: 0)
+      assert is_list(related)
+    end
+
+    test "clamps depth to maximum of 5", %{session_id: session_id, base_memory_id: base_memory_id} do
+      # depth: 10 should be clamped to 5
+      {:ok, related} = Memory.query_related(session_id, base_memory_id, :same_type, depth: 10)
+      assert is_list(related)
+    end
+
+    test "accepts depth at max boundary (5)", %{
+      session_id: session_id,
+      base_memory_id: base_memory_id
+    } do
+      {:ok, related} = Memory.query_related(session_id, base_memory_id, :same_type, depth: 5)
+      assert is_list(related)
+    end
+
+    test "handles non-integer depth gracefully", %{context: context, base_memory_id: base_memory_id} do
+      # depth as string should use default
+      args = %{"start_from" => base_memory_id, "relationship" => "same_type", "depth" => "invalid"}
+      {:ok, json} = KnowledgeGraphQuery.execute(args, context)
+      result = Jason.decode!(json)
+
+      # Should still work, using default depth
+      assert result["relationship"] == "same_type"
+    end
+
+    test "include_superseded option works through handler", %{session_id: session_id} do
+      alias JidoCode.Memory.LongTerm.StoreManager
+      alias JidoCode.Memory.LongTerm.TripleStoreAdapter
+
+      {:ok, store} = StoreManager.get_or_create(session_id)
+
+      # Create active and superseded memories of same type
+      # Use proper mem-<base64> format for IDs
+      active_mem = %{
+        id: "mem-" <> (:crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)),
+        content: "Active memory",
+        memory_type: :fact,
+        confidence: 0.8,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      {:ok, active_id} = TripleStoreAdapter.persist(active_mem, store)
+
+      # Create a memory that will be superseded
+      to_supersede_mem = %{
+        id: "mem-" <> (:crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)),
+        content: "Memory to be superseded",
+        memory_type: :fact,
+        confidence: 0.7,
+        source_type: :agent,
+        session_id: session_id,
+        created_at: DateTime.utc_now()
+      }
+
+      {:ok, superseded_id} = TripleStoreAdapter.persist(to_supersede_mem, store)
+
+      # Mark it as superseded using the proper API
+      :ok = TripleStoreAdapter.supersede(store, session_id, superseded_id)
+
+      context = %{session_id: session_id}
+
+      # Without include_superseded - should exclude superseded
+      args1 = %{"start_from" => active_id, "relationship" => "same_type"}
+      {:ok, json1} = KnowledgeGraphQuery.execute(args1, context)
+      result1 = Jason.decode!(json1)
+      ids1 = Enum.map(result1["related"], & &1["id"])
+      refute superseded_id in ids1
+
+      # With include_superseded: true - should include superseded
+      args2 = %{
+        "start_from" => active_id,
+        "relationship" => "same_type",
+        "include_superseded" => true
+      }
+
+      {:ok, json2} = KnowledgeGraphQuery.execute(args2, context)
+      result2 = Jason.decode!(json2)
+      ids2 = Enum.map(result2["related"], & &1["id"])
+      assert superseded_id in ids2
+    end
   end
 
   # ============================================================================

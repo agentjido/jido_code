@@ -404,6 +404,54 @@ defmodule JidoCode.Memory.Types do
   @spec max_session_id_length() :: pos_integer()
   def max_session_id_length, do: @max_session_id_length
 
+  # Maximum memory ID length to prevent excessive string creation
+  @max_memory_id_length 256
+
+  # Pattern for valid memory ID characters (alphanumeric, hyphens, underscores)
+  @memory_id_pattern ~r/\A[a-zA-Z0-9_-]+\z/
+
+  @doc """
+  Validates that a memory ID is safe for use in SPARQL queries.
+
+  Memory IDs must:
+  - Be a non-empty string
+  - Contain only alphanumeric characters, hyphens, and underscores
+  - Be no longer than #{@max_memory_id_length} characters
+
+  This prevents:
+  - SPARQL injection attacks
+  - Path/IRI traversal attacks
+
+  ## Examples
+
+      iex> Types.valid_memory_id?("mem-123")
+      true
+
+      iex> Types.valid_memory_id?("my_memory_456")
+      true
+
+      iex> Types.valid_memory_id?("mem<script>alert(1)</script>")
+      false
+
+      iex> Types.valid_memory_id?("")
+      false
+
+  """
+  @spec valid_memory_id?(term()) :: boolean()
+  def valid_memory_id?(memory_id) when is_binary(memory_id) do
+    byte_size(memory_id) > 0 and
+      byte_size(memory_id) <= @max_memory_id_length and
+      Regex.match?(@memory_id_pattern, memory_id)
+  end
+
+  def valid_memory_id?(_), do: false
+
+  @doc """
+  Returns the maximum allowed memory ID length.
+  """
+  @spec max_memory_id_length() :: pos_integer()
+  def max_memory_id_length, do: @max_memory_id_length
+
   # =============================================================================
   # Session Memory Limits
   # =============================================================================

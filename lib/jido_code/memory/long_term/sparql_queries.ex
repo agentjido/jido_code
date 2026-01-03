@@ -38,6 +38,18 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   alias JidoCode.Memory.Types
 
   # =============================================================================
+  # Constants
+  # =============================================================================
+
+  @default_query_limit 1000
+
+  @doc """
+  Returns the default query limit for unbounded queries.
+  """
+  @spec default_query_limit() :: pos_integer()
+  def default_query_limit, do: @default_query_limit
+
+  # =============================================================================
   # SPARQL Prefixes
   # =============================================================================
 
@@ -114,9 +126,9 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
     evidence_refs = memory[:evidence_refs] || []
 
     evidence_triples =
-      evidence_refs
-      |> Enum.map(fn ref -> "jido:memory_#{id} jido:derivedFrom jido:evidence_#{ref} ." end)
-      |> Enum.join("\n        ")
+      Enum.map_join(evidence_refs, "\n        ", fn ref ->
+        "jido:memory_#{id} jido:derivedFrom jido:evidence_#{ref} ."
+      end)
 
     rationale_triple =
       if rationale do
@@ -264,32 +276,38 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   @doc """
   Generates a SPARQL SELECT query for a single memory by ID.
 
+  Returns `{:error, :invalid_memory_id}` if the memory ID contains invalid characters.
+
   ## Example
 
       SPARQLQueries.query_by_id("mem_123")
 
   """
-  @spec query_by_id(String.t()) :: String.t()
+  @spec query_by_id(String.t()) :: String.t() | {:error, :invalid_memory_id}
   def query_by_id(memory_id) do
-    """
-    #{prefixes()}
+    if Types.valid_memory_id?(memory_id) do
+      """
+      #{prefixes()}
 
-    SELECT ?type ?content ?confidence ?source ?timestamp ?rationale ?accessCount ?session ?supersededBy
-    WHERE {
-      jido:memory_#{memory_id} rdf:type ?type ;
-           jido:summary ?content ;
-           jido:hasConfidence ?confidence ;
-           jido:hasSourceType ?source ;
-           jido:hasTimestamp ?timestamp ;
-           jido:assertedIn ?session .
+      SELECT ?type ?content ?confidence ?source ?timestamp ?rationale ?accessCount ?session ?supersededBy
+      WHERE {
+        jido:memory_#{memory_id} rdf:type ?type ;
+             jido:summary ?content ;
+             jido:hasConfidence ?confidence ;
+             jido:hasSourceType ?source ;
+             jido:hasTimestamp ?timestamp ;
+             jido:assertedIn ?session .
 
-      OPTIONAL { jido:memory_#{memory_id} jido:rationale ?rationale }
-      OPTIONAL { jido:memory_#{memory_id} jido:accessCount ?accessCount }
-      OPTIONAL { jido:memory_#{memory_id} jido:supersededBy ?supersededBy }
+        OPTIONAL { jido:memory_#{memory_id} jido:rationale ?rationale }
+        OPTIONAL { jido:memory_#{memory_id} jido:accessCount ?accessCount }
+        OPTIONAL { jido:memory_#{memory_id} jido:supersededBy ?supersededBy }
 
-      FILTER(STRSTARTS(STR(?type), "#{@jido_ns}"))
-    }
-    """
+        FILTER(STRSTARTS(STR(?type), "#{@jido_ns}"))
+      }
+      """
+    else
+      {:error, :invalid_memory_id}
+    end
   end
 
   # =============================================================================
@@ -299,67 +317,86 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   @doc """
   Generates a SPARQL UPDATE to mark a memory as superseded by another.
 
+  Returns `{:error, :invalid_memory_id}` if either ID contains invalid characters.
+
   ## Example
 
       SPARQLQueries.supersede_memory("old_mem_123", "new_mem_456")
 
   """
-  @spec supersede_memory(String.t(), String.t()) :: String.t()
+  @spec supersede_memory(String.t(), String.t()) :: String.t() | {:error, :invalid_memory_id}
   def supersede_memory(old_id, new_id) do
-    """
-    #{prefixes()}
+    # Allow DeletedMarker as a special case for soft deletes
+    new_id_valid = new_id == "DeletedMarker" or Types.valid_memory_id?(new_id)
 
-    INSERT DATA {
-      jido:memory_#{old_id} jido:supersededBy jido:memory_#{new_id} .
-    }
-    """
+    if Types.valid_memory_id?(old_id) and new_id_valid do
+      """
+      #{prefixes()}
+
+      INSERT DATA {
+        jido:memory_#{old_id} jido:supersededBy jido:memory_#{new_id} .
+      }
+      """
+    else
+      {:error, :invalid_memory_id}
+    end
   end
 
   @doc """
   Generates a SPARQL UPDATE to soft delete a memory by marking it as superseded.
 
   Uses a special "deleted" marker to indicate the memory was explicitly deleted.
+  Returns `{:error, :invalid_memory_id}` if the memory ID contains invalid characters.
 
   ## Example
 
       SPARQLQueries.delete_memory("mem_123")
 
   """
-  @spec delete_memory(String.t()) :: String.t()
+  @spec delete_memory(String.t()) :: String.t() | {:error, :invalid_memory_id}
   def delete_memory(memory_id) do
-    """
-    #{prefixes()}
+    if Types.valid_memory_id?(memory_id) do
+      """
+      #{prefixes()}
 
-    INSERT DATA {
-      jido:memory_#{memory_id} jido:supersededBy jido:DeletedMarker .
-    }
-    """
+      INSERT DATA {
+        jido:memory_#{memory_id} jido:supersededBy jido:DeletedMarker .
+      }
+      """
+    else
+      {:error, :invalid_memory_id}
+    end
   end
 
   @doc """
   Generates a SPARQL UPDATE to record an access to a memory.
 
   Updates the access count and last accessed timestamp.
+  Returns `{:error, :invalid_memory_id}` if the memory ID contains invalid characters.
 
   ## Example
 
       SPARQLQueries.record_access("mem_123")
 
   """
-  @spec record_access(String.t()) :: String.t()
+  @spec record_access(String.t()) :: String.t() | {:error, :invalid_memory_id}
   def record_access(memory_id) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
+    if Types.valid_memory_id?(memory_id) do
+      now = DateTime.utc_now() |> DateTime.to_iso8601()
 
-    """
-    #{prefixes()}
+      """
+      #{prefixes()}
 
-    INSERT {
-      jido:memory_#{memory_id} jido:lastAccessed "#{now}"^^xsd:dateTime .
-    }
-    WHERE {
-      jido:memory_#{memory_id} rdf:type ?type .
-    }
-    """
+      INSERT {
+        jido:memory_#{memory_id} jido:lastAccessed "#{now}"^^xsd:dateTime .
+      }
+      WHERE {
+        jido:memory_#{memory_id} rdf:type ?type .
+      }
+      """
+    else
+      {:error, :invalid_memory_id}
+    end
   end
 
   # =============================================================================
@@ -489,107 +526,118 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   # Helper Functions - Type Mappings
   # =============================================================================
 
+  # Map lookups for reduced cyclomatic complexity (C10)
+  @memory_type_to_class_map %{
+    fact: "Fact",
+    assumption: "Assumption",
+    hypothesis: "Hypothesis",
+    discovery: "Discovery",
+    risk: "Risk",
+    unknown: "Unknown",
+    decision: "Decision",
+    architectural_decision: "ArchitecturalDecision",
+    convention: "Convention",
+    coding_standard: "CodingStandard",
+    lesson_learned: "LessonLearned"
+  }
+
+  @class_to_memory_type_map %{
+    "Fact" => :fact,
+    "Assumption" => :assumption,
+    "Hypothesis" => :hypothesis,
+    "Discovery" => :discovery,
+    "Risk" => :risk,
+    "Unknown" => :unknown,
+    "Decision" => :decision,
+    "ArchitecturalDecision" => :architectural_decision,
+    "Convention" => :convention,
+    "CodingStandard" => :coding_standard,
+    "LessonLearned" => :lesson_learned
+  }
+
+  @confidence_to_individual_map %{
+    high: "High",
+    medium: "Medium",
+    low: "Low"
+  }
+
+  @individual_to_confidence_map %{
+    "High" => :high,
+    "Medium" => :medium,
+    "Low" => :low
+  }
+
+  @source_type_to_individual_map %{
+    user: "UserSource",
+    agent: "AgentSource",
+    tool: "ToolSource",
+    external_document: "ExternalDocumentSource"
+  }
+
+  @individual_to_source_type_map %{
+    "UserSource" => :user,
+    "AgentSource" => :agent,
+    "ToolSource" => :tool,
+    "ExternalDocumentSource" => :external_document
+  }
+
   @doc """
   Converts a memory type atom to its Jido ontology class name.
   """
   @spec memory_type_to_class(Types.memory_type()) :: String.t()
-  def memory_type_to_class(:fact), do: "Fact"
-  def memory_type_to_class(:assumption), do: "Assumption"
-  def memory_type_to_class(:hypothesis), do: "Hypothesis"
-  def memory_type_to_class(:discovery), do: "Discovery"
-  def memory_type_to_class(:risk), do: "Risk"
-  def memory_type_to_class(:unknown), do: "Unknown"
-  def memory_type_to_class(:decision), do: "Decision"
-  def memory_type_to_class(:architectural_decision), do: "ArchitecturalDecision"
-  def memory_type_to_class(:convention), do: "Convention"
-  def memory_type_to_class(:coding_standard), do: "CodingStandard"
-  def memory_type_to_class(:lesson_learned), do: "LessonLearned"
-  def memory_type_to_class(type), do: Macro.camelize(to_string(type))
+  def memory_type_to_class(type) do
+    Map.get(@memory_type_to_class_map, type, Macro.camelize(to_string(type)))
+  end
 
   @doc """
   Converts a Jido ontology class IRI or name to its memory type atom.
   """
   @spec class_to_memory_type(String.t()) :: Types.memory_type()
   def class_to_memory_type(class) when is_binary(class) do
-    # Extract local name if full IRI
-    local_name =
-      if String.contains?(class, "#") do
-        class |> String.split("#") |> List.last()
-      else
-        class
-      end
-
-    case local_name do
-      "Fact" -> :fact
-      "Assumption" -> :assumption
-      "Hypothesis" -> :hypothesis
-      "Discovery" -> :discovery
-      "Risk" -> :risk
-      "Unknown" -> :unknown
-      "Decision" -> :decision
-      "ArchitecturalDecision" -> :architectural_decision
-      "Convention" -> :convention
-      "CodingStandard" -> :coding_standard
-      "LessonLearned" -> :lesson_learned
-      _ -> :unknown
-    end
+    local_name = extract_local_name(class)
+    Map.get(@class_to_memory_type_map, local_name, :unknown)
   end
 
   @doc """
   Converts a confidence level to its Jido ontology individual name.
   """
   @spec confidence_to_individual(Types.confidence_level()) :: String.t()
-  def confidence_to_individual(:high), do: "High"
-  def confidence_to_individual(:medium), do: "Medium"
-  def confidence_to_individual(:low), do: "Low"
+  def confidence_to_individual(level) do
+    Map.fetch!(@confidence_to_individual_map, level)
+  end
 
   @doc """
   Converts a Jido ontology confidence individual to its level atom.
   """
   @spec individual_to_confidence(String.t()) :: Types.confidence_level()
   def individual_to_confidence(individual) when is_binary(individual) do
-    local_name =
-      if String.contains?(individual, "#") do
-        individual |> String.split("#") |> List.last()
-      else
-        individual
-      end
-
-    case local_name do
-      "High" -> :high
-      "Medium" -> :medium
-      "Low" -> :low
-      _ -> :low
-    end
+    local_name = extract_local_name(individual)
+    Map.get(@individual_to_confidence_map, local_name, :low)
   end
 
   @doc """
   Converts a source type to its Jido ontology individual name.
   """
   @spec source_type_to_individual(Types.source_type()) :: String.t()
-  def source_type_to_individual(:user), do: "UserSource"
-  def source_type_to_individual(:agent), do: "AgentSource"
-  def source_type_to_individual(:tool), do: "ToolSource"
-  def source_type_to_individual(:external_document), do: "ExternalDocumentSource"
+  def source_type_to_individual(type) do
+    Map.fetch!(@source_type_to_individual_map, type)
+  end
 
   @doc """
   Converts a Jido ontology source individual to its type atom.
   """
   @spec individual_to_source_type(String.t()) :: Types.source_type()
   def individual_to_source_type(individual) when is_binary(individual) do
-    local_name =
-      if String.contains?(individual, "#") do
-        individual |> String.split("#") |> List.last()
-      else
-        individual
-      end
+    local_name = extract_local_name(individual)
+    Map.get(@individual_to_source_type_map, local_name, :agent)
+  end
 
-    case local_name do
-      "UserSource" -> :user
-      "AgentSource" -> :agent
-      "ToolSource" -> :tool
-      "ExternalDocumentSource" -> :external_document
-      _ -> :agent
+  # C15: Extract repeated IRI local name extraction into helper
+  defp extract_local_name(iri) when is_binary(iri) do
+    if String.contains?(iri, "#") do
+      iri |> String.split("#") |> List.last()
+    else
+      iri
     end
   end
 
@@ -600,7 +648,8 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   @doc """
   Escapes a string for use in SPARQL queries.
 
-  Handles special characters that could cause injection or syntax errors.
+  Handles special characters that could cause injection or syntax errors,
+  including control characters and Unicode escapes.
   """
   @spec escape_string(String.t() | nil) :: String.t()
   def escape_string(nil), do: ~s("")
@@ -614,6 +663,9 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
       |> String.replace("\n", "\\n")
       |> String.replace("\r", "\\r")
       |> String.replace("\t", "\\t")
+      |> String.replace("\b", "\\b")
+      |> String.replace("\f", "\\f")
+      |> String.replace(<<0>>, "")
 
     ~s("#{escaped}")
   end
@@ -708,5 +760,46 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
 
   defp generate_id do
     :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)
+  end
+
+  # =============================================================================
+  # Count Query
+  # =============================================================================
+
+  @doc """
+  Generates a SPARQL SELECT COUNT query for memories in a session.
+
+  ## Options
+
+  - `:include_superseded` - Include superseded memories (default: false)
+
+  ## Example
+
+      SPARQLQueries.count_query("session_123")
+
+  """
+  @spec count_query(String.t(), keyword()) :: String.t()
+  def count_query(session_id, opts \\ []) do
+    include_superseded = opts[:include_superseded] || false
+
+    superseded_filter =
+      if include_superseded do
+        ""
+      else
+        "FILTER NOT EXISTS { ?mem jido:supersededBy ?newer }"
+      end
+
+    """
+    #{prefixes()}
+
+    SELECT (COUNT(?mem) AS ?count)
+    WHERE {
+      ?mem jido:assertedIn jido:session_#{session_id} ;
+           rdf:type ?type .
+
+      #{superseded_filter}
+      FILTER(STRSTARTS(STR(?type), "#{@jido_ns}"))
+    }
+    """
   end
 end

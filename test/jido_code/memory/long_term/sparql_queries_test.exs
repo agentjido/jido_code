@@ -1,5 +1,6 @@
 defmodule JidoCode.Memory.LongTerm.SPARQLQueriesTest do
-  use ExUnit.Case, async: true
+  # Changed to async: false for consistency with other Phase 7 tests (C12)
+  use ExUnit.Case, async: false
 
   alias JidoCode.Memory.LongTerm.SPARQLQueries
 

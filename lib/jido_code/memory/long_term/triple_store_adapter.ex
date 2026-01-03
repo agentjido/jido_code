@@ -206,6 +206,9 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @spec query_all(store_ref(), String.t(), keyword()) ::
           {:ok, [stored_memory()]} | {:error, term()}
   def query_all(store, session_id, opts \\ []) do
+    # Apply default limit if not specified to prevent unbounded results
+    opts = apply_default_limit(opts)
+
     # Check if type filter is specified
     type_filter = Keyword.get(opts, :type)
 
@@ -227,6 +230,14 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
     end
   end
 
+  defp apply_default_limit(opts) do
+    if Keyword.has_key?(opts, :limit) do
+      opts
+    else
+      Keyword.put(opts, :limit, SPARQLQueries.default_query_limit())
+    end
+  end
+
   @doc """
   Retrieves a specific memory by ID (internal use only).
 
@@ -239,21 +250,26 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
       {:error, :not_found} = TripleStoreAdapter.query_by_id(store, "unknown")
 
   """
-  @doc since: "0.1.0"
-  @spec query_by_id(store_ref(), String.t()) :: {:ok, stored_memory()} | {:error, :not_found}
+  # Removed inconsistent @doc since: "0.1.0" - not used elsewhere in codebase (C11)
+  @spec query_by_id(store_ref(), String.t()) ::
+          {:ok, stored_memory()} | {:error, :not_found | :invalid_memory_id}
   def query_by_id(store, memory_id) do
-    query = SPARQLQueries.query_by_id(memory_id)
+    case SPARQLQueries.query_by_id(memory_id) do
+      {:error, :invalid_memory_id} ->
+        {:error, :invalid_memory_id}
 
-    case TripleStore.query(store, query) do
-      {:ok, [result | _]} ->
-        memory = map_id_result(result, memory_id)
-        {:ok, memory}
+      query ->
+        case TripleStore.query(store, query) do
+          {:ok, [result | _]} ->
+            memory = map_id_result(result, memory_id)
+            {:ok, memory}
 
-      {:ok, []} ->
-        {:error, :not_found}
+          {:ok, []} ->
+            {:error, :not_found}
 
-      {:error, _reason} ->
-        {:error, :not_found}
+          {:error, _} ->
+            {:error, :not_found}
+        end
     end
   end
 
@@ -386,7 +402,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
 
         case TripleStore.update(store, query) do
           {:ok, _} -> :ok
-          {:error, _reason} -> :ok
+          {:error, _} -> :ok
         end
 
       {:error, :not_found} ->
@@ -399,7 +415,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   # =============================================================================
 
   @doc """
-  Counts memories for a session.
+  Counts memories for a session using efficient SPARQL COUNT.
 
   ## Options
 
@@ -412,12 +428,28 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec count(store_ref(), String.t(), keyword()) :: {:ok, non_neg_integer()}
   def count(store, session_id, opts \\ []) do
-    # Use query_all and count results
-    case query_all(store, session_id, opts) do
-      {:ok, memories} -> {:ok, length(memories)}
-      {:error, _} -> {:ok, 0}
+    query = SPARQLQueries.count_query(session_id, opts)
+
+    case TripleStore.query(store, query) do
+      {:ok, [result | _]} ->
+        {:ok, extract_count(result["count"])}
+
+      {:ok, []} ->
+        {:ok, 0}
+
+      {:error, _} ->
+        {:ok, 0}
     end
   end
+
+  defp extract_count(nil), do: 0
+  defp extract_count({:literal, :typed, value, _}), do: parse_integer(value)
+  defp extract_count({:literal, :simple, value}), do: parse_integer(value)
+  defp extract_count({:literal, _type, value}), do: parse_integer(value)
+  defp extract_count({:literal, value}), do: parse_integer(value)
+  defp extract_count(value) when is_integer(value), do: value
+  defp extract_count(value) when is_binary(value), do: parse_integer(value)
+  defp extract_count(_), do: 0
 
   # =============================================================================
   # IRI Utilities
@@ -451,64 +483,53 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   # Private Functions - Result Mapping
   # =============================================================================
 
-  # Maps a SPARQL result from query_by_type to a stored_memory struct
-  defp map_type_result(bindings, session_id, memory_type) do
+  # C14: Base mapping function for common fields
+  defp base_memory_map(bindings) do
     %{
-      id: extract_memory_id_from_bindings(bindings),
       content: extract_string(bindings["content"]),
-      memory_type: memory_type,
       confidence: extract_confidence(bindings["confidence"]),
       source_type: extract_source_type(bindings["source"]),
-      session_id: session_id,
       agent_id: nil,
       project_id: nil,
       rationale: extract_optional_string(bindings["rationale"]),
       evidence_refs: [],
       timestamp: extract_datetime(bindings["timestamp"]),
-      superseded_by: nil,
       access_count: extract_integer(bindings["accessCount"]),
       last_accessed: nil
     }
+  end
+
+  # Maps a SPARQL result from query_by_type to a stored_memory struct
+  defp map_type_result(bindings, session_id, memory_type) do
+    base_memory_map(bindings)
+    |> Map.merge(%{
+      id: extract_memory_id_from_bindings(bindings),
+      memory_type: memory_type,
+      session_id: session_id,
+      superseded_by: nil
+    })
   end
 
   # Maps a SPARQL result from query_by_session to a stored_memory struct
   defp map_session_result(bindings, session_id) do
-    %{
+    base_memory_map(bindings)
+    |> Map.merge(%{
       id: extract_memory_id_from_bindings(bindings),
-      content: extract_string(bindings["content"]),
       memory_type: extract_memory_type(bindings["type"]),
-      confidence: extract_confidence(bindings["confidence"]),
-      source_type: extract_source_type(bindings["source"]),
       session_id: session_id,
-      agent_id: nil,
-      project_id: nil,
-      rationale: extract_optional_string(bindings["rationale"]),
-      evidence_refs: [],
-      timestamp: extract_datetime(bindings["timestamp"]),
-      superseded_by: nil,
-      access_count: extract_integer(bindings["accessCount"]),
-      last_accessed: nil
-    }
+      superseded_by: nil
+    })
   end
 
   # Maps a SPARQL result from query_by_id to a stored_memory struct
   defp map_id_result(bindings, memory_id) do
-    %{
+    base_memory_map(bindings)
+    |> Map.merge(%{
       id: memory_id,
-      content: extract_string(bindings["content"]),
       memory_type: extract_memory_type(bindings["type"]),
-      confidence: extract_confidence(bindings["confidence"]),
-      source_type: extract_source_type(bindings["source"]),
       session_id: extract_session_id(bindings["session"]),
-      agent_id: nil,
-      project_id: nil,
-      rationale: extract_optional_string(bindings["rationale"]),
-      evidence_refs: [],
-      timestamp: extract_datetime(bindings["timestamp"]),
-      superseded_by: extract_optional_memory_id(bindings["supersededBy"]),
-      access_count: extract_integer(bindings["accessCount"]),
-      last_accessed: nil
-    }
+      superseded_by: extract_optional_memory_id(bindings["supersededBy"])
+    })
   end
 
   # =============================================================================

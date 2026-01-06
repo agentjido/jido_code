@@ -322,28 +322,19 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   @impl true
   def handle_call({:get_or_create, session_id}, _from, state) do
     # Validate session ID to prevent atom exhaustion and path traversal attacks
-    unless Types.valid_session_id?(session_id) do
-      {:reply, {:error, :invalid_session_id}, state}
-    else
+    if Types.valid_session_id?(session_id) do
       case Map.get(state.stores, session_id) do
         nil ->
           # Evict LRU stores if at capacity
           state = maybe_evict_lru(state)
-
-          case open_store(session_id, state) do
-            {:ok, store_ref, metadata} ->
-              entry = %{store: store_ref, metadata: metadata}
-              new_stores = Map.put(state.stores, session_id, entry)
-              {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
-
-            {:error, reason} ->
-              {:reply, {:error, reason}, state}
-          end
+          do_open_store(session_id, state)
 
         entry ->
           {store_ref, new_state} = touch_last_accessed(state, session_id, entry)
           {:reply, {:ok, store_ref}, new_state}
       end
+    else
+      {:reply, {:error, :invalid_session_id}, state}
     end
   end
 
@@ -375,12 +366,15 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
 
       %{store: store_ref} ->
         # TripleStore.health/1 returns {:ok, %{status: :healthy | :degraded | :unhealthy, ...}}
-        {:ok, %{status: status}} = TripleStore.health(store_ref)
+        case TripleStore.health(store_ref) do
+          {:ok, %{status: :healthy}} ->
+            {:reply, {:ok, :healthy}, state}
 
-        if status == :healthy do
-          {:reply, {:ok, :healthy}, state}
-        else
-          {:reply, {:error, {:unhealthy, status}}, state}
+          {:ok, %{status: status}} ->
+            {:reply, {:error, {:unhealthy, status}}, state}
+
+          {:error, reason} ->
+            {:reply, {:error, {:health_check_failed, reason}}, state}
         end
     end
   end
@@ -454,6 +448,19 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
   # Store Lifecycle
   # ---------------------------------------------------------------------------
 
+  # Helper to open store and reply - fixes B2 nested depth
+  defp do_open_store(session_id, state) do
+    case open_store(session_id, state) do
+      {:ok, store_ref, metadata} ->
+        entry = %{store: store_ref, metadata: metadata}
+        new_stores = Map.put(state.stores, session_id, entry)
+        {:reply, {:ok, store_ref}, %{state | stores: new_stores}}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
   defp open_store(session_id, state) do
     session_path = store_path(state.base_path, session_id)
 
@@ -461,34 +468,45 @@ defmodule JidoCode.Memory.LongTerm.StoreManager do
     resolved_path = Path.expand(session_path)
     base_expanded = Path.expand(state.base_path)
 
-    unless String.starts_with?(resolved_path, base_expanded <> "/") or
-             resolved_path == base_expanded do
-      {:error, :path_traversal_detected}
+    if path_contained?(resolved_path, base_expanded) do
+      open_and_load_ontology(session_path, session_id)
     else
-      case TripleStore.open(session_path, create_if_missing: true) do
-        {:ok, store} ->
-          case ensure_ontology_loaded(store) do
-            :ok ->
-              now = DateTime.utc_now()
+      {:error, :path_traversal_detected}
+    end
+  end
 
-              metadata = %{
-                opened_at: now,
-                last_accessed: now,
-                ontology_loaded: true
-              }
+  defp path_contained?(resolved_path, base_expanded) do
+    String.starts_with?(resolved_path, base_expanded <> "/") or resolved_path == base_expanded
+  end
 
-              Logger.debug("Opened TripleStore for session #{session_id}")
-              {:ok, store, metadata}
+  defp open_and_load_ontology(session_path, session_id) do
+    case TripleStore.open(session_path, create_if_missing: true) do
+      {:ok, store} ->
+        finalize_store_open(store, session_id)
 
-            {:error, reason} ->
-              TripleStore.close(store)
-              {:error, {:ontology_load_failed, reason}}
-          end
+      {:error, reason} ->
+        Logger.error("Failed to open TripleStore for session #{session_id}: #{inspect(reason, limit: 50)}")
+        {:error, {:store_open_failed, reason}}
+    end
+  end
 
-        {:error, reason} ->
-          Logger.error("Failed to open TripleStore for session #{session_id}: #{inspect(reason, limit: 50)}")
-          {:error, {:store_open_failed, reason}}
-      end
+  defp finalize_store_open(store, session_id) do
+    case ensure_ontology_loaded(store) do
+      :ok ->
+        now = DateTime.utc_now()
+
+        metadata = %{
+          opened_at: now,
+          last_accessed: now,
+          ontology_loaded: true
+        }
+
+        Logger.debug("Opened TripleStore for session #{session_id}")
+        {:ok, store, metadata}
+
+      {:error, reason} ->
+        TripleStore.close(store)
+        {:error, {:ontology_load_failed, reason}}
     end
   end
 

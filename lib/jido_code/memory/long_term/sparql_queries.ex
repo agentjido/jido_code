@@ -68,6 +68,15 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
     """
   end
 
+  @doc """
+  Returns the default query limit for SPARQL queries.
+
+  This limit prevents excessive memory consumption and ensures
+  reasonable query response times.
+  """
+  @spec default_query_limit() :: pos_integer()
+  def default_query_limit, do: 1000
+
   # =============================================================================
   # Insert Operations
   # =============================================================================

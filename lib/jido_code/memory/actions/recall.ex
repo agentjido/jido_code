@@ -2,13 +2,14 @@ defmodule JidoCode.Memory.Actions.Recall do
   @moduledoc """
   Search long-term memory for relevant information.
 
-  Use to retrieve previously learned:
-  - Facts about the project or codebase
-  - Decisions and their rationale
-  - Patterns and conventions
-  - Lessons learned from past issues
+  Use to retrieve previously learned information from all 22 memory types.
 
-  Supports filtering by memory type, minimum confidence level, and search mode.
+  ## Memory Type Categories
+
+  Knowledge types: fact, assumption, hypothesis, discovery, risk, unknown
+  Decision types: decision, architectural_decision, implementation_decision, alternative, trade_off
+  Convention types: convention, coding_standard, architectural_convention, agent_rule, process_convention
+  Error types: error, bug, failure, incident, root_cause, lesson_learned
 
   ## Search Modes
 
@@ -41,16 +42,31 @@ defmodule JidoCode.Memory.Actions.Recall do
           {:in,
            [
              :all,
+             # Knowledge types
              :fact,
              :assumption,
              :hypothesis,
              :discovery,
              :risk,
              :unknown,
+             # Decision types
              :decision,
              :architectural_decision,
+             :implementation_decision,
+             :alternative,
+             :trade_off,
+             # Convention types
              :convention,
              :coding_standard,
+             :architectural_convention,
+             :agent_rule,
+             :process_convention,
+             # Error types
+             :error,
+             :bug,
+             :failure,
+             :incident,
+             :root_cause,
              :lesson_learned
            ]},
         default: :all,

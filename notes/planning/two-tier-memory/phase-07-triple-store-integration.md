@@ -437,24 +437,26 @@ Based on code review, the following improvements were implemented:
 
 ---
 
-## 7.9 Update Actions
+## 7.9 Update Actions ✓
 
-### 7.9.1 Remember Action Updates
+### 7.9.1 Remember Action Updates ✓
 
-- [ ] 7.9.1.1 Update to support extended memory types
-- [ ] 7.9.1.2 Add support for relationship parameters (e.g., refines, derived_from)
-- [ ] 7.9.1.3 Update validation for new type hierarchy
+- [x] 7.9.1.1 Update to support extended memory types
+- [ ] 7.9.1.2 Add support for relationship parameters (e.g., refines, derived_from) (deferred - future enhancement)
+- [x] 7.9.1.3 Update validation for new type hierarchy
 
-### 7.9.2 Recall Action Updates
+### 7.9.2 Recall Action Updates ✓
 
-- [ ] 7.9.2.1 Update to work with SPARQL-based queries
-- [ ] 7.9.2.2 Add relationship-based recall (e.g., "recall lessons for error X")
-- [ ] 7.9.2.3 Ensure semantic search still works with RDF data
+- [x] 7.9.2.1 Update to work with SPARQL-based queries (already using Memory facade)
+- [ ] 7.9.2.2 Add relationship-based recall (e.g., "recall lessons for error X") (deferred - use Memory.query_related/3)
+- [x] 7.9.2.3 Ensure semantic search still works with RDF data
 
-### 7.9.3 Forget Action Updates
+### 7.9.3 Forget Action Updates ✓
 
-- [ ] 7.9.3.1 Update to work with SPARQL UPDATE for supersession
-- [ ] 7.9.3.2 Ensure proper cascading of relationships
+- [x] 7.9.3.1 Update to work with SPARQL UPDATE for supersession (already using Memory.supersede/3)
+- [x] 7.9.3.2 Ensure proper cascading of relationships (handled by TripleStore)
+
+**Summary:** Section 7.9 completed 2026-01-06. Updated Remember and Recall action schemas to support all 22 memory types. Forget action already worked with all types. See `notes/summaries/phase7-7.9-update-actions.md` for details.
 
 ---
 

@@ -78,6 +78,46 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   def default_query_limit, do: 1000
 
   # =============================================================================
+  # Validation Functions
+  # =============================================================================
+
+  @doc """
+  Validates a memory ID format.
+
+  Valid memory IDs are:
+  - 1-128 characters long
+  - Contain only alphanumeric characters, hyphens, and underscores
+
+  ## Examples
+
+      iex> SPARQLQueries.valid_memory_id?("mem_123")
+      true
+
+      iex> SPARQLQueries.valid_memory_id?("")
+      false
+
+      iex> SPARQLQueries.valid_memory_id?("invalid@id")
+      false
+
+  """
+  @spec valid_memory_id?(String.t() | nil) :: boolean()
+  def valid_memory_id?(id) when is_binary(id) do
+    len = byte_size(id)
+    len > 0 and len <= 128 and Regex.match?(~r/\A[a-zA-Z0-9_-]+\z/, id)
+  end
+
+  def valid_memory_id?(_), do: false
+
+  @doc """
+  Validates a session ID format.
+
+  Session IDs must be valid memory IDs. This provides defense-in-depth
+  alongside StoreManager's validation.
+  """
+  @spec valid_session_id?(String.t() | nil) :: boolean()
+  def valid_session_id?(id), do: valid_memory_id?(id)
+
+  # =============================================================================
   # Insert Operations
   # =============================================================================
 

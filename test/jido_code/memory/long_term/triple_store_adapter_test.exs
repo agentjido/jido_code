@@ -485,4 +485,137 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapterTest do
       end
     end
   end
+
+  # =============================================================================
+  # ID Validation Tests
+  # =============================================================================
+
+  describe "ID validation" do
+    test "rejects invalid memory IDs in persist/2", %{store: store} do
+      # Test empty string
+      memory = create_memory(%{id: ""})
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test special characters
+      memory = create_memory(%{id: "mem@123"})
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test spaces
+      memory = create_memory(%{id: "mem 123"})
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test SQL injection attempt
+      memory = create_memory(%{id: "mem'; DROP TABLE--"})
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test path traversal attempt
+      memory = create_memory(%{id: "../../../etc/passwd"})
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test overly long ID (>128 chars)
+      long_id = String.duplicate("a", 129)
+      memory = create_memory(%{id: long_id})
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test nil ID
+      memory = create_memory(%{id: nil})
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.persist(memory, store)
+    end
+
+    test "accepts valid memory IDs", %{store: store} do
+      # Test alphanumeric
+      memory = create_memory(%{id: "mem123"})
+      assert {:ok, "mem123"} = TripleStoreAdapter.persist(memory, store)
+
+      # Test with hyphens
+      memory = create_memory(%{id: "mem-123-test"})
+      assert {:ok, "mem-123-test"} = TripleStoreAdapter.persist(memory, store)
+
+      # Test with underscores
+      memory = create_memory(%{id: "mem_123_test"})
+      assert {:ok, "mem_123_test"} = TripleStoreAdapter.persist(memory, store)
+
+      # Test mixed
+      memory = create_memory(%{id: "Mem-123_Test"})
+      assert {:ok, "Mem-123_Test"} = TripleStoreAdapter.persist(memory, store)
+
+      # Test max length (128 chars)
+      max_id = String.duplicate("a", 128)
+      memory = create_memory(%{id: max_id})
+      assert {:ok, ^max_id} = TripleStoreAdapter.persist(memory, store)
+    end
+
+    test "rejects invalid session IDs in persist/2", %{store: store} do
+      # Test empty session ID
+      memory = create_memory(%{session_id: ""})
+      assert {:error, :invalid_session_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test special characters
+      memory = create_memory(%{session_id: "sess@123"})
+      assert {:error, :invalid_session_id} = TripleStoreAdapter.persist(memory, store)
+
+      # Test path traversal attempt
+      memory = create_memory(%{session_id: "../other-session"})
+      assert {:error, :invalid_session_id} = TripleStoreAdapter.persist(memory, store)
+    end
+
+    test "rejects invalid memory IDs in query_by_id/2", %{store: store} do
+      # First insert a valid memory
+      memory = create_memory(%{id: "valid-mem"})
+      {:ok, _} = TripleStoreAdapter.persist(memory, store)
+
+      # Test invalid ID is rejected
+      assert {:error, :invalid_memory_id} = TripleStoreAdapter.query_by_id(store, "'; DROP TABLE--")
+
+      # Test valid ID works
+      assert {:ok, _} = TripleStoreAdapter.query_by_id(store, "valid-mem")
+    end
+
+    test "rejects invalid session IDs in query_by_type/4", %{store: store} do
+      assert {:error, :invalid_session_id} =
+               TripleStoreAdapter.query_by_type(store, "../escape", :fact)
+    end
+
+    test "rejects invalid session IDs in query_all/3", %{store: store} do
+      assert {:error, :invalid_session_id} =
+               TripleStoreAdapter.query_all(store, "sess'; DROP--")
+    end
+
+    test "rejects invalid IDs in supersede/4", %{store: store} do
+      # Insert a memory first
+      memory = create_memory(%{id: "old-mem"})
+      {:ok, _} = TripleStoreAdapter.persist(memory, store)
+
+      # Test invalid old_memory_id
+      assert {:error, :invalid_memory_id} =
+               TripleStoreAdapter.supersede(store, "session-123", "bad;id", "new-mem")
+
+      # Test invalid new_memory_id
+      assert {:error, :invalid_memory_id} =
+               TripleStoreAdapter.supersede(store, "session-123", "old-mem", "new@mem")
+    end
+
+    test "rejects invalid IDs in delete/3", %{store: store} do
+      assert {:error, :invalid_memory_id} =
+               TripleStoreAdapter.delete(store, "session-123", "mem;id")
+    end
+
+    test "rejects invalid IDs in query_related/5", %{store: store} do
+      assert {:error, :invalid_session_id} =
+               TripleStoreAdapter.query_related(store, "sess@id", "mem-123", :refines)
+
+      assert {:error, :invalid_memory_id} =
+               TripleStoreAdapter.query_related(store, "session-123", "mem;id", :refines)
+    end
+
+    test "rejects invalid session IDs in get_stats/2", %{store: store} do
+      assert {:error, :invalid_session_id} =
+               TripleStoreAdapter.get_stats(store, "sess'; DROP--")
+    end
+
+    test "rejects invalid session IDs in count/3", %{store: store} do
+      assert {:error, :invalid_session_id} =
+               TripleStoreAdapter.count(store, "../escape")
+    end
+  end
 end

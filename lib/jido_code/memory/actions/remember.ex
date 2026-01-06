@@ -2,12 +2,39 @@ defmodule JidoCode.Memory.Actions.Remember do
   @moduledoc """
   Persist important information to long-term memory.
 
-  Use when you discover something valuable for future sessions:
-  - Project facts (framework, dependencies, architecture)
-  - User preferences and coding style
-  - Successful solutions to problems
-  - Important patterns or conventions
-  - Risks or known issues
+  Use when you discover something valuable for future sessions.
+
+  ## Memory Types
+
+  Knowledge types:
+  - `:fact` - Verified factual information
+  - `:assumption` - Inferred information needing verification
+  - `:hypothesis` - Proposed explanations being tested
+  - `:discovery` - Newly found information
+  - `:risk` - Potential issues or concerns
+  - `:unknown` - Information gaps
+
+  Decision types:
+  - `:decision` - Choices made with rationale
+  - `:architectural_decision` - Significant architectural choices
+  - `:implementation_decision` - Implementation-specific choices
+  - `:alternative` - Considered options not selected
+  - `:trade_off` - Compromise relationships
+
+  Convention types:
+  - `:convention` - Established patterns or standards
+  - `:coding_standard` - Coding practices and style guidelines
+  - `:architectural_convention` - Architectural patterns
+  - `:agent_rule` - Rules governing agent behavior
+  - `:process_convention` - Workflow and process conventions
+
+  Error types:
+  - `:error` - General development or execution errors
+  - `:bug` - Code defects
+  - `:failure` - System-level failures
+  - `:incident` - Operational incidents
+  - `:root_cause` - Underlying causes of errors
+  - `:lesson_learned` - Insights from past experiences
 
   Agent-initiated memories bypass the normal importance threshold
   and are persisted immediately with maximum importance score.
@@ -28,16 +55,31 @@ defmodule JidoCode.Memory.Actions.Remember do
         type:
           {:in,
            [
+             # Knowledge types
              :fact,
              :assumption,
              :hypothesis,
              :discovery,
              :risk,
              :unknown,
+             # Decision types
              :decision,
              :architectural_decision,
+             :implementation_decision,
+             :alternative,
+             :trade_off,
+             # Convention types
              :convention,
              :coding_standard,
+             :architectural_convention,
+             :agent_rule,
+             :process_convention,
+             # Error types
+             :error,
+             :bug,
+             :failure,
+             :incident,
+             :root_cause,
              :lesson_learned
            ]},
         default: :fact,

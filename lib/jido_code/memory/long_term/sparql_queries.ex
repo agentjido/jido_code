@@ -68,6 +68,55 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
     """
   end
 
+  @doc """
+  Returns the default query limit for SPARQL queries.
+
+  This limit prevents excessive memory consumption and ensures
+  reasonable query response times.
+  """
+  @spec default_query_limit() :: pos_integer()
+  def default_query_limit, do: 1000
+
+  # =============================================================================
+  # Validation Functions
+  # =============================================================================
+
+  @doc """
+  Validates a memory ID format.
+
+  Valid memory IDs are:
+  - 1-128 characters long
+  - Contain only alphanumeric characters, hyphens, and underscores
+
+  ## Examples
+
+      iex> SPARQLQueries.valid_memory_id?("mem_123")
+      true
+
+      iex> SPARQLQueries.valid_memory_id?("")
+      false
+
+      iex> SPARQLQueries.valid_memory_id?("invalid@id")
+      false
+
+  """
+  @spec valid_memory_id?(String.t() | nil) :: boolean()
+  def valid_memory_id?(id) when is_binary(id) do
+    len = byte_size(id)
+    len > 0 and len <= 128 and Regex.match?(~r/\A[a-zA-Z0-9_-]+\z/, id)
+  end
+
+  def valid_memory_id?(_), do: false
+
+  @doc """
+  Validates a session ID format.
+
+  Session IDs must be valid memory IDs. This provides defense-in-depth
+  alongside StoreManager's validation.
+  """
+  @spec valid_session_id?(String.t() | nil) :: boolean()
+  def valid_session_id?(id), do: valid_memory_id?(id)
+
   # =============================================================================
   # Insert Operations
   # =============================================================================
@@ -493,17 +542,33 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
   Converts a memory type atom to its Jido ontology class name.
   """
   @spec memory_type_to_class(Types.memory_type()) :: String.t()
+  # Knowledge types (jido-knowledge.ttl)
   def memory_type_to_class(:fact), do: "Fact"
   def memory_type_to_class(:assumption), do: "Assumption"
   def memory_type_to_class(:hypothesis), do: "Hypothesis"
   def memory_type_to_class(:discovery), do: "Discovery"
   def memory_type_to_class(:risk), do: "Risk"
   def memory_type_to_class(:unknown), do: "Unknown"
+  # Decision types (jido-decision.ttl)
   def memory_type_to_class(:decision), do: "Decision"
   def memory_type_to_class(:architectural_decision), do: "ArchitecturalDecision"
+  def memory_type_to_class(:implementation_decision), do: "ImplementationDecision"
+  def memory_type_to_class(:alternative), do: "Alternative"
+  def memory_type_to_class(:trade_off), do: "TradeOff"
+  # Convention types (jido-convention.ttl)
   def memory_type_to_class(:convention), do: "Convention"
   def memory_type_to_class(:coding_standard), do: "CodingStandard"
+  def memory_type_to_class(:architectural_convention), do: "ArchitecturalConvention"
+  def memory_type_to_class(:agent_rule), do: "AgentRule"
+  def memory_type_to_class(:process_convention), do: "ProcessConvention"
+  # Error types (jido-error.ttl)
+  def memory_type_to_class(:error), do: "Error"
+  def memory_type_to_class(:bug), do: "Bug"
+  def memory_type_to_class(:failure), do: "Failure"
+  def memory_type_to_class(:incident), do: "Incident"
+  def memory_type_to_class(:root_cause), do: "RootCause"
   def memory_type_to_class(:lesson_learned), do: "LessonLearned"
+  # Fallback
   def memory_type_to_class(type), do: Macro.camelize(to_string(type))
 
   @doc """
@@ -520,17 +585,33 @@ defmodule JidoCode.Memory.LongTerm.SPARQLQueries do
       end
 
     case local_name do
+      # Knowledge types
       "Fact" -> :fact
       "Assumption" -> :assumption
       "Hypothesis" -> :hypothesis
       "Discovery" -> :discovery
       "Risk" -> :risk
       "Unknown" -> :unknown
+      # Decision types
       "Decision" -> :decision
       "ArchitecturalDecision" -> :architectural_decision
+      "ImplementationDecision" -> :implementation_decision
+      "Alternative" -> :alternative
+      "TradeOff" -> :trade_off
+      # Convention types
       "Convention" -> :convention
       "CodingStandard" -> :coding_standard
+      "ArchitecturalConvention" -> :architectural_convention
+      "AgentRule" -> :agent_rule
+      "ProcessConvention" -> :process_convention
+      # Error types
+      "Error" -> :error
+      "Bug" -> :bug
+      "Failure" -> :failure
+      "Incident" -> :incident
+      "RootCause" -> :root_cause
       "LessonLearned" -> :lesson_learned
+      # Fallback
       _ -> :unknown
     end
   end

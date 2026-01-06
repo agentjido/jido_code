@@ -78,11 +78,11 @@ Create the git_command tool definition with safety constraints.
 
 See `notes/summaries/tooling-3.1.1-git-command-definition.md` for implementation details.
 
-### 3.1.2 Bridge Function Implementation
+### 3.1.2 Bridge Function Implementation (DONE)
 
 Implement the Bridge function for git command execution within the Lua sandbox.
 
-- [ ] 3.1.2.1 Add `lua_git/3` function to `lib/jido_code/tools/bridge.ex`
+- [x] 3.1.2.1 Add `lua_git/3` function to `lib/jido_code/tools/bridge.ex`
   ```elixir
   def lua_git(args, state, project_root) do
     case args do
@@ -93,52 +93,86 @@ Implement the Bridge function for git command execution within the Lua sandbox.
     end
   end
   ```
-- [ ] 3.1.2.2 Define allowed subcommands:
+- [x] 3.1.2.2 Define allowed subcommands:
   - Always allowed: status, diff, log, show, branch, remote, fetch, stash list
   - With confirmation: add, commit, checkout, merge, rebase, stash push/pop
   - Blocked by default: push --force, reset --hard, clean -fd
-- [ ] 3.1.2.3 Validate subcommand against allowlist
-- [ ] 3.1.2.4 Block destructive operations unless allow_destructive=true
-- [ ] 3.1.2.5 Execute git command in project directory
-- [ ] 3.1.2.6 Parse common outputs for structured response:
+- [x] 3.1.2.3 Validate subcommand against allowlist
+- [x] 3.1.2.4 Block destructive operations unless allow_destructive=true
+- [x] 3.1.2.5 Execute git command in project directory
+- [x] 3.1.2.6 Parse common outputs for structured response:
   - status: Parse staged, unstaged, untracked files
   - diff: Parse file changes
   - log: Parse commits with hash, author, message
-- [ ] 3.1.2.7 Return `{[%{output: output, parsed: structured}], state}` or `{[nil, error], state}`
-- [ ] 3.1.2.8 Register in `Bridge.register/2`
+- [x] 3.1.2.7 Return `{[%{output: output, parsed: structured}], state}` or `{[nil, error], state}`
+- [x] 3.1.2.8 Register in `Bridge.register/2`
 
-### 3.1.3 Manager API
+See `notes/summaries/tooling-3.1.2-git-bridge-function.md` for implementation details.
 
-- [ ] 3.1.3.1 Add `git/3` to `Tools.Manager` that accepts subcommand and options
-- [ ] 3.1.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 3.1.3.3 Call bridge function through Lua: `jido.git(subcommand, args, opts)`
+### 3.1.3 Manager API (DONE)
 
-### 3.1.4 Unit Tests for Git Command
+- [x] 3.1.3.1 Add `git/3` to `Tools.Manager` that accepts subcommand and options
+- [x] 3.1.3.2 Support `session_id` option to route to session-scoped manager
+- [x] 3.1.3.3 Call bridge function through Lua: `jido.git(subcommand, args, opts)`
 
-- [ ] Test git_command through sandbox runs status
-- [ ] Test git_command runs diff
-- [ ] Test git_command runs log with format options
-- [ ] Test git_command runs branch listing
-- [ ] Test git_command blocks force push by default
-- [ ] Test git_command allows force push with allow_destructive
-- [ ] Test git_command blocks reset --hard by default
-- [ ] Test git_command runs in project directory
-- [ ] Test git_command parses status output
-- [ ] Test git_command parses diff output
-- [ ] Test git_command handles git errors
+See `notes/summaries/tooling-3.1.3-manager-git-api.md` for implementation details.
+
+### 3.1.4 Unit Tests for Git Command (DONE)
+
+- [x] Test git_command through sandbox runs status
+- [x] Test git_command runs diff
+- [x] Test git_command runs log with format options
+- [x] Test git_command runs branch listing
+- [x] Test git_command blocks force push by default
+- [x] Test git_command allows force push with allow_destructive
+- [x] Test git_command blocks reset --hard by default
+- [x] Test git_command runs in project directory
+- [x] Test git_command parses status output
+- [x] Test git_command parses diff output
+- [x] Test git_command handles git errors
+
+See `notes/summaries/tooling-3.1.4-git-command-integration-tests.md` for implementation details.
+
+### 3.1.5 Code Review Fixes (DONE)
+
+Review conducted on Section 3.1 implementation. All blockers and concerns have been addressed.
+
+**Blockers Fixed:**
+- [x] Blocker #1: Reset `--hard=value` bypass detection
+- [x] Blocker #2: Clean flag reordering (`-df` vs `-fd`) bypass detection
+
+**Concerns Addressed:**
+- [x] Concern #2: Integrate with HandlerHelpers for session-aware context
+- [x] Concern #3: Add telemetry emission to Git handler
+- [x] Concern #4-7: Extract shared code to LuaUtils (decode_git_result, build_lua_array)
+- [x] Concern #8-10: Add missing tests (parse_git_diff unit tests, bypass vector tests)
+- [x] Concern #11: Timeout constants - kept as module-level attributes (appropriate)
+- [x] Concern #12: Validate flag values for path traversal (`--path=/etc/passwd`)
+
+**Tests Added:**
+- [x] Security bypass vector tests (9 tests in definition tests)
+- [x] Security bypass integration tests (4 tests)
+- [x] parse_git_diff unit tests (4 tests)
+- [x] Flag value path validation tests (4 tests)
+
+See `notes/reviews/section-3.1-git-command-tool-review.md` for original review.
+See `notes/summaries/section-3.1-review-fixes.md` for implementation details.
 
 ---
 
 ## 3.2 Get Diagnostics Tool
 
-Implement the get_diagnostics tool for retrieving LSP errors, warnings, and hints through the Lua sandbox.
+Implement the get_diagnostics tool for retrieving LSP errors, warnings, and hints.
 
-### 3.2.1 Tool Definition
+**Architectural Decision:** Uses Handler pattern (not Lua sandbox) per decision in 3.3.2.
+LSP tools use the Handler pattern for better integration with LSP client infrastructure.
+
+### 3.2.1 Tool Definition (DONE)
 
 Create the get_diagnostics tool definition for LSP integration.
 
-- [ ] 3.2.1.1 Create `lib/jido_code/tools/definitions/get_diagnostics.ex`
-- [ ] 3.2.1.2 Define schema:
+- [x] 3.2.1.1 Create `lib/jido_code/tools/definitions/get_diagnostics.ex`
+- [x] 3.2.1.2 Define schema:
   ```elixir
   %{
     name: "get_diagnostics",
@@ -151,53 +185,84 @@ Create the get_diagnostics tool definition for LSP integration.
     ]
   }
   ```
-- [ ] 3.2.1.3 Register tool in definitions module
+- [x] 3.2.1.3 Register tool in definitions module (added to `LSP.all/0`)
+- [x] 3.2.1.4 Create handler `GetDiagnostics` in `lib/jido_code/tools/handlers/lsp.ex`
+- [x] 3.2.1.5 Add diagnostic caching to LSP Client
+- [x] 3.2.1.6 Add `get_diagnostics/2` function to LSP Client
+- [x] 3.2.1.7 Handle `textDocument/publishDiagnostics` notifications
+- [x] 3.2.1.8 Add unit tests (15 tests in `test/jido_code/tools/definitions/lsp_test.exs`)
 
-### 3.2.2 Bridge Function Implementation
+See `notes/summaries/tooling-3.2.1-get-diagnostics-tool.md` for implementation details.
 
-Implement the Bridge function for LSP diagnostics retrieval.
+### 3.2.2 Handler Implementation (DONE - uses Handler pattern)
 
-- [ ] 3.2.2.1 Add `lua_lsp_diagnostics/3` function to `lib/jido_code/tools/bridge.ex`
-  ```elixir
-  def lua_lsp_diagnostics(args, state, project_root) do
-    case args do
-      [] -> do_lsp_diagnostics(nil, %{}, state, project_root)
-      [path] -> do_lsp_diagnostics(path, %{}, state, project_root)
-      [path, opts] -> do_lsp_diagnostics(path, decode_opts(opts), state, project_root)
-      _ -> {[nil, "lsp_diagnostics: invalid arguments"], state}
-    end
-  end
-  ```
-- [ ] 3.2.2.2 Use LSP client interface (abstraction over ElixirLS/Lexical)
-- [ ] 3.2.2.3 Connect to running language server
-- [ ] 3.2.2.4 Retrieve diagnostics for file or workspace
-- [ ] 3.2.2.5 Filter by severity if specified
-- [ ] 3.2.2.6 Format diagnostics with:
+**Architectural Decision:** Same as 3.3.2 - LSP tools use the Handler pattern (direct
+Elixir execution) rather than the Lua sandbox bridge. This provides:
+- Better integration with LSP client infrastructure (Phase 3.6)
+- Consistent pattern with other LSP tools (get_hover_info, go_to_definition, find_references)
+- Access to diagnostic caching in the LSP Client
+
+The handler is implemented in `lib/jido_code/tools/handlers/lsp.ex`:
+
+- [x] 3.2.2.1 Handler module `JidoCode.Tools.Handlers.LSP.GetDiagnostics`
+- [x] 3.2.2.2 LSP Client integration via `Client.get_diagnostics/2`
+- [x] 3.2.2.3 Diagnostic caching via `textDocument/publishDiagnostics` notifications
+- [x] 3.2.2.4 Retrieve diagnostics for file or workspace
+- [x] 3.2.2.5 Filter by severity if specified
+- [x] 3.2.2.6 Format diagnostics with:
   - severity: error/warning/info/hint
   - file: relative path
-  - line: line number
-  - column: column number
+  - line: line number (1-indexed)
+  - column: column number (1-indexed)
   - message: diagnostic message
   - code: diagnostic code if available
-- [ ] 3.2.2.7 Apply limit if specified
-- [ ] 3.2.2.8 Return `{[diagnostics], state}` or `{[nil, error], state}`
-- [ ] 3.2.2.9 Register in `Bridge.register/2`
+  - source: diagnostic source (e.g., "elixir", "credo")
+- [x] 3.2.2.7 Apply limit if specified (with truncated flag)
+- [x] 3.2.2.8 Returns `{:ok, map}` or `{:error, string}` per Handler pattern
+- [x] 3.2.2.9 Emit telemetry for `:get_diagnostics` operation
+- [N/A] No Lua bridge registration needed (Handler pattern)
 
-### 3.2.3 Manager API
+### 3.2.3 Manager API (N/A - Handler pattern used)
 
-- [ ] 3.2.3.1 Add `lsp_diagnostics/2` to `Tools.Manager`
-- [ ] 3.2.3.2 Support `session_id` option to route to session-scoped manager
-- [ ] 3.2.3.3 Call bridge function through Lua: `jido.lsp_diagnostics(path, opts)`
+Handler pattern tools execute via `Tools.Executor` directly, not through `Tools.Manager`.
+The Executor handles session-aware context routing via `HandlerHelpers`.
 
-### 3.2.4 Unit Tests for Get Diagnostics
+- [N/A] 3.2.3.1 No Manager API needed (Handler pattern uses Executor)
+- [x] 3.2.3.2 Session-aware routing via `context.session_id` in Handler
+- [N/A] 3.2.3.3 No Lua call needed (Handler pattern)
 
-- [ ] Test get_diagnostics through sandbox retrieves compilation errors
-- [ ] Test get_diagnostics retrieves warnings
-- [ ] Test get_diagnostics filters by file path
-- [ ] Test get_diagnostics filters by severity
-- [ ] Test get_diagnostics respects limit
-- [ ] Test get_diagnostics handles no diagnostics
-- [ ] Test get_diagnostics handles LSP connection failure
+### 3.2.4 Unit Tests for Get Diagnostics (DONE)
+
+Tests implemented in `test/jido_code/tools/definitions/lsp_test.exs` (15 tests):
+
+**Schema & Format:**
+- [x] Test tool definition has correct schema
+- [x] Test generates valid LLM function format
+
+**Executor Integration:**
+- [x] Test get_diagnostics works via executor with no parameters
+- [x] Test get_diagnostics works via executor for specific file
+- [x] Test get_diagnostics returns error for non-existent file
+
+**Parameter Validation:**
+- [x] Test get_diagnostics validates severity parameter
+- [x] Test get_diagnostics accepts valid severity values
+- [x] Test get_diagnostics validates limit parameter (positive integer)
+- [x] Test get_diagnostics accepts positive limit
+- [x] Test rejects negative limit
+- [x] Test rejects non-integer limit
+- [x] Test rejects non-string severity
+- [x] Test rejects non-string path
+
+**Security:**
+- [x] Test get_diagnostics blocks path traversal
+- [x] Test get_diagnostics blocks absolute paths outside project
+
+**Session & LLM:**
+- [x] Test session-aware context uses session_id when provided
+- [x] Test results can be converted to LLM messages
+
+Note: Full LSP integration tests (actual diagnostics) deferred to Phase 3.7 when Expert is running.
 
 ---
 
@@ -597,36 +662,97 @@ Integration tests for Git and LSP tools.
 Verify tools execute through the correct patterns.
 
 - [x] 3.7.1.1 Create `test/jido_code/integration/tools_phase3_test.exs`
-- [ ] 3.7.1.2 Test: Git tools execute through `Tools.Manager` → Lua → Bridge chain (blocked: git tools not implemented)
+- [x] 3.7.1.2 Test: Git tools execute through `Tools.Executor` → Handler chain
 - [x] 3.7.1.3 Test: LSP tools execute through `Tools.Executor` → Handler chain
 - [x] 3.7.1.4 Test: Session-scoped context isolation works for both patterns
 
-### 3.7.2 Git Integration
+**Note:** Git tools use Handler pattern (not Lua sandbox) - same architecture as LSP tools.
+See `notes/summaries/tooling-3.7.2-git-integration-tests.md` for implementation details.
 
-Test git tools in realistic scenarios through Lua sandbox.
+### 3.7.2 Git Integration (DONE)
 
-**Note:** Git integration tests blocked pending git_command tool implementation (Section 3.1).
+Test git tools through Handler pattern.
 
-- [ ] 3.7.2.1 Test: git_command status works in initialized repo
-- [ ] 3.7.2.2 Test: git_command diff shows file changes
-- [ ] 3.7.2.3 Test: git_command log shows commit history
-- [ ] 3.7.2.4 Test: git_command branch lists branches
+- [x] 3.7.2.1 Test: git_command status works in initialized repo
+- [x] 3.7.2.2 Test: git_command diff shows file changes
+- [x] 3.7.2.3 Test: git_command log shows commit history
+- [x] 3.7.2.4 Test: git_command branch lists branches
+- [x] 3.7.2.5 Test: git_command security - destructive operation blocking
 
-### 3.7.3 LSP Integration
+**Additional Tests Added:**
+- [x] Test: git_command executes through Executor and returns result
+- [x] Test: git_command with args executes through Executor
+- [x] Test: git_command blocks disallowed subcommand
+- [x] Test: git_command status shows untracked files
+- [x] Test: git_command status shows staged files
+- [x] Test: git_command diff shows no changes on clean repo
+- [x] Test: git_command diff with file path argument
+- [x] Test: git_command log with format options
+- [x] Test: git_command log on empty repo returns error
+- [x] Test: git_command branch creates new branch
+- [x] Test: git_command branch -a shows all branches
+- [x] Test: git_command blocks force push by default
+- [x] Test: git_command blocks reset --hard by default
+- [x] Test: git_command blocks clean -fd by default
+- [x] Test: git_command blocks branch -D by default
+- [x] Test: git_command allows destructive operation with allow_destructive flag
+
+See `notes/summaries/tooling-3.7.2-git-integration-tests.md` for implementation details.
+
+### 3.7.3 LSP Integration (DONE)
 
 Test LSP tools with Expert (official Elixir LSP) via Handler pattern.
 
 **Note:** LSP tools use Handler pattern (see 3.3.2 architectural decision), not Lua sandbox.
 
-- [ ] 3.7.3.1 Test: diagnostics returned after file with syntax error (blocked: get_diagnostics not implemented)
-- [ ] 3.7.3.2 Test: diagnostics returned for undefined function (blocked: get_diagnostics not implemented)
+- [x] 3.7.3.1 Test: diagnostics returned after file with syntax error
+- [x] 3.7.3.2 Test: diagnostics returned for undefined function
 - [x] 3.7.3.3 Test: hover info available for standard library functions
 - [x] 3.7.3.4 Test: hover info available for project functions
 - [x] 3.7.3.5 Test: go_to_definition navigates to function
 - [x] 3.7.3.6 Test: find_references locates function usages
 - [x] 3.7.3.7 Test: Output path validation filters external paths (security)
 
+**Additional Diagnostics Tests Added:**
+- [x] Test: get_diagnostics returns structured response for workspace
+- [x] Test: get_diagnostics returns structured response for specific file
+- [x] Test: get_diagnostics filters by severity
+- [x] Test: get_diagnostics respects limit parameter
+- [x] Test: get_diagnostics rejects invalid severity
+- [x] Test: get_diagnostics rejects invalid limit
+- [x] Test: get_diagnostics blocks path traversal
+- [x] Test: get_diagnostics returns error for nonexistent file
+- [x] Test: get_diagnostics filters errors only when Expert available
+
 See `notes/summaries/tooling-3.7-phase3-integration-tests.md` for implementation details.
+See `notes/summaries/tooling-3.7.3-diagnostics-integration-tests.md` for diagnostics tests.
+
+### 3.7.4 Review Fixes (DONE)
+
+Code review conducted on Section 3.7 integration tests. All concerns addressed:
+
+**Concerns Fixed:**
+- [x] Fix `init_git_repo` robustness - Added `run_git_cmd!` helper with proper error handling
+- [x] Fix explicit branch name - Uses `-b main` for consistency across systems
+- [x] Consolidate duplicate helpers - Removed `create_elixir_file`, use `create_file` for all
+- [x] Fix `for` comprehension - Changed to `Enum.each` for side-effect-only operations
+- [x] Fix `wait_for_supervisor` - Changed nested `if` to `cond` for Elixir idiom
+
+**Security Bypass Tests Added (5 tests):**
+- [x] Test: git_command blocks push -f (short flag) by default
+- [x] Test: git_command blocks --force-with-lease push by default
+- [x] Test: git_command blocks reset --hard=value syntax by default
+- [x] Test: git_command blocks clean -df (reordered flags) by default
+- [x] Test: git_command blocks clean -xdf (combined flags) by default
+
+**Test Tags Added:**
+- [x] Added `@describetag :git` for git-related describe blocks
+- [x] Added `@describetag :security` for security-related describe blocks
+- [x] Added `@tag :security` for individual security tests
+
+**Test Count:** 60 tests (55 original + 5 new security bypass tests)
+
+See `notes/summaries/tooling-3.7.4-review-fixes.md` for implementation details.
 
 ---
 

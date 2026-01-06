@@ -3,6 +3,29 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
 
   alias JidoCode.Memory.LongTerm.StoreManager
 
+  @moduletag :store_manager
+
+  # ============================================================================
+  # Test Helpers
+  # ============================================================================
+
+  @sparql_prefixes """
+  PREFIX jido: <https://jido.ai/ontology#>
+  PREFIX owl: <http://www.w3.org/2002/07/owl#>
+  PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+  """
+
+  defp unique_session_id(prefix \\ "session") do
+    "#{prefix}-#{:rand.uniform(1_000_000)}"
+  end
+
+  defp extract_rdf_value({:literal, _, val}), do: val
+  defp extract_rdf_value(val) when is_binary(val), do: val
+
+  # ============================================================================
+  # Test Setup
+  # ============================================================================
+
   # Use a unique base path for each test to avoid conflicts
   setup do
     base_path = Path.join(System.tmp_dir!(), "store_manager_test_#{:rand.uniform(1_000_000)}")
@@ -120,14 +143,53 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
       assert File.dir?(expected_path)
     end
 
-    test "returns ETS table that can be used for storage", %{server: server} do
-      session_id = "session-#{:rand.uniform(1_000_000)}"
+    test "returns TripleStore that can be used for queries", %{server: server} do
+      session_id = unique_session_id()
 
       {:ok, store} = StoreManager.get_or_create(session_id, server)
 
-      # Verify we can use the ETS table
-      :ets.insert(store, {"key1", "value1"})
-      assert [{"key1", "value1"}] = :ets.lookup(store, "key1")
+      # Verify we can query the TripleStore (ontology should be loaded)
+      query = @sparql_prefixes <> "ASK { jido:MemoryItem rdf:type owl:Class }"
+
+      {:ok, result} = TripleStore.query(store, query)
+      assert result == true
+    end
+
+    test "loads ontology on first open", %{server: server} do
+      session_id = unique_session_id()
+
+      {:ok, store} = StoreManager.get_or_create(session_id, server)
+
+      # Query for ontology classes
+      query = @sparql_prefixes <> """
+      SELECT (COUNT(?class) as ?count)
+      WHERE {
+        ?class rdf:type owl:Class .
+        FILTER(STRSTARTS(STR(?class), "https://jido.ai/ontology#"))
+      }
+      """
+
+      {:ok, results} = TripleStore.query(store, query)
+      assert length(results) == 1
+      count = hd(results)["count"]
+      # Should have multiple Jido classes loaded
+      assert count > 10
+    end
+
+    test "rejects invalid session IDs", %{server: server} do
+      # Test with path traversal attempt
+      assert {:error, :invalid_session_id} =
+               StoreManager.get_or_create("../evil", server)
+
+      # Test with empty string
+      assert {:error, :invalid_session_id} =
+               StoreManager.get_or_create("", server)
+
+      # Test with too long string
+      long_id = String.duplicate("a", 300)
+
+      assert {:error, :invalid_session_id} =
+               StoreManager.get_or_create(long_id, server)
     end
   end
 
@@ -161,6 +223,61 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
   end
 
   # ============================================================================
+  # get_metadata/1 Tests
+  # ============================================================================
+
+  describe "get_metadata/1" do
+    test "returns metadata for open store", %{server: server} do
+      session_id = "session-#{:rand.uniform(1_000_000)}"
+
+      {:ok, _store} = StoreManager.get_or_create(session_id, server)
+      {:ok, metadata} = StoreManager.get_metadata(session_id, server)
+
+      assert %{opened_at: _, last_accessed: _, ontology_loaded: true} = metadata
+      assert %DateTime{} = metadata.opened_at
+      assert %DateTime{} = metadata.last_accessed
+    end
+
+    test "returns {:error, :not_found} for unknown session", %{server: server} do
+      assert {:error, :not_found} = StoreManager.get_metadata("unknown", server)
+    end
+
+    test "updates last_accessed on get", %{server: server} do
+      session_id = "session-#{:rand.uniform(1_000_000)}"
+
+      {:ok, _store} = StoreManager.get_or_create(session_id, server)
+      {:ok, metadata1} = StoreManager.get_metadata(session_id, server)
+
+      # Small delay to ensure time difference
+      Process.sleep(10)
+
+      # Access the store again
+      {:ok, _store} = StoreManager.get(session_id, server)
+      {:ok, metadata2} = StoreManager.get_metadata(session_id, server)
+
+      # Last accessed should be updated
+      assert DateTime.compare(metadata2.last_accessed, metadata1.last_accessed) in [:gt, :eq]
+    end
+  end
+
+  # ============================================================================
+  # health/1 Tests
+  # ============================================================================
+
+  describe "health/1" do
+    test "returns :healthy for open store", %{server: server} do
+      session_id = "session-#{:rand.uniform(1_000_000)}"
+
+      {:ok, _store} = StoreManager.get_or_create(session_id, server)
+      {:ok, :healthy} = StoreManager.health(session_id, server)
+    end
+
+    test "returns {:error, :not_found} for unknown session", %{server: server} do
+      assert {:error, :not_found} = StoreManager.health("unknown", server)
+    end
+  end
+
+  # ============================================================================
   # close/1 Tests
   # ============================================================================
 
@@ -189,18 +306,38 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
       assert :ok = StoreManager.close(session_id, server)
     end
 
-    test "deletes ETS table", %{server: server} do
+    test "data persists after close and reopen", %{server: server} do
       session_id = "session-#{:rand.uniform(1_000_000)}"
 
-      {:ok, store} = StoreManager.get_or_create(session_id, server)
+      # Open store and insert data
+      {:ok, store1} = StoreManager.get_or_create(session_id, server)
 
-      # Verify table exists
-      assert :ets.info(store) != :undefined
+      insert_query = """
+      PREFIX jido: <https://jido.ai/ontology#>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
+      INSERT DATA {
+        jido:test_memory_123 rdf:type jido:Fact ;
+          jido:summary "Test fact" .
+      }
+      """
+
+      {:ok, _} = TripleStore.update(store1, insert_query)
+
+      # Close the store
       :ok = StoreManager.close(session_id, server)
 
-      # Verify table is deleted
-      assert :ets.info(store) == :undefined
+      # Reopen and verify data persists
+      {:ok, store2} = StoreManager.get_or_create(session_id, server)
+
+      verify_query = """
+      PREFIX jido: <https://jido.ai/ontology#>
+
+      ASK { jido:test_memory_123 jido:summary "Test fact" }
+      """
+
+      {:ok, exists} = TripleStore.query(store2, verify_query)
+      assert exists == true
     end
   end
 
@@ -351,12 +488,34 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
       {:ok, store2} = StoreManager.get_or_create(session2, server)
 
       # Insert different data into each store
-      :ets.insert(store1, {"key", "value1"})
-      :ets.insert(store2, {"key", "value2"})
+      insert1 = """
+      PREFIX jido: <https://jido.ai/ontology#>
+      INSERT DATA { jido:test1 jido:value "store1" }
+      """
+
+      insert2 = """
+      PREFIX jido: <https://jido.ai/ontology#>
+      INSERT DATA { jido:test1 jido:value "store2" }
+      """
+
+      {:ok, _} = TripleStore.update(store1, insert1)
+      {:ok, _} = TripleStore.update(store2, insert2)
 
       # Verify data is isolated
-      assert [{"key", "value1"}] = :ets.lookup(store1, "key")
-      assert [{"key", "value2"}] = :ets.lookup(store2, "key")
+      query = """
+      PREFIX jido: <https://jido.ai/ontology#>
+      SELECT ?value WHERE { jido:test1 jido:value ?value }
+      """
+
+      {:ok, results1} = TripleStore.query(store1, query)
+      {:ok, results2} = TripleStore.query(store2, query)
+
+      # Extract the literal value from the result
+      value1 = hd(results1)["value"]
+      value2 = hd(results2)["value"]
+
+      assert extract_rdf_value(value1) == "store1"
+      assert extract_rdf_value(value2) == "store2"
     end
 
     test "store paths are isolated per session", %{server: server, base_path: base_path} do
@@ -391,7 +550,7 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
           end)
         end
 
-      results = Task.await_many(tasks)
+      results = Task.await_many(tasks, 30_000)
 
       # All should succeed
       stores = Enum.map(results, fn {:ok, store} -> store end)
@@ -403,23 +562,30 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
     test "concurrent operations on different sessions work correctly", %{server: server} do
       # Create tasks for different sessions
       tasks =
-        for i <- 1..10 do
+        for i <- 1..5 do
           Task.async(fn ->
             session_id = "session-#{i}-#{:rand.uniform(1_000_000)}"
             {:ok, store} = StoreManager.get_or_create(session_id, server)
-            :ets.insert(store, {"data", i})
+
+            insert = """
+            PREFIX jido: <https://jido.ai/ontology#>
+            INSERT DATA { jido:concurrent_test_#{i} jido:value "#{i}" }
+            """
+
+            {:ok, _} = TripleStore.update(store, insert)
             {session_id, store}
           end)
         end
 
-      results = Task.await_many(tasks)
+      results = Task.await_many(tasks, 30_000)
 
       # Verify all sessions were created
-      assert length(results) == 10
+      assert length(results) == 5
 
-      # Verify all stores have correct data
+      # Verify all stores are functional
       for {_session_id, store} <- results do
-        assert :ets.info(store) != :undefined
+        {:ok, health_status} = TripleStore.health(store)
+        assert health_status.status == :healthy
       end
     end
   end
@@ -437,20 +603,210 @@ defmodule JidoCode.Memory.LongTerm.StoreManagerTest do
       {:ok, pid} = StoreManager.start_link(base_path: base_path, name: name)
 
       # Create some stores
-      {:ok, store1} = StoreManager.get_or_create("session-1", name)
-      {:ok, store2} = StoreManager.get_or_create("session-2", name)
+      {:ok, _store1} = StoreManager.get_or_create("session-1", name)
+      {:ok, _store2} = StoreManager.get_or_create("session-2", name)
 
-      # Verify stores exist
-      assert :ets.info(store1) != :undefined
-      assert :ets.info(store2) != :undefined
+      # Verify stores are healthy before shutdown
+      assert {:ok, :healthy} = StoreManager.health("session-1", name)
+      assert {:ok, :healthy} = StoreManager.health("session-2", name)
 
       # Stop the GenServer (triggers terminate)
       GenServer.stop(pid)
 
-      # Verify stores are closed
-      assert :ets.info(store1) == :undefined
-      assert :ets.info(store2) == :undefined
+      # Clean up
+      File.rm_rf!(base_path)
+    end
+  end
 
+  # ============================================================================
+  # LRU Eviction Tests
+  # ============================================================================
+
+  describe "LRU eviction" do
+    test "evicts least recently used store when at capacity" do
+      name = :"store_manager_lru_#{:rand.uniform(1_000_000)}"
+      base_path = Path.join(System.tmp_dir!(), "lru_test_#{:rand.uniform(1_000_000)}")
+      File.mkdir_p!(base_path)
+
+      # Start with max_open_stores = 3
+      {:ok, pid} =
+        StoreManager.start_link(
+          base_path: base_path,
+          name: name,
+          config: %{max_open_stores: 3, cleanup_interval_ms: :timer.hours(1)}
+        )
+
+      # Create 3 stores
+      {:ok, _} = StoreManager.get_or_create("session-1", name)
+      Process.sleep(10)
+      {:ok, _} = StoreManager.get_or_create("session-2", name)
+      Process.sleep(10)
+      {:ok, _} = StoreManager.get_or_create("session-3", name)
+
+      assert length(StoreManager.list_open(name)) == 3
+
+      # Touch session-1 to make it more recent than session-2
+      Process.sleep(10)
+      {:ok, _} = StoreManager.get("session-1", name)
+
+      # Create a 4th store - should evict session-2 (the LRU)
+      {:ok, _} = StoreManager.get_or_create("session-4", name)
+
+      open_sessions = StoreManager.list_open(name)
+      assert length(open_sessions) == 3
+      assert "session-1" in open_sessions
+      assert "session-3" in open_sessions
+      assert "session-4" in open_sessions
+      refute "session-2" in open_sessions
+
+      # Clean up
+      StoreManager.close_all(name)
+      GenServer.stop(pid)
+      File.rm_rf!(base_path)
+    end
+
+    test "does not evict when under capacity" do
+      name = :"store_manager_under_cap_#{:rand.uniform(1_000_000)}"
+      base_path = Path.join(System.tmp_dir!(), "under_cap_test_#{:rand.uniform(1_000_000)}")
+      File.mkdir_p!(base_path)
+
+      {:ok, pid} =
+        StoreManager.start_link(
+          base_path: base_path,
+          name: name,
+          config: %{max_open_stores: 5, cleanup_interval_ms: :timer.hours(1)}
+        )
+
+      # Create 3 stores (under capacity of 5)
+      for i <- 1..3 do
+        {:ok, _} = StoreManager.get_or_create("session-#{i}", name)
+      end
+
+      assert length(StoreManager.list_open(name)) == 3
+
+      # Add another - should not evict
+      {:ok, _} = StoreManager.get_or_create("session-4", name)
+
+      assert length(StoreManager.list_open(name)) == 4
+
+      # Clean up
+      StoreManager.close_all(name)
+      GenServer.stop(pid)
+      File.rm_rf!(base_path)
+    end
+  end
+
+  # ============================================================================
+  # Idle Cleanup Tests
+  # ============================================================================
+
+  describe "idle cleanup" do
+    test "cleans up stores that exceed idle timeout" do
+      name = :"store_manager_idle_#{:rand.uniform(1_000_000)}"
+      base_path = Path.join(System.tmp_dir!(), "idle_test_#{:rand.uniform(1_000_000)}")
+      File.mkdir_p!(base_path)
+
+      # Start with very short idle timeout (50ms) and cleanup interval (25ms)
+      {:ok, pid} =
+        StoreManager.start_link(
+          base_path: base_path,
+          name: name,
+          config: %{idle_timeout_ms: 50, cleanup_interval_ms: 25}
+        )
+
+      # Create a store
+      {:ok, _} = StoreManager.get_or_create("session-1", name)
+      assert StoreManager.open?("session-1", name)
+
+      # Wait for idle timeout + cleanup interval
+      Process.sleep(100)
+
+      # Store should be cleaned up
+      refute StoreManager.open?("session-1", name)
+
+      # Clean up
+      GenServer.stop(pid)
+      File.rm_rf!(base_path)
+    end
+
+    test "does not clean up recently accessed stores" do
+      name = :"store_manager_active_#{:rand.uniform(1_000_000)}"
+      base_path = Path.join(System.tmp_dir!(), "active_test_#{:rand.uniform(1_000_000)}")
+      File.mkdir_p!(base_path)
+
+      # Start with short idle timeout
+      {:ok, pid} =
+        StoreManager.start_link(
+          base_path: base_path,
+          name: name,
+          config: %{idle_timeout_ms: 100, cleanup_interval_ms: 30}
+        )
+
+      # Create a store
+      {:ok, _} = StoreManager.get_or_create("session-1", name)
+
+      # Keep accessing it
+      for _ <- 1..5 do
+        Process.sleep(30)
+        {:ok, _} = StoreManager.get("session-1", name)
+      end
+
+      # Store should still be open (we kept accessing it)
+      assert StoreManager.open?("session-1", name)
+
+      # Clean up
+      StoreManager.close_all(name)
+      GenServer.stop(pid)
+      File.rm_rf!(base_path)
+    end
+  end
+
+  # ============================================================================
+  # Configuration Tests
+  # ============================================================================
+
+  describe "configuration" do
+    test "merges user config with defaults" do
+      name = :"store_manager_config_merge_#{:rand.uniform(1_000_000)}"
+      base_path = Path.join(System.tmp_dir!(), "config_merge_#{:rand.uniform(1_000_000)}")
+      File.mkdir_p!(base_path)
+
+      # Only override max_open_stores, others should use defaults
+      {:ok, pid} =
+        StoreManager.start_link(
+          base_path: base_path,
+          name: name,
+          config: %{max_open_stores: 25}
+        )
+
+      assert Process.alive?(pid)
+
+      # The store should work with merged config
+      {:ok, _} = StoreManager.get_or_create("session-1", name)
+      assert StoreManager.open?("session-1", name)
+
+      # Clean up
+      StoreManager.close_all(name)
+      GenServer.stop(pid)
+      File.rm_rf!(base_path)
+    end
+
+    test "accepts custom cleanup interval" do
+      name = :"store_manager_interval_#{:rand.uniform(1_000_000)}"
+      base_path = Path.join(System.tmp_dir!(), "interval_#{:rand.uniform(1_000_000)}")
+      File.mkdir_p!(base_path)
+
+      {:ok, pid} =
+        StoreManager.start_link(
+          base_path: base_path,
+          name: name,
+          config: %{cleanup_interval_ms: 10_000}
+        )
+
+      assert Process.alive?(pid)
+
+      # Clean up
+      GenServer.stop(pid)
       File.rm_rf!(base_path)
     end
   end

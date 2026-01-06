@@ -6,6 +6,7 @@ defmodule JidoCode.Tools.Handlers.LSP do
   - `GetHoverInfo` - Get type info and documentation at cursor position
   - `GoToDefinition` - Find where a symbol is defined
   - `FindReferences` - Find all usages of a symbol
+  - `GetDiagnostics` - Get LSP diagnostics (errors, warnings, info, hints)
 
   ## Expert Integration
 
@@ -1219,4 +1220,304 @@ defmodule JidoCode.Tools.Handlers.LSP.FindReferences do
   end
 
   defp process_reference_location(_, _context), do: {:error, :invalid_location}
+end
+
+defmodule JidoCode.Tools.Handlers.LSP.GetDiagnostics do
+  @moduledoc """
+  Handler for the get_diagnostics tool.
+
+  Retrieves LSP diagnostics (errors, warnings, info, hints) for a specific file
+  or the entire workspace using the Language Server Protocol.
+
+  ## Parameters
+
+  - `path` (optional) - File path to get diagnostics for. Omit for all files.
+  - `severity` (optional) - Filter by severity: "error", "warning", "info", "hint"
+  - `limit` (optional) - Maximum number of diagnostics to return
+
+  ## Returns
+
+  - `{:ok, result}` - Map with diagnostics list, count, and truncated flag
+  - `{:error, reason}` - Error message string
+
+  ## Response Format
+
+  ```elixir
+  %{
+    "diagnostics" => [
+      %{
+        "severity" => "error",
+        "file" => "lib/my_module.ex",
+        "line" => 10,
+        "column" => 5,
+        "message" => "undefined function foo/0",
+        "code" => "undefined_function",
+        "source" => "elixir"
+      }
+    ],
+    "count" => 1,
+    "truncated" => false
+  }
+  ```
+
+  ## Expert Integration
+
+  This handler connects to Expert (the official Elixir LSP) to retrieve diagnostics.
+  Diagnostics are cached by the LSP server and updated when files are compiled.
+  """
+
+  require Logger
+
+  alias JidoCode.Tools.Handlers.LSP, as: LSPHandlers
+  alias JidoCode.Tools.LSP.{Client, Protocol}
+
+  @severity_map %{
+    "error" => Protocol.Diagnostic.severity_error(),
+    "warning" => Protocol.Diagnostic.severity_warning(),
+    "info" => Protocol.Diagnostic.severity_info(),
+    "hint" => Protocol.Diagnostic.severity_hint()
+  }
+
+  @reverse_severity_map %{
+    1 => "error",
+    2 => "warning",
+    3 => "info",
+    4 => "hint"
+  }
+
+  @doc """
+  Executes the get_diagnostics operation.
+
+  ## Arguments
+
+  - `params` - Map with optional "path", "severity", and "limit" keys
+  - `context` - Execution context with session_id or project_root
+
+  ## Returns
+
+  - `{:ok, result}` on success with diagnostics list
+  - `{:error, reason}` on failure
+  """
+  @spec execute(map(), map()) :: {:ok, map()} | {:error, String.t()}
+  def execute(params, context) do
+    start_time = System.monotonic_time(:microsecond)
+    path = Map.get(params, "path")
+
+    result = do_execute(params, context)
+
+    LSPHandlers.emit_lsp_telemetry(
+      :get_diagnostics,
+      start_time,
+      path || "workspace",
+      context,
+      if(match?({:ok, _}, result), do: :success, else: :error)
+    )
+
+    result
+  end
+
+  defp do_execute(params, context) do
+    path = Map.get(params, "path")
+    severity_filter = Map.get(params, "severity")
+    limit = Map.get(params, "limit")
+
+    # Validate severity if provided
+    with :ok <- validate_severity(severity_filter),
+         :ok <- validate_limit(limit),
+         {:ok, safe_path} <- validate_optional_path(path, context) do
+      get_diagnostics(safe_path, severity_filter, limit, context)
+    else
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, LSPHandlers.format_error(reason, path || "workspace")}
+    end
+  end
+
+  # ============================================================================
+  # Parameter Validation
+  # ============================================================================
+
+  defp validate_severity(nil), do: :ok
+
+  defp validate_severity(severity) when is_binary(severity) do
+    if Map.has_key?(@severity_map, severity) do
+      :ok
+    else
+      {:error, "Invalid severity '#{severity}'. Must be one of: error, warning, info, hint"}
+    end
+  end
+
+  defp validate_severity(_), do: {:error, "severity must be a string"}
+
+  defp validate_limit(nil), do: :ok
+
+  defp validate_limit(limit) when is_integer(limit) and limit > 0, do: :ok
+
+  defp validate_limit(limit) when is_integer(limit),
+    do: {:error, "limit must be a positive integer"}
+
+  defp validate_limit(_), do: {:error, "limit must be an integer"}
+
+  defp validate_optional_path(nil, _context), do: {:ok, nil}
+
+  defp validate_optional_path(path, context) when is_binary(path) do
+    case LSPHandlers.validate_path(path, context) do
+      {:ok, safe_path} ->
+        case LSPHandlers.validate_file_exists(safe_path) do
+          :ok -> {:ok, safe_path}
+          {:error, :enoent} -> {:error, :enoent}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp validate_optional_path(_, _context), do: {:error, "path must be a string"}
+
+  # ============================================================================
+  # LSP Integration
+  # ============================================================================
+
+  defp get_diagnostics(path, severity_filter, limit, context) do
+    case LSPHandlers.get_lsp_client(context) do
+      {:ok, client} ->
+        request_diagnostics_from_expert(client, path, severity_filter, limit, context)
+
+      {:error, :lsp_not_available} ->
+        lsp_not_available_response()
+    end
+  end
+
+  defp request_diagnostics_from_expert(client, path, severity_filter, limit, context) do
+    # Get diagnostics from the LSP client's cached diagnostics
+    case Client.get_diagnostics(client, path) do
+      {:ok, diagnostics} ->
+        process_diagnostics(diagnostics, path, severity_filter, limit, context)
+
+      {:error, :timeout} ->
+        {:error, "LSP request timed out"}
+
+      {:error, reason} ->
+        Logger.warning("LSP diagnostics request failed: #{inspect(reason)}")
+        {:error, "Failed to retrieve diagnostics from language server"}
+    end
+  end
+
+  defp process_diagnostics(diagnostics, path, severity_filter, limit, context) do
+    # Convert LSP diagnostics to our format
+    processed =
+      diagnostics
+      |> Enum.flat_map(fn {uri, diags} ->
+        file_path = LSPHandlers.uri_to_path(uri)
+
+        # Skip files outside project boundary
+        case LSPHandlers.validate_output_path(file_path, context) do
+          {:ok, safe_path} ->
+            Enum.map(diags, fn diag ->
+              format_diagnostic(diag, safe_path)
+            end)
+
+          {:error, _} ->
+            []
+        end
+      end)
+      |> filter_by_path(path, context)
+      |> filter_by_severity(severity_filter)
+      |> Enum.sort_by(fn d -> {severity_priority(d["severity"]), d["file"], d["line"]} end)
+
+    {result, truncated} = apply_limit(processed, limit)
+
+    {:ok,
+     %{
+       "diagnostics" => result,
+       "count" => length(result),
+       "truncated" => truncated
+     }}
+  end
+
+  defp format_diagnostic(diag, file_path) do
+    %{
+      "severity" => severity_to_string(diag["severity"]),
+      "file" => file_path,
+      "line" => get_line(diag),
+      "column" => get_column(diag),
+      "message" => diag["message"] || "",
+      "code" => diag["code"],
+      "source" => diag["source"]
+    }
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Map.new()
+  end
+
+  defp get_line(%{"range" => %{"start" => %{"line" => line}}}) when is_integer(line),
+    do: line + 1
+
+  defp get_line(_), do: 1
+
+  defp get_column(%{"range" => %{"start" => %{"character" => char}}}) when is_integer(char),
+    do: char + 1
+
+  defp get_column(_), do: 1
+
+  defp severity_to_string(severity) when is_integer(severity) do
+    Map.get(@reverse_severity_map, severity, "unknown")
+  end
+
+  defp severity_to_string(_), do: "unknown"
+
+  defp severity_priority("error"), do: 1
+  defp severity_priority("warning"), do: 2
+  defp severity_priority("info"), do: 3
+  defp severity_priority("hint"), do: 4
+  defp severity_priority(_), do: 5
+
+  defp filter_by_path(diagnostics, nil, _context), do: diagnostics
+
+  defp filter_by_path(diagnostics, path, context) do
+    # Get the relative path for comparison
+    case LSPHandlers.get_project_root(context) do
+      {:ok, project_root} ->
+        relative_path = Path.relative_to(path, project_root)
+
+        Enum.filter(diagnostics, fn d ->
+          d["file"] == relative_path or d["file"] == path
+        end)
+
+      {:error, _} ->
+        diagnostics
+    end
+  end
+
+  defp filter_by_severity(diagnostics, nil), do: diagnostics
+
+  defp filter_by_severity(diagnostics, severity) do
+    Enum.filter(diagnostics, fn d -> d["severity"] == severity end)
+  end
+
+  defp apply_limit(diagnostics, nil), do: {diagnostics, false}
+
+  defp apply_limit(diagnostics, limit) when length(diagnostics) <= limit do
+    {diagnostics, false}
+  end
+
+  defp apply_limit(diagnostics, limit) do
+    {Enum.take(diagnostics, limit), true}
+  end
+
+  defp lsp_not_available_response do
+    {:ok,
+     %{
+       "status" => "lsp_not_configured",
+       "diagnostics" => [],
+       "count" => 0,
+       "truncated" => false,
+       "message" =>
+         "LSP server is not available. " <>
+           "Install Expert (official Elixir LSP) to enable diagnostics. " <>
+           "See: https://github.com/elixir-lang/expert"
+     }}
+  end
 end

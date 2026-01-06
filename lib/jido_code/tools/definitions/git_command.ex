@@ -183,12 +183,39 @@ defmodule JidoCode.Tools.Definitions.GitCommand do
   end
 
   # Checks if ALL pattern args are present in the command args
+  # Handles --flag=value syntax and flag character matching for short flags
   defp pattern_matches?(pattern_args, args) do
     Enum.all?(pattern_args, fn pattern_arg ->
       Enum.any?(args, fn arg ->
-        String.starts_with?(arg, pattern_arg)
+        arg_matches_pattern?(arg, pattern_arg)
       end)
     end)
+  end
+
+  # Match exact flag, flag=value syntax, or contained short flag characters
+  defp arg_matches_pattern?(arg, pattern) do
+    cond do
+      # Exact match or prefix match (e.g., --force matches --force-with-lease)
+      String.starts_with?(arg, pattern) ->
+        true
+
+      # Handle --flag=value syntax (e.g., --hard=HEAD~1 matches --hard)
+      String.starts_with?(pattern, "--") and String.starts_with?(arg, pattern <> "=") ->
+        true
+
+      # Handle short flag character matching (e.g., -df contains -f)
+      # Only for single-character short flags like -f, -d, -x
+      String.starts_with?(pattern, "-") and not String.starts_with?(pattern, "--") and
+          String.length(pattern) == 2 ->
+        # Extract the flag character (e.g., "f" from "-f")
+        flag_char = String.at(pattern, 1)
+        # Check if arg is a short flag combination containing this character
+        String.starts_with?(arg, "-") and not String.starts_with?(arg, "--") and
+          String.contains?(arg, flag_char)
+
+      true ->
+        false
+    end
   end
 
   @doc """

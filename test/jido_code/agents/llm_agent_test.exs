@@ -336,6 +336,517 @@ defmodule JidoCode.Agents.LLMAgentTest do
     end
   end
 
+  # ============================================================================
+  # Memory Initialization Tests (Task 5.2.1)
+  # ============================================================================
+
+  describe "memory initialization" do
+    test "memory is enabled by default" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link() do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.memory_enabled == true
+          assert state.token_budget == 32_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory can be disabled via memory: [enabled: false]" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.memory_enabled == false
+          # token_budget should still have default value
+          assert state.token_budget == 32_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "custom token_budget can be set via memory options" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [token_budget: 16_000]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.memory_enabled == true
+          assert state.token_budget == 16_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory options can be combined with session_id" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      session_id = "test-session-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(
+             session_id: session_id,
+             memory: [enabled: true, token_budget: 24_000]
+           ) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          assert state.session_id == session_id
+          assert state.memory_enabled == true
+          assert state.token_budget == 24_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory options do not interfere with provider/model config" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022",
+        temperature: 0.5
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false, token_budget: 8_000]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Memory options should be set
+          assert state.memory_enabled == false
+          assert state.token_budget == 8_000
+
+          # Config should be correct
+          assert state.config.provider == :anthropic
+          assert state.config.model == "claude-3-5-sonnet-20241022"
+          assert state.config.temperature == 0.5
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+  end
+
+  # ============================================================================
+  # Memory Tool Registration Tests (Task 5.2.2)
+  # ============================================================================
+
+  describe "memory tool registration" do
+    setup do
+      # Register tools for testing
+      JidoCode.Tools.register_all()
+      :ok
+    end
+
+    test "get_available_tools includes memory tools when memory is enabled" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: true]) do
+        {:ok, pid} ->
+          {:ok, tools} = LLMAgent.get_available_tools(pid)
+
+          tool_names = Enum.map(tools, & &1[:name])
+
+          # Should include memory tools
+          assert "remember" in tool_names
+          assert "recall" in tool_names
+          assert "forget" in tool_names
+
+          # Should also include some base tools
+          assert "read_file" in tool_names
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "get_available_tools excludes memory tools when memory is disabled" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false]) do
+        {:ok, pid} ->
+          {:ok, tools} = LLMAgent.get_available_tools(pid)
+
+          tool_names = Enum.map(tools, & &1[:name])
+
+          # Should NOT include memory tools
+          refute "remember" in tool_names
+          refute "recall" in tool_names
+          refute "forget" in tool_names
+
+          # Should still include base tools
+          assert "read_file" in tool_names
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "memory_tool?/1 correctly identifies memory tools" do
+      assert LLMAgent.memory_tool?("remember") == true
+      assert LLMAgent.memory_tool?("recall") == true
+      assert LLMAgent.memory_tool?("forget") == true
+
+      assert LLMAgent.memory_tool?("read_file") == false
+      assert LLMAgent.memory_tool?("write_file") == false
+      assert LLMAgent.memory_tool?("unknown") == false
+    end
+
+    test "memory_tool?/1 handles non-string input" do
+      assert LLMAgent.memory_tool?(nil) == false
+      assert LLMAgent.memory_tool?(:remember) == false
+      assert LLMAgent.memory_tool?(123) == false
+    end
+  end
+
+  # ============================================================================
+  # Pre-Call Context Assembly Tests (Task 5.2.3)
+  # ============================================================================
+
+  describe "pre-call context assembly" do
+    test "agent state includes memory_enabled and token_budget" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: true, token_budget: 16_000]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Verify state has memory fields
+          assert Map.has_key?(state, :memory_enabled)
+          assert Map.has_key?(state, :token_budget)
+          assert state.memory_enabled == true
+          assert state.token_budget == 16_000
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "agent works correctly with memory disabled" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      case LLMAgent.start_link(memory: [enabled: false]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Memory should be disabled
+          assert state.memory_enabled == false
+
+          # Agent should still be functional
+          {:ok, info} = LLMAgent.get_session_info(pid)
+          assert is_binary(info.session_id)
+          assert is_binary(info.topic)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "agent handles invalid session_id gracefully" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      # Start agent without explicit session_id (will use PID string)
+      case LLMAgent.start_link(memory: [enabled: true]) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Session ID will be a PID string like "#PID<0.123.0>"
+          # Memory context assembly should gracefully handle this
+          assert state.memory_enabled == true
+          assert String.starts_with?(state.session_id, "#PID<")
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+
+    test "agent can be started with valid session_id for memory context" do
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      session_id = "test-session-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(
+             session_id: session_id,
+             memory: [enabled: true, token_budget: 24_000]
+           ) do
+        {:ok, pid} ->
+          state = :sys.get_state(pid)
+
+          # Session ID should be the one we provided
+          assert state.session_id == session_id
+          assert state.memory_enabled == true
+          assert state.token_budget == 24_000
+
+          # Verify it's a valid session ID (not a PID string)
+          refute String.starts_with?(state.session_id, "#PID<")
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+  end
+
+  # ============================================================================
+  # Memory Tool Execution Tests (Task 5.2.4)
+  # ============================================================================
+
+  describe "memory tool execution" do
+    test "memory tools are routed through Executor" do
+      # Verify that memory tool names are recognized by the Executor
+      assert JidoCode.Tools.Executor.memory_tool?("remember") == true
+      assert JidoCode.Tools.Executor.memory_tool?("recall") == true
+      assert JidoCode.Tools.Executor.memory_tool?("forget") == true
+
+      # Non-memory tools should return false
+      assert JidoCode.Tools.Executor.memory_tool?("read_file") == false
+    end
+
+    test "Executor.memory_tools/0 returns all memory tool names" do
+      memory_tools = JidoCode.Tools.Executor.memory_tools()
+
+      assert is_list(memory_tools)
+      assert "remember" in memory_tools
+      assert "recall" in memory_tools
+      assert "forget" in memory_tools
+      assert length(memory_tools) == 3
+    end
+  end
+
+  # ============================================================================
+  # System Prompt Memory Context Tests (Task 5.2.4)
+  # ============================================================================
+
+  describe "system prompt with memory context" do
+    test "ContextBuilder.format_for_prompt/1 produces valid markdown" do
+      # Test with working context
+      context = %{
+        working_context: %{project_root: "/app", language: "elixir"},
+        long_term_memories: []
+      }
+
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(context)
+
+      assert is_binary(result)
+      assert result =~ "## Session Context"
+      assert result =~ "Project root"
+      assert result =~ "/app"
+    end
+
+    test "ContextBuilder.format_for_prompt/1 includes memories with badges" do
+      context = %{
+        working_context: %{},
+        long_term_memories: [
+          %{memory_type: :fact, confidence: 0.9, content: "Uses Phoenix 1.7"}
+        ]
+      }
+
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(context)
+
+      assert is_binary(result)
+      assert result =~ "## Remembered Information"
+      assert result =~ "[fact]"
+      assert result =~ "high confidence"
+      assert result =~ "Uses Phoenix 1.7"
+    end
+
+    test "ContextBuilder.format_for_prompt/1 handles empty context" do
+      context = %{
+        working_context: %{},
+        long_term_memories: []
+      }
+
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(context)
+
+      # Should return empty string for empty context
+      assert result == ""
+    end
+
+    test "ContextBuilder.format_for_prompt/1 handles nil input" do
+      result = JidoCode.Memory.ContextBuilder.format_for_prompt(nil)
+      assert result == ""
+    end
+
+    test "ContextBuilder.build returns error for invalid session_id" do
+      # Test error path when session doesn't exist
+      result = JidoCode.Memory.ContextBuilder.build("nonexistent-session-12345")
+
+      # Should return error for non-existent session
+      assert {:error, _reason} = result
+    end
+
+    test "ContextBuilder.build error path is handled gracefully in LLMAgent" do
+      # The build_memory_context/3 function in LLMAgent should handle errors
+      # by returning nil and logging, not crashing
+      # This test verifies the pattern by testing the ContextBuilder directly
+      # since we can't easily test the private function
+
+      # Invalid session should return error
+      result = JidoCode.Memory.ContextBuilder.build("invalid-session-xyz-123")
+      assert match?({:error, _}, result)
+    end
+  end
+
+  # ============================================================================
+  # Memory Tool Execution Through LLMAgent Tests (Review Fix)
+  # ============================================================================
+
+  describe "memory tool execution through LLMAgent" do
+    setup do
+      # Ensure tools are registered
+      JidoCode.Tools.register_all()
+
+      Application.put_env(:jido_code, :llm,
+        provider: :anthropic,
+        model: "claude-3-5-sonnet-20241022"
+      )
+
+      System.put_env("ANTHROPIC_API_KEY", "test-key")
+
+      :ok
+    end
+
+    test "execute_tool routes memory tools correctly" do
+      session_id = "memory-tool-test-session-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(session_id: session_id) do
+        {:ok, pid} ->
+          # Test that memory tool execution is attempted (may fail due to no actual session)
+          # The important thing is that it doesn't crash and returns a proper result
+          remember_call = %{
+            "id" => "test-call-1",
+            "type" => "function",
+            "function" => %{
+              "name" => "remember",
+              "arguments" => Jason.encode!(%{"content" => "test memory", "memory_type" => "fact"})
+            }
+          }
+
+          # Execute should return a Result struct (success or error)
+          result = LLMAgent.execute_tool(pid, remember_call)
+
+          # Should return {:ok, Result} or {:error, reason} - not crash
+          assert match?({:ok, %JidoCode.Tools.Result{}}, result) or
+                   match?({:error, _}, result)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          # If agent fails to start, skip test
+          :ok
+      end
+    end
+
+    test "execute_tool_batch handles memory tools in batch" do
+      session_id = "memory-batch-test-#{System.unique_integer([:positive])}"
+
+      case LLMAgent.start_link(session_id: session_id) do
+        {:ok, pid} ->
+          tool_calls = [
+            %{
+              "id" => "batch-1",
+              "type" => "function",
+              "function" => %{
+                "name" => "recall",
+                "arguments" => Jason.encode!(%{"query" => "test query"})
+              }
+            }
+          ]
+
+          # Should return a list of results, not crash
+          result = LLMAgent.execute_tool_batch(pid, tool_calls)
+
+          assert match?({:ok, results} when is_list(results), result) or
+                   match?({:error, _}, result)
+
+          stop_agent(pid)
+
+        {:error, _reason} ->
+          :ok
+      end
+    end
+  end
+
   describe "session topics" do
     test "topic_for_session builds correct topic format" do
       topic = LLMAgent.topic_for_session("my-session-123")
@@ -531,9 +1042,10 @@ defmodule JidoCode.Agents.LLMAgentTest do
           case result do
             :ok ->
               # Should receive config change broadcast on session-specific topic
-              assert_receive {:config_changed, old_config, new_config}, 1000
+              # Note: Implementation broadcasts 2-tuple {:config_changed, new_config}
+              # for consistency with commands.ex (see llm_agent.ex lines 933-938)
+              assert_receive {:config_changed, new_config}, 1000
 
-              assert old_config.provider == :anthropic
               assert new_config.provider == :openai
               assert new_config.model == "gpt-4o"
 

@@ -47,8 +47,9 @@ defmodule JidoCode.MixProject do
   defp deps do
     [
       # Core dependencies
-      {:jido, "~> 1.2"},
+      {:jido, path: "../jido", override: true},
       {:jido_ai, path: "../jido_ai"},
+      {:req_llm, git: "https://github.com/agentjido/req_llm.git", branch: "main", override: true},
       {:term_ui, "~> 0.2.0"},
       {:phoenix_pubsub, "~> 2.1"},
       {:jason, "~> 1.4"},
@@ -56,7 +57,8 @@ defmodule JidoCode.MixProject do
       # Lua sandbox for tool execution
       {:luerl, "~> 1.2"},
 
-      # Knowledge graph
+      # Knowledge graph / Triple store
+      {:triple_store, path: "../../triple_store"},
       {:rdf, "~> 2.0"},
       {:libgraph, "~> 0.16"},
 

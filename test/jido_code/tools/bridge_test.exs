@@ -942,5 +942,310 @@ defmodule JidoCode.Tools.BridgeTest do
       assert is_binary(error)
       assert error =~ "Security error"
     end
+
+    test "git works from Lua", %{tmp_dir: tmp_dir} do
+      # Initialize a git repo for testing
+      System.cmd("git", ["init"], cd: tmp_dir)
+
+      lua_state = :luerl.init()
+      lua_state = Bridge.register(lua_state, tmp_dir)
+
+      # git returns a table - verify it returns without error
+      {:ok, result, _state} = :luerl.do(~s[return jido.git("status")], lua_state)
+      # The function returns a value
+      assert length(result) == 1
+    end
+  end
+
+  # ============================================================================
+  # Git Bridge Function Tests
+  # ============================================================================
+
+  describe "lua_git/3" do
+    setup %{tmp_dir: tmp_dir} do
+      # Initialize a git repo for testing
+      System.cmd("git", ["init"], cd: tmp_dir)
+      System.cmd("git", ["config", "user.email", "test@test.com"], cd: tmp_dir)
+      System.cmd("git", ["config", "user.name", "Test User"], cd: tmp_dir)
+
+      {:ok, tmp_dir: tmp_dir}
+    end
+
+    test "runs git status", %{tmp_dir: tmp_dir} do
+      {[result], _state} = Bridge.lua_git(["status"], :luerl.init(), tmp_dir)
+
+      assert is_list(result)
+      assert {"output", output} = List.keyfind(result, "output", 0)
+      assert {"exit_code", 0} = List.keyfind(result, "exit_code", 0)
+      assert is_binary(output)
+    end
+
+    test "runs git log with arguments", %{tmp_dir: tmp_dir} do
+      # Create a file and commit it
+      File.write!(Path.join(tmp_dir, "test.txt"), "test content")
+      System.cmd("git", ["add", "."], cd: tmp_dir)
+      System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+
+      args_table = [{1, "-1"}, {2, "--oneline"}]
+      {[result], _state} = Bridge.lua_git(["log", args_table], :luerl.init(), tmp_dir)
+
+      assert {"output", output} = List.keyfind(result, "output", 0)
+      assert {"exit_code", 0} = List.keyfind(result, "exit_code", 0)
+      assert output =~ "Initial commit"
+    end
+
+    test "runs git diff", %{tmp_dir: tmp_dir} do
+      {[result], _state} = Bridge.lua_git(["diff"], :luerl.init(), tmp_dir)
+
+      assert {"exit_code", 0} = List.keyfind(result, "exit_code", 0)
+    end
+
+    test "runs git branch", %{tmp_dir: tmp_dir} do
+      # Need at least one commit to have a branch
+      File.write!(Path.join(tmp_dir, "test.txt"), "test content")
+      System.cmd("git", ["add", "."], cd: tmp_dir)
+      System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+
+      {[result], _state} = Bridge.lua_git(["branch"], :luerl.init(), tmp_dir)
+
+      assert {"output", output} = List.keyfind(result, "output", 0)
+      assert {"exit_code", 0} = List.keyfind(result, "exit_code", 0)
+      # Should contain the default branch
+      assert output =~ "main" or output =~ "master"
+    end
+
+    test "blocks disallowed subcommands", %{tmp_dir: tmp_dir} do
+      {[nil, error], _state} = Bridge.lua_git(["gc"], :luerl.init(), tmp_dir)
+
+      assert error =~ "'gc' is not allowed"
+    end
+
+    test "blocks force push by default", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "--force"}, {2, "origin"}, {3, "main"}]
+      {[nil, error], _state} = Bridge.lua_git(["push", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "destructive operation blocked"
+      assert error =~ "allow_destructive"
+    end
+
+    test "blocks hard reset by default", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "--hard"}, {2, "HEAD~1"}]
+      {[nil, error], _state} = Bridge.lua_git(["reset", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "destructive operation blocked"
+    end
+
+    test "allows force push with allow_destructive option", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "--force"}, {2, "origin"}, {3, "main"}]
+      opts_table = [{"allow_destructive", true}]
+
+      # This will fail (no remote) but should not be blocked
+      {[result], _state} = Bridge.lua_git(["push", args_table, opts_table], :luerl.init(), tmp_dir)
+
+      # Should get a git error about remote, not a security block
+      assert {"exit_code", exit_code} = List.keyfind(result, "exit_code", 0)
+      # Non-zero exit is expected (no remote configured)
+      assert exit_code != 0
+
+      assert {"output", output} = List.keyfind(result, "output", 0)
+      # Should be a git error, not our security block
+      refute output =~ "destructive operation blocked"
+    end
+
+    test "blocks path traversal in arguments", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "../../../etc/passwd"}]
+      {[nil, error], _state} = Bridge.lua_git(["add", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "Security error"
+      assert error =~ "path traversal"
+    end
+
+    test "blocks absolute paths outside project", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "/etc/passwd"}]
+      {[nil, error], _state} = Bridge.lua_git(["add", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "Security error"
+      assert error =~ "absolute path outside project"
+    end
+
+    test "blocks path traversal in flag values (--flag=../path)", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "--path=../../../etc/passwd"}]
+      {[nil, error], _state} = Bridge.lua_git(["checkout", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "Security error"
+      assert error =~ "path traversal"
+    end
+
+    test "blocks absolute paths in flag values (--flag=/etc/passwd)", %{tmp_dir: tmp_dir} do
+      args_table = [{1, "--worktree=/etc/passwd"}]
+      {[nil, error], _state} = Bridge.lua_git(["status", args_table], :luerl.init(), tmp_dir)
+
+      assert error =~ "Security error"
+      assert error =~ "absolute path outside project"
+    end
+
+    test "allows flag values with project paths", %{tmp_dir: tmp_dir} do
+      # Create a file and commit so we have something to work with
+      File.write!(Path.join(tmp_dir, "test.txt"), "test content")
+      System.cmd("git", ["add", "."], cd: tmp_dir)
+      System.cmd("git", ["commit", "-m", "Initial commit"], cd: tmp_dir)
+
+      # --format with a safe value should work
+      args_table = [{1, "--format=%H"}]
+      {[result], _state} = Bridge.lua_git(["log", args_table], :luerl.init(), tmp_dir)
+
+      # Should execute successfully
+      assert {"exit_code", 0} = List.keyfind(result, "exit_code", 0)
+    end
+
+    test "returns error for missing subcommand", %{tmp_dir: tmp_dir} do
+      {[nil, error], _state} = Bridge.lua_git([], :luerl.init(), tmp_dir)
+
+      assert error =~ "git requires a subcommand"
+    end
+
+    test "returns error for invalid args format", %{tmp_dir: tmp_dir} do
+      {[nil, error], _state} = Bridge.lua_git([123], :luerl.init(), tmp_dir)
+
+      assert error =~ "git requires a subcommand string"
+    end
+  end
+
+  # ============================================================================
+  # Git Output Parser Tests
+  # ============================================================================
+
+  describe "parse_git_status/1" do
+    test "parses staged files" do
+      output = "M  lib/module.ex\nA  lib/new.ex\n"
+      result = Bridge.parse_git_status(output)
+
+      assert {"staged", staged} = List.keyfind(result, "staged", 0)
+      staged_files = Enum.map(staged, fn {_, file} -> file end)
+      assert "lib/module.ex" in staged_files
+      assert "lib/new.ex" in staged_files
+    end
+
+    test "parses unstaged files" do
+      output = " M lib/module.ex\n D lib/deleted.ex\n"
+      result = Bridge.parse_git_status(output)
+
+      assert {"unstaged", unstaged} = List.keyfind(result, "unstaged", 0)
+      unstaged_files = Enum.map(unstaged, fn {_, file} -> file end)
+      assert "lib/module.ex" in unstaged_files
+      assert "lib/deleted.ex" in unstaged_files
+    end
+
+    test "parses untracked files" do
+      output = "?? new_file.ex\n?? another.ex\n"
+      result = Bridge.parse_git_status(output)
+
+      assert {"untracked", untracked} = List.keyfind(result, "untracked", 0)
+      untracked_files = Enum.map(untracked, fn {_, file} -> file end)
+      assert "new_file.ex" in untracked_files
+      assert "another.ex" in untracked_files
+    end
+
+    test "handles empty output" do
+      result = Bridge.parse_git_status("")
+
+      assert {"staged", []} = List.keyfind(result, "staged", 0)
+      assert {"unstaged", []} = List.keyfind(result, "unstaged", 0)
+      assert {"untracked", []} = List.keyfind(result, "untracked", 0)
+    end
+  end
+
+  describe "parse_git_log/1" do
+    test "parses oneline format" do
+      output = "abc1234 First commit\ndef5678 Second commit\n"
+      result = Bridge.parse_git_log(output)
+
+      assert {"commits", commits} = List.keyfind(result, "commits", 0)
+      assert length(commits) == 2
+
+      {1, first} = Enum.find(commits, fn {idx, _} -> idx == 1 end)
+      assert {"hash", "abc1234"} = List.keyfind(first, "hash", 0)
+      assert {"message", "First commit"} = List.keyfind(first, "message", 0)
+    end
+
+    test "handles empty output" do
+      result = Bridge.parse_git_log("")
+
+      assert {"commits", []} = List.keyfind(result, "commits", 0)
+    end
+  end
+
+  describe "parse_git_branch/1" do
+    test "parses branch list with current marker" do
+      output = "  develop\n* main\n  feature/test\n"
+      result = Bridge.parse_git_branch(output)
+
+      assert {"branches", branches} = List.keyfind(result, "branches", 0)
+      assert length(branches) == 3
+
+      # Find main branch and verify it's marked as current
+      main_entry = Enum.find(branches, fn {_, branch} ->
+        {"name", "main"} in branch
+      end)
+      assert main_entry
+      {_, main} = main_entry
+      assert {"current", true} = List.keyfind(main, "current", 0)
+
+      # Find develop and verify it's not current
+      develop_entry = Enum.find(branches, fn {_, branch} ->
+        {"name", "develop"} in branch
+      end)
+      assert develop_entry
+      {_, develop} = develop_entry
+      assert {"current", false} = List.keyfind(develop, "current", 0)
+    end
+  end
+
+  describe "parse_git_diff/1" do
+    test "parses diff --stat format" do
+      output = " lib/module.ex | 10 ++++-----\n lib/other.ex | 5 ++---\n"
+      result = Bridge.parse_git_diff(output)
+
+      assert {"files", files} = List.keyfind(result, "files", 0)
+      assert length(files) == 2
+
+      # First file entry
+      {1, first} = Enum.find(files, fn {idx, _} -> idx == 1 end)
+      assert {"path", "lib/module.ex"} = List.keyfind(first, "path", 0)
+      assert {"additions", 4} = List.keyfind(first, "additions", 0)
+      assert {"deletions", 5} = List.keyfind(first, "deletions", 0)
+
+      # Second file entry
+      {2, second} = Enum.find(files, fn {idx, _} -> idx == 2 end)
+      assert {"path", "lib/other.ex"} = List.keyfind(second, "path", 0)
+      assert {"additions", 2} = List.keyfind(second, "additions", 0)
+      assert {"deletions", 3} = List.keyfind(second, "deletions", 0)
+    end
+
+    test "parses diff header format" do
+      output = "diff --git a/lib/module.ex b/lib/module.ex\n--- a/lib/module.ex\n+++ b/lib/module.ex\n"
+      result = Bridge.parse_git_diff(output)
+
+      assert {"files", files} = List.keyfind(result, "files", 0)
+      # Only the diff header line should be parsed, not the --- and +++ lines
+      assert length(files) == 1
+
+      {1, first} = Enum.find(files, fn {idx, _} -> idx == 1 end)
+      assert {"path", "lib/module.ex"} = List.keyfind(first, "path", 0)
+    end
+
+    test "handles empty output" do
+      result = Bridge.parse_git_diff("")
+
+      assert {"files", []} = List.keyfind(result, "files", 0)
+    end
+
+    test "ignores non-matching lines" do
+      output = "Some random text\n lib/module.ex | 5 +++++\nMore random text\n"
+      result = Bridge.parse_git_diff(output)
+
+      assert {"files", files} = List.keyfind(result, "files", 0)
+      assert length(files) == 1
+    end
   end
 end

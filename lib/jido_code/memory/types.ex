@@ -18,8 +18,10 @@ defmodule JidoCode.Memory.Types do
 
   ## Jido Ontology Alignment
 
-  Types in this module correspond to Jido ontology classes:
+  Types in this module correspond to Jido ontology classes defined in
+  `lib/ontology/long-term-context/*.ttl`:
 
+  ### Knowledge Types (jido-knowledge.ttl)
   | Elixir Type              | Jido Ontology Class           |
   |--------------------------|-------------------------------|
   | `:fact`                  | `jido:Fact`                   |
@@ -28,10 +30,33 @@ defmodule JidoCode.Memory.Types do
   | `:discovery`             | `jido:Discovery`              |
   | `:risk`                  | `jido:Risk`                   |
   | `:unknown`               | `jido:Unknown`                |
+
+  ### Decision Types (jido-decision.ttl)
+  | Elixir Type              | Jido Ontology Class           |
+  |--------------------------|-------------------------------|
   | `:decision`              | `jido:Decision`               |
   | `:architectural_decision`| `jido:ArchitecturalDecision`  |
+  | `:implementation_decision`| `jido:ImplementationDecision`|
+  | `:alternative`           | `jido:Alternative`            |
+  | `:trade_off`             | `jido:TradeOff`               |
+
+  ### Convention Types (jido-convention.ttl)
+  | Elixir Type              | Jido Ontology Class           |
+  |--------------------------|-------------------------------|
   | `:convention`            | `jido:Convention`             |
   | `:coding_standard`       | `jido:CodingStandard`         |
+  | `:architectural_convention`| `jido:ArchitecturalConvention`|
+  | `:agent_rule`            | `jido:AgentRule`              |
+  | `:process_convention`    | `jido:ProcessConvention`      |
+
+  ### Error Types (jido-error.ttl)
+  | Elixir Type              | Jido Ontology Class           |
+  |--------------------------|-------------------------------|
+  | `:error`                 | `jido:Error`                  |
+  | `:bug`                   | `jido:Bug`                    |
+  | `:failure`               | `jido:Failure`                |
+  | `:incident`              | `jido:Incident`               |
+  | `:root_cause`            | `jido:RootCause`              |
   | `:lesson_learned`        | `jido:LessonLearned`          |
 
   ## Confidence Level Mapping
@@ -55,29 +80,62 @@ defmodule JidoCode.Memory.Types do
   @typedoc """
   Classification of memory items, mapping to Jido ontology MemoryItem subclasses.
 
+  ## Knowledge Types (jido-knowledge.ttl)
   - `:fact` - Verified, objective information about the project or codebase
   - `:assumption` - Inferred information that may need verification
   - `:hypothesis` - Proposed explanations or theories being tested
   - `:discovery` - Newly found information worth remembering
   - `:risk` - Potential issues or concerns identified
   - `:unknown` - Information gaps that need investigation
+
+  ## Decision Types (jido-decision.ttl)
   - `:decision` - Choices made with their rationale
   - `:architectural_decision` - Significant architectural choices with rationale
+  - `:implementation_decision` - Low-to-medium level implementation choices
+  - `:alternative` - Considered options not selected
+  - `:trade_off` - Compromise relationships between competing goals
+
+  ## Convention Types (jido-convention.ttl)
   - `:convention` - Established patterns or standards to follow
   - `:coding_standard` - Specific coding practices and style guidelines
+  - `:architectural_convention` - Architectural patterns and structure standards
+  - `:agent_rule` - Rules governing agent behavior
+  - `:process_convention` - Workflow and process conventions
+
+  ## Error Types (jido-error.ttl)
+  - `:error` - General development or execution errors
+  - `:bug` - Code defects
+  - `:failure` - System-level failures
+  - `:incident` - Operational incidents
+  - `:root_cause` - Underlying causes of errors
   - `:lesson_learned` - Insights gained from past experiences
   """
   @type memory_type ::
+          # Knowledge types
           :fact
           | :assumption
           | :hypothesis
           | :discovery
           | :risk
           | :unknown
+          # Decision types
           | :decision
           | :architectural_decision
+          | :implementation_decision
+          | :alternative
+          | :trade_off
+          # Convention types
           | :convention
           | :coding_standard
+          | :architectural_convention
+          | :agent_rule
+          | :process_convention
+          # Error types
+          | :error
+          | :bug
+          | :failure
+          | :incident
+          | :root_cause
           | :lesson_learned
 
   @typedoc """
@@ -100,6 +158,80 @@ defmodule JidoCode.Memory.Types do
   @type source_type :: :user | :agent | :tool | :external_document
 
   @typedoc """
+  Relationships between memory items, matching Jido ontology properties.
+
+  ## Knowledge Relationships
+  - `:refines` - Memory refines/elaborates another
+  - `:confirms` - Memory confirms/validates another
+  - `:contradicts` - Memory contradicts another
+
+  ## Decision Relationships
+  - `:has_alternative` - Decision has an alternative option
+  - `:selected_alternative` - Decision selected this alternative
+  - `:has_trade_off` - Decision involves a trade-off
+  - `:justified_by` - Decision justified by evidence/rationale
+
+  ## Error Relationships
+  - `:has_root_cause` - Error has an identified root cause
+  - `:produced_lesson` - Error produced a lesson learned
+  - `:related_error` - Error related to another error
+
+  ## General Relationships
+  - `:superseded_by` - Memory superseded by newer version
+  - `:derived_from` - Memory derived from another
+  """
+  @type relationship ::
+          :refines
+          | :confirms
+          | :contradicts
+          | :has_alternative
+          | :selected_alternative
+          | :has_trade_off
+          | :justified_by
+          | :has_root_cause
+          | :produced_lesson
+          | :related_error
+          | :superseded_by
+          | :derived_from
+
+  @typedoc """
+  Scope of a convention, matching Jido ConventionScope individuals.
+
+  - `:global` - Convention applies to all projects/sessions
+  - `:project` - Convention applies to a specific project
+  - `:agent` - Convention applies to a specific agent instance
+  """
+  @type convention_scope :: :global | :project | :agent
+
+  @typedoc """
+  Enforcement level of a convention, matching Jido EnforcementLevel individuals.
+
+  - `:advisory` - Convention is recommended but not enforced
+  - `:required` - Convention should be followed
+  - `:strict` - Convention must be followed, violations are errors
+  """
+  @type enforcement_level :: :advisory | :required | :strict
+
+  @typedoc """
+  Status of an error, matching Jido ErrorStatus individuals.
+
+  - `:reported` - Error has been reported
+  - `:investigating` - Error is being investigated
+  - `:resolved` - Error has been resolved
+  - `:deferred` - Error resolution deferred
+  """
+  @type error_status :: :reported | :investigating | :resolved | :deferred
+
+  @typedoc """
+  Strength of evidence, matching Jido EvidenceStrength individuals.
+
+  - `:weak` - Evidence is weak/circumstantial
+  - `:moderate` - Evidence is moderately strong
+  - `:strong` - Evidence is strong/conclusive
+  """
+  @type evidence_strength :: :weak | :moderate | :strong
+
+  @typedoc """
   Semantic keys for working context items.
 
   These keys represent different aspects of session context:
@@ -114,6 +246,7 @@ defmodule JidoCode.Memory.Types do
   - `:active_errors` - Current errors or issues being addressed
   - `:pending_questions` - Unresolved questions or clarifications needed
   - `:file_relationships` - Dependencies or relationships between files
+  - `:conversation_summary` - Cached summarized conversation (internal use)
   """
   @type context_key ::
           :active_file
@@ -126,6 +259,7 @@ defmodule JidoCode.Memory.Types do
           | :active_errors
           | :pending_questions
           | :file_relationships
+          | :conversation_summary
 
   @typedoc """
   A memory item staged for potential promotion to long-term storage.
@@ -172,6 +306,41 @@ defmodule JidoCode.Memory.Types do
           timestamp: DateTime.t(),
           access_type: :read | :write | :query
         }
+
+  @typedoc """
+  A conversation message used in chat history and context building.
+
+  ## Fields
+
+  - `role` - The role of the message sender (user, assistant, system, tool)
+  - `content` - The message content (may be nil for some message types)
+  - `timestamp` - When the message was created (optional)
+  - `id` - Unique identifier for the message (optional)
+
+  ## Known Roles
+
+  - `:user` - Message from the user
+  - `:assistant` - Response from the AI assistant
+  - `:system` - System instructions or context
+  - `:tool` - Output from tool execution
+
+  Other roles may be used for extensibility.
+  """
+  @type message :: %{
+          required(:role) => atom(),
+          required(:content) => String.t() | nil,
+          optional(:timestamp) => DateTime.t(),
+          optional(:id) => String.t()
+        }
+
+  @doc """
+  Returns the summary cache key atom for internal use.
+
+  This is used by ContextBuilder to store cached conversation summaries
+  in the working context. Exposed here to make the coupling explicit.
+  """
+  @spec summary_cache_key() :: context_key()
+  def summary_cache_key, do: :conversation_summary
 
   # =============================================================================
   # Helper Functions
@@ -235,23 +404,51 @@ defmodule JidoCode.Memory.Types do
   # Type Validation Helpers
   # =============================================================================
 
-  @memory_types [
-    :fact,
-    :assumption,
-    :hypothesis,
-    :discovery,
-    :risk,
-    :unknown,
-    :decision,
-    :architectural_decision,
-    :convention,
-    :coding_standard,
-    :lesson_learned
-  ]
+  # Knowledge types from jido-knowledge.ttl
+  @knowledge_types [:fact, :assumption, :hypothesis, :discovery, :risk, :unknown]
+
+  # Decision types from jido-decision.ttl
+  @decision_types [:decision, :architectural_decision, :implementation_decision, :alternative, :trade_off]
+
+  # Convention types from jido-convention.ttl
+  @convention_types [:convention, :coding_standard, :architectural_convention, :agent_rule, :process_convention]
+
+  # Error types from jido-error.ttl
+  @error_types [:error, :bug, :failure, :incident, :root_cause, :lesson_learned]
+
+  @memory_types @knowledge_types ++ @decision_types ++ @convention_types ++ @error_types
 
   @confidence_levels [:high, :medium, :low]
 
   @source_types [:user, :agent, :tool, :external_document]
+
+  # Relationship types from ontology properties
+  @relationships [
+    :refines,
+    :confirms,
+    :contradicts,
+    :has_alternative,
+    :selected_alternative,
+    :has_trade_off,
+    :justified_by,
+    :has_root_cause,
+    :produced_lesson,
+    :related_error,
+    :superseded_by,
+    :derived_from
+  ]
+
+  # Convention scope individuals from jido-convention.ttl
+  @convention_scopes [:global, :project, :agent]
+
+  # Enforcement level individuals from jido-convention.ttl
+  @enforcement_levels [:advisory, :required, :strict]
+
+  # Error status individuals from jido-error.ttl
+  @error_statuses [:reported, :investigating, :resolved, :deferred]
+
+  # Evidence strength individuals from jido-knowledge.ttl
+  @evidence_strengths [:weak, :moderate, :strong]
 
   @context_keys [
     :active_file,
@@ -263,7 +460,8 @@ defmodule JidoCode.Memory.Types do
     :discovered_patterns,
     :active_errors,
     :pending_questions,
-    :file_relationships
+    :file_relationships,
+    :conversation_summary
   ]
 
   @doc """
@@ -291,6 +489,62 @@ defmodule JidoCode.Memory.Types do
   def context_keys, do: @context_keys
 
   @doc """
+  Returns all valid relationships.
+  """
+  @spec relationships() :: [relationship()]
+  def relationships, do: @relationships
+
+  @doc """
+  Returns all valid convention scopes.
+  """
+  @spec convention_scopes() :: [convention_scope()]
+  def convention_scopes, do: @convention_scopes
+
+  @doc """
+  Returns all valid enforcement levels.
+  """
+  @spec enforcement_levels() :: [enforcement_level()]
+  def enforcement_levels, do: @enforcement_levels
+
+  @doc """
+  Returns all valid error statuses.
+  """
+  @spec error_statuses() :: [error_status()]
+  def error_statuses, do: @error_statuses
+
+  @doc """
+  Returns all valid evidence strengths.
+  """
+  @spec evidence_strengths() :: [evidence_strength()]
+  def evidence_strengths, do: @evidence_strengths
+
+  # Memory type category helpers
+
+  @doc """
+  Returns knowledge types (from jido-knowledge.ttl).
+  """
+  @spec knowledge_types() :: [memory_type()]
+  def knowledge_types, do: @knowledge_types
+
+  @doc """
+  Returns decision types (from jido-decision.ttl).
+  """
+  @spec decision_types() :: [memory_type()]
+  def decision_types, do: @decision_types
+
+  @doc """
+  Returns convention types (from jido-convention.ttl).
+  """
+  @spec convention_types() :: [memory_type()]
+  def convention_types, do: @convention_types
+
+  @doc """
+  Returns error types (from jido-error.ttl).
+  """
+  @spec error_memory_types() :: [memory_type()]
+  def error_memory_types, do: @error_types
+
+  @doc """
   Checks if a value is a valid memory type.
   """
   @spec valid_memory_type?(term()) :: boolean()
@@ -313,6 +567,60 @@ defmodule JidoCode.Memory.Types do
   """
   @spec valid_context_key?(term()) :: boolean()
   def valid_context_key?(key), do: key in @context_keys
+
+  @doc """
+  Checks if a value is a valid relationship.
+  """
+  @spec valid_relationship?(term()) :: boolean()
+  def valid_relationship?(rel), do: rel in @relationships
+
+  @doc """
+  Checks if a value is a valid convention scope.
+  """
+  @spec valid_convention_scope?(term()) :: boolean()
+  def valid_convention_scope?(scope), do: scope in @convention_scopes
+
+  @doc """
+  Checks if a value is a valid enforcement level.
+  """
+  @spec valid_enforcement_level?(term()) :: boolean()
+  def valid_enforcement_level?(level), do: level in @enforcement_levels
+
+  @doc """
+  Checks if a value is a valid error status.
+  """
+  @spec valid_error_status?(term()) :: boolean()
+  def valid_error_status?(status), do: status in @error_statuses
+
+  @doc """
+  Checks if a value is a valid evidence strength.
+  """
+  @spec valid_evidence_strength?(term()) :: boolean()
+  def valid_evidence_strength?(strength), do: strength in @evidence_strengths
+
+  @doc """
+  Checks if a memory type is a knowledge type.
+  """
+  @spec knowledge_type?(term()) :: boolean()
+  def knowledge_type?(type), do: type in @knowledge_types
+
+  @doc """
+  Checks if a memory type is a decision type.
+  """
+  @spec decision_type?(term()) :: boolean()
+  def decision_type?(type), do: type in @decision_types
+
+  @doc """
+  Checks if a memory type is a convention type.
+  """
+  @spec convention_type?(term()) :: boolean()
+  def convention_type?(type), do: type in @convention_types
+
+  @doc """
+  Checks if a memory type is an error type.
+  """
+  @spec error_type?(term()) :: boolean()
+  def error_type?(type), do: type in @error_types
 
   # =============================================================================
   # Session ID Validation
@@ -365,6 +673,46 @@ defmodule JidoCode.Memory.Types do
   """
   @spec max_session_id_length() :: pos_integer()
   def max_session_id_length, do: @max_session_id_length
+
+  # =============================================================================
+  # Session Memory Limits
+  # =============================================================================
+
+  # Maximum memories per session to prevent unbounded memory consumption.
+  # This protects against runaway agents or malicious actors creating
+  # excessive memories that could exhaust system resources.
+  @default_max_memories_per_session 10_000
+
+  @doc """
+  Returns the default maximum number of memories allowed per session (10,000).
+
+  This limit prevents unbounded memory growth from runaway agents or abuse.
+  When exceeded, new memory creation will fail with `:session_memory_limit_exceeded`.
+  """
+  @spec default_max_memories_per_session() :: pos_integer()
+  def default_max_memories_per_session, do: @default_max_memories_per_session
+
+  # =============================================================================
+  # Promotion Constants
+  # =============================================================================
+
+  @default_promotion_threshold 0.6
+  @default_max_promotions_per_run 20
+
+  @doc """
+  Returns the default promotion threshold (0.6).
+
+  Items with importance scores at or above this threshold are candidates
+  for promotion to long-term storage.
+  """
+  @spec default_promotion_threshold() :: float()
+  def default_promotion_threshold, do: @default_promotion_threshold
+
+  @doc """
+  Returns the default maximum promotions per run (20).
+  """
+  @spec default_max_promotions_per_run() :: pos_integer()
+  def default_max_promotions_per_run, do: @default_max_promotions_per_run
 
   # =============================================================================
   # Utility Functions

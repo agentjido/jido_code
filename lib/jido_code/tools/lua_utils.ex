@@ -260,4 +260,121 @@ defmodule JidoCode.Tools.LuaUtils do
   end
 
   def encode_value(other), do: inspect(other)
+
+  # ============================================================================
+  # Git Result Decoding
+  # ============================================================================
+
+  @doc """
+  Decodes a git command result from Lua table format to Elixir map.
+
+  Git results contain:
+  - `"output"` - Command output string
+  - `"parsed"` - Parsed structured data (optional)
+  - `"exit_code"` - Exit code as float (converted to integer)
+
+  ## Parameters
+
+  - `result` - The Lua table result (list of tuples or table reference)
+  - `lua_state` - The Luerl state for decoding table references
+
+  ## Returns
+
+  A map with atom keys: `%{output: string, parsed: map, exit_code: integer}`
+
+  ## Examples
+
+      iex> LuaUtils.decode_git_result([{"output", "..."}, {"exit_code", 0.0}], state)
+      %{output: "...", exit_code: 0}
+  """
+  @spec decode_git_result(list() | {:tref, term()}, term()) :: map()
+  def decode_git_result(result, lua_state) when is_list(result) do
+    result
+    |> Enum.reduce(%{}, fn
+      {"output", output}, acc -> Map.put(acc, :output, output)
+      {"parsed", parsed}, acc -> Map.put(acc, :parsed, decode_lua_table(parsed, lua_state))
+      {"exit_code", code}, acc -> Map.put(acc, :exit_code, trunc(code))
+      _, acc -> acc
+    end)
+  end
+
+  def decode_git_result({:tref, _} = tref, lua_state) do
+    decoded = :luerl.decode(tref, lua_state)
+    decode_git_result(decoded, lua_state)
+  end
+
+  def decode_git_result(other, _lua_state), do: other
+
+  @doc """
+  Decodes a Lua table to an Elixir map or list.
+
+  Handles:
+  - Tables with string keys → Elixir map with atom keys
+  - Tables with integer keys → Elixir list (sorted by key)
+  - Table references → Decoded and processed recursively
+
+  ## Parameters
+
+  - `table` - The Lua table (list of tuples or table reference)
+  - `lua_state` - The Luerl state for decoding table references
+
+  ## Returns
+
+  A map, list, or the original value if not a table.
+  """
+  @spec decode_lua_table(term(), term()) :: term()
+  def decode_lua_table({:tref, _} = tref, lua_state) do
+    decoded = :luerl.decode(tref, lua_state)
+    decode_lua_table(decoded, lua_state)
+  end
+
+  def decode_lua_table(table, lua_state) when is_list(table) do
+    cond do
+      # Empty table
+      table == [] ->
+        %{}
+
+      # Table with string keys → map
+      Enum.all?(table, fn {k, _v} -> is_binary(k) end) ->
+        table
+        |> Enum.reduce(%{}, fn {k, v}, acc ->
+          Map.put(acc, String.to_atom(k), decode_lua_table(v, lua_state))
+        end)
+
+      # Table with integer keys → list (array)
+      Enum.all?(table, fn {k, _v} -> is_integer(k) end) ->
+        table
+        |> Enum.sort_by(fn {k, _} -> k end)
+        |> Enum.map(fn {_, v} -> decode_lua_table(v, lua_state) end)
+
+      # Mixed or other → keep as-is
+      true ->
+        table
+    end
+  end
+
+  def decode_lua_table(value, _lua_state), do: value
+
+  @doc """
+  Builds a Lua array literal from an Elixir list.
+
+  ## Examples
+
+      iex> LuaUtils.build_lua_array(["--force", "origin", "main"])
+      "{\\"--force\\", \\"origin\\", \\"main\\"}"
+
+      iex> LuaUtils.build_lua_array([])
+      "{}"
+  """
+  @spec build_lua_array(list()) :: String.t()
+  def build_lua_array([]), do: "{}"
+
+  def build_lua_array(args) when is_list(args) do
+    items =
+      args
+      |> Enum.map(&encode_string/1)
+      |> Enum.join(", ")
+
+    "{#{items}}"
+  end
 end

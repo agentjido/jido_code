@@ -51,7 +51,7 @@ Implement the context builder that combines short-term and long-term memory for 
 
 ### 5.1.1 Context Builder Module
 
-- [ ] 5.1.1.1 Create `lib/jido_code/memory/context_builder.ex` with moduledoc:
+- [x] 5.1.1.1 Create `lib/jido_code/memory/context_builder.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Builds memory-enhanced context for LLM prompts.
@@ -64,7 +64,7 @@ Implement the context builder that combines short-term and long-term memory for 
   based on relevance and recency.
   """
   ```
-- [ ] 5.1.1.2 Define context struct type:
+- [x] 5.1.1.2 Define context struct type:
   ```elixir
   @type context :: %{
     conversation: [message()],
@@ -79,7 +79,7 @@ Implement the context builder that combines short-term and long-term memory for 
     }
   }
   ```
-- [ ] 5.1.1.3 Define default token budget:
+- [x] 5.1.1.3 Define default token budget:
   ```elixir
   @default_budget %{
     total: 32_000,
@@ -89,7 +89,7 @@ Implement the context builder that combines short-term and long-term memory for 
     long_term: 6_000
   }
   ```
-- [ ] 5.1.1.4 Implement `build/2` main function:
+- [x] 5.1.1.4 Implement `build/2` main function:
   ```elixir
   @spec build(String.t(), keyword()) :: {:ok, context()} | {:error, term()}
   def build(session_id, opts \\ []) do
@@ -104,14 +104,14 @@ Implement the context builder that combines short-term and long-term memory for 
     end
   end
   ```
-- [ ] 5.1.1.5 Implement `get_conversation/2`:
+- [x] 5.1.1.5 Implement `get_conversation/2`:
   - Retrieve messages from Session.State
   - Apply token-aware truncation (keep most recent)
   - Return within budget allocation
-- [ ] 5.1.1.6 Implement `get_working_context/1`:
+- [x] 5.1.1.6 Implement `get_working_context/1`:
   - Retrieve working context from Session.State
   - Serialize to key-value map
-- [ ] 5.1.1.7 Implement `get_relevant_memories/3`:
+- [x] 5.1.1.7 Implement `get_relevant_memories/3`:
   ```elixir
   defp get_relevant_memories(session_id, query_hint, include?) do
     if include? do
@@ -127,7 +127,7 @@ Implement the context builder that combines short-term and long-term memory for 
     end
   end
   ```
-- [ ] 5.1.1.8 Implement `assemble_context/4`:
+- [x] 5.1.1.8 Implement `assemble_context/4`:
   - Combine all components
   - Calculate token counts for each
   - Enforce budget limits with priority ordering
@@ -135,7 +135,7 @@ Implement the context builder that combines short-term and long-term memory for 
 
 ### 5.1.2 Context Formatting
 
-- [ ] 5.1.2.1 Implement `format_for_prompt/1`:
+- [x] 5.1.2.1 Implement `format_for_prompt/1`:
   ```elixir
   @spec format_for_prompt(context()) :: String.t()
   def format_for_prompt(%{working_context: working, long_term_memories: memories}) do
@@ -156,7 +156,7 @@ Implement the context builder that combines short-term and long-term memory for 
     Enum.join(Enum.reverse(parts), "\n\n")
   end
   ```
-- [ ] 5.1.2.2 Implement `format_working_context/1`:
+- [x] 5.1.2.2 Implement `format_working_context/1`:
   ```elixir
   defp format_working_context(working) do
     working
@@ -170,7 +170,7 @@ Implement the context builder that combines short-term and long-term memory for 
     key |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
   end
   ```
-- [ ] 5.1.2.3 Implement `format_memories/1`:
+- [x] 5.1.2.3 Implement `format_memories/1`:
   ```elixir
   defp format_memories(memories) do
     memories
@@ -186,25 +186,25 @@ Implement the context builder that combines short-term and long-term memory for 
   defp confidence_badge(c) when c >= 0.5, do: "(medium confidence)"
   defp confidence_badge(_), do: "(low confidence)"
   ```
-- [ ] 5.1.2.4 Include memory timestamps for recency context
+- [x] 5.1.2.4 Include memory timestamps for recency context
 
 ### 5.1.3 Unit Tests for Context Builder
 
-- [ ] Test build/2 assembles all context components
-- [ ] Test build/2 respects total token budget
-- [ ] Test build/2 with query_hint retrieves more memories
-- [ ] Test build/2 without query_hint filters by high confidence
-- [ ] Test build/2 with include_memories: false skips memory query
-- [ ] Test get_conversation/2 truncates to budget
-- [ ] Test get_conversation/2 preserves most recent messages
-- [ ] Test get_working_context/1 returns serialized map
-- [ ] Test get_relevant_memories/3 applies correct filters
-- [ ] Test assemble_context/4 calculates token counts
-- [ ] Test format_for_prompt/1 produces valid markdown
-- [ ] Test format_for_prompt/1 handles empty context gracefully
-- [ ] Test format_working_context/1 formats key-value pairs
-- [ ] Test format_memories/1 includes type and confidence badges
-- [ ] Test context handles missing session gracefully
+- [x] Test build/2 assembles all context components
+- [x] Test build/2 respects total token budget
+- [x] Test build/2 with query_hint retrieves more memories
+- [x] Test build/2 without query_hint filters by high confidence
+- [x] Test build/2 with include_memories: false skips memory query
+- [x] Test get_conversation/2 truncates to budget
+- [x] Test get_conversation/2 preserves most recent messages
+- [x] Test get_working_context/1 returns serialized map
+- [x] Test get_relevant_memories/3 applies correct filters
+- [x] Test assemble_context/4 calculates token counts
+- [x] Test format_for_prompt/1 produces valid markdown
+- [x] Test format_for_prompt/1 handles empty context gracefully
+- [x] Test format_working_context/1 formats key-value pairs
+- [x] Test format_memories/1 includes type and confidence badges
+- [x] Test context handles missing session gracefully
 
 ---
 
@@ -214,7 +214,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
 
 ### 5.2.1 Agent Initialization Updates
 
-- [ ] 5.2.1.1 Add memory configuration to agent state:
+- [x] 5.2.1.1 Add memory configuration to agent state:
   ```elixir
   @default_token_budget 32_000
 
@@ -224,7 +224,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     token_budget: @default_token_budget
   ]
   ```
-- [ ] 5.2.1.2 Update `init/1` to accept memory options:
+- [x] 5.2.1.2 Update `init/1` to accept memory options:
   ```elixir
   def init(opts) do
     memory_opts = Keyword.get(opts, :memory, [])
@@ -238,11 +238,11 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     {:ok, state}
   end
   ```
-- [ ] 5.2.1.3 Document memory configuration options in moduledoc
+- [x] 5.2.1.3 Document memory configuration options in moduledoc
 
 ### 5.2.2 Memory Tool Registration
 
-- [ ] 5.2.2.1 Add memory tools to available tools list:
+- [x] 5.2.2.1 Add memory tools to available tools list:
   ```elixir
   defp get_available_tools(state) do
     base_tools = get_base_tools()
@@ -254,23 +254,25 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     end
   end
   ```
-- [ ] 5.2.2.2 Implement helper to identify memory tools:
+- [x] 5.2.2.2 Implement helper to identify memory tools:
   ```elixir
   defp memory_tool?(name) do
     name in ["remember", "recall", "forget"]
   end
   ```
-- [ ] 5.2.2.3 Route memory tool calls to action executor:
+- [x] 5.2.2.3 Route memory tool calls to action executor:
   ```elixir
   defp execute_tool_call(name, args, context) when memory_tool?(name) do
     {:ok, action} = Memory.Actions.get(name)
     action.run(args, context)
   end
   ```
+  Note: Already implemented in `JidoCode.Tools.Executor.execute/2` which routes
+  memory tools to `Memory.Actions` automatically.
 
 ### 5.2.3 Pre-Call Context Assembly
 
-- [ ] 5.2.3.1 Update chat flow to assemble memory context:
+- [x] 5.2.3.1 Update chat flow to assemble memory context:
   ```elixir
   defp execute_stream(model, message, topic, session_id, state) do
     # Build memory-enhanced context
@@ -292,7 +294,7 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     # ... rest of streaming logic ...
   end
   ```
-- [ ] 5.2.3.2 Update `build_system_prompt/2`:
+- [x] 5.2.3.2 Update `build_system_prompt/2`:
   ```elixir
   defp build_system_prompt(session_id, context) do
     base = get_base_system_prompt()
@@ -306,20 +308,20 @@ Extend LLMAgent to use the memory system for context assembly and tool availabil
     end
   end
   ```
-- [ ] 5.2.3.3 Ensure context is session-scoped
+- [x] 5.2.3.3 Ensure context is session-scoped
 
 ### 5.2.4 Unit Tests for Agent Integration
 
-- [ ] Test agent initializes with memory enabled by default
-- [ ] Test agent accepts memory_enabled: false option
-- [ ] Test agent accepts custom token_budget option
-- [ ] Test get_available_tools includes memory tools when enabled
-- [ ] Test get_available_tools excludes memory tools when disabled
-- [ ] Test memory tool calls route to action executor
-- [ ] Test context assembly runs before LLM call
-- [ ] Test system prompt includes formatted memory context
-- [ ] Test agent works correctly with memory disabled
-- [ ] Test invalid session_id doesn't crash context assembly
+- [x] Test agent initializes with memory enabled by default
+- [x] Test agent accepts memory_enabled: false option
+- [x] Test agent accepts custom token_budget option
+- [x] Test get_available_tools includes memory tools when enabled
+- [x] Test get_available_tools excludes memory tools when disabled
+- [x] Test memory tool calls route to action executor
+- [x] Test context assembly runs before LLM call (covered by state tests)
+- [x] Test system prompt includes formatted memory context
+- [x] Test agent works correctly with memory disabled
+- [x] Test invalid session_id doesn't crash context assembly
 
 ---
 
@@ -329,8 +331,8 @@ Implement automatic extraction and storage of working context from LLM responses
 
 ### 5.3.1 Response Processor Module
 
-- [ ] 5.3.1.1 Create `lib/jido_code/memory/response_processor.ex` with moduledoc
-- [ ] 5.3.1.2 Define extraction patterns:
+- [x] 5.3.1.1 Create `lib/jido_code/memory/response_processor.ex` with moduledoc
+- [x] 5.3.1.2 Define extraction patterns:
   ```elixir
   @context_patterns %{
     active_file: [
@@ -348,7 +350,7 @@ Implement automatic extraction and storage of working context from LLM responses
     ]
   }
   ```
-- [ ] 5.3.1.3 Implement `process_response/2`:
+- [x] 5.3.1.3 Implement `process_response/2`:
   ```elixir
   @spec process_response(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   def process_response(response, session_id) do
@@ -361,7 +363,7 @@ Implement automatic extraction and storage of working context from LLM responses
     {:ok, extractions}
   end
   ```
-- [ ] 5.3.1.4 Implement `extract_context/1`:
+- [x] 5.3.1.4 Implement `extract_context/1`:
   ```elixir
   defp extract_context(response) do
     @context_patterns
@@ -382,7 +384,7 @@ Implement automatic extraction and storage of working context from LLM responses
     end)
   end
   ```
-- [ ] 5.3.1.5 Implement `update_working_context/2`:
+- [x] 5.3.1.5 Implement `update_working_context/2`:
   ```elixir
   defp update_working_context(extractions, session_id) do
     Enum.each(extractions, fn {key, value} ->
@@ -396,7 +398,7 @@ Implement automatic extraction and storage of working context from LLM responses
 
 ### 5.3.2 Integration with Stream Processing
 
-- [ ] 5.3.2.1 Add response processing after stream completion:
+- [x] 5.3.2.1 Add response processing after stream completion:
   ```elixir
   defp broadcast_stream_end(topic, full_content, session_id, metadata) do
     # Broadcast stream end event
@@ -410,24 +412,24 @@ Implement automatic extraction and storage of working context from LLM responses
     end
   end
   ```
-- [ ] 5.3.2.2 Make extraction async to not block stream completion
-- [ ] 5.3.2.3 Add error handling for extraction failures
-- [ ] 5.3.2.4 Log extraction results for debugging
+- [x] 5.3.2.2 Make extraction async to not block stream completion
+- [x] 5.3.2.3 Add error handling for extraction failures
+- [x] 5.3.2.4 Log extraction results for debugging
 
 ### 5.3.3 Unit Tests for Response Processor
 
-- [ ] Test extract_context finds active_file from "working on file.ex"
-- [ ] Test extract_context finds active_file from "editing `config.exs`"
-- [ ] Test extract_context finds framework from "using Phoenix 1.7"
-- [ ] Test extract_context finds current_task from "implementing user auth"
-- [ ] Test extract_context finds primary_language from "this is an Elixir project"
-- [ ] Test extract_context handles responses without patterns
-- [ ] Test extract_context extracts multiple context items
-- [ ] Test process_response updates working context
-- [ ] Test process_response assigns inferred source
-- [ ] Test process_response uses lower confidence (0.6)
-- [ ] Test extraction handles empty response
-- [ ] Test extraction handles malformed patterns gracefully
+- [x] Test extract_context finds active_file from "working on file.ex"
+- [x] Test extract_context finds active_file from "editing `config.exs`"
+- [x] Test extract_context finds framework from "using Phoenix 1.7"
+- [x] Test extract_context finds current_task from "implementing user auth"
+- [x] Test extract_context finds primary_language from "this is an Elixir project"
+- [x] Test extract_context handles responses without patterns
+- [x] Test extract_context extracts multiple context items
+- [x] Test process_response updates working context
+- [x] Test process_response assigns inferred source
+- [x] Test process_response uses lower confidence (0.6)
+- [x] Test extraction handles empty response
+- [x] Test extraction handles malformed patterns gracefully
 
 ---
 
@@ -437,8 +439,8 @@ Implement token budget management for memory-aware context assembly.
 
 ### 5.4.1 Token Counter Module
 
-- [ ] 5.4.1.1 Create `lib/jido_code/memory/token_counter.ex`
-- [ ] 5.4.1.2 Implement approximate token estimation:
+- [x] 5.4.1.1 Create `lib/jido_code/memory/token_counter.ex`
+- [x] 5.4.1.2 Implement approximate token estimation:
   ```elixir
   @moduledoc """
   Fast token estimation for budget management.
@@ -456,7 +458,7 @@ Implement token budget management for memory-aware context assembly.
 
   def estimate_tokens(nil), do: 0
   ```
-- [ ] 5.4.1.3 Implement message token counting:
+- [x] 5.4.1.3 Implement message token counting:
   ```elixir
   @spec count_message(map()) :: non_neg_integer()
   def count_message(%{content: content, role: role}) do
@@ -465,7 +467,7 @@ Implement token budget management for memory-aware context assembly.
     estimate_tokens(content) + overhead
   end
   ```
-- [ ] 5.4.1.4 Implement memory token counting:
+- [x] 5.4.1.4 Implement memory token counting:
   ```elixir
   @spec count_memory(stored_memory()) :: non_neg_integer()
   def count_memory(memory) do
@@ -474,7 +476,7 @@ Implement token budget management for memory-aware context assembly.
     content_tokens + metadata_overhead
   end
   ```
-- [ ] 5.4.1.5 Implement list counting:
+- [x] 5.4.1.5 Implement list counting:
   ```elixir
   @spec count_messages([map()]) :: non_neg_integer()
   def count_messages(messages) do
@@ -489,7 +491,7 @@ Implement token budget management for memory-aware context assembly.
 
 ### 5.4.2 Budget Allocator
 
-- [ ] 5.4.2.1 Implement budget allocation in ContextBuilder:
+- [x] 5.4.2.1 Implement budget allocation in ContextBuilder:
   ```elixir
   @spec allocate_budget(non_neg_integer()) :: map()
   def allocate_budget(total) do
@@ -502,7 +504,7 @@ Implement token budget management for memory-aware context assembly.
     }
   end
   ```
-- [ ] 5.4.2.2 Implement budget enforcement during assembly:
+- [x] 5.4.2.2 Implement budget enforcement during assembly:
   ```elixir
   defp enforce_budget(content, budget, counter_fn) do
     current = counter_fn.(content)
@@ -513,7 +515,7 @@ Implement token budget management for memory-aware context assembly.
     end
   end
   ```
-- [ ] 5.4.2.3 Implement conversation truncation (preserve recent):
+- [x] 5.4.2.3 Implement conversation truncation (preserve recent):
   ```elixir
   defp truncate_conversation(messages, budget) do
     # Start from most recent, add until budget exhausted
@@ -532,7 +534,7 @@ Implement token budget management for memory-aware context assembly.
     kept
   end
   ```
-- [ ] 5.4.2.4 Implement memory truncation (preserve highest confidence):
+- [x] 5.4.2.4 Implement memory truncation (preserve highest confidence):
   ```elixir
   defp truncate_memories(memories, budget) do
     memories
@@ -552,18 +554,18 @@ Implement token budget management for memory-aware context assembly.
 
 ### 5.4.3 Unit Tests for Token Budget
 
-- [ ] Test estimate_tokens produces reasonable estimates
-- [ ] Test estimate_tokens handles empty string
-- [ ] Test count_message includes overhead
-- [ ] Test count_memory includes metadata overhead
-- [ ] Test count_messages sums correctly
-- [ ] Test count_memories sums correctly
-- [ ] Test allocate_budget distributes tokens correctly
-- [ ] Test allocate_budget handles small budgets
-- [ ] Test enforce_budget returns content within budget
-- [ ] Test truncate_conversation preserves most recent
-- [ ] Test truncate_memories preserves highest confidence
-- [ ] Test context assembly respects total budget
+- [x] Test estimate_tokens produces reasonable estimates
+- [x] Test estimate_tokens handles empty string
+- [x] Test count_message includes overhead
+- [x] Test count_memory includes metadata overhead
+- [x] Test count_messages sums correctly
+- [x] Test count_memories sums correctly
+- [x] Test allocate_budget distributes tokens correctly
+- [x] Test allocate_budget handles small budgets
+- [x] Test enforce_budget returns content within budget
+- [x] Test truncate_conversation preserves most recent
+- [x] Test truncate_memories preserves highest confidence
+- [x] Test context assembly respects total budget
 
 ---
 
@@ -573,34 +575,34 @@ Comprehensive integration tests for LLMAgent memory integration.
 
 ### 5.5.1 Context Assembly Integration
 
-- [ ] 5.5.1.1 Create `test/jido_code/integration/agent_memory_test.exs`
-- [ ] 5.5.1.2 Test: Agent assembles context including working context
-- [ ] 5.5.1.3 Test: Agent assembles context including long-term memories
-- [ ] 5.5.1.4 Test: Agent context respects total token budget
-- [ ] 5.5.1.5 Test: Context updates after tool execution
-- [ ] 5.5.1.6 Test: Context reflects most recent session state
+- [x] 5.5.1.1 Create `test/jido_code/integration/agent_memory_test.exs`
+- [x] 5.5.1.2 Test: Agent assembles context including working context
+- [x] 5.5.1.3 Test: Agent assembles context including long-term memories
+- [x] 5.5.1.4 Test: Agent context respects total token budget
+- [x] 5.5.1.5 Test: Context updates after tool execution
+- [x] 5.5.1.6 Test: Context reflects most recent session state
 
 ### 5.5.2 Memory Tool Execution Integration
 
-- [ ] 5.5.2.1 Test: Agent can execute remember tool during chat
-- [ ] 5.5.2.2 Test: Agent can execute recall tool during chat
-- [ ] 5.5.2.3 Test: Agent can execute forget tool during chat
-- [ ] 5.5.2.4 Test: Memory tool results formatted correctly for LLM
-- [ ] 5.5.2.5 Test: Tool execution updates session state
+- [x] 5.5.2.1 Test: Agent can execute remember tool during chat
+- [x] 5.5.2.2 Test: Agent can execute recall tool during chat
+- [x] 5.5.2.3 Test: Agent can execute forget tool during chat
+- [x] 5.5.2.4 Test: Memory tool results formatted correctly for LLM
+- [x] 5.5.2.5 Test: Tool execution updates session state
 
 ### 5.5.3 Response Processing Integration
 
-- [ ] 5.5.3.1 Test: Response processor extracts context from real LLM responses
-- [ ] 5.5.3.2 Test: Extracted context appears in next context assembly
-- [ ] 5.5.3.3 Test: Response processing runs async (doesn't block)
-- [ ] 5.5.3.4 Test: Multiple responses accumulate context correctly
+- [x] 5.5.3.1 Test: Response processor extracts context from real LLM responses
+- [x] 5.5.3.2 Test: Extracted context appears in next context assembly
+- [x] 5.5.3.3 Test: Response processing runs async (doesn't block)
+- [x] 5.5.3.4 Test: Multiple responses accumulate context correctly
 
 ### 5.5.4 Token Budget Integration
 
-- [ ] 5.5.4.1 Test: Large conversations truncated to budget
-- [ ] 5.5.4.2 Test: Many memories truncated to budget
-- [ ] 5.5.4.3 Test: Budget allocation correct for various total budgets
-- [ ] 5.5.4.4 Test: Truncation preserves most important content
+- [x] 5.5.4.1 Test: Large conversations truncated to budget
+- [x] 5.5.4.2 Test: Many memories truncated to budget
+- [x] 5.5.4.3 Test: Budget allocation correct for various total budgets
+- [x] 5.5.4.4 Test: Truncation preserves most important content
 
 ---
 
@@ -630,3 +632,30 @@ Comprehensive integration tests for LLMAgent memory integration.
 **Modified Files:**
 - `lib/jido_code/agents/llm_agent.ex` - Add memory integration
 - `test/jido_code/agents/llm_agent_test.exs` - Add memory tests
+
+---
+
+## 5.6 Phase 5 Review Fixes
+
+Fixes for concerns identified in the Phase 5 comprehensive review.
+
+### 5.6.1 Code Quality Fixes
+
+- [x] 5.6.1.1 Remove bare rescue from ResponseProcessor (non-idiomatic)
+- [x] 5.6.1.2 Delegate ContextBuilder.estimate_tokens to TokenCounter
+- [x] 5.6.1.3 Remove duplicate @chars_per_token constant from ContextBuilder
+- [x] 5.6.1.4 Add warning log for invalid budget in allocate_budget
+- [x] 5.6.1.5 Standardize State alias in ResponseProcessor (match ContextBuilder)
+- [x] 5.6.1.6 Fix unreachable error clause in LLMAgent
+
+### 5.6.2 Redundancy Elimination
+
+- [x] 5.6.2.1 Use ContextBuilder.allocate_budget in LLMAgent (remove duplicate logic)
+
+### 5.6.3 Test Improvements
+
+- [x] 5.6.3.1 Fix conditional assertion in test 5.5.4.4 (make deterministic)
+
+### 5.6.4 Observability
+
+- [x] 5.6.4.1 Add telemetry to ResponseProcessor (matches ContextBuilder pattern)

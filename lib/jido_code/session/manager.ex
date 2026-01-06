@@ -313,6 +313,46 @@ defmodule JidoCode.Session.Manager do
   end
 
   @doc """
+  Executes a git command within the session's project directory.
+
+  The subcommand is validated against the allowlist and destructive operations
+  are blocked unless explicitly allowed.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `subcommand` - Git subcommand (status, diff, log, etc.)
+  - `args` - List of additional arguments (default: [])
+  - `opts` - Options:
+    - `:allow_destructive` - Allow destructive operations like force push (default: false)
+    - `:timeout` - Execution timeout in milliseconds (default: 30000)
+
+  ## Returns
+
+  - `{:ok, result}` - Map with output, parsed, and exit_code
+  - `{:error, :not_found}` - Session manager not found
+  - `{:error, reason}` - Error message
+
+  ## Examples
+
+      iex> {:ok, result} = Manager.git("session_123", "status")
+      {:ok, %{output: "...", parsed: %{...}, exit_code: 0}}
+
+      iex> {:ok, result} = Manager.git("session_123", "log", ["-5", "--oneline"])
+      {:ok, %{output: "...", parsed: [...], exit_code: 0}}
+
+      iex> {:ok, result} = Manager.git("session_123", "push", ["--force", "origin", "main"],
+      ...>                             allow_destructive: true)
+  """
+  @spec git(String.t(), String.t(), [String.t()], keyword()) ::
+          {:ok, map()} | {:error, :not_found | String.t()}
+  def git(session_id, subcommand, args \\ [], opts \\ []) do
+    allow_destructive = Keyword.get(opts, :allow_destructive, false)
+    timeout = Keyword.get(opts, :timeout, 30_000)
+    call_manager(session_id, {:git, subcommand, args, allow_destructive}, timeout + 5_000)
+  end
+
+  @doc """
   Gets the session struct for this manager.
 
   ## Deprecation Warning
@@ -430,6 +470,12 @@ defmodule JidoCode.Session.Manager do
   end
 
   @impl true
+  def handle_call({:git, subcommand, args, allow_destructive}, _from, state) do
+    result = call_git_bridge(subcommand, args, allow_destructive, state.lua_state)
+    {:reply, result, state}
+  end
+
+  @impl true
   def handle_call(:get_session, _from, state) do
     # For backwards compatibility, reconstruct a minimal session-like map
     # WARNING: Timestamps are synthetic, config is empty
@@ -505,6 +551,37 @@ defmodule JidoCode.Session.Manager do
     else
       ", {#{items}}"
     end
+  end
+
+  # Calls jido.git(subcommand, args, opts) through the Lua sandbox
+  # Uses LuaUtils for shared encoding/decoding functions
+  defp call_git_bridge(subcommand, args, allow_destructive, lua_state) do
+    # Build Lua script: jido.git("subcommand", {args...}, {allow_destructive = true/false})
+    escaped_subcommand = LuaUtils.escape_string(subcommand)
+    lua_args = LuaUtils.build_lua_array(args)
+    lua_opts = "{allow_destructive = #{allow_destructive}}"
+
+    script = "return jido.git(\"#{escaped_subcommand}\", #{lua_args}, #{lua_opts})"
+
+    case :luerl.do(script, lua_state) do
+      {:ok, [nil, error_msg], _state} when is_binary(error_msg) ->
+        {:error, error_msg}
+
+      {:ok, [result], _state} ->
+        {:ok, LuaUtils.decode_git_result(result, lua_state)}
+
+      {:ok, [], _state} ->
+        {:ok, nil}
+
+      {:error, reason, _state} ->
+        {:error, ErrorFormatter.format(reason)}
+    end
+  rescue
+    e ->
+      {:error, Exception.message(e)}
+  catch
+    kind, reason ->
+      {:error, "#{kind}: #{inspect(reason)}"}
   end
 
   @doc false

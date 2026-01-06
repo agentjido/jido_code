@@ -6,16 +6,31 @@ defmodule JidoCode.Memory.TypesTest do
   describe "memory_type" do
     test "memory_types/0 returns all valid memory types matching Jido ontology" do
       expected = [
+        # Knowledge types
         :fact,
         :assumption,
         :hypothesis,
         :discovery,
         :risk,
         :unknown,
+        # Decision types
         :decision,
         :architectural_decision,
+        :implementation_decision,
+        :alternative,
+        :trade_off,
+        # Convention types
         :convention,
         :coding_standard,
+        :architectural_convention,
+        :agent_rule,
+        :process_convention,
+        # Error types
+        :error,
+        :bug,
+        :failure,
+        :incident,
+        :root_cause,
         :lesson_learned
       ]
 
@@ -174,7 +189,8 @@ defmodule JidoCode.Memory.TypesTest do
         :discovered_patterns,
         :active_errors,
         :pending_questions,
-        :file_relationships
+        :file_relationships,
+        :conversation_summary
       ]
 
       assert Types.context_keys() == expected
@@ -193,8 +209,8 @@ defmodule JidoCode.Memory.TypesTest do
       refute Types.valid_context_key?(nil)
     end
 
-    test "context_keys exhaustiveness - all 10 keys are defined" do
-      assert length(Types.context_keys()) == 10
+    test "context_keys exhaustiveness - all 11 keys are defined" do
+      assert length(Types.context_keys()) == 11
     end
   end
 
@@ -342,6 +358,192 @@ defmodule JidoCode.Memory.TypesTest do
 
         assert Types.valid_context_key?(entry.key)
       end
+    end
+  end
+
+  describe "memory type categories" do
+    test "knowledge_types/0 returns knowledge category types" do
+      expected = [:fact, :assumption, :hypothesis, :discovery, :risk, :unknown]
+      assert Types.knowledge_types() == expected
+    end
+
+    test "decision_types/0 returns decision category types" do
+      expected = [:decision, :architectural_decision, :implementation_decision, :alternative, :trade_off]
+      assert Types.decision_types() == expected
+    end
+
+    test "convention_types/0 returns convention category types" do
+      expected = [:convention, :coding_standard, :architectural_convention, :agent_rule, :process_convention]
+      assert Types.convention_types() == expected
+    end
+
+    test "error_memory_types/0 returns error category types" do
+      expected = [:error, :bug, :failure, :incident, :root_cause, :lesson_learned]
+      assert Types.error_memory_types() == expected
+    end
+
+    test "all category types are included in memory_types" do
+      all_category_types =
+        Types.knowledge_types() ++
+          Types.decision_types() ++
+          Types.convention_types() ++
+          Types.error_memory_types()
+
+      assert Types.memory_types() == all_category_types
+    end
+
+    test "knowledge_type?/1 returns true for knowledge types" do
+      for type <- Types.knowledge_types() do
+        assert Types.knowledge_type?(type)
+      end
+    end
+
+    test "knowledge_type?/1 returns false for non-knowledge types" do
+      refute Types.knowledge_type?(:decision)
+      refute Types.knowledge_type?(:convention)
+      refute Types.knowledge_type?(:error)
+    end
+
+    test "decision_type?/1 returns true for decision types" do
+      for type <- Types.decision_types() do
+        assert Types.decision_type?(type)
+      end
+    end
+
+    test "decision_type?/1 returns false for non-decision types" do
+      refute Types.decision_type?(:fact)
+      refute Types.decision_type?(:convention)
+      refute Types.decision_type?(:error)
+    end
+
+    test "convention_type?/1 returns true for convention types" do
+      for type <- Types.convention_types() do
+        assert Types.convention_type?(type)
+      end
+    end
+
+    test "convention_type?/1 returns false for non-convention types" do
+      refute Types.convention_type?(:fact)
+      refute Types.convention_type?(:decision)
+      refute Types.convention_type?(:error)
+    end
+
+    test "error_type?/1 returns true for error types" do
+      for type <- Types.error_memory_types() do
+        assert Types.error_type?(type)
+      end
+    end
+
+    test "error_type?/1 returns false for non-error types" do
+      refute Types.error_type?(:fact)
+      refute Types.error_type?(:decision)
+      refute Types.error_type?(:convention)
+    end
+  end
+
+  describe "relationship" do
+    test "relationships/0 returns all valid relationships" do
+      expected = [
+        :refines,
+        :confirms,
+        :contradicts,
+        :has_alternative,
+        :selected_alternative,
+        :has_trade_off,
+        :justified_by,
+        :has_root_cause,
+        :produced_lesson,
+        :related_error,
+        :superseded_by,
+        :derived_from
+      ]
+
+      assert Types.relationships() == expected
+    end
+
+    test "valid_relationship?/1 returns true for all valid relationships" do
+      for rel <- Types.relationships() do
+        assert Types.valid_relationship?(rel),
+               "Expected #{inspect(rel)} to be a valid relationship"
+      end
+    end
+
+    test "valid_relationship?/1 returns false for invalid relationships" do
+      refute Types.valid_relationship?(:invalid)
+      refute Types.valid_relationship?("refines")
+      refute Types.valid_relationship?(nil)
+    end
+  end
+
+  describe "convention_scope" do
+    test "convention_scopes/0 returns all valid scopes" do
+      assert Types.convention_scopes() == [:global, :project, :agent]
+    end
+
+    test "valid_convention_scope?/1 returns true for valid scopes" do
+      for scope <- Types.convention_scopes() do
+        assert Types.valid_convention_scope?(scope)
+      end
+    end
+
+    test "valid_convention_scope?/1 returns false for invalid scopes" do
+      refute Types.valid_convention_scope?(:invalid)
+      refute Types.valid_convention_scope?("global")
+      refute Types.valid_convention_scope?(nil)
+    end
+  end
+
+  describe "enforcement_level" do
+    test "enforcement_levels/0 returns all valid levels" do
+      assert Types.enforcement_levels() == [:advisory, :required, :strict]
+    end
+
+    test "valid_enforcement_level?/1 returns true for valid levels" do
+      for level <- Types.enforcement_levels() do
+        assert Types.valid_enforcement_level?(level)
+      end
+    end
+
+    test "valid_enforcement_level?/1 returns false for invalid levels" do
+      refute Types.valid_enforcement_level?(:invalid)
+      refute Types.valid_enforcement_level?("required")
+      refute Types.valid_enforcement_level?(nil)
+    end
+  end
+
+  describe "error_status" do
+    test "error_statuses/0 returns all valid statuses" do
+      assert Types.error_statuses() == [:reported, :investigating, :resolved, :deferred]
+    end
+
+    test "valid_error_status?/1 returns true for valid statuses" do
+      for status <- Types.error_statuses() do
+        assert Types.valid_error_status?(status)
+      end
+    end
+
+    test "valid_error_status?/1 returns false for invalid statuses" do
+      refute Types.valid_error_status?(:invalid)
+      refute Types.valid_error_status?("resolved")
+      refute Types.valid_error_status?(nil)
+    end
+  end
+
+  describe "evidence_strength" do
+    test "evidence_strengths/0 returns all valid strengths" do
+      assert Types.evidence_strengths() == [:weak, :moderate, :strong]
+    end
+
+    test "valid_evidence_strength?/1 returns true for valid strengths" do
+      for strength <- Types.evidence_strengths() do
+        assert Types.valid_evidence_strength?(strength)
+      end
+    end
+
+    test "valid_evidence_strength?/1 returns false for invalid strengths" do
+      refute Types.valid_evidence_strength?(:invalid)
+      refute Types.valid_evidence_strength?("strong")
+      refute Types.valid_evidence_strength?(nil)
     end
   end
 end

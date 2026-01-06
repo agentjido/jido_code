@@ -871,6 +871,40 @@ defmodule JidoCode.Session.State do
   end
 
   @doc """
+  Gets the full context item with metadata for a key.
+
+  Retrieves the complete context item including source, confidence, access_count,
+  and other metadata. Does not update access tracking.
+
+  ## Parameters
+
+  - `session_id` - The session identifier
+  - `key` - The context key to retrieve
+
+  ## Returns
+
+  - `{:ok, context_item}` - The full context item map
+  - `{:error, :key_not_found}` - Key does not exist in context
+  - `{:error, :not_found}` - Session not found
+
+  ## Examples
+
+      iex> {:ok, item} = State.get_context_item("session-123", :framework)
+      iex> item.value
+      "Phoenix"
+      iex> item.source
+      :tool
+      iex> item.confidence
+      0.8
+  """
+  @spec get_context_item(String.t(), atom()) ::
+          {:ok, WorkingContext.context_item()} | {:error, :not_found | :key_not_found}
+  def get_context_item(session_id, key)
+      when is_binary(session_id) and is_atom(key) do
+    call_state(session_id, {:get_context_item, key})
+  end
+
+  @doc """
   Clears all items from the working context.
 
   Resets the working context to empty while preserving max_tokens setting.
@@ -1315,6 +1349,24 @@ defmodule JidoCode.Session.State do
     %{state | promotion_timer_ref: timer_ref}
   end
 
+  # Spawns a promotion task with error handling to prevent silent failures
+  @spec spawn_promotion_task((-> any())) :: {:ok, pid()}
+  defp spawn_promotion_task(func) when is_function(func, 0) do
+    Task.start(fn ->
+      try do
+        func.()
+      rescue
+        e ->
+          Logger.error(
+            "Promotion task failed: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}"
+          )
+      catch
+        kind, reason ->
+          Logger.error("Promotion task crashed: #{inspect(kind)} - #{inspect(reason)}")
+      end
+    end)
+  end
+
   @impl true
   def handle_call(:get_session, _from, state) do
     {:reply, {:ok, state.session}, state}
@@ -1607,6 +1659,14 @@ defmodule JidoCode.Session.State do
   end
 
   @impl true
+  def handle_call({:get_context_item, key}, _from, state) do
+    case WorkingContext.get_item(state.working_context, key) do
+      nil -> {:reply, {:error, :key_not_found}, state}
+      item -> {:reply, {:ok, item}, state}
+    end
+  end
+
+  @impl true
   def handle_call(:clear_context, _from, state) do
     cleared_context = WorkingContext.clear(state.working_context)
     new_state = %{state | working_context: cleared_context}
@@ -1626,7 +1686,7 @@ defmodule JidoCode.Session.State do
     new_state =
       if current_count >= @max_pending_memories do
         # Trigger promotion asynchronously to clear space
-        Task.start(fn ->
+        spawn_promotion_task(fn ->
           PromotionTriggers.on_memory_limit_reached(state.session_id, current_count)
         end)
 
@@ -1643,7 +1703,7 @@ defmodule JidoCode.Session.State do
     updated_pending = PendingMemories.add_agent_decision(state.pending_memories, item)
 
     # Agent decisions are high-priority - trigger immediate promotion asynchronously
-    Task.start(fn ->
+    spawn_promotion_task(fn ->
       PromotionTriggers.on_agent_decision(state.session_id, item)
     end)
 
@@ -1748,7 +1808,7 @@ defmodule JidoCode.Session.State do
         new_state = %{state | pending_memories: updated_pending, promotion_stats: updated_stats}
         {:reply, {:ok, count}, new_state}
 
-      {:ok, 0} ->
+      {:ok, 0, []} ->
         # Update stats even when nothing promoted
         updated_stats = %{
           state.promotion_stats
@@ -1823,7 +1883,7 @@ defmodule JidoCode.Session.State do
 
           {:noreply, new_state}
 
-        {:ok, 0} ->
+        {:ok, 0, []} ->
           # No candidates to promote, just update stats and reschedule
           updated_stats = %{
             state.promotion_stats

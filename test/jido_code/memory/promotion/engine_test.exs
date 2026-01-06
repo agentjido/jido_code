@@ -1,6 +1,8 @@
 defmodule JidoCode.Memory.Promotion.EngineTest do
   use ExUnit.Case, async: true
 
+  import JidoCode.Memory.TestHelpers
+
   alias JidoCode.Memory.Promotion.Engine
   alias JidoCode.Memory.ShortTerm.{AccessLog, PendingMemories, WorkingContext}
 
@@ -14,44 +16,12 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
     {:ok, session_id: session_id}
   end
 
-  defp create_empty_state do
-    %{
-      working_context: WorkingContext.new(),
-      pending_memories: PendingMemories.new(),
-      access_log: AccessLog.new()
-    }
-  end
+  # Delegate to shared test helpers
+  defp create_empty_state, do: create_empty_promotion_state()
 
-  defp create_state_with_context(items) do
-    ctx =
-      Enum.reduce(items, WorkingContext.new(), fn {key, value, opts}, ctx ->
-        WorkingContext.put(ctx, key, value, opts)
-      end)
-
-    %{
-      working_context: ctx,
-      pending_memories: PendingMemories.new(),
-      access_log: AccessLog.new()
-    }
-  end
-
-  defp create_pending_item(overrides \\ %{}) do
-    now = DateTime.utc_now()
-
-    Map.merge(
-      %{
-        content: "Test content",
-        memory_type: :fact,
-        confidence: 0.9,
-        source_type: :tool,
-        evidence: [],
-        rationale: nil,
-        importance_score: 0.7,
-        created_at: now,
-        access_count: 1
-      },
-      overrides
-    )
+  # Local wrapper with test-specific defaults (higher importance_score for promotion tests)
+  defp create_test_pending_item(overrides \\ %{}) do
+    create_pending_item(Map.merge(%{importance_score: 0.7, access_count: 1}, overrides))
   end
 
   # =============================================================================
@@ -87,7 +57,7 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
       pending = PendingMemories.new()
 
       pending =
-        PendingMemories.add_implicit(pending, create_pending_item(%{importance_score: 0.8}))
+        PendingMemories.add_implicit(pending, create_test_pending_item(%{importance_score: 0.8}))
 
       state = %{
         working_context: WorkingContext.new(),
@@ -106,7 +76,7 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
       pending = PendingMemories.new()
 
       pending =
-        PendingMemories.add_implicit(pending, create_pending_item(%{importance_score: 0.3}))
+        PendingMemories.add_implicit(pending, create_test_pending_item(%{importance_score: 0.3}))
 
       state = %{
         working_context: WorkingContext.new(),
@@ -161,13 +131,13 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
       pending = PendingMemories.new()
 
       pending =
-        PendingMemories.add_implicit(pending, create_pending_item(%{importance_score: 0.7}))
+        PendingMemories.add_implicit(pending, create_test_pending_item(%{importance_score: 0.7}))
 
       pending =
-        PendingMemories.add_implicit(pending, create_pending_item(%{importance_score: 0.9}))
+        PendingMemories.add_implicit(pending, create_test_pending_item(%{importance_score: 0.9}))
 
       pending =
-        PendingMemories.add_implicit(pending, create_pending_item(%{importance_score: 0.8}))
+        PendingMemories.add_implicit(pending, create_test_pending_item(%{importance_score: 0.8}))
 
       state = %{
         working_context: WorkingContext.new(),
@@ -189,7 +159,7 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
         Enum.reduce(1..30, pending, fn i, p ->
           PendingMemories.add_implicit(
             p,
-            create_pending_item(%{importance_score: 0.7 + i * 0.01})
+            create_test_pending_item(%{importance_score: 0.7 + i * 0.01})
           )
         end)
 
@@ -354,19 +324,19 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
   # =============================================================================
 
   describe "run/2" do
-    test "returns {:ok, 0} when no candidates", %{session_id: session_id} do
+    test "returns {:ok, 0, []} when no candidates", %{session_id: session_id} do
       state = create_empty_state()
 
       result = Engine.run(session_id, state: state)
 
-      assert result == {:ok, 0}
+      assert result == {:ok, 0, []}
     end
 
     test "evaluates, promotes, and returns count", %{session_id: session_id} do
       pending = PendingMemories.new()
 
       pending =
-        PendingMemories.add_implicit(pending, create_pending_item(%{importance_score: 0.8}))
+        PendingMemories.add_implicit(pending, create_test_pending_item(%{importance_score: 0.8}))
 
       state = %{
         working_context: WorkingContext.new(),
@@ -385,7 +355,7 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
       pending =
         PendingMemories.add_implicit(
           pending,
-          create_pending_item(%{id: "pending-123", importance_score: 0.8})
+          create_test_pending_item(%{id: "pending-123", importance_score: 0.8})
         )
 
       state = %{
@@ -428,7 +398,7 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
       pending = PendingMemories.new()
 
       pending =
-        PendingMemories.add_implicit(pending, create_pending_item(%{importance_score: 0.8}))
+        PendingMemories.add_implicit(pending, create_test_pending_item(%{importance_score: 0.8}))
 
       state = %{
         working_context: WorkingContext.new(),
@@ -514,12 +484,55 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
   # =============================================================================
 
   describe "configuration" do
-    test "promotion_threshold returns 0.6" do
+    setup do
+      on_exit(fn -> Engine.reset_config() end)
+      :ok
+    end
+
+    test "promotion_threshold returns 0.6 by default" do
       assert Engine.promotion_threshold() == 0.6
     end
 
-    test "max_promotions_per_run returns 20" do
+    test "max_promotions_per_run returns 20 by default" do
       assert Engine.max_promotions_per_run() == 20
+    end
+
+    test "configure/1 updates promotion_threshold" do
+      assert :ok = Engine.configure(promotion_threshold: 0.7)
+      assert Engine.promotion_threshold() == 0.7
+    end
+
+    test "configure/1 updates max_promotions_per_run" do
+      assert :ok = Engine.configure(max_promotions_per_run: 30)
+      assert Engine.max_promotions_per_run() == 30
+    end
+
+    test "configure/1 rejects invalid threshold" do
+      assert {:error, _} = Engine.configure(promotion_threshold: -0.1)
+      assert {:error, _} = Engine.configure(promotion_threshold: 1.5)
+      assert {:error, _} = Engine.configure(promotion_threshold: "not a number")
+    end
+
+    test "configure/1 rejects invalid max_promotions" do
+      assert {:error, _} = Engine.configure(max_promotions_per_run: 0)
+      assert {:error, _} = Engine.configure(max_promotions_per_run: -5)
+      assert {:error, _} = Engine.configure(max_promotions_per_run: 10.5)
+    end
+
+    test "reset_config/0 restores defaults" do
+      Engine.configure(promotion_threshold: 0.8, max_promotions_per_run: 50)
+      assert Engine.promotion_threshold() == 0.8
+      assert Engine.max_promotions_per_run() == 50
+
+      Engine.reset_config()
+      assert Engine.promotion_threshold() == 0.6
+      assert Engine.max_promotions_per_run() == 20
+    end
+
+    test "get_config/0 returns current configuration" do
+      config = Engine.get_config()
+      assert config.promotion_threshold == 0.6
+      assert config.max_promotions_per_run == 20
     end
   end
 
@@ -539,7 +552,7 @@ defmodule JidoCode.Memory.Promotion.EngineTest do
       pending =
         PendingMemories.new()
         |> PendingMemories.add_implicit(
-          create_pending_item(%{
+          create_test_pending_item(%{
             content: "Uses Ecto for database",
             memory_type: :fact,
             importance_score: 0.85

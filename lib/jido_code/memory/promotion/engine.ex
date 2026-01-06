@@ -56,6 +56,7 @@ defmodule JidoCode.Memory.Promotion.Engine do
 
   alias JidoCode.Memory
   alias JidoCode.Memory.Promotion.ImportanceScorer
+  alias JidoCode.Memory.Promotion.Utils, as: PromotionUtils
   alias JidoCode.Memory.ShortTerm.{AccessLog, PendingMemories, WorkingContext}
   alias JidoCode.Memory.Types
 
@@ -63,8 +64,12 @@ defmodule JidoCode.Memory.Promotion.Engine do
   # Configuration
   # =============================================================================
 
-  @promotion_threshold 0.6
-  @max_promotions_per_run 20
+  # Use centralized defaults from Types
+  @default_promotion_threshold Types.default_promotion_threshold()
+  @default_max_promotions_per_run Types.default_max_promotions_per_run()
+
+  # Application environment key for runtime configuration
+  @config_key :promotion_engine
 
   # =============================================================================
   # Types
@@ -150,13 +155,16 @@ defmodule JidoCode.Memory.Promotion.Engine do
   """
   @spec evaluate(session_state()) :: [promotion_candidate()]
   def evaluate(state) do
+    threshold = promotion_threshold()
+    max_promotions = max_promotions_per_run()
+
     # Score context items and build candidates
     context_candidates = build_context_candidates(state.working_context, state.access_log)
 
     # Get pending items ready for promotion
     pending_ready = PendingMemories.ready_for_promotion(
       state.pending_memories,
-      @promotion_threshold
+      threshold
     )
 
     # Convert pending items to promotion candidates
@@ -165,9 +173,9 @@ defmodule JidoCode.Memory.Promotion.Engine do
     # Combine, filter, sort, and limit
     (context_candidates ++ pending_candidates)
     |> Enum.filter(&promotable?/1)
-    |> Enum.filter(&(&1.importance_score >= @promotion_threshold))
+    |> Enum.filter(&(&1.importance_score >= threshold))
     |> Enum.sort_by(& &1.importance_score, :desc)
-    |> Enum.take(@max_promotions_per_run)
+    |> Enum.take(max_promotions)
   end
 
   @doc """
@@ -239,7 +247,8 @@ defmodule JidoCode.Memory.Promotion.Engine do
       {:ok, 0} = Engine.run("session-123")  # No candidates
 
   """
-  @spec run(String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  @spec run(String.t(), keyword()) ::
+          {:ok, non_neg_integer(), [String.t()]} | {:error, term()}
   def run(session_id, opts \\ []) when is_binary(session_id) do
     # For now, require state to be passed in opts
     # Future: integrate with Session.State.get_state/1
@@ -266,10 +275,11 @@ defmodule JidoCode.Memory.Promotion.Engine do
 
   ## Returns
 
-  - `{:ok, count}` - Number of promoted items
+  - `{:ok, count, promoted_ids}` - Number of promoted items and list of promoted IDs
 
   """
-  @spec run_with_state(session_state(), String.t(), keyword()) :: {:ok, non_neg_integer()}
+  @spec run_with_state(session_state(), String.t(), keyword()) ::
+          {:ok, non_neg_integer(), [String.t()]}
   def run_with_state(state, session_id, opts) do
     candidates = evaluate(state)
 
@@ -287,12 +297,15 @@ defmodule JidoCode.Memory.Promotion.Engine do
 
       {:ok, count, promoted_ids}
     else
-      {:ok, 0}
+      {:ok, 0, []}
     end
   end
 
   @doc """
   Returns the current promotion threshold.
+
+  The threshold can be configured at runtime using `configure/1`.
+  Defaults to #{Types.default_promotion_threshold()}.
 
   ## Examples
 
@@ -301,10 +314,15 @@ defmodule JidoCode.Memory.Promotion.Engine do
 
   """
   @spec promotion_threshold() :: float()
-  def promotion_threshold, do: @promotion_threshold
+  def promotion_threshold do
+    get_config(:promotion_threshold, @default_promotion_threshold)
+  end
 
   @doc """
   Returns the maximum promotions per run.
+
+  The limit can be configured at runtime using `configure/1`.
+  Defaults to #{Types.default_max_promotions_per_run()}.
 
   ## Examples
 
@@ -313,7 +331,100 @@ defmodule JidoCode.Memory.Promotion.Engine do
 
   """
   @spec max_promotions_per_run() :: pos_integer()
-  def max_promotions_per_run, do: @max_promotions_per_run
+  def max_promotions_per_run do
+    get_config(:max_promotions_per_run, @default_max_promotions_per_run)
+  end
+
+  @doc """
+  Configures engine parameters at runtime.
+
+  ## Options
+
+  - `:promotion_threshold` - Minimum importance score for promotion (default: 0.6)
+  - `:max_promotions_per_run` - Maximum candidates per run (default: 20)
+
+  ## Examples
+
+      iex> Engine.configure(promotion_threshold: 0.7, max_promotions_per_run: 30)
+      :ok
+
+  """
+  @spec configure(keyword()) :: :ok | {:error, String.t()}
+  def configure(opts) when is_list(opts) do
+    config = get_all_config()
+
+    new_config =
+      config
+      |> Keyword.merge(Keyword.take(opts, [:promotion_threshold, :max_promotions_per_run]))
+
+    case validate_config(new_config) do
+      :ok ->
+        Application.put_env(:jido_code, @config_key, new_config)
+        :ok
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Resets engine configuration to defaults.
+
+  ## Examples
+
+      iex> Engine.reset_config()
+      :ok
+
+  """
+  @spec reset_config() :: :ok
+  def reset_config do
+    Application.delete_env(:jido_code, @config_key)
+    :ok
+  end
+
+  @doc """
+  Returns current engine configuration.
+
+  ## Examples
+
+      iex> Engine.get_config()
+      %{promotion_threshold: 0.6, max_promotions_per_run: 20}
+
+  """
+  @spec get_config() :: map()
+  def get_config do
+    %{
+      promotion_threshold: promotion_threshold(),
+      max_promotions_per_run: max_promotions_per_run()
+    }
+  end
+
+  # Private helpers for configuration
+  defp get_config(key, default) do
+    :jido_code
+    |> Application.get_env(@config_key, [])
+    |> Keyword.get(key, default)
+  end
+
+  defp get_all_config do
+    Application.get_env(:jido_code, @config_key, [])
+  end
+
+  defp validate_config(config) do
+    threshold = Keyword.get(config, :promotion_threshold, @default_promotion_threshold)
+    max_promo = Keyword.get(config, :max_promotions_per_run, @default_max_promotions_per_run)
+
+    cond do
+      not is_number(threshold) or threshold < 0.0 or threshold > 1.0 ->
+        {:error, "promotion_threshold must be a number between 0.0 and 1.0"}
+
+      not is_integer(max_promo) or max_promo < 1 ->
+        {:error, "max_promotions_per_run must be a positive integer"}
+
+      true ->
+        :ok
+    end
+  end
 
   # =============================================================================
   # Private Functions - Candidate Building
@@ -387,41 +498,19 @@ defmodule JidoCode.Memory.Promotion.Engine do
   # =============================================================================
 
   defp build_memory_input(candidate, session_id, agent_id, project_id) do
-    id = candidate.id || generate_id()
-    content = format_content(candidate.content)
-
-    %{
-      id: id,
-      content: content,
-      memory_type: candidate.suggested_type,
-      confidence: candidate.confidence,
-      source_type: candidate.source_type,
-      session_id: session_id,
+    PromotionUtils.build_memory_input(candidate, session_id,
       agent_id: agent_id,
-      project_id: project_id,
-      evidence: candidate.evidence,
-      rationale: candidate.rationale,
-      created_at: candidate.created_at || DateTime.utc_now()
-    }
+      project_id: project_id
+    )
   end
 
   @doc false
   @spec format_content(term()) :: String.t()
-  def format_content(value) when is_binary(value), do: value
-
-  def format_content(%{value: v, key: k}), do: "#{k}: #{inspect(v)}"
-
-  def format_content(%{value: v}) when is_binary(v), do: v
-
-  def format_content(%{content: c}) when is_binary(c), do: c
-
-  def format_content(value), do: inspect(value)
+  defdelegate format_content(value), to: PromotionUtils
 
   @doc false
   @spec generate_id() :: String.t()
-  def generate_id do
-    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
-  end
+  defdelegate generate_id(), to: PromotionUtils
 
   # =============================================================================
   # Private Functions - Validation

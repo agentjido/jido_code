@@ -104,6 +104,7 @@ defmodule JidoCode.Memory do
 
   Automatically creates the session store if it doesn't exist.
   Validates that memory_type, source_type, and confidence are valid.
+  Also enforces a per-session memory limit to prevent unbounded growth.
 
   ## Parameters
 
@@ -116,6 +117,7 @@ defmodule JidoCode.Memory do
   - `{:error, :invalid_memory_type}` - Invalid memory type
   - `{:error, :invalid_source_type}` - Invalid source type
   - `{:error, :invalid_confidence}` - Confidence not in range [0.0, 1.0]
+  - `{:error, :session_memory_limit_exceeded}` - Session has too many memories
   - `{:error, reason}` - Other persistence failure
 
   ## Examples
@@ -136,8 +138,27 @@ defmodule JidoCode.Memory do
   @spec persist(memory_input(), String.t()) :: {:ok, String.t()} | {:error, term()}
   def persist(memory, session_id) when is_map(memory) and is_binary(session_id) do
     with :ok <- validate_memory_fields(memory),
-         {:ok, store} <- StoreManager.get_or_create(session_id) do
+         {:ok, store} <- StoreManager.get_or_create(session_id),
+         :ok <- check_session_memory_limit(session_id) do
       TripleStoreAdapter.persist(memory, store)
+    end
+  end
+
+  # Checks if the session has exceeded the maximum memory limit.
+  # This prevents runaway agents or malicious actors from consuming unbounded memory.
+  defp check_session_memory_limit(session_id) do
+    max_memories = Types.default_max_memories_per_session()
+
+    case count(session_id) do
+      {:ok, current_count} when current_count >= max_memories ->
+        {:error, :session_memory_limit_exceeded}
+
+      {:ok, _} ->
+        :ok
+
+      {:error, _reason} ->
+        # If we can't count, allow the operation (fail open for availability)
+        :ok
     end
   end
 
@@ -372,6 +393,106 @@ defmodule JidoCode.Memory do
   def count(session_id, opts \\ []) when is_binary(session_id) and is_list(opts) do
     with {:ok, store} <- StoreManager.get_or_create(session_id) do
       TripleStoreAdapter.count(store, session_id, opts)
+    end
+  end
+
+  # =============================================================================
+  # Relationship Queries API
+  # =============================================================================
+
+  @doc """
+  Queries memories related to a given memory by a relationship type.
+
+  This function enables traversal of the knowledge graph by finding memories
+  connected through semantic relationships defined in the Jido ontology.
+
+  ## Supported Relationships
+
+  Knowledge relationships:
+  - `:refines` - Memories that refine/elaborate on this one
+  - `:confirms` - Memories that confirm/validate this one
+  - `:contradicts` - Memories that contradict this one
+
+  Decision relationships:
+  - `:has_alternative` - Alternative options for a decision
+  - `:selected_alternative` - The alternative that was selected
+  - `:has_trade_off` - Trade-offs associated with a decision
+  - `:justified_by` - Evidence justifying a decision
+
+  Error relationships:
+  - `:has_root_cause` - Root causes for an error
+  - `:produced_lesson` - Lessons learned from an error
+  - `:related_error` - Related or cascading errors
+
+  General relationships:
+  - `:derived_from` - Memories derived from evidence
+  - `:superseded_by` - Newer versions that superseded this one
+
+  ## Parameters
+
+  - `session_id` - Session identifier
+  - `memory_id` - ID of the source memory
+  - `relationship` - Relationship type atom
+
+  ## Returns
+
+  - `{:ok, [stored_memory()]}` - List of related memories
+  - `{:error, :not_found}` - Source memory not found
+  - `{:error, reason}` - Other error
+
+  ## Examples
+
+      # Find alternatives considered for a decision
+      {:ok, alternatives} = JidoCode.Memory.query_related("session-abc", "dec-1", :has_alternative)
+
+      # Find lessons learned from an error
+      {:ok, lessons} = JidoCode.Memory.query_related("session-abc", "err-1", :produced_lesson)
+
+      # Find evidence that confirms a fact
+      {:ok, evidence} = JidoCode.Memory.query_related("session-abc", "fact-1", :derived_from)
+
+  """
+  @spec query_related(String.t(), String.t(), atom()) ::
+          {:ok, [stored_memory()]} | {:error, term()}
+  def query_related(session_id, memory_id, relationship)
+      when is_binary(session_id) and is_binary(memory_id) and is_atom(relationship) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.query_related(store, session_id, memory_id, relationship)
+    end
+  end
+
+  # =============================================================================
+  # Statistics API
+  # =============================================================================
+
+  @doc """
+  Gets statistics for the session's memory store.
+
+  Returns aggregate statistics about the stored triples:
+  - `:triple_count` - Total number of triples
+  - `:distinct_subjects` - Number of distinct subjects (memories)
+  - `:distinct_predicates` - Number of distinct predicates (relationships)
+  - `:distinct_objects` - Number of distinct objects (values)
+
+  ## Parameters
+
+  - `session_id` - Session identifier
+
+  ## Returns
+
+  - `{:ok, stats_map}` - Statistics map with the keys above
+  - `{:error, reason}` - Failed to get statistics
+
+  ## Examples
+
+      {:ok, stats} = JidoCode.Memory.get_stats("session-abc")
+      # => %{triple_count: 150, distinct_subjects: 10, distinct_predicates: 25, distinct_objects: 80}
+
+  """
+  @spec get_stats(String.t()) :: {:ok, map()} | {:error, term()}
+  def get_stats(session_id) when is_binary(session_id) do
+    with {:ok, store} <- StoreManager.get_or_create(session_id) do
+      TripleStoreAdapter.get_stats(store, session_id)
     end
   end
 

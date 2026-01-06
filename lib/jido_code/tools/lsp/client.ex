@@ -59,7 +59,8 @@ defmodule JidoCode.Tools.LSP.Client do
           initialized: boolean(),
           capabilities: map(),
           subscribers: [pid()],
-          expert_path: String.t() | nil
+          expert_path: String.t() | nil,
+          diagnostics: %{String.t() => [map()]}
         }
 
   # ============================================================================
@@ -189,6 +190,54 @@ defmodule JidoCode.Tools.LSP.Client do
   end
 
   @doc """
+  Retrieves cached diagnostics from the LSP server.
+
+  Diagnostics are received via `textDocument/publishDiagnostics` notifications
+  and cached in the client state. This function returns the cached diagnostics
+  for a specific file or all files.
+
+  ## Parameters
+
+    * `server` - The client pid or registered name.
+    * `path` - Optional. File path to get diagnostics for. If `nil`, returns
+      diagnostics for all files.
+
+  ## Returns
+
+    * `{:ok, diagnostics}` - A map of file URIs to their diagnostics lists.
+    * `{:error, :not_initialized}` - The client is not yet initialized.
+
+  ## Examples
+
+      # Get all diagnostics
+      {:ok, diagnostics} = Client.get_diagnostics(pid, nil)
+      # => %{"file:///path/to/file.ex" => [...], ...}
+
+      # Get diagnostics for a specific file
+      {:ok, diagnostics} = Client.get_diagnostics(pid, "lib/my_app.ex")
+      # => %{"file:///path/to/project/lib/my_app.ex" => [...]}
+  """
+  @spec get_diagnostics(GenServer.server(), String.t() | nil) ::
+          {:ok, %{String.t() => [map()]}} | {:error, :not_initialized}
+  def get_diagnostics(server, path \\ nil) do
+    GenServer.call(server, {:get_diagnostics, path})
+  end
+
+  @doc """
+  Clears cached diagnostics for a file or all files.
+
+  ## Parameters
+
+    * `server` - The client pid or registered name.
+    * `path` - Optional. File path to clear diagnostics for. If `nil`, clears
+      all diagnostics.
+  """
+  @spec clear_diagnostics(GenServer.server(), String.t() | nil) :: :ok
+  def clear_diagnostics(server, path \\ nil) do
+    GenServer.cast(server, {:clear_diagnostics, path})
+  end
+
+  @doc """
   Checks if Expert is available in the system.
   """
   @spec expert_available?() :: boolean()
@@ -239,7 +288,8 @@ defmodule JidoCode.Tools.LSP.Client do
       initialized: false,
       capabilities: %{},
       subscribers: [],
-      expert_path: expert_path
+      expert_path: expert_path,
+      diagnostics: %{}
     }
 
     if auto_start do
@@ -278,6 +328,17 @@ defmodule JidoCode.Tools.LSP.Client do
     {:reply, :ok, state}
   end
 
+  def handle_call({:get_diagnostics, path}, _from, state) do
+    case state.initialized do
+      true ->
+        diagnostics = get_diagnostics_from_state(state, path)
+        {:reply, {:ok, diagnostics}, state}
+
+      false ->
+        {:reply, {:error, :not_initialized}, state}
+    end
+  end
+
   @impl true
   def handle_cast({:notify, method, params}, state) do
     state = send_notification(state, method, params)
@@ -293,6 +354,16 @@ defmodule JidoCode.Tools.LSP.Client do
   def handle_cast({:unsubscribe, pid}, state) do
     subscribers = List.delete(state.subscribers, pid)
     {:noreply, %{state | subscribers: subscribers}}
+  end
+
+  def handle_cast({:clear_diagnostics, nil}, state) do
+    {:noreply, %{state | diagnostics: %{}}}
+  end
+
+  def handle_cast({:clear_diagnostics, path}, state) do
+    uri = path_to_uri(path, state.project_root)
+    diagnostics = Map.delete(state.diagnostics, uri)
+    {:noreply, %{state | diagnostics: diagnostics}}
   end
 
   @impl true
@@ -653,6 +724,7 @@ defmodule JidoCode.Tools.LSP.Client do
   defp handle_message(state, %{"method" => method, "params" => params}) do
     # Notification from server
     Logger.debug("LSP notification: #{method}")
+    state = handle_notification(state, method, params)
     broadcast_notification(state, method, params)
     state
   end
@@ -685,5 +757,50 @@ defmodule JidoCode.Tools.LSP.Client do
     for subscriber <- state.subscribers do
       send(subscriber, message)
     end
+  end
+
+  # ============================================================================
+  # Private Functions - Notification Handling
+  # ============================================================================
+
+  defp handle_notification(state, "textDocument/publishDiagnostics", params) do
+    uri = Map.get(params, "uri", "")
+    diagnostics_list = Map.get(params, "diagnostics", [])
+
+    Logger.debug("Caching #{length(diagnostics_list)} diagnostics for #{uri}")
+
+    diagnostics = Map.put(state.diagnostics, uri, diagnostics_list)
+    %{state | diagnostics: diagnostics}
+  end
+
+  defp handle_notification(state, _method, _params), do: state
+
+  # ============================================================================
+  # Private Functions - Diagnostics Retrieval
+  # ============================================================================
+
+  defp get_diagnostics_from_state(state, nil) do
+    # Return all diagnostics
+    state.diagnostics
+  end
+
+  defp get_diagnostics_from_state(state, path) do
+    uri = path_to_uri(path, state.project_root)
+
+    case Map.get(state.diagnostics, uri) do
+      nil -> %{}
+      diagnostics -> %{uri => diagnostics}
+    end
+  end
+
+  defp path_to_uri(path, project_root) do
+    abs_path =
+      if Path.type(path) == :absolute do
+        path
+      else
+        Path.join(project_root, path)
+      end
+
+    "file://#{abs_path}"
   end
 end

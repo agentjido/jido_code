@@ -10,6 +10,7 @@ defmodule JidoCode.Tools.Definitions.LSP do
   - `get_hover_info` - Get type info and documentation at cursor position
   - `go_to_definition` - Find where a symbol is defined
   - `find_references` - Find all usages of a symbol
+  - `get_diagnostics` - Get LSP diagnostics (errors, warnings, info, hints)
 
   ## Usage
 
@@ -28,6 +29,7 @@ defmodule JidoCode.Tools.Definitions.LSP do
   available, the tools will return appropriate error messages.
   """
 
+  alias JidoCode.Tools.Definitions.GetDiagnostics, as: GetDiagnosticsDefinition
   alias JidoCode.Tools.Handlers.LSP, as: Handlers
   alias JidoCode.Tools.Tool
 
@@ -43,7 +45,8 @@ defmodule JidoCode.Tools.Definitions.LSP do
     [
       get_hover_info(),
       go_to_definition(),
-      find_references()
+      find_references(),
+      get_diagnostics()
     ]
   end
 
@@ -250,4 +253,13 @@ defmodule JidoCode.Tools.Definitions.LSP do
       ]
     })
   end
+
+  @doc """
+  Returns the get_diagnostics tool definition.
+
+  Delegates to `JidoCode.Tools.Definitions.GetDiagnostics.get_diagnostics/0`.
+  See that module for full documentation.
+  """
+  @spec get_diagnostics() :: Tool.t()
+  defdelegate get_diagnostics, to: GetDiagnosticsDefinition
 end

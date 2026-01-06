@@ -785,4 +785,183 @@ defmodule JidoCode.Tools.ExecutorTest do
       assert Executor.pubsub_topic("abc-123") == "tui.events.abc-123"
     end
   end
+
+  # ============================================================================
+  # Memory Action Routing Tests
+  # ============================================================================
+
+  describe "memory action routing" do
+    setup do
+      session_id = "test-session-#{System.unique_integer([:positive])}"
+      context = %{session_id: session_id}
+      {:ok, session_id: session_id, context: context}
+    end
+
+    test "memory_tools/0 returns memory tool names" do
+      tools = Executor.memory_tools()
+
+      assert length(tools) == 3
+      assert "remember" in tools
+      assert "recall" in tools
+      assert "forget" in tools
+    end
+
+    test "memory_tool?/1 returns true for memory tools" do
+      assert Executor.memory_tool?("remember") == true
+      assert Executor.memory_tool?("recall") == true
+      assert Executor.memory_tool?("forget") == true
+    end
+
+    test "memory_tool?/1 returns false for standard tools" do
+      assert Executor.memory_tool?("read_file") == false
+      assert Executor.memory_tool?("write_file") == false
+      assert Executor.memory_tool?("unknown") == false
+    end
+
+    test "memory_tool?/1 returns false for non-string input" do
+      assert Executor.memory_tool?(nil) == false
+      assert Executor.memory_tool?(:remember) == false
+      assert Executor.memory_tool?(123) == false
+    end
+
+    test "execute routes remember to Memory.Actions", %{context: context} do
+      tool_call = %{
+        id: "call-1",
+        name: "remember",
+        arguments: %{content: "Test memory content", type: :fact}
+      }
+
+      {:ok, result} = Executor.execute(tool_call, context: context)
+
+      assert result.status == :ok
+      assert result.tool_name == "remember"
+      assert is_binary(result.content)
+
+      # Verify content is JSON with expected fields
+      decoded = Jason.decode!(result.content)
+      assert decoded["remembered"] == true
+      assert is_binary(decoded["memory_id"])
+    end
+
+    test "execute routes recall to Memory.Actions", %{context: context} do
+      # First remember something
+      remember_call = %{
+        id: "call-1",
+        name: "remember",
+        arguments: %{content: "Elixir uses pattern matching", type: :fact}
+      }
+
+      {:ok, _} = Executor.execute(remember_call, context: context)
+
+      # Then recall it
+      recall_call = %{
+        id: "call-2",
+        name: "recall",
+        arguments: %{limit: 10}
+      }
+
+      {:ok, result} = Executor.execute(recall_call, context: context)
+
+      assert result.status == :ok
+      assert result.tool_name == "recall"
+      assert is_binary(result.content)
+
+      decoded = Jason.decode!(result.content)
+      assert is_list(decoded["memories"])
+    end
+
+    test "execute routes forget to Memory.Actions", %{context: context} do
+      # First remember something
+      remember_call = %{
+        id: "call-1",
+        name: "remember",
+        arguments: %{content: "Memory to forget", type: :fact}
+      }
+
+      {:ok, remember_result} = Executor.execute(remember_call, context: context)
+      decoded = Jason.decode!(remember_result.content)
+      memory_id = decoded["memory_id"]
+
+      # Then forget it
+      forget_call = %{
+        id: "call-2",
+        name: "forget",
+        arguments: %{memory_id: memory_id}
+      }
+
+      {:ok, result} = Executor.execute(forget_call, context: context)
+
+      assert result.status == :ok
+      assert result.tool_name == "forget"
+      assert is_binary(result.content)
+
+      decoded = Jason.decode!(result.content)
+      assert decoded["forgotten"] == true
+    end
+
+    test "execute returns error for memory action with invalid params", %{context: context} do
+      tool_call = %{
+        id: "call-1",
+        name: "remember",
+        arguments: %{content: ""}
+      }
+
+      {:ok, result} = Executor.execute(tool_call, context: context)
+
+      assert result.status == :error
+      assert result.tool_name == "remember"
+      assert result.content =~ "empty"
+    end
+
+    test "execute returns error for memory action without session_id" do
+      tool_call = %{
+        id: "call-1",
+        name: "remember",
+        arguments: %{content: "Test content"}
+      }
+
+      {:ok, result} = Executor.execute(tool_call, context: %{})
+
+      assert result.status == :error
+      assert result.content =~ "Session ID"
+    end
+
+    test "memory tools broadcast tool_call and tool_result events", %{
+      session_id: session_id,
+      context: context
+    } do
+      # Subscribe to session-specific topic
+      Phoenix.PubSub.subscribe(JidoCode.PubSub, "tui.events.#{session_id}")
+
+      tool_call = %{
+        id: "call-1",
+        name: "remember",
+        arguments: %{content: "Broadcast test memory", type: :fact}
+      }
+
+      {:ok, _result} = Executor.execute(tool_call, context: context)
+
+      # Should receive tool_call event
+      assert_receive {:tool_call, "remember", %{content: "Broadcast test memory"}, "call-1",
+                      ^session_id}
+
+      # Should receive tool_result event
+      assert_receive {:tool_result, %Result{tool_name: "remember", status: :ok}, ^session_id}
+    end
+
+    test "memory tools work with string-keyed argument maps", %{context: context} do
+      # Note: type must be an atom since it's validated against an enum in the action schema
+      # The executor converts string keys to atoms, but enum values need to be atoms
+      tool_call = %{
+        id: "call-1",
+        name: "remember",
+        arguments: %{"content" => "String key content"}
+      }
+
+      {:ok, result} = Executor.execute(tool_call, context: context)
+
+      assert result.status == :ok
+      assert result.tool_name == "remember"
+    end
+  end
 end

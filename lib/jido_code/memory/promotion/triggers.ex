@@ -38,6 +38,7 @@ defmodule JidoCode.Memory.Promotion.Triggers do
   """
 
   alias JidoCode.Memory.Promotion.Engine, as: PromotionEngine
+  alias JidoCode.Memory.Promotion.Utils, as: PromotionUtils
 
   require Logger
 
@@ -224,12 +225,7 @@ defmodule JidoCode.Memory.Promotion.Triggers do
 
   @spec run_promotion(String.t(), atom(), trigger_opts()) ::
           {:ok, non_neg_integer()} | {:error, term()}
-  defp run_promotion(session_id, _trigger_type, opts) do
-    # Build options for the promotion engine
-    engine_opts =
-      opts
-      |> Keyword.take([:agent_id, :project_id])
-
+  defp run_promotion(session_id, _trigger_type, _opts) do
     # Use Session.State.run_promotion_now/1 which handles state access
     case JidoCode.Session.State.run_promotion_now(session_id) do
       {:ok, count} ->
@@ -292,26 +288,7 @@ defmodule JidoCode.Memory.Promotion.Triggers do
   end
 
   defp build_memory_input(candidate, session_id, opts) do
-    %{
-      id: candidate.id || generate_id(),
-      content: format_content(candidate.content),
-      memory_type: candidate.suggested_type,
-      confidence: candidate.confidence,
-      source_type: candidate.source_type,
-      session_id: session_id,
-      agent_id: Keyword.get(opts, :agent_id),
-      project_id: Keyword.get(opts, :project_id),
-      evidence: candidate.evidence,
-      rationale: candidate.rationale,
-      created_at: candidate.created_at || DateTime.utc_now()
-    }
-  end
-
-  defp format_content(value) when is_binary(value), do: value
-  defp format_content(value), do: inspect(value)
-
-  defp generate_id do
-    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+    PromotionUtils.build_memory_input(candidate, session_id, opts)
   end
 
   # =============================================================================

@@ -1,40 +1,22 @@
 defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @moduledoc """
-  Adapter layer for mapping Elixir memory structs to/from RDF-like triples.
+  Adapter layer for mapping Elixir memory structs to/from RDF triples.
 
   This module provides the interface between Elixir memory structs and the
-  underlying store, using the Jido ontology vocabulary for semantic structure.
+  TripleStore backend, using SPARQL queries aligned with the Jido ontology.
 
-  ## Store Format
+  ## Store Backend
 
-  The adapter stores memory items as maps in ETS with the structure:
-  ```
-  {memory_id, %{
-    id: String.t(),
-    content: String.t(),
-    memory_type: atom(),
-    confidence: float(),
-    source_type: atom(),
-    session_id: String.t(),
-    agent_id: String.t() | nil,
-    project_id: String.t() | nil,
-    rationale: String.t() | nil,
-    evidence_refs: [String.t()],
-    created_at: DateTime.t(),
-    superseded_by: String.t() | nil,
-    superseded_at: DateTime.t() | nil,
-    access_count: non_neg_integer(),
-    last_accessed: DateTime.t() | nil
-  }}
-  ```
+  Uses the TripleStore library for persistent RDF storage. Each session gets
+  its own TripleStore instance managed by StoreManager.
 
   ## Triple Representation
 
-  While using ETS for storage, the adapter maintains RDF-like semantics:
-  - Each memory has a unique IRI generated via `Vocab.memory_uri/1`
-  - Memory types map to Jido ontology classes
+  Memories are stored as RDF triples following the Jido ontology:
+  - Each memory has a unique IRI: `jido:memory_<id>`
+  - Memory types map to ontology classes (e.g., `jido:Fact`, `jido:Assumption`)
   - Confidence and source types map to ontology individuals
-  - Provenance is tracked via session, agent, and project URIs
+  - Provenance tracked via session IRIs: `jido:session_<id>`
 
   ## Example Usage
 
@@ -48,15 +30,17 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
       {:ok, memories} = TripleStoreAdapter.query_all(store, session_id)
 
       # Get a specific memory
-      {:ok, memory} = TripleStoreAdapter.query_by_id(store, memory_id)
+      {:ok, memory} = TripleStoreAdapter.query_by_id(store, session_id, memory_id)
 
       # Mark a memory as superseded
       :ok = TripleStoreAdapter.supersede(store, session_id, old_id, new_id)
 
   """
 
-  alias JidoCode.Memory.LongTerm.Vocab.Jido, as: Vocab
+  alias JidoCode.Memory.LongTerm.SPARQLQueries
   alias JidoCode.Memory.Types
+
+  require Logger
 
   # =============================================================================
   # Types
@@ -69,7 +53,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   - `id` - Unique identifier for the memory
   - `content` - The memory content/summary
   - `memory_type` - Classification (:fact, :assumption, etc.)
-  - `confidence` - Confidence score (0.0 to 1.0)
+  - `confidence` - Confidence score (0.0 to 1.0) or level (:high, :medium, :low)
   - `source_type` - Origin (:user, :agent, :tool, :external_document)
   - `session_id` - Session this memory belongs to
   - `created_at` - When the memory was created
@@ -84,7 +68,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
           required(:id) => String.t(),
           required(:content) => String.t(),
           required(:memory_type) => Types.memory_type(),
-          required(:confidence) => float(),
+          required(:confidence) => float() | Types.confidence_level(),
           required(:source_type) => Types.source_type(),
           required(:session_id) => String.t(),
           required(:created_at) => DateTime.t(),
@@ -106,7 +90,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
           id: String.t(),
           content: String.t(),
           memory_type: Types.memory_type(),
-          confidence: float(),
+          confidence: Types.confidence_level(),
           source_type: Types.source_type(),
           session_id: String.t(),
           agent_id: String.t() | nil,
@@ -120,9 +104,9 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
         }
 
   @typedoc """
-  Reference to an open store (ETS table).
+  Reference to an open TripleStore instance.
   """
-  @type store_ref :: :ets.tid()
+  @type store_ref :: TripleStore.store()
 
   # =============================================================================
   # Persist API
@@ -131,13 +115,12 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @doc """
   Persists a memory item to the store.
 
-  Stores the memory with all its metadata, generating RDF-compatible URIs
-  for semantic linking.
+  Stores the memory as RDF triples using SPARQL INSERT.
 
   ## Parameters
 
   - `memory` - The memory input map (see `memory_input()` type)
-  - `store` - Reference to the ETS store
+  - `store` - Reference to the TripleStore
 
   ## Returns
 
@@ -161,63 +144,14 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec persist(memory_input(), store_ref()) :: {:ok, String.t()} | {:error, term()}
   def persist(memory, store) do
-    stored_record = build_stored_record(memory)
-
-    with_ets_store(store, fn ->
-      :ets.insert(store, {memory.id, stored_record})
+    with :ok <- validate_memory_id(memory.id),
+         :ok <- validate_session_id(memory.session_id),
+         query = SPARQLQueries.insert_memory(memory),
+         {:ok, _} <- TripleStore.update(store, query) do
       {:ok, memory.id}
-    end)
-  end
-
-  @doc """
-  Builds the RDF triple representations for a memory.
-
-  This function generates RDF-compatible triples for future integration with
-  semantic web systems and triple stores. While the current storage uses ETS,
-  this function maintains RDF semantics for:
-
-  - **Export compatibility**: Enables export to RDF formats (TTL, N-Triples)
-  - **SPARQL preparation**: Provides structure for future SPARQL query support
-  - **Ontology alignment**: Ensures memories conform to the Jido ontology
-
-  The function is not currently used in the persistence path but is available
-  for RDF serialization and validation purposes.
-
-  Returns a list of {subject, predicate, object} tuples where:
-  - `subject` is the memory IRI (e.g., `jido:memory-123`)
-  - `predicate` is a property IRI from the Jido vocabulary
-  - `object` is either an IRI or a `{:literal, value}` tuple
-
-  ## Examples
-
-      triples = TripleStoreAdapter.build_triples(memory)
-      # Returns list of {subject_iri, predicate_iri, object} tuples
-
-  """
-  @spec build_triples(memory_input()) :: [{String.t(), String.t(), term()}]
-  def build_triples(memory) do
-    subject = Vocab.memory_uri(memory.id)
-
-    base_triples = [
-      # Type assertion
-      {subject, Vocab.rdf_type(), Vocab.memory_type_to_class(memory.memory_type)},
-      # Content
-      {subject, Vocab.summary(), {:literal, memory.content}},
-      # Confidence
-      {subject, Vocab.has_confidence(), Vocab.confidence_to_individual(memory.confidence)},
-      # Source type
-      {subject, Vocab.has_source_type(), Vocab.source_type_to_individual(memory.source_type)},
-      # Session scoping
-      {subject, Vocab.asserted_in(), Vocab.session_uri(memory.session_id)},
-      # Timestamp
-      {subject, Vocab.has_timestamp(), {:literal, DateTime.to_iso8601(memory.created_at)}}
-    ]
-
-    base_triples
-    |> add_optional_triple(Map.get(memory, :agent_id), subject, Vocab.asserted_by(), &Vocab.agent_uri/1)
-    |> add_optional_triple(Map.get(memory, :project_id), subject, Vocab.applies_to_project(), &Vocab.project_uri/1)
-    |> add_optional_triple(Map.get(memory, :rationale), subject, Vocab.rationale(), &wrap_literal/1)
-    |> add_evidence_triples(Map.get(memory, :evidence_refs, []), subject)
+    else
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   # =============================================================================
@@ -230,6 +164,8 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   ## Options
 
   - `:limit` - Maximum number of results (default: no limit)
+  - `:min_confidence` - Minimum confidence (:high, :medium, :low)
+  - `:include_superseded` - Include superseded memories (default: false)
 
   ## Examples
 
@@ -240,23 +176,14 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @spec query_by_type(store_ref(), String.t(), Types.memory_type(), keyword()) ::
           {:ok, [stored_memory()]} | {:error, term()}
   def query_by_type(store, session_id, memory_type, opts \\ []) do
-    limit = Keyword.get(opts, :limit)
-
-    with_ets_store(store, fn ->
-      results =
-        store
-        |> ets_to_list()
-        |> Enum.filter(fn {_id, record} ->
-          record.session_id == session_id and
-            record.memory_type == memory_type and
-            record.superseded_at == nil
-        end)
-        |> Enum.map(fn {_id, record} -> to_stored_memory(record) end)
-        |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-        |> maybe_limit(limit)
-
-      {:ok, results}
-    end)
+    with :ok <- validate_session_id(session_id),
+         query = SPARQLQueries.query_by_type(session_id, memory_type, opts),
+         {:ok, results} <- TripleStore.query(store, query) do
+      memories = Enum.map(results, &map_type_result(&1, session_id, memory_type))
+      {:ok, memories}
+    else
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc """
@@ -265,41 +192,54 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   ## Options
 
   - `:limit` - Maximum number of results (default: no limit)
-  - `:min_confidence` - Minimum confidence threshold (default: 0.0)
+  - `:min_confidence` - Minimum confidence threshold (:high, :medium, :low)
   - `:include_superseded` - Include superseded memories (default: false)
   - `:type` - Filter by memory type (default: all types)
 
   ## Examples
 
       {:ok, memories} = TripleStoreAdapter.query_all(store, "session-123")
-      {:ok, memories} = TripleStoreAdapter.query_all(store, "session-123", min_confidence: 0.7)
+      {:ok, memories} = TripleStoreAdapter.query_all(store, "session-123", min_confidence: :medium)
       {:ok, memories} = TripleStoreAdapter.query_all(store, "session-123", include_superseded: true)
 
   """
   @spec query_all(store_ref(), String.t(), keyword()) ::
           {:ok, [stored_memory()]} | {:error, term()}
   def query_all(store, session_id, opts \\ []) do
-    limit = Keyword.get(opts, :limit)
-    min_confidence = Keyword.get(opts, :min_confidence, 0.0)
-    include_superseded = Keyword.get(opts, :include_superseded, false)
-    type_filter = Keyword.get(opts, :type)
+    with :ok <- validate_session_id(session_id) do
+      # Apply default limit if not specified to prevent unbounded results
+      opts = apply_default_limit(opts)
 
-    with_ets_store(store, fn ->
-      results =
-        store
-        |> ets_to_list()
-        |> Enum.filter(fn {_id, record} ->
-          record.session_id == session_id and
-            record.confidence >= min_confidence and
-            (include_superseded or record.superseded_at == nil) and
-            (type_filter == nil or record.memory_type == type_filter)
-        end)
-        |> Enum.map(fn {_id, record} -> to_stored_memory(record) end)
-        |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-        |> maybe_limit(limit)
+      # Check if type filter is specified
+      type_filter = Keyword.get(opts, :type)
 
-      {:ok, results}
-    end)
+      if type_filter do
+        # Use type-specific query
+        query_by_type(store, session_id, type_filter, opts)
+      else
+        # Use session query
+        query = SPARQLQueries.query_by_session(session_id, opts)
+
+        case TripleStore.query(store, query) do
+          {:ok, results} ->
+            memories = Enum.map(results, &map_session_result(&1, session_id))
+            {:ok, memories}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+      end
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp apply_default_limit(opts) do
+    if Keyword.has_key?(opts, :limit) do
+      opts
+    else
+      Keyword.put(opts, :limit, SPARQLQueries.default_query_limit())
+    end
   end
 
   @doc """
@@ -314,19 +254,19 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
       {:error, :not_found} = TripleStoreAdapter.query_by_id(store, "unknown")
 
   """
-  @doc since: "0.1.0"
-  @spec query_by_id(store_ref(), String.t()) :: {:ok, stored_memory()} | {:error, :not_found}
+  # Removed inconsistent @doc since: "0.1.0" - not used elsewhere in codebase (C11)
+  @spec query_by_id(store_ref(), String.t()) ::
+          {:ok, stored_memory()} | {:error, :not_found | :invalid_memory_id}
   def query_by_id(store, memory_id) do
-    with_ets_store(
-      store,
-      fn ->
-        case :ets.lookup(store, memory_id) do
-          [{^memory_id, record}] -> {:ok, to_stored_memory(record)}
-          [] -> {:error, :not_found}
-        end
-      end,
-      {:error, :not_found}
-    )
+    with :ok <- validate_memory_id(memory_id),
+         query = SPARQLQueries.query_by_id(memory_id),
+         {:ok, [result | _]} <- TripleStore.query(store, query) do
+      memory = map_id_result(result, memory_id)
+      {:ok, memory}
+    else
+      {:error, :invalid_memory_id} -> {:error, :invalid_memory_id}
+      {:error, _} -> {:error, :not_found}
+    end
   end
 
   @doc """
@@ -337,7 +277,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
 
   ## Parameters
 
-  - `store` - Reference to the ETS store
+  - `store` - Reference to the TripleStore
   - `session_id` - Session ID to verify ownership
   - `memory_id` - ID of the memory to retrieve
 
@@ -355,24 +295,17 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @spec query_by_id(store_ref(), String.t(), String.t()) ::
           {:ok, stored_memory()} | {:error, :not_found}
   def query_by_id(store, session_id, memory_id) do
-    with_ets_store(
-      store,
-      fn ->
-        case :ets.lookup(store, memory_id) do
-          [{^memory_id, record}] ->
-            # Verify session ownership
-            if record.session_id == session_id do
-              {:ok, to_stored_memory(record)}
-            else
-              {:error, :not_found}
-            end
-
-          [] ->
-            {:error, :not_found}
+    case query_by_id(store, memory_id) do
+      {:ok, memory} ->
+        if memory.session_id == session_id do
+          {:ok, memory}
+        else
+          {:error, :not_found}
         end
-      end,
-      {:error, :not_found}
-    )
+
+      error ->
+        error
+    end
   end
 
   # =============================================================================
@@ -387,7 +320,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
 
   ## Parameters
 
-  - `store` - Reference to the ETS store
+  - `store` - Reference to the TripleStore
   - `session_id` - Session ID (for validation)
   - `old_memory_id` - ID of the memory being superseded
   - `new_memory_id` - ID of the replacement memory (optional)
@@ -401,32 +334,27 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   @spec supersede(store_ref(), String.t(), String.t(), String.t() | nil) ::
           :ok | {:error, term()}
   def supersede(store, session_id, old_memory_id, new_memory_id \\ nil) do
-    with_ets_store(store, fn ->
-      case :ets.lookup(store, old_memory_id) do
-        [{^old_memory_id, record}] ->
-          if record.session_id == session_id do
-            updated_record = %{
-              record
-              | superseded_by: new_memory_id,
-                superseded_at: DateTime.utc_now()
-            }
+    with :ok <- validate_memory_id(old_memory_id),
+         :ok <- if(new_memory_id, do: validate_memory_id(new_memory_id), else: :ok),
+         {:ok, _memory} <- query_by_id(store, session_id, old_memory_id) do
+      # Use DeletedMarker if no new_memory_id provided
+      superseder = new_memory_id || "DeletedMarker"
+      query = SPARQLQueries.supersede_memory(old_memory_id, superseder)
 
-            :ets.insert(store, {old_memory_id, updated_record})
-            :ok
-          else
-            {:error, :session_mismatch}
-          end
-
-        [] ->
-          {:error, :not_found}
+      case TripleStore.update(store, query) do
+        {:ok, _} -> :ok
+        {:error, reason} -> {:error, reason}
       end
-    end)
+    else
+      {:error, :not_found} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc """
-  Deletes a memory from the store.
+  Deletes a memory from the store (soft delete).
 
-  This permanently removes the memory. For soft-delete, use `supersede/4`.
+  Uses supersession with a DeletedMarker to mark the memory as deleted.
 
   ## Examples
 
@@ -435,26 +363,26 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec delete(store_ref(), String.t(), String.t()) :: :ok | {:error, term()}
   def delete(store, session_id, memory_id) do
-    with_ets_store(store, fn ->
-      case :ets.lookup(store, memory_id) do
-        [{^memory_id, record}] ->
-          if record.session_id == session_id do
-            :ets.delete(store, memory_id)
-            :ok
-          else
-            {:error, :session_mismatch}
-          end
+    with :ok <- validate_memory_id(memory_id),
+         {:ok, _memory} <- query_by_id(store, session_id, memory_id) do
+      query = SPARQLQueries.delete_memory(memory_id)
 
-        [] ->
-          :ok
+      case TripleStore.update(store, query) do
+        {:ok, _} -> :ok
+        {:error, _} -> :ok
       end
-    end)
+    else
+      {:error, :not_found} ->
+        # Already deleted or doesn't exist - success
+        :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc """
   Records an access to a memory, updating access tracking.
 
-  Increments the access count and updates the last_accessed timestamp.
+  Updates the last_accessed timestamp.
 
   ## Examples
 
@@ -463,29 +391,18 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec record_access(store_ref(), String.t(), String.t()) :: :ok
   def record_access(store, session_id, memory_id) do
-    with_ets_store(
-      store,
-      fn ->
-        case :ets.lookup(store, memory_id) do
-          [{^memory_id, record}] ->
-            if record.session_id == session_id do
-              updated_record = %{
-                record
-                | access_count: record.access_count + 1,
-                  last_accessed: DateTime.utc_now()
-              }
+    # Validate ID first (fail fast on invalid input)
+    with :ok <- validate_memory_id(memory_id),
+         {:ok, _memory} <- query_by_id(store, session_id, memory_id) do
+      query = SPARQLQueries.record_access(memory_id)
 
-              :ets.insert(store, {memory_id, updated_record})
-            end
-
-            :ok
-
-          [] ->
-            :ok
-        end
-      end,
-      :ok
-    )
+      case TripleStore.update(store, query) do
+        {:ok, _} -> :ok
+        {:error, _} -> :ok
+      end
+    else
+      _ -> :ok
+    end
   end
 
   # =============================================================================
@@ -493,7 +410,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   # =============================================================================
 
   @doc """
-  Counts memories for a session.
+  Counts memories for a session using efficient SPARQL COUNT.
 
   ## Options
 
@@ -506,23 +423,141 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec count(store_ref(), String.t(), keyword()) :: {:ok, non_neg_integer()}
   def count(store, session_id, opts \\ []) do
-    include_superseded = Keyword.get(opts, :include_superseded, false)
+    with :ok <- validate_session_id(session_id),
+         query = SPARQLQueries.count_query(session_id, opts),
+         {:ok, [result | _]} <- TripleStore.query(store, query) do
+      {:ok, extract_count(result["count"])}
+    else
+      {:error, :invalid_session_id} = error -> error
+      {:error, _} -> {:ok, 0}
+      _ -> {:ok, 0}
+    end
+  end
 
-    with_ets_store(
-      store,
-      fn ->
-        count =
-          store
-          |> ets_to_list()
-          |> Enum.count(fn {_id, record} ->
-            record.session_id == session_id and
-              (include_superseded or record.superseded_at == nil)
-          end)
+  defp extract_count(nil), do: 0
+  defp extract_count({:literal, :typed, value, _}), do: parse_integer(value)
+  defp extract_count({:literal, :simple, value}), do: parse_integer(value)
+  defp extract_count({:literal, _type, value}), do: parse_integer(value)
+  defp extract_count({:literal, value}), do: parse_integer(value)
+  defp extract_count(value) when is_integer(value), do: value
+  defp extract_count(value) when is_binary(value), do: parse_integer(value)
+  defp extract_count(_), do: 0
 
-        {:ok, count}
-      end,
-      {:ok, 0}
-    )
+  # =============================================================================
+  # Relationship Queries
+  # =============================================================================
+
+  @doc """
+  Queries memories related to a given memory by a relationship type.
+
+  This function finds all memories that are connected to the specified memory
+  via the given relationship property from the Jido ontology.
+
+  ## Parameters
+
+  - `store` - The TripleStore store reference
+  - `session_id` - Session identifier for scoping
+  - `memory_id` - The ID of the source memory
+  - `relationship` - The relationship type (e.g., `:refines`, `:has_alternative`, `:derived_from`)
+  - `opts` - Optional parameters (currently unused)
+
+  ## Supported Relationships
+
+  - `:refines` - Memories that refine this one
+  - `:confirms` - Memories that confirm this one
+  - `:contradicts` - Memories that contradict this one
+  - `:has_alternative` - Alternative options for a decision
+  - `:selected_alternative` - The alternative selected
+  - `:has_trade_off` - Trade-offs for a decision
+  - `:justified_by` - Justification evidence
+  - `:has_root_cause` - Root causes for errors
+  - `:produced_lesson` - Lessons produced from errors
+  - `:related_error` - Related errors
+  - `:derived_from` - Memories derived from evidence
+  - `:superseded_by` - Newer versions that superseded this
+
+  ## Returns
+
+  - `{:ok, [stored_memory()]}` - List of related memories
+  - `{:error, reason}` - Query failed
+
+  ## Examples
+
+      # Find alternatives for a decision
+      {:ok, alternatives} = TripleStoreAdapter.query_related(store, "session-123", "dec-1", :has_alternative)
+
+      # Find lessons learned from an error
+      {:ok, lessons} = TripleStoreAdapter.query_related(store, "session-123", "err-1", :produced_lesson)
+
+  """
+  @spec query_related(store_ref(), String.t(), String.t(), atom(), keyword()) ::
+          {:ok, [stored_memory()]} | {:error, term()}
+  def query_related(store, session_id, memory_id, relationship, opts \\ [])
+      when is_reference(store) and is_binary(session_id) and is_binary(memory_id) and
+             is_atom(relationship) and is_list(opts) do
+    with :ok <- validate_session_id(session_id),
+         :ok <- validate_memory_id(memory_id),
+         query = SPARQLQueries.query_related(memory_id, relationship),
+         {:ok, results} when is_list(results) <- TripleStore.query(store, query) do
+      memories =
+        Enum.map(results, fn bindings ->
+          map_related_result(bindings, session_id)
+        end)
+
+      {:ok, memories}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Maps a SPARQL result from query_related to a stored_memory struct
+  defp map_related_result(bindings, session_id) do
+    base_memory_map(bindings)
+    |> Map.merge(%{
+      id: extract_memory_id_from_bindings(bindings),
+      memory_type: extract_memory_type(bindings["type"]),
+      session_id: session_id,
+      superseded_by: nil
+    })
+  end
+
+  # =============================================================================
+  # Statistics API
+  # =============================================================================
+
+  @doc """
+  Gets statistics for the session's memory store.
+
+  Returns aggregate statistics about the stored triples including:
+  - `:triple_count` - Total number of triples
+  - `:distinct_subjects` - Number of distinct subjects (memories)
+  - `:distinct_predicates` - Number of distinct predicates (relationships)
+  - `:distinct_objects` - Number of distinct objects (values)
+
+  ## Parameters
+
+  - `store` - The TripleStore store reference
+  - `_session_id` - Session identifier (for logging/scoping, currently unused)
+
+  ## Returns
+
+  - `{:ok, stats_map}` - Statistics map with keys above
+  - `{:error, reason}` - Failed to get statistics
+
+  ## Examples
+
+      {:ok, stats} = TripleStoreAdapter.get_stats(store, "session-123")
+      # => %{triple_count: 150, distinct_subjects: 10, distinct_predicates: 25, distinct_objects: 80}
+
+  """
+  @spec get_stats(store_ref(), String.t()) :: {:ok, map()} | {:error, term()}
+  def get_stats(store, session_id) when is_reference(store) do
+    with :ok <- validate_session_id(session_id),
+         {:ok, stats} <- TripleStore.Statistics.all(store) do
+      {:ok, stats}
+    else
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   # =============================================================================
@@ -539,13 +574,7 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   """
   @spec extract_id(String.t()) :: String.t()
   def extract_id(memory_iri) do
-    prefix = Vocab.namespace() <> "memory_"
-
-    if String.starts_with?(memory_iri, prefix) do
-      String.replace_prefix(memory_iri, prefix, "")
-    else
-      memory_iri
-    end
+    SPARQLQueries.extract_memory_id(memory_iri)
   end
 
   @doc """
@@ -557,88 +586,241 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
 
   """
   @spec memory_iri(String.t()) :: String.t()
-  def memory_iri(id), do: Vocab.memory_uri(id)
+  def memory_iri(id), do: "#{SPARQLQueries.namespace()}memory_#{id}"
 
   # =============================================================================
-  # Private Functions
+  # Private Functions - Result Mapping
   # =============================================================================
 
-  defp build_stored_record(memory) do
+  # C14: Base mapping function for common fields
+  defp base_memory_map(bindings) do
     %{
-      id: memory.id,
-      content: memory.content,
-      memory_type: memory.memory_type,
-      confidence: memory.confidence,
-      source_type: memory.source_type,
-      session_id: memory.session_id,
-      agent_id: Map.get(memory, :agent_id),
-      project_id: Map.get(memory, :project_id),
-      rationale: Map.get(memory, :rationale),
-      evidence_refs: Map.get(memory, :evidence_refs, []),
-      created_at: memory.created_at,
-      superseded_by: nil,
-      superseded_at: nil,
-      access_count: 0,
+      content: extract_string(bindings["content"]),
+      confidence: extract_confidence(bindings["confidence"]),
+      source_type: extract_source_type(bindings["source"]),
+      agent_id: nil,
+      project_id: nil,
+      rationale: extract_optional_string(bindings["rationale"]),
+      evidence_refs: [],
+      timestamp: extract_datetime(bindings["timestamp"]),
+      access_count: extract_integer(bindings["accessCount"]),
       last_accessed: nil
     }
   end
 
-  defp to_stored_memory(record) do
-    %{
-      id: record.id,
-      content: record.content,
-      memory_type: record.memory_type,
-      confidence: record.confidence,
-      source_type: record.source_type,
-      session_id: record.session_id,
-      agent_id: record.agent_id,
-      project_id: record.project_id,
-      rationale: record.rationale,
-      evidence_refs: record.evidence_refs,
-      timestamp: record.created_at,
-      superseded_by: record.superseded_by,
-      access_count: record.access_count,
-      last_accessed: record.last_accessed
-    }
+  # Maps a SPARQL result from query_by_type to a stored_memory struct
+  defp map_type_result(bindings, session_id, memory_type) do
+    base_memory_map(bindings)
+    |> Map.merge(%{
+      id: extract_memory_id_from_bindings(bindings),
+      memory_type: memory_type,
+      session_id: session_id,
+      superseded_by: nil
+    })
   end
 
-  defp add_optional_triple(triples, nil, _subject, _predicate, _value_fn), do: triples
-
-  defp add_optional_triple(triples, value, subject, predicate, value_fn) do
-    triples ++ [{subject, predicate, value_fn.(value)}]
+  # Maps a SPARQL result from query_by_session to a stored_memory struct
+  defp map_session_result(bindings, session_id) do
+    base_memory_map(bindings)
+    |> Map.merge(%{
+      id: extract_memory_id_from_bindings(bindings),
+      memory_type: extract_memory_type(bindings["type"]),
+      session_id: session_id,
+      superseded_by: nil
+    })
   end
 
-  defp add_evidence_triples(triples, [], _subject), do: triples
-
-  defp add_evidence_triples(triples, evidence_refs, subject) do
-    evidence_triples =
-      Enum.map(evidence_refs, fn ref ->
-        {subject, Vocab.derived_from(), Vocab.evidence_uri(ref)}
-      end)
-
-    triples ++ evidence_triples
+  # Maps a SPARQL result from query_by_id to a stored_memory struct
+  defp map_id_result(bindings, memory_id) do
+    base_memory_map(bindings)
+    |> Map.merge(%{
+      id: memory_id,
+      memory_type: extract_memory_type(bindings["type"]),
+      session_id: extract_session_id(bindings["session"]),
+      superseded_by: extract_optional_memory_id(bindings["supersededBy"])
+    })
   end
 
-  defp wrap_literal(value), do: {:literal, value}
+  # =============================================================================
+  # Private Functions - Value Extraction
+  # =============================================================================
 
-  defp ets_to_list(store) do
-    :ets.tab2list(store)
-  end
-
-  defp maybe_limit(results, nil), do: results
-  defp maybe_limit(results, limit), do: Enum.take(results, limit)
-
-  # Helper to wrap ETS operations with consistent error handling.
-  # This centralizes the try/rescue pattern used throughout the module.
-  @spec with_ets_store(store_ref(), (() -> result), result) :: result when result: term()
-  defp with_ets_store(store, fun, error_result \\ {:error, :invalid_store}) do
-    try do
-      fun.()
-    rescue
-      ArgumentError ->
-        # ETS operations raise ArgumentError when table doesn't exist
-        # or when given invalid arguments
-        error_result
+  defp extract_memory_id_from_bindings(bindings) do
+    case bindings["mem"] do
+      nil -> nil
+      iri -> SPARQLQueries.extract_memory_id(extract_iri_string(iri))
     end
   end
+
+  defp extract_string(nil), do: ""
+  # TripleStore format: {:literal, :simple, value} or {:literal, :typed, value, datatype}
+  defp extract_string({:literal, :simple, value}) when is_binary(value), do: value
+  defp extract_string({:literal, :typed, value, _datatype}) when is_binary(value), do: value
+  # Legacy formats for compatibility
+  defp extract_string({:literal, _type, value}) when is_binary(value), do: value
+  defp extract_string({:literal, value}) when is_binary(value), do: value
+  defp extract_string(value) when is_binary(value), do: value
+  defp extract_string(_), do: ""
+
+  defp extract_optional_string(nil), do: nil
+  # TripleStore format
+  defp extract_optional_string({:literal, :simple, value}), do: value
+  defp extract_optional_string({:literal, :typed, value, _datatype}), do: value
+  # Legacy formats
+  defp extract_optional_string({:literal, _type, value}), do: value
+  defp extract_optional_string({:literal, value}), do: value
+  defp extract_optional_string(value) when is_binary(value), do: value
+  defp extract_optional_string(_), do: nil
+
+  # TripleStore format: {:named_node, iri}
+  defp extract_iri_string({:named_node, iri}), do: iri
+  # Legacy formats for compatibility
+  defp extract_iri_string({:iri, iri}), do: iri
+  defp extract_iri_string(iri) when is_binary(iri), do: iri
+  defp extract_iri_string(_), do: ""
+
+  defp extract_memory_type(nil), do: :unknown
+
+  defp extract_memory_type(type_value) do
+    iri = extract_iri_string(type_value)
+    SPARQLQueries.class_to_memory_type(iri)
+  end
+
+  defp extract_confidence(nil), do: :medium
+
+  defp extract_confidence(confidence_value) do
+    iri = extract_iri_string(confidence_value)
+    SPARQLQueries.individual_to_confidence(iri)
+  end
+
+  defp extract_source_type(nil), do: :agent
+
+  defp extract_source_type(source_value) do
+    iri = extract_iri_string(source_value)
+    SPARQLQueries.individual_to_source_type(iri)
+  end
+
+  defp extract_session_id(nil), do: "unknown"
+
+  defp extract_session_id(session_value) do
+    iri = extract_iri_string(session_value)
+    SPARQLQueries.extract_session_id(iri)
+  end
+
+  defp extract_datetime(nil), do: DateTime.utc_now()
+  # TripleStore format: {:literal, :typed, value, datatype}
+  defp extract_datetime({:literal, :typed, value, _datatype}) when is_binary(value) do
+    parse_datetime(value)
+  end
+
+  defp extract_datetime({:literal, :simple, value}) when is_binary(value) do
+    parse_datetime(value)
+  end
+
+  # Legacy formats for compatibility
+  defp extract_datetime({:literal, {:xsd, :dateTime}, value}) when is_binary(value) do
+    parse_datetime(value)
+  end
+
+  defp extract_datetime({:literal, _type, value}) when is_binary(value) do
+    parse_datetime(value)
+  end
+
+  defp extract_datetime({:literal, value}) when is_binary(value) do
+    parse_datetime(value)
+  end
+
+  defp extract_datetime(value) when is_binary(value) do
+    parse_datetime(value)
+  end
+
+  defp extract_datetime(_), do: DateTime.utc_now()
+
+  defp parse_datetime(str) do
+    case DateTime.from_iso8601(str) do
+      {:ok, dt, _offset} -> dt
+      _ -> DateTime.utc_now()
+    end
+  end
+
+  defp extract_integer(nil), do: 0
+  # TripleStore format
+  defp extract_integer({:literal, :typed, value, _datatype}), do: parse_integer(value)
+  defp extract_integer({:literal, :simple, value}), do: parse_integer(value)
+  # Legacy formats
+  defp extract_integer({:literal, {:xsd, :integer}, value}), do: parse_integer(value)
+  defp extract_integer({:literal, _type, value}), do: parse_integer(value)
+  defp extract_integer({:literal, value}), do: parse_integer(value)
+  defp extract_integer(value) when is_integer(value), do: value
+  defp extract_integer(value) when is_binary(value), do: parse_integer(value)
+  defp extract_integer(_), do: 0
+
+  defp parse_integer(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, _} -> int
+      :error -> 0
+    end
+  end
+
+  defp parse_integer(value) when is_integer(value), do: value
+  defp parse_integer(_), do: 0
+
+  defp extract_optional_memory_id(nil), do: nil
+
+  defp extract_optional_memory_id(value) do
+    iri = extract_iri_string(value)
+
+    if String.contains?(iri, "DeletedMarker") do
+      "deleted"
+    else
+      SPARQLQueries.extract_memory_id(iri)
+    end
+  end
+
+  # =============================================================================
+  # Validation Functions
+  # =============================================================================
+
+  @doc """
+  Validates a memory ID format before using it in SPARQL queries.
+
+  This prevents injection attacks and ensures IDs are safe to embed
+  directly in SPARQL query strings.
+
+  ## Valid ID Format
+
+  - 1-128 characters
+  - Only alphanumeric characters, hyphens, and underscores
+
+  Returns `:ok` if valid, `{:error, :invalid_memory_id}` if not.
+  """
+  @spec validate_memory_id(String.t() | nil) :: :ok | {:error, :invalid_memory_id}
+  defp validate_memory_id(id) when is_binary(id) do
+    if SPARQLQueries.valid_memory_id?(id) do
+      :ok
+    else
+      {:error, :invalid_memory_id}
+    end
+  end
+
+  defp validate_memory_id(_), do: {:error, :invalid_memory_id}
+
+  @doc """
+  Validates a session ID format before using it in SPARQL queries.
+
+  Uses the same validation as memory IDs since session IDs are embedded
+  in SPARQL queries and must be safe.
+
+  Returns `:ok` if valid, `{:error, :invalid_session_id}` if not.
+  """
+  @spec validate_session_id(String.t() | nil) :: :ok | {:error, :invalid_session_id}
+  defp validate_session_id(id) when is_binary(id) do
+    if SPARQLQueries.valid_session_id?(id) do
+      :ok
+    else
+      {:error, :invalid_session_id}
+    end
+  end
+
+  defp validate_session_id(_), do: {:error, :invalid_session_id}
 end

@@ -411,4 +411,121 @@ defmodule JidoCode.Session.ManagerTest do
       assert {:error, :not_found} = Manager.run_lua("non_existent_session", "return 1")
     end
   end
+
+  describe "git/4" do
+    setup %{tmp_dir: tmp_dir} do
+      # Initialize git repo in the tmp_dir
+      {_, 0} = System.cmd("git", ["init"], cd: tmp_dir, stderr_to_stdout: true)
+      {_, 0} = System.cmd("git", ["config", "user.email", "test@example.com"], cd: tmp_dir)
+      {_, 0} = System.cmd("git", ["config", "user.name", "Test User"], cd: tmp_dir)
+      :ok
+    end
+
+    test "executes git status", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      {:ok, result} = Manager.git(session.id, "status")
+
+      assert is_map(result)
+      assert Map.has_key?(result, :output)
+      assert Map.has_key?(result, :exit_code)
+      assert result.exit_code == 0
+    end
+
+    test "executes git log with arguments", %{tmp_dir: tmp_dir} do
+      # Create a commit first
+      File.write!(Path.join(tmp_dir, "test.txt"), "content")
+      {_, 0} = System.cmd("git", ["add", "."], cd: tmp_dir)
+      {_, 0} = System.cmd("git", ["commit", "-m", "Test commit"], cd: tmp_dir)
+
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      {:ok, result} = Manager.git(session.id, "log", ["--oneline", "-1"])
+
+      assert result.exit_code == 0
+      assert result.output =~ "Test commit"
+    end
+
+    test "executes git diff", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      {:ok, result} = Manager.git(session.id, "diff")
+
+      assert result.exit_code == 0
+      # Empty diff on clean repo
+      assert result.output == ""
+    end
+
+    test "executes git branch", %{tmp_dir: tmp_dir} do
+      # Need at least one commit for branch to work
+      File.write!(Path.join(tmp_dir, "test.txt"), "content")
+      {_, 0} = System.cmd("git", ["add", "."], cd: tmp_dir)
+      {_, 0} = System.cmd("git", ["commit", "-m", "Initial"], cd: tmp_dir)
+
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      {:ok, result} = Manager.git(session.id, "branch")
+
+      assert result.exit_code == 0
+      # Should show current branch
+      assert result.output =~ "master" or result.output =~ "main"
+    end
+
+    test "blocks destructive operations by default", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      {:error, msg} = Manager.git(session.id, "push", ["--force", "origin", "main"])
+
+      assert msg =~ "destructive operation blocked"
+    end
+
+    test "allows destructive with allow_destructive option", %{tmp_dir: tmp_dir} do
+      # Create a commit first
+      File.write!(Path.join(tmp_dir, "test.txt"), "content")
+      {_, 0} = System.cmd("git", ["add", "."], cd: tmp_dir)
+      {_, 0} = System.cmd("git", ["commit", "-m", "Test"], cd: tmp_dir)
+
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      # Will fail (no remote) but should not be blocked
+      {:ok, result} =
+        Manager.git(session.id, "push", ["--force", "origin", "main"], allow_destructive: true)
+
+      # Non-zero exit code expected (no remote configured)
+      assert result.exit_code != 0
+    end
+
+    test "rejects disallowed subcommands", %{tmp_dir: tmp_dir} do
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      {:error, msg} = Manager.git(session.id, "gc")
+
+      assert msg =~ "'gc' is not allowed"
+    end
+
+    test "returns parsed data for status", %{tmp_dir: tmp_dir} do
+      # Create an untracked file
+      File.write!(Path.join(tmp_dir, "untracked.txt"), "content")
+
+      {:ok, session} = Session.new(project_path: tmp_dir)
+      {:ok, _pid} = Manager.start_link(session: session)
+
+      {:ok, result} = Manager.git(session.id, "status")
+
+      assert result.exit_code == 0
+      # parsed should be a map or list
+      assert is_map(result.parsed) or is_list(result.parsed) or is_nil(result.parsed)
+    end
+
+    test "returns error for non-existent session" do
+      assert {:error, :not_found} = Manager.git("non_existent_session", "status")
+    end
+  end
 end

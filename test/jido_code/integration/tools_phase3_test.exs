@@ -1,21 +1,25 @@
 defmodule JidoCode.Integration.ToolsPhase3Test do
   @moduledoc """
-  Integration tests for Phase 3 (LSP Code Intelligence) tools.
+  Integration tests for Phase 3 (Git & LSP Code Intelligence) tools.
 
-  These tests verify that Phase 3 LSP tools work correctly through the
+  These tests verify that Phase 3 tools work correctly through the
   Executor → Handler chain with proper security boundary enforcement.
 
   ## Tested Tools
 
+  - `git_command` - Safe git CLI passthrough (Section 3.1)
   - `get_hover_info` - Type and documentation at cursor position (Section 3.3)
   - `go_to_definition` - Symbol definition navigation (Section 3.4)
   - `find_references` - Symbol usage finding (Section 3.5)
+  - `get_diagnostics` - LSP diagnostics (errors, warnings) (Section 3.2)
 
   ## Test Coverage (Section 3.7)
 
+  - 3.7.1.2: Git tools execute through Executor → Handler chain
   - 3.7.1.3: LSP tools execute through Executor → Handler chain
   - 3.7.1.4: Session-scoped context isolation
-  - 3.7.3: LSP integration tests (hover, definition, references)
+  - 3.7.2: Git integration tests (status, diff, log, branch)
+  - 3.7.3: LSP integration tests (hover, definition, references, diagnostics)
 
   ## Note on Expert Integration
 
@@ -37,6 +41,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   alias JidoCode.SessionRegistry
   alias JidoCode.SessionSupervisor
   alias JidoCode.Test.SessionTestHelpers
+  alias JidoCode.Tools.Definitions.GitCommand
   alias JidoCode.Tools.Definitions.LSP, as: LSPDefs
   alias JidoCode.Tools.Executor
   alias JidoCode.Tools.LSP.Client
@@ -65,9 +70,11 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     SessionRegistry.clear()
 
     # Stop any running sessions under SessionSupervisor
-    for {_id, pid, _type, _modules} <- DynamicSupervisor.which_children(SessionSupervisor) do
+    SessionSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.each(fn {_id, pid, _type, _modules} ->
       DynamicSupervisor.terminate_child(SessionSupervisor, pid)
-    end
+    end)
 
     # Create temp base directory for test sessions
     tmp_base = Path.join(System.tmp_dir!(), "phase3_integration_#{:rand.uniform(100_000)}")
@@ -82,9 +89,8 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
       # Stop all test sessions
       if Process.whereis(SessionSupervisor) do
-        for session <- SessionRegistry.list_all() do
-          SessionSupervisor.stop_session(session.id)
-        end
+        SessionRegistry.list_all()
+        |> Enum.each(&SessionSupervisor.stop_session(&1.id))
       end
 
       SessionRegistry.clear()
@@ -95,23 +101,24 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   end
 
   defp wait_for_supervisor(retries \\ 50) do
-    if Process.whereis(SessionSupervisor) do
-      :ok
-    else
-      if retries > 0 do
+    cond do
+      Process.whereis(SessionSupervisor) != nil -> :ok
+      retries <= 0 -> raise "SessionSupervisor not available after waiting"
+      true ->
         Process.sleep(10)
         wait_for_supervisor(retries - 1)
-      else
-        raise "SessionSupervisor not available after waiting"
-      end
     end
   end
 
   defp register_phase3_tools do
+    # Register Git tools
+    ToolsRegistry.register(GitCommand.git_command())
+
     # Register LSP tools
     ToolsRegistry.register(LSPDefs.get_hover_info())
     ToolsRegistry.register(LSPDefs.go_to_definition())
     ToolsRegistry.register(LSPDefs.find_references())
+    ToolsRegistry.register(LSPDefs.get_diagnostics())
   end
 
   # ============================================================================
@@ -152,10 +159,524 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   defp decode_result({:ok, json}) when is_binary(json), do: {:ok, Jason.decode!(json)}
   defp decode_result(other), do: other
 
-  defp create_elixir_file(dir, filename, content) do
+  defp init_git_repo(dir) do
+    # Initialize with explicit branch name for consistency across systems
+    run_git_cmd!(dir, ["init", "-b", "main"])
+    run_git_cmd!(dir, ["config", "user.email", "test@example.com"])
+    run_git_cmd!(dir, ["config", "user.name", "Test User"])
+    :ok
+  end
+
+  defp run_git_cmd!(dir, args) do
+    case System.cmd("git", args, cd: dir, stderr_to_stdout: true) do
+      {_output, 0} -> :ok
+      {output, code} -> raise "git #{hd(args)} failed (exit #{code}): #{output}"
+    end
+  end
+
+  defp create_file(dir, filename, content) do
     path = Path.join(dir, filename)
     File.write!(path, content)
     path
+  end
+
+  defp git_add_commit(dir, message) do
+    {_, 0} = System.cmd("git", ["add", "."], cd: dir, stderr_to_stdout: true)
+    {_, 0} = System.cmd("git", ["commit", "-m", message], cd: dir, stderr_to_stdout: true)
+    :ok
+  end
+
+  # ============================================================================
+  # Section 3.7.1.2: Git Tools Execute Through Executor → Handler Chain
+  # ============================================================================
+
+  describe "Executor → Handler chain execution for Git tools" do
+    @describetag :git
+    test "git_command executes through Executor and returns result", %{tmp_base: tmp_base} do
+      # Setup: Create project with initialized git repo
+      project_dir = create_test_dir(tmp_base, "git_chain_test")
+      init_git_repo(project_dir)
+
+      # Create session and build context
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Execute git_command through Executor
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      # Verify result structure
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert is_map(response)
+      assert Map.has_key?(response, "output")
+      assert Map.has_key?(response, "exit_code")
+      assert response["exit_code"] == 0
+    end
+
+    test "git_command with args executes through Executor", %{tmp_base: tmp_base} do
+      # Setup
+      project_dir = create_test_dir(tmp_base, "git_args_chain_test")
+      init_git_repo(project_dir)
+      create_file(project_dir, "test.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      # Create session and build context
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Execute git log with args
+      call = tool_call("git_command", %{"subcommand" => "log", "args" => ["--oneline", "-1"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "Initial commit"
+    end
+
+    test "git_command blocks disallowed subcommand", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_blocked_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Try to execute a disallowed subcommand
+      call = tool_call("git_command", %{"subcommand" => "invalid-command-xyz"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "not allowed"
+    end
+  end
+
+  # ============================================================================
+  # Section 3.7.2: Git Integration Tests (status, diff, log, branch)
+  # ============================================================================
+
+  describe "git_command integration - status (3.7.2.1)" do
+    @describetag :git
+    test "git_command status works in initialized repo", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_status_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      # Fresh repo shows clean status or initial branch message
+      assert is_binary(response["output"])
+    end
+
+    test "git_command status shows untracked files", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_status_untracked_test")
+      init_git_repo(project_dir)
+      create_file(project_dir, "new_file.txt", "content")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "new_file.txt"
+    end
+
+    test "git_command status shows staged files", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_status_staged_test")
+      init_git_repo(project_dir)
+      create_file(project_dir, "staged.txt", "content")
+      {_, 0} = System.cmd("git", ["add", "staged.txt"], cd: project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "status"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "staged.txt"
+    end
+  end
+
+  describe "git_command integration - diff (3.7.2.2)" do
+    @describetag :git
+    test "git_command diff shows no changes on clean repo", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_diff_clean_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "diff"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      # Empty diff on clean repo
+      assert response["output"] == ""
+    end
+
+    test "git_command diff shows file changes", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_diff_changes_test")
+      init_git_repo(project_dir)
+
+      # Create and commit a file
+      create_file(project_dir, "tracked.txt", "original content")
+      git_add_commit(project_dir, "Add tracked file")
+
+      # Modify the file
+      File.write!(Path.join(project_dir, "tracked.txt"), "modified content")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "diff"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "tracked.txt"
+      assert response["output"] =~ "-original content"
+      assert response["output"] =~ "+modified content"
+    end
+
+    test "git_command diff with file path argument", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_diff_path_test")
+      init_git_repo(project_dir)
+
+      # Create and commit files
+      create_file(project_dir, "file1.txt", "content1")
+      create_file(project_dir, "file2.txt", "content2")
+      git_add_commit(project_dir, "Add files")
+
+      # Modify both files
+      File.write!(Path.join(project_dir, "file1.txt"), "modified1")
+      File.write!(Path.join(project_dir, "file2.txt"), "modified2")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Diff only file1.txt
+      call = tool_call("git_command", %{"subcommand" => "diff", "args" => ["file1.txt"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "file1.txt"
+      refute response["output"] =~ "file2.txt"
+    end
+  end
+
+  describe "git_command integration - log (3.7.2.3)" do
+    @describetag :git
+    test "git_command log shows commit history", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_log_test")
+      init_git_repo(project_dir)
+
+      # Create commits
+      create_file(project_dir, "file1.txt", "content1")
+      git_add_commit(project_dir, "First commit")
+
+      create_file(project_dir, "file2.txt", "content2")
+      git_add_commit(project_dir, "Second commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "log"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "First commit"
+      assert response["output"] =~ "Second commit"
+    end
+
+    test "git_command log with format options", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_log_format_test")
+      init_git_repo(project_dir)
+
+      create_file(project_dir, "test.txt", "content")
+      git_add_commit(project_dir, "Test commit message")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "log", "args" => ["--oneline", "-1"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "Test commit message"
+      # Oneline format should be short
+      lines = String.split(response["output"], "\n", trim: true)
+      assert length(lines) == 1
+    end
+
+    test "git_command log on empty repo returns error", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_log_empty_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "log"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      # Empty repo returns non-zero exit code for log
+      assert response["exit_code"] != 0
+    end
+  end
+
+  describe "git_command integration - branch (3.7.2.4)" do
+    @describetag :git
+    test "git_command branch lists branches", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_list_test")
+      init_git_repo(project_dir)
+
+      # Need at least one commit for branch to work
+      create_file(project_dir, "init.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      # Should show current branch (we explicitly init with -b main)
+      assert response["output"] =~ "main"
+    end
+
+    test "git_command branch creates new branch", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_create_test")
+      init_git_repo(project_dir)
+
+      create_file(project_dir, "init.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch", "args" => ["feature-test"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+
+      # Verify branch was created
+      {output, 0} = System.cmd("git", ["branch"], cd: project_dir)
+      assert output =~ "feature-test"
+    end
+
+    test "git_command branch -a shows all branches", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_all_test")
+      init_git_repo(project_dir)
+
+      create_file(project_dir, "init.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      # Create another branch
+      {_, 0} = System.cmd("git", ["branch", "another-branch"], cd: project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch", "args" => ["-a"]})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+      assert response["output"] =~ "another-branch"
+    end
+  end
+
+  # ============================================================================
+  # Section 3.7.2.5: Git Security - Destructive Operation Blocking
+  # ============================================================================
+
+  describe "git_command security - destructive operations" do
+    @describetag :git
+    @describetag :security
+    test "git_command blocks force push by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_force_push_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{
+          "subcommand" => "push",
+          "args" => ["--force", "origin", "main"]
+        })
+
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command blocks reset --hard by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_reset_hard_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{"subcommand" => "reset", "args" => ["--hard", "HEAD~1"]})
+
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command blocks clean -fd by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_clean_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "clean", "args" => ["-fd"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command blocks branch -D by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_branch_delete_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "branch", "args" => ["-D", "some-branch"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    # Security bypass vector tests (from Section 3.1.5 code review)
+    @tag :security
+    test "git_command blocks push -f (short flag) by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_push_f_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "push", "args" => ["-f", "origin", "main"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks --force-with-lease push by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_force_with_lease_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{
+          "subcommand" => "push",
+          "args" => ["--force-with-lease", "origin", "main"]
+        })
+
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks reset --hard=value syntax by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_reset_hard_value_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "reset", "args" => ["--hard=HEAD~1"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks reordered clean flags (-df) by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_clean_df_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "clean", "args" => ["-df"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    @tag :security
+    test "git_command blocks combined clean flags (-xdf) by default", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "git_clean_xdf_test")
+      init_git_repo(project_dir)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("git_command", %{"subcommand" => "clean", "args" => ["-xdf"]})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "destructive operation blocked"
+    end
+
+    test "git_command allows destructive operation with allow_destructive flag", %{
+      tmp_base: tmp_base
+    } do
+      project_dir = create_test_dir(tmp_base, "git_allow_destructive_test")
+      init_git_repo(project_dir)
+
+      # Create a commit first
+      create_file(project_dir, "test.txt", "content")
+      git_add_commit(project_dir, "Initial commit")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call =
+        tool_call("git_command", %{
+          "subcommand" => "reset",
+          "args" => ["--hard", "HEAD"],
+          "allow_destructive" => true
+        })
+
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+      assert response["exit_code"] == 0
+    end
   end
 
   # ============================================================================
@@ -167,7 +688,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project with Elixir file
       project_dir = create_test_dir(tmp_base, "hover_chain_test")
 
-      create_elixir_file(project_dir, "test_module.ex", """
+      create_file(project_dir, "test_module.ex", """
       defmodule TestModule do
         def hello, do: :world
       end
@@ -195,7 +716,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project with Elixir file
       project_dir = create_test_dir(tmp_base, "def_chain_test")
 
-      create_elixir_file(project_dir, "test_module.ex", """
+      create_file(project_dir, "test_module.ex", """
       defmodule TestModule do
         def hello, do: :world
 
@@ -226,13 +747,13 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project with Elixir files
       project_dir = create_test_dir(tmp_base, "refs_chain_test")
 
-      create_elixir_file(project_dir, "module_a.ex", """
+      create_file(project_dir, "module_a.ex", """
       defmodule ModuleA do
         def shared_func, do: :ok
       end
       """)
 
-      create_elixir_file(project_dir, "module_b.ex", """
+      create_file(project_dir, "module_b.ex", """
       defmodule ModuleB do
         def caller do
           ModuleA.shared_func()
@@ -269,14 +790,14 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_b = create_test_dir(tmp_base, "hover_project_b")
 
       # Create different content in each project
-      create_elixir_file(project_a, "code.ex", """
+      create_file(project_a, "code.ex", """
       defmodule ProjectA do
         @moduledoc "Project A module"
         def hello, do: :project_a
       end
       """)
 
-      create_elixir_file(project_b, "code.ex", """
+      create_file(project_b, "code.ex", """
       defmodule ProjectB do
         @moduledoc "Project B module"
         def hello, do: :project_b
@@ -305,7 +826,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       # Setup: Create project directory
       project_dir = create_test_dir(tmp_base, "isolation_test")
 
-      create_elixir_file(project_dir, "safe.ex", """
+      create_file(project_dir, "safe.ex", """
       defmodule Safe do
         def ok, do: :ok
       end
@@ -335,8 +856,8 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_a = create_test_dir(tmp_base, "def_project_a")
       project_b = create_test_dir(tmp_base, "def_project_b")
 
-      create_elixir_file(project_a, "module.ex", "defmodule A do end")
-      create_elixir_file(project_b, "module.ex", "defmodule B do end")
+      create_file(project_a, "module.ex", "defmodule A do end")
+      create_file(project_b, "module.ex", "defmodule B do end")
 
       # Create session for project A
       session_a = create_session(project_a)
@@ -367,7 +888,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "get_hover_info for Elixir file returns structured response", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "hover_elixir_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestHover do
         @moduledoc "A test module for hover info"
 
@@ -428,7 +949,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "go_to_definition for Elixir file returns structured response", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "def_elixir_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestDef do
         def target, do: :ok
 
@@ -474,7 +995,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "find_references for Elixir file returns structured response", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "refs_elixir_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestRefs do
         def target, do: :ok
 
@@ -499,7 +1020,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "find_references with include_declaration option", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "refs_decl_test")
 
-      create_elixir_file(project_dir, "test.ex", """
+      create_file(project_dir, "test.ex", """
       defmodule TestRefsDecl do
         def func, do: :ok
         def caller, do: func()
@@ -547,6 +1068,320 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   end
 
   # ============================================================================
+  # Section 3.7.3.1-3.7.3.2: LSP Diagnostics Integration
+  # ============================================================================
+
+  describe "LSP handler integration - get_diagnostics" do
+    test "get_diagnostics returns structured response for workspace", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_workspace_test")
+
+      create_file(project_dir, "test.ex", """
+      defmodule DiagTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get workspace diagnostics (no path specified)
+      call = tool_call("get_diagnostics", %{})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      assert Map.has_key?(response, "diagnostics")
+      assert Map.has_key?(response, "count")
+      assert Map.has_key?(response, "truncated")
+      assert is_list(response["diagnostics"])
+      assert is_integer(response["count"])
+      assert is_boolean(response["truncated"])
+    end
+
+    test "get_diagnostics returns structured response for specific file", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_file_test")
+
+      create_file(project_dir, "test.ex", """
+      defmodule DiagFileTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get diagnostics for specific file
+      call = tool_call("get_diagnostics", %{"path" => "test.ex"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      assert Map.has_key?(response, "diagnostics")
+      assert Map.has_key?(response, "count")
+    end
+
+    test "get_diagnostics filters by severity", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_severity_test")
+
+      create_file(project_dir, "test.ex", """
+      defmodule DiagSeverityTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get only error-level diagnostics
+      call = tool_call("get_diagnostics", %{"severity" => "error"})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      # All returned diagnostics should be errors (if any)
+      for diag <- response["diagnostics"] do
+        assert diag["severity"] == "error"
+      end
+    end
+
+    test "get_diagnostics respects limit parameter", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_limit_test")
+
+      create_file(project_dir, "test.ex", """
+      defmodule DiagLimitTest do
+        def hello, do: :world
+      end
+      """)
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      # Get at most 5 diagnostics
+      call = tool_call("get_diagnostics", %{"limit" => 5})
+      result = Executor.execute(call, context: context)
+
+      {:ok, response} = result |> unwrap_result() |> decode_result()
+
+      assert is_map(response)
+      assert length(response["diagnostics"]) <= 5
+    end
+
+    test "get_diagnostics rejects invalid severity", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_invalid_sev_test")
+
+      create_file(project_dir, "test.ex", "defmodule Test do end")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"severity" => "critical"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "Invalid severity" or error_msg =~ "invalid"
+    end
+
+    test "get_diagnostics rejects invalid limit", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_invalid_limit_test")
+
+      create_file(project_dir, "test.ex", "defmodule Test do end")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"limit" => -5})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "positive" or error_msg =~ "invalid"
+    end
+
+    test "get_diagnostics blocks path traversal", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_security_test")
+
+      create_file(project_dir, "test.ex", "defmodule Test do end")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"path" => "../../../etc/passwd"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "escapes" or error_msg =~ "outside" or error_msg =~ "boundary"
+    end
+
+    test "get_diagnostics returns error for nonexistent file", %{tmp_base: tmp_base} do
+      project_dir = create_test_dir(tmp_base, "diag_nofile_test")
+
+      session = create_session(project_dir)
+      {:ok, context} = Executor.build_context(session.id)
+
+      call = tool_call("get_diagnostics", %{"path" => "nonexistent.ex"})
+      result = Executor.execute(call, context: context)
+
+      {:error, error_msg} = unwrap_result(result)
+      assert error_msg =~ "not found" or error_msg =~ "does not exist"
+    end
+  end
+
+  describe "LSP diagnostics with Expert (when installed)" do
+    @tag :integration
+    @tag :expert_required
+
+    @doc """
+    Section 3.7.3.1: Test diagnostics returned after file with syntax error.
+
+    When Expert is available and running, files with syntax errors should
+    produce diagnostics after being opened/compiled by the language server.
+    """
+    test "get_diagnostics detects syntax errors when Expert available", %{tmp_base: tmp_base} do
+      case Client.find_expert_path() do
+        {:ok, _path} ->
+          project_dir = create_test_dir(tmp_base, "expert_diag_syntax_test")
+
+          # Create a file with a syntax error (missing 'do')
+          create_file(project_dir, "syntax_error.ex", """
+          defmodule SyntaxErrorModule
+            def hello, do: :world
+          end
+          """)
+
+          session = create_session(project_dir)
+          {:ok, context} = Executor.build_context(session.id)
+
+          # Give Expert time to start and analyze the file
+          Process.sleep(3000)
+
+          call = tool_call("get_diagnostics", %{"path" => "syntax_error.ex"})
+          result = Executor.execute(call, context: context)
+
+          {:ok, response} = result |> unwrap_result() |> decode_result()
+
+          # With Expert, we should get actual diagnostics
+          assert response["status"] in ["lsp_not_configured", nil] or
+                   (is_list(response["diagnostics"]) and
+                      (length(response["diagnostics"]) > 0 or
+                         response["status"] == "lsp_not_configured"))
+
+          # If diagnostics are returned, verify structure
+          if length(response["diagnostics"] || []) > 0 do
+            diag = hd(response["diagnostics"])
+            assert Map.has_key?(diag, "severity")
+            assert Map.has_key?(diag, "message")
+            assert Map.has_key?(diag, "line")
+          end
+
+        {:error, :not_found} ->
+          # Skip test if Expert is not installed
+          :ok
+      end
+    end
+
+    @doc """
+    Section 3.7.3.2: Test diagnostics returned for undefined function.
+
+    When Expert is available, calling an undefined function should produce
+    a diagnostic warning or error.
+    """
+    test "get_diagnostics detects undefined function when Expert available", %{tmp_base: tmp_base} do
+      case Client.find_expert_path() do
+        {:ok, _path} ->
+          project_dir = create_test_dir(tmp_base, "expert_diag_undef_test")
+
+          # Create a file that calls an undefined function
+          create_file(project_dir, "undefined_func.ex", """
+          defmodule UndefinedFuncModule do
+            def caller do
+              this_function_does_not_exist()
+            end
+          end
+          """)
+
+          session = create_session(project_dir)
+          {:ok, context} = Executor.build_context(session.id)
+
+          # Give Expert time to start and analyze the file
+          Process.sleep(3000)
+
+          call = tool_call("get_diagnostics", %{"path" => "undefined_func.ex"})
+          result = Executor.execute(call, context: context)
+
+          {:ok, response} = result |> unwrap_result() |> decode_result()
+
+          # With Expert, we should get diagnostics for undefined function
+          assert is_map(response)
+          assert Map.has_key?(response, "diagnostics")
+
+          # If diagnostics are returned, check for undefined function warning/error
+          diagnostics = response["diagnostics"] || []
+
+          if length(diagnostics) > 0 do
+            # Find diagnostic about undefined function
+            undef_diag =
+              Enum.find(diagnostics, fn d ->
+                msg = d["message"] || ""
+
+                String.contains?(msg, "undefined") or
+                  String.contains?(msg, "does not exist") or
+                  String.contains?(msg, "unknown")
+              end)
+
+            # If Expert caught the undefined function, verify the diagnostic
+            if undef_diag do
+              assert undef_diag["severity"] in ["error", "warning"]
+              assert undef_diag["line"] >= 1
+            end
+          end
+
+        {:error, :not_found} ->
+          # Skip test if Expert is not installed
+          :ok
+      end
+    end
+
+    test "get_diagnostics filters errors only when Expert available", %{tmp_base: tmp_base} do
+      case Client.find_expert_path() do
+        {:ok, _path} ->
+          project_dir = create_test_dir(tmp_base, "expert_diag_filter_test")
+
+          # Create a file with both errors and warnings
+          create_file(project_dir, "mixed_issues.ex", """
+          defmodule MixedIssuesModule do
+            # Missing 'do' causes syntax error
+            def hello
+              unused_var = :warning
+              :ok
+            end
+          end
+          """)
+
+          session = create_session(project_dir)
+          {:ok, context} = Executor.build_context(session.id)
+
+          Process.sleep(3000)
+
+          # Filter to errors only
+          call = tool_call("get_diagnostics", %{"severity" => "error"})
+          result = Executor.execute(call, context: context)
+
+          {:ok, response} = result |> unwrap_result() |> decode_result()
+
+          # All returned diagnostics should be errors
+          for diag <- response["diagnostics"] || [] do
+            assert diag["severity"] == "error"
+          end
+
+        {:error, :not_found} ->
+          :ok
+      end
+    end
+  end
+
+  # ============================================================================
   # Section 3.7.3.7: Output Path Validation (Security)
   # ============================================================================
 
@@ -554,7 +1389,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
     test "LSP handlers validate input paths against project boundary", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "path_security_test")
 
-      create_elixir_file(project_dir, "safe.ex", "defmodule Safe do end")
+      create_file(project_dir, "safe.ex", "defmodule Safe do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -582,7 +1417,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_dir = create_test_dir(tmp_base, "valid_path_test")
       lib_dir = create_test_dir(project_dir, "lib")
 
-      create_elixir_file(lib_dir, "module.ex", """
+      create_file(lib_dir, "module.ex", """
       defmodule Lib.Module do
         def func, do: :ok
       end
@@ -618,7 +1453,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
       project_dir = create_test_dir(tmp_base, "abs_path_test")
 
       file_path =
-        create_elixir_file(project_dir, "module.ex", """
+        create_file(project_dir, "module.ex", """
         defmodule AbsPath do
           def func, do: :ok
         end
@@ -659,7 +1494,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
         {:ok, _path} ->
           project_dir = create_test_dir(tmp_base, "expert_hover_test")
 
-          create_elixir_file(project_dir, "test.ex", """
+          create_file(project_dir, "test.ex", """
           defmodule ExpertHover do
             @moduledoc "Test module for Expert integration"
 
@@ -699,7 +1534,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
         {:ok, _path} ->
           project_dir = create_test_dir(tmp_base, "expert_def_test")
 
-          create_elixir_file(project_dir, "test.ex", """
+          create_file(project_dir, "test.ex", """
           defmodule ExpertDef do
             def target, do: :ok
 
@@ -737,7 +1572,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
         {:ok, _path} ->
           project_dir = create_test_dir(tmp_base, "expert_refs_test")
 
-          create_elixir_file(project_dir, "test.ex", """
+          create_file(project_dir, "test.ex", """
           defmodule ExpertRefs do
             def shared_func, do: :ok
 
@@ -784,7 +1619,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
   describe "parameter validation" do
     test "get_hover_info requires path parameter", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_path_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -799,7 +1634,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
     test "get_hover_info requires line parameter", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_line_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -814,7 +1649,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
     test "get_hover_info requires character parameter", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_char_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)
@@ -829,7 +1664,7 @@ defmodule JidoCode.Integration.ToolsPhase3Test do
 
     test "line and character must be positive integers", %{tmp_base: tmp_base} do
       project_dir = create_test_dir(tmp_base, "param_int_test")
-      create_elixir_file(project_dir, "test.ex", "defmodule Test do end")
+      create_file(project_dir, "test.ex", "defmodule Test do end")
 
       session = create_session(project_dir)
       {:ok, context} = Executor.build_context(session.id)

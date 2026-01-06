@@ -63,7 +63,7 @@ Implement the remember action for agent self-determination memory storage. This 
 
 ### 4.1.1 Action Definition
 
-- [ ] 4.1.1.1 Create `lib/jido_code/memory/actions/remember.ex` with moduledoc:
+- [x] 4.1.1.1 Create `lib/jido_code/memory/actions/remember.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Persist important information to long-term memory.
@@ -79,7 +79,7 @@ Implement the remember action for agent self-determination memory storage. This 
   and are persisted immediately with maximum importance score.
   """
   ```
-- [ ] 4.1.1.2 Implement `use Jido.Action` with configuration:
+- [x] 4.1.1.2 Implement `use Jido.Action` with configuration:
   ```elixir
   use Jido.Action,
     name: "remember",
@@ -109,12 +109,12 @@ Implement the remember action for agent self-determination memory storage. This 
       ]
     ]
   ```
-- [ ] 4.1.1.3 Define valid memory types constant for validation
-- [ ] 4.1.1.4 Define maximum content length constant (2000 chars)
+- [x] 4.1.1.3 Define valid memory types constant for validation
+- [x] 4.1.1.4 Define maximum content length constant (2000 chars)
 
 ### 4.1.2 Action Implementation
 
-- [ ] 4.1.2.1 Implement `run/2` callback:
+- [x] 4.1.2.1 Implement `run/2` callback:
   ```elixir
   @impl true
   def run(params, context) do
@@ -128,12 +128,12 @@ Implement the remember action for agent self-determination memory storage. This 
     end
   end
   ```
-- [ ] 4.1.2.2 Implement `validate_params/1` private function:
+- [x] 4.1.2.2 Implement `validate_params/1` private function:
   - Validate content is non-empty string
   - Validate content length <= 2000 characters
   - Validate type is in allowed list
   - Clamp confidence to 0.0-1.0 range
-- [ ] 4.1.2.3 Implement `get_session_id/1` to extract session_id from context:
+- [x] 4.1.2.3 Implement `get_session_id/1` to extract session_id from context:
   ```elixir
   defp get_session_id(context) do
     case context[:session_id] do
@@ -142,7 +142,7 @@ Implement the remember action for agent self-determination memory storage. This 
     end
   end
   ```
-- [ ] 4.1.2.4 Implement `build_memory_item/2`:
+- [x] 4.1.2.4 Implement `build_memory_item/2`:
   ```elixir
   defp build_memory_item(params, context) do
     {:ok, %{
@@ -160,7 +160,7 @@ Implement the remember action for agent self-determination memory storage. This 
     }}
   end
   ```
-- [ ] 4.1.2.5 Implement `promote_immediately/2`:
+- [x] 4.1.2.5 Implement `promote_immediately/2`:
   ```elixir
   defp promote_immediately(memory_item, session_id) do
     # Add to agent decisions for immediate promotion
@@ -184,7 +184,7 @@ Implement the remember action for agent self-determination memory storage. This 
     Memory.persist(memory_input, session_id)
   end
   ```
-- [ ] 4.1.2.6 Implement `format_success/2`:
+- [x] 4.1.2.6 Implement `format_success/2`:
   ```elixir
   defp format_success(memory_id, type) do
     %{
@@ -195,13 +195,13 @@ Implement the remember action for agent self-determination memory storage. This 
     }
   end
   ```
-- [ ] 4.1.2.7 Implement `generate_id/0` for unique memory IDs:
+- [x] 4.1.2.7 Implement `generate_id/0` for unique memory IDs:
   ```elixir
   defp generate_id do
     :crypto.strong_rand_bytes(12) |> Base.encode16(case: :lower)
   end
   ```
-- [ ] 4.1.2.8 Add telemetry emission for remember operations:
+- [x] 4.1.2.8 Add telemetry emission for remember operations:
   ```elixir
   :telemetry.execute(
     [:jido_code, :memory, :remember],
@@ -212,22 +212,22 @@ Implement the remember action for agent self-determination memory storage. This 
 
 ### 4.1.3 Unit Tests for Remember Action
 
-- [ ] Test remember creates memory item with correct type
-- [ ] Test remember sets default type to :fact when not provided
-- [ ] Test remember sets default confidence (0.8) when not provided
-- [ ] Test remember clamps confidence to valid range (0.0-1.0)
-- [ ] Test remember validates content is non-empty
-- [ ] Test remember validates content max length (2000 chars)
-- [ ] Test remember validates type against allowed enum
-- [ ] Test remember generates unique memory ID
-- [ ] Test remember sets source_type to :agent
-- [ ] Test remember sets importance_score to 1.0 (maximum)
-- [ ] Test remember triggers immediate promotion via add_agent_memory_decision
-- [ ] Test remember persists to long-term store via Memory.persist
-- [ ] Test remember returns formatted success message with memory_id
-- [ ] Test remember handles missing session_id with clear error
-- [ ] Test remember handles optional rationale parameter
-- [ ] Test remember emits telemetry event
+- [x] Test remember creates memory item with correct type
+- [x] Test remember sets default type to :fact when not provided
+- [x] Test remember sets default confidence (0.8) when not provided
+- [x] Test remember clamps confidence to valid range (0.0-1.0)
+- [x] Test remember validates content is non-empty
+- [x] Test remember validates content max length (2000 chars)
+- [x] Test remember validates type against allowed enum
+- [x] Test remember generates unique memory ID
+- [x] Test remember sets source_type to :agent
+- [x] Test remember sets importance_score to 1.0 (maximum)
+- [x] Test remember triggers immediate promotion via add_agent_memory_decision
+- [x] Test remember persists to long-term store via Memory.persist
+- [x] Test remember returns formatted success message with memory_id
+- [x] Test remember handles missing session_id with clear error
+- [x] Test remember handles optional rationale parameter
+- [x] Test remember emits telemetry event
 
 ---
 
@@ -237,7 +237,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
 
 ### 4.2.1 Action Definition
 
-- [ ] 4.2.1.1 Create `lib/jido_code/memory/actions/recall.ex` with moduledoc:
+- [x] 4.2.1.1 Create `lib/jido_code/memory/actions/recall.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Search long-term memory for relevant information.
@@ -251,7 +251,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
   Supports filtering by memory type and minimum confidence level.
   """
   ```
-- [ ] 4.2.1.2 Implement `use Jido.Action` with configuration:
+- [x] 4.2.1.2 Implement `use Jido.Action` with configuration:
   ```elixir
   use Jido.Action,
     name: "recall",
@@ -284,7 +284,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
 
 ### 4.2.2 Action Implementation
 
-- [ ] 4.2.2.1 Implement `run/2` callback:
+- [x] 4.2.2.1 Implement `run/2` callback:
   ```elixir
   @impl true
   def run(params, context) do
@@ -298,11 +298,11 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     end
   end
   ```
-- [ ] 4.2.2.2 Implement `validate_query_params/1`:
+- [x] 4.2.2.2 Implement `validate_query_params/1`:
   - Validate limit is between 1 and 50
   - Validate min_confidence is between 0.0 and 1.0
   - Validate type is in allowed list
-- [ ] 4.2.2.3 Implement `query_memories/2`:
+- [x] 4.2.2.3 Implement `query_memories/2`:
   ```elixir
   defp query_memories(params, session_id) do
     opts = [
@@ -324,7 +324,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     end
   end
   ```
-- [ ] 4.2.2.4 Implement `filter_by_query/2` for text matching:
+- [x] 4.2.2.4 Implement `filter_by_query/2` for text matching:
   ```elixir
   defp filter_by_query(memories, query) do
     query_lower = String.downcase(query)
@@ -333,7 +333,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     end)
   end
   ```
-- [ ] 4.2.2.5 Implement `record_access/2` to update access tracking:
+- [x] 4.2.2.5 Implement `record_access/2` to update access tracking:
   ```elixir
   defp record_access(memories, session_id) do
     Enum.each(memories, fn mem ->
@@ -342,7 +342,7 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     :ok
   end
   ```
-- [ ] 4.2.2.6 Implement `format_results/1`:
+- [x] 4.2.2.6 Implement `format_results/1`:
   ```elixir
   defp format_results(memories) do
     %{
@@ -361,23 +361,46 @@ Implement the recall action for querying long-term memory. This allows the LLM t
     }
   end
   ```
-- [ ] 4.2.2.7 Add telemetry emission for recall operations
+- [x] 4.2.2.7 Add telemetry emission for recall operations
 
 ### 4.2.3 Unit Tests for Recall Action
 
-- [ ] Test recall returns memories matching type filter
-- [ ] Test recall with type :all returns all memory types
-- [ ] Test recall filters by min_confidence correctly
-- [ ] Test recall respects limit parameter
-- [ ] Test recall validates limit range (1-50)
-- [ ] Test recall with query performs text search (case-insensitive)
-- [ ] Test recall with query filters results after type/confidence
-- [ ] Test recall records access for all returned memories
-- [ ] Test recall returns empty list when no matches
-- [ ] Test recall formats results with count and memory list
-- [ ] Test recall handles missing session_id with clear error
-- [ ] Test recall emits telemetry event
-- [ ] Test recall returns memories sorted by relevance/recency
+- [x] Test recall returns memories matching type filter
+- [x] Test recall with type :all returns all memory types
+- [x] Test recall filters by min_confidence correctly
+- [x] Test recall respects limit parameter
+- [x] Test recall validates limit range (1-50)
+- [x] Test recall with query performs text search (case-insensitive)
+- [x] Test recall with query filters results after type/confidence
+- [x] Test recall records access for all returned memories
+- [x] Test recall returns empty list when no matches
+- [x] Test recall formats results with count and memory list
+- [x] Test recall handles missing session_id with clear error
+- [x] Test recall emits telemetry event
+- [x] Test recall returns memories sorted by relevance/recency
+
+### 4.2.4 Review Improvements (Added from Review)
+
+- [x] 4.2.4.1 Create `lib/jido_code/memory/actions/helpers.ex` shared module:
+  - Extract `get_session_id/1` with format validation via `Types.valid_session_id?/1`
+  - Extract `format_common_error/1` for shared error formatting
+  - Extract `format_timestamp/1` for DateTime formatting
+  - Add `validate_confidence/3` with support for levels (:high, :medium, :low)
+- [x] 4.2.4.2 Add query string length validation (max 1000 bytes)
+- [x] 4.2.4.3 Add `@spec run(map(), map()) :: {:ok, map()} | {:error, String.t()}` to both actions
+- [x] 4.2.4.4 Harmonize naming conventions:
+  - Use `:invalid_memory_type` error atom consistently
+  - Use `memory_type` in telemetry metadata consistently
+  - Use `Types.memory_types()` as single source of truth
+- [x] 4.2.4.5 Fix mixed size checks in Remember (use `byte_size` consistently)
+- [x] 4.2.4.6 Add support for confidence levels (:high, :medium, :low)
+- [x] 4.2.4.7 Add tests for:
+  - Query max length validation
+  - Confidence levels
+  - Session ID format validation
+  - ISO8601 timestamp formatting
+  - Helpers module functions
+  - Extended memory types from Types module
 
 ---
 
@@ -387,7 +410,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
 
 ### 4.3.1 Action Definition
 
-- [ ] 4.3.1.1 Create `lib/jido_code/memory/actions/forget.ex` with moduledoc:
+- [x] 4.3.1.1 Create `lib/jido_code/memory/actions/forget.ex` with moduledoc:
   ```elixir
   @moduledoc """
   Mark a memory as superseded (soft delete).
@@ -399,7 +422,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
   Optionally specify a replacement memory that supersedes the old one.
   """
   ```
-- [ ] 4.3.1.2 Implement `use Jido.Action` with configuration:
+- [x] 4.3.1.2 Implement `use Jido.Action` with configuration:
   ```elixir
   use Jido.Action,
     name: "forget",
@@ -426,7 +449,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
 
 ### 4.3.2 Action Implementation
 
-- [ ] 4.3.2.1 Implement `run/2` callback:
+- [x] 4.3.2.1 Implement `run/2` callback:
   ```elixir
   @impl true
   def run(params, context) do
@@ -441,10 +464,10 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.2 Implement `validate_forget_params/1`:
+- [x] 4.3.2.2 Implement `validate_forget_params/1`:
   - Validate memory_id is non-empty string
   - Validate replacement_id if provided
-- [ ] 4.3.2.3 Implement `verify_memory_exists/2`:
+- [x] 4.3.2.3 Implement `verify_memory_exists/2`:
   ```elixir
   defp verify_memory_exists(memory_id, session_id) do
     case Memory.get(session_id, memory_id) do
@@ -453,7 +476,7 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.4 Implement `maybe_verify_replacement/2`:
+- [x] 4.3.2.4 Implement `maybe_verify_replacement/2`:
   ```elixir
   defp maybe_verify_replacement(%{replacement_id: nil}, _session_id), do: :ok
   defp maybe_verify_replacement(%{replacement_id: id}, session_id) do
@@ -463,13 +486,13 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.5 Implement `supersede_memory/2`:
+- [x] 4.3.2.5 Implement `supersede_memory/2`:
   ```elixir
   defp supersede_memory(params, session_id) do
     Memory.supersede(session_id, params.memory_id, params[:replacement_id])
   end
   ```
-- [ ] 4.3.2.6 Implement `format_forget_success/1`:
+- [x] 4.3.2.6 Implement `format_forget_success/1`:
   ```elixir
   defp format_forget_success(params) do
     base = %{
@@ -485,22 +508,22 @@ Implement the forget action for superseding memories. This uses soft deletion vi
     end
   end
   ```
-- [ ] 4.3.2.7 Add telemetry emission for forget operations
+- [x] 4.3.2.7 Add telemetry emission for forget operations
 
 ### 4.3.3 Unit Tests for Forget Action
 
-- [ ] Test forget marks memory as superseded
-- [ ] Test forget with replacement_id creates supersededBy relation
-- [ ] Test forget validates memory_id exists
-- [ ] Test forget validates replacement_id exists (if provided)
-- [ ] Test forget handles non-existent memory_id with clear error
-- [ ] Test forget handles non-existent replacement_id with clear error
-- [ ] Test forget stores reason if provided
-- [ ] Test forget returns formatted success message
-- [ ] Test forget handles missing session_id with clear error
-- [ ] Test forgotten memories excluded from normal recall queries
-- [ ] Test forgotten memories still retrievable with include_superseded option
-- [ ] Test forget emits telemetry event
+- [x] Test forget marks memory as superseded
+- [x] Test forget with replacement_id creates supersededBy relation
+- [x] Test forget validates memory_id exists
+- [x] Test forget validates replacement_id exists (if provided)
+- [x] Test forget handles non-existent memory_id with clear error
+- [x] Test forget handles non-existent replacement_id with clear error
+- [x] Test forget stores reason if provided
+- [x] Test forget returns formatted success message
+- [x] Test forget handles missing session_id with clear error
+- [x] Test forgotten memories excluded from normal recall queries
+- [x] Test forgotten memories still retrievable with include_superseded option
+- [x] Test forget emits telemetry event
 
 ---
 
@@ -510,7 +533,7 @@ Integrate memory actions with the tool system for LLM access.
 
 ### 4.4.1 Action Discovery
 
-- [ ] 4.4.1.1 Create `lib/jido_code/memory/actions.ex` module:
+- [x] 4.4.1.1 Create `lib/jido_code/memory/actions.ex` module:
   ```elixir
   defmodule JidoCode.Memory.Actions do
     @moduledoc """
@@ -535,7 +558,7 @@ Integrate memory actions with the tool system for LLM access.
     end
   end
   ```
-- [ ] 4.4.1.2 Implement action-to-tool-definition conversion:
+- [x] 4.4.1.2 Implement action-to-tool-definition conversion:
   ```elixir
   def to_tool_definitions do
     Enum.map(all(), &action_to_tool_def/1)
@@ -550,7 +573,7 @@ Integrate memory actions with the tool system for LLM access.
     }
   end
   ```
-- [ ] 4.4.1.3 Add memory tools to available tools in LLMAgent
+- [x] 4.4.1.3 Add memory tools to available tools in LLMAgent (deferred - requires separate LLMAgent integration)
 
 ### 4.4.2 Executor Integration
 
@@ -567,27 +590,27 @@ Integrate memory actions with the tool system for LLM access.
 >
 > See `notes/planning/two-tier-memory/conciliation.md` for full conflict analysis.
 >
-> - [ ] 4.4.2.0 **Write and approve ADR for memory tool executor routing before proceeding**
+> - [x] 4.4.2.0 **Write and approve ADR for memory tool executor routing before proceeding** (ADR 0002)
 
-- [ ] 4.4.2.1 Update tool executor to handle memory actions:
+- [x] 4.4.2.1 Update tool executor to handle memory actions:
   ```elixir
   def execute_tool(name, args, context) when name in ["remember", "recall", "forget"] do
     {:ok, action_module} = Memory.Actions.get(name)
     action_module.run(args, context)
   end
   ```
-- [ ] 4.4.2.2 Ensure session_id is passed in context for all memory tool calls
-- [ ] 4.4.2.3 Format action results for LLM consumption
+- [x] 4.4.2.2 Ensure session_id is passed in context for all memory tool calls
+- [x] 4.4.2.3 Format action results for LLM consumption
 
 ### 4.4.3 Unit Tests for Action Registration
 
-- [ ] Test Actions.all/0 returns all three action modules
-- [ ] Test Actions.get/1 returns correct module for each name
-- [ ] Test Actions.get/1 returns error for unknown name
-- [ ] Test to_tool_definitions/0 produces valid tool definitions
-- [ ] Test tool definitions have correct name, description, parameters
-- [ ] Test executor routes memory tool calls to correct action
-- [ ] Test executor passes session_id in context
+- [x] Test Actions.all/0 returns all three action modules
+- [x] Test Actions.get/1 returns correct module for each name
+- [x] Test Actions.get/1 returns error for unknown name
+- [x] Test to_tool_definitions/0 produces valid tool definitions
+- [x] Test tool definitions have correct name, description, parameters
+- [x] Test executor routes memory tool calls to correct action
+- [x] Test executor passes session_id in context
 
 ---
 
@@ -597,35 +620,35 @@ Comprehensive integration tests verifying memory tools work end-to-end.
 
 ### 4.5.1 Tool Execution Integration
 
-- [ ] 4.5.1.1 Create `test/jido_code/integration/memory_tools_test.exs`
-- [ ] 4.5.1.2 Test: Remember tool creates memory accessible via Recall
-- [ ] 4.5.1.3 Test: Remember -> Recall flow returns persisted memory
-- [ ] 4.5.1.4 Test: Recall returns memories filtered by type
-- [ ] 4.5.1.5 Test: Recall returns memories filtered by confidence
-- [ ] 4.5.1.6 Test: Recall with query filters by text content
-- [ ] 4.5.1.7 Test: Forget tool removes memory from normal Recall results
-- [ ] 4.5.1.8 Test: Forgotten memories still exist for provenance
-- [ ] 4.5.1.9 Test: Forget with replacement_id creates supersession chain
+- [x] 4.5.1.1 Create `test/jido_code/integration/memory_tools_test.exs`
+- [x] 4.5.1.2 Test: Remember tool creates memory accessible via Recall
+- [x] 4.5.1.3 Test: Remember -> Recall flow returns persisted memory
+- [x] 4.5.1.4 Test: Recall returns memories filtered by type
+- [x] 4.5.1.5 Test: Recall returns memories filtered by confidence
+- [x] 4.5.1.6 Test: Recall with query filters by text content
+- [x] 4.5.1.7 Test: Forget tool removes memory from normal Recall results
+- [x] 4.5.1.8 Test: Forgotten memories still exist for provenance
+- [x] 4.5.1.9 Test: Forget with replacement_id creates supersession chain
 
 ### 4.5.2 Session Context Integration
 
-- [ ] 4.5.2.1 Test: Memory tools work with valid session context
-- [ ] 4.5.2.2 Test: Memory tools return appropriate error without session_id
-- [ ] 4.5.2.3 Test: Memory tools respect session isolation
-- [ ] 4.5.2.4 Test: Multiple sessions can use memory tools concurrently
+- [x] 4.5.2.1 Test: Memory tools work with valid session context
+- [x] 4.5.2.2 Test: Memory tools return appropriate error without session_id
+- [x] 4.5.2.3 Test: Memory tools respect session isolation
+- [x] 4.5.2.4 Test: Multiple sessions can use memory tools concurrently
 
 ### 4.5.3 Executor Integration
 
-- [ ] 4.5.3.1 Test: Memory tools execute through standard executor flow
-- [ ] 4.5.3.2 Test: Tool validation rejects invalid arguments
-- [ ] 4.5.3.3 Test: Tool results format correctly for LLM consumption
-- [ ] 4.5.3.4 Test: Error messages are clear and actionable
+- [x] 4.5.3.1 Test: Memory tools execute through standard executor flow
+- [x] 4.5.3.2 Test: Tool validation rejects invalid arguments
+- [x] 4.5.3.3 Test: Tool results format correctly for LLM consumption
+- [x] 4.5.3.4 Test: Error messages are clear and actionable
 
 ### 4.5.4 Telemetry Integration
 
-- [ ] 4.5.4.1 Test: Remember emits telemetry with session_id and type
-- [ ] 4.5.4.2 Test: Recall emits telemetry with query parameters
-- [ ] 4.5.4.3 Test: Forget emits telemetry with memory_id
+- [x] 4.5.4.1 Test: Remember emits telemetry with session_id and type
+- [x] 4.5.4.2 Test: Recall emits telemetry with query parameters
+- [x] 4.5.4.3 Test: Forget emits telemetry with memory_id
 
 ---
 
@@ -646,16 +669,56 @@ Comprehensive integration tests verifying memory tools work end-to-end.
 ## Phase 4 Critical Files
 
 **New Files:**
-- `lib/jido_code/memory/actions/remember.ex`
-- `lib/jido_code/memory/actions/recall.ex`
-- `lib/jido_code/memory/actions/forget.ex`
-- `lib/jido_code/memory/actions.ex`
-- `test/jido_code/memory/actions/remember_test.exs`
-- `test/jido_code/memory/actions/recall_test.exs`
-- `test/jido_code/memory/actions/forget_test.exs`
-- `test/jido_code/memory/actions_test.exs`
-- `test/jido_code/integration/memory_tools_test.exs`
+- `lib/jido_code/memory/actions/remember.ex` - COMPLETE
+- `lib/jido_code/memory/actions/recall.ex` - COMPLETE
+- `lib/jido_code/memory/actions/helpers.ex` - COMPLETE (added from review)
+- `lib/jido_code/memory/actions/forget.ex` - COMPLETE
+- `lib/jido_code/memory/actions.ex` - COMPLETE
+- `test/jido_code/memory/actions/remember_test.exs` - COMPLETE (30 tests)
+- `test/jido_code/memory/actions/recall_test.exs` - COMPLETE (55 tests)
+- `test/jido_code/memory/actions/forget_test.exs` - COMPLETE (27 tests)
+- `test/jido_code/memory/actions_test.exs` - COMPLETE (27 tests)
+- `test/jido_code/integration/memory_tools_test.exs` - COMPLETE (26 tests)
 
 **Modified Files:**
-- `lib/jido_code/tools/executor.ex` - Add memory action routing
-- `lib/jido_code/agents/llm_agent.ex` - Register memory tools
+- `lib/jido_code/tools/executor.ex` - Add memory action routing - COMPLETE
+- `lib/jido_code/agents/llm_agent.ex` - Register memory tools (deferred to Phase 5)
+
+**Documentation:**
+- `notes/decisions/0002-memory-tool-executor-routing.md` - ADR for routing decision - COMPLETE
+- `notes/reviews/phase4-memory-tools-review.md` - Comprehensive review - COMPLETE
+- `notes/summaries/phase4-integration-tests.md` - Phase 4.5 summary - COMPLETE
+- `notes/summaries/phase4-review-improvements.md` - Review fixes summary - COMPLETE
+
+---
+
+## 4.6 Phase 4 Review Improvements
+
+Post-review improvements addressing all concerns identified in the comprehensive review.
+
+### 4.6.1 Security Fixes
+
+- [x] 4.6.1.1 Add atom whitelist in executor to prevent atom table exhaustion
+- [x] 4.6.1.2 Derive @memory_tools from Memory.Actions.names() instead of hardcoding
+- [x] 4.6.1.3 Add session memory limit (10,000 memories per session)
+
+### 4.6.2 Type System Fixes
+
+- [x] 4.6.2.1 Add :architectural_decision and :coding_standard to Remember schema
+- [x] 4.6.2.2 Add :architectural_decision and :coding_standard to Recall schema
+
+### 4.6.3 Code Quality Fixes
+
+- [x] 4.6.3.1 Refactor actions to use Helpers.validate_confidence/3
+- [x] 4.6.3.2 Add string validation helpers to Helpers module
+- [x] 4.6.3.3 Refactor actions to use new string validation helpers
+
+### 4.6.4 Documentation Fixes
+
+- [x] 4.6.4.1 Document direct persistence path rationale in ADR 0002
+
+### 4.6.5 Test Coverage
+
+- [x] 4.6.5.1 Add tests for string validation helpers
+- [x] 4.6.5.2 Add tests for session memory limit constant
+- [x] 4.6.5.3 Add tests for extended memory types in schemas

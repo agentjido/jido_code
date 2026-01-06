@@ -18,7 +18,9 @@ defmodule JidoCode.Memory.Types do
 
   ## Jido Ontology Alignment
 
-  Types in this module correspond to Jido ontology classes:
+  Types in this module correspond to Jido ontology classes defined in the TTL files.
+
+  ### Knowledge Types (jido-knowledge.ttl)
 
   | Elixir Type              | Jido Ontology Class           |
   |--------------------------|-------------------------------|
@@ -28,10 +30,36 @@ defmodule JidoCode.Memory.Types do
   | `:discovery`             | `jido:Discovery`              |
   | `:risk`                  | `jido:Risk`                   |
   | `:unknown`               | `jido:Unknown`                |
+
+  ### Decision Types (jido-decision.ttl)
+
+  | Elixir Type              | Jido Ontology Class           |
+  |--------------------------|-------------------------------|
   | `:decision`              | `jido:Decision`               |
   | `:architectural_decision`| `jido:ArchitecturalDecision`  |
+  | `:implementation_decision`| `jido:ImplementationDecision`|
+  | `:alternative`           | `jido:Alternative`            |
+  | `:trade_off`             | `jido:TradeOff`               |
+
+  ### Convention Types (jido-convention.ttl)
+
+  | Elixir Type              | Jido Ontology Class           |
+  |--------------------------|-------------------------------|
   | `:convention`            | `jido:Convention`             |
   | `:coding_standard`       | `jido:CodingStandard`         |
+  | `:architectural_convention`| `jido:ArchitecturalConvention`|
+  | `:agent_rule`            | `jido:AgentRule`              |
+  | `:process_convention`    | `jido:ProcessConvention`      |
+
+  ### Error Types (jido-error.ttl)
+
+  | Elixir Type              | Jido Ontology Class           |
+  |--------------------------|-------------------------------|
+  | `:error`                 | `jido:Error`                  |
+  | `:bug`                   | `jido:Bug`                    |
+  | `:failure`               | `jido:Failure`                |
+  | `:incident`              | `jido:Incident`               |
+  | `:root_cause`            | `jido:RootCause`              |
   | `:lesson_learned`        | `jido:LessonLearned`          |
 
   ## Confidence Level Mapping
@@ -55,18 +83,42 @@ defmodule JidoCode.Memory.Types do
   @typedoc """
   Classification of memory items, mapping to Jido ontology MemoryItem subclasses.
 
+  ### Knowledge Types (from jido-knowledge.ttl)
+
   - `:fact` - Verified, objective information about the project or codebase
   - `:assumption` - Inferred information that may need verification
   - `:hypothesis` - Proposed explanations or theories being tested
   - `:discovery` - Newly found information worth remembering
   - `:risk` - Potential issues or concerns identified
   - `:unknown` - Information gaps that need investigation
+
+  ### Decision Types (from jido-decision.ttl)
+
   - `:decision` - Choices made with their rationale
   - `:architectural_decision` - Significant architectural choices with rationale
+  - `:implementation_decision` - Low-to-medium level implementation-specific choice
+  - `:alternative` - A considered option that was not selected
+  - `:trade_off` - A compromise relationship between competing goals
+
+  ### Convention Types (from jido-convention.ttl)
+
   - `:convention` - Established patterns or standards to follow
   - `:coding_standard` - Specific coding practices and style guidelines
+  - `:architectural_convention` - A convention governing architectural patterns and structure
+  - `:agent_rule` - A rule governing agent behavior and authority
+  - `:process_convention` - A convention governing workflow, review, or operational processes
+
+  ### Error Types (from jido-error.ttl)
+
+  - `:error` - A general error encountered during development or execution
+  - `:bug` - A defect in code causing incorrect behavior
+  - `:failure` - A system-level failure or outage
+  - `:incident` - An operational or runtime incident affecting the system
+  - `:root_cause` - The underlying cause of an error, bug, or failure
   - `:lesson_learned` - Insights gained from past experiences
+
   """
+  # Knowledge types
   @type memory_type ::
           :fact
           | :assumption
@@ -74,10 +126,24 @@ defmodule JidoCode.Memory.Types do
           | :discovery
           | :risk
           | :unknown
+          # Decision types
           | :decision
           | :architectural_decision
+          | :implementation_decision
+          | :alternative
+          | :trade_off
+          # Convention types
           | :convention
           | :coding_standard
+          | :architectural_convention
+          | :agent_rule
+          | :process_convention
+          # Error types
+          | :error
+          | :bug
+          | :failure
+          | :incident
+          | :root_cause
           | :lesson_learned
 
   @typedoc """
@@ -273,16 +339,31 @@ defmodule JidoCode.Memory.Types do
   # =============================================================================
 
   @memory_types [
+    # Knowledge types
     :fact,
     :assumption,
     :hypothesis,
     :discovery,
     :risk,
     :unknown,
+    # Decision types
     :decision,
     :architectural_decision,
+    :implementation_decision,
+    :alternative,
+    :trade_off,
+    # Convention types
     :convention,
     :coding_standard,
+    :architectural_convention,
+    :agent_rule,
+    :process_convention,
+    # Error types
+    :error,
+    :bug,
+    :failure,
+    :incident,
+    :root_cause,
     :lesson_learned
   ]
 
@@ -517,4 +598,394 @@ defmodule JidoCode.Memory.Types do
   def clamp_to_unit(value) when is_number(value) and value < 0.0, do: 0.0
   def clamp_to_unit(value) when is_number(value) and value > 1.0, do: 1.0
   def clamp_to_unit(value) when is_number(value), do: value / 1
+
+  # =============================================================================
+  # Ontology Relationship Types
+  # =============================================================================
+
+  @typedoc """
+  Ontology-defined relationships between memory items.
+
+  These relationships map to object properties in the Jido ontology:
+
+  - `:refines` - A hypothesis refines another hypothesis (jido-knowledge.ttl)
+  - `:confirms` - Evidence confirms a fact (jido-knowledge.ttl)
+  - `:contradicts` - Evidence contradicts a memory item (jido-knowledge.ttl)
+  - `:has_alternative` - A decision has an alternative option (jido-decision.ttl)
+  - `:selected_alternative` - The alternative selected for a decision (jido-decision.ttl)
+  - `:has_trade_off` - A decision has a trade-off (jido-decision.ttl)
+  - `:justified_by` - A decision is justified by something (jido-decision.ttl)
+  - `:has_root_cause` - An error has a root cause (jido-error.ttl)
+  - `:produced_lesson` - An error produced a lesson learned (jido-error.ttl)
+  - `:related_error` - Links related or cascading errors (jido-error.ttl)
+  - `:derived_from` - A memory derived from evidence (jido-code.ttl)
+  - `:superseded_by` - A memory superseded by another (jido-code.ttl)
+  """
+  @type relationship ::
+          :refines
+          | :confirms
+          | :contradicts
+          | :has_alternative
+          | :selected_alternative
+          | :has_trade_off
+          | :justified_by
+          | :has_root_cause
+          | :produced_lesson
+          | :related_error
+          | :derived_from
+          | :superseded_by
+
+  @relationships [
+    :refines,
+    :confirms,
+    :contradicts,
+    :has_alternative,
+    :selected_alternative,
+    :has_trade_off,
+    :justified_by,
+    :has_root_cause,
+    :produced_lesson,
+    :related_error,
+    :derived_from,
+    :superseded_by
+  ]
+
+  # Relationship to IRI property mapping (camelCase ontology form)
+  @relationship_to_property_map %{
+    refines: "refines",
+    confirms: "confirms",
+    contradicts: "contradicts",
+    has_alternative: "hasAlternative",
+    selected_alternative: "selectedAlternative",
+    has_trade_off: "hasTradeOff",
+    justified_by: "justifiedBy",
+    has_root_cause: "hasRootCause",
+    produced_lesson: "producedLesson",
+    related_error: "relatedError",
+    derived_from: "derivedFrom",
+    superseded_by: "supersededBy"
+  }
+
+  @property_to_relationship_map %{
+    "refines" => :refines,
+    "confirms" => :confirms,
+    "contradicts" => :contradicts,
+    "hasAlternative" => :has_alternative,
+    "selectedAlternative" => :selected_alternative,
+    "hasTradeOff" => :has_trade_off,
+    "justifiedBy" => :justified_by,
+    "hasRootCause" => :has_root_cause,
+    "producedLesson" => :produced_lesson,
+    "relatedError" => :related_error,
+    "derivedFrom" => :derived_from,
+    "supersededBy" => :superseded_by
+  }
+
+  @doc """
+  Returns all valid relationship types.
+  """
+  @spec relationships() :: [relationship()]
+  def relationships, do: @relationships
+
+  @doc """
+  Checks if a value is a valid relationship type.
+  """
+  @spec valid_relationship?(term()) :: boolean()
+  def valid_relationship?(rel), do: rel in @relationships
+
+  @doc """
+  Converts a relationship atom to its ontology property name (camelCase).
+
+  ## Examples
+
+      iex> Types.relationship_to_property(:has_alternative)
+      "hasAlternative"
+
+      iex> Types.relationship_to_property(:refines)
+      "refines"
+
+  """
+  @spec relationship_to_property(relationship()) :: String.t()
+  def relationship_to_property(rel) do
+    Map.get(@relationship_to_property_map, rel, Macro.camelize(to_string(rel)))
+  end
+
+  @doc """
+  Converts an ontology property name to its relationship atom.
+
+  ## Examples
+
+      iex> Types.property_to_relationship("hasAlternative")
+      :has_alternative
+
+      iex> Types.property_to_relationship("refines")
+      :refines
+
+  """
+  @spec property_to_relationship(String.t()) :: relationship()
+  def property_to_relationship(prop) when is_binary(prop) do
+    Map.get(@property_to_relationship_map, prop)
+  end
+
+  # =============================================================================
+  # Ontology Individual Types
+  # =============================================================================
+
+  @typedoc """
+  Evidence strength levels from jido-knowledge.ttl.
+
+  Individuals: WeakEvidence, ModerateEvidence, StrongEvidence
+  """
+  @type evidence_strength :: :weak | :moderate | :strong
+
+  @evidence_strengths [:weak, :moderate, :strong]
+
+  @doc """
+  Returns all valid evidence strength levels.
+  """
+  @spec evidence_strengths() :: [evidence_strength()]
+  def evidence_strengths, do: @evidence_strengths
+
+  @doc """
+  Checks if a value is a valid evidence strength.
+  """
+  @spec valid_evidence_strength?(term()) :: boolean()
+  def valid_evidence_strength?(strength), do: strength in @evidence_strengths
+
+  @typedoc """
+  Convention scope levels from jido-convention.ttl.
+
+  Individuals: GlobalScope, ProjectScope, AgentScope
+  """
+  @type convention_scope :: :global | :project | :agent
+
+  @convention_scopes [:global, :project, :agent]
+
+  @doc """
+  Returns all valid convention scopes.
+  """
+  @spec convention_scopes() :: [convention_scope()]
+  def convention_scopes, do: @convention_scopes
+
+  @doc """
+  Checks if a value is a valid convention scope.
+  """
+  @spec valid_convention_scope?(term()) :: boolean()
+  def valid_convention_scope?(scope), do: scope in @convention_scopes
+
+  @typedoc """
+  Enforcement levels from jido-convention.ttl.
+
+  Individuals: Advisory, Required, Strict
+  """
+  @type enforcement_level :: :advisory | :required | :strict
+
+  @enforcement_levels [:advisory, :required, :strict]
+
+  @doc """
+  Returns all valid enforcement levels.
+  """
+  @spec enforcement_levels() :: [enforcement_level()]
+  def enforcement_levels, do: @enforcement_levels
+
+  @doc """
+  Checks if a value is a valid enforcement level.
+  """
+  @spec valid_enforcement_level?(term()) :: boolean()
+  def valid_enforcement_level?(level), do: level in @enforcement_levels
+
+  @typedoc """
+  Error status levels from jido-error.ttl.
+
+  Individuals: Reported, Investigating, Resolved, Deferred
+  """
+  @type error_status :: :reported | :investigating | :resolved | :deferred
+
+  @error_statuses [:reported, :investigating, :resolved, :deferred]
+
+  @doc """
+  Returns all valid error statuses.
+  """
+  @spec error_statuses() :: [error_status()]
+  def error_statuses, do: @error_statuses
+
+  @doc """
+  Checks if a value is a valid error status.
+  """
+  @spec valid_error_status?(term()) :: boolean()
+  def valid_error_status?(status), do: status in @error_statuses
+
+  # =============================================================================
+  # Memory Type to IRI Conversions
+  # =============================================================================
+
+  @jido_ns "https://jido.ai/ontology#"
+
+  @doc """
+  Returns the Jido ontology namespace IRI.
+  """
+  @spec namespace() :: String.t()
+  def namespace, do: @jido_ns
+
+  # Memory type to ontology class name mapping
+  @memory_type_to_class_map %{
+    # Knowledge types
+    fact: "Fact",
+    assumption: "Assumption",
+    hypothesis: "Hypothesis",
+    discovery: "Discovery",
+    risk: "Risk",
+    unknown: "Unknown",
+    # Decision types
+    decision: "Decision",
+    architectural_decision: "ArchitecturalDecision",
+    implementation_decision: "ImplementationDecision",
+    alternative: "Alternative",
+    trade_off: "TradeOff",
+    # Convention types
+    convention: "Convention",
+    coding_standard: "CodingStandard",
+    architectural_convention: "ArchitecturalConvention",
+    agent_rule: "AgentRule",
+    process_convention: "ProcessConvention",
+    # Error types
+    error: "Error",
+    bug: "Bug",
+    failure: "Failure",
+    incident: "Incident",
+    root_cause: "RootCause",
+    lesson_learned: "LessonLearned"
+  }
+
+  @class_to_memory_type_map %{
+    "Fact" => :fact,
+    "Assumption" => :assumption,
+    "Hypothesis" => :hypothesis,
+    "Discovery" => :discovery,
+    "Risk" => :risk,
+    "Unknown" => :unknown,
+    "Decision" => :decision,
+    "ArchitecturalDecision" => :architectural_decision,
+    "ImplementationDecision" => :implementation_decision,
+    "Alternative" => :alternative,
+    "TradeOff" => :trade_off,
+    "Convention" => :convention,
+    "CodingStandard" => :coding_standard,
+    "ArchitecturalConvention" => :architectural_convention,
+    "AgentRule" => :agent_rule,
+    "ProcessConvention" => :process_convention,
+    "Error" => :error,
+    "Bug" => :bug,
+    "Failure" => :failure,
+    "Incident" => :incident,
+    "RootCause" => :root_cause,
+    "LessonLearned" => :lesson_learned
+  }
+
+  @doc """
+  Converts a memory type atom to its Jido ontology class name.
+
+  ## Examples
+
+      iex> Types.memory_type_to_class(:fact)
+      "Fact"
+
+      iex> Types.memory_type_to_class(:implementation_decision)
+      "ImplementationDecision"
+
+  """
+  @spec memory_type_to_class(memory_type()) :: String.t()
+  def memory_type_to_class(type) do
+    Map.get(@memory_type_to_class_map, type, Macro.camelize(to_string(type)))
+  end
+
+  @doc """
+  Converts a Jido ontology class IRI or name to its memory type atom.
+
+  ## Examples
+
+      iex> Types.class_to_memory_type("https://jido.ai/ontology#Fact")
+      :fact
+
+      iex> Types.class_to_memory_type("Fact")
+      :fact
+
+  """
+  @spec class_to_memory_type(String.t()) :: memory_type()
+  def class_to_memory_type(class) when is_binary(class) do
+    local_name = extract_local_name(class)
+    Map.get(@class_to_memory_type_map, local_name, :unknown)
+  end
+
+  @doc """
+  Converts a memory type atom to its full Jido ontology IRI.
+
+  ## Examples
+
+      iex> Types.memory_type_to_iri(:fact)
+      "https://jido.ai/ontology#Fact"
+
+      iex> Types.memory_type_to_iri(:implementation_decision)
+      "https://jido.ai/ontology#ImplementationDecision"
+
+  """
+  @spec memory_type_to_iri(memory_type()) :: String.t()
+  def memory_type_to_iri(type) do
+    @jido_ns <> memory_type_to_class(type)
+  end
+
+  @doc """
+  Converts a Jido ontology IRI to its memory type atom.
+
+  ## Examples
+
+      iex> Types.iri_to_memory_type("https://jido.ai/ontology#Fact")
+      :fact
+
+      iex> Types.iri_to_memory_type("https://jido.ai/ontology#ImplementationDecision")
+      :implementation_decision
+
+  """
+  @spec iri_to_memory_type(String.t()) :: memory_type()
+  def iri_to_memory_type(iri) when is_binary(iri) do
+    class_to_memory_type(iri)
+  end
+
+  @doc """
+  Converts a relationship atom to its full Jido ontology IRI.
+
+  ## Examples
+
+      iex> Types.relationship_to_iri(:has_alternative)
+      "https://jido.ai/ontology#hasAlternative"
+
+  """
+  @spec relationship_to_iri(relationship()) :: String.t()
+  def relationship_to_iri(rel) do
+    @jido_ns <> relationship_to_property(rel)
+  end
+
+  @doc """
+  Converts a Jido ontology property IRI to its relationship atom.
+
+  ## Examples
+
+      iex> Types.iri_to_relationship("https://jido.ai/ontology#hasAlternative")
+      :has_alternative
+
+  """
+  @spec iri_to_relationship(String.t()) :: relationship()
+  def iri_to_relationship(iri) when is_binary(iri) do
+    local_name = extract_local_name(iri)
+    property_to_relationship(local_name)
+  end
+
+  # Extract local name from IRI (after #)
+  defp extract_local_name(iri) when is_binary(iri) do
+    if String.contains?(iri, "#") do
+      iri |> String.split("#") |> List.last()
+    else
+      iri
+    end
+  end
 end

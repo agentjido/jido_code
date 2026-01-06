@@ -4,22 +4,38 @@ defmodule JidoCode.Memory.TypesTest do
   alias JidoCode.Memory.Types
 
   describe "memory_type" do
-    test "memory_types/0 returns all valid memory types matching Jido ontology" do
+    test "memory_types/0 returns all 22 valid memory types matching Jido ontology" do
       expected = [
+        # Knowledge types
         :fact,
         :assumption,
         :hypothesis,
         :discovery,
         :risk,
         :unknown,
+        # Decision types
         :decision,
         :architectural_decision,
+        :implementation_decision,
+        :alternative,
+        :trade_off,
+        # Convention types
         :convention,
         :coding_standard,
+        :architectural_convention,
+        :agent_rule,
+        :process_convention,
+        # Error types
+        :error,
+        :bug,
+        :failure,
+        :incident,
+        :root_cause,
         :lesson_learned
       ]
 
       assert Types.memory_types() == expected
+      assert length(Types.memory_types()) == 22
     end
 
     test "valid_memory_type?/1 returns true for all valid types" do
@@ -34,6 +50,50 @@ defmodule JidoCode.Memory.TypesTest do
       refute Types.valid_memory_type?("fact")
       refute Types.valid_memory_type?(nil)
       refute Types.valid_memory_type?(123)
+    end
+
+    test "all ontology knowledge types are valid" do
+      knowledge_types = [:fact, :assumption, :hypothesis, :discovery, :risk, :unknown]
+
+      for type <- knowledge_types do
+        assert Types.valid_memory_type?(type)
+      end
+    end
+
+    test "all ontology decision types are valid" do
+      decision_types = [
+        :decision,
+        :architectural_decision,
+        :implementation_decision,
+        :alternative,
+        :trade_off
+      ]
+
+      for type <- decision_types do
+        assert Types.valid_memory_type?(type)
+      end
+    end
+
+    test "all ontology convention types are valid" do
+      convention_types = [
+        :convention,
+        :coding_standard,
+        :architectural_convention,
+        :agent_rule,
+        :process_convention
+      ]
+
+      for type <- convention_types do
+        assert Types.valid_memory_type?(type)
+      end
+    end
+
+    test "all ontology error types are valid" do
+      error_types = [:error, :bug, :failure, :incident, :root_cause, :lesson_learned]
+
+      for type <- error_types do
+        assert Types.valid_memory_type?(type)
+      end
     end
   end
 
@@ -105,6 +165,7 @@ defmodule JidoCode.Memory.TypesTest do
     test "round-trip conversion maintains level" do
       for level <- Types.confidence_levels() do
         confidence = Types.level_to_confidence(level)
+
         assert Types.confidence_to_level(confidence) == level,
                "Round-trip failed for level #{inspect(level)}"
       end
@@ -343,6 +404,232 @@ defmodule JidoCode.Memory.TypesTest do
 
         assert Types.valid_context_key?(entry.key)
       end
+    end
+  end
+
+  describe "relationship types" do
+    test "relationships/0 returns all 12 valid relationship types" do
+      expected = [
+        :refines,
+        :confirms,
+        :contradicts,
+        :has_alternative,
+        :selected_alternative,
+        :has_trade_off,
+        :justified_by,
+        :has_root_cause,
+        :produced_lesson,
+        :related_error,
+        :derived_from,
+        :superseded_by
+      ]
+
+      assert Types.relationships() == expected
+      assert length(Types.relationships()) == 12
+    end
+
+    test "valid_relationship?/1 returns true for all valid relationships" do
+      for rel <- Types.relationships() do
+        assert Types.valid_relationship?(rel),
+               "Expected #{inspect(rel)} to be a valid relationship"
+      end
+    end
+
+    test "valid_relationship?/1 returns false for invalid relationships" do
+      refute Types.valid_relationship?(:invalid_relation)
+      refute Types.valid_relationship?("has_alternative")
+      refute Types.valid_relationship?(nil)
+    end
+
+    test "relationship_to_property/1 converts to camelCase ontology form" do
+      assert Types.relationship_to_property(:has_alternative) == "hasAlternative"
+      assert Types.relationship_to_property(:selected_alternative) == "selectedAlternative"
+      assert Types.relationship_to_property(:has_trade_off) == "hasTradeOff"
+      assert Types.relationship_to_property(:justified_by) == "justifiedBy"
+      assert Types.relationship_to_property(:has_root_cause) == "hasRootCause"
+      assert Types.relationship_to_property(:produced_lesson) == "producedLesson"
+      assert Types.relationship_to_property(:related_error) == "relatedError"
+      assert Types.relationship_to_property(:derived_from) == "derivedFrom"
+      assert Types.relationship_to_property(:superseded_by) == "supersededBy"
+      # Lowercase relationships stay lowercase
+      assert Types.relationship_to_property(:refines) == "refines"
+      assert Types.relationship_to_property(:confirms) == "confirms"
+      assert Types.relationship_to_property(:contradicts) == "contradicts"
+    end
+
+    test "property_to_relationship/1 converts from camelCase to atom" do
+      assert Types.property_to_relationship("hasAlternative") == :has_alternative
+      assert Types.property_to_relationship("selectedAlternative") == :selected_alternative
+      assert Types.property_to_relationship("hasTradeOff") == :has_trade_off
+      assert Types.property_to_relationship("justifiedBy") == :justified_by
+      assert Types.property_to_relationship("hasRootCause") == :has_root_cause
+      assert Types.property_to_relationship("producedLesson") == :produced_lesson
+      assert Types.property_to_relationship("relatedError") == :related_error
+      assert Types.property_to_relationship("derivedFrom") == :derived_from
+      assert Types.property_to_relationship("supersededBy") == :superseded_by
+      assert Types.property_to_relationship("refines") == :refines
+      assert Types.property_to_relationship("confirms") == :confirms
+      assert Types.property_to_relationship("contradicts") == :contradicts
+    end
+
+    test "relationship round-trip conversion maintains identity" do
+      for rel <- Types.relationships() do
+        prop = Types.relationship_to_property(rel)
+        converted = Types.property_to_relationship(prop)
+
+        assert converted == rel,
+               "Round-trip failed for #{inspect(rel)} -> #{prop} -> #{inspect(converted)}"
+      end
+    end
+  end
+
+  describe "IRI conversions" do
+    test "namespace/0 returns the Jido ontology namespace" do
+      assert Types.namespace() == "https://jido.ai/ontology#"
+    end
+
+    test "memory_type_to_class/1 converts atom to class name" do
+      assert Types.memory_type_to_class(:fact) == "Fact"
+      assert Types.memory_type_to_class(:implementation_decision) == "ImplementationDecision"
+      assert Types.memory_type_to_class(:architectural_convention) == "ArchitecturalConvention"
+      assert Types.memory_type_to_class(:agent_rule) == "AgentRule"
+      assert Types.memory_type_to_class(:root_cause) == "RootCause"
+    end
+
+    test "class_to_memory_type/1 converts class name to atom" do
+      assert Types.class_to_memory_type("Fact") == :fact
+      assert Types.class_to_memory_type("ImplementationDecision") == :implementation_decision
+      assert Types.class_to_memory_type("ArchitecturalConvention") == :architectural_convention
+      assert Types.class_to_memory_type("AgentRule") == :agent_rule
+      assert Types.class_to_memory_type("RootCause") == :root_cause
+    end
+
+    test "class_to_memory_type/1 handles full IRIs" do
+      assert Types.class_to_memory_type("https://jido.ai/ontology#Fact") == :fact
+
+      assert Types.class_to_memory_type("https://jido.ai/ontology#ImplementationDecision") ==
+               :implementation_decision
+    end
+
+    test "memory_type_to_iri/1 converts atom to full IRI" do
+      assert Types.memory_type_to_iri(:fact) == "https://jido.ai/ontology#Fact"
+
+      assert Types.memory_type_to_iri(:implementation_decision) ==
+               "https://jido.ai/ontology#ImplementationDecision"
+    end
+
+    test "iri_to_memory_type/1 converts IRI to atom" do
+      assert Types.iri_to_memory_type("https://jido.ai/ontology#Fact") == :fact
+
+      assert Types.iri_to_memory_type("https://jido.ai/ontology#ImplementationDecision") ==
+               :implementation_decision
+    end
+
+    test "memory type IRI round-trip conversion" do
+      for type <- Types.memory_types() do
+        iri = Types.memory_type_to_iri(type)
+        converted = Types.iri_to_memory_type(iri)
+
+        assert converted == type,
+               "Round-trip failed for #{inspect(type)} -> #{iri} -> #{inspect(converted)}"
+      end
+    end
+
+    test "relationship_to_iri/1 converts relationship to full IRI" do
+      assert Types.relationship_to_iri(:has_alternative) ==
+               "https://jido.ai/ontology#hasAlternative"
+
+      assert Types.relationship_to_iri(:refines) == "https://jido.ai/ontology#refines"
+    end
+
+    test "iri_to_relationship/1 converts IRI to relationship atom" do
+      assert Types.iri_to_relationship("https://jido.ai/ontology#hasAlternative") ==
+               :has_alternative
+
+      assert Types.iri_to_relationship("https://jido.ai/ontology#refines") == :refines
+    end
+
+    test "relationship IRI round-trip conversion" do
+      for rel <- Types.relationships() do
+        iri = Types.relationship_to_iri(rel)
+        converted = Types.iri_to_relationship(iri)
+
+        assert converted == rel,
+               "Round-trip failed for #{inspect(rel)} -> #{iri} -> #{inspect(converted)}"
+      end
+    end
+  end
+
+  describe "evidence_strength" do
+    test "evidence_strengths/0 returns all valid evidence strengths" do
+      assert Types.evidence_strengths() == [:weak, :moderate, :strong]
+    end
+
+    test "valid_evidence_strength?/1 returns true for valid strengths" do
+      assert Types.valid_evidence_strength?(:weak)
+      assert Types.valid_evidence_strength?(:moderate)
+      assert Types.valid_evidence_strength?(:strong)
+    end
+
+    test "valid_evidence_strength?/1 returns false for invalid strengths" do
+      refute Types.valid_evidence_strength?(:invalid)
+      refute Types.valid_evidence_strength?("weak")
+      refute Types.valid_evidence_strength?(nil)
+    end
+  end
+
+  describe "convention_scope" do
+    test "convention_scopes/0 returns all valid convention scopes" do
+      assert Types.convention_scopes() == [:global, :project, :agent]
+    end
+
+    test "valid_convention_scope?/1 returns true for valid scopes" do
+      assert Types.valid_convention_scope?(:global)
+      assert Types.valid_convention_scope?(:project)
+      assert Types.valid_convention_scope?(:agent)
+    end
+
+    test "valid_convention_scope?/1 returns false for invalid scopes" do
+      refute Types.valid_convention_scope?(:invalid)
+      refute Types.valid_convention_scope?("global")
+      refute Types.valid_convention_scope?(nil)
+    end
+  end
+
+  describe "enforcement_level" do
+    test "enforcement_levels/0 returns all valid enforcement levels" do
+      assert Types.enforcement_levels() == [:advisory, :required, :strict]
+    end
+
+    test "valid_enforcement_level?/1 returns true for valid levels" do
+      assert Types.valid_enforcement_level?(:advisory)
+      assert Types.valid_enforcement_level?(:required)
+      assert Types.valid_enforcement_level?(:strict)
+    end
+
+    test "valid_enforcement_level?/1 returns false for invalid levels" do
+      refute Types.valid_enforcement_level?(:invalid)
+      refute Types.valid_enforcement_level?("required")
+      refute Types.valid_enforcement_level?(nil)
+    end
+  end
+
+  describe "error_status" do
+    test "error_statuses/0 returns all valid error statuses" do
+      assert Types.error_statuses() == [:reported, :investigating, :resolved, :deferred]
+    end
+
+    test "valid_error_status?/1 returns true for valid statuses" do
+      assert Types.valid_error_status?(:reported)
+      assert Types.valid_error_status?(:investigating)
+      assert Types.valid_error_status?(:resolved)
+      assert Types.valid_error_status?(:deferred)
+    end
+
+    test "valid_error_status?/1 returns false for invalid statuses" do
+      refute Types.valid_error_status?(:invalid)
+      refute Types.valid_error_status?("resolved")
+      refute Types.valid_error_status?(nil)
     end
   end
 end

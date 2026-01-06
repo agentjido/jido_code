@@ -452,6 +452,125 @@ defmodule JidoCode.Memory.LongTerm.TripleStoreAdapter do
   defp extract_count(_), do: 0
 
   # =============================================================================
+  # Relationship Queries
+  # =============================================================================
+
+  @doc """
+  Queries memories related to a given memory by a relationship type.
+
+  This function finds all memories that are connected to the specified memory
+  via the given relationship property from the Jido ontology.
+
+  ## Parameters
+
+  - `store` - The TripleStore store reference
+  - `session_id` - Session identifier for scoping
+  - `memory_id` - The ID of the source memory
+  - `relationship` - The relationship type (e.g., `:refines`, `:has_alternative`, `:derived_from`)
+  - `opts` - Optional parameters (currently unused)
+
+  ## Supported Relationships
+
+  - `:refines` - Memories that refine this one
+  - `:confirms` - Memories that confirm this one
+  - `:contradicts` - Memories that contradict this one
+  - `:has_alternative` - Alternative options for a decision
+  - `:selected_alternative` - The alternative selected
+  - `:has_trade_off` - Trade-offs for a decision
+  - `:justified_by` - Justification evidence
+  - `:has_root_cause` - Root causes for errors
+  - `:produced_lesson` - Lessons produced from errors
+  - `:related_error` - Related errors
+  - `:derived_from` - Memories derived from evidence
+  - `:superseded_by` - Newer versions that superseded this
+
+  ## Returns
+
+  - `{:ok, [stored_memory()]}` - List of related memories
+  - `{:error, reason}` - Query failed
+
+  ## Examples
+
+      # Find alternatives for a decision
+      {:ok, alternatives} = TripleStoreAdapter.query_related(store, "session-123", "dec-1", :has_alternative)
+
+      # Find lessons learned from an error
+      {:ok, lessons} = TripleStoreAdapter.query_related(store, "session-123", "err-1", :produced_lesson)
+
+  """
+  @spec query_related(store_ref(), String.t(), String.t(), atom(), keyword()) ::
+          {:ok, [stored_memory()]} | {:error, term()}
+  def query_related(store, session_id, memory_id, relationship, opts \\ [])
+      when is_reference(store) and is_binary(session_id) and is_binary(memory_id) and
+             is_atom(relationship) and is_list(opts) do
+    query = SPARQLQueries.query_related(memory_id, relationship)
+
+    case TripleStore.query(store, query) do
+      {:ok, results} when is_list(results) ->
+        memories =
+          Enum.map(results, fn bindings ->
+            map_related_result(bindings, session_id)
+          end)
+
+        {:ok, memories}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Maps a SPARQL result from query_related to a stored_memory struct
+  defp map_related_result(bindings, session_id) do
+    base_memory_map(bindings)
+    |> Map.merge(%{
+      id: extract_memory_id_from_bindings(bindings),
+      memory_type: extract_memory_type(bindings["type"]),
+      session_id: session_id,
+      superseded_by: nil
+    })
+  end
+
+  # =============================================================================
+  # Statistics API
+  # =============================================================================
+
+  @doc """
+  Gets statistics for the session's memory store.
+
+  Returns aggregate statistics about the stored triples including:
+  - `:triple_count` - Total number of triples
+  - `:distinct_subjects` - Number of distinct subjects (memories)
+  - `:distinct_predicates` - Number of distinct predicates (relationships)
+  - `:distinct_objects` - Number of distinct objects (values)
+
+  ## Parameters
+
+  - `store` - The TripleStore store reference
+  - `_session_id` - Session identifier (for logging/scoping, currently unused)
+
+  ## Returns
+
+  - `{:ok, stats_map}` - Statistics map with keys above
+  - `{:error, reason}` - Failed to get statistics
+
+  ## Examples
+
+      {:ok, stats} = TripleStoreAdapter.get_stats(store, "session-123")
+      # => %{triple_count: 150, distinct_subjects: 10, distinct_predicates: 25, distinct_objects: 80}
+
+  """
+  @spec get_stats(store_ref(), String.t()) :: {:ok, map()} | {:error, term()}
+  def get_stats(store, _session_id) when is_reference(store) do
+    case TripleStore.Statistics.all(store) do
+      {:ok, stats} ->
+        {:ok, stats}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # =============================================================================
   # IRI Utilities
   # =============================================================================
 

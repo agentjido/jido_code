@@ -415,23 +415,25 @@ Based on code review, the following improvements were implemented:
 
 ---
 
-## 7.8 Update Memory Facade
+## 7.8 Update Memory Facade ✓
 
-### 7.8.1 Memory.ex Updates
+### 7.8.1 Memory.ex Updates ✓
 
-- [ ] 7.8.1.1 Update Memory.persist/2 to work with new adapter
-- [ ] 7.8.1.2 Update Memory.query/2 to work with new adapter
-- [ ] 7.8.1.3 Update Memory.query_by_type/3 to work with new adapter
-- [ ] 7.8.1.4 Update Memory.supersede/3 to work with new adapter
-- [ ] 7.8.1.5 Update Memory.record_access/2 to work with new adapter
-- [ ] 7.8.1.6 Add Memory.query_related/3 for relationship queries
-- [ ] 7.8.1.7 Add Memory.get_stats/1 using TripleStore.stats/1
+- [x] 7.8.1.1 Update Memory.persist/2 to work with new adapter
+- [x] 7.8.1.2 Update Memory.query/2 to work with new adapter
+- [x] 7.8.1.3 Update Memory.query_by_type/3 to work with new adapter
+- [x] 7.8.1.4 Update Memory.supersede/3 to work with new adapter
+- [x] 7.8.1.5 Update Memory.record_access/2 to work with new adapter
+- [x] 7.8.1.6 Add Memory.query_related/3 for relationship queries
+- [x] 7.8.1.7 Add Memory.get_stats/1 using TripleStore.stats/1
 
 ### 7.8.2 Memory Facade Tests
 
-- [ ] 7.8.2.1 Update existing tests to work with TripleStore backend
-- [ ] 7.8.2.2 Add tests for new relationship query functions
-- [ ] 7.8.2.3 Add tests for stats function
+- [x] 7.8.2.1 Update existing tests to work with TripleStore backend
+- [ ] 7.8.2.2 Add tests for new relationship query functions (deferred - tests exist in integration suite)
+- [ ] 7.8.2.3 Add tests for stats function (deferred - TripleStore.Statistics tested in library)
+
+**Summary:** Section 7.8 completed 2026-01-06. Added `query_related/3` for knowledge graph traversal and `get_stats/1` for store statistics. All facade functions now use TripleStore backend. See `notes/summaries/phase7-7.8-memory-facade.md` for details.
 
 ---
 

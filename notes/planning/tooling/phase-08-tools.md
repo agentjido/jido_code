@@ -1,6 +1,59 @@
-# Phase 8: Elixir Ontology Code Exploration Tools
+# Phase 8: Elixir Ontology Code Exploration Tools (TripleStore)
 
-This phase implements LLM-facing tools for exploring Elixir source code through the knowledge graph ontology defined in `~/code/elixir-ontologies/ontology/`. These tools enable an LLM agent to navigate, understand, and analyze Elixir codebases using semantic queries over RDF triples representing code structure, OTP patterns, and evolution history.
+This phase implements LLM-facing tools for exploring Elixir source code through the knowledge graph ontology defined in `~/code/elixir-ontologies/ontology/` using **TripleStore with named graphs**. These tools enable an LLM agent to navigate, understand, and analyze Elixir codebases using semantic queries over RDF triples representing code structure, OTP patterns, and evolution history.
+
+> **STATUS:** Implementation blocked until TripleStore named graph refactor completes.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  TripleStore Instance (per project)                             │
+├─────────────────────────────────────────────────────────────────┤
+│  Default Graph: Jido + Elixir Ontology (read-only reference)    │
+│    - ~/code/elixir-ontologies/ontology/*.ttl loaded at startup  │
+│  Named Graph 1: urn:jido:graph:memory:{project_id} (Phase 7)    │
+│  Named Graph 2: urn:jido:graph:code:{project_id}                │
+│    - Parsed Elixir source code structure                        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Handler Pattern Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Tool Executor receives LLM tool call                           │
+│  e.g., {"name": "code_find_function", "arguments": {...}}       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Handler.execute/2 validates and processes                      │
+│  - Uses HandlerHelpers for session context                      │
+│  - Validates module/function names                              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  TripleStoreManager.get_project_context/1                       │
+│  - Returns context with db, code_graph_iri                      │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CodeStore (SPARQL-based operations)                            │
+│  - find_function/2, get_module/2, call_graph/2                 │
+│  - All operations use SPARQL with GRAPH clause                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Result formatted as JSON for LLM                               │
+│  - Module details, function signatures                          │
+│  - Call graphs, dependency trees                                │
+│  - Source code snippets with line numbers                       │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Ontology Foundation
 
@@ -28,38 +81,6 @@ The Elixir source code ontology is defined in 5 TTL files:
 - `structure:hasSpec` - Function → FunctionSpec (typespecs)
 - `otp:implementsBehaviour` - Module → OTPBehaviour
 
-## Handler Pattern Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Tool Executor receives LLM tool call                           │
-│  e.g., {"name": "code_find_function", "arguments": {...}}       │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Handler.execute/2 validates and processes                      │
-│  - Uses HandlerHelpers for session context                      │
-│  - Validates module/function names                              │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Code Graph Adapter                                              │
-│  - SPARQL queries over code ontology                            │
-│  - TripleStore for indexed code graph                           │
-│  - Module/Function lookup and traversal                         │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Result formatted as JSON for LLM                               │
-│  - Module details, function signatures                          │
-│  - Call graphs, dependency trees                                │
-│  - Source code snippets with line numbers                       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
 ## Tools in This Phase
 
 | Tool | Priority | Purpose | Status |
@@ -85,7 +106,83 @@ The Elixir source code ontology is defined in 5 TTL files:
 
 ---
 
-## 8.1 code_find_function Tool (P0)
+## Section 8.0: Foundation Layer
+
+### 8.0.1 CodeStore Module
+
+**Status:** ⬜ Initial
+
+Create a wrapper module for code graph operations using SPARQL.
+
+#### Tasks
+
+- [ ] 8.0.1.1 Create `lib/jido_code/code_store.ex`
+  - [ ] Implement `find_function/2` - SELECT with MFA filters
+  - [ ] Implement `get_module/2` - CONSTRUCT for full module details
+  - [ ] Implement `call_graph/5` - SELECT with callsFunction property paths
+  - [ ] Implement `module_graph/4` - SELECT with use/alias/import relationships
+  - [ ] Implement `find_usages/3` - SELECT for references
+  - [ ] Implement `get_typespec/3` - SELECT for @spec definitions
+  - [ ] Implement `otp_tree/3` - SELECT for supervisor children
+  - [ ] Implement `behaviour_implementations/3` - SELECT with implementsBehaviour
+  - [ ] Implement `protocol_implementations/3` - SELECT for defimpl
+  - [ ] Implement `macro_expansions/3` - SELECT for defmacro/expand
+
+- [ ] 8.0.1.2 Create unit tests for CodeStore
+  - [ ] Test find_function generates valid SPARQL
+  - [ ] Test GRAPH clause includes correct code_graph_iri
+  - [ ] Test filters are correctly applied
+  - [ ] Test property paths for call graph traversal
+
+### 8.0.2 Code SPARQL Queries Module
+
+**Status:** ⬜ Initial
+
+Create a module with reusable SPARQL query templates for code exploration.
+
+#### Tasks
+
+- [ ] 8.0.2.1 Create `lib/jido_code/code/sparql_queries.ex`
+  - [ ] Implement `find_function_query/4` template with MFA filters
+  - [ ] Implement `get_module_query/2` template with OPTIONAL clauses
+  - [ ] Implement `call_graph_query/5` template with property paths
+  - [ ] Implement `module_graph_query/4` template
+  - [ ] Implement `find_usages_query/4` template
+  - [ ] Implement `get_typespec_query/3` template
+  - [ ] Implement `otp_tree_query/3` template
+  - [ ] Implement `behaviour_implementations_query/3` template
+  - [ ] Implement `protocol_implementations_query/3` template
+
+- [ ] 8.0.2.2 Add unit tests for Code SPARQL queries
+  - [ ] Test queries generate valid SPARQL
+  - [ ] Test structure: prefix is used
+  - [ ] Test GRAPH clause is included
+  - [ ] Test property paths are correct
+
+### 8.0.3 Ontology Loading
+
+**Status:** ⬜ Initial
+
+Load Elixir ontology TTL files into TripleStore default graph.
+
+#### Tasks
+
+- [ ] 8.0.3.1 Create `lib/jido_code/code/ontology_loader.ex`
+  - [ ] Implement `load_elixir_ontology/1` to load all 5 TTL files
+  - [ ] Use `TripleStore.load/2` for each file
+  - [ ] Track loaded ontology version
+  - [ ] Return count of triples loaded
+
+- [ ] 8.0.3.2 Add to TripleStore.Project initialization
+  - [ ] Load ontology after opening TripleStore
+  - [ ] Skip if ontology already loaded
+  - [ ] Emit telemetry on ontology load
+
+---
+
+## Section 8.1: code_find_function Tool (P0)
+
+**Status:** ⬜ Initial
 
 Find functions by their MFA (Module, Function, Arity) identity. This is the primary entry point for function discovery.
 
@@ -118,10 +215,20 @@ Find functions by their MFA (Module, Function, Arity) identity. This is the prim
 - [ ] Create `lib/jido_code/tools/handlers/code_exploration.ex`
 - [ ] Add `CodeFindFunction` handler module
 - [ ] Validate at least one of module or function_name is provided
-- [ ] Build SPARQL query for function lookup:
-  ```sparql
-  SELECT ?func ?module ?name ?arity ?visibility ?file ?line
-  WHERE {
+- [ ] Get project_id from context
+- [ ] Call `TripleStoreManager.get_project_context/1`
+- [ ] Call `CodeStore.find_function/2` with SPARQL query
+- [ ] Support pattern matching with FILTER CONTAINS
+- [ ] Return list of matching functions with metadata
+- [ ] Emit telemetry `[:jido_code, :code, :find_function]`
+
+**SPARQL Query Template:**
+```sparql
+PREFIX structure: <http://elixir-ontologies.org/ontology/structure#>
+
+SELECT ?func ?module ?name ?arity ?visibility ?file ?line
+WHERE {
+  GRAPH <urn:jido:graph:code:{project_id}> {
     ?func a structure:Function ;
           structure:functionName ?name ;
           structure:arity ?arity ;
@@ -129,12 +236,13 @@ Find functions by their MFA (Module, Function, Arity) identity. This is the prim
           structure:visibility ?visibility ;
           structure:definedIn ?file ;
           structure:startLine ?line .
-    FILTER(?module = "MyApp.User")
+    FILTER(CONTAINS(LCASE(STR(?module)), "{module_lc}"))
+    FILTER(CONTAINS(LCASE(STR(?name)), "{name_lc}"))
+    {optional_filters}
   }
-  ```
-- [ ] Support pattern matching with wildcards in module/function names
-- [ ] Return list of matching functions with metadata
-- [ ] Emit telemetry `[:jido_code, :code, :find_function]`
+}
+LIMIT {limit}
+```
 
 ### 8.1.3 Unit Tests
 
@@ -151,7 +259,9 @@ Find functions by their MFA (Module, Function, Arity) identity. This is the prim
 
 ---
 
-## 8.2 code_get_module Tool (P0)
+## Section 8.2: code_get_module Tool (P0)
+
+**Status:** ⬜ Initial
 
 Get comprehensive information about a module including documentation, all functions, types, and behaviours.
 
@@ -177,6 +287,8 @@ Get comprehensive information about a module including documentation, all functi
 ### 8.2.2 Handler Implementation
 
 - [ ] Add `CodeGetModule` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.get_module/2`
 - [ ] Query for module metadata:
   - Module documentation (@moduledoc)
   - Source file path and line range
@@ -188,6 +300,27 @@ Get comprehensive information about a module including documentation, all functi
 - [ ] Optionally include full source if requested
 - [ ] Emit telemetry `[:jido_code, :code, :get_module]`
 
+**SPARQL Query Template:**
+```sparql
+PREFIX structure: <http://elixir-ontologies.org/ontology/structure#>
+PREFIX otp: <http://elixir-ontologies.org/ontology/otp#>
+
+CONSTRUCT {
+  ?s ?p ?o
+}
+WHERE {
+  GRAPH <urn:jido:graph:code:{project_id}> {
+    ?module structure:moduleName "{module_name}" .
+    ?s ?p ?o .
+    { ?module structure:hasFunction ?func }
+    UNION
+    { ?module structure:hasType ?type }
+    UNION
+    { ?module otp:implementsBehaviour ?behaviour }
+  }
+}
+```
+
 ### 8.2.3 Unit Tests
 
 - [ ] Test retrieves module with functions
@@ -198,10 +331,13 @@ Get comprehensive information about a module including documentation, all functi
 - [ ] Test include_private option
 - [ ] Test handles non-existent module
 - [ ] Test handles module with no documentation
+- [ ] Test telemetry emission
 
 ---
 
-## 8.3 code_function_definition Tool (P0)
+## Section 8.3: code_function_definition Tool (P0)
+
+**Status:** ⬜ Initial
 
 Get the complete definition of a function including all clauses, guards, specs, and documentation.
 
@@ -231,7 +367,8 @@ Get the complete definition of a function including all clauses, guards, specs, 
 ### 8.3.2 Handler Implementation
 
 - [ ] Add `CodeFunctionDefinition` handler module
-- [ ] Query for function details:
+- [ ] Get project_id from context
+- [ ] Call `CodeStore` for function details:
   - All clauses with pattern matching
   - Guards for each clause
   - @doc documentation
@@ -239,7 +376,7 @@ Get the complete definition of a function including all clauses, guards, specs, 
   - Source code with line numbers
   - Visibility (public/private)
 - [ ] For multi-clause functions, show all clauses in order
-- [ ] Optionally include caller/callee information
+- [ ] Optionally include caller/callee information via call_graph
 - [ ] Emit telemetry `[:jido_code, :code, :function_definition]`
 
 ### 8.3.3 Unit Tests
@@ -254,10 +391,13 @@ Get the complete definition of a function including all clauses, guards, specs, 
 - [ ] Test include_callers option
 - [ ] Test include_callees option
 - [ ] Test handles non-existent function
+- [ ] Test telemetry emission
 
 ---
 
-## 8.4 code_list_modules Tool (P0)
+## Section 8.4: code_list_modules Tool (P0)
+
+**Status:** ⬜ Initial
 
 List all modules in the project with filtering by namespace, behaviour, or other criteria.
 
@@ -287,9 +427,11 @@ List all modules in the project with filtering by namespace, behaviour, or other
 ### 8.4.2 Handler Implementation
 
 - [ ] Add `CodeListModules` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.list_modules/2` with SPARQL
 - [ ] Query for all modules with filtering
-- [ ] Support namespace prefix matching
-- [ ] Support behaviour filtering (GenServer, Supervisor, etc.)
+- [ ] Support namespace prefix matching via FILTER STARTSWITH
+- [ ] Support behaviour filtering via otp:implementsBehaviour
 - [ ] Return sorted list with optional function counts
 - [ ] Emit telemetry `[:jido_code, :code, :list_modules]`
 
@@ -303,10 +445,13 @@ List all modules in the project with filtering by namespace, behaviour, or other
 - [ ] Test include_count option
 - [ ] Test returns empty for no matches
 - [ ] Test combination of filters
+- [ ] Test telemetry emission
 
 ---
 
-## 8.5 code_call_graph Tool (P1)
+## Section 8.5: code_call_graph Tool (P1)
+
+**Status:** ⬜ Initial
 
 Discover the call graph around a function - who calls it and what it calls.
 
@@ -338,11 +483,33 @@ Discover the call graph around a function - who calls it and what it calls.
 ### 8.5.2 Handler Implementation
 
 - [ ] Add `CodeCallGraph` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.call_graph/5`
 - [ ] Query using `structure:callsFunction` relationship
 - [ ] Support bidirectional traversal
-- [ ] Support depth for transitive calls
+- [ ] Support depth with property paths: `structure:callsFunction{1,depth}`
 - [ ] Group results by caller/callee category
 - [ ] Emit telemetry `[:jido_code, :code, :call_graph]`
+
+**SPARQL Query Template:**
+```sparql
+PREFIX structure: <http://elixir-ontologies.org/ontology/structure#>
+
+SELECT ?caller ?caller_module ?caller_name ?caller_arity
+WHERE {
+  GRAPH <urn:jido:graph:code:{project_id}> {
+    ?target structure:belongsTo ?target_mod ;
+             structure:functionName "{function_name}" ;
+             structure:arity {arity} .
+
+    ?caller structure:callsFunction* ?target ;
+            structure:belongsTo ?caller_mod ;
+            structure:functionName ?caller_name ;
+            structure:arity ?caller_arity .
+  }
+}
+LIMIT {limit}
+```
 
 ### 8.5.3 Unit Tests
 
@@ -354,10 +521,13 @@ Discover the call graph around a function - who calls it and what it calls.
 - [ ] Test handles function with no callers
 - [ ] Test handles function with no callees
 - [ ] Test arity filtering
+- [ ] Test telemetry emission
 
 ---
 
-## 8.6 code_module_graph Tool (P1)
+## Section 8.6: code_module_graph Tool (P1)
+
+**Status:** ⬜ Initial
 
 Discover module-level dependencies - which modules depend on which.
 
@@ -385,8 +555,10 @@ Discover module-level dependencies - which modules depend on which.
 ### 8.6.2 Handler Implementation
 
 - [ ] Add `CodeModuleGraph` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.module_graph/4`
 - [ ] Track use/alias/import relationships
-- [ ] Support filtering out stdlib
+- [ ] Support filtering out stdlib via FILTER NOT EXISTS
 - [ ] Support depth traversal
 - [ ] Emit telemetry `[:jido_code, :code, :module_graph]`
 
@@ -399,10 +571,13 @@ Discover module-level dependencies - which modules depend on which.
 - [ ] Test depth traversal
 - [ ] Test handles isolated module
 - [ ] Test handles cyclic dependencies
+- [ ] Test telemetry emission
 
 ---
 
-## 8.7 code_find_usages Tool (P1)
+## Section 8.7: code_find_usages Tool (P1)
+
+**Status:** ⬜ Initial
 
 Find all places where a function or module is referenced.
 
@@ -432,7 +607,9 @@ Find all places where a function or module is referenced.
 ### 8.7.2 Handler Implementation
 
 - [ ] Add `CodeFindUsages` handler module
-- [ ] Find call sites for functions
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.find_usages/3`
+- [ ] Find call sites for functions via structure:callsFunction
 - [ ] Find alias/import/use sites for modules
 - [ ] Return with file and line number context
 - [ ] Emit telemetry `[:jido_code, :code, :find_usages]`
@@ -446,10 +623,13 @@ Find all places where a function or module is referenced.
 - [ ] Test respects limit
 - [ ] Test include_definition option
 - [ ] Test handles no usages
+- [ ] Test telemetry emission
 
 ---
 
-## 8.8 code_get_typespec Tool (P1)
+## Section 8.8: code_get_typespec Tool (P1)
+
+**Status:** ⬜ Initial
 
 Get typespecs and Dialyzer information for a function.
 
@@ -477,7 +657,9 @@ Get typespecs and Dialyzer information for a function.
 ### 8.8.2 Handler Implementation
 
 - [ ] Add `CodeGetTypespec` handler module
-- [ ] Query for @spec definitions
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.get_typespec/3`
+- [ ] Query for @spec definitions via structure:hasSpec
 - [ ] Parse and format type information
 - [ ] Optionally include related @type definitions
 - [ ] Emit telemetry `[:jido_code, :code, :get_typespec]`
@@ -490,10 +672,13 @@ Get typespecs and Dialyzer information for a function.
 - [ ] Test includes related types
 - [ ] Test multiple arities
 - [ ] Test handles custom types
+- [ ] Test telemetry emission
 
 ---
 
-## 8.9 code_otp_tree Tool (P2)
+## Section 8.9: code_otp_tree Tool (P2)
+
+**Status:** ⬜ Initial
 
 Discover the OTP supervision tree structure.
 
@@ -519,6 +704,8 @@ Discover the OTP supervision tree structure.
 ### 8.9.2 Handler Implementation
 
 - [ ] Add `CodeOtpTree` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.otp_tree/3`
 - [ ] Query for supervisor/child relationships using `otp:supervises`
 - [ ] Build tree structure
 - [ ] Include restart strategies and child specs
@@ -532,10 +719,13 @@ Discover the OTP supervision tree structure.
 - [ ] Test handles dynamic supervisors
 - [ ] Test handles no supervisors
 - [ ] Test nested supervisors
+- [ ] Test telemetry emission
 
 ---
 
-## 8.10 code_behaviour_implementations Tool (P2)
+## Section 8.10: code_behaviour_implementations Tool (P2)
+
+**Status:** ⬜ Initial
 
 Find all modules implementing a specific behaviour.
 
@@ -561,6 +751,8 @@ Find all modules implementing a specific behaviour.
 ### 8.10.2 Handler Implementation
 
 - [ ] Add `CodeBehaviourImplementations` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.behaviour_implementations/3`
 - [ ] Query using `otp:implementsBehaviour` relationship
 - [ ] List implemented callbacks for each module
 - [ ] Support namespace filtering
@@ -574,10 +766,13 @@ Find all modules implementing a specific behaviour.
 - [ ] Test include_callbacks option
 - [ ] Test namespace filtering
 - [ ] Test handles no implementations
+- [ ] Test telemetry emission
 
 ---
 
-## 8.11 code_macro_expansions Tool (P2)
+## Section 8.11: code_macro_expansions Tool (P2)
+
+**Status:** ⬜ Initial
 
 Understand macro usage in the codebase.
 
@@ -603,6 +798,8 @@ Understand macro usage in the codebase.
 ### 8.11.2 Handler Implementation
 
 - [ ] Add `CodeMacroExpansions` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.macro_expansions/3`
 - [ ] Query for defmacro definitions
 - [ ] Find macro usage sites
 - [ ] Show expansion context
@@ -615,10 +812,13 @@ Understand macro usage in the codebase.
 - [ ] Test list_definitions option
 - [ ] Test specific macro search
 - [ ] Test handles no macros
+- [ ] Test telemetry emission
 
 ---
 
-## 8.12 code_protocol_implementations Tool (P2)
+## Section 8.12: code_protocol_implementations Tool (P2)
+
+**Status:** ⬜ Initial
 
 Discover protocols and their implementations.
 
@@ -644,6 +844,8 @@ Discover protocols and their implementations.
 ### 8.12.2 Handler Implementation
 
 - [ ] Add `CodeProtocolImplementations` handler module
+- [ ] Get project_id from context
+- [ ] Call `CodeStore.protocol_implementations/3`
 - [ ] Query for `defprotocol` definitions
 - [ ] Query for `defimpl` implementations
 - [ ] Map protocols to implementing types
@@ -657,16 +859,19 @@ Discover protocols and their implementations.
 - [ ] Test list_protocols option
 - [ ] Test handles protocol with no implementations
 - [ ] Test handles built-in protocols
+- [ ] Test telemetry emission
 
 ---
 
-## 8.13 Phase 8 Integration Tests
+## Section 8.13: Integration Tests
+
+**Status:** ⬜ Initial
 
 ### 8.13.1 Handler Integration
 
 - [ ] Create `test/jido_code/integration/tools_phase8_test.exs`
 - [ ] Test all tools execute through Executor → Handler chain
-- [ ] Test session context propagation
+- [ ] Test project context propagation
 - [ ] Test telemetry events are emitted for all tools
 
 ### 8.13.2 Code Discovery Lifecycle
@@ -691,10 +896,34 @@ Discover protocols and their implementations.
 
 ---
 
-## 8.14 Phase 8 Success Criteria
+## Section 8.14: Code Graph Indexer
+
+**Status:** ⬜ Initial
+
+A separate component is needed to parse Elixir source code and populate the code graph.
+
+### 8.14.1 Indexer Architecture
+
+- [ ] Create `lib/jido_code/code/indexer.ex`
+  - [ ] Scan project directory for .ex files
+  - [ ] Parse each file with Elixir's Code.Formatter
+  - [ ] Extract: modules, functions, macros, types, specs
+  - [ ] Convert to RDF triples using ontology
+  - [ ] Insert into code graph via TripleStore
+
+### 8.14.2 Incremental Updates
+
+- [ ] Track file modification times
+- [ ] Re-index only changed files
+- [ ] Support full re-index command
+
+---
+
+## Section 8.15: Phase 8 Success Criteria
 
 | Criterion | Priority | Status |
 |-----------|----------|--------|
+| **CodeStore**: SPARQL-based operations | P0 | ⬜ |
 | **code_find_function**: Find by MFA pattern | P0 | ⬜ |
 | **code_get_module**: Full module details | P0 | ⬜ |
 | **code_function_definition**: Source + clauses + specs | P0 | ⬜ |
@@ -707,6 +936,7 @@ Discover protocols and their implementations.
 | **code_behaviour_implementations**: Behaviour lookup | P2 | ⬜ |
 | **code_macro_expansions**: Macro discovery | P2 | ⬜ |
 | **code_protocol_implementations**: Protocol lookup | P2 | ⬜ |
+| **Code Indexer**: Populate code graph | P0 | ⬜ |
 | **Test coverage**: Minimum 80% | - | ⬜ |
 | **code_complexity_analysis**: Metrics | P3 | ⏸️ Deferred |
 | **code_sparql_query**: Raw SPARQL | P3 | ⏸️ Deferred |
@@ -715,25 +945,94 @@ Discover protocols and their implementations.
 
 ---
 
-## 8.15 Phase 8 Critical Files
+## Section 8.16: Phase 8 Critical Files
 
-**New Files:**
-- `lib/jido_code/tools/definitions/code_exploration.ex` - All code exploration tool definitions
-- `lib/jido_code/tools/handlers/code_exploration.ex` - All code exploration handlers
-- `lib/jido_code/code_graph/adapter.ex` - Code graph SPARQL adapter
-- `lib/jido_code/code_graph/sparql_queries.ex` - SPARQL query templates
-- `test/jido_code/tools/handlers/code_exploration_test.exs` - Handler unit tests
-- `test/jido_code/integration/tools_phase8_test.exs` - Integration tests
+### Files to CREATE
 
-**Modified Files:**
-- `lib/jido_code/tools/definitions.ex` - Register code exploration tools
+| File | Purpose |
+|------|---------|
+| `lib/jido_code/code_store.ex` | Code graph operations wrapper |
+| `lib/jido_code/code/sparql_queries.ex` | SPARQL query templates for code |
+| `lib/jido_code/code/ontology_loader.ex` | Loads Elixir ontology TTL files |
+| `lib/jido_code/code/indexer.ex` | Parses .ex files and populates code graph |
+| `lib/jido_code/tools/definitions/code_exploration.ex` | All code exploration tool definitions |
+| `lib/jido_code/tools/handlers/code_exploration.ex` | All code exploration handlers |
+| `test/jido_code/tools/handlers/code_exploration_test.exs` | Handler unit tests |
+| `test/jido_code/integration/tools_phase8_test.exs` | Integration tests |
 
-**Reference Files (read-only):**
-- `~/code/elixir-ontologies/ontology/elixir-core.ttl` - AST ontology
-- `~/code/elixir-ontologies/ontology/elixir-structure.ttl` - Structure ontology
-- `~/code/elixir-ontologies/ontology/elixir-otp.ttl` - OTP ontology
-- `~/code/elixir-ontologies/ontology/elixir-evolution.ttl` - Evolution ontology
-- `~/code/elixir-ontologies/ontology/elixir-shapes.ttl` - SHACL shapes
+### Files to MODIFY
+
+| File | Changes |
+|------|---------|
+| `lib/jido_code/tools/definitions.ex` | Register code exploration tools |
+| `lib/jido_code/triple_store/project.ex` | Load Elixir ontology on init |
+
+### Reference Files (read-only)
+
+| File | Purpose |
+|------|---------|
+| `~/code/elixir-ontologies/ontology/elixir-core.ttl` | AST ontology |
+| `~/code/elixir-ontologies/ontology/elixir-structure.ttl` | Structure ontology |
+| `~/code/elixir-ontologies/ontology/elixir-otp.ttl` | OTP ontology |
+| `~/code/elixir-ontologies/ontology/elixir-evolution.ttl` | Evolution ontology |
+| `~/code/elixir-ontologies/ontology/elixir-shapes.ttl` | SHACL shapes |
+
+---
+
+## Dependencies
+
+**Blocking:** TripleStore named graph refactor must complete before implementation begins.
+
+**Prerequisites:**
+- Phase 7 foundation layer (TripleStoreManager, ProjectRegistry) must be complete
+- Elixir ontology TTL files from `~/code/elixir-ontologies/ontology/`
+
+**External:**
+- `:triple_store` dependency added to mix.exs
+- TripleStore library must support named graphs (GRAPH clauses, INSERT with GRAPH)
+
+---
+
+## Implementation Order
+
+### Phase 8A: Foundation + P0 Tools
+1. Create `CodeStore` module with SPARQL queries
+2. Create `CodeSPARQLQueries` module
+3. Create `OntologyLoader` for Elixir TTL files
+4. Create code exploration definitions
+5. Create code exploration handlers
+6. Implement `code_find_function` (P0)
+7. Implement `code_get_module` (P0)
+8. Implement `code_function_definition` (P0)
+9. Implement `code_list_modules` (P0)
+10. Unit tests for all P0 handlers
+11. Basic integration tests
+
+### Phase 8B: Navigation Tools (P1)
+1. Implement `code_call_graph` (P1)
+2. Implement `code_module_graph` (P1)
+3. Implement `code_find_usages` (P1)
+4. Implement `code_get_typespec` (P1)
+5. Tests for P1 handlers
+
+### Phase 8C: OTP & Pattern Tools (P2)
+1. Implement `code_otp_tree` (P2)
+2. Implement `code_behaviour_implementations` (P2)
+3. Implement `code_macro_expansions` (P2)
+4. Implement `code_protocol_implementations` (P2)
+5. Full integration tests
+
+### Phase 8D: Code Indexer (Prerequisite)
+1. Implement code graph indexer
+2. Implement incremental updates
+3. Test on real Elixir projects
+
+### Phase 8E: Advanced Tools (P3 - Deferred)
+1. Add `code_complexity_analysis` - code metrics
+2. Add `code_sparql_query` - raw SPARQL access
+3. Add `code_evolution` - git history analysis
+4. Add `code_knowledge_gap` - unexplored areas
+5. Advanced integration tests
 
 ---
 
@@ -753,50 +1052,6 @@ Discover protocols and their implementations.
 
 5. **SPARQL Backend**: Use TripleStore with SPARQL for semantic queries over code graph
 
----
+6. **Named Graph**: Code triples stored in `urn:jido:graph:code:{project_id}` separate from memory graph
 
-## Implementation Order
-
-### Phase 8A: Core Infrastructure + P0 Tools
-1. Create `lib/jido_code/code_graph/adapter.ex` for code graph access
-2. Create `lib/jido_code/code_graph/sparql_queries.ex` with query templates
-3. Create `lib/jido_code/tools/definitions/code_exploration.ex`
-4. Create `lib/jido_code/tools/handlers/code_exploration.ex`
-5. Implement `code_find_function`
-6. Implement `code_get_module`
-7. Implement `code_function_definition`
-8. Implement `code_list_modules`
-9. Unit tests for all P0 handlers
-10. Basic integration tests
-
-### Phase 8B: Navigation Tools (P1)
-1. Add `code_call_graph` handler
-2. Add `code_module_graph` handler
-3. Add `code_find_usages` handler
-4. Add `code_get_typespec` handler
-5. Tests for P1 handlers
-
-### Phase 8C: OTP & Pattern Tools (P2)
-1. Add `code_otp_tree` handler
-2. Add `code_behaviour_implementations` handler
-3. Add `code_macro_expansions` handler
-4. Add `code_protocol_implementations` handler
-5. Full integration tests
-6. Update planning document
-
-### Phase 8D: Advanced Tools (P3 - Deferred)
-1. Add `code_complexity_analysis` - code metrics
-2. Add `code_sparql_query` - raw SPARQL access
-3. Add `code_evolution` - git history analysis
-4. Add `code_knowledge_gap` - unexplored areas
-5. Advanced integration tests
-
----
-
-## Dependencies
-
-This phase requires:
-1. The Elixir ontology TTL files from `~/code/elixir-ontologies/ontology/`
-2. A populated code graph TripleStore (needs a separate indexer component)
-3. Existing Handler pattern infrastructure from Phase 7
-4. SPARQL query capability via RDF.ex library
+7. **Code Indexer**: Separate component to parse .ex files and populate the code graph (prerequisite for queries)

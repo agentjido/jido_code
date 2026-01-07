@@ -1057,19 +1057,20 @@ defmodule JidoCode.Agents.LLMAgent do
   end
 
   defp process_stream(stream_response, topic, session_id) do
-    # Extract inner stream and metadata_task from StreamResponse
-    {actual_stream, metadata_task} =
+    # Extract inner stream from StreamResponse
+    # Note: ReqLLM.StreamResponse now uses metadata_handle instead of metadata_task
+    actual_stream =
       case stream_response do
-        %ReqLLM.StreamResponse{stream: inner, metadata_task: task} when inner != nil ->
-          {inner, task}
+        %ReqLLM.StreamResponse{stream: inner} when inner != nil ->
+          inner
 
-        %ReqLLM.StreamResponse{metadata_task: task} ->
+        %ReqLLM.StreamResponse{} ->
           Logger.warning("LLMAgent: StreamResponse has nil stream field")
-          {[], task}
+          []
 
         other ->
           # Not a StreamResponse, just a raw stream
-          {other, nil}
+          other
       end
 
     # Accumulate full content while streaming chunks (catch handles ReqLLM process cleanup race conditions)
@@ -1116,7 +1117,7 @@ defmodule JidoCode.Agents.LLMAgent do
 
     # Await metadata from the stream (usage info, finish_reason, etc.)
     # This keeps the StreamServer alive until metadata is collected
-    metadata = await_stream_metadata(metadata_task)
+    metadata = await_stream_metadata(stream_response)
 
     # Log usage information if available
     if metadata[:usage] do
@@ -1131,24 +1132,22 @@ defmodule JidoCode.Agents.LLMAgent do
       broadcast_stream_error(topic, error)
   end
 
-  # Await metadata from the stream's metadata task
-  # Returns empty map if task is nil or fails
-  defp await_stream_metadata(nil), do: %{}
-
-  defp await_stream_metadata(task) do
+  # Await metadata from the stream's metadata handle
+  # Returns empty map if not a StreamResponse or metadata extraction fails
+  defp await_stream_metadata(%ReqLLM.StreamResponse{} = stream_response) do
     try do
-      # Await with reasonable timeout (10 seconds)
-      Task.await(task, 10_000)
-    catch
-      :exit, {:timeout, _} ->
-        Logger.warning("LLMAgent: Metadata task timed out")
-        %{}
-
-      :exit, reason ->
-        Logger.debug("LLMAgent: Metadata task exited: #{inspect(reason)}")
+      %{
+        usage: ReqLLM.StreamResponse.usage(stream_response),
+        finish_reason: ReqLLM.StreamResponse.finish_reason(stream_response)
+      }
+    rescue
+      error ->
+        Logger.warning("LLMAgent: Failed to extract stream metadata: #{inspect(error)}")
         %{}
     end
   end
+
+  defp await_stream_metadata(_), do: %{}
 
   # ReqLLM.StreamChunk format - content type with text field
   defp extract_chunk_content(%ReqLLM.StreamChunk{type: :content, text: text}) do

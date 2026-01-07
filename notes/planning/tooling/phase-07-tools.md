@@ -1,19 +1,21 @@
-# Phase 7: Knowledge Graph Tools
+# Phase 7: Knowledge Graph Tools (TripleStore Rewrite)
 
-This phase implements LLM-facing tools for interacting with the Jido knowledge ontology. The tools expose the knowledge graph to the LLM through the Handler pattern, enabling semantic memory operations.
+This phase implements LLM-facing tools for interacting with the Jido knowledge ontology using **TripleStore with named graphs**. The tools expose the knowledge graph to the LLM through the Handler pattern, enabling semantic memory operations via SPARQL queries.
 
-## Ontology Foundation
+> **STATUS:** This phase rewrites the existing ETS-based Phase 7 tools to use TripleStore with named graphs. The original tools remain functional until the rewrite is complete.
 
-The canonical ontology is defined in TTL files:
+## Architecture Overview
 
-| TTL File | Purpose |
-|----------|---------|
-| `lib/ontology/long-term-context/jido-core.ttl` | Base classes (MemoryItem, Entity), confidence levels, source types |
-| `lib/ontology/long-term-context/jido-knowledge.ttl` | Knowledge types (Fact, Assumption, Hypothesis, Discovery, Risk, Unknown) |
-| `lib/ontology/long-term-context/jido-convention.ttl` | Convention types (CodingStandard, ArchitecturalConvention, AgentRule, ProcessConvention) |
-| `lib/ontology/long-term-context/jido-decision.ttl` | Decision types (ArchitecturalDecision, ImplementationDecision, Alternative, TradeOff) |
-
-> **Note:** The `lib/jido_code/memory/long_term/vocab/jido.ex` module provides Elixir mappings to the TTL ontology for use in handlers.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  TripleStore Instance (per project)                             │
+├─────────────────────────────────────────────────────────────────┤
+│  Default Graph: Jido Ontology (read-only reference)            │
+│  Named Graph 1: urn:jido:graph:memory:{project_id}              │
+│    - Knowledge items (facts, decisions, risks, conventions)     │
+│  Named Graph 2: urn:jido:graph:code:{project_id} (Phase 8)     │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Handler Pattern Architecture
 
@@ -32,9 +34,15 @@ The canonical ontology is defined in TTL files:
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Memory Module API                                               │
-│  - Memory.persist/2, Memory.query/2, Memory.supersede/3         │
-│  - TripleStoreAdapter for storage                               │
+│  TripleStoreManager.get_project_context/1                       │
+│  - Returns context with db, memory_graph_iri                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  MemoryStore (SPARQL-based operations)                          │
+│  - insert_memory/2, query_by_type/3, get_memory/2               │
+│  - All operations use SPARQL with GRAPH clause                  │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -45,145 +53,158 @@ The canonical ontology is defined in TTL files:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Ontology Foundation
+
+The canonical ontology is defined in TTL files:
+
+| TTL File | Purpose |
+|----------|---------|
+| `lib/ontology/long-term-context/jido-core.ttl` | Base classes (MemoryItem, Entity), confidence levels, source types |
+| `lib/ontology/long-term-context/jido-knowledge.ttl` | Knowledge types (Fact, Assumption, Hypothesis, Discovery, Risk, Unknown) |
+| `lib/ontology/long-term-context/jido-convention.ttl` | Convention types (CodingStandard, ArchitecturalConvention, AgentRule, ProcessConvention) |
+| `lib/ontology/long-term-context/jido-decision.ttl` | Decision types (ArchitecturalDecision, ImplementationDecision, Alternative, TradeOff) |
+
 ## Tools in This Phase
 
 | Tool | Priority | Purpose | Status |
 |------|----------|---------|--------|
-| `knowledge_remember` | P0 | Store new knowledge with ontology typing | ✅ Complete + Improved |
-| `knowledge_recall` | P0 | Query knowledge with semantic filters | ✅ Complete + Improved |
-| `knowledge_supersede` | P1 | Replace outdated knowledge | ✅ Complete |
-| `knowledge_update` | P2 | Update confidence/evidence on existing | ✅ Complete |
-| `project_conventions` | P1 | Get all conventions and standards | ✅ Complete |
-| `project_decisions` | P2 | Get architectural decisions | ✅ Complete |
-| `project_risks` | P2 | Get known risks and issues | ✅ Complete |
-| `knowledge_graph_query` | P3 | Advanced relationship traversal | ✅ Complete |
-| `knowledge_context` | P3 | Auto-retrieve relevant context | ✅ Complete |
+| `knowledge_remember` | P0 | Store new knowledge with ontology typing | ⬜ To be rewritten |
+| `knowledge_recall` | P0 | Query knowledge with semantic filters | ⬜ To be rewritten |
+| `knowledge_supersede` | P1 | Replace outdated knowledge | ⬜ To be rewritten |
+| `project_conventions` | P1 | Get all conventions and standards | ⬜ To be rewritten |
+| `knowledge_update` | P2 | Update confidence/evidence on existing | ⬜ To be rewritten |
+| `project_decisions` | P2 | Get architectural decisions | ⬜ To be rewritten |
+| `project_risks` | P2 | Get known risks and issues | ⬜ To be rewritten |
+| `knowledge_graph_query` | P3 | Advanced relationship traversal | ⬜ To be rewritten |
+| `knowledge_context` | P3 | Auto-retrieve relevant context | ⬜ To be rewritten |
 
-> **Note:** All 9 knowledge tools are now complete. P0-P2 tools (7 total) were implemented initially. P3 tools (`knowledge_graph_query`, `knowledge_context`) completed Phase 7.
-
-## Phase 7A Improvements (Review Findings) ✅
-
-Based on code review findings, the following improvements were made to the P0 tools:
-
-| Issue | Type | Resolution |
-|-------|------|------------|
-| Overly broad rescue clause in filter_by_types | Concern | Extracted safe_to_existing_atom/1 with narrow rescue scope |
-| Missing session ID validation | Concern | Added get_session_id/2 with byte_size check |
-| Potential nil crash in DateTime.to_iso8601 | Concern | Added format_timestamp/1 helper |
-| Duplicated get_session_id/1 | Concern | Extracted to parent Knowledge module |
-| Missing content size limits | Concern | Added @max_content_size (64KB) and validate_content/1 |
-| Process.sleep in tests | Concern | Removed - operations are synchronous |
-| Telemetry duplication | Suggestion | Added with_telemetry/3 wrapper |
-| Type normalization duplication | Suggestion | Added safe_to_type_atom/1 to parent module |
-| Variable rebinding in build_query_opts | Suggestion | Refactored to pipeline pattern |
-| Missing telemetry tests | Suggestion | Added 3 telemetry emission tests |
-| Missing edge case tests | Suggestion | Added 19 tests for edge cases and shared functions |
-
-**Test Count:** 25 → 47 tests (22 new tests added)
-**Summary Document:** `notes/summaries/2026-01-02-phase7a-improvements.md`
-**Review Document:** `notes/reviews/phase-7a-knowledge-tools-review.md`
-
-## Phase 7B Implementation (P1 Tools) ✅
-
-Phase 7B implements the P1 priority tools:
-
-| Tool | Description | Tests Added |
-|------|-------------|-------------|
-| `knowledge_supersede` | Mark memories as superseded, optionally create replacements | 10 tests |
-| `project_conventions` | Query for convention/coding_standard type memories | 10 tests |
-
-**Key Features:**
-- KnowledgeSupersede links replacement memories to originals via evidence_refs
-- ProjectConventions supports category filtering (coding, architectural, agent, process)
-- Both handlers emit telemetry and use shared helper functions
-
-**Test Count:** 47 → 69 tests (22 new tests added)
-**Summary Document:** `notes/summaries/2026-01-02-phase7b-knowledge-tools.md`
-
-## Phase 7B Improvements (Review Findings) ✅
-
-Based on code review findings, the following improvements were made to the P1 tools:
-
-| Issue | Type | Resolution |
-|-------|------|------------|
-| Duplicate `generate_memory_id/0` | Concern | Extracted to parent Knowledge module |
-| Inconsistent error return types | Concern | Changed `safe_to_type_atom/1` to return `{:error, reason}` tuples |
-| Rescue for control flow | Concern | Isolated in `atom_exists?/1` helper function |
-| Missing edge case tests | Concern | Added 26 new tests for shared functions and edge cases |
-| No memory ID validation | Suggestion | Added `validate_memory_id/1` with format validation |
-| No default limit in ProjectConventions | Suggestion | Added `@default_limit 50` |
-| Duplicated result formatting | Suggestion | Extracted to shared `format_memory_list/2` helper |
-| Common helper patterns | Suggestion | Added `get_required_string/2`, `ok_json/1` helpers |
-
-**New Shared Functions in Parent Knowledge Module:**
-- `generate_memory_id/0` - Generate unique memory IDs
-- `get_required_string/2` - Validate and extract required string arguments
-- `validate_memory_id/1` - Validate memory ID format (`mem-<base64>`)
-- `ok_json/1` - Wrap data in `{:ok, json}` tuple
-- `format_memory_list/2` - Format list of memories for JSON output
-
-**Test Count:** 69 → 95 tests (26 new tests added)
-**Summary Document:** `notes/summaries/2026-01-02-phase7b-improvements.md`
-**Review Document:** `notes/reviews/phase-7b-knowledge-tools-review.md`
-
-## Phase 7C Implementation (P2 Tools) ✅
-
-Phase 7C implements the P2 priority tools:
-
-| Tool | Description | Tests Added |
-|------|-------------|-------------|
-| `knowledge_update` | Update confidence/evidence on existing knowledge | 10 tests |
-| `project_decisions` | Query for decision-type memories | 8 tests |
-| `project_risks` | Query for risk-type memories | 8 tests |
-
-**Key Features:**
-- KnowledgeUpdate supports updating confidence, adding evidence, and appending rationale
-- ProjectDecisions supports filtering by decision_type and including alternatives
-- ProjectRisks sorts by confidence descending and supports include_mitigated
-
-**Memory Types Added:**
-- `:implementation_decision` - Low-to-medium level implementation choices
-- `:alternative` - Considered options that were not selected
-
-**Test Count:** 95 → 124 tests (29 new tests added)
-**Summary Document:** `notes/summaries/2026-01-02-phase7c-knowledge-tools.md`
-
-## Memory Types (from TTL Ontology)
-
-The following memory types are defined in the ontology and can be used with `knowledge_remember`:
-
-**Knowledge Types** (jido-knowledge.ttl):
-- `fact` - Verified or strongly established knowledge
-- `assumption` - Unverified belief held for working purposes
-- `hypothesis` - Testable theory or explanation
-- `discovery` - Newly uncovered important information
-- `risk` - Potential future negative outcome
-- `unknown` - Known unknown; explicitly acknowledged knowledge gap
-
-**Convention Types** (jido-convention.ttl):
-- `convention` - General project-wide or system-wide standard
-- `coding_standard` - Convention related to coding style, formatting, or structure
-- `architectural_convention` - Convention governing architectural patterns
-- `agent_rule` - Rule governing agent behavior and authority
-- `process_convention` - Convention governing workflow or operational processes
-
-**Decision Types** (jido-decision.ttl):
-- `decision` - General committed choice impacting the project
-- `architectural_decision` - High-impact structural or architectural choice
-- `implementation_decision` - Low-to-medium level implementation choice
-- `alternative` - Considered option that was not selected
-- `trade_off` - Compromise relationship between competing goals
+> **Note:** Original ETS-based implementations exist and will be replaced by SPARQL-based versions.
 
 ---
 
-## 7.1 knowledge_remember Tool (P0) ✅
+## Section 7.0: Foundation Layer
 
-Store new knowledge in the graph with full ontology support.
+### 7.0.1 TripleStoreManager Supervisor
+
+**Status:** ⬜ Initial
+
+Create the supervisor for managing TripleStore instances per project.
+
+#### Tasks
+
+- [ ] 7.0.1.1 Create `lib/jido_code/triple_store_manager.ex` DynamicSupervisor
+  - [ ] Implement `start_link/1` for supervisor initialization
+  - [ ] Implement `get_or_create_project/1` to get or start project store
+  - [ ] Implement `close_project/1` to terminate project store
+  - [ ] Register with Registry for project tracking
+
+- [ ] 7.0.1.2 Create unit tests for TripleStoreManager
+  - [ ] Test supervisor starts correctly
+  - [ ] Test get_or_create_project returns existing PID
+  - [ ] Test get_or_create_project starts new project
+  - [ ] Test close_project terminates child process
+
+### 7.0.2 TripleStore.Project GenServer
+
+**Status:** ⬜ Initial
+
+Create a per-project GenServer that wraps a TripleStore instance with named graphs.
+
+#### Tasks
+
+- [ ] 7.0.2.1 Create `lib/jido_code/triple_store/project.ex` GenServer
+  - [ ] Implement `start_link/1` with project_id option
+  - [ ] Implement `init/1` to open TripleStore database
+  - [ ] Define memory_graph_iri: `urn:jido:graph:memory:{project_id}`
+  - [ ] Define code_graph_iri: `urn:jido:graph:code:{project_id}`
+  - [ ] Implement `get_context/0` to return store context map
+  - [ ] Implement `terminate/2` to close TripleStore on shutdown
+  - [ ] Register project in Registry
+
+- [ ] 7.0.2.2 Create unit tests for TripleStore.Project
+  - [ ] Test GenServer starts and opens TripleStore
+  - [ ] Test get_context returns valid context map
+  - [ ] Test memory_graph_iri format is correct
+  - [ ] Test code_graph_iri format is correct
+  - [ ] Test graceful shutdown closes TripleStore
+
+### 7.0.3 ProjectRegistry
+
+**Status:** ⬜ Initial
+
+Create a registry for tracking active project stores.
+
+#### Tasks
+
+- [ ] 7.0.3.1 Create `lib/jido_code/project_registry.ex`
+  - [ ] Use Registry for key-based process registration
+  - [ ] Keys are project_id values
+  - [ ] Support lookup by project_id
+
+- [ ] 7.0.3.2 Add to application supervision tree
+  - [ ] Register ProjectRegistry before TripleStoreManager
+
+### 7.0.4 MemoryStore Module
+
+**Status:** ⬜ Initial
+
+Create a wrapper module for memory graph operations using SPARQL.
+
+#### Tasks
+
+- [ ] 7.0.4.1 Create `lib/jido_code/memory_store.ex`
+  - [ ] Implement `insert_memory/2` - INSERT DATA with GRAPH clause
+  - [ ] Implement `query_by_type/3` - SELECT with type filter
+  - [ ] Implement `get_memory/2` - CONSTRUCT by memory URI
+  - [ ] Implement `supersede_memory/3` - INSERT supersededBy triple
+  - [ ] Implement `update_memory/3` - SPARQL UPDATE for properties
+  - [ ] Implement `record_access/2` - UPDATE access count and timestamp
+  - [ ] Implement `get_context/3` - Multi-factor relevance scoring
+
+- [ ] 7.0.4.2 Create unit tests for MemoryStore
+  - [ ] Test insert_memory creates triples in correct graph
+  - [ ] Test query_by_type returns matching memories
+  - [ ] Test get_memory retrieves full memory details
+  - [ ] Test supersede_memory adds supersededBy relationship
+  - [ ] Test update_memory modifies properties
+  - [ ] Test record_access updates access tracking
+
+### 7.0.5 SPARQLQueries Module
+
+**Status:** ⬜ Initial
+
+Create a module with reusable SPARQL query templates.
+
+#### Tasks
+
+- [ ] 7.0.5.1 Create `lib/jido_code/memory/sparql_queries.ex`
+  - [ ] Implement `query_by_type/3` template with type filters
+  - [ ] Implement `get_by_id/2` template for memory lookup
+  - [ ] Implement `supersede/3` template for supersession
+  - [ ] Implement `project_conventions/2` template
+  - [ ] Implement `project_decisions/2` template
+  - [ ] Implement `project_risks/2` template
+  - [ ] Implement `graph_traversal/5` template for relationship queries
+  - [ ] Implement `context_query/3` template for relevance queries
+
+- [ ] 7.0.5.2 Add unit tests for SPARQLQueries
+  - [ ] Test query_by_type generates valid SPARQL
+  - [ ] Test filters are correctly applied
+  - [ ] Test GRAPH clause includes correct IRI
+  - [ ] Test graph_traversal generates property paths
+
+---
+
+## Section 7.1: knowledge_remember Tool (P0)
+
+**Status:** ⬜ To be rewritten
+
+Store new knowledge in the named graph with full ontology support.
 
 ### 7.1.1 Tool Definition
 
-- [x] Create `lib/jido_code/tools/definitions/knowledge.ex`
-- [x] Define schema:
+- [ ] Update `lib/jido_code/tools/definitions/knowledge.ex`
+- [ ] Verify existing schema is compatible:
   ```elixir
   %{
     name: "knowledge_remember",
@@ -204,445 +225,401 @@ Store new knowledge in the graph with full ontology support.
     ]
   }
   ```
-- [x] Register in `Knowledge.all/0`
 
 ### 7.1.2 Handler Implementation
 
-- [x] Create `lib/jido_code/tools/handlers/knowledge.ex`
-- [x] Add `KnowledgeRemember` handler module
-- [x] Validate memory type against ontology types
-- [x] Get session_id and project_id from context via HandlerHelpers
-- [x] Apply default confidence based on type:
-  - Facts: 0.8
-  - Assumptions/Hypotheses: 0.5
-  - Risks: 0.6
-- [x] Build memory input with ontology mappings
-- [x] Call `TripleStoreAdapter.persist/2`
-- [x] Return JSON with memory_id, type, confidence
-- [x] Emit telemetry `[:jido_code, :knowledge, :remember]`
+- [ ] Rewrite `KnowledgeRemember` handler in `lib/jido_code/tools/handlers/knowledge.ex`
+  - [ ] Validate memory type against ontology types
+  - [ ] Get project_id from context via HandlerHelpers
+  - [ ] Call `TripleStoreManager.get_project_context/1`
+  - [ ] Build memory triple map with ontology IRIs
+  - [ ] Call `MemoryStore.insert_memory/2` with SPARQL INSERT DATA
+  - [ ] Return JSON with memory_id, type, confidence
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :remember]`
+
+**SPARQL Query Template:**
+```sparql
+PREFIX jido: <https://jido.ai/ontology#>
+
+INSERT DATA {
+  GRAPH <urn:jido:graph:memory:{project_id}> {
+    <urn:jido:memory:{memory_id}> a jido:{Type} ;
+        jido:summary "{content}" ;
+        jido:hasConfidence jido:{ConfidenceLevel} ;
+        jido:hasSourceType jido:Agent ;
+        jido:assertedIn <urn:jido:session:{session_id}> ;
+        jido:hasTimestamp "{timestamp}"^^xsd:dateTime .
+  }
+}
+```
 
 ### 7.1.3 Unit Tests
 
-- [x] Test stores fact with high confidence
-- [x] Test stores assumption with medium confidence
-- [x] Test validates memory type enum
-- [x] Test validates confidence bounds (0.0-1.0)
-- [x] Test requires session context
-- [x] Test handles evidence_refs
-- [x] Test handles related_to linking
-- [x] Test applies default confidence by type
+- [ ] Test stores fact with high confidence
+- [ ] Test stores assumption with medium confidence
+- [ ] Test validates memory type enum
+- [ ] Test validates confidence bounds (0.0-1.0)
+- [ ] Test requires project context
+- [ ] Test handles evidence_refs
+- [ ] Test handles related_to linking
+- [ ] Test applies default confidence by type
+- [ ] Test triples are inserted into correct named graph
+- [ ] Test telemetry emission
 
 ---
 
-## 7.2 knowledge_recall Tool (P0) ✅
+## Section 7.2: knowledge_recall Tool (P0)
 
-Query the knowledge graph with semantic filters.
+**Status:** ⬜ To be rewritten
+
+Query the knowledge graph with semantic filters using SPARQL.
 
 ### 7.2.1 Tool Definition
 
-- [x] Add `knowledge_recall/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "knowledge_recall",
-    description: "Search for previously stored knowledge. Can filter by type, confidence, and scope.",
-    parameters: [
-      %{name: "query", type: :string, required: false,
-        description: "Text search within memory content"},
-      %{name: "types", type: :array, required: false,
-        description: "Filter by memory types (e.g., ['fact', 'decision'])"},
-      %{name: "min_confidence", type: :float, required: false,
-        description: "Minimum confidence threshold (default: 0.5)"},
-      %{name: "project_scope", type: :boolean, required: false,
-        description: "If true, search across all sessions for this project (default: false)"},
-      %{name: "include_superseded", type: :boolean, required: false,
-        description: "Include superseded memories (default: false)"},
-      %{name: "limit", type: :integer, required: false,
-        description: "Maximum results to return (default: 10)"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.2.2 Handler Implementation
 
-- [x] Add `KnowledgeRecall` handler module
-- [x] Support text search via `query` parameter (substring match in content)
-- [x] Support type filtering via `types` array
-- [x] Support confidence threshold filtering
-- [ ] Support cross-session project queries via `project_scope` (deferred to 7B)
-- [x] Support include_superseded option
-- [x] Format results with id, content, type, confidence, created_at
-- [ ] Record access via `TripleStoreAdapter.record_access/3` (deferred)
-- [x] Emit telemetry `[:jido_code, :knowledge, :recall]`
+- [ ] Rewrite `KnowledgeRecall` handler
+  - [ ] Get project_id from context
+  - [ ] Call `TripleStoreManager.get_project_context/1`
+  - [ ] Build SPARQL SELECT query with filters
+  - [ ] Support text search via FILTER CONTAINS
+  - [ ] Support type filtering via `VALUES ?type { jido:Fact jido:Decision }`
+  - [ ] Support confidence threshold filtering
+  - [ ] Support include_superseded via FILTER NOT EXISTS
+  - [ ] Call `MemoryStore.query_by_type/3` or direct SPARQL
+  - [ ] Format results as JSON
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :recall]`
+
+**SPARQL Query Template:**
+```sparql
+PREFIX jido: <https://jido.ai/ontology#>
+
+SELECT ?id ?content ?type ?confidence ?timestamp ?rationale
+WHERE {
+  GRAPH <urn:jido:graph:memory:{project_id}> {
+    ?id a ?type ;
+        jido:summary ?content ;
+        jido:hasConfidence ?conf_iri ;
+        jido:hasTimestamp ?timestamp .
+    OPTIONAL { ?id jido:rationale ?rationale }
+    FILTER NOT EXISTS { ?id jido:supersededBy ?superseded }
+    FILTER(?confidence >= {min_confidence})
+  }
+}
+ORDER BY DESC(?timestamp)
+LIMIT {limit}
+```
 
 ### 7.2.3 Unit Tests
 
-- [x] Test retrieves all memories for session
-- [x] Test filters by single type
-- [x] Test filters by multiple types
-- [x] Test filters by confidence threshold
-- [x] Test text search within content
-- [x] Test respects limit
-- [x] Test returns empty for no matches
-- [x] Test excludes superseded by default
-- [x] Test includes superseded when requested
-- [ ] Test project_scope queries across sessions (deferred to 7B)
+- [ ] Test retrieves all memories for project
+- [ ] Test filters by single type
+- [ ] Test filters by multiple types
+- [ ] Test filters by confidence threshold
+- [ ] Test text search within content
+- [ ] Test respects limit
+- [ ] Test returns empty for no matches
+- [ ] Test excludes superseded by default
+- [ ] Test includes superseded when requested
+- [ ] Test telemetry emission
 
 ---
 
-## 7.3 knowledge_supersede Tool (P1) ✅
+## Section 7.3: knowledge_supersede Tool (P1)
+
+**Status:** ⬜ To be rewritten
 
 Mark knowledge as superseded and optionally create replacement.
 
 ### 7.3.1 Tool Definition
 
-- [x] Add `knowledge_supersede/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "knowledge_supersede",
-    description: "Mark knowledge as outdated and optionally replace it with new knowledge.",
-    parameters: [
-      %{name: "old_memory_id", type: :string, required: true,
-        description: "ID of the memory to supersede"},
-      %{name: "new_content", type: :string, required: false,
-        description: "Content for the replacement memory (creates new if provided)"},
-      %{name: "new_type", type: :string, required: false,
-        description: "Type for replacement (defaults to original type)"},
-      %{name: "reason", type: :string, required: false,
-        description: "Reason for superseding"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.3.2 Handler Implementation
 
-- [x] Add `KnowledgeSupersede` handler module
-- [x] Validate old_memory_id exists
-- [x] Validate session ownership (via session_id context)
-- [x] Call `Memory.supersede/3`
-- [x] If new_content provided, create replacement memory
-- [x] Link new to old via evidence_refs (supersededBy relationship)
-- [x] Return old_id, new_id (if created), status
-- [x] Emit telemetry `[:jido_code, :knowledge, :supersede]`
+- [ ] Rewrite `KnowledgeSupersede` handler
+  - [ ] Get project_id from context
+  - [ ] Validate old_memory_id exists via SPARQL ASK
+  - [ ] If new_content provided, create replacement memory
+  - [ ] Insert supersededBy relationship via SPARQL INSERT DATA
+  - [ ] Link new to old via evidence_refs
+  - [ ] Return old_id, new_id (if created), status
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :supersede]`
+
+**SPARQL Query Template:**
+```sparql
+PREFIX jido: <https://jido.ai/ontology#>
+
+INSERT DATA {
+  GRAPH <urn:jido:graph:memory:{project_id}> {
+    <urn:jido:memory:{old_id}> jido:supersededBy <urn:jido:memory:{new_id}> ;
+        jido:supersededAt "{timestamp}"^^xsd:dateTime .
+  }
+}
+```
 
 ### 7.3.3 Unit Tests
 
-- [x] Test marks memory as superseded
-- [x] Test creates replacement when content provided
-- [x] Test links replacement to original
-- [x] Test handles non-existent memory_id
-- [x] Test requires session context
-- [x] Test inherits type from original when not specified
-- [x] Test allows specifying new type
-- [x] Test validates new_content size
-- [x] Test falls back to original type for invalid new_type
+- [ ] Test marks memory as superseded
+- [ ] Test creates replacement when content provided
+- [ ] Test links replacement to original
+- [ ] Test handles non-existent memory_id
+- [ ] Test requires project context
+- [ ] Test inherits type from original when not specified
+- [ ] Test allows specifying new type
+- [ ] Test validates new_content size
+- [ ] Test telemetry emission
 
 ---
 
-## 7.4 knowledge_update Tool (P2) ✅
+## Section 7.4: knowledge_update Tool (P2)
+
+**Status:** ⬜ To be rewritten
 
 Update confidence or add evidence to existing knowledge.
 
 ### 7.4.1 Tool Definition
 
-- [x] Add `knowledge_update/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "knowledge_update",
-    description: "Update confidence level or add evidence to existing knowledge.",
-    parameters: [
-      %{name: "memory_id", type: :string, required: true,
-        description: "ID of the memory to update"},
-      %{name: "new_confidence", type: :float, required: false,
-        description: "New confidence level (0.0-1.0)"},
-      %{name: "add_evidence", type: :array, required: false,
-        description: "Evidence references to add"},
-      %{name: "add_rationale", type: :string, required: false,
-        description: "Additional rationale to append"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.4.2 Handler Implementation
 
-- [x] Add `KnowledgeUpdate` handler module
-- [x] Validate memory exists and owned by session
-- [x] Update confidence if provided (validate 0.0-1.0)
-- [x] Append evidence refs if provided
-- [x] Append rationale if provided
-- [x] Return updated memory summary
-- [x] Emit telemetry `[:jido_code, :knowledge, :update]`
+- [ ] Rewrite `KnowledgeUpdate` handler
+  - [ ] Validate memory exists via SPARQL ASK
+  - [ ] Update confidence if provided via SPARQL DELETE/INSERT
+  - [ ] Append evidence refs via SPARQL INSERT
+  - [ ] Append rationale via SPARQL INSERT
+  - [ ] Return updated memory summary
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :update]`
+
+**SPARQL Query Template:**
+```sparql
+PREFIX jido: <https://jido.ai/ontology#>
+
+DELETE {
+  GRAPH <urn:jido:graph:memory:{project_id}> {
+    <urn:jido:memory:{id}> jido:hasConfidence ?old .
+  }
+}
+INSERT {
+  GRAPH <urn:jido:graph:memory:{project_id}> {
+    <urn:jido:memory:{id}> jido:hasConfidence jido:{NewConfidenceLevel} .
+  }
+}
+WHERE {
+  GRAPH <urn:jido:graph:memory:{project_id}> {
+    <urn:jido:memory:{id}> jido:hasConfidence ?old .
+  }
+}
+```
 
 ### 7.4.3 Unit Tests
 
-- [x] Test updates confidence
-- [x] Test adds evidence refs
-- [x] Test appends rationale
-- [x] Test validates ownership
-- [x] Test validates confidence bounds
-- [x] Test handles non-existent memory
+- [ ] Test updates confidence
+- [ ] Test adds evidence refs
+- [ ] Test appends rationale
+- [ ] Test validates ownership
+- [ ] Test validates confidence bounds
+- [ ] Test handles non-existent memory
+- [ ] Test telemetry emission
 
 ---
 
-## 7.5 project_conventions Tool (P1) ✅
+## Section 7.5: project_conventions Tool (P1)
+
+**Status:** ⬜ To be rewritten
 
 Get all conventions and coding standards for the project.
 
 ### 7.5.1 Tool Definition
 
-- [x] Add `project_conventions/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "project_conventions",
-    description: "Retrieve all conventions and coding standards for the project.",
-    parameters: [
-      %{name: "category", type: :string, required: false,
-        description: "Filter by category: coding, architectural, agent, process"},
-      %{name: "min_confidence", type: :float, required: false,
-        description: "Minimum confidence threshold (default: 0.5)"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.5.2 Handler Implementation
 
-- [x] Add `ProjectConventions` handler module
-- [x] Query for types: [:convention, :coding_standard]
-- [x] Map category to specific types (coding → coding_standard, architectural/agent/process → convention)
-- [x] Filter by min_confidence threshold
-- [x] Sort by confidence descending
-- [x] Exclude superseded conventions
-- [x] Emit telemetry `[:jido_code, :knowledge, :project_conventions]`
+- [ ] Rewrite `ProjectConventions` handler
+  - [ ] Build SPARQL SELECT for Convention types
+  - [ ] Map category to specific type IRIs
+  - [ ] Filter by min_confidence threshold
+  - [ ] Sort by confidence descending
+  - [ ] Exclude superseded conventions
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :project_conventions]`
+
+**SPARQL Query Template:**
+```sparql
+PREFIX jido: <https://jido.ai/ontology#>
+
+SELECT ?id ?content ?confidence ?timestamp
+WHERE {
+  GRAPH <urn:jido:graph:memory:{project_id}> {
+    ?id a jido:Convention ;
+        jido:summary ?content ;
+        jido:hasConfidence ?conf_iri ;
+        jido:hasTimestamp ?timestamp .
+    FILTER NOT EXISTS { ?id jido:supersededBy ?superseded }
+  }
+}
+ORDER BY DESC(?timestamp)
+LIMIT {limit}
+```
 
 ### 7.5.3 Unit Tests
 
-- [x] Test retrieves all conventions
-- [x] Test retrieves coding standards specifically
-- [x] Test category filtering (architectural)
-- [x] Test confidence threshold filtering
-- [x] Test returns empty when none exist
-- [x] Test requires session context
-- [x] Test handles case-insensitive category
-- [x] Test sorts by confidence descending
-- [x] Test excludes superseded conventions
-- [x] Test excludes non-convention memory types
+- [ ] Test retrieves all conventions
+- [ ] Test retrieves coding standards specifically
+- [ ] Test category filtering (architectural)
+- [ ] Test confidence threshold filtering
+- [ ] Test returns empty when none exist
+- [ ] Test requires project context
+- [ ] Test handles case-insensitive category
+- [ ] Test sorts by confidence descending
+- [ ] Test excludes superseded conventions
+- [ ] Test telemetry emission
 
 ---
 
-## 7.6 project_decisions Tool (P2) ✅
+## Section 7.6: project_decisions Tool (P2)
+
+**Status:** ⬜ To be rewritten
 
 Get architectural decisions with rationale.
 
 ### 7.6.1 Tool Definition
 
-- [x] Add `project_decisions/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "project_decisions",
-    description: "Retrieve architectural and implementation decisions for the project.",
-    parameters: [
-      %{name: "include_superseded", type: :boolean, required: false,
-        description: "Include superseded decisions (default: false)"},
-      %{name: "decision_type", type: :string, required: false,
-        description: "Filter: architectural, implementation, or all (default: all)"},
-      %{name: "include_alternatives", type: :boolean, required: false,
-        description: "Include considered alternatives (default: false)"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.6.2 Handler Implementation
 
-- [x] Add `ProjectDecisions` handler module
-- [x] Query for types: [:decision, :architectural_decision, :implementation_decision]
-- [x] Include/exclude superseded based on parameter
-- [x] Optionally include :alternative type memories linked to decisions
-- [x] Return with rationale field
-- [x] Emit telemetry `[:jido_code, :knowledge, :project_decisions]`
+- [ ] Rewrite `ProjectDecisions` handler
+  - [ ] Build SPARQL SELECT for Decision types
+  - [ ] Include/exclude superseded based on parameter
+  - [ ] Optionally include :alternative type memories
+  - [ ] Return with rationale field
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :project_decisions]`
 
 ### 7.6.3 Unit Tests
 
-- [x] Test retrieves decisions
-- [x] Test excludes superseded by default
-- [x] Test includes superseded when requested
-- [x] Test filters by decision type
-- [x] Test includes alternatives when requested
+- [ ] Test retrieves decisions
+- [ ] Test excludes superseded by default
+- [ ] Test includes superseded when requested
+- [ ] Test filters by decision type
+- [ ] Test includes alternatives when requested
+- [ ] Test telemetry emission
 
 ---
 
-## 7.7 project_risks Tool (P2) ✅
+## Section 7.7: project_risks Tool (P2)
+
+**Status:** ⬜ To be rewritten
 
 Get known risks and issues.
 
 ### 7.7.1 Tool Definition
 
-- [x] Add `project_risks/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "project_risks",
-    description: "Retrieve known risks and potential issues for the project.",
-    parameters: [
-      %{name: "min_confidence", type: :float, required: false,
-        description: "Minimum confidence threshold (default: 0.5)"},
-      %{name: "include_mitigated", type: :boolean, required: false,
-        description: "Include mitigated/superseded risks (default: false)"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.7.2 Handler Implementation
 
-- [x] Add `ProjectRisks` handler module
-- [x] Query for type: :risk
-- [x] Filter by confidence threshold
-- [x] Sort by confidence descending (highest risk first)
-- [x] Support include_mitigated for superseded risks
-- [x] Emit telemetry `[:jido_code, :knowledge, :project_risks]`
+- [ ] Rewrite `ProjectRisks` handler
+  - [ ] Build SPARQL SELECT for Risk type
+  - [ ] Filter by confidence threshold
+  - [ ] Sort by confidence descending
+  - [ ] Support include_mitigated for superseded risks
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :project_risks]`
 
 ### 7.7.3 Unit Tests
 
-- [x] Test retrieves risks
-- [x] Test filters by confidence
-- [x] Test sorts by confidence descending
-- [x] Test excludes mitigated by default
-- [x] Test includes mitigated when requested
+- [ ] Test retrieves risks
+- [ ] Test filters by confidence
+- [ ] Test sorts by confidence descending
+- [ ] Test excludes mitigated by default
+- [ ] Test includes mitigated when requested
+- [ ] Test telemetry emission
 
 ---
 
-## 7.8 knowledge_graph_query Tool (P3) ✅
+## Section 7.8: knowledge_graph_query Tool (P3)
+
+**Status:** ⬜ To be rewritten
 
 Traverse the knowledge graph to find memories related to a starting memory via relationship types.
 
 ### 7.8.1 Tool Definition
 
-- [x] Add `knowledge_graph_query/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "knowledge_graph_query",
-    description: "Traverse the knowledge graph to find related memories.",
-    parameters: [
-      %{name: "start_from", type: :string, required: true,
-        description: "Memory ID to start traversal from"},
-      %{name: "relationship", type: :string, required: true,
-        description: "Relationship type: derived_from, superseded_by, supersedes, same_type, same_project"},
-      %{name: "depth", type: :integer, required: false,
-        description: "Maximum traversal depth (default: 1, max: 5)"},
-      %{name: "limit", type: :integer, required: false,
-        description: "Maximum results per level (default: 10)"},
-      %{name: "include_superseded", type: :boolean, required: false,
-        description: "Include superseded memories (default: false)"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.8.2 Handler Implementation
 
-- [x] Add `KnowledgeGraphQuery` handler module
-- [x] Validate start_from memory ID format
-- [x] Validate relationship type against allowed values
-- [x] Call `Memory.query_related/4` with options
-- [x] Support recursive traversal with cycle detection
-- [x] Return list of related memories with relationship info
-- [x] Emit telemetry `[:jido_code, :knowledge, :graph_query]`
+- [ ] Rewrite `KnowledgeGraphQuery` handler
+  - [ ] Validate start_from memory ID format
+  - [ ] Validate relationship type against allowed values
+  - [ ] Build SPARQL property path query for traversal
+  - [ ] Support recursive traversal with cycle detection
+  - [ ] Return list of related memories with relationship info
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :graph_query]`
 
-### 7.8.3 API Additions
+**SPARQL Query Templates:**
+```sparql
+# derived_from
+SELECT ?id ?content WHERE {
+  GRAPH <graph> {
+    <start> jido:derivedFrom ?evidence .
+    ?id jido:summary ?content ; jido:derivedFrom ?evidence .
+  }
+}
 
-- [x] Add `TripleStoreAdapter.query_related/5` for relationship traversal
-- [x] Add `TripleStoreAdapter.get_stats/2` for memory statistics
-- [x] Add `Memory.query_related/4` facade method
-- [x] Add `Memory.get_stats/1` facade method
-- [x] Add `Memory.relationship_types/0` for listing valid relationships
+# superseded_by
+SELECT ?id ?content WHERE {
+  GRAPH <graph> {
+    <start> jido:supersededBy ?id ; jido:summary ?content .
+  }
+}
 
-### 7.8.4 Relationship Types
+# same_type
+SELECT ?id ?content WHERE {
+  GRAPH <graph> {
+    <start> a ?type .
+    ?id a ?type ; jido:summary ?content .
+    FILTER(?id != <start>)
+  }
+}
+```
 
-- `derived_from` - Follow evidence chain to find referenced memories
-- `superseded_by` - Find the memory that replaced this one
-- `supersedes` - Find memories that this one replaced
-- `same_type` - Find other memories of the same type
-- `same_project` - Find memories in the same project (session)
+### 7.8.3 Unit Tests
 
-### 7.8.5 Unit Tests
-
-- [x] Test validates start_from parameter
-- [x] Test validates relationship parameter
-- [x] Test handles invalid memory ID format
-- [x] Test handles invalid relationship type
-- [x] Test depth option (1-5)
-- [x] Test limit option
-- [x] Test include_superseded option
-- [x] Test telemetry emission
-- [x] Test each relationship type traversal
-- [x] Test empty results handling
-
-**Test Count:** 124 → 173 tests (49 new tests added)
-**Summary Document:** `notes/summaries/phase7d-knowledge-graph-query.md`
-
-### 7.8.6 Review Fixes ✅
-
-Based on code review findings (`notes/reviews/phase-7.8-knowledge-graph-query-review.md`), the following improvements were made:
-
-| Issue | Type | Resolution |
-|-------|------|------------|
-| C1: Missing `same_project` relationship test | Concern | Added 2 tests for same_project traversal |
-| C2: Missing depth boundary tests | Concern | Added 4 tests for depth edge cases (0, 5, 10) |
-| C3: Dead code in `:supersedes` filter | Concern | Removed unused include_superseded check |
-| C5: No upper bound on limit parameter | Concern | Added @max_limit 100 cap |
-| C7: format_results duplicates memory mapping | Concern | Extracted shared memory_to_map/1 helper |
-| C8: ETS full table scans | Concern | Added documentation noting O(n) performance |
-| S6: Missing @spec on execute/2 | Suggestion | Added typespec |
-| S7: O(n) has_evidence? check | Suggestion | Changed to O(1) pattern matching |
-| S8: Manual count_by_type reduce | Suggestion | Used Enum.frequencies_by |
-| S12: Inconsistent piping style | Suggestion | Fixed to standard pipeline |
-
-**Test Count:** 173 → 180 tests (7 new tests added)
-**Review Document:** `notes/reviews/phase-7.8-knowledge-graph-query-review.md`
-**Fixes Summary:** `notes/summaries/phase-7.8-review-fixes.md`
+- [ ] Test validates start_from parameter
+- [ ] Test validates relationship parameter
+- [ ] Test handles invalid memory ID format
+- [ ] Test handles invalid relationship type
+- [ ] Test depth option (1-5)
+- [ ] Test limit option
+- [ ] Test include_superseded option
+- [ ] Test telemetry emission
+- [ ] Test each relationship type traversal
+- [ ] Test empty results handling
 
 ---
 
-## 7.9 knowledge_context Tool (P3) ✅
+## Section 7.9: knowledge_context Tool (P3)
+
+**Status:** ⬜ To be rewritten
 
 Automatically retrieve contextually relevant memories using multi-factor relevance scoring.
 
 ### 7.9.1 Tool Definition
 
-- [x] Add `knowledge_context/0` to definitions
-- [x] Define schema:
-  ```elixir
-  %{
-    name: "knowledge_context",
-    description: "Automatically retrieve the most relevant memories for the current context.",
-    parameters: [
-      %{name: "context_hint", type: :string, required: true,
-        description: "Description of what context is needed (3-1000 chars)"},
-      %{name: "include_types", type: :array, required: false,
-        description: "Filter to specific memory types"},
-      %{name: "min_confidence", type: :number, required: false,
-        description: "Minimum confidence threshold (default: 0.5)"},
-      %{name: "limit", type: :integer, required: false,
-        description: "Maximum results (default: 5, max: 50)"},
-      %{name: "recency_weight", type: :number, required: false,
-        description: "Weight for recency in scoring (default: 0.3)"},
-      %{name: "include_superseded", type: :boolean, required: false,
-        description: "Include superseded memories (default: false)"}
-    ]
-  }
-  ```
+- [ ] Verify existing schema in `knowledge.ex`
 
 ### 7.9.2 Handler Implementation
 
-- [x] Add `KnowledgeContext` handler module
-- [x] Validate context_hint length (3-1000 chars)
-- [x] Implement multi-factor relevance scoring
-- [x] Call `Memory.get_context/3` with options
-- [x] Return scored memories with relevance_score field
-- [x] Emit telemetry `[:jido_code, :knowledge, :context]`
+- [ ] Rewrite `KnowledgeContext` handler
+  - [ ] Validate context_hint length (3-1000 chars)
+  - [ ] Build SPARQL SELECT for candidate memories
+  - [ ] Implement multi-factor relevance scoring in Elixir
+  - [ ] Return scored memories with relevance_score field
+  - [ ] Emit telemetry `[:jido_code, :knowledge, :context]`
 
 ### 7.9.3 Relevance Scoring Algorithm
 
@@ -651,191 +628,177 @@ Automatically retrieve contextually relevant memories using multi-factor relevan
 - **Confidence (20%)** - Memory's confidence level
 - **Access Frequency (10%)** - Normalized access count
 
-### 7.9.4 API Additions
+### 7.9.4 Unit Tests
 
-- [x] Add `TripleStoreAdapter.get_context/4` with scoring algorithm
-- [x] Add `Memory.get_context/3` facade method
-
-### 7.9.5 Unit Tests
-
-- [x] Test requires context_hint parameter
-- [x] Test validates context_hint length
-- [x] Test returns memories sorted by relevance score
-- [x] Test respects max_results parameter
-- [x] Test respects min_confidence parameter
-- [x] Test respects include_types filter
-- [x] Test respects recency_weight parameter
-- [x] Test excludes superseded by default
-- [x] Test includes superseded when requested
-- [x] Test telemetry emission
-- [x] Test Memory.get_context/3 facade
-
-**Test Count:** 180 → 205 tests (25 new tests added)
-**Summary Document:** `notes/summaries/phase7.9-knowledge-context.md`
-
-### 7.9.6 Review Fixes (Post-Implementation) ✅
-
-Based on code review, the following improvements were made:
-
-| Issue | Type | Resolution |
-|-------|------|------------|
-| C1: max_results vs limit naming | Concern | Renamed to `limit` for consistency |
-| C2: Duplicate safe_to_type_atom | Concern | Use shared Knowledge.safe_to_type_atom/1 |
-| C3: Weight sum can go negative | Concern | Added max(0.0, ...) guard |
-| C10: Redundant max_access > 0 | Concern | Removed redundant check |
-| C4: Missing boundary tests | Concern | Added 4 boundary tests |
-| C5: Missing type validation tests | Concern | Added 6 invalid type tests |
-| C6: Missing scoring unit tests | Concern | Added weight constant tests |
-| S5: Stop word filtering | Suggestion | Added 60+ stop words |
-| S6: Word count limit | Suggestion | Added 500 word limit |
-| S7: Use flat_map | Suggestion | Refactored type parsing |
-| S10: Return validated hint | Suggestion | Validator returns hint |
-
-**Test Count:** 205 → 218 tests (13 new tests added)
-**Summary Document:** `notes/summaries/phase7.9-review-fixes.md`
-**Review Document:** `notes/reviews/phase-7.9-knowledge-context-review.md`
+- [ ] Test requires context_hint parameter
+- [ ] Test validates context_hint length
+- [ ] Test returns memories sorted by relevance score
+- [ ] Test respects limit parameter
+- [ ] Test respects min_confidence parameter
+- [ ] Test respects include_types filter
+- [ ] Test respects recency_weight parameter
+- [ ] Test excludes superseded by default
+- [ ] Test includes superseded when requested
+- [ ] Test telemetry emission
 
 ---
 
-## 7.10 Phase 7 Integration Tests ✅
+## Section 7.10: Integration Tests
+
+**Status:** ⬜ Initial
 
 ### 7.10.1 Handler Integration
 
-- [x] Create `test/jido_code/integration/tools_phase7_test.exs`
-- [x] Test all tools execute through Executor → Handler chain
-- [x] Test session isolation (default queries are session-scoped)
-- [x] Test telemetry events are emitted
+- [ ] Create `test/jido_code/integration/tools_phase7_triplestore_test.exs`
+- [ ] Test all tools execute through Executor → Handler chain
+- [ ] Test project context propagation
+- [ ] Test telemetry events are emitted
 
 ### 7.10.2 Knowledge Lifecycle
 
-- [x] Test: remember → recall → verify content
-- [x] Test: remember → supersede → recall excludes old
-- [x] Test: remember → update confidence → recall with new confidence
-- [x] Test: remember fact → update with evidence → confidence preserved
+- [ ] Test: remember → recall → verify content
+- [ ] Test: remember → supersede → recall excludes old
+- [ ] Test: remember → update confidence → recall with new confidence
+- [ ] Test: remember fact → update with evidence → confidence preserved
 
-### 7.10.3 Cross-Tool Integration
+### 7.10.3 Named Graph Isolation
 
-- [x] Test project_conventions finds convention type memories
-- [x] Test project_decisions finds decision type memories
-- [x] Test project_risks finds risk type memories
-- [x] Test knowledge_context finds relevant memories
-- [x] Test knowledge_graph_query traverses relationships
-- [ ] Test project_scope queries work across sessions (deferred - requires cross-session implementation)
-
-**Test Count:** 19 integration tests
-**Summary Document:** `notes/summaries/phase7.10-integration-tests.md`
+- [ ] Test memories are stored in correct named graph
+- [ ] Test different projects have separate graphs
+- [ ] Test queries only return from project's graph
 
 ---
 
-## 7.11 Phase 7 Success Criteria
+## Section 7.11: Application Integration
+
+**Status:** ⬜ Initial
+
+### 7.11.1 Update Application Supervision Tree
+
+- [ ] Add `ProjectRegistry` to `lib/jido_code/application.ex` children
+- [ ] Add `TripleStoreManager` to children
+- [ ] Remove old `StoreManager` from children (after migration complete)
+
+### 7.11.2 Update Tool Registration
+
+- [ ] Update `lib/jido_code/tools/definitions.ex` to register new tools
+- [ ] Ensure both ETS and TripleStore versions don't conflict during transition
+
+---
+
+## Section 7.12: Cleanup (After Migration)
+
+**Status:** ⬜ Deferred
+
+### 7.12.1 Remove Old Files
+
+- [ ] Delete `lib/jido_code/memory/long_term/triple_store_adapter.ex`
+- [ ] Delete `lib/jido_code/memory/long_term/store_manager.ex`
+- [ ] Remove old tests
+
+### 7.12.2 Update Memory Facade
+
+- [ ] Update `lib/jido_code/memory/memory.ex` to use TripleStoreManager
+- [ ] Remove ETS-based code paths
+
+---
+
+## Phase 7 Success Criteria
 
 | Criterion | Priority | Status |
 |-----------|----------|--------|
-| **knowledge_remember**: Store with ontology types | P0 | ✅ Complete + Improved |
-| **knowledge_recall**: Query with filters + project_scope | P0 | ✅ Complete + Improved |
-| **knowledge_supersede**: Replace outdated knowledge | P1 | ✅ Complete + Improved |
-| **project_conventions**: List conventions/standards | P1 | ✅ Complete + Improved |
-| **knowledge_update**: Modify confidence/evidence | P2 | ✅ Complete |
-| **project_decisions**: List decisions with rationale | P2 | ✅ Complete |
-| **project_risks**: List risks by confidence | P2 | ✅ Complete |
-| **Cross-session queries**: project_scope=true works | P0 | ⬜ Initial |
-| **Session isolation**: Default queries session-scoped | P0 | ✅ Complete |
-| **Test coverage**: Minimum 80% | - | ✅ 237 tests (218 unit + 19 integration) |
-| **knowledge_graph_query**: Traverse relationships | P3 | ✅ Complete |
-| **knowledge_context**: Auto-relevance | P3 | ✅ Complete |
+| **TripleStoreManager**: Project store lifecycle | P0 | ⬜ |
+| **MemoryStore**: SPARQL-based operations | P0 | ⬜ |
+| **knowledge_remember**: Store with ontology types | P0 | ⬜ |
+| **knowledge_recall**: Query with filters | P0 | ⬜ |
+| **knowledge_supersede**: Replace outdated knowledge | P1 | ⬜ |
+| **project_conventions**: List conventions/standards | P1 | ⬜ |
+| **knowledge_update**: Modify confidence/evidence | P2 | ⬜ |
+| **project_decisions**: List decisions with rationale | P2 | ⬜ |
+| **project_risks**: List risks by confidence | P2 | ⬜ |
+| **knowledge_graph_query**: Traverse relationships | P3 | ⬜ |
+| **knowledge_context**: Auto-relevance | P3 | ⬜ |
+| **Named graph isolation**: Separate memory/code graphs | P0 | ⬜ |
+| **Test coverage**: Minimum 80% | - | ⬜ |
 
 ---
 
-## 7.12 Phase 7 Critical Files
+## Phase 7 Critical Files
 
-**New Files:**
-- `lib/jido_code/tools/definitions/knowledge.ex` - All knowledge tool definitions
-- `lib/jido_code/tools/handlers/knowledge.ex` - All knowledge handlers
-- `test/jido_code/tools/handlers/knowledge_test.exs` - Handler unit tests
-- `test/jido_code/integration/tools_phase7_test.exs` - Integration tests
+### Files to CREATE
 
-**Modified Files:**
-- `lib/jido_code/tools/definitions.ex` - Register knowledge tools
-- `lib/jido_code/memory/long_term/triple_store_adapter.ex` - Add project-scoped queries
+| File | Purpose |
+|------|---------|
+| `lib/jido_code/triple_store_manager.ex` | Supervisor for project stores |
+| `lib/jido_code/triple_store/project.ex` | Per-project GenServer wrapper |
+| `lib/jido_code/memory_store.ex` | Memory graph operations wrapper |
+| `lib/jido_code/memory/sparql_queries.ex` | SPARQL query templates |
+| `lib/jido_code/project_registry.ex` | Registry for tracking projects |
 
-**Reference Files (read-only):**
-- `lib/ontology/long-term-context/jido-core.ttl` - Core ontology
-- `lib/ontology/long-term-context/jido-knowledge.ttl` - Knowledge types
-- `lib/ontology/long-term-context/jido-convention.ttl` - Convention types
-- `lib/ontology/long-term-context/jido-decision.ttl` - Decision types
-- `lib/jido_code/memory/long_term/vocab/jido.ex` - Elixir vocab mappings
-- `lib/jido_code/memory/long_term/triple_store_adapter.ex` - Storage API
-- `lib/jido_code/memory/types.ex` - Type definitions
+### Files to MODIFY
+
+| File | Changes |
+|------|---------|
+| `lib/jido_code/memory/memory.ex` | Update to use TripleStoreManager |
+| `lib/jido_code/tools/handlers/knowledge.ex` | Rewrite all 9 handlers for SPARQL |
+| `lib/jido_code/application.ex` | Add TripleStoreManager to supervision tree |
+
+### Files to DELETE (after migration)
+
+| File | Reason |
+|------|--------|
+| `lib/jido_code/memory/long_term/triple_store_adapter.ex` | ETS-based, replaced by MemoryStore |
+| `lib/jido_code/memory/long_term/store_manager.ex` | ETS-based, replaced by TripleStoreManager |
 
 ---
 
-## Design Decisions
+## Dependencies
 
-1. **Cross-Session Project Scope**: YES - Memories can be queried across sessions if they belong to the same project. This requires:
-   - `project_id` to be tracked when memories are created
-   - Query functions to support project-level filtering
-   - TripleStoreAdapter to support cross-session queries
+**Blocking:** TripleStore named graph refactor must complete before implementation begins.
 
-2. **Tool Naming**: Use `knowledge_*` prefix for core tools, `project_*` for specialized query tools
+**Ontologies:**
+- Jido: `lib/ontology/long-term-context/*.ttl`
+- Must be loaded into TripleStore default graph
 
-3. **Final Scope**: All 9 knowledge tools
-   - `knowledge_remember`, `knowledge_recall` (P0)
-   - `knowledge_supersede`, `project_conventions` (P1)
-   - `knowledge_update`, `project_decisions`, `project_risks` (P2)
-   - `knowledge_graph_query`, `knowledge_context` (P3) - all complete
-
-4. **Ontology Source**: TTL files in `lib/ontology/long-term-context/` are the canonical source; `vocab/jido.ex` provides Elixir mappings
+**External:**
+- `:triple_store` dependency added to mix.exs
+- TripleStore library must support named graphs (GRAPH clauses, INSERT with GRAPH)
 
 ---
 
 ## Implementation Order
 
-### Phase 7A: Core Infrastructure + P0 Tools
-1. Create `lib/jido_code/tools/definitions/knowledge.ex`
-2. Create `lib/jido_code/tools/handlers/knowledge.ex`
-3. Implement `knowledge_remember` with project_id support
-4. Implement `knowledge_recall` with project_scope parameter
-5. Unit tests for both handlers
-6. Basic integration tests
+### Phase 7.0: Foundation Layer
+1. Create ProjectRegistry
+2. Create TripleStoreManager supervisor
+3. Create TripleStore.Project GenServer
+4. Create MemoryStore module
+5. Create SPARQLQueries module
+6. Test foundation components
 
-### Phase 7B: Lifecycle + Project Tools (P1)
-1. Add `knowledge_supersede` handler
-2. Add `project_conventions` handler
-3. Tests for new handlers
+### Phase 7.1-7.2: P0 Tools Rewrite
+1. Rewrite knowledge_remember handler
+2. Rewrite knowledge_recall handler
+3. Test P0 tools
 
-### Phase 7C: Extended Tools (P2)
-1. Add `knowledge_update` handler
-2. Add `project_decisions` handler
-3. Add `project_risks` handler
-4. Full integration tests
-5. Update planning document
+### Phase 7.3-7.5: P1 Tools Rewrite
+1. Rewrite knowledge_supersede handler
+2. Rewrite project_conventions handler
+3. Test P1 tools
 
-### Phase 7D: Advanced Tools (P3) ✅
-1. ✅ Add `knowledge_graph_query` - relationship traversal (complete)
-2. ✅ Add `knowledge_context` - auto-relevance (complete)
-3. Advanced integration tests (pending)
+### Phase 7.6-7.7: P2 Tools Rewrite
+1. Rewrite knowledge_update handler
+2. Rewrite project_decisions handler
+3. Rewrite project_risks handler
+4. Test P2 tools
 
----
+### Phase 7.8-7.9: P3 Tools Rewrite
+1. Rewrite knowledge_graph_query handler
+2. Rewrite knowledge_context handler
+3. Test P3 tools
 
-## Cross-Session Project Queries
-
-To support `project_scope: true`:
-
-1. **Memory Creation**: Ensure `project_id` is captured when memories are created
-   - Handler should extract project_id from context or allow explicit parameter
-   - Default to current session's project
-
-2. **Query Modification**: Add project-level query to TripleStoreAdapter
-   ```elixir
-   # New function needed
-   def query_by_project(store, project_id, opts \\ [])
-   ```
-
-3. **Handler Logic**:
-   ```elixir
-   if project_scope do
-     TripleStoreAdapter.query_by_project(store, project_id, opts)
-   else
-     TripleStoreAdapter.query_all(store, session_id, opts)
-   end
-   ```
+### Phase 7.10-7.12: Integration & Cleanup
+1. Integration tests
+2. Update application supervision tree
+3. Remove old ETS-based files
+4. Full test suite verification

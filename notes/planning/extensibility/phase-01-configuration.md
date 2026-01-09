@@ -296,43 +296,43 @@ Comprehensive unit tests for configuration components.
 
 ### 1.5.1 ChannelConfig Tests
 
-- [ ] Test ChannelConfig struct creation
-- [ ] Test validate/1 with valid socket URL
-- [ ] Test validate/1 rejects invalid socket URL
-- [ ] Test validate/1 rejects invalid topic format
-- [ ] Test expand_env_vars/1 expands ${VAR} syntax
-- [ ] Test expand_env_vars/1 supports defaults ${VAR:-default}
-- [ ] Test expand_env_vars/1 handles missing variables
-- [ ] Test defaults/0 returns expected channel configs
+- [x] Test ChannelConfig struct creation
+- [x] Test validate/1 with valid socket URL
+- [x] Test validate/1 rejects invalid socket URL
+- [x] Test validate/1 rejects invalid topic format
+- [x] Test expand_env_vars/1 expands ${VAR} syntax
+- [x] Test expand_env_vars/1 supports defaults ${VAR:-default}
+- [x] Test expand_env_vars/1 handles missing variables
+- [x] Test defaults/0 returns expected channel configs
 
 ### 1.5.2 Permissions Tests
 
-- [ ] Test Permissions struct creation
-- [ ] Test check_permission/3 allows matching pattern
-- [ ] Test check_permission/3 denies matching deny pattern
-- [ ] Test check_permission/3 asks matching ask pattern
-- [ ] Test check_permission/3 deny takes precedence over allow
-- [ ] Test check_permission/3 wildcards match correctly
-- [ ] Test from_json/1 parses valid JSON
-- [ ] Test from_json/1 rejects invalid format
-- [ ] Test defaults/0 returns safe permissions
+- [x] Test Permissions struct creation
+- [x] Test check_permission/3 allows matching pattern
+- [x] Test check_permission/3 denies matching deny pattern
+- [x] Test check_permission/3 asks matching ask pattern
+- [x] Test check_permission/3 deny takes precedence over allow
+- [x] Test check_permission/3 wildcards match correctly
+- [x] Test from_json/1 parses valid JSON
+- [x] Test from_json/1 rejects invalid format
+- [x] Test defaults/0 returns safe permissions
 
 ### 1.5.3 Settings Merge Tests
 
-- [ ] Test merge adds extensibility fields
-- [ ] Test merge_channels/2 uses local over global
-- [ ] Test merge_permissions/2 extends global with local
-- [ ] Test merge_hooks/2 concatenates hook lists
-- [ ] Test merge_plugin_lists/2 unions enabled lists
-- [ ] Test merge with missing extensibility fields
-- [ ] Test merge with empty local settings
+- [x] Test merge adds extensibility fields
+- [x] Test merge_channels/2 uses local over global
+- [x] Test merge_permissions/2 extends global with local
+- [x] Test merge_hooks/2 concatenates hook lists
+- [x] Test merge_plugin_lists/2 unions enabled lists
+- [x] Test merge with missing extensibility fields
+- [x] Test merge with empty local settings
 
 ### 1.5.4 Backward Compatibility Tests
 
-- [ ] Test settings load without extensibility fields
-- [ ] Test settings save includes extensibility fields
-- [ ] Test existing settings files still work
-- [ ] Test defaults are applied for missing fields
+- [x] Test settings load without extensibility fields
+- [x] Test settings save includes extensibility fields
+- [x] Test existing settings files still work
+- [x] Test defaults are applied for missing fields
 
 ---
 

@@ -38,7 +38,6 @@ defmodule JidoCode.TUI do
 
   require Logger
 
-  alias Jido.AI.Keyring
   alias JidoCode.Commands
   alias JidoCode.Config.ProviderKeys
   alias JidoCode.PubSubTopics
@@ -3827,13 +3826,27 @@ defmodule JidoCode.TUI do
     if ProviderKeys.local_provider?(provider) do
       true
     else
-      key_name = ProviderKeys.to_key_name(provider)
+      # Check environment variable directly
+      env_key = provider_api_key_env(provider)
 
-      case Keyring.get(key_name) do
+      case System.get_env(env_key) do
         nil -> false
         "" -> false
         _key -> true
       end
+    end
+  end
+
+  defp provider_api_key_env(provider) do
+    case provider do
+      "anthropic" -> "ANTHROPIC_API_KEY"
+      "openai" -> "OPENAI_API_KEY"
+      "openrouter" -> "OPENROUTER_API_KEY"
+      "google" -> "GOOGLE_API_KEY"
+      "cloudflare" -> "CLOUDFLARE_API_KEY"
+      "groq" -> "GROQ_API_KEY"
+      "ollama" -> "OLLAMA_BASE_URL"
+      _ -> String.upcase("#{provider}_api_key")
     end
   end
 

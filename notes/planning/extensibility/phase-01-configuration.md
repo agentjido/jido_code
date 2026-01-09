@@ -37,8 +37,8 @@ Phoenix channel configuration for real-time event broadcasting.
 
 Create the channel configuration data structure.
 
-- [ ] 1.1.1.1 Create `lib/jido_code/extensibility/channel_config.ex`
-- [ ] 1.1.1.2 Define ChannelConfig struct:
+- [x] 1.1.1.1 Create `lib/jido_code/extensibility/channel_config.ex`
+- [x] 1.1.1.2 Define ChannelConfig struct:
   ```elixir
   defmodule JidoCode.Extensibility.ChannelConfig do
     @moduledoc """
@@ -67,38 +67,38 @@ Create the channel configuration data structure.
     }
   end
   ```
-- [ ] 1.1.1.3 Add `@doc false` for internal helper functions
-- [ ] 1.1.1.4 Add `@spec` for all public functions
+- [x] 1.1.1.3 Add `@doc false` for internal helper functions
+- [x] 1.1.1.4 Add `@spec` for all public functions
 
 ### 1.1.2 Channel Configuration Validation
 
 Add validation for channel configuration values.
 
-- [ ] 1.1.2.1 Implement `validate/1` function
-- [ ] 1.1.2.2 Validate socket URL format (ws:// or wss://)
-- [ ] 1.1.2.3 Validate topic format (alphanumeric with colons)
-- [ ] 1.1.2.4 Validate auth configuration structure
-- [ ] 1.1.2.5 Return `{:ok, config}` or `{:error, reason}`
+- [x] 1.1.2.1 Implement `validate/1` function
+- [x] 1.1.2.2 Validate socket URL format (ws:// or wss://)
+- [x] 1.1.2.3 Validate topic format (alphanumeric with colons)
+- [x] 1.1.2.4 Validate auth configuration structure
+- [x] 1.1.2.5 Return `{:ok, config}` or `{:error, reason}`
 
 ### 1.1.3 Environment Variable Expansion
 
 Support environment variable expansion in channel auth tokens.
 
-- [ ] 1.1.3.1 Implement `expand_env_vars/1` function
-- [ ] 1.1.3.2 Parse `${VAR_NAME}` syntax in token values
-- [ ] 1.1.3.3 Look up variables via `System.fetch_env/1`
-- [ ] 1.1.3.4 Support default values: `${VAR:-default}`
-- [ ] 1.1.3.5 Return expanded configuration
+- [x] 1.1.3.1 Implement `expand_env_vars/1` function
+- [x] 1.1.3.2 Parse `${VAR_NAME}` syntax in token values
+- [x] 1.1.3.3 Look up variables via `System.fetch_env/1`
+- [x] 1.1.3.4 Support default values: `${VAR:-default}`
+- [x] 1.1.3.5 Return expanded configuration
 
 ### 1.1.4 Default Channel Configurations
 
 Define default channel configurations for standard channels.
 
-- [ ] 1.1.4.1 Create `defaults/0` function
-- [ ] 1.1.4.2 Define default "ui_state" channel
-- [ ] 1.1.4.3 Define default "agent" channel
-- [ ] 1.1.4.4 Define default "hooks" channel
-- [ ] 1.1.4.5 Return map of default configurations
+- [x] 1.1.4.1 Create `defaults/0` function
+- [x] 1.1.4.2 Define default "ui_state" channel
+- [x] 1.1.4.3 Define default "agent" channel
+- [x] 1.1.4.4 Define default "hooks" channel
+- [x] 1.1.4.5 Return map of default configurations
 
 ---
 

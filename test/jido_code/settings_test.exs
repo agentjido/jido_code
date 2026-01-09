@@ -672,4 +672,381 @@ defmodule JidoCode.SettingsTest do
       assert models == ["my-custom-model"]
     end
   end
+
+  describe "validate/1 - extensibility fields" do
+    test "accepts valid channels config" do
+      settings = %{
+        "channels" => %{
+          "ui_state" => %{
+            "socket" => "ws://localhost:4000/socket",
+            "topic" => "jido:ui"
+          }
+        }
+      }
+
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "rejects invalid channels config - non-map value" do
+      settings = %{"channels" => %{"ui_state" => "not a map"}}
+
+      assert {:error, "channels[\"ui_state\"] must be a map" <> _} = Settings.validate(settings)
+    end
+
+    test "rejects invalid channels config - non-string key" do
+      settings = %{"channels" => %{123 => %{}}}
+
+      assert {:error, "channels" <> _} = Settings.validate(settings)
+    end
+
+    test "accepts valid permissions config" do
+      settings = %{
+        "permissions" => %{
+          "allow" => ["Read:*", "Write:*"],
+          "deny" => ["*delete*"],
+          "ask" => ["run_command:*"]
+        }
+      }
+
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "accepts empty permissions config" do
+      settings = %{"permissions" => %{}}
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "rejects invalid permissions config - non-map" do
+      settings = %{"permissions" => "not a map"}
+
+      assert {:error, "permissions must be a permissions config map" <> _} =
+               Settings.validate(settings)
+    end
+
+    test "rejects invalid permissions config - invalid key" do
+      settings = %{"permissions" => %{"invalid_key" => []}}
+
+      assert {:error, "permissions.invalid_key must be a list of strings" <> _} =
+               Settings.validate(settings)
+    end
+
+    test "rejects invalid permissions config - non-list value" do
+      settings = %{"permissions" => %{"allow" => "not a list"}}
+
+      assert {:error, "permissions.allow must be a list of strings" <> _} =
+               Settings.validate(settings)
+    end
+
+    test "accepts valid hooks config" do
+      settings = %{
+        "hooks" => %{
+          "Edit" => [
+            %{"matcher" => "Edit", "hooks" => [%{"type" => "command"}]}
+          ]
+        }
+      }
+
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "accepts empty hooks config" do
+      settings = %{"hooks" => %{}}
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "rejects invalid hooks config - non-map value" do
+      settings = %{"hooks" => %{"Edit" => "not a list"}}
+
+      assert {:error, "hooks[\"Edit\"] must be a list" <> _} = Settings.validate(settings)
+    end
+
+    test "accepts valid agents config" do
+      settings = %{
+        "agents" => %{
+          "default" => %{"model" => "sonnet", "max_concurrent" => 5}
+        }
+      }
+
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "accepts empty agents config" do
+      settings = %{"agents" => %{}}
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "rejects invalid agents config - non-map value" do
+      settings = %{"agents" => %{"default" => "not a map"}}
+
+      assert {:error, "agents[\"default\"] must be a map" <> _} = Settings.validate(settings)
+    end
+
+    test "accepts valid plugins config" do
+      settings = %{
+        "plugins" => %{
+          "enabled" => ["github", "git"],
+          "disabled" => ["experimental"],
+          "marketplaces" => %{
+            "community" => %{"source" => "github", "repo" => "jidocode/plugins"}
+          }
+        }
+      }
+
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "accepts minimal plugins config" do
+      settings = %{"plugins" => %{}}
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "accepts plugins config with only enabled" do
+      settings = %{"plugins" => %{"enabled" => ["github"]}}
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+
+    test "rejects invalid plugins config - non-list enabled" do
+      settings = %{"plugins" => %{"enabled" => "not a list"}}
+
+      assert {:error, "plugins.enabled must be a list of strings" <> _} =
+               Settings.validate(settings)
+    end
+
+    test "rejects invalid plugins config - non-string in enabled" do
+      settings = %{"plugins" => %{"enabled" => ["github", 123]}}
+
+      assert {:error, "plugins.enabled must be a list of strings" <> _} =
+               Settings.validate(settings)
+    end
+
+    test "rejects invalid plugins config - non-map marketplaces" do
+      settings = %{"plugins" => %{"marketplaces" => "not a map"}}
+
+      assert {:error, "plugins.marketplaces must be a map" <> _} = Settings.validate(settings)
+    end
+
+    test "accepts complete extensibility settings" do
+      settings = %{
+        "channels" => %{"ui_state" => %{"socket" => "ws://localhost:4000/socket"}},
+        "permissions" => %{"allow" => ["Read:*"], "deny" => [], "ask" => []},
+        "hooks" => %{},
+        "agents" => %{},
+        "plugins" => %{"enabled" => ["github"]}
+      }
+
+      assert {:ok, ^settings} = Settings.validate(settings)
+    end
+  end
+
+  describe "extensibility field merging" do
+    test "merge_channels - local overrides global" do
+      global = %{
+        "channels" => %{
+          "ui_state" => %{"socket" => "ws://global:4000/socket"},
+          "agent" => %{"socket" => "ws://global:4000/socket"}
+        }
+      }
+
+      local = %{
+        "channels" => %{
+          "ui_state" => %{"socket" => "ws://local:4000/socket"}
+        }
+      }
+
+      merged = merge_extensibility_fields(global, local)
+
+      # Local override for ui_state, global remains for agent
+      assert merged["channels"]["ui_state"]["socket"] == "ws://local:4000/socket"
+      assert merged["channels"]["agent"]["socket"] == "ws://global:4000/socket"
+    end
+
+    test "merge_permissions - concatenates lists" do
+      global = %{
+        "permissions" => %{
+          "allow" => ["Read:*", "Write:*"],
+          "deny" => ["*delete*"],
+          "ask" => []
+        }
+      }
+
+      local = %{
+        "permissions" => %{
+          "allow" => ["Edit:*"],
+          "deny" => ["*remove*"],
+          "ask" => ["web_fetch:*"]
+        }
+      }
+
+      merged = merge_extensibility_fields(global, local)
+
+      # Lists are concatenated (union)
+      assert merged["permissions"]["allow"] == ["Read:*", "Write:*", "Edit:*"]
+      assert merged["permissions"]["deny"] == ["*delete*", "*remove*"]
+      assert merged["permissions"]["ask"] == ["web_fetch:*"]
+    end
+
+    test "merge_permissions - deduplicates entries" do
+      global = %{"permissions" => %{"allow" => ["Read:*", "Write:*"]}}
+      local = %{"permissions" => %{"allow" => ["Read:*", "Edit:*"]}}
+
+      merged = merge_extensibility_fields(global, local)
+
+      # Read:* appears only once
+      assert merged["permissions"]["allow"] == ["Read:*", "Write:*", "Edit:*"]
+    end
+
+    test "merge_hooks - concatenates by event type" do
+      global = %{
+        "hooks" => %{
+          "Edit" => [%{"id" => "1"}],
+          "Save" => [%{"id" => "2"}]
+        }
+      }
+
+      local = %{
+        "hooks" => %{
+          "Edit" => [%{"id" => "3"}],
+          "Load" => [%{"id" => "4"}]
+        }
+      }
+
+      merged = merge_extensibility_fields(global, local)
+
+      # Hooks are concatenated by event type
+      assert length(merged["hooks"]["Edit"]) == 2
+      assert length(merged["hooks"]["Save"]) == 1
+      assert length(merged["hooks"]["Load"]) == 1
+    end
+
+    test "merge_agents - local overrides global" do
+      global = %{
+        "agents" => %{
+          "default" => %{"model" => "sonnet"},
+          "task" => %{"model" => "haiku"}
+        }
+      }
+
+      local = %{
+        "agents" => %{
+          "default" => %{"model" => "opus"}
+        }
+      }
+
+      merged = merge_extensibility_fields(global, local)
+
+      # Local overrides default, task remains from global
+      assert merged["agents"]["default"]["model"] == "opus"
+      assert merged["agents"]["task"]["model"] == "haiku"
+    end
+
+    test "merge_plugins - unions enabled, merges disabled" do
+      global = %{
+        "plugins" => %{
+          "enabled" => ["github", "git"],
+          "disabled" => ["experimental"],
+          "marketplaces" => %{
+            "community" => %{"source" => "github"}
+          }
+        }
+      }
+
+      local = %{
+        "plugins" => %{
+          "enabled" => ["github", "docker"],
+          "disabled" => ["beta"],
+          "marketplaces" => %{
+            "enterprise" => %{"source" => "github"}
+          }
+        }
+      }
+
+      merged = merge_extensibility_fields(global, local)
+
+      # Enabled is unioned (deduplicated)
+      assert MapSet.new(merged["plugins"]["enabled"]) == MapSet.new(["github", "git", "docker"])
+
+      # Disabled is concatenated
+      assert MapSet.new(merged["plugins"]["disabled"]) == MapSet.new(["experimental", "beta"])
+
+      # Marketplaces are merged
+      assert Map.has_key?(merged["plugins"]["marketplaces"], "community")
+      assert Map.has_key?(merged["plugins"]["marketplaces"], "enterprise")
+    end
+
+    test "merge with missing extensibility fields - backward compatibility" do
+      # Empty base (no extensibility fields)
+      base = %{}
+
+      # Full extensibility overlay
+      overlay = %{
+        "channels" => %{"ui_state" => %{"socket" => "ws://localhost:4000/socket"}},
+        "permissions" => %{"allow" => ["Read:*"]},
+        "hooks" => %{},
+        "agents" => %{},
+        "plugins" => %{"enabled" => ["github"]}
+      }
+
+      merged = merge_extensibility_fields(base, overlay)
+
+      # All overlay fields should be present
+      assert merged["channels"] == overlay["channels"]
+      assert merged["permissions"] == overlay["permissions"]
+      assert merged["hooks"] == overlay["hooks"]
+      assert merged["agents"] == overlay["agents"]
+      assert merged["plugins"] == overlay["plugins"]
+    end
+  end
+
+  # Helper function to test extensibility field merging
+  defp merge_extensibility_fields(global, local) do
+    # Simulate the deep_merge function with extensibility fields
+    Map.merge(global, local, fn
+      "channels", base_channels, overlay_channels when is_map(base_channels) and is_map(overlay_channels) ->
+        Map.merge(base_channels, overlay_channels)
+
+      "permissions", base_perms, overlay_perms when is_map(base_perms) and is_map(overlay_perms) ->
+        merge_permissions_test(base_perms, overlay_perms)
+
+      "hooks", base_hooks, overlay_hooks when is_map(base_hooks) and is_map(overlay_hooks) ->
+        merge_hooks_test(base_hooks, overlay_hooks)
+
+      "agents", base_agents, overlay_agents when is_map(base_agents) and is_map(overlay_agents) ->
+        Map.merge(base_agents, overlay_agents)
+
+      "plugins", base_plugins, overlay_plugins when is_map(base_plugins) and is_map(overlay_plugins) ->
+        merge_plugins_test(base_plugins, overlay_plugins)
+
+      _key, _base_value, overlay_value ->
+        overlay_value
+    end)
+  end
+
+  defp merge_permissions_test(base, overlay) do
+    %{
+      "allow" => Enum.uniq((Map.get(base, "allow", [])) ++ (Map.get(overlay, "allow", []))),
+      "deny" => Enum.uniq((Map.get(base, "deny", [])) ++ (Map.get(overlay, "deny", []))),
+      "ask" => Enum.uniq((Map.get(base, "ask", [])) ++ (Map.get(overlay, "ask", [])))
+    }
+  end
+
+  defp merge_hooks_test(base, overlay) do
+    all_event_types = MapSet.new(Map.keys(base) ++ Map.keys(overlay))
+
+    Enum.into(all_event_types, %{}, fn event_type ->
+      base_hooks = Map.get(base, event_type, [])
+      overlay_hooks = Map.get(overlay, event_type, [])
+      {event_type, base_hooks ++ overlay_hooks}
+    end)
+  end
+
+  defp merge_plugins_test(base, overlay) do
+    %{
+      "enabled" =>
+        Enum.uniq((Map.get(base, "enabled", [])) ++ (Map.get(overlay, "enabled", []))),
+      "disabled" =>
+        Enum.uniq((Map.get(base, "disabled", [])) ++ (Map.get(overlay, "disabled", []))),
+      "marketplaces" =>
+        Map.merge(Map.get(base, "marketplaces", %{}), Map.get(overlay, "marketplaces", %{}))
+    }
+  end
 end

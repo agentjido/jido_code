@@ -1,7 +1,7 @@
 defmodule JidoCode.Extensibility.ChannelConfigTest do
   use ExUnit.Case, async: true
 
-  alias JidoCode.Extensibility.ChannelConfig
+  alias JidoCode.Extensibility.{ChannelConfig, Error}
 
   doctest ChannelConfig
 
@@ -48,13 +48,13 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
       assert {:ok, config} = ChannelConfig.validate(%{
         "socket" => "ws://localhost:4000/socket",
         "topic" => "jido:agent",
-        "auth" => %{"type" => "token", "token" => "test_token"},
+        "auth" => %{"type" => "token", "token" => "test_token_long_enough"},
         "broadcast_events" => ["event1", "event2"]
       })
 
       assert config.socket == "ws://localhost:4000/socket"
       assert config.topic == "jido:agent"
-      assert config.auth == %{"type" => "token", "token" => "test_token"}
+      assert config.auth == %{"type" => "token", "token" => "test_token_long_enough"}
       assert config.broadcast_events == ["event1", "event2"]
     end
 
@@ -77,44 +77,34 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
     end
 
     test "rejects invalid socket URL without ws:// or wss://" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :socket_invalid}} = ChannelConfig.validate(%{
         "socket" => "http://localhost:4000/socket",
         "topic" => "jido:ui"
       })
-
-      assert error == "socket must be a valid WebSocket URL (ws:// or wss://)"
     end
 
     test "rejects empty string for socket" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :socket_invalid}} = ChannelConfig.validate(%{
         "socket" => "",
         "topic" => "jido:ui"
       })
-
-      assert error == "socket cannot be empty string"
     end
 
     test "rejects missing topic" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :topic_invalid}} = ChannelConfig.validate(%{
         "socket" => "ws://localhost:4000/socket"
       })
-
-      assert error == "topic is required"
     end
 
     test "rejects empty string for topic" do
-      assert {:error, error} = ChannelConfig.validate(%{"topic" => ""})
-
-      assert error == "topic cannot be empty"
+      assert {:error, %Error{code: :topic_invalid}} = ChannelConfig.validate(%{"topic" => ""})
     end
 
     test "rejects topic with invalid characters" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :topic_invalid}} = ChannelConfig.validate(%{
         "socket" => "ws://localhost:4000/socket",
         "topic" => "jido ui"
       })
-
-      assert error == "topic must contain only alphanumeric characters, colons, underscores, hyphens, or dots"
     end
 
     test "accepts topic with valid characters" do
@@ -133,37 +123,33 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
     end
 
     test "rejects auth without type" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :auth_invalid}} = ChannelConfig.validate(%{
         "topic" => "jido:ui",
         "auth" => %{"token" => "test"}
       })
-
-      assert error == "auth.type is required when auth is provided"
     end
 
     test "rejects auth with invalid type" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :auth_type_invalid}} = ChannelConfig.validate(%{
         "topic" => "jido:ui",
         "auth" => %{"type" => "invalid"}
       })
-
-      assert error == "auth.type must be one of: token, basic, custom. Got: invalid"
     end
 
     test "accepts auth with token type" do
       assert {:ok, config} = ChannelConfig.validate(%{
         "topic" => "jido:ui",
-        "auth" => %{"type" => "token", "token" => "secret"}
+        "auth" => %{"type" => "token", "token" => "secret_token_long_enough"}
       })
 
       assert config.auth["type"] == "token"
-      assert config.auth["token"] == "secret"
+      assert config.auth["token"] == "secret_token_long_enough"
     end
 
     test "accepts auth with basic type" do
       assert {:ok, config} = ChannelConfig.validate(%{
         "topic" => "jido:ui",
-        "auth" => %{"type" => "basic", "username" => "user"}
+        "auth" => %{"type" => "basic", "username" => "user", "password" => "pass"}
       })
 
       assert config.auth["type"] == "basic"
@@ -197,34 +183,29 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
     end
 
     test "rejects broadcast_events with empty string" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :broadcast_events_invalid}} = ChannelConfig.validate(%{
         "topic" => "jido:ui",
         "broadcast_events" => ["event1", "", "event3"]
       })
-
-      assert error == "broadcast_events must be a list of non-empty strings"
     end
 
     test "rejects broadcast_events with non-list" do
-      assert {:error, error} = ChannelConfig.validate(%{
+      assert {:error, %Error{code: :broadcast_events_invalid}} = ChannelConfig.validate(%{
         "topic" => "jido:ui",
         "broadcast_events" => "not_a_list"
       })
-
-      assert error == "broadcast_events must be a list of non-empty strings"
     end
   end
 
   describe "expand_env_vars/1" do
     test "returns string without variables unchanged" do
-      assert ChannelConfig.expand_env_vars("no_vars_here") == "no_vars_here"
+      assert {:ok, "no_vars_here"} = ChannelConfig.expand_env_vars("no_vars_here")
     end
 
     test "expands single environment variable" do
       System.put_env("TEST_VAR_CHANNEL", "test_value")
 
-      result = ChannelConfig.expand_env_vars("${TEST_VAR_CHANNEL}")
-
+      assert {:ok, result} = ChannelConfig.expand_env_vars("${TEST_VAR_CHANNEL}")
       assert result == "test_value"
 
       System.delete_env("TEST_VAR_CHANNEL")
@@ -233,16 +214,14 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
     test "expands variable with default when not set" do
       System.delete_env("UNDEFINED_VAR")
 
-      result = ChannelConfig.expand_env_vars("${UNDEFINED_VAR:-default_value}")
-
+      assert {:ok, result} = ChannelConfig.expand_env_vars("${UNDEFINED_VAR:-default_value}")
       assert result == "default_value"
     end
 
     test "uses actual value when variable is set with default syntax" do
       System.put_env("DEFINED_VAR", "actual")
 
-      result = ChannelConfig.expand_env_vars("${DEFINED_VAR:-default}")
-
+      assert {:ok, result} = ChannelConfig.expand_env_vars("${DEFINED_VAR:-default}")
       assert result == "actual"
 
       System.delete_env("DEFINED_VAR")
@@ -252,8 +231,7 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
       System.put_env("VAR1", "value1")
       System.put_env("VAR2", "value2")
 
-      result = ChannelConfig.expand_env_vars("${VAR1}_${VAR2}")
-
+      assert {:ok, result} = ChannelConfig.expand_env_vars("${VAR1}_${VAR2}")
       assert result == "value1_value2"
 
       System.delete_env("VAR1")
@@ -261,21 +239,18 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
     end
 
     test "expands variable with colon in default value" do
-      result = ChannelConfig.expand_env_vars("${UNDEFINED_VAR:-ws://localhost:4000}")
-
+      assert {:ok, result} = ChannelConfig.expand_env_vars("${UNDEFINED_VAR:-ws://localhost:4000}")
       assert result == "ws://localhost:4000"
     end
 
-    test "raises when variable without default is not set" do
+    test "returns error when variable without default is not set" do
       System.delete_env("MISSING_VAR")
 
-      assert_raise RuntimeError, "environment variable MISSING_VAR is not set", fn ->
-        ChannelConfig.expand_env_vars("${MISSING_VAR}")
-      end
+      assert {:error, %Error{code: :missing_env_var}} = ChannelConfig.expand_env_vars("${MISSING_VAR}")
     end
 
     test "expands variables in auth context during validation" do
-      System.put_env("CHANNEL_TOKEN", "secret_token")
+      System.put_env("CHANNEL_TOKEN", "secret_token_long_enough")
 
       assert {:ok, config} = ChannelConfig.validate(%{
         "topic" => "jido:ui",
@@ -285,9 +260,108 @@ defmodule JidoCode.Extensibility.ChannelConfigTest do
         }
       })
 
-      assert config.auth["token"] == "secret_token"
+      assert config.auth["token"] == "secret_token_long_enough"
 
       System.delete_env("CHANNEL_TOKEN")
+    end
+  end
+
+  describe "token validation" do
+    test "accepts Bearer token with valid length" do
+      System.put_env("BEARER_TOKEN", "Bearer " <> String.duplicate("x", 28))
+
+      assert {:ok, config} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "token",
+          "token" => "${BEARER_TOKEN}"
+        }
+      })
+
+      System.delete_env("BEARER_TOKEN")
+    end
+
+    test "accepts JWT format token" do
+      # JWT has 3 parts separated by dots
+      jwt_token = Base.encode64("header") <> "." <> Base.encode64("payload") <> "." <> Base.encode64("signature")
+
+      assert {:ok, config} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "token",
+          "token" => jwt_token
+        }
+      })
+    end
+
+    test "accepts generic token with 20+ characters" do
+      long_token = String.duplicate("a", 25)
+
+      assert {:ok, config} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "token",
+          "token" => long_token
+        }
+      })
+    end
+
+    test "rejects token that is too short" do
+      assert {:error, %Error{code: :token_invalid}} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "token",
+          "token" => "short"
+        }
+      })
+    end
+
+    test "rejects Bearer token with insufficient length" do
+      short_bearer = "Bearer short"
+
+      assert {:error, %Error{code: :token_invalid}} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "token",
+          "token" => short_bearer
+        }
+      })
+    end
+  end
+
+  describe "basic auth validation" do
+    test "accepts basic auth with username and password" do
+      assert {:ok, config} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "basic",
+          "username" => "user",
+          "password" => "pass"
+        }
+      })
+
+      assert config.auth["username"] == "user"
+      assert config.auth["password"] == "pass"
+    end
+
+    test "rejects basic auth without username" do
+      assert {:error, %Error{code: :auth_invalid}} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "basic",
+          "password" => "pass"
+        }
+      })
+    end
+
+    test "rejects basic auth without password" do
+      assert {:error, %Error{code: :auth_invalid}} = ChannelConfig.validate(%{
+        "topic" => "jido:ui",
+        "auth" => %{
+          "type" => "basic",
+          "username" => "user"
+        }
+      })
     end
   end
 

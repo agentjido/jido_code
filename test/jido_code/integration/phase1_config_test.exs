@@ -13,8 +13,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
   use ExUnit.Case, async: false
 
   alias JidoCode.Settings
-  alias JidoCode.Extensibility.ChannelConfig
-  alias JidoCode.Extensibility.Permissions
+  alias JidoCode.Extensibility.{ChannelConfig, Permissions, Error}
 
   # ============================================================================
   # Setup
@@ -483,10 +482,12 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
       # Category wildcards
       assert Permissions.check_permission(perms, "Read", "anything") == :allow
 
-      # Action wildcards
+      # Action wildcards - matches patterns that start with "file"
       assert Permissions.check_permission(perms, "Edit", "file1.txt") == :allow
       assert Permissions.check_permission(perms, "Edit", "file2.ex") == :allow
-      assert Permissions.check_permission(perms, "Edit", "other") == :allow
+
+      # Non-matching patterns return default deny (fail-closed)
+      assert Permissions.check_permission(perms, "Edit", "other") == :deny
 
       # Command wildcards
       assert Permissions.check_permission(perms, "run_command", "git status") == :allow
@@ -497,12 +498,12 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
       assert Permissions.check_permission(perms, "Run", "delete") == :deny
     end
 
-    test "no matching pattern returns default allow" do
+    test "no matching pattern returns default deny (fail-closed)" do
       json = %{"deny" => ["*delete*"]}
       {:ok, perms} = Permissions.from_json(json)
 
-      # Default is allow if no patterns match
-      assert Permissions.check_permission(perms, "Unknown", "action") == :allow
+      # Default is deny if no patterns match (fail-closed for security)
+      assert Permissions.check_permission(perms, "Unknown", "action") == :deny
     end
 
     test "multiple patterns match correctly" do
@@ -551,7 +552,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
     end
 
     test "environment variables expand in auth" do
-      System.put_env("CHANNEL_TOKEN", "secret_token_123")
+      System.put_env("CHANNEL_TOKEN", "secret_token_long_enough_123")
 
       channel = %{
         "socket" => "ws://localhost:4000/socket",
@@ -564,26 +565,26 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
 
       {:ok, config} = ChannelConfig.validate(channel)
 
-      assert config.auth["token"] == "secret_token_123"
+      assert config.auth["token"] == "secret_token_long_enough_123"
     end
 
     test "environment variables with defaults expand correctly" do
       System.delete_env("OPTIONAL_TOKEN")
-      System.put_env("SET_TOKEN", "actual_value")
+      System.put_env("SET_TOKEN", "actual_value_long_enough")
 
       channel = %{
         "socket" => "ws://localhost:4000/socket",
         "topic" => "jido:ui",
         "auth" => %{
           "type" => "token",
-          "token" => "${OPTIONAL_TOKEN:-default_token}"
+          "token" => "${OPTIONAL_TOKEN:-default_token_long_enough}"
         }
       }
 
       {:ok, config} = ChannelConfig.validate(channel)
 
       # When var not set, use default
-      assert config.auth["token"] == "default_token"
+      assert config.auth["token"] == "default_token_long_enough"
 
       # When var is set, use actual value
       channel2 = %{
@@ -591,12 +592,12 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
         "topic" => "jido:ui",
         "auth" => %{
           "type" => "token",
-          "token" => "${SET_TOKEN:-default_token}"
+          "token" => "${SET_TOKEN:-default_token_long_enough}"
         }
       }
 
       {:ok, config2} = ChannelConfig.validate(channel2)
-      assert config2.auth["token"] == "actual_value"
+      assert config2.auth["token"] == "actual_value_long_enough"
     end
 
     test "invalid channel config is rejected" do
@@ -605,7 +606,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
         "socket" => "ws://localhost:4000/socket"
       }
 
-      assert {:error, "topic is required"} = ChannelConfig.validate(channel)
+      assert {:error, %Error{code: :topic_invalid}} = ChannelConfig.validate(channel)
 
       # Invalid socket URL
       channel2 = %{
@@ -613,8 +614,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
         "topic" => "jido:ui"
       }
 
-      assert {:error, "socket must be a valid WebSocket URL (ws:// or wss://)"} =
-               ChannelConfig.validate(channel2)
+      assert {:error, %Error{code: :socket_invalid}} = ChannelConfig.validate(channel2)
 
       # Invalid topic format
       channel3 = %{
@@ -622,8 +622,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
         "topic" => "invalid topic with spaces"
       }
 
-      assert {:error, "topic must contain only alphanumeric characters, colons, underscores, hyphens, or dots"} =
-               ChannelConfig.validate(channel3)
+      assert {:error, %Error{code: :topic_invalid}} = ChannelConfig.validate(channel3)
     end
 
     test "default channels used when not specified" do
@@ -667,7 +666,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
         }
       }
 
-      System.put_env("CHANNEL_TOKEN", "prod_token_xyz")
+      System.put_env("CHANNEL_TOKEN", "prod_token_long_enough")
 
       with_global_settings(global_dir, settings)
       loaded = load_settings_with_paths(global_dir, local_dir)
@@ -676,7 +675,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
       {:ok, ui_config} = ChannelConfig.validate(loaded["channels"]["ui_state"])
       assert ui_config.socket == "wss://secure.example.com/socket"
       assert ui_config.topic == "jido:ui:production"
-      assert ui_config.auth["token"] == "prod_token_xyz"
+      assert ui_config.auth["token"] == "prod_token_long_enough"
       assert ui_config.broadcast_events == ["state_change", "progress", "error"]
 
       # Validate agent channel
@@ -829,7 +828,7 @@ defmodule JidoCode.Integration.Phase1ConfigTest do
       assert config.topic == "jido:ui"
 
       System.put_env("TEST_VAR", "test_value")
-      assert ChannelConfig.expand_env_vars("${TEST_VAR}") == "test_value"
+      assert {:ok, "test_value"} = ChannelConfig.expand_env_vars("${TEST_VAR}")
       System.delete_env("TEST_VAR")
     end
 

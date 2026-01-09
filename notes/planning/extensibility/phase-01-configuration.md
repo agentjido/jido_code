@@ -110,8 +110,8 @@ Permission system for controlling extensibility component access.
 
 Create the permission data structure.
 
-- [ ] 1.2.1.1 Create `lib/jido_code/extensibility/permissions.ex`
-- [ ] 1.2.1.2 Define Permission struct:
+- [x] 1.2.1.1 Create `lib/jido_code/extensibility/permissions.ex`
+- [x] 1.2.1.2 Define Permission struct:
   ```elixir
   defmodule JidoCode.Extensibility.Permissions do
     @moduledoc """
@@ -142,38 +142,38 @@ Create the permission data structure.
     }
   end
   ```
-- [ ] 1.2.1.3 Add `@type` specs for all types
-- [ ] 1.2.1.4 Add `@moduledoc` examples
+- [x] 1.2.1.3 Add `@type` specs for all types
+- [x] 1.2.1.4 Add `@moduledoc` examples
 
 ### 1.2.2 Permission Matching
 
 Implement glob pattern matching for permissions.
 
-- [ ] 1.2.2.1 Implement `check_permission/3` function
-- [ ] 1.2.2.2 Use `:fnmatch` for glob pattern matching
-- [ ] 1.2.2.3 Check deny patterns first (highest priority)
-- [ ] 1.2.2.4 Check ask patterns second
-- [ ] 1.2.2.5 Check allow patterns last
-- [ ] 1.2.2.6 Return `:allow`, `:deny`, or `:ask`
+- [x] 1.2.2.1 Implement `check_permission/3` function
+- [x] 1.2.2.2 Use custom glob-to-regex pattern matching (since :fnmatch not available)
+- [x] 1.2.2.3 Check deny patterns first (highest priority)
+- [x] 1.2.2.4 Check ask patterns second
+- [x] 1.2.2.5 Check allow patterns last
+- [x] 1.2.2.6 Return `:allow`, `:deny`, or `:ask`
 
 ### 1.2.3 Permission Parsing
 
 Parse permission configuration from JSON.
 
-- [ ] 1.2.3.1 Implement `from_json/1` function
-- [ ] 1.2.3.2 Parse allow/deny/ask arrays from JSON
-- [ ] 1.2.3.3 Validate pattern format
-- [ ] 1.2.3.4 Return `{:ok, permissions}` or `{:error, reason}`
+- [x] 1.2.3.1 Implement `from_json/1` function
+- [x] 1.2.3.2 Parse allow/deny/ask arrays from JSON
+- [x] 1.2.3.3 Validate pattern format
+- [x] 1.2.3.4 Return `{:ok, permissions}` or `{:error, reason}`
 
 ### 1.2.4 Permission Defaults
 
 Define default permission configurations.
 
-- [ ] 1.2.4.1 Create `defaults/0` function
-- [ ] 1.2.4.2 Define safe default permissions
-- [ ] 1.2.4.3 Allow common tools (Read, Write, Edit)
-- [ ] 1.2.4.4 Deny dangerous operations (rm -rf, etc.)
-- [ ] 1.2.4.5 Return default Permission struct
+- [x] 1.2.4.1 Create `defaults/0` function
+- [x] 1.2.4.2 Define safe default permissions
+- [x] 1.2.4.3 Allow common tools (Read, Write, Edit)
+- [x] 1.2.4.4 Deny dangerous operations (rm -rf, etc.)
+- [x] 1.2.4.5 Return default Permission struct
 
 ---
 

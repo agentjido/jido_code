@@ -342,38 +342,38 @@ Comprehensive integration tests for settings system extensibility support.
 
 ### 1.6.1 Settings Loading Integration
 
-- [ ] Test: Load global settings with extensibility config
-- [ ] Test: Load local settings with extensibility config
-- [ ] Test: Merge global and local extensibility settings
-- [ ] Test: Local channel config overrides global
-- [ ] Test: Local permissions extend global
-- [ ] Test: Hooks concatenate from both sources
-- [ ] Test: Plugins merge correctly
+- [x] Test: Load global settings with extensibility config
+- [x] Test: Load local settings with extensibility config
+- [x] Test: Merge global and local extensibility settings
+- [x] Test: Local channel config overrides global
+- [x] Test: Local permissions extend global
+- [x] Test: Hooks concatenate from both sources
+- [x] Test: Plugins merge correctly
 
 ### 1.6.2 Permission System Integration
 
-- [ ] Test: Allow permission permits matching action
-- [ ] Test: Deny permission blocks matching action
-- [ ] Test: Ask permission returns ask decision
-- [ ] Test: Deny takes precedence over allow
-- [ ] Test: Multiple patterns match correctly
-- [ ] Test: Wildcard patterns work as expected
-- [ ] Test: No matching pattern returns default
+- [x] Test: Allow permission permits matching action
+- [x] Test: Deny permission blocks matching action
+- [x] Test: Ask permission returns ask decision
+- [x] Test: Deny takes precedence over allow
+- [x] Test: Multiple patterns match correctly
+- [x] Test: Wildcard patterns work as expected
+- [x] Test: No matching pattern returns default
 
 ### 1.6.3 Channel Configuration Integration
 
-- [ ] Test: Channel config loads from settings
-- [ ] Test: Environment variables expand in auth
-- [ ] Test: Invalid channel config rejected
-- [ ] Test: Default channels used when not specified
-- [ ] Test: Channel validation works
+- [x] Test: Channel config loads from settings
+- [x] Test: Environment variables expand in auth
+- [x] Test: Invalid channel config rejected
+- [x] Test: Default channels used when not specified
+- [x] Test: Channel validation works
 
 ### 1.6.4 Backward Compatibility Integration
 
-- [ ] Test: Old settings files without extensibility load
-- [ ] Test: Settings save includes extensibility structure
-- [ ] Test: Existing settings functionality unchanged
-- [ ] Test: Migration from old to new format
+- [x] Test: Old settings files without extensibility load
+- [x] Test: Settings save includes extensibility structure
+- [x] Test: Existing settings functionality unchanged
+- [x] Test: Migration from old to new format
 
 ---
 

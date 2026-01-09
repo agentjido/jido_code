@@ -79,7 +79,13 @@ defmodule JidoCode.Settings do
     "model" => :string,
     "providers" => :list_of_strings,
     "models" => :map_of_string_lists,
-    "theme" => :string
+    "theme" => :string,
+    # Extensibility fields
+    "channels" => :map_of_channel_configs,
+    "permissions" => :permissions_config,
+    "hooks" => :map_of_hook_lists,
+    "agents" => :map_of_agent_configs,
+    "plugins" => :plugins_config
   }
 
   @typedoc """
@@ -91,10 +97,15 @@ defmodule JidoCode.Settings do
   - `"model"` - Default model name (e.g., "claude-3-5-sonnet", "gpt-4o")
   - `"providers"` - List of available provider names
   - `"models"` - Map of provider name to list of model names
+  - `"channels"` - Map of channel name to channel configuration
+  - `"permissions"` - Permission configuration with allow/deny/ask lists
+  - `"hooks"` - Map of event type to list of hook configurations
+  - `"agents"` - Map of agent name to agent configuration
+  - `"plugins"` - Plugin configuration with enabled/disabled lists and marketplaces
   """
   @type t :: %{
           optional(String.t()) =>
-            pos_integer() | String.t() | [String.t()] | %{optional(String.t()) => [String.t()]}
+            pos_integer() | String.t() | [String.t()] | %{optional(String.t()) => [String.t()]} | map()
         }
 
   # ============================================================================
@@ -262,6 +273,135 @@ defmodule JidoCode.Settings do
 
   defp validate_type(key, value, :map_of_string_lists) do
     {:error, "#{key} must be a map of string lists, got: #{inspect(value)}"}
+  end
+
+  # Extensibility field validation
+
+  defp validate_type(key, value, :map_of_channel_configs) when is_map(value) do
+    # Validate that each value in the map is itself a map (channel config)
+    # Deep validation of channel configs is deferred to ChannelConfig module
+    invalid = Enum.find(value, fn {k, v} -> not is_binary(k) or not is_map(v) end)
+
+    case invalid do
+      nil -> :ok
+      {k, _} -> {:error, "#{key}[#{inspect(k)}] must be a map, got: invalid type"}
+    end
+  end
+
+  defp validate_type(key, _value, :map_of_channel_configs) do
+    {:error, "#{key} must be a map of channel configs, got: invalid type"}
+  end
+
+  defp validate_type(key, value, :permissions_config) when is_map(value) do
+    # Validate permissions structure: should have allow/deny/ask as lists of strings
+    # Deep validation is deferred to Permissions module
+    valid_keys = ["allow", "deny", "ask"]
+
+    invalid =
+      Enum.find(value, fn {k, v} ->
+        not is_binary(k) or
+          k not in valid_keys or
+          not is_list(v) or
+          not Enum.all?(v, &is_binary/1)
+      end)
+
+    case invalid do
+      nil -> :ok
+      {k, _} -> {:error, "#{key}.#{k} must be a list of strings, got: invalid type"}
+    end
+  end
+
+  defp validate_type(key, _value, :permissions_config) do
+    {:error, "#{key} must be a permissions config map, got: invalid type"}
+  end
+
+  defp validate_type(key, value, :map_of_hook_lists) when is_map(value) do
+    # Validate hooks structure: map of event type (string) to list of hook configs
+    invalid = Enum.find(value, fn {k, v} -> not is_binary(k) or not is_list(v) end)
+
+    case invalid do
+      nil -> :ok
+      {k, _} -> {:error, "#{key}[#{inspect(k)}] must be a list, got: invalid type"}
+    end
+  end
+
+  defp validate_type(key, _value, :map_of_hook_lists) do
+    {:error, "#{key} must be a map of hook lists, got: invalid type"}
+  end
+
+  defp validate_type(key, value, :map_of_agent_configs) when is_map(value) do
+    # Validate agents structure: map of agent name (string) to agent config (map)
+    invalid = Enum.find(value, fn {k, v} -> not is_binary(k) or not is_map(v) end)
+
+    case invalid do
+      nil -> :ok
+      {k, _} -> {:error, "#{key}[#{inspect(k)}] must be a map, got: invalid type"}
+    end
+  end
+
+  defp validate_type(key, _value, :map_of_agent_configs) do
+    {:error, "#{key} must be a map of agent configs, got: invalid type"}
+  end
+
+  defp validate_type(key, value, :plugins_config) when is_map(value) do
+    # Validate plugins structure: should have enabled/disabled as string lists,
+    # and marketplaces as a map
+    with :ok <- validate_plugins_enabled(key, value),
+         :ok <- validate_plugins_disabled(key, value),
+         :ok <- validate_plugins_marketplaces(key, value) do
+      :ok
+    else
+      {:error, _} = error -> error
+    end
+  end
+
+  defp validate_type(key, _value, :plugins_config) do
+    {:error, "#{key} must be a plugins config map, got: invalid type"}
+  end
+
+  defp validate_plugins_enabled(key, plugins) do
+    case Map.get(plugins, "enabled") do
+      nil -> :ok
+      enabled when is_list(enabled) ->
+        if Enum.all?(enabled, &is_binary/1),
+          do: :ok,
+          else: {:error, "#{key}.enabled must be a list of strings"}
+
+      _ ->
+        {:error, "#{key}.enabled must be a list of strings"}
+    end
+  end
+
+  defp validate_plugins_disabled(key, plugins) do
+    case Map.get(plugins, "disabled") do
+      nil -> :ok
+      disabled when is_list(disabled) ->
+        if Enum.all?(disabled, &is_binary/1),
+          do: :ok,
+          else: {:error, "#{key}.disabled must be a list of strings"}
+
+      _ ->
+        {:error, "#{key}.disabled must be a list of strings"}
+    end
+  end
+
+  defp validate_plugins_marketplaces(key, plugins) do
+    case Map.get(plugins, "marketplaces") do
+      nil -> :ok
+      marketplaces when is_map(marketplaces) ->
+        invalid =
+          Enum.find(marketplaces, fn {k, v} ->
+            not is_binary(k) or not is_map(v)
+          end)
+
+        case invalid do
+          nil -> :ok
+          {k, _} -> {:error, "#{key}.marketplaces[#{inspect(k)}] must be a map"}
+        end
+
+      _ ->
+        {:error, "#{key}.marketplaces must be a map"}
+    end
   end
 
   # ============================================================================
@@ -515,10 +655,62 @@ defmodule JidoCode.Settings do
       "models", base_models, overlay_models when is_map(base_models) and is_map(overlay_models) ->
         Map.merge(base_models, overlay_models)
 
+      # Extensibility field: channels - local overrides global per channel
+      "channels", base_channels, overlay_channels when is_map(base_channels) and is_map(overlay_channels) ->
+        Map.merge(base_channels, overlay_channels)
+
+      # Extensibility field: permissions - concatenate permission lists
+      "permissions", base_perms, overlay_perms when is_map(base_perms) and is_map(overlay_perms) ->
+        merge_permissions(base_perms, overlay_perms)
+
+      # Extensibility field: hooks - concatenate hook lists by event type
+      "hooks", base_hooks, overlay_hooks when is_map(base_hooks) and is_map(overlay_hooks) ->
+        merge_hooks(base_hooks, overlay_hooks)
+
+      # Extensibility field: agents - local overrides global per agent
+      "agents", base_agents, overlay_agents when is_map(base_agents) and is_map(overlay_agents) ->
+        Map.merge(base_agents, overlay_agents)
+
+      # Extensibility field: plugins - union enabled, keep both disabled lists
+      "plugins", base_plugins, overlay_plugins when is_map(base_plugins) and is_map(overlay_plugins) ->
+        merge_plugins(base_plugins, overlay_plugins)
+
       # For all other keys, overlay wins
       _key, _base_value, overlay_value ->
         overlay_value
     end)
+  end
+
+  # Merge permissions: concatenate allow/deny/ask lists
+  defp merge_permissions(base, overlay) do
+    %{
+      "allow" => merge_string_lists(Map.get(base, "allow", []), Map.get(overlay, "allow", [])),
+      "deny" => merge_string_lists(Map.get(base, "deny", []), Map.get(overlay, "deny", [])),
+      "ask" => merge_string_lists(Map.get(base, "ask", []), Map.get(overlay, "ask", []))
+    }
+  end
+
+  defp merge_string_lists(base, overlay), do: Enum.uniq(base ++ overlay)
+
+  # Merge hooks: concatenate hook lists by event type
+  defp merge_hooks(base, overlay) do
+    all_event_types = MapSet.new(Map.keys(base) ++ Map.keys(overlay))
+
+    Enum.into(all_event_types, %{}, fn event_type ->
+      base_hooks = Map.get(base, event_type, [])
+      overlay_hooks = Map.get(overlay, event_type, [])
+      {event_type, base_hooks ++ overlay_hooks}
+    end)
+  end
+
+  # Merge plugins: union enabled lists, keep both disabled lists
+  defp merge_plugins(base, overlay) do
+    %{
+      "enabled" => merge_string_lists(Map.get(base, "enabled", []), Map.get(overlay, "enabled", [])),
+      "disabled" => merge_string_lists(Map.get(base, "disabled", []), Map.get(overlay, "disabled", [])),
+      "marketplaces" =>
+        Map.merge(Map.get(base, "marketplaces", %{}), Map.get(overlay, "marketplaces", %{}))
+    }
   end
 
   # ============================================================================

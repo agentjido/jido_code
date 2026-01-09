@@ -183,23 +183,23 @@ Update the existing settings schema to include extensibility fields.
 
 ### 1.3.1 Schema Module Updates
 
-Update `lib/jido_code/settings/schema.ex` with extensibility fields.
+Update `lib/jido_code/settings.ex` with extensibility fields.
 
-- [ ] 1.3.1.1 Add `:channels` field (map of String.t() => ChannelConfig.t())
-- [ ] 1.3.1.2 Add `:permissions` field (Permissions.t())
-- [ ] 1.3.1.3 Add `:hooks` field (map of event_type => list of hook configs)
-- [ ] 1.3.1.4 Add `:agents` field (map of agent_name => agent_config)
-- [ ] 1.3.1.5 Add `:plugins` field (plugin configuration map)
-- [ ] 1.3.1.6 Mark all extensibility fields as optional (backward compatibility)
+- [x] 1.3.1.1 Add `:channels` field (map of String.t() => ChannelConfig.t())
+- [x] 1.3.1.2 Add `:permissions` field (Permissions.t())
+- [x] 1.3.1.3 Add `:hooks` field (map of event_type => list of hook configs)
+- [x] 1.3.1.4 Add `:agents` field (map of agent_name => agent_config)
+- [x] 1.3.1.5 Add `:plugins` field (plugin configuration map)
+- [x] 1.3.1.6 Mark all extensibility fields as optional (backward compatibility)
 
 ### 1.3.2 Plugin Configuration Schema
 
 Define the plugin configuration schema.
 
-- [ ] 1.3.2.1 Add `:enabled` field (list of plugin names)
-- [ ] 1.3.2.2 Add `:disabled` field (list of plugin names)
-- [ ] 1.3.2.3 Add `:marketplaces` field (map of marketplace configs)
-- [ ] 1.3.2.4 Define marketplace config structure:
+- [x] 1.3.2.1 Add `:enabled` field (list of plugin names)
+- [x] 1.3.2.2 Add `:disabled` field (list of plugin names)
+- [x] 1.3.2.3 Add `:marketplaces` field (map of marketplace configs)
+- [x] 1.3.2.4 Define marketplace config structure:
   ```elixir
   %{
     "community" => %{
@@ -213,7 +213,7 @@ Define the plugin configuration schema.
 
 Define the hook configuration schema for settings.
 
-- [ ] 1.3.3.1 Define hook config structure:
+- [x] 1.3.3.1 Define hook config structure:
   ```elixir
   %{
     "matcher" => "Edit",           # Tool/action to match
@@ -226,22 +226,22 @@ Define the hook configuration schema for settings.
     ]
   }
   ```
-- [ ] 1.3.3.2 Add validation for hook types
-- [ ] 1.3.3.3 Add validation for required fields per hook type
+- [x] 1.3.3.2 Add validation for hook types
+- [x] 1.3.3.3 Add validation for required fields per hook type
 
 ### 1.3.4 Agent Configuration Schema
 
 Define the agent configuration schema.
 
-- [ ] 1.3.4.1 Define agent config structure:
+- [x] 1.3.4.1 Define agent config structure:
   ```elixir
   %{
     "default_model" => "sonnet",
     "max_concurrent" => 5
   }
   ```
-- [ ] 1.3.4.2 Add validation for model names
-- [ ] 1.3.4.3 Add validation for numeric limits
+- [x] 1.3.4.2 Add validation for model names
+- [x] 1.3.4.3 Add validation for numeric limits
 
 ---
 
@@ -251,42 +251,42 @@ Extend the settings merge logic to handle extensibility fields.
 
 ### 1.4.1 Merge Function Updates
 
-Update `JidoCode.Settings.merge/2` for extensibility fields.
+Update `JidoCode.Settings.deep_merge/2` for extensibility fields.
 
-- [ ] 1.4.1.1 Add pattern matching for extensibility fields
-- [ ] 1.4.1.2 Implement channel merge (local overrides global)
-- [ ] 1.4.1.3 Implement permission merge (local extends global)
-- [ ] 1.4.1.4 Implement hook merge (concatenate lists)
-- [ ] 1.4.1.5 Implement plugin merge (union of enabled, intersection of disabled)
+- [x] 1.4.1.1 Add pattern matching for extensibility fields
+- [x] 1.4.1.2 Implement channel merge (local overrides global)
+- [x] 1.4.1.3 Implement permission merge (local extends global)
+- [x] 1.4.1.4 Implement hook merge (concatenate lists)
+- [x] 1.4.1.5 Implement plugin merge (union of enabled, concatenate disabled)
 
 ### 1.4.2 Deep Merge for Hooks
 
 Implement deep merge logic for hook configurations.
 
-- [ ] 1.4.2.1 Implement `merge_hooks/2` function
-- [ ] 1.4.2.2 Match on event type keys
-- [ ] 1.4.2.3 Concatenate hook lists by event type
-- [ ] 1.4.2.4 Preserve order (global hooks first, then local)
-- [ ] 1.4.2.5 Return merged hooks map
+- [x] 1.4.2.1 Implement `merge_hooks/2` function
+- [x] 1.4.2.2 Match on event type keys
+- [x] 1.4.2.3 Concatenate hook lists by event type
+- [x] 1.4.2.4 Preserve order (global hooks first, then local)
+- [x] 1.4.2.5 Return merged hooks map
 
 ### 1.4.3 Array Merge for Plugins
 
 Implement array merge logic for plugin lists.
 
-- [ ] 1.4.3.1 Implement `merge_plugin_lists/2` function
-- [ ] 1.4.3.2 Union enabled lists (remove duplicates)
-- [ ] 1.4.3.3 Keep disabled lists from both sources
-- [ ] 1.4.3.4 Local disabled takes precedence
-- [ ] 1.4.3.5 Return merged plugin configuration
+- [x] 1.4.3.1 Implement `merge_plugins/2` function
+- [x] 1.4.3.2 Union enabled lists (remove duplicates)
+- [x] 1.4.3.3 Keep disabled lists from both sources
+- [x] 1.4.3.4 Local disabled merged with global
+- [x] 1.4.3.5 Return merged plugin configuration
 
 ### 1.4.4 Backward Compatibility
 
 Ensure settings work without extensibility fields.
 
-- [ ] 1.4.4.1 Handle missing extensibility fields gracefully
-- [ ] 1.4.4.2 Provide empty defaults for all extensibility fields
-- [ ] 1.4.4.3 Test with old settings.json files
-- [ ] 1.4.4.4 Verify existing functionality unchanged
+- [x] 1.4.4.1 Handle missing extensibility fields gracefully
+- [x] 1.4.4.2 Provide empty defaults for all extensibility fields
+- [x] 1.4.4.3 Test with old settings.json files
+- [x] 1.4.4.4 Verify existing functionality unchanged
 
 ---
 

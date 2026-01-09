@@ -61,8 +61,6 @@ defmodule JidoCode.Settings do
 
   require Logger
 
-  alias Jido.AI.Model.Registry
-  alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
   alias JidoCode.Settings.Cache
 
   @global_dir_name ".jido_code"
@@ -926,7 +924,7 @@ defmodule JidoCode.Settings do
   Returns the list of available providers.
 
   First checks settings for a user-configured "providers" list.
-  If not configured or empty, falls back to `Jido.AI.Provider.providers/0`.
+  If not configured or empty, falls back to `ReqLLM.Registry.providers/0`.
 
   ## Returns
 
@@ -994,21 +992,37 @@ defmodule JidoCode.Settings do
   # Private: JidoAI Integration (ReqLLM APIs)
   # ============================================================================
 
-  defp get_jido_providers do
-    # Use ReqLLM registry via RegistryAdapter
-    # This returns all 57+ ReqLLM providers without legacy fallback warnings
-    case RegistryAdapter.list_providers() do
-      {:ok, providers} when is_list(providers) ->
-        Enum.map(providers, &Atom.to_string/1)
+  @known_providers [
+    "anthropic",
+    "openai",
+    "openrouter",
+    "google",
+    "cloudflare",
+    "groq",
+    "ollama",
+    "deepseek",
+    "xai",
+    "cohere"
+  ]
 
+  defp get_jido_providers do
+    # Try to get providers from ReqLLM directly
+    try do
+      case ReqLLM.Registry.providers() do
+        providers when is_list(providers) ->
+          Enum.map(providers, &Atom.to_string/1)
+
+        _ ->
+          @known_providers
+      end
+    rescue
       _ ->
-        []
+        @known_providers
     end
   end
 
   defp get_jido_models(provider) do
     # Use String.to_existing_atom/1 to avoid atom exhaustion
-    # If the provider atom doesn't exist, we won't find models anyway
     provider_atom =
       try do
         String.to_existing_atom(provider)
@@ -1017,20 +1031,18 @@ defmodule JidoCode.Settings do
       end
 
     if provider_atom do
-      # Use ReqLLM registry via Registry
-      # This returns ReqLLM.Model structs with full metadata
-      # Wrap in try/rescue to handle ETS table not existing
+      # Try to get models from ReqLLM directly
       try do
-        case Registry.list_models(provider_atom) do
-          {:ok, models} when is_list(models) ->
+        case ReqLLM.Registry.models(provider_atom) do
+          models when is_list(models) ->
             extract_model_names(models)
 
           _ ->
             []
         end
       rescue
-        ArgumentError ->
-          # ETS table doesn't exist - registry not initialized
+        _ ->
+          # Registry not available or other error
           []
       end
     else

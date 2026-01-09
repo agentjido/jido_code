@@ -52,6 +52,7 @@ defmodule JidoCode.MixProject do
       {:req_llm, git: "https://github.com/agentjido/req_llm.git", branch: "main", override: true},
       {:term_ui, "~> 0.2.0"},
       {:phoenix_pubsub, "~> 2.1"},
+      {:slipstream, "~> 1.2"},
       {:jason, "~> 1.4"},
 
       # Lua sandbox for tool execution

@@ -38,8 +38,6 @@ defmodule JidoCode.Commands do
       #=> {:error, "Unknown command: /unknown. Type /help for available commands."}
   """
 
-  alias Jido.AI.Keyring
-  alias Jido.AI.Model.Registry.Adapter, as: RegistryAdapter
   alias JidoCode.Agents.LLMAgent
   alias JidoCode.AgentSupervisor
   alias JidoCode.PubSubTopics
@@ -1325,33 +1323,65 @@ defmodule JidoCode.Commands do
   # Validation
   # ============================================================================
 
+  @known_providers [
+    :anthropic,
+    :openai,
+    :openrouter,
+    :google,
+    :cloudflare,
+    :groq,
+    :ollama,
+    :deepseek,
+    :xai,
+    :cohere
+  ]
+
   defp validate_provider(provider) do
-    case RegistryAdapter.list_providers() do
-      {:ok, providers} ->
-        # Use String.to_existing_atom/1 to avoid atom exhaustion from user input
-        # Fall back to checking if the string matches a known provider atom
-        provider_in_list? =
-          Enum.any?(providers, fn p -> Atom.to_string(p) == provider end)
+    # Try to get providers from ReqLLM directly
+    providers =
+      try do
+        case ReqLLM.Registry.providers() do
+          provider_list when is_list(provider_list) ->
+            provider_list
 
-        if provider_in_list? do
-          :ok
+          _ ->
+            @known_providers
+        end
+      rescue
+        _ ->
+          @known_providers
+      end
+
+    # Check if provider is in the list
+    provider_atom =
+      try do
+        String.to_existing_atom(provider)
+      rescue
+        ArgumentError ->
+          # Check by string comparison
+          if Enum.any?(providers, fn p -> Atom.to_string(p) == provider end) do
+            # Found by string comparison, convert to atom
+            List.first(Enum.filter(providers, fn p -> Atom.to_string(p) == provider end))
+          else
+            nil
+          end
+      end
+
+    if provider_atom do
+      :ok
+    else
+      # Provider not found
+      provider_atoms = Enum.map(providers, &Atom.to_string/1)
+      similar = find_similar_providers(provider, providers)
+
+      suggestion =
+        if similar != [] do
+          "\n\nDid you mean: #{Enum.join(similar, ", ")}?"
         else
-          # Build helpful error message
-          similar = find_similar_providers(provider, providers)
-
-          suggestion =
-            if similar != [] do
-              "\n\nDid you mean: #{Enum.join(similar, ", ")}?"
-            else
-              "\n\nUse /providers to see available providers."
-            end
-
-          {:error, "Unknown provider: #{provider}#{suggestion}"}
+          "\n\nUse /providers to see available providers."
         end
 
-      {:error, _} ->
-        # If registry is unavailable, allow any provider
-        :ok
+      {:error, "Unknown provider: #{provider}#{suggestion}"}
     end
   end
 
@@ -1370,9 +1400,10 @@ defmodule JidoCode.Commands do
       # Local providers don't require API keys
       :ok
     else
-      key_name = ProviderKeys.to_key_name(provider)
+      # Check environment variable directly
+      env_key = provider_api_key_env(provider)
 
-      case Keyring.get(key_name) do
+      case System.get_env(env_key) do
         nil ->
           # Use generic message - don't expose env var names
           {:error, "Provider #{provider} is not configured. Please set up API credentials."}
@@ -1387,6 +1418,22 @@ defmodule JidoCode.Commands do
       end
     end
   end
+
+  defp provider_api_key_env(provider) do
+    case provider do
+      :anthropic -> "ANTHROPIC_API_KEY"
+      :openai -> "OPENAI_API_KEY"
+      :openrouter -> "OPENROUTER_API_KEY"
+      :google -> "GOOGLE_API_KEY"
+      :cloudflare -> "CLOUDFLARE_API_KEY"
+      :groq -> "GROQ_API_KEY"
+      :ollama -> "OLLAMA_BASE_URL"
+      _ -> "#{String.upcase(provider_to_string(provider))}_API_KEY"
+    end
+  end
+
+  defp provider_to_string(atom) when is_atom(atom), do: Atom.to_string(atom)
+  defp provider_to_string(string) when is_binary(string), do: string
 
   # Simple substring matching for suggestions
   defp find_similar_providers(input, providers) do

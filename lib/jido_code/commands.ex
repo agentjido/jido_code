@@ -65,6 +65,8 @@ defmodule JidoCode.Commands do
     /models                  - List models for current provider
     /models <provider>       - List models for a specific provider
     /providers               - List available providers
+    /strategies              - List available reasoning strategies
+    /strategy <name>         - Set reasoning strategy (cot, react, tot, got, trm, adaptive)
     /language                - Show current programming language
     /language <lang>         - Set programming language (elixir, python, js, etc.)
     /theme                   - List available themes
@@ -184,6 +186,19 @@ defmodule JidoCode.Commands do
 
   defp parse_and_execute("/providers" <> _, _config) do
     execute_providers_command()
+  end
+
+  defp parse_and_execute("/strategies" <> _, _config) do
+    execute_strategies_command()
+  end
+
+  defp parse_and_execute("/strategy " <> rest, _config) do
+    strategy_name = String.trim(rest)
+    execute_strategy_command(strategy_name)
+  end
+
+  defp parse_and_execute("/strategy", _config) do
+    {:error, "Usage: /strategy <name>\n\nExamples:\n  /strategy adaptive\n  /strategy react\n  /strategy cot"}
   end
 
   defp parse_and_execute("/theme " <> rest, _config) do
@@ -1318,6 +1333,95 @@ defmodule JidoCode.Commands do
   defp string_to_theme_atom("light"), do: :light
   defp string_to_theme_atom("high_contrast"), do: :high_contrast
   defp string_to_theme_atom(_), do: nil
+
+  # ============================================================================
+  # Strategy Command Execution
+  # ============================================================================
+
+  defp execute_strategies_command do
+    alias JidoCode.Agents.LLMAgent.V2
+
+    strategies = V2.list_strategies()
+
+    header = "Available reasoning strategies:\n\n"
+
+    list =
+      Enum.map_join(strategies, "\n\n", fn strategy ->
+        name = V2.strategy_name(strategy)
+        description = V2.strategy_description(strategy)
+
+        "  #{strategy} - #{name}\n      #{description}"
+      end)
+
+    # Get current strategy if agent is running
+    current =
+      case AgentSupervisor.lookup_agent(:llm_agent) do
+        {:ok, pid} ->
+          current_strategy = V2.get_strategy(pid)
+          "\n\nCurrent: #{current_strategy} (#{V2.strategy_name(current_strategy)})"
+
+        {:error, :not_found} ->
+          "\n\nStart an LLM agent to see current strategy."
+      end
+
+    {:ok, header <> list <> current, %{}}
+  end
+
+  defp execute_strategy_command(strategy_name) do
+    alias JidoCode.Agents.LLMAgent.V2
+
+    # Normalize strategy name to atom
+    strategy = normalize_strategy(strategy_name)
+
+    if strategy do
+      case AgentSupervisor.lookup_agent(:llm_agent) do
+        {:ok, pid} ->
+          case V2.set_strategy(pid, strategy) do
+            :ok ->
+              name = V2.strategy_name(strategy)
+              description = V2.strategy_description(strategy)
+              {:ok, "Strategy set to #{strategy} (#{name})\n\n#{description}", %{}}
+
+            {:error, reason} ->
+              {:error, "Failed to set strategy: #{inspect(reason)}"}
+          end
+
+        {:error, :not_found} ->
+          {:error, "LLM agent not running. Start a session first to use strategy commands."}
+      end
+    else
+      available = V2.list_strategies() |> Enum.map_join(", ", &to_string/1)
+      {:error, "Unknown strategy: #{strategy_name}\n\nAvailable strategies: #{available}"}
+    end
+  end
+
+  # Normalize strategy string to atom (case-insensitive, allow variations)
+  defp normalize_strategy(name) when is_binary(name) do
+    normalized = String.downcase(name)
+
+    case normalized do
+      "adaptive" -> :adaptive
+      "react" -> :react
+      "rea_ct" -> :react
+      "cot" -> :cot
+      "chain" -> :cot
+      "chainofthought" -> :cot
+      "chain-of-thought" -> :cot
+      "tot" -> :tot
+      "tree" -> :tot
+      "treeofthoughts" -> :tot
+      "tree-of-thoughts" -> :tot
+      "got" -> :got
+      "graph" -> :got
+      "graphofthoughts" -> :got
+      "graph-of-thoughts" -> :got
+      "trm" -> :trm
+      "tiny" -> :trm
+      "tinyrecursivemodel" -> :trm
+      "tiny-recursive-model" -> :trm
+      _ -> nil
+    end
+  end
 
   # ============================================================================
   # Validation

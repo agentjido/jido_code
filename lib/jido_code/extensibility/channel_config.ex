@@ -128,7 +128,9 @@ defmodule JidoCode.Extensibility.ChannelConfig do
       # Expand environment variables in auth
       auth = maybe_expand_auth(config_struct.auth)
 
-      {:ok, %__MODULE__{config_struct | auth: auth}}
+      # Pattern match to satisfy compiler, then update auth
+      %__MODULE__{} = config_struct
+      {:ok, %{config_struct | auth: auth}}
     end
   end
 

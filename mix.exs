@@ -105,10 +105,10 @@ defmodule AgentJido.MixProject do
       {:dns_cluster, "~> 0.2.0"},
 
       # Jido AI framework
-      {:jido, "~> 2.0.0-rc"},
-      {:jido_action, "~> 2.0.0-rc", override: true},
-      {:jido_signal, "~> 2.0.0-rc"},
-      {:jido_ai, github: "agentjido/jido_ai", branch: "main"},
+      {:jido, path: "../jido", override: true},
+      {:jido_action, path: "../jido_action", override: true},
+      {:jido_signal, path: "../jido_signal", override: true},
+      {:jido_ai, path: "../jido_ai"},
       {:req_llm, "~> 1.4", override: true},
       {:timex, "~> 3.7", override: true},
       {:gettext, "~> 0.26", override: true},

@@ -30,9 +30,7 @@ defmodule AgentJido.GithubIssueBot.IssueRun.Actions.ResearchResultAction do
 
     cond do
       current_run_id != run_id ->
-        Logger.warning(
-          "Received research result for wrong run: #{run_id} (expected #{current_run_id})"
-        )
+        Logger.warning("Received research result for wrong run: #{run_id} (expected #{current_run_id})")
 
         {:ok, %{}}
 

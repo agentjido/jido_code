@@ -256,6 +256,7 @@ defmodule AgentJido.GithubIssueBotTest.PullRequest.PullRequestCoordinatorTest do
 
       # Should have 3 failed attempts in history
       assert length(pr.attempt_history) == 3
+
       Enum.each(pr.attempt_history, fn entry ->
         assert entry.outcome == :failed
       end)

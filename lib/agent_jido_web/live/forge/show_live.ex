@@ -101,7 +101,8 @@ defmodule AgentJidoWeb.Forge.ShowLive do
     end
   end
 
-  def handle_info({:terminal_exec_result, {output, exit_code}}, socket) do
+  def handle_info({:terminal_exec_result, {output, exit_code}}, socket)
+      when is_binary(output) and is_integer(exit_code) do
     socket =
       output
       |> String.split("\n", trim: true)

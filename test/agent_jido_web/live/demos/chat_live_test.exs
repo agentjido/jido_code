@@ -1,11 +1,9 @@
 defmodule AgentJidoWeb.Demos.ChatLiveTest do
   use AgentJidoWeb.ConnCase, async: false
 
-  import Phoenix.LiveViewTest
-
   describe "ChatLive" do
     @tag :skip
-    test "renders chat interface when authenticated", %{conn: conn} do
+    test "renders chat interface when authenticated", %{conn: _conn} do
       # This test requires authentication - skip for now until auth helpers are set up
       # When auth is available:
       # conn = log_in_user(conn, user)

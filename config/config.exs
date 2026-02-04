@@ -87,7 +87,8 @@ config :agent_jido,
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [AgentJido.Accounts, AgentJido.GitHub, AgentJido.Forge.Domain, AgentJido.Folio],
   ash_authentication: [return_error_on_invalid_magic_link_token?: true],
-  mailer: [from_name: "Agent Jido"]
+  mailer: [from_name: "Agent Jido"],
+  forge_fake_sprite_client?: config_env() in [:dev, :test]
 
 # Configure the endpoint
 config :agent_jido, AgentJidoWeb.Endpoint,

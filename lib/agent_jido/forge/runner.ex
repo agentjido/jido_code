@@ -47,8 +47,10 @@ defmodule AgentJido.Forge.Runner do
   Apply external input to the runner.
 
   Called when the runner is in `:needs_input` status and input has been provided.
+  Return `{:ok, new_state}` to update the runner state after applying input.
   """
-  @callback apply_input(sprite_client(), input(), state()) :: :ok | {:error, term()}
+  @callback apply_input(sprite_client(), input(), state()) ::
+              :ok | {:ok, state()} | {:error, term()}
 
   @doc """
   Handle streaming output from the sprite.

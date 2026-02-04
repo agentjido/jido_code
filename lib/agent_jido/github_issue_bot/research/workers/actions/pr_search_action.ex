@@ -67,7 +67,7 @@ defmodule AgentJido.GithubIssueBot.Research.Workers.Actions.PRSearchAction do
         source: "/pr_search"
       )
 
-    emit_directive = Directive.emit_to_parent(%{state: context.state}, result_signal)
+    emit_directive = Directive.emit_to_parent(context.agent, result_signal)
 
     {:ok,
      %{

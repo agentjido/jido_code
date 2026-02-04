@@ -26,6 +26,7 @@ defmodule AgentJido.Forge.Runners.ClaudeCode do
 
   @behaviour AgentJido.Forge.Runner
 
+  alias AgentJido.Forge.Runner
   alias AgentJido.Forge.SpriteClient
 
   @forge_home "/var/local/forge"
@@ -60,12 +61,10 @@ defmodule AgentJido.Forge.Runners.ClaudeCode do
 
   defp handle_exec_result({output, code}) do
     {:ok,
-     %{
-       status: :error,
+     Runner.error("Claude exited with code #{code}",
        output: output,
-       error: "Claude exited with code #{code}",
        metadata: %{exit_code: code}
-     }}
+     )}
   end
 
   @impl true
@@ -181,11 +180,10 @@ defmodule AgentJido.Forge.Runners.ClaudeCode do
 
     cond do
       is_nil(last_event) ->
-        %{status: :done, output: output, metadata: %{}}
+        Runner.done(output: output, metadata: %{})
 
       last_event["type"] == "result" && last_event["subtype"] == "success" ->
-        %{
-          status: :done,
+        Runner.done(
           output: output,
           summary: last_event["result"],
           metadata: %{
@@ -193,18 +191,17 @@ defmodule AgentJido.Forge.Runners.ClaudeCode do
             duration_ms: last_event["duration_ms"],
             session_id: last_event["session_id"]
           }
-        }
+        )
 
       last_event["type"] == "result" && last_event["subtype"] == "error_max_turns" ->
-        %{
-          status: :continue,
+        Runner.continue(
           output: output,
           summary: "Max turns reached",
           metadata: %{cost_usd: last_event["cost_usd"]}
-        }
+        )
 
       true ->
-        %{status: :done, output: output, metadata: %{}}
+        Runner.done(output: output, metadata: %{})
     end
   end
 

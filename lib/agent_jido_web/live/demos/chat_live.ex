@@ -86,19 +86,26 @@ defmodule AgentJidoWeb.Demos.ChatLive do
     if input == "" or socket.assigns.running? or is_nil(socket.assigns.agent_pid) do
       {:noreply, socket}
     else
-      :ok = ChatAgent.ask(socket.assigns.agent_pid, input)
+      case ChatAgent.ask(socket.assigns.agent_pid, input) do
+        {:ok, _request} ->
+          user_msg = %{id: gen_id(), role: :user, content: input}
+          pending_msg = %{id: gen_id(), role: :assistant, content: "", pending: true}
 
-      user_msg = %{id: gen_id(), role: :user, content: input}
-      pending_msg = %{id: gen_id(), role: :assistant, content: "", pending: true}
+          {:noreply,
+           socket
+           |> assign(:input, "")
+           |> assign(:running?, true)
+           |> assign(:trace, %Trace{})
+           |> assign(:messages, socket.assigns.messages ++ [user_msg, pending_msg])
+           |> assign(:panels, %{thinking: "", usage: %{}, conversation: [], config: %{}})
+           |> schedule_poll()}
 
-      {:noreply,
-       socket
-       |> assign(:input, "")
-       |> assign(:running?, true)
-       |> assign(:trace, %Trace{})
-       |> assign(:messages, socket.assigns.messages ++ [user_msg, pending_msg])
-       |> assign(:panels, %{thinking: "", usage: %{}, conversation: [], config: %{}})
-       |> schedule_poll()}
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(:running?, false)
+           |> assign(:error, "Failed to send request: #{inspect(reason)}")}
+      end
     end
   end
 
@@ -162,7 +169,7 @@ defmodule AgentJidoWeb.Demos.ChatLive do
 
   defp apply_snapshot(socket, snap) do
     {trace, messages, panels} = process_snapshot(socket.assigns.trace, socket.assigns.messages, snap)
-    conversation = (snap.details || %{})[:conversation] || []
+    conversation = snap.details[:conversation] || []
 
     socket =
       socket
@@ -202,7 +209,7 @@ defmodule AgentJidoWeb.Demos.ChatLive do
   end
 
   defp process_snapshot(trace, messages, snap) do
-    details = snap.details || %{}
+    details = snap.details
     trace = maybe_clear_awaiting_start(trace, snap.status)
 
     if trace.awaiting_start? do

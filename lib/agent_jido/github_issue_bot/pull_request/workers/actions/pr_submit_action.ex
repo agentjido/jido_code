@@ -84,7 +84,7 @@ defmodule AgentJido.GithubIssueBot.PullRequest.Workers.Actions.PRSubmitAction do
         source: "/pr_submit_agent"
       )
 
-    emit_directive = Directive.emit_to_parent(%{state: context.state}, result_signal)
+    emit_directive = Directive.emit_to_parent(context.agent, result_signal)
 
     {:ok,
      %{

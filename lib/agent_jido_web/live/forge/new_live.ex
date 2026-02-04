@@ -64,9 +64,6 @@ defmodule AgentJidoWeb.Forge.NewLive do
     else
       {:error, %Jason.DecodeError{}} ->
         {:noreply, put_flash(socket, :error, "Invalid JSON in config fields")}
-
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Error: #{inspect(reason)}")}
     end
   end
 

@@ -65,12 +65,16 @@ defmodule AgentJido.Error do
     @moduledoc "Error for invalid input parameters."
     use Splode.Error, class: :invalid
 
+    @type t :: %__MODULE__{}
+
     def message(%{message: message}), do: message
   end
 
   defmodule ValidationError do
     @moduledoc "Error for validation failures."
     use Splode.Error, class: :invalid
+
+    @type t :: %__MODULE__{}
 
     def message(%{message: message, field: field}) when not is_nil(field) do
       "Validation failed for #{field}: #{message}"
@@ -83,6 +87,8 @@ defmodule AgentJido.Error do
     @moduledoc "Error for runtime execution failures."
     use Splode.Error, class: :execution
 
+    @type t :: %__MODULE__{}
+
     def message(%{message: message}), do: message
   end
 
@@ -90,32 +96,46 @@ defmodule AgentJido.Error do
     @moduledoc "Error for configuration issues."
     use Splode.Error, class: :config
 
+    @type t :: %__MODULE__{}
+
     def message(%{message: message}), do: message
   end
 
   # Helper functions
 
   @doc "Creates a validation error with optional details."
-  @spec validation_error(String.t(), map()) :: ValidationError.t()
+  @spec validation_error(String.t(), map() | keyword()) :: ValidationError.t()
   def validation_error(message, details \\ %{}) do
-    ValidationError.exception(Map.merge(%{message: message}, details))
+    ValidationError.exception(merge_error_details(message, details))
   end
 
   @doc "Creates an invalid input error."
-  @spec invalid_input_error(String.t(), map()) :: InvalidInputError.t()
+  @spec invalid_input_error(String.t(), map() | keyword()) :: InvalidInputError.t()
   def invalid_input_error(message, details \\ %{}) do
-    InvalidInputError.exception(Map.merge(%{message: message}, details))
+    InvalidInputError.exception(merge_error_details(message, details))
   end
 
   @doc "Creates an execution failure error."
-  @spec execution_error(String.t(), map()) :: ExecutionFailureError.t()
+  @spec execution_error(String.t(), map() | keyword()) :: ExecutionFailureError.t()
   def execution_error(message, details \\ %{}) do
-    ExecutionFailureError.exception(Map.merge(%{message: message}, details))
+    ExecutionFailureError.exception(merge_error_details(message, details))
   end
 
   @doc "Creates a configuration error."
-  @spec config_error(String.t(), map()) :: ConfigurationError.t()
+  @spec config_error(String.t(), map() | keyword()) :: ConfigurationError.t()
   def config_error(message, details \\ %{}) do
-    ConfigurationError.exception(Map.merge(%{message: message}, details))
+    ConfigurationError.exception(merge_error_details(message, details))
+  end
+
+  defp merge_error_details(message, details) when is_list(details) do
+    Keyword.merge([message: message], details)
+  end
+
+  defp merge_error_details(message, details) when is_map(details) do
+    Keyword.merge([message: message], Map.to_list(details))
+  end
+
+  defp merge_error_details(message, nil) do
+    [message: message]
   end
 end

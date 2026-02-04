@@ -279,6 +279,17 @@ defmodule AgentJido.Forge.SpriteSession do
         Persistence.record_input_applied(state.session_id, state.runner_state)
         {:reply, :ok, new_state}
 
+      {:ok, new_runner_state} ->
+        new_state = %{
+          state
+          | state: :ready,
+            runner_state: new_runner_state,
+            last_activity: DateTime.utc_now()
+        }
+
+        Persistence.record_input_applied(state.session_id, new_runner_state)
+        {:reply, :ok, new_state}
+
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end

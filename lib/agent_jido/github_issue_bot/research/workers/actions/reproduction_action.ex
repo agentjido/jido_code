@@ -64,7 +64,7 @@ defmodule AgentJido.GithubIssueBot.Research.Workers.Actions.ReproductionAction d
         source: "/reproduction"
       )
 
-    emit_directive = Directive.emit_to_parent(%{state: context.state}, result_signal)
+    emit_directive = Directive.emit_to_parent(context.agent, result_signal)
 
     {:ok,
      %{

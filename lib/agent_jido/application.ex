@@ -38,7 +38,7 @@ defmodule AgentJido.Application do
   end
 
   defp forge_dev_children do
-    if Mix.env() in [:dev, :test] do
+    if Application.get_env(:agent_jido, :forge_fake_sprite_client?, false) do
       [{AgentJido.Forge.SpriteClient.Fake, []}]
     else
       []

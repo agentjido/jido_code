@@ -26,6 +26,7 @@ defmodule AgentJidoWeb.Components.InputField do
   """
 
   use Phoenix.Component
+  alias Phoenix.HTML.Form
   import AgentJidoWeb.Components.Icon, only: [icon: 1]
 
   @doc """
@@ -93,7 +94,7 @@ defmodule AgentJidoWeb.Components.InputField do
   def input(%{type: "checkbox"} = assigns) do
     assigns =
       assign_new(assigns, :checked, fn ->
-        Phoenix.HTML.Form.normalize_value("checkbox", assigns[:value])
+        Form.normalize_value("checkbox", assigns[:value])
       end)
 
     ~H"""

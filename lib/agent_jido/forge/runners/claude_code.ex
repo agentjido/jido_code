@@ -33,35 +33,39 @@ defmodule AgentJido.Forge.Runners.ClaudeCode do
   @impl true
   def init(client, config) do
     with :ok <- setup_directories(client),
-         :ok <- setup_claude_settings(client, config),
-         :ok <- setup_templates(client, config) do
-      :ok
+         :ok <- setup_claude_settings(client, config) do
+      setup_templates(client, config)
     end
   end
 
   @impl true
   def run_iteration(client, state, opts) do
+    {model, max_turns, max_budget, prompt} = resolve_run_options(state, opts)
+    cmd = build_claude_command(model, max_turns, max_budget, prompt)
+
+    client
+    |> SpriteClient.exec(cmd, timeout: :infinity)
+    |> handle_exec_result()
+  end
+
+  defp resolve_run_options(state, opts) do
     model = opts[:model] || state[:model] || "claude-sonnet-4-20250514"
     max_turns = opts[:max_turns] || state[:max_turns] || 200
     max_budget = opts[:max_budget] || state[:max_budget] || 10.0
     prompt = opts[:prompt] || state[:prompt]
+    {model, max_turns, max_budget, prompt}
+  end
 
-    cmd = build_claude_command(model, max_turns, max_budget, prompt)
+  defp handle_exec_result({output, 0}), do: {:ok, parse_claude_output(output)}
 
-    case SpriteClient.exec(client, cmd, timeout: :infinity) do
-      {output, 0} ->
-        result = parse_claude_output(output)
-        {:ok, result}
-
-      {output, code} ->
-        {:ok,
-         %{
-           status: :error,
-           output: output,
-           error: "Claude exited with code #{code}",
-           metadata: %{exit_code: code}
-         }}
-    end
+  defp handle_exec_result({output, code}) do
+    {:ok,
+     %{
+       status: :error,
+       output: output,
+       error: "Claude exited with code #{code}",
+       metadata: %{exit_code: code}
+     }}
   end
 
   @impl true
@@ -115,9 +119,8 @@ defmodule AgentJido.Forge.Runners.ClaudeCode do
   end
 
   defp setup_templates(client, config) do
-    with :ok <- maybe_write_template(client, config, :prompt_template, "iterate.md"),
-         :ok <- maybe_write_template(client, config, :context_template, "context.md") do
-      :ok
+    with :ok <- maybe_write_template(client, config, :prompt_template, "iterate.md") do
+      maybe_write_template(client, config, :context_template, "context.md")
     end
   end
 

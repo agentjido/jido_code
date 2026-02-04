@@ -131,9 +131,7 @@ defmodule AgentJido.Forge.SpriteClient.Live do
 
   def inject_env(%__MODULE__{sprite: sprite} = _client, env_map) do
     env_lines =
-      env_map
-      |> Enum.map(fn {k, v} -> "export #{k}=\"#{escape_value(v)}\"" end)
-      |> Enum.join("\n")
+      Enum.map_join(env_map, "\n", fn {k, v} -> "export #{k}=\"#{escape_value(v)}\"" end)
 
     encoded = Base.encode64(env_lines <> "\n")
 

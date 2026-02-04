@@ -18,8 +18,8 @@ defmodule AgentJido.GithubIssueBot.IssueRun.Actions.ResearchResultAction do
       summary: [type: :string, default: ""]
     ]
 
-  alias Jido.Agent.Directive
   alias AgentJido.GithubIssueBot.PullRequest.PullRequestCoordinator
+  alias Jido.Agent.Directive
 
   require Logger
 

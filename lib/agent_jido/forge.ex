@@ -157,26 +157,16 @@ defmodule AgentJido.Forge do
 
   defp do_run_loop(session_id, opts, max_iterations, iteration, return_error_result?) do
     case run_iteration(session_id, opts) do
-      {:ok, %{status: :done} = result} ->
-        {:ok, result}
-
-      {:ok, %{status: :needs_input} = result} ->
-        {:ok, result}
-
-      {:ok, %{status: :blocked} = result} ->
+      {:ok, %{status: status} = result} when status in [:done, :needs_input, :blocked] ->
         {:ok, result}
 
       {:ok, %{status: :error} = result} ->
-        if return_error_result? do
-          {:ok, result}
-        else
-          {:error, {:iteration_error, result}}
-        end
+        handle_error_result(result, return_error_result?)
 
-      {:ok, %{continue: true} = _result} ->
+      {:ok, %{continue: true}} ->
         do_run_loop(session_id, opts, max_iterations, iteration + 1, return_error_result?)
 
-      {:ok, %{status: :continue} = _result} ->
+      {:ok, %{status: :continue}} ->
         do_run_loop(session_id, opts, max_iterations, iteration + 1, return_error_result?)
 
       {:ok, result} ->
@@ -186,6 +176,9 @@ defmodule AgentJido.Forge do
         {:error, reason}
     end
   end
+
+  defp handle_error_result(result, true = _return_error_result?), do: {:ok, result}
+  defp handle_error_result(result, false = _return_error_result?), do: {:error, {:iteration_error, result}}
 
   # Session lifecycle operations
 

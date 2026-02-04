@@ -55,22 +55,29 @@ defmodule AgentJido.GithubIssueBot.Triage.Actions.TriageAction do
 
   defp classify(title, _body, labels) do
     cond do
-      "bug" in labels or String.contains?(title, "bug") or String.contains?(title, "error") ->
-        :bug
-
-      "feature" in labels or "enhancement" in labels or
-        String.contains?(title, "feature") or String.contains?(title, "add") ->
-        :feature
-
-      "question" in labels or String.contains?(title, "?") ->
-        :question
-
-      "documentation" in labels or String.contains?(title, "docs") ->
-        :documentation
-
-      true ->
-        :unknown
+      bug?(title, labels) -> :bug
+      feature?(title, labels) -> :feature
+      question?(title, labels) -> :question
+      documentation?(title, labels) -> :documentation
+      true -> :unknown
     end
+  end
+
+  defp bug?(title, labels) do
+    "bug" in labels or String.contains?(title, "bug") or String.contains?(title, "error")
+  end
+
+  defp feature?(title, labels) do
+    "feature" in labels or "enhancement" in labels or
+      String.contains?(title, "feature") or String.contains?(title, "add")
+  end
+
+  defp question?(title, labels) do
+    "question" in labels or String.contains?(title, "?")
+  end
+
+  defp documentation?(title, labels) do
+    "documentation" in labels or String.contains?(title, "docs")
   end
 
   defp needs_more_info?(body) do

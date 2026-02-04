@@ -7,9 +7,11 @@ defmodule AgentJidoWeb.FolioLive do
   """
   use AgentJidoWeb, :live_view
 
-  alias AgentJido.Folio.FolioAgent
   alias AgentJido.Folio
-  alias AgentJido.Folio.{InboxItem, Action, Project}
+  alias AgentJido.Folio.Action.Jido.Next, as: ActionNext
+  alias AgentJido.Folio.FolioAgent
+  alias AgentJido.Folio.InboxItem.Jido.Inbox, as: InboxItemInbox
+  alias AgentJido.Folio.Project.Jido.Active, as: ProjectActive
 
   @poll_interval 80
 
@@ -68,31 +70,18 @@ defmodule AgentJidoWeb.FolioLive do
   defp fetch_all_data(socket) do
     context = ash_context(socket.assigns.actor)
 
-    inbox =
-      case InboxItem.Jido.Inbox.run(%{}, context) do
-        {:ok, items} when is_list(items) -> items
-        {:ok, item} -> [item]
-        _ -> []
-      end
-
-    next =
-      case Action.Jido.Next.run(%{}, context) do
-        {:ok, items} when is_list(items) -> items
-        {:ok, item} -> [item]
-        _ -> []
-      end
-
-    projects =
-      case Project.Jido.Active.run(%{}, context) do
-        {:ok, items} when is_list(items) -> items
-        {:ok, item} -> [item]
-        _ -> []
-      end
-
     socket
-    |> assign(:inbox_items, inbox)
-    |> assign(:next_actions, next)
-    |> assign(:projects, projects)
+    |> assign(:inbox_items, fetch_as_list(InboxItemInbox, context))
+    |> assign(:next_actions, fetch_as_list(ActionNext, context))
+    |> assign(:projects, fetch_as_list(ProjectActive, context))
+  end
+
+  defp fetch_as_list(action_module, context) do
+    case action_module.run(%{}, context) do
+      {:ok, items} when is_list(items) -> items
+      {:ok, item} -> [item]
+      _ -> []
+    end
   end
 
   defp ash_context(actor) do
@@ -167,29 +156,7 @@ defmodule AgentJidoWeb.FolioLive do
     socket = assign(socket, :poll_ref, nil)
 
     if socket.assigns.running? and socket.assigns.agent_pid do
-      case get_snapshot(socket.assigns.agent_pid) do
-        {:ok, snap} ->
-          {trace, messages} =
-            process_snapshot(socket.assigns.trace, socket.assigns.messages, snap)
-
-          socket =
-            socket
-            |> assign(:trace, trace)
-            |> assign(:messages, messages)
-
-          if snap.done? and not trace.awaiting_start? do
-            socket = fetch_all_data(socket)
-            {:noreply, assign(socket, :running?, false)}
-          else
-            {:noreply, schedule_poll(socket)}
-          end
-
-        {:error, reason} ->
-          {:noreply,
-           socket
-           |> assign(:running?, false)
-           |> assign(:error, "Snapshot error: #{inspect(reason)}")}
-      end
+      handle_poll_snapshot(socket)
     else
       {:noreply, socket}
     end
@@ -212,6 +179,32 @@ defmodule AgentJidoWeb.FolioLive do
     end
   end
 
+  defp handle_poll_snapshot(socket) do
+    case get_snapshot(socket.assigns.agent_pid) do
+      {:ok, snap} -> apply_snapshot(socket, snap)
+      {:error, reason} -> handle_snapshot_error(socket, reason)
+    end
+  end
+
+  defp apply_snapshot(socket, snap) do
+    {trace, messages} = process_snapshot(socket.assigns.trace, socket.assigns.messages, snap)
+    socket = socket |> assign(:trace, trace) |> assign(:messages, messages)
+
+    if snap.done? and not trace.awaiting_start? do
+      socket = fetch_all_data(socket)
+      {:noreply, assign(socket, :running?, false)}
+    else
+      {:noreply, schedule_poll(socket)}
+    end
+  end
+
+  defp handle_snapshot_error(socket, reason) do
+    {:noreply,
+     socket
+     |> assign(:running?, false)
+     |> assign(:error, "Snapshot error: #{inspect(reason)}")}
+  end
+
   defp schedule_poll(socket) do
     ref = make_ref()
     Process.send_after(self(), {:poll, ref}, @poll_interval)
@@ -230,44 +223,46 @@ defmodule AgentJidoWeb.FolioLive do
 
   defp process_snapshot(trace, messages, snap) do
     details = snap.details || %{}
+    trace = maybe_clear_awaiting_start(trace, snap.status)
 
+    if trace.awaiting_start? do
+      {trace, messages}
+    else
+      process_active_snapshot(trace, messages, snap, details)
+    end
+  end
+
+  defp maybe_clear_awaiting_start(trace, :running) when trace.awaiting_start?, do: %{trace | awaiting_start?: false}
+  defp maybe_clear_awaiting_start(trace, _status), do: trace
+
+  defp process_active_snapshot(trace, messages, snap, details) do
     current_iteration = details[:iteration] || 0
     streaming_text = details[:streaming_text] || ""
     streaming_thinking = details[:streaming_thinking] || ""
     tool_calls = details[:tool_calls] || []
 
-    trace =
-      if trace.awaiting_start? and snap.status == :running do
-        %{trace | awaiting_start?: false}
-      else
-        trace
-      end
+    trace = update_trace_iteration(trace, current_iteration)
+    {messages, trace} = sync_tool_calls(messages, tool_calls, trace)
+    messages = update_pending_content(messages, streaming_text)
+    {messages, trace} = finalize_if_done(messages, trace, snap, streaming_text, streaming_thinking)
 
-    if trace.awaiting_start? do
-      {trace, messages}
+    {trace, messages}
+  end
+
+  defp update_trace_iteration(trace, current_iteration) do
+    if current_iteration > trace.last_iteration and trace.last_iteration > 0 do
+      %{trace | last_iteration: current_iteration, text: "", thinking: ""}
     else
-      trace =
-        if current_iteration > trace.last_iteration and trace.last_iteration > 0 do
-          %{trace | last_iteration: current_iteration, text: "", thinking: ""}
-        else
-          %{trace | last_iteration: max(current_iteration, trace.last_iteration)}
-        end
+      %{trace | last_iteration: max(current_iteration, trace.last_iteration)}
+    end
+  end
 
-      {messages, trace} = sync_tool_calls(messages, tool_calls, trace)
-
-      messages = update_pending_content(messages, streaming_text)
-
-      {messages, trace} =
-        if snap.done? do
-          final_content = snap.result || streaming_text
-          messages = finalize_pending(messages, final_content, trace.thinking)
-          {messages, trace}
-        else
-          trace = %{trace | text: streaming_text, thinking: streaming_thinking}
-          {messages, trace}
-        end
-
-      {trace, messages}
+  defp finalize_if_done(messages, trace, snap, streaming_text, streaming_thinking) do
+    if snap.done? do
+      final_content = snap.result || streaming_text
+      {finalize_pending(messages, final_content, trace.thinking), trace}
+    else
+      {messages, %{trace | text: streaming_text, thinking: streaming_thinking}}
     end
   end
 
@@ -275,40 +270,43 @@ defmodule AgentJidoWeb.FolioLive do
 
   defp sync_tool_calls(messages, tool_calls, trace) do
     {messages, seen, completed} =
-      Enum.reduce(tool_calls, {messages, trace.seen_tool_ids, trace.completed_tool_ids}, fn tc,
-                                                                                            {msgs, seen, completed} ->
-        if MapSet.member?(seen, tc.id) do
-          msgs = update_tool_call_status(msgs, tc)
-
-          completed =
-            if tc.status in [:completed, :failed],
-              do: MapSet.put(completed, tc.id),
-              else: completed
-
-          {msgs, seen, completed}
-        else
-          tool_msg = %{
-            id: tc.id,
-            role: :tool_call,
-            tool_name: tc.name,
-            arguments: tc.arguments,
-            status: tc.status,
-            result: tc.result
-          }
-
-          msgs = insert_before_pending(msgs, tool_msg)
-          seen = MapSet.put(seen, tc.id)
-
-          completed =
-            if tc.status in [:completed, :failed],
-              do: MapSet.put(completed, tc.id),
-              else: completed
-
-          {msgs, seen, completed}
-        end
-      end)
+      Enum.reduce(tool_calls, {messages, trace.seen_tool_ids, trace.completed_tool_ids}, &process_tool_call/2)
 
     {messages, %{trace | seen_tool_ids: seen, completed_tool_ids: completed}}
+  end
+
+  defp process_tool_call(tc, {msgs, seen, completed}) do
+    if MapSet.member?(seen, tc.id) do
+      update_existing_tool_call(tc, msgs, seen, completed)
+    else
+      add_new_tool_call(tc, msgs, seen, completed)
+    end
+  end
+
+  defp update_existing_tool_call(tc, msgs, seen, completed) do
+    msgs = update_tool_call_status(msgs, tc)
+    completed = maybe_mark_completed(completed, tc)
+    {msgs, seen, completed}
+  end
+
+  defp add_new_tool_call(tc, msgs, seen, completed) do
+    tool_msg = %{
+      id: tc.id,
+      role: :tool_call,
+      tool_name: tc.name,
+      arguments: tc.arguments,
+      status: tc.status,
+      result: tc.result
+    }
+
+    msgs = insert_before_pending(msgs, tool_msg)
+    seen = MapSet.put(seen, tc.id)
+    completed = maybe_mark_completed(completed, tc)
+    {msgs, seen, completed}
+  end
+
+  defp maybe_mark_completed(completed, tc) do
+    if tc.status in [:completed, :failed], do: MapSet.put(completed, tc.id), else: completed
   end
 
   defp update_tool_call_status(messages, tc) do
@@ -362,8 +360,7 @@ defmodule AgentJidoWeb.FolioLive do
 
   defp format_args(args) when is_map(args) do
     args
-    |> Enum.map(fn {k, v} -> "#{k}: #{inspect(v)}" end)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
     |> String.slice(0, 80)
   end
 

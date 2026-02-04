@@ -45,8 +45,8 @@ defmodule AgentJido.GithubIssueBot.Research.ResearchCoordinator do
 
   alias AgentJido.GithubIssueBot.Research.Actions.{
     StartResearchAction,
-    WorkerStartedAction,
-    WorkerResultAction
+    WorkerResultAction,
+    WorkerStartedAction
   }
 
   def signal_routes do

@@ -10,7 +10,7 @@ defmodule AgentJido.Forge.Operations do
   require Logger
 
   alias AgentJido.Forge.{Manager, PubSub}
-  alias AgentJido.Forge.Resources.{Session, Event, Checkpoint}
+  alias AgentJido.Forge.Resources.{Checkpoint, Event, Session}
 
   @doc """
   Resume a session from its last checkpoint.

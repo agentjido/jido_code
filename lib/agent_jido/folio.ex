@@ -1,4 +1,5 @@
 defmodule AgentJido.Folio do
+  @moduledoc false
   use Ash.Domain
 
   resources do

@@ -1,4 +1,5 @@
 defmodule AgentJido.GitHub do
+  @moduledoc false
   use Ash.Domain, otp_app: :agent_jido, extensions: [AshAdmin.Domain]
 
   admin do

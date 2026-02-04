@@ -1,4 +1,5 @@
 defmodule AgentJido.GitHub.IssueAnalysis do
+  @moduledoc false
   use Ash.Resource,
     otp_app: :agent_jido,
     domain: AgentJido.GitHub,

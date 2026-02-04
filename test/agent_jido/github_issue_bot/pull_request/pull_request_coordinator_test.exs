@@ -10,9 +10,9 @@ defmodule AgentJido.GithubIssueBotTest.PullRequest.PullRequestCoordinatorTest do
   """
   use ExUnit.Case, async: false
 
+  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
   alias Jido.AgentServer
   alias Jido.Signal
-  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
 
   # Issue number 42 - passes on first attempt
   @test_issue_pass %{
@@ -212,7 +212,7 @@ defmodule AgentJido.GithubIssueBotTest.PullRequest.PullRequestCoordinatorTest do
       assert pr.pr_url != nil
 
       # Should have attempt history
-      assert length(pr.attempt_history) >= 1
+      assert pr.attempt_history != []
     end
   end
 

@@ -14,8 +14,8 @@ defmodule AgentJido.GithubIssueBot.IssueRun.Actions.TriageResultAction do
       summary: [type: :string, default: ""]
     ]
 
-  alias Jido.Agent.Directive
   alias AgentJido.GithubIssueBot.Research.ResearchCoordinator
+  alias Jido.Agent.Directive
 
   require Logger
 

@@ -10,9 +10,9 @@ defmodule AgentJido.GithubIssueBotTest.Research.ResearchCoordinatorTest do
   """
   use ExUnit.Case, async: false
 
+  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
   alias Jido.AgentServer
   alias Jido.Signal
-  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
 
   @test_issue %{
     repo: "test/repo",
@@ -134,7 +134,7 @@ defmodule AgentJido.GithubIssueBotTest.Research.ResearchCoordinatorTest do
 
       # Should have extracted keywords
       assert is_list(code_search.keywords)
-      assert length(code_search.keywords) > 0
+      assert code_search.keywords != []
 
       # Should have found files (mock)
       assert is_list(code_search.files)

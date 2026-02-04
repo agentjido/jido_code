@@ -370,7 +370,7 @@ defmodule AgentJidoWeb.Components.Stepper do
     """
   end
 
-  defp step_visibility() do
+  defp step_visibility do
     [
       "[&_.stepper-loading-icon]:block",
       "[&_.stepper-loading-icon]:visible",

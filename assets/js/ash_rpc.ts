@@ -16,20 +16,20 @@
 // Utility Types
 
 // Resource schema constraint
-type TypedSchema = {
+export type TypedSchema = {
   __type: "Resource" | "TypedMap" | "Union";
   __primitiveFields: string;
 };
 
 // Utility type to convert union to intersection
-type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
+export type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
   k: infer I,
 ) => void
   ? I
   : never;
 
 // Helper type to infer union field values, avoiding duplication between array and non-array unions
-type InferUnionFieldValue<
+export type InferUnionFieldValue<
   UnionSchema extends { __type: "Union"; __primitiveFields: any },
   FieldSelection extends any[],
 > = UnionToIntersection<
@@ -41,34 +41,34 @@ type InferUnionFieldValue<
       : FieldSelection[FieldIndex] extends Record<string, any>
         ? {
             [UnionKey in keyof FieldSelection[FieldIndex]]: UnionKey extends keyof UnionSchema
-              ? UnionSchema[UnionKey] extends { __array: true; __type: "TypedMap"; __primitiveFields: infer TypedMapFields }
+              ? NonNullable<UnionSchema[UnionKey]> extends { __array: true; __type: "TypedMap"; __primitiveFields: infer TypedMapFields }
                 ? FieldSelection[FieldIndex][UnionKey] extends any[]
                   ? Array<
                       UnionToIntersection<
                         {
                           [FieldIdx in keyof FieldSelection[FieldIndex][UnionKey]]: FieldSelection[FieldIndex][UnionKey][FieldIdx] extends TypedMapFields
-                            ? FieldSelection[FieldIndex][UnionKey][FieldIdx] extends keyof UnionSchema[UnionKey]
-                              ? { [P in FieldSelection[FieldIndex][UnionKey][FieldIdx]]: UnionSchema[UnionKey][P] }
+                            ? FieldSelection[FieldIndex][UnionKey][FieldIdx] extends keyof NonNullable<UnionSchema[UnionKey]>
+                              ? { [P in FieldSelection[FieldIndex][UnionKey][FieldIdx]]: NonNullable<UnionSchema[UnionKey]>[P] }
                               : never
                             : never;
                         }[number]
                       >
                     > | null
                   : never
-                : UnionSchema[UnionKey] extends { __type: "TypedMap"; __primitiveFields: infer TypedMapFields }
+                : NonNullable<UnionSchema[UnionKey]> extends { __type: "TypedMap"; __primitiveFields: infer TypedMapFields }
                   ? FieldSelection[FieldIndex][UnionKey] extends any[]
                     ? UnionToIntersection<
                         {
                           [FieldIdx in keyof FieldSelection[FieldIndex][UnionKey]]: FieldSelection[FieldIndex][UnionKey][FieldIdx] extends TypedMapFields
-                            ? FieldSelection[FieldIndex][UnionKey][FieldIdx] extends keyof UnionSchema[UnionKey]
-                              ? { [P in FieldSelection[FieldIndex][UnionKey][FieldIdx]]: UnionSchema[UnionKey][P] }
+                            ? FieldSelection[FieldIndex][UnionKey][FieldIdx] extends keyof NonNullable<UnionSchema[UnionKey]>
+                              ? { [P in FieldSelection[FieldIndex][UnionKey][FieldIdx]]: NonNullable<UnionSchema[UnionKey]>[P] }
                               : never
                             : never;
                         }[number]
                       > | null
                     : never
-                  : UnionSchema[UnionKey] extends TypedSchema
-                    ? InferResult<UnionSchema[UnionKey], FieldSelection[FieldIndex][UnionKey]>
+                  : NonNullable<UnionSchema[UnionKey]> extends TypedSchema
+                    ? InferResult<NonNullable<UnionSchema[UnionKey]>, FieldSelection[FieldIndex][UnionKey]>
                     : never
               : never;
           }
@@ -76,21 +76,21 @@ type InferUnionFieldValue<
   }[number]
 >;
 
-type HasComplexFields<T extends TypedSchema> = keyof Omit<
+export type HasComplexFields<T extends TypedSchema> = keyof Omit<
   T,
   "__primitiveFields" | "__type" | T["__primitiveFields"]
 > extends never
   ? false
   : true;
 
-type ComplexFieldKeys<T extends TypedSchema> = keyof Omit<
+export type ComplexFieldKeys<T extends TypedSchema> = keyof Omit<
   T,
   "__primitiveFields" | "__type" | T["__primitiveFields"]
 >;
 
-type LeafFieldSelection<T extends TypedSchema> = T["__primitiveFields"];
+export type LeafFieldSelection<T extends TypedSchema> = T["__primitiveFields"];
 
-type ComplexFieldSelection<T extends TypedSchema> = {
+export type ComplexFieldSelection<T extends TypedSchema> = {
   [K in ComplexFieldKeys<T>]?: T[K] extends {
     __type: "Relationship";
     __resource: infer Resource;
@@ -119,17 +119,17 @@ type ComplexFieldSelection<T extends TypedSchema> = {
         : T[K] extends { __type: "Union"; __primitiveFields: infer PrimitiveFields }
           ? T[K] extends { __array: true }
             ? (PrimitiveFields | {
-                [UnionKey in keyof Omit<T[K], "__type" | "__primitiveFields" | "__array">]?: T[K][UnionKey] extends { __type: "TypedMap"; __primitiveFields: any }
-                  ? T[K][UnionKey]["__primitiveFields"][]
-                  : T[K][UnionKey] extends TypedSchema
-                    ? UnifiedFieldSelection<T[K][UnionKey]>[]
+                [UnionKey in keyof Omit<T[K], "__type" | "__primitiveFields" | "__array">]?: NonNullable<T[K][UnionKey]> extends { __type: "TypedMap"; __primitiveFields: any }
+                  ? NonNullable<T[K][UnionKey]>["__primitiveFields"][]
+                  : NonNullable<T[K][UnionKey]> extends TypedSchema
+                    ? UnifiedFieldSelection<NonNullable<T[K][UnionKey]>>[]
                     : never;
               })[]
             : (PrimitiveFields | {
-                [UnionKey in keyof Omit<T[K], "__type" | "__primitiveFields">]?: T[K][UnionKey] extends { __type: "TypedMap"; __primitiveFields: any }
-                  ? T[K][UnionKey]["__primitiveFields"][]
-                  : T[K][UnionKey] extends TypedSchema
-                    ? UnifiedFieldSelection<T[K][UnionKey]>[]
+                [UnionKey in keyof Omit<T[K], "__type" | "__primitiveFields">]?: NonNullable<T[K][UnionKey]> extends { __type: "TypedMap"; __primitiveFields: any }
+                  ? NonNullable<T[K][UnionKey]>["__primitiveFields"][]
+                  : NonNullable<T[K][UnionKey]> extends TypedSchema
+                    ? UnifiedFieldSelection<NonNullable<T[K][UnionKey]>>[]
                     : never;
               })[]
             : NonNullable<T[K]> extends TypedSchema
@@ -138,12 +138,12 @@ type ComplexFieldSelection<T extends TypedSchema> = {
 };
 
 // Main type: Use explicit base case detection to prevent infinite recursion
-type UnifiedFieldSelection<T extends TypedSchema> =
+export type UnifiedFieldSelection<T extends TypedSchema> =
   HasComplexFields<T> extends false
     ? LeafFieldSelection<T> // Base case: only primitives, no recursion
     : LeafFieldSelection<T> | ComplexFieldSelection<T>; // Recursive case
 
-type InferFieldValue<
+export type InferFieldValue<
   T extends TypedSchema,
   Field,
 > = Field extends T["__primitiveFields"]
@@ -279,20 +279,16 @@ type InferFieldValue<
                   : never
               : T[K] extends { __type: "Union"; __primitiveFields: any }
                 ? T[K] extends { __array: true }
-                  ? {
-                      [CurrentK in K]: T[CurrentK] extends { __type: "Union"; __primitiveFields: any }
-                        ? Field[CurrentK] extends any[]
-                          ? Array<InferUnionFieldValue<T[CurrentK], Field[CurrentK]>> | null
-                          : never
-                        : never
-                    }
-                  : {
-                      [CurrentK in K]: T[CurrentK] extends { __type: "Union"; __primitiveFields: any }
-                        ? Field[CurrentK] extends any[]
-                          ? InferUnionFieldValue<T[CurrentK], Field[CurrentK]> | null
-                          : never
-                        : never
-                    }
+                  ? Field[K] extends any[]
+                    ? null extends T[K]
+                      ? Array<InferUnionFieldValue<T[K], Field[K]>> | null
+                      : Array<InferUnionFieldValue<T[K], Field[K]>>
+                    : never
+                  : Field[K] extends any[]
+                    ? null extends T[K]
+                      ? InferUnionFieldValue<T[K], Field[K]> | null
+                      : InferUnionFieldValue<T[K], Field[K]>
+                    : never
                   : NonNullable<T[K]> extends TypedSchema
                     ? null extends T[K]
                       ? InferResult<NonNullable<T[K]>, Field[K]> | null
@@ -302,7 +298,7 @@ type InferFieldValue<
       }
     : never;
 
-type InferResult<
+export type InferResult<
   T extends TypedSchema,
   SelectedFields extends UnifiedFieldSelection<T>[] | undefined,
 > = SelectedFields extends undefined
@@ -319,14 +315,14 @@ type InferResult<
 
 // Pagination conditional types
 // Checks if a page configuration object has any pagination parameters
-type HasPaginationParams<Page> =
+export type HasPaginationParams<Page> =
   Page extends { offset: any } ? true :
   Page extends { after: any } ? true :
   Page extends { before: any } ? true :
   false;
 
 // Infer which pagination type is being used from the page config
-type InferPaginationType<Page> =
+export type InferPaginationType<Page> =
   Page extends { offset: any } ? "offset" :
   Page extends { after: any } | { before: any } ? "keyset" :
   never;
@@ -335,7 +331,7 @@ type InferPaginationType<Page> =
 // For single pagination type support (offset-only or keyset-only)
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type ConditionalPaginatedResult<
+export type ConditionalPaginatedResult<
   Page,
   RecordType,
   PaginatedType
@@ -347,7 +343,7 @@ type ConditionalPaginatedResult<
 
 // For actions supporting both offset and keyset pagination
 // Infers the specific pagination type based on which params were passed
-type ConditionalPaginatedResultMixed<
+export type ConditionalPaginatedResultMixed<
   Page,
   RecordType,
   OffsetType,
@@ -533,7 +529,7 @@ export function buildCSRFHeaders(headers: Record<string, string> = {}): Record<s
  * Handles hooks, request configuration, fetch execution, and error handling
  * @param config Configuration matching ActionConfig
  */
-async function executeActionRpcRequest<T>(
+export async function executeActionRpcRequest<T>(
   payload: Record<string, any>,
   config: ActionConfig
 ): Promise<T> {
@@ -584,7 +580,7 @@ async function executeActionRpcRequest<T>(
  * Handles hooks, request configuration, fetch execution, and error handling
  * @param config Configuration matching ValidationConfig
  */
-async function executeValidationRpcRequest<T>(
+export async function executeValidationRpcRequest<T>(
   payload: Record<string, any>,
   config: ValidationConfig
 ): Promise<T> {

@@ -10,9 +10,9 @@ defmodule AgentJido.GithubIssueBot.CLI.Run do
       mix run -e "AgentJido.GithubIssueBot.CLI.Run.run(run_id: \\"test-run\\")"
   """
 
+  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
   alias Jido.AgentServer
   alias Jido.Signal
-  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
 
   require Logger
 
@@ -119,7 +119,7 @@ defmodule AgentJido.GithubIssueBot.CLI.Run do
 
     Enum.each(artifacts, fn {name, artifact} ->
       IO.puts("\n--- #{name} ---")
-      IO.inspect(artifact, pretty: true, limit: :infinity)
+      IO.puts(inspect(artifact, pretty: true, limit: :infinity))
     end)
   end
 
@@ -132,9 +132,9 @@ defmodule AgentJido.GithubIssueBot.CLI.Run do
       print_artifacts(state.artifacts)
     end
 
-    if length(state.errors) > 0 do
+    if state.errors != [] do
       IO.puts("\n--- Errors ---")
-      Enum.each(state.errors, &IO.inspect/1)
+      Enum.each(state.errors, fn error -> IO.puts(inspect(error)) end)
     end
   end
 end

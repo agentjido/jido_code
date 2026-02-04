@@ -1,4 +1,5 @@
 defmodule AgentJido.Accounts.ApiKey do
+  @moduledoc false
   use Ash.Resource,
     otp_app: :agent_jido,
     domain: AgentJido.Accounts,

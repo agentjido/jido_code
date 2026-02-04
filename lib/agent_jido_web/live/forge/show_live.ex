@@ -178,41 +178,45 @@ defmodule AgentJidoWeb.Forge.ShowLive do
     if command == "" do
       {:noreply, socket}
     else
-      socket =
-        stream_insert(socket, :output, %{
-          id: uniq_line_id(),
-          kind: :cmd,
-          text: "$ " <> command
-        })
-
-      session_id = socket.assigns.session_id
-      lv_pid = self()
-      is_needs_input = socket.assigns.status.state == :needs_input
-
-      Task.start(fn ->
-        result =
-          if is_needs_input do
-            case Forge.apply_input(session_id, command) do
-              :ok -> {:applied, command}
-              error -> error
-            end
-          else
-            Forge.exec(session_id, command)
-          end
-
-        send(lv_pid, {:terminal_exec_result, result})
-      end)
-
-      socket =
-        if is_needs_input do
-          socket
-          |> assign(:input_prompt, nil)
-        else
-          socket
-        end
-
-      {:noreply, socket}
+      do_terminal_run(socket, command)
     end
+  end
+
+  defp do_terminal_run(socket, command) do
+    socket =
+      stream_insert(socket, :output, %{
+        id: uniq_line_id(),
+        kind: :cmd,
+        text: "$ " <> command
+      })
+
+    session_id = socket.assigns.session_id
+    is_needs_input = socket.assigns.status.state == :needs_input
+
+    start_exec_task(session_id, command, is_needs_input)
+
+    socket = if is_needs_input, do: assign(socket, :input_prompt, nil), else: socket
+    {:noreply, socket}
+  end
+
+  defp start_exec_task(session_id, command, is_needs_input) do
+    lv_pid = self()
+
+    Task.start(fn ->
+      result = execute_command(session_id, command, is_needs_input)
+      send(lv_pid, {:terminal_exec_result, result})
+    end)
+  end
+
+  defp execute_command(session_id, command, true = _is_needs_input) do
+    case Forge.apply_input(session_id, command) do
+      :ok -> {:applied, command}
+      error -> error
+    end
+  end
+
+  defp execute_command(session_id, command, false = _is_needs_input) do
+    Forge.exec(session_id, command)
   end
 
   @impl true

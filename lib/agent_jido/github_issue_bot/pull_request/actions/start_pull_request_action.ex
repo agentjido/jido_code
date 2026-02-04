@@ -23,8 +23,8 @@ defmodule AgentJido.GithubIssueBot.PullRequest.Actions.StartPullRequestAction do
       research: [type: :map, required: true]
     ]
 
-  alias Jido.Agent.Directive
   alias AgentJido.GithubIssueBot.PullRequest.Workers.PatchAgent
+  alias Jido.Agent.Directive
 
   require Logger
 

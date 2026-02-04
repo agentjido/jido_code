@@ -11,8 +11,8 @@ defmodule AgentJido.GithubIssueBot.IssueRun.Actions.StartRunAction do
       issue: [type: :map, required: true]
     ]
 
-  alias Jido.Agent.Directive
   alias AgentJido.GithubIssueBot.Triage.TriageAgent
+  alias Jido.Agent.Directive
 
   require Logger
 

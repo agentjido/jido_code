@@ -64,11 +64,11 @@ defmodule AgentJido.GithubIssueBot.PullRequest.PullRequestCoordinator do
     ]
 
   alias AgentJido.GithubIssueBot.PullRequest.Actions.{
-    StartPullRequestAction,
-    WorkerStartedAction,
     PatchResultAction,
+    PRSubmitResultAction,
     QualityResultAction,
-    PRSubmitResultAction
+    StartPullRequestAction,
+    WorkerStartedAction
   }
 
   def signal_routes do

@@ -21,7 +21,7 @@ defmodule AgentJido.Forge.Persistence do
 
   require Logger
 
-  alias AgentJido.Forge.Resources.{Session, Event, ExecSession}
+  alias AgentJido.Forge.Resources.{Event, ExecSession, Session}
 
   @doc """
   Check if persistence is enabled.
@@ -187,20 +187,22 @@ defmodule AgentJido.Forge.Persistence do
   @spec log_event(String.t(), String.t(), map()) :: :ok
   def log_event(session_id, event_type, data \\ %{}) do
     if enabled?() do
-      Task.start(fn ->
-        with {:ok, session} <- find_session(session_id) do
-          Event
-          |> Ash.Changeset.for_create(:log, %{
-            session_id: session.id,
-            event_type: event_type,
-            data: data
-          })
-          |> Ash.create()
-        end
-      end)
+      Task.start(fn -> do_log_event(session_id, event_type, data) end)
     end
 
     :ok
+  end
+
+  defp do_log_event(session_id, event_type, data) do
+    with {:ok, session} <- find_session(session_id) do
+      Event
+      |> Ash.Changeset.for_create(:log, %{
+        session_id: session.id,
+        event_type: event_type,
+        data: data
+      })
+      |> Ash.create()
+    end
   end
 
   # Private helpers

@@ -109,12 +109,10 @@ defmodule AgentJido.GithubIssueBot.Research.Actions.WorkerResultAction do
   # TODO: Could use LLM to synthesize a coherent narrative
   defp synthesize_summary(worker_results) do
     parts =
-      worker_results
-      |> Enum.map(fn {worker, result} ->
+      Enum.map_join(worker_results, "; ", fn {worker, result} ->
         summary = Map.get(result, :summary, "No summary")
         "#{worker}: #{summary}"
       end)
-      |> Enum.join("; ")
 
     "Research complete. #{parts}"
   end

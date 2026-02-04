@@ -1,4 +1,5 @@
 defmodule AgentJido.Forge.Resources.SpriteSpec do
+  @moduledoc false
   use Ash.Resource,
     otp_app: :agent_jido,
     domain: AgentJido.Forge.Domain,

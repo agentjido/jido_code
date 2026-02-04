@@ -18,6 +18,7 @@ AgentJido is a Phoenix 1.8 application for the Jido AI agent ecosystem.
 
 - Elixir 1.18+
 - PostgreSQL 14+
+- Node.js 18+ (for asset compilation)
 
 ### Setup
 
@@ -26,7 +27,10 @@ AgentJido is a Phoenix 1.8 application for the Jido AI agent ecosystem.
 git clone https://github.com/agentjido/agent_jido.git
 cd agent_jido
 
-# Install dependencies and setup database
+# Install JavaScript dependencies
+cd assets && npm install && cd ..
+
+# Install Elixir dependencies and setup database
 mix setup
 
 # Start the Phoenix server

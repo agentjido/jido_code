@@ -40,11 +40,11 @@ defmodule AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent do
     ]
 
   alias AgentJido.GithubIssueBot.IssueRun.Actions.{
-    StartRunAction,
     ChildStartedAction,
-    TriageResultAction,
+    PullRequestResultAction,
     ResearchResultAction,
-    PullRequestResultAction
+    StartRunAction,
+    TriageResultAction
   }
 
   def signal_routes do

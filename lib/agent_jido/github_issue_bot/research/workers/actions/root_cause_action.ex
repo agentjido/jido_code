@@ -80,32 +80,20 @@ defmodule AgentJido.GithubIssueBot.Research.Workers.Actions.RootCauseAction do
   # Generate hypothesis based on keywords and classification
   defp hypothesize(title, body, classification) do
     cond do
-      # State-related issues
-      String.contains?(body, "state") and String.contains?(body, "persist") ->
-        {"State serialization/deserialization issue", :medium, "lib/core/state.ex"}
-
-      String.contains?(body, "state") and String.contains?(body, "lost") ->
-        {"State not being saved properly", :medium, "lib/core/agent.ex"}
-
-      # Concurrency issues
-      String.contains?(body, "race") or String.contains?(body, "concurrent") ->
-        {"Race condition in concurrent operations", :low, "lib/core/"}
-
-      # Error handling
-      String.contains?(title, "error") or String.contains?(body, "exception") ->
-        {"Unhandled error case", :medium, "lib/"}
-
-      # Classification-based fallbacks
-      classification == :bug ->
-        {"Logic error in core functionality", :low, "lib/"}
-
-      classification == :feature ->
-        {"Missing feature implementation", :high, "lib/"}
-
-      true ->
-        {"Unable to determine root cause", :low, nil}
+      state_persist_issue?(body) -> {"State serialization/deserialization issue", :medium, "lib/core/state.ex"}
+      state_lost_issue?(body) -> {"State not being saved properly", :medium, "lib/core/agent.ex"}
+      concurrency_issue?(body) -> {"Race condition in concurrent operations", :low, "lib/core/"}
+      error_handling_issue?(title, body) -> {"Unhandled error case", :medium, "lib/"}
+      classification == :bug -> {"Logic error in core functionality", :low, "lib/"}
+      classification == :feature -> {"Missing feature implementation", :high, "lib/"}
+      true -> {"Unable to determine root cause", :low, nil}
     end
   end
+
+  defp state_persist_issue?(body), do: String.contains?(body, "state") and String.contains?(body, "persist")
+  defp state_lost_issue?(body), do: String.contains?(body, "state") and String.contains?(body, "lost")
+  defp concurrency_issue?(body), do: String.contains?(body, "race") or String.contains?(body, "concurrent")
+  defp error_handling_issue?(title, body), do: String.contains?(title, "error") or String.contains?(body, "exception")
 
   # Extract evidence from issue body
   defp extract_evidence(body) do

@@ -1,4 +1,5 @@
 defmodule AgentJidoWeb.Components.MishkaComponents do
+  @moduledoc false
   defmacro __using__(_) do
     quote do
       import AgentJidoWeb.Components.Accordion, only: [accordion: 1]

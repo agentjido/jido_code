@@ -226,7 +226,7 @@ defmodule AgentJidoWeb.Components.MegaMenu do
     """
   end
 
-  defp trigger_mega_menu(),
+  defp trigger_mega_menu,
     do: "[&>.mega-menu-content]:hover:visible [&>.mega-menu-content]:hover:opacity-100"
 
   defp top_gap("none"), do: "[&>.mega-menu-content]:mt-0"

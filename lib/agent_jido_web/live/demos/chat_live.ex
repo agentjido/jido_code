@@ -130,32 +130,7 @@ defmodule AgentJidoWeb.Demos.ChatLive do
     socket = assign(socket, :poll_ref, nil)
 
     if socket.assigns.running? and socket.assigns.agent_pid do
-      case get_snapshot(socket.assigns.agent_pid) do
-        {:ok, snap} ->
-          {trace, messages, panels} =
-            process_snapshot(socket.assigns.trace, socket.assigns.messages, snap)
-
-          conversation = (snap.details || %{})[:conversation] || []
-
-          socket =
-            socket
-            |> assign(:trace, trace)
-            |> assign(:messages, messages)
-            |> assign(:panels, panels)
-            |> assign(:conversation_history, conversation)
-
-          if snap.done? and not trace.awaiting_start? do
-            {:noreply, assign(socket, :running?, false)}
-          else
-            {:noreply, schedule_poll(socket)}
-          end
-
-        {:error, reason} ->
-          {:noreply,
-           socket
-           |> assign(:running?, false)
-           |> assign(:error, "Snapshot error: #{inspect(reason)}")}
-      end
+      handle_poll_snapshot(socket)
     else
       {:noreply, socket}
     end
@@ -178,6 +153,38 @@ defmodule AgentJidoWeb.Demos.ChatLive do
     end
   end
 
+  defp handle_poll_snapshot(socket) do
+    case get_snapshot(socket.assigns.agent_pid) do
+      {:ok, snap} -> apply_snapshot(socket, snap)
+      {:error, reason} -> handle_snapshot_error(socket, reason)
+    end
+  end
+
+  defp apply_snapshot(socket, snap) do
+    {trace, messages, panels} = process_snapshot(socket.assigns.trace, socket.assigns.messages, snap)
+    conversation = (snap.details || %{})[:conversation] || []
+
+    socket =
+      socket
+      |> assign(:trace, trace)
+      |> assign(:messages, messages)
+      |> assign(:panels, panels)
+      |> assign(:conversation_history, conversation)
+
+    if snap.done? and not trace.awaiting_start? do
+      {:noreply, assign(socket, :running?, false)}
+    else
+      {:noreply, schedule_poll(socket)}
+    end
+  end
+
+  defp handle_snapshot_error(socket, reason) do
+    {:noreply,
+     socket
+     |> assign(:running?, false)
+     |> assign(:error, "Snapshot error: #{inspect(reason)}")}
+  end
+
   defp schedule_poll(socket) do
     ref = make_ref()
     Process.send_after(self(), {:poll, ref}, @poll_interval)
@@ -196,105 +203,114 @@ defmodule AgentJidoWeb.Demos.ChatLive do
 
   defp process_snapshot(trace, messages, snap) do
     details = snap.details || %{}
+    trace = maybe_clear_awaiting_start(trace, snap.status)
 
+    if trace.awaiting_start? do
+      {trace, messages, idle_panels()}
+    else
+      process_active_snapshot(trace, messages, snap, details)
+    end
+  end
+
+  defp maybe_clear_awaiting_start(trace, :running) when trace.awaiting_start?, do: %{trace | awaiting_start?: false}
+  defp maybe_clear_awaiting_start(trace, _status), do: trace
+
+  defp idle_panels do
+    %{thinking: "", usage: %{}, conversation: [], config: %{status: :idle, iteration: 0}}
+  end
+
+  defp process_active_snapshot(trace, messages, snap, details) do
     current_iteration = details[:iteration] || 0
     streaming_text = details[:streaming_text] || ""
     streaming_thinking = details[:streaming_thinking] || ""
     tool_calls = details[:tool_calls] || []
 
-    trace =
-      if trace.awaiting_start? and snap.status == :running do
-        %{trace | awaiting_start?: false}
-      else
-        trace
-      end
+    trace = update_trace_iteration(trace, current_iteration)
+    {messages, trace} = sync_tool_calls(messages, tool_calls, trace)
+    messages = update_pending_content(messages, streaming_text)
+    {messages, trace} = finalize_if_done(messages, trace, snap, streaming_text, streaming_thinking)
+    panels = build_panels(details, streaming_thinking, current_iteration, snap.status)
 
-    if trace.awaiting_start? do
-      panels = %{
-        thinking: "",
-        usage: %{},
-        conversation: [],
-        config: %{status: :idle, iteration: 0}
-      }
+    {trace, messages, panels}
+  end
 
-      {trace, messages, panels}
+  defp update_trace_iteration(trace, current_iteration) do
+    if current_iteration > trace.last_iteration and trace.last_iteration > 0 do
+      %{trace | last_iteration: current_iteration, text: "", thinking: ""}
     else
-      trace =
-        if current_iteration > trace.last_iteration and trace.last_iteration > 0 do
-          %{trace | last_iteration: current_iteration, text: "", thinking: ""}
-        else
-          %{trace | last_iteration: max(current_iteration, trace.last_iteration)}
-        end
-
-      {messages, trace} = sync_tool_calls(messages, tool_calls, trace)
-
-      messages = update_pending_content(messages, streaming_text)
-
-      {messages, trace} =
-        if snap.done? do
-          final_content = snap.result || streaming_text
-          messages = finalize_pending(messages, final_content, trace.thinking)
-          {messages, trace}
-        else
-          trace = %{trace | text: streaming_text, thinking: streaming_thinking}
-          {messages, trace}
-        end
-
-      panels = %{
-        thinking: streaming_thinking,
-        usage: details[:usage] || %{},
-        conversation: details[:conversation] || [],
-        config: %{
-          model: details[:model],
-          max_iterations: details[:max_iterations],
-          available_tools: details[:available_tools] || [],
-          current_llm_call_id: details[:current_llm_call_id],
-          iteration: current_iteration,
-          duration_ms: details[:duration_ms],
-          termination_reason: details[:termination_reason],
-          status: snap.status
-        }
-      }
-
-      {trace, messages, panels}
+      %{trace | last_iteration: max(current_iteration, trace.last_iteration)}
     end
+  end
+
+  defp finalize_if_done(messages, trace, snap, streaming_text, streaming_thinking) do
+    if snap.done? do
+      final_content = snap.result || streaming_text
+      {finalize_pending(messages, final_content, trace.thinking), trace}
+    else
+      {messages, %{trace | text: streaming_text, thinking: streaming_thinking}}
+    end
+  end
+
+  defp build_panels(details, streaming_thinking, current_iteration, status) do
+    %{
+      thinking: streaming_thinking,
+      usage: details[:usage] || %{},
+      conversation: details[:conversation] || [],
+      config: %{
+        model: details[:model],
+        max_iterations: details[:max_iterations],
+        available_tools: details[:available_tools] || [],
+        current_llm_call_id: details[:current_llm_call_id],
+        iteration: current_iteration,
+        duration_ms: details[:duration_ms],
+        termination_reason: details[:termination_reason],
+        status: status
+      }
+    }
   end
 
   defp sync_tool_calls(messages, [], trace), do: {messages, trace}
 
   defp sync_tool_calls(messages, tool_calls, trace) do
     {messages, seen, completed} =
-      Enum.reduce(tool_calls, {messages, trace.seen_tool_ids, trace.completed_tool_ids}, fn tc,
-                                                                                            {msgs, seen, completed} ->
-        if MapSet.member?(seen, tc.id) do
-          msgs = update_tool_call(msgs, tc)
-
-          completed =
-            if tc.status == :completed, do: MapSet.put(completed, tc.id), else: completed
-
-          {msgs, seen, completed}
-        else
-          tool_msg = %{
-            id: tc.id,
-            role: :tool_call,
-            tool_name: tc.name,
-            arguments: tc.arguments,
-            status: tc.status,
-            result: tc.result
-          }
-
-          msgs = insert_before_pending(msgs, tool_msg)
-          seen = MapSet.put(seen, tc.id)
-
-          completed =
-            if tc.status == :completed, do: MapSet.put(completed, tc.id), else: completed
-
-          {msgs, seen, completed}
-        end
-      end)
+      Enum.reduce(tool_calls, {messages, trace.seen_tool_ids, trace.completed_tool_ids}, &process_tool_call/2)
 
     trace = %{trace | seen_tool_ids: seen, completed_tool_ids: completed}
     {messages, trace}
+  end
+
+  defp process_tool_call(tc, {msgs, seen, completed}) do
+    if MapSet.member?(seen, tc.id) do
+      update_existing_tool_call(tc, msgs, seen, completed)
+    else
+      add_new_tool_call(tc, msgs, seen, completed)
+    end
+  end
+
+  defp update_existing_tool_call(tc, msgs, seen, completed) do
+    msgs = update_tool_call(msgs, tc)
+    completed = maybe_mark_completed(completed, tc)
+    {msgs, seen, completed}
+  end
+
+  defp add_new_tool_call(tc, msgs, seen, completed) do
+    tool_msg = %{
+      id: tc.id,
+      role: :tool_call,
+      tool_name: tc.name,
+      arguments: tc.arguments,
+      status: tc.status,
+      result: tc.result
+    }
+
+    msgs = insert_before_pending(msgs, tool_msg)
+    seen = MapSet.put(seen, tc.id)
+    completed = maybe_mark_completed(completed, tc)
+    {msgs, seen, completed}
+  end
+
+  defp maybe_mark_completed(completed, tc) do
+    if tc.status == :completed, do: MapSet.put(completed, tc.id), else: completed
   end
 
   defp update_tool_call(messages, tc) do
@@ -348,8 +364,7 @@ defmodule AgentJidoWeb.Demos.ChatLive do
 
   defp format_args(args) when is_map(args) do
     args
-    |> Enum.map(fn {k, v} -> "#{k}: #{inspect(v)}" end)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
     |> String.slice(0, 80)
   end
 
@@ -365,7 +380,7 @@ defmodule AgentJidoWeb.Demos.ChatLive do
 
     cond do
       msg[:tool_calls] ->
-        tool_names = Enum.map(msg[:tool_calls], & &1[:name]) |> Enum.join(", ")
+        tool_names = Enum.map_join(msg[:tool_calls], ", ", & &1[:name])
         "Calling: #{tool_names}"
 
       msg[:role] == :tool ->

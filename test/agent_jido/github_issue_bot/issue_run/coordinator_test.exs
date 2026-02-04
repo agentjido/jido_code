@@ -1,9 +1,9 @@
 defmodule AgentJido.GithubIssueBotTest.IssueRun.CoordinatorTest do
   use ExUnit.Case, async: false
 
+  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
   alias Jido.AgentServer
   alias Jido.Signal
-  alias AgentJido.GithubIssueBot.IssueRun.CoordinatorAgent
 
   @test_issue %{
     repo: "test/repo",

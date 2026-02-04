@@ -12,8 +12,8 @@ defmodule AgentJido.GithubIssueBot.PullRequest.Actions.PatchResultAction do
       result: [type: :map, required: true]
     ]
 
-  alias Jido.Agent.Directive
   alias AgentJido.GithubIssueBot.PullRequest.Workers.QualityAgent
+  alias Jido.Agent.Directive
 
   require Logger
 

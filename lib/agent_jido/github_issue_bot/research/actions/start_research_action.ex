@@ -18,14 +18,14 @@ defmodule AgentJido.GithubIssueBot.Research.Actions.StartResearchAction do
       triage: [type: :map, required: true]
     ]
 
-  alias Jido.Agent.Directive
-
   alias AgentJido.GithubIssueBot.Research.Workers.{
     CodeSearchAgent,
+    PRSearchAgent,
     ReproductionAgent,
-    RootCauseAgent,
-    PRSearchAgent
+    RootCauseAgent
   }
+
+  alias Jido.Agent.Directive
 
   require Logger
 

@@ -111,7 +111,7 @@ defmodule AgentJido.MixProject do
       {:jido_ai, github: "agentjido/jido_ai", branch: "main"},
       {:req_llm, "~> 1.4", override: true},
       {:timex, "~> 3.7", override: true},
-      {:gettext, "~> 0.26", override: true},
+      {:gettext, "~> 1.0", override: true},
 
       # Cloud Sandboxes
       {:sprites, github: "superfly/sprites-ex"},

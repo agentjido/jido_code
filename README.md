@@ -101,22 +101,39 @@ The intended direction (documented in [`specs/`](specs/)):
 
 ---
 
+## Setup
+
+### Using Igniter
+
+If you have [Igniter](https://hex.pm/packages/igniter) available:
+
+```bash
+mix igniter.install jido_code
+```
+
+### Manual Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/agentjido/jido_code.git
+cd jido_code
+
+# Install dependencies and set up the database
+mix setup
+
+# Start the Phoenix server
+mix phx.server
+```
+
+Visit [`localhost:4000`](http://localhost:4000) from your browser.
+
+---
+
 ## Local Development
 
 ### Prerequisites
 - Elixir `~> 1.18`
 - PostgreSQL 14+
-
-### Setup
-```bash
-git clone https://github.com/agentjido/jido_code.git
-cd jido_code
-
-mix setup
-mix phx.server
-```
-
-Visit http://localhost:4000
 
 ### Environment Variables
 

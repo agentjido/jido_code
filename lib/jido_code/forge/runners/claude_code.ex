@@ -14,9 +14,9 @@ defmodule JidoCode.Forge.Runners.ClaudeCode do
     * `:context_template` - Additional context to append
     * `:claude_settings` - Claude CLI settings JSON
 
-  ## Sprite Layout
+  ## Environment Layout
 
-  The runner sets up the following structure in the sprite:
+  The runner sets up the following structure in the environment:
 
       /var/local/forge/
       +-- session/           # Session state files
@@ -29,7 +29,7 @@ defmodule JidoCode.Forge.Runners.ClaudeCode do
   require Logger
 
   alias JidoCode.Forge.PromptRedaction
-  alias JidoCode.Forge.SpriteClient
+  alias JidoCode.Forge.InfraClient
 
   @forge_home "/var/local/forge"
 
@@ -52,7 +52,7 @@ defmodule JidoCode.Forge.Runners.ClaudeCode do
     with {:ok, redacted_prompt} <- redact_prompt(prompt, :run_iteration_prompt) do
       cmd = build_claude_command(model, max_turns, max_budget, redacted_prompt)
 
-      case SpriteClient.exec(client, cmd, timeout: :infinity) do
+      case InfraClient.exec(client, cmd, timeout: :infinity) do
         {output, 0} ->
           result = parse_claude_output(output)
           {:ok, result}
@@ -76,7 +76,7 @@ defmodule JidoCode.Forge.Runners.ClaudeCode do
   @impl true
   def apply_input(client, input, _state) do
     response = Jason.encode!(%{answer: input})
-    SpriteClient.write_file(client, "#{@forge_home}/session/response.json", response)
+    InfraClient.write_file(client, "#{@forge_home}/session/response.json", response)
   end
 
   @impl true
@@ -102,7 +102,7 @@ defmodule JidoCode.Forge.Runners.ClaudeCode do
     ]
 
     Enum.reduce_while(dirs, :ok, fn dir, :ok ->
-      case SpriteClient.exec(client, "mkdir -p #{dir}", []) do
+      case InfraClient.exec(client, "mkdir -p #{dir}", []) do
         {_, 0} -> {:cont, :ok}
         {output, code} -> {:halt, {:error, {:mkdir_failed, dir, output, code}}}
       end
@@ -115,7 +115,7 @@ defmodule JidoCode.Forge.Runners.ClaudeCode do
         :ok
 
       settings ->
-        SpriteClient.write_file(
+        InfraClient.write_file(
           client,
           "#{@forge_home}/.claude/settings.json",
           Jason.encode!(settings)
@@ -137,7 +137,7 @@ defmodule JidoCode.Forge.Runners.ClaudeCode do
 
       content ->
         with {:ok, redacted_content} <- redact_prompt(content, template_operation(key)) do
-          SpriteClient.write_file(client, "#{@forge_home}/templates/#{filename}", redacted_content)
+          InfraClient.write_file(client, "#{@forge_home}/templates/#{filename}", redacted_content)
         else
           {:error, typed_error} = error ->
             emit_redaction_failure(template_operation(key), typed_error)

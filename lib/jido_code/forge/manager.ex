@@ -13,9 +13,9 @@ defmodule JidoCode.Forge.Manager do
 
   alias JidoCode.Forge.Persistence
   alias JidoCode.Forge.PubSub, as: ForgePubSub
-  alias JidoCode.Forge.SpriteSession
+  alias JidoCode.Forge.InfraSession
 
-  @supervisor JidoCode.Forge.SpriteSupervisor
+  @supervisor JidoCode.Forge.InfraSupervisor
   @registry JidoCode.Forge.SessionRegistry
 
   @default_max_sessions 50
@@ -106,7 +106,7 @@ defmodule JidoCode.Forge.Manager do
           [] ->
             Persistence.record_session_started(session_id, spec)
 
-            child_spec = {SpriteSession, {session_id, spec, []}}
+            child_spec = {InfraSession, {session_id, spec, []}}
 
             case DynamicSupervisor.start_child(@supervisor, child_spec) do
               {:ok, pid} ->

@@ -329,14 +329,17 @@ defmodule JidoCodeWeb.Forge.ShowLive do
             <div class="bg-base-200 rounded-lg p-4">
               <div class="text-sm opacity-60 mb-1">State</div>
               <div class="text-lg font-semibold"><.state_badge state={@status.state} /></div>
+              <%= if @status[:provision_stage] do %>
+                <div class="text-xs opacity-60 mt-1"><%= provision_stage_label(@status.provision_stage) %></div>
+              <% end %>
             </div>
             <div class="bg-base-200 rounded-lg p-4">
               <div class="text-sm opacity-60 mb-1">Iteration</div>
               <div class="text-lg font-semibold">{@status.iteration}</div>
             </div>
             <div class="bg-base-200 rounded-lg p-4">
-              <div class="text-sm opacity-60 mb-1">Sprite ID</div>
-              <div class="text-sm font-mono truncate">{@status.sprite_id || "—"}</div>
+              <div class="text-sm opacity-60 mb-1">Infra ID</div>
+              <div class="text-sm font-mono truncate">{@status[:infra_id] || @status[:sprite_id] || "—"}</div>
             </div>
             <div class="bg-base-200 rounded-lg p-4">
               <div class="text-sm opacity-60 mb-1">Last Activity</div>
@@ -703,6 +706,7 @@ defmodule JidoCodeWeb.Forge.ShowLive do
   end
 
   defp state_colors(:starting), do: {"bg-info/20", "text-info"}
+  defp state_colors(:provisioning), do: {"bg-info/20", "text-info"}
   defp state_colors(:bootstrapping), do: {"bg-info/20", "text-info"}
   defp state_colors(:initializing), do: {"bg-info/20", "text-info"}
   defp state_colors(:ready), do: {"bg-success/20", "text-success"}
@@ -711,6 +715,14 @@ defmodule JidoCodeWeb.Forge.ShowLive do
   defp state_colors(:stopping), do: {"bg-base-300", "text-base-content/60"}
   defp state_colors(:stopped), do: {"bg-base-300", "text-base-content/60"}
   defp state_colors(_), do: {"bg-base-300", "text-base-content"}
+
+  defp provision_stage_label(:ssh_key), do: "Setting up SSH key..."
+  defp provision_stage_label(:server_creating), do: "Creating server..."
+  defp provision_stage_label(:server_booting), do: "Booting server..."
+  defp provision_stage_label(:ssh_waiting), do: "Waiting for SSH..."
+  defp provision_stage_label(:ssh_connected), do: "SSH connected"
+  defp provision_stage_label(:session_starting), do: "Starting session..."
+  defp provision_stage_label(_), do: "Provisioning..."
 
   defp maybe_raise_security_alert(socket, %{security_alert?: true, reason: reason}) do
     assign(socket,

@@ -1,6 +1,6 @@
 defmodule JidoCode.Forge.Runner do
   @moduledoc """
-  Behaviour for Forge runners that execute iterations in a sprite environment.
+  Behaviour for Forge runners that execute iterations in an infrastructure environment.
 
   Runners implement the core loop of the Forge system, handling initialization,
   iteration execution, input handling, and cleanup.
@@ -18,7 +18,7 @@ defmodule JidoCode.Forge.Runner do
         }
 
   @type state :: term()
-  @type sprite_client :: term()
+  @type infra_client :: term()
   @type config :: map()
   @type opts :: keyword()
   @type chunk :: term()
@@ -32,7 +32,7 @@ defmodule JidoCode.Forge.Runner do
   Called once before any iterations begin. Use this to set up initial state,
   inject environment variables, or run bootstrap commands.
   """
-  @callback init(sprite_client(), config()) :: :ok | {:error, term()}
+  @callback init(infra_client(), config()) :: :ok | {:error, term()}
 
   @doc """
   Execute a single iteration of the runner.
@@ -40,7 +40,7 @@ defmodule JidoCode.Forge.Runner do
   Returns an iteration result indicating the status and any output.
   The runner should continue to be called while status is `:continue`.
   """
-  @callback run_iteration(sprite_client(), state(), opts()) ::
+  @callback run_iteration(infra_client(), state(), opts()) ::
               {:ok, iteration_result()} | {:error, term()}
 
   @doc """
@@ -48,7 +48,7 @@ defmodule JidoCode.Forge.Runner do
 
   Called when the runner is in `:needs_input` status and input has been provided.
   """
-  @callback apply_input(sprite_client(), input(), state()) :: :ok | {:error, term()}
+  @callback apply_input(infra_client(), input(), state()) :: :ok | {:error, term()}
 
   @doc """
   Handle streaming output from the sprite.
@@ -63,7 +63,7 @@ defmodule JidoCode.Forge.Runner do
 
   Optional callback for cleanup on normal or abnormal termination.
   """
-  @callback terminate(sprite_client(), reason :: term()) :: :ok
+  @callback terminate(infra_client(), reason :: term()) :: :ok
 
   @optional_callbacks handle_output: 3, terminate: 2
 

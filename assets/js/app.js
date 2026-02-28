@@ -22,6 +22,7 @@ import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
 import { createLiveToastHook } from "../../deps/live_toast/priv/static/live_toast.esm.js";
+import { hooks as colocatedHooks } from "../../_build/dev/phoenix-colocated/jido_code/index.js";
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
@@ -32,6 +33,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   },
   hooks: {
     LiveToast: createLiveToastHook(),
+    ...colocatedHooks,
   },
 });
 // Show progress bar on live navigation and form submits

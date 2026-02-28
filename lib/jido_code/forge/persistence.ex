@@ -3,7 +3,7 @@ defmodule JidoCode.Forge.Persistence do
   Persistence layer for Forge sessions.
 
   Centralizes all Ash resource updates for session state transitions.
-  This module is called by SpriteSession to keep the database in sync
+  This module is called by InfraSession to keep the database in sync
   with runtime state.
 
   Design contract: Runtime (GenServer) is the source of truth for "what is
@@ -35,7 +35,7 @@ defmodule JidoCode.Forge.Persistence do
 
   @doc """
   Record that a session has started (provisioning phase).
-  Called from Manager.start_session or SpriteSession.init.
+  Called from Manager.start_session or InfraSession.init.
   """
   @spec record_session_started(String.t(), map()) :: {:ok, Session.t()} | {:error, term()} | :noop
   def record_session_started(session_id, spec) do
@@ -59,7 +59,7 @@ defmodule JidoCode.Forge.Persistence do
   end
 
   @doc """
-  Record that provisioning is complete with sprite info.
+  Record that provisioning is complete with infra info.
   """
   @spec record_provision_complete(String.t(), String.t(), String.t() | nil) ::
           {:ok, Session.t()} | {:error, term()} | :noop

@@ -8,7 +8,7 @@ defmodule JidoCode.Forge.Runners.Shell do
 
   @behaviour JidoCode.Forge.Runner
 
-  alias JidoCode.Forge.SpriteClient
+  alias JidoCode.Forge.InfraClient
 
   @impl true
   def init(_client, _config) do
@@ -19,7 +19,7 @@ defmodule JidoCode.Forge.Runners.Shell do
   def run_iteration(client, state, opts) do
     command = opts[:command] || Map.get(state, :command) || Map.get(state, "command")
 
-    case SpriteClient.exec(client, command, opts) do
+    case InfraClient.exec(client, command, opts) do
       {output, 0} ->
         {:ok,
          %{

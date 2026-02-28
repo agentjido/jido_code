@@ -1,9 +1,10 @@
-defmodule JidoCode.Forge.SpriteSession do
+defmodule JidoCode.Forge.InfraSession do
   @moduledoc """
-  Per-session GenServer managing a sprite lifecycle.
+  Per-session GenServer managing an infrastructure environment lifecycle.
 
   Handles provisioning, bootstrapping, runner initialization, and iteration
-  execution for a single forge session.
+  execution for a single forge session. Works with any infrastructure provider
+  (Sprites, Hetzner, local fake) via the `InfraClient.Behaviour` abstraction.
   """
 
   use GenServer
@@ -13,11 +14,12 @@ defmodule JidoCode.Forge.SpriteSession do
   alias JidoCode.Forge.Bootstrap
   alias JidoCode.Forge.Persistence
   alias JidoCode.Forge.PubSub, as: ForgePubSub
-  alias JidoCode.Forge.SpriteClient
+  alias JidoCode.Forge.InfraClient
 
   @type session_id :: String.t()
   @type state_name ::
           :starting
+          | :provisioning
           | :bootstrapping
           | :initializing
           | :ready
@@ -28,7 +30,7 @@ defmodule JidoCode.Forge.SpriteSession do
   defstruct [
     :session_id,
     :spec,
-    :sprite_id,
+    :infra_id,
     :client,
     :runner,
     :runner_state,
@@ -38,13 +40,13 @@ defmodule JidoCode.Forge.SpriteSession do
     :started_at,
     :last_activity,
     :resume_checkpoint_id,
-    :sprite_client_module
+    :infra_client_module
   ]
 
   # Public API
 
   @doc """
-  Start a new sprite session.
+  Start a new infrastructure session.
   """
   @spec start_link({session_id(), map(), keyword()}) :: GenServer.on_start()
   def start_link({session_id, spec, opts}) do
@@ -60,7 +62,7 @@ defmodule JidoCode.Forge.SpriteSession do
   end
 
   @doc """
-  Execute a command directly in the sprite.
+  Execute a command directly in the environment.
   """
   @spec exec(session_id(), String.t(), keyword()) ::
           {String.t(), non_neg_integer()} | {:error, term()}
@@ -98,7 +100,7 @@ defmodule JidoCode.Forge.SpriteSession do
   def init({session_id, spec, opts}) do
     runner_type = Map.get(spec, :runner) || Map.get(spec, :runner_type, :shell)
     runner = resolve_runner(runner_type)
-    sprite_client = resolve_sprite_client(Map.get(spec, :sprite_client, :default))
+    infra_client = resolve_infra_client(Map.get(spec, :infra_client) || Map.get(spec, :sprite_client, :default))
 
     # Use runner_state from spec if resuming, otherwise use runner_config
     runner_state =
@@ -112,7 +114,7 @@ defmodule JidoCode.Forge.SpriteSession do
     state = %__MODULE__{
       session_id: session_id,
       spec: spec,
-      sprite_id: nil,
+      infra_id: nil,
       client: nil,
       runner: runner,
       runner_state: runner_state,
@@ -122,7 +124,7 @@ defmodule JidoCode.Forge.SpriteSession do
       started_at: DateTime.utc_now(),
       last_activity: DateTime.utc_now(),
       resume_checkpoint_id: resume_checkpoint_id,
-      sprite_client_module: sprite_client
+      infra_client_module: infra_client
     }
 
     send(self(), :provision)
@@ -131,36 +133,51 @@ defmodule JidoCode.Forge.SpriteSession do
 
   @impl true
   def handle_info(:provision, state) do
-    sprite_spec = Map.get(state.spec, :sprite, %{})
-    sprite_client = state.sprite_client_module
+    infra_spec =
+      (Map.get(state.spec, :infra) || Map.get(state.spec, :sprite, %{}))
+      |> Map.merge(Map.take(state.spec, [:hetzner_config, :workspace_id]))
+    infra_client = state.infra_client_module
 
-    # If resuming from checkpoint, add checkpoint info to sprite spec
-    sprite_spec =
+    # Transition to :provisioning state
+    new_state = %{state | state: :provisioning, last_activity: DateTime.utc_now()}
+    notify_status(new_state)
+
+    # If resuming from checkpoint, add checkpoint info to spec
+    infra_spec =
       if state.resume_checkpoint_id do
-        Map.put(sprite_spec, :restore_checkpoint, state.resume_checkpoint_id)
+        Map.put(infra_spec, :restore_checkpoint, state.resume_checkpoint_id)
       else
-        sprite_spec
+        infra_spec
       end
 
-    case sprite_client.create(sprite_spec) do
-      {:ok, client, sprite_id} ->
+    # Add on_progress callback for long-running provisioning
+    session_pid = self()
+
+    infra_spec =
+      Map.put(infra_spec, :on_progress, fn stage, meta ->
+        send(session_pid, {:provision_progress, stage, meta})
+        :ok
+      end)
+
+    case infra_client.create(infra_spec) do
+      {:ok, client, infra_id} ->
         if state.resume_checkpoint_id do
           Logger.debug(
-            "Provisioned sprite #{sprite_id} from checkpoint #{state.resume_checkpoint_id} for session #{state.session_id}"
+            "Provisioned infra #{infra_id} from checkpoint #{state.resume_checkpoint_id} for session #{state.session_id}"
           )
         else
-          Logger.debug("Provisioned sprite #{sprite_id} for session #{state.session_id}")
+          Logger.debug("Provisioned infra #{infra_id} for session #{state.session_id}")
         end
 
         new_state = %{
-          state
+          new_state
           | client: client,
-            sprite_id: sprite_id,
+            infra_id: infra_id,
             state: :bootstrapping,
             last_activity: DateTime.utc_now()
         }
 
-        Persistence.record_provision_complete(state.session_id, sprite_id, nil)
+        Persistence.record_provision_complete(state.session_id, infra_id, nil)
         notify_status(new_state)
 
         # If resuming, skip bootstrap and go straight to runner init
@@ -173,23 +190,39 @@ defmodule JidoCode.Forge.SpriteSession do
         {:noreply, new_state}
 
       {:error, reason} ->
-        Logger.error("Failed to provision sprite for session #{state.session_id}: #{inspect(reason)}")
+        Logger.error("Failed to provision infra for session #{state.session_id}: #{inspect(reason)}")
 
         {:stop, {:provision_failed, reason}, state}
     end
   end
 
+  def handle_info({:provision_progress, stage, meta}, state) do
+    status = %{
+      session_id: state.session_id,
+      state: :provisioning,
+      provision_stage: stage,
+      provision_detail: meta,
+      infra_id: state.infra_id,
+      iteration: state.iteration,
+      started_at: state.started_at,
+      last_activity: DateTime.utc_now()
+    }
+
+    ForgePubSub.broadcast_session(state.session_id, {:status, status})
+    {:noreply, %{state | last_activity: DateTime.utc_now()}}
+  end
+
   def handle_info(:bootstrap, state) do
     env = Map.get(state.spec, :env, %{})
-    sprite_client = state.sprite_client_module
+    infra_client = state.infra_client_module
 
-    case sprite_client.inject_env(state.client, env) do
+    case infra_client.inject_env(state.client, env) do
       :ok ->
         bootstrap_steps = Map.get(state.spec, :bootstrap, [])
 
         case Bootstrap.execute(state.client, bootstrap_steps,
-               sprite_client: sprite_client,
-               sprite_id: state.sprite_id
+               infra_client: infra_client,
+               infra_id: state.infra_id
              ) do
           :ok ->
             Logger.debug("Bootstrap complete for session #{state.session_id}")
@@ -269,8 +302,8 @@ defmodule JidoCode.Forge.SpriteSession do
   end
 
   def handle_call({:exec, command, opts}, _from, %{state: :ready} = state) do
-    sprite_client = state.sprite_client_module
-    result = sprite_client.exec(state.client, command, opts)
+    infra_client = state.infra_client_module
+    result = infra_client.exec(state.client, command, opts)
 
     new_state = %{state | last_activity: DateTime.utc_now()}
     {:reply, result, new_state}
@@ -305,7 +338,7 @@ defmodule JidoCode.Forge.SpriteSession do
     status_map = %{
       session_id: state.session_id,
       state: state.state,
-      sprite_id: state.sprite_id,
+      infra_id: state.infra_id,
       iteration: state.iteration,
       started_at: state.started_at,
       last_activity: state.last_activity
@@ -353,15 +386,15 @@ defmodule JidoCode.Forge.SpriteSession do
       state.runner.terminate(state.client, reason)
     end
 
-    if state.client && state.sprite_id do
-      sprite_client = state.sprite_client_module
+    if state.client && state.infra_id do
+      infra_client = state.infra_client_module
 
-      case sprite_client.destroy(state.client, state.sprite_id) do
+      case infra_client.destroy(state.client, state.infra_id) do
         :ok ->
-          Logger.info("Destroyed sprite #{state.sprite_id}")
+          Logger.info("Destroyed infra #{state.infra_id}")
 
         {:error, err} ->
-          Logger.warning("Failed to destroy sprite #{state.sprite_id}: #{inspect(err)}")
+          Logger.warning("Failed to destroy infra #{state.infra_id}: #{inspect(err)}")
       end
     end
 
@@ -380,16 +413,22 @@ defmodule JidoCode.Forge.SpriteSession do
   defp resolve_runner(:custom), do: JidoCode.Forge.Runners.Custom
   defp resolve_runner(module) when is_atom(module), do: module
 
-  defp resolve_sprite_client(:default), do: SpriteClient
-  defp resolve_sprite_client(:fake), do: JidoCode.Forge.SpriteClient.Fake
-  defp resolve_sprite_client(:live), do: JidoCode.Forge.SpriteClient.Live
-  defp resolve_sprite_client(module) when is_atom(module), do: module
+  defp resolve_infra_client(:default), do: InfraClient
+  defp resolve_infra_client(:fake), do: JidoCode.Forge.InfraClient.Fake
+  defp resolve_infra_client(:live), do: JidoCode.Forge.InfraClient.Sprite
+  defp resolve_infra_client(:sprite), do: JidoCode.Forge.InfraClient.Sprite
+  defp resolve_infra_client(module) when is_atom(module) do
+    case Application.get_env(:jido_code, :infra_clients, []) |> Keyword.get(module) do
+      nil -> module
+      resolved -> resolved
+    end
+  end
 
   defp notify_status(state) do
     status = %{
       session_id: state.session_id,
       state: state.state,
-      sprite_id: state.sprite_id,
+      infra_id: state.infra_id,
       iteration: state.iteration,
       started_at: state.started_at,
       last_activity: state.last_activity

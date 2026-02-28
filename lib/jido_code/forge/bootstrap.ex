@@ -1,8 +1,8 @@
 defmodule JidoCode.Forge.Bootstrap do
   @moduledoc """
-  Execute bootstrap steps to set up a sprite environment.
+  Execute bootstrap steps to set up an infrastructure environment.
 
-  Bootstrap steps prepare the sprite for running iterations by executing
+  Bootstrap steps prepare the environment for running iterations by executing
   commands, writing files, and configuring the environment.
   """
 
@@ -21,8 +21,8 @@ defmodule JidoCode.Forge.Bootstrap do
 
   ## Options
 
-    * `:sprite_client` - The sprite client module to use (defaults to JidoCode.Forge.SpriteClient)
-    * `:sprite_id` - The sprite identifier for command execution
+    * `:infra_client` - The infra client module to use (defaults to JidoCode.Forge.InfraClient)
+    * `:infra_id` - The infrastructure identifier for command execution
     * `:on_step` - Optional callback `fn step, index -> :ok end` called before each step
 
   ## Examples
@@ -32,7 +32,7 @@ defmodule JidoCode.Forge.Bootstrap do
         %{type: "file", path: "config.json", content: "{}"}
       ]
 
-      Bootstrap.execute(client, steps, sprite_id: "abc123")
+      Bootstrap.execute(client, steps, infra_id: "abc123")
       #=> :ok
 
   """
@@ -63,9 +63,9 @@ defmodule JidoCode.Forge.Bootstrap do
   def execute_step(client, %{type: "exec", command: command} = step, opts) do
     Logger.debug("Executing bootstrap command: #{command}")
 
-    sprite_client = Keyword.get(opts, :sprite_client, JidoCode.Forge.SpriteClient)
+    infra_client = Keyword.get(opts, :infra_client, JidoCode.Forge.InfraClient)
 
-    case sprite_client.exec(client, command, opts) do
+    case infra_client.exec(client, command, opts) do
       {_output, 0} ->
         :ok
 
@@ -77,9 +77,9 @@ defmodule JidoCode.Forge.Bootstrap do
   def execute_step(client, %{type: "file", path: path, content: content}, opts) do
     Logger.debug("Writing bootstrap file: #{path}")
 
-    sprite_client = Keyword.get(opts, :sprite_client, JidoCode.Forge.SpriteClient)
+    infra_client = Keyword.get(opts, :infra_client, JidoCode.Forge.InfraClient)
 
-    case sprite_client.write_file(client, path, content) do
+    case infra_client.write_file(client, path, content) do
       :ok -> :ok
       {:error, reason} -> {:error, {:write_failed, path, reason}}
     end

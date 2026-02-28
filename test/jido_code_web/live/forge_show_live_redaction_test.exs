@@ -39,7 +39,7 @@ defmodule JidoCodeWeb.ForgeShowLiveRedactionTest do
     session_id = "forge-redaction-#{System.unique_integer([:positive])}"
 
     spec = %{
-      sprite_client: :fake,
+      infra_client: :fake,
       runner: :shell,
       runner_config: %{command: "echo redaction-ready"},
       env: %{},

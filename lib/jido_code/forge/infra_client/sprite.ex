@@ -1,6 +1,6 @@
-defmodule JidoCode.Forge.SpriteClient.Live do
+defmodule JidoCode.Forge.InfraClient.Sprite do
   @moduledoc """
-  Live sprite client implementation using the real Sprites SDK.
+  Sprite infrastructure client implementation using the real Sprites SDK.
 
   Connects to the Sprites API to create and manage remote containers.
 
@@ -10,11 +10,11 @@ defmodule JidoCode.Forge.SpriteClient.Live do
 
   Optional configuration via application env:
 
-      config :jido_code, JidoCode.Forge.SpriteClient.Live,
+      config :jido_code, JidoCode.Forge.InfraClient.Sprite,
         base_url: "https://api.sprites.dev"
   """
 
-  @behaviour JidoCode.Forge.SpriteClient.Behaviour
+  @behaviour JidoCode.Forge.InfraClient.Behaviour
 
   require Logger
 
@@ -157,7 +157,7 @@ defmodule JidoCode.Forge.SpriteClient.Live do
   end
 
   @impl true
-  def destroy(%__MODULE__{sprite: sprite, sprite_id: sprite_id} = _client, _sprite_id) do
+  def destroy(%__MODULE__{sprite: sprite, sprite_id: sprite_id} = _client, _infra_id) do
     Logger.debug("Destroying live sprite #{sprite_id}")
 
     case Sprites.destroy(sprite) do

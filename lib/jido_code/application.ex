@@ -18,7 +18,7 @@ defmodule JidoCode.Application do
         {AshAuthentication.Supervisor, [otp_app: :jido_code]},
         # Forge supervision tree
         {Registry, keys: :unique, name: JidoCode.Forge.SessionRegistry},
-        {DynamicSupervisor, name: JidoCode.Forge.SpriteSupervisor, strategy: :one_for_one},
+        {DynamicSupervisor, name: JidoCode.Forge.InfraSupervisor, strategy: :one_for_one},
         {DynamicSupervisor, name: JidoCode.Forge.ExecSessionSupervisor, strategy: :one_for_one},
         JidoCode.Forge.Manager
       ] ++ forge_dev_children()
@@ -38,7 +38,7 @@ defmodule JidoCode.Application do
   end
 
   if Application.compile_env(:jido_code, :runtime_mode, :prod) in [:dev, :test] do
-    defp forge_dev_children, do: [{JidoCode.Forge.SpriteClient.Fake, []}]
+    defp forge_dev_children, do: [{JidoCode.Forge.InfraClient.Fake, []}]
   else
     defp forge_dev_children, do: []
   end

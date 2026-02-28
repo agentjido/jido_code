@@ -2,7 +2,7 @@ defmodule JidoCode.Forge.Workers.StreamingExecSessionWorker do
   @moduledoc """
   Worker for streaming command execution with output coalescing and backpressure.
 
-  Handles real-time output streaming from sprite commands, coalescing chunks
+  Handles real-time output streaming from infra commands, coalescing chunks
   to avoid overwhelming subscribers while maintaining responsiveness.
   """
 
@@ -24,7 +24,7 @@ defmodule JidoCode.Forge.Workers.StreamingExecSessionWorker do
     :exec_session_id,
     :sequence,
     :command_ref,
-    :sprite_client,
+    :infra_client,
     :client,
     buffer: "",
     last_flush: 0,
@@ -44,8 +44,8 @@ defmodule JidoCode.Forge.Workers.StreamingExecSessionWorker do
     * `:session_id` - The parent session ID (required)
     * `:sequence` - Execution sequence number (required)  
     * `:command` - Command to execute (required)
-    * `:client` - Sprite client struct (required)
-    * `:sprite_client` - Sprite client module (required)
+    * `:client` - Infra client struct (required)
+    * `:infra_client` - Infra client module (required)
     * `:sprites_session_id` - Optional sprites API session ID
     * `:metadata` - Optional metadata map
   """
@@ -63,20 +63,20 @@ defmodule JidoCode.Forge.Workers.StreamingExecSessionWorker do
     sequence = Keyword.fetch!(args, :sequence)
     command = Keyword.fetch!(args, :command)
     client = Keyword.fetch!(args, :client)
-    sprite_client = Keyword.fetch!(args, :sprite_client)
+    infra_client = Keyword.fetch!(args, :infra_client)
     sprites_session_id = Keyword.get(args, :sprites_session_id)
     metadata = Keyword.get(args, :metadata, %{})
 
     case create_exec_session_record(session_id, sequence, command, sprites_session_id, metadata) do
       {:ok, exec_session} ->
-        case sprite_client.spawn(client, "bash", ["-c", command], tty: true) do
+        case infra_client.spawn(client, "bash", ["-c", command], tty: true) do
           {:ok, cmd_ref} ->
             state = %__MODULE__{
               session_id: session_id,
               exec_session_id: exec_session.id,
               sequence: sequence,
               command_ref: cmd_ref,
-              sprite_client: sprite_client,
+              infra_client: infra_client,
               client: client,
               buffer: "",
               last_flush: System.monotonic_time(:millisecond),

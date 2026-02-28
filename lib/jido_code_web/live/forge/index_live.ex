@@ -3,7 +3,7 @@ defmodule JidoCodeWeb.Forge.IndexLive do
 
   alias JidoCode.Forge
   alias JidoCode.Forge.PubSub, as: ForgePubSub
-  alias JidoCode.Forge.SpriteClient.Live, as: LiveClient
+  alias JidoCode.Forge.InfraClient.Sprite, as: SpriteClient
 
   @impl true
   def mount(_params, _session, socket) do
@@ -56,7 +56,7 @@ defmodule JidoCodeWeb.Forge.IndexLive do
   end
 
   def handle_event("destroy_sprite", %{"name" => name}, socket) do
-    case LiveClient.destroy_by_name(name) do
+    case SpriteClient.destroy_by_name(name) do
       :ok ->
         sprites = load_sprites()
 
@@ -74,7 +74,7 @@ defmodule JidoCodeWeb.Forge.IndexLive do
     session_id = "test-#{:erlang.unique_integer([:positive])}"
 
     spec = %{
-      sprite_client: :live,
+      infra_client: :live,
       runner: :shell,
       runner_config: %{command: "cat /app/greeting.txt && echo 'TEST_VAR='$TEST_VAR"},
       env: %{"TEST_VAR" => "hello_from_forge"},
@@ -105,7 +105,7 @@ defmodule JidoCodeWeb.Forge.IndexLive do
           <h1 class="text-2xl font-bold">Forge Sessions</h1>
           <div class="flex gap-2">
             <button phx-click="start_test_session" class="btn btn-secondary">
-              Test Session
+              Sprites Session
             </button>
             <.link navigate={~p"/forge/new"} class="btn btn-primary">
               New Session
@@ -220,7 +220,7 @@ defmodule JidoCodeWeb.Forge.IndexLive do
   end
 
   defp load_sprites do
-    case LiveClient.list_sprites() do
+    case SpriteClient.list_sprites() do
       {:ok, sprites} -> sprites
       {:error, _} -> []
     end
@@ -261,6 +261,7 @@ defmodule JidoCodeWeb.Forge.IndexLive do
   end
 
   defp state_colors(:starting), do: {"bg-info/20", "text-info"}
+  defp state_colors(:provisioning), do: {"bg-info/20", "text-info"}
   defp state_colors(:bootstrapping), do: {"bg-info/20", "text-info"}
   defp state_colors(:initializing), do: {"bg-info/20", "text-info"}
   defp state_colors(:ready), do: {"bg-success/20", "text-success"}

@@ -1,12 +1,12 @@
-defmodule JidoCode.Forge.SpriteClient.Fake do
+defmodule JidoCode.Forge.InfraClient.Fake do
   @moduledoc """
-  Fake sprite client implementation for development and testing.
+  Fake infrastructure client implementation for development and testing.
 
-  Uses local temporary directories as isolated "sprites" and executes
+  Uses local temporary directories as isolated environments and executes
   commands via System.cmd. State is managed by an Agent process.
   """
 
-  @behaviour JidoCode.Forge.SpriteClient.Behaviour
+  @behaviour JidoCode.Forge.InfraClient.Behaviour
 
   use Agent
 
@@ -19,13 +19,13 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
 
   @type t :: %__MODULE__{agent_pid: pid()}
 
-  @type sprite_state :: %{
+  @type infra_state :: %{
           dir: String.t(),
           env: %{String.t() => String.t()}
         }
 
   @doc """
-  Start the fake sprite client agent.
+  Start the fake infra client agent.
   """
   @spec start_link(keyword()) :: Agent.on_start()
   def start_link(_opts) do
@@ -49,21 +49,21 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
   def create(spec) do
     {:ok, agent_pid} = Agent.start_link(fn -> %{} end)
 
-    sprite_id = generate_sprite_id()
+    infra_id = generate_infra_id()
     base_dir = Map.get(spec, :base_dir, System.tmp_dir!())
-    sprite_dir = Path.join(base_dir, "forge_sprite_#{sprite_id}")
+    infra_dir = Path.join(base_dir, "forge_infra_#{infra_id}")
 
-    case File.mkdir_p(sprite_dir) do
+    case File.mkdir_p(infra_dir) do
       :ok ->
-        state = %{dir: sprite_dir, env: %{}}
+        state = %{dir: infra_dir, env: %{}}
 
-        Agent.update(agent_pid, fn sprites ->
-          Map.put(sprites, sprite_id, state)
+        Agent.update(agent_pid, fn envs ->
+          Map.put(envs, infra_id, state)
         end)
 
-        Logger.debug("Created fake sprite #{sprite_id} at #{sprite_dir}")
+        Logger.debug("Created fake infra #{infra_id} at #{infra_dir}")
         client = %__MODULE__{agent_pid: agent_pid}
-        {:ok, client, sprite_id}
+        {:ok, client, infra_id}
 
       {:error, reason} ->
         Agent.stop(agent_pid)
@@ -74,17 +74,17 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
   @impl true
   def exec(%__MODULE__{agent_pid: agent_pid} = _client, command, opts) do
     ensure_agent_started(agent_pid)
-    sprite_id = Keyword.get(opts, :sprite_id)
+    infra_id = Keyword.get(opts, :infra_id) || Keyword.get(opts, :sprite_id)
     timeout = Keyword.get(opts, :timeout, 60_000)
 
-    sprite_state = get_sprite_state(agent_pid, sprite_id)
+    infra_state = get_infra_state(agent_pid, infra_id)
 
     env =
-      sprite_state.env
+      infra_state.env
       |> Enum.map(fn {k, v} -> {to_binary_string(k), to_binary_string(v)} end)
 
     cmd_opts = [
-      cd: sprite_state.dir,
+      cd: infra_state.dir,
       env: env,
       stderr_to_stdout: true
     ]
@@ -103,11 +103,11 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
   @impl true
   def spawn(%__MODULE__{agent_pid: agent_pid} = _client, command, args, opts) do
     ensure_agent_started(agent_pid)
-    sprite_id = Keyword.get(opts, :sprite_id)
-    sprite_state = get_sprite_state(agent_pid, sprite_id)
+    infra_id = Keyword.get(opts, :infra_id) || Keyword.get(opts, :sprite_id)
+    infra_state = get_infra_state(agent_pid, infra_id)
 
     env =
-      sprite_state.env
+      infra_state.env
       |> Enum.map(fn {k, v} -> {to_binary_string(k), to_binary_string(v)} end)
 
     port_opts = [
@@ -115,7 +115,7 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
       :exit_status,
       :use_stdio,
       :stderr_to_stdout,
-      {:cd, sprite_state.dir},
+      {:cd, infra_state.dir},
       {:env, env},
       {:args, args}
     ]
@@ -131,14 +131,14 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
   @impl true
   def write_file(%__MODULE__{agent_pid: agent_pid} = _client, path, content) do
     ensure_agent_started(agent_pid)
-    sprites = Agent.get(agent_pid, & &1)
+    envs = Agent.get(agent_pid, & &1)
 
-    sprite_state =
-      sprites
+    infra_state =
+      envs
       |> Map.values()
       |> List.first()
 
-    full_path = resolve_path(sprite_state.dir, path)
+    full_path = resolve_path(infra_state.dir, path)
 
     with :ok <- File.mkdir_p(Path.dirname(full_path)),
          :ok <- File.write(full_path, content) do
@@ -151,14 +151,14 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
   @impl true
   def read_file(%__MODULE__{agent_pid: agent_pid} = _client, path) do
     ensure_agent_started(agent_pid)
-    sprites = Agent.get(agent_pid, & &1)
+    envs = Agent.get(agent_pid, & &1)
 
-    sprite_state =
-      sprites
+    infra_state =
+      envs
       |> Map.values()
       |> List.first()
 
-    full_path = resolve_path(sprite_state.dir, path)
+    full_path = resolve_path(infra_state.dir, path)
 
     case File.read(full_path) do
       {:ok, content} -> {:ok, content}
@@ -169,12 +169,12 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
   @impl true
   def inject_env(%__MODULE__{agent_pid: agent_pid} = _client, env_map) do
     ensure_agent_started(agent_pid)
-    sprites = Agent.get(agent_pid, & &1)
+    envs = Agent.get(agent_pid, & &1)
 
-    case Map.keys(sprites) do
-      [sprite_id | _] ->
-        Agent.update(agent_pid, fn sprites ->
-          update_in(sprites, [sprite_id, :env], fn existing_env ->
+    case Map.keys(envs) do
+      [infra_id | _] ->
+        Agent.update(agent_pid, fn envs ->
+          update_in(envs, [infra_id, :env], fn existing_env ->
             # Normalize all env values to strings (binaries)
             normalized_map =
               env_map
@@ -188,27 +188,27 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
         :ok
 
       [] ->
-        {:error, :no_sprite}
+        {:error, :no_infra}
     end
   end
 
   @impl true
-  def destroy(%__MODULE__{agent_pid: agent_pid} = _client, sprite_id) do
+  def destroy(%__MODULE__{agent_pid: agent_pid} = _client, infra_id) do
     ensure_agent_started(agent_pid)
-    sprite_state = Agent.get(agent_pid, fn sprites -> Map.get(sprites, sprite_id) end)
+    infra_state = Agent.get(agent_pid, fn envs -> Map.get(envs, infra_id) end)
 
-    case sprite_state do
+    case infra_state do
       nil ->
         {:error, :not_found}
 
       %{dir: dir} ->
         File.rm_rf(dir)
 
-        Agent.update(agent_pid, fn sprites ->
-          Map.delete(sprites, sprite_id)
+        Agent.update(agent_pid, fn envs ->
+          Map.delete(envs, infra_id)
         end)
 
-        Logger.debug("Destroyed fake sprite #{sprite_id}")
+        Logger.debug("Destroyed fake infra #{infra_id}")
         :ok
     end
   end
@@ -219,21 +219,21 @@ defmodule JidoCode.Forge.SpriteClient.Fake do
     end
   end
 
-  defp generate_sprite_id do
+  defp generate_infra_id do
     :crypto.strong_rand_bytes(8)
     |> Base.hex_encode32(case: :lower, padding: false)
   end
 
-  defp get_sprite_state(agent_pid, nil) do
-    sprites = Agent.get(agent_pid, & &1)
+  defp get_infra_state(agent_pid, nil) do
+    envs = Agent.get(agent_pid, & &1)
 
-    sprites
+    envs
     |> Map.values()
     |> List.first()
   end
 
-  defp get_sprite_state(agent_pid, sprite_id) do
-    Agent.get(agent_pid, fn sprites -> Map.get(sprites, sprite_id) end)
+  defp get_infra_state(agent_pid, infra_id) do
+    Agent.get(agent_pid, fn envs -> Map.get(envs, infra_id) end)
   end
 
   defp resolve_path(base_dir, path) do

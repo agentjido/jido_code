@@ -1,23 +1,23 @@
-defmodule JidoCode.Forge.SpriteClient do
+defmodule JidoCode.Forge.InfraClient do
   @moduledoc """
-  Facade for sprite client operations.
+  Facade for infrastructure client operations.
 
   Delegates all calls to the appropriate implementation module based on
   the client struct type. For `create/1`, uses the configured implementation.
 
   Configure via:
 
-      config :jido_code, :forge_sprite_client, MyApp.SpriteClient.Impl
+      config :jido_code, :forge_infra_client, MyApp.InfraClient.Impl
 
-  Defaults to `JidoCode.Forge.SpriteClient.Fake` for development and testing.
+  Defaults to `JidoCode.Forge.InfraClient.Fake` for development and testing.
   """
 
-  @behaviour JidoCode.Forge.SpriteClient.Behaviour
+  @behaviour JidoCode.Forge.InfraClient.Behaviour
 
-  alias JidoCode.Forge.SpriteClient.Fake
+  alias JidoCode.Forge.InfraClient.Fake
 
   defp impl do
-    Application.get_env(:jido_code, :forge_sprite_client, Fake)
+    Application.get_env(:jido_code, :forge_infra_client, Fake)
   end
 
   defp impl_for(%module{} = _client) when is_atom(module) do
@@ -29,7 +29,7 @@ defmodule JidoCode.Forge.SpriteClient do
   end
 
   defp impl_for(client) do
-    raise ArgumentError, "Unknown sprite client struct: #{inspect(client)}"
+    raise ArgumentError, "Unknown infra client struct: #{inspect(client)}"
   end
 
   @impl true
@@ -66,7 +66,7 @@ defmodule JidoCode.Forge.SpriteClient do
   end
 
   @impl true
-  def destroy(client, sprite_id) do
-    impl_for(client).destroy(client, sprite_id)
+  def destroy(client, infra_id) do
+    impl_for(client).destroy(client, infra_id)
   end
 end

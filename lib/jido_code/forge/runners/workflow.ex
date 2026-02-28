@@ -3,7 +3,7 @@ defmodule JidoCode.Forge.Runners.Workflow do
   Data-driven workflow runner.
 
   Executes a series of steps defined in data, supporting:
-  - `:exec` - Run shell command with SpriteClient.exec
+  - `:exec` - Run shell command with InfraClient.exec
   - `:prompt` - Return :needs_input status with question
   - `:condition` - Evaluate check and set jump_to in metadata
   - `:call` - Call a custom StepHandler module
@@ -24,14 +24,14 @@ defmodule JidoCode.Forge.Runners.Workflow do
   @behaviour JidoCode.Forge.Runner
 
   alias JidoCode.Forge.Runner
-  alias JidoCode.Forge.SpriteClient
+  alias JidoCode.Forge.InfraClient
 
   @impl true
   def init(client, %{workflow: workflow} = config) do
-    if config[:write_to_sprite] do
+    if config[:write_to_infra] do
       path = config[:workflow_path] || "/tmp/workflow.json"
       content = Jason.encode!(workflow)
-      SpriteClient.write_file(client, path, content)
+      InfraClient.write_file(client, path, content)
     end
 
     :ok
@@ -94,7 +94,7 @@ defmodule JidoCode.Forge.Runners.Workflow do
     command = step[:command] || step["command"]
     interpolated = interpolate_variables(command, step_results)
 
-    case SpriteClient.exec(client, interpolated, opts) do
+    case InfraClient.exec(client, interpolated, opts) do
       {output, 0} ->
         new_results = Map.put(step_results, step_id, %{output: output, exit_code: 0})
 

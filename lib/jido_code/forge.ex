@@ -2,10 +2,10 @@ defmodule JidoCode.Forge do
   @moduledoc """
   Jido Forge - Generic parallel sandbox execution.
 
-  Forge manages sprite sessions with pluggable runners.
+  Forge manages infrastructure sessions with pluggable runners.
   """
 
-  alias JidoCode.Forge.{Manager, Operations, SpriteSession}
+  alias JidoCode.Forge.{Manager, Operations, InfraSession}
 
   defmodule SessionHandle do
     @moduledoc """
@@ -69,7 +69,7 @@ defmodule JidoCode.Forge do
   """
   @spec status(String.t()) :: {:ok, map()} | {:error, term()}
   def status(session_id) do
-    SpriteSession.status(session_id)
+    InfraSession.status(session_id)
   end
 
   # Execution
@@ -79,20 +79,20 @@ defmodule JidoCode.Forge do
   """
   @spec run_iteration(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def run_iteration(session_id, opts \\ []) do
-    SpriteSession.run_iteration(session_id, opts)
+    InfraSession.run_iteration(session_id, opts)
   end
 
   @doc """
-  Executes a command directly in the sprite.
+  Executes a command directly in the environment.
   """
   @spec exec(String.t(), String.t(), keyword()) ::
           {String.t(), non_neg_integer()} | {:error, term()}
   def exec(session_id, command, opts \\ []) do
-    SpriteSession.exec(session_id, command, opts)
+    InfraSession.exec(session_id, command, opts)
   end
 
   @doc """
-  Execute a command synchronously in the session's sprite (Sprites-style API).
+  Execute a command synchronously in the session's environment (Sprites-style API).
 
   Unlike `exec/3` which takes a raw command string, this takes command and args
   separately for proper escaping and consistency with the Sprites SDK.
@@ -129,7 +129,7 @@ defmodule JidoCode.Forge do
   """
   @spec apply_input(String.t(), term()) :: :ok | {:error, term()}
   def apply_input(session_id, input) do
-    SpriteSession.apply_input(session_id, input)
+    InfraSession.apply_input(session_id, input)
   end
 
   @doc """

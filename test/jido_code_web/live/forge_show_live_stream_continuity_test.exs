@@ -104,7 +104,7 @@ defmodule JidoCodeWeb.ForgeShowLiveStreamContinuityTest do
     session_id = "forge-stream-#{System.unique_integer([:positive])}"
 
     spec = %{
-      sprite_client: :fake,
+      infra_client: :fake,
       runner: :shell,
       runner_config: %{command: "echo stream-ready"},
       env: %{},

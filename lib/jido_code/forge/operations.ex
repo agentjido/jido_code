@@ -18,7 +18,7 @@ defmodule JidoCode.Forge.Operations do
   1. Loads session and validates it has a checkpoint
   2. Updates session state to :resuming via Ash
   3. Logs resume event
-  4. Starts a new SpriteSession process with checkpoint restoration
+  4. Starts a new InfraSession process with checkpoint restoration
 
   Returns `{:ok, pid}` on success or `{:error, reason}` on failure.
   """
@@ -40,7 +40,7 @@ defmodule JidoCode.Forge.Operations do
 
   1. Updates session state to :cancelled via Ash
   2. Logs cancellation event
-  3. Stops the session process (which triggers sprite cleanup)
+  3. Stops the session process (which triggers infra cleanup)
   4. Broadcasts cancellation
 
   Returns `:ok` on success or `{:error, reason}` on failure.

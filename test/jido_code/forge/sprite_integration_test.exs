@@ -12,7 +12,7 @@ defmodule JidoCode.Forge.SpriteIntegrationTest do
 
   alias JidoCode.Forge
   alias JidoCode.Forge.PubSub, as: ForgePubSub
-  alias JidoCode.Forge.SpriteClient.Live
+  alias JidoCode.Forge.InfraClient.Sprite, as: Live
 
   @moduletag :sprite_integration
 
@@ -22,17 +22,17 @@ defmodule JidoCode.Forge.SpriteIntegrationTest do
     if is_nil(token) or token == "" do
       {:ok, skip: true}
     else
-      original_client = Application.get_env(:jido_code, :forge_sprite_client)
+      original_client = Application.get_env(:jido_code, :forge_infra_client)
       original_persistence = Application.get_env(:jido_code, JidoCode.Forge.Persistence)
 
-      Application.put_env(:jido_code, :forge_sprite_client, Live)
+      Application.put_env(:jido_code, :forge_infra_client, Live)
       Application.put_env(:jido_code, JidoCode.Forge.Persistence, enabled: false)
 
       on_exit(fn ->
         if original_client do
-          Application.put_env(:jido_code, :forge_sprite_client, original_client)
+          Application.put_env(:jido_code, :forge_infra_client, original_client)
         else
-          Application.delete_env(:jido_code, :forge_sprite_client)
+          Application.delete_env(:jido_code, :forge_infra_client)
         end
 
         if original_persistence do

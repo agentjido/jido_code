@@ -7,8 +7,9 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   # covers: auth.github_integration.github_app_preferred
   # covers: auth.github_integration.non_blocking_local_auth
   # covers: auth.github_service_credentials.login_service_split
+  # covers: source.provider_adapter.github_adapter
 
-  alias JidoCode.GitHub.{HTTPClient, ServiceCredentials}
+  alias JidoCode.SourceProviders
 
   @default_checker_remediation "Verify GitHub credential checker configuration and retry setup."
   @default_repo_access_remediation "Grant repository access for this owner context and retry validation."
@@ -593,7 +594,7 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   end
 
   defp path_definitions do
-    ServiceCredentials.path_definitions()
+    source_provider_adapter().path_definitions()
   end
 
   defp path_definition(path) do
@@ -616,25 +617,11 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
     definition
     |> Map.get(:credential_keys, [])
     |> Enum.map(fn credential ->
-      case ServiceCredentials.resolve(credential) do
+      case source_provider_adapter().resolve_service_credential(credential) do
         {:ok, value, _diagnostics} -> value
         {:error, _status, _diagnostics} -> nil
       end
     end)
-  end
-
-  defp credential_value(env_key, app_env_key) do
-    env_key
-    |> System.get_env()
-    |> present_runtime_value()
-    |> case do
-      nil ->
-        Application.get_env(:jido_code, app_env_key)
-        |> present_runtime_value()
-
-      value ->
-        value
-    end
   end
 
   defp fetch_repositories(definition, owner_context) do
@@ -666,8 +653,13 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   end
 
   defp fetch_repositories_from_http(definition, owner_context) do
-    with token when is_binary(token) <- api_token(definition),
-         {:ok, repositories} <- invoke_github_http_client(definition.path, token, owner_context) do
+    with token when is_binary(token) <- source_provider_adapter().resolve_api_token(definition),
+         {:ok, repositories} <-
+           source_provider_adapter().list_accessible_repositories(
+             definition.path,
+             token,
+             owner_context: owner_context
+           ) do
       {:ok, extract_repository_names(repositories)}
     else
       nil ->
@@ -675,57 +667,6 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
 
       {:error, _failure} = error ->
         error
-    end
-  end
-
-  defp invoke_github_http_client(path, token, owner_context) do
-    client = Application.get_env(:jido_code, :setup_github_http_client, HTTPClient)
-    options = Application.get_env(:jido_code, :setup_github_http_client_options, [])
-    request_options = Keyword.merge(options, owner_context: owner_context)
-
-    case client do
-      module when is_atom(module) ->
-        if function_exported?(module, :list_accessible_repositories, 3) do
-          module.list_accessible_repositories(path, token, request_options)
-        else
-          {:error,
-           %{
-             error_type: "github_http_client_unavailable",
-             detail: "GitHub HTTP client module does not export list_accessible_repositories/3.",
-             remediation: @default_checker_remediation
-           }}
-        end
-
-      fun when is_function(fun, 3) ->
-        fun.(path, token, request_options)
-
-      _other ->
-        {:error,
-         %{
-           error_type: "github_http_client_invalid",
-           detail: "GitHub HTTP client configuration is invalid.",
-           remediation: @default_checker_remediation
-         }}
-    end
-  end
-
-  defp api_token(definition) do
-    case Map.get(definition, :api_token_credential) do
-      credential when credential in [:app_id, :app_private_key, :webhook_secret, :pat] ->
-        case ServiceCredentials.resolve(credential) do
-          {:ok, value, _diagnostics} -> value
-          {:error, _status, _diagnostics} -> nil
-        end
-
-      _other ->
-        token_env = Map.get(definition, :api_token_env)
-        token_app_env = Map.get(definition, :api_token_app_env)
-
-        if is_binary(token_env) and is_atom(token_app_env) do
-          credential_value(token_env, token_app_env)
-        else
-          nil
-        end
     end
   end
 
@@ -1135,19 +1076,12 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   defp format_datetime(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
   defp format_datetime(_), do: nil
 
-  defp present_runtime_value(value) when is_binary(value) do
-    value
-    |> String.trim()
-    |> case do
-      "" -> nil
-      trimmed -> trimmed
-    end
-  end
-
-  defp present_runtime_value(_value), do: nil
-
   defp ready_path?(path_result) do
     path_result.status == :ready and path_result.repository_access == :confirmed
+  end
+
+  defp source_provider_adapter do
+    Application.get_env(:jido_code, :github_source_provider_adapter, SourceProviders.adapter!(:github))
   end
 
   defp previous_statuses(previous_state) do

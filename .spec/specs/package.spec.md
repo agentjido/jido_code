@@ -80,4 +80,9 @@ surface:
   target: .spec/specs/provider_login_flow.spec.md
   covers:
     - package.jido_code.auth_provider_foundation_in_repo
+
+- kind: source_file
+  target: .spec/specs/source_provider_adapter.spec.md
+  covers:
+    - package.jido_code.auth_provider_foundation_in_repo
 ```

@@ -427,6 +427,46 @@
         "subject_id": "package.jido_code"
       },
       {
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "id": "source.provider_adapter.behavior_contract",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Source provider adapters shall implement a shared behavior for configuration, service credential resolution, API token lookup, and repository listing.",
+        "subject_id": "source.provider_adapter"
+      },
+      {
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "id": "source.provider_adapter.github_adapter",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "GitHub service credential checks shall delegate provider-specific credential and repository-access logic through the GitHub adapter rather than reaching directly into GitHub modules.",
+        "subject_id": "source.provider_adapter"
+      },
+      {
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "id": "source.provider_adapter.github_app_preferred",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The GitHub adapter shall preserve GitHub App preference ahead of PAT fallback in the setup-path model.",
+        "subject_id": "source.provider_adapter"
+      },
+      {
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "id": "source.provider_adapter.placeholder_adapters",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "GitLab and Bitbucket shall have explicit placeholder adapters so unsupported provider integrations fail through named boundaries rather than implicit missing-module behavior.",
+        "subject_id": "source.provider_adapter"
+      },
+      {
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "id": "source.provider_adapter.provider_catalog",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The source provider boundary shall enumerate GitHub, GitLab, and Bitbucket adapter modules through a shared provider catalog.",
+        "subject_id": "source.provider_adapter"
+      },
+      {
         "file": ".spec/specs/spec_system.spec.md",
         "id": "spec.workspace.agents_present",
         "priority": "must",
@@ -904,6 +944,43 @@
       },
       {
         "covers": [
+          "source.provider_adapter.behavior_contract",
+          "source.provider_adapter.github_adapter",
+          "source.provider_adapter.github_app_preferred"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "given": [
+          "Setup needs to validate deployment-local GitHub service credentials."
+        ],
+        "id": "source.provider_adapter.scenario.github_setup_checks",
+        "subject_id": "source.provider_adapter",
+        "then": [
+          "The checks call the GitHub adapter boundary and keep GitHub App ahead of PAT fallback."
+        ],
+        "when": [
+          "GitHub credential checks enumerate credential paths and request accessible repositories."
+        ]
+      },
+      {
+        "covers": [
+          "source.provider_adapter.provider_catalog",
+          "source.provider_adapter.placeholder_adapters"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "given": [
+          "Future GitLab and Bitbucket integration is not implemented yet."
+        ],
+        "id": "source.provider_adapter.scenario.placeholder_registry",
+        "subject_id": "source.provider_adapter",
+        "then": [
+          "The registry resolves named placeholder adapters for those providers."
+        ],
+        "when": [
+          "The source provider registry is queried."
+        ]
+      },
+      {
+        "covers": [
           "users.admin_system.admin_managed_provisioning",
           "users.admin_system.admin_role_assignment",
           "users.admin_system.registration_guardrails"
@@ -1192,6 +1269,29 @@
           "verification_minimum_strength": null
         },
         "title": "Provider Login Policy"
+      },
+      {
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "id": "source.provider_adapter",
+        "meta": {
+          "decisions": null,
+          "id": "source.provider_adapter",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code routes GitHub service credential and repository-access checks through a provider-neutral adapter boundary and keeps explicit placeholder adapters for GitLab and Bitbucket.",
+          "surface": [
+            "lib/jido_code/source_providers.ex",
+            "lib/jido_code/source_providers/adapter.ex",
+            "lib/jido_code/source_providers/github_adapter.ex",
+            "lib/jido_code/source_providers/gitlab_adapter.ex",
+            "lib/jido_code/source_providers/bitbucket_adapter.ex",
+            "lib/jido_code/setup/github_credential_checks.ex",
+            "test/jido_code/source_providers/source_providers_test.exs",
+            "test/jido_code/source_providers/github_adapter_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Source Provider Adapter"
       },
       {
         "file": ".spec/specs/spec_system.spec.md",
@@ -1773,6 +1873,93 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/source_provider_adapter.spec.md"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.provider_catalog",
+          "source.provider_adapter.placeholder_adapters"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers.ex"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.behavior_contract"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/adapter.ex"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.behavior_contract",
+          "source.provider_adapter.github_adapter",
+          "source.provider_adapter.github_app_preferred"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/github_adapter.ex"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.placeholder_adapters"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/gitlab_adapter.ex"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.placeholder_adapters"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/bitbucket_adapter.ex"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.github_adapter"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/setup/github_credential_checks.ex"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.provider_catalog",
+          "source.provider_adapter.placeholder_adapters"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/source_providers/source_providers_test.exs"
+      },
+      {
+        "covers": [
+          "source.provider_adapter.behavior_contract",
+          "source.provider_adapter.github_adapter",
+          "source.provider_adapter.github_app_preferred"
+        ],
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/source_providers/github_adapter_test.exs"
+      },
+      {
+        "covers": [
           "spec.workspace.readme_present"
         ],
         "file": ".spec/specs/spec_system.spec.md",
@@ -1855,10 +2042,10 @@
     "decisions": 1,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 60,
-    "scenarios": 25,
-    "subjects": 13,
-    "verifications": 62
+    "requirements": 65,
+    "scenarios": 27,
+    "subjects": 14,
+    "verifications": 71
   },
   "verification": {
     "claims": [
@@ -3007,6 +3194,171 @@
         "verification_index": 7
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "source.provider_adapter.placeholder_adapters",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "source.provider_adapter.provider_catalog",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "source.provider_adapter.behavior_contract",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/adapter.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "source.provider_adapter.behavior_contract",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/github_adapter.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "source.provider_adapter.github_adapter",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/github_adapter.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "source.provider_adapter.github_app_preferred",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/github_adapter.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "source.provider_adapter.placeholder_adapters",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/gitlab_adapter.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "source.provider_adapter.placeholder_adapters",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/source_providers/bitbucket_adapter.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "source.provider_adapter.github_adapter",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "lib/jido_code/setup/github_credential_checks.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "source.provider_adapter.placeholder_adapters",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/source_providers/source_providers_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "source.provider_adapter.provider_catalog",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/source_providers/source_providers_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "source.provider_adapter.behavior_contract",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/source_providers/github_adapter_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "source.provider_adapter.github_adapter",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/source_providers/github_adapter_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "source.provider_adapter.github_app_preferred",
+        "file": ".spec/specs/source_provider_adapter.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "source.provider_adapter",
+        "target": "test/jido_code/source_providers/github_adapter_test.exs",
+        "verification_index": 7
+      },
+      {
         "cover_id": "spec.workspace.readme_present",
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "source_file",
@@ -3144,12 +3496,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 113
+      "linked": 128
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 13
+    "spec_count": 14
   }
 }

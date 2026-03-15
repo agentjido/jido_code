@@ -6,6 +6,7 @@
           "package.jido_code",
           "auth.system",
           "auth.provider_foundation",
+          "auth.provider_identity_linking",
           "users.admin_system",
           "auth.github_integration"
         ],
@@ -55,6 +56,14 @@
       },
       {
         "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "id": "auth.provider_foundation.identity_auth_metadata",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Provider-linked identity records shall have durable schema support for authentication metadata such as first and most recent successful authentication timestamps.",
+        "subject_id": "auth.provider_foundation"
+      },
+      {
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
         "id": "auth.provider_foundation.local_user_identity_mapping",
         "priority": "must",
         "stability": "stable",
@@ -76,6 +85,38 @@
         "stability": "stable",
         "statement": "The system shall persist provider-host login configuration including enablement, allowlist posture, and broker trust fields without coupling it to provider automation secrets.",
         "subject_id": "auth.provider_foundation"
+      },
+      {
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "id": "auth.provider_identity_linking.auth_timestamps",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Provider-linked identity records shall store the first and most recent successful provider authentication timestamps.",
+        "subject_id": "auth.provider_identity_linking"
+      },
+      {
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "id": "auth.provider_identity_linking.auto_create_local_user",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "When no linked identity exists and no existing local user matches by verified provider email, the system shall provision a local user record from provider identity data.",
+        "subject_id": "auth.provider_identity_linking"
+      },
+      {
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "id": "auth.provider_identity_linking.existing_identity_reuse",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "When a provider plus host plus subject identity already exists, the system shall reuse that linked local user instead of creating a second local account.",
+        "subject_id": "auth.provider_identity_linking"
+      },
+      {
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "id": "auth.provider_identity_linking.verified_email_link",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "When no provider identity exists but the provider email is verified and matches an existing local user, the system shall attach the provider identity to that local user.",
+        "subject_id": "auth.provider_identity_linking"
       },
       {
         "file": ".spec/specs/authentication_system.spec.md",
@@ -342,7 +383,8 @@
       },
       {
         "covers": [
-          "auth.provider_foundation.local_user_identity_mapping"
+          "auth.provider_foundation.local_user_identity_mapping",
+          "auth.provider_foundation.identity_auth_metadata"
         ],
         "file": ".spec/specs/provider_auth_foundation.spec.md",
         "given": [
@@ -351,7 +393,7 @@
         "id": "auth.provider_foundation.scenario.identity_lookup",
         "subject_id": "auth.provider_foundation",
         "then": [
-          "Future provider lookups can resolve the same local user through the provider plus host plus subject tuple."
+          "Future provider lookups can resolve the same local user through the provider plus host plus subject tuple and keep provider-auth metadata on the identity record."
         ],
         "when": [
           "The system records a provider identity for that user."
@@ -373,6 +415,59 @@
         ],
         "when": [
           "The operator saves provider-host configuration for an approved source provider."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_identity_linking.auto_create_local_user",
+          "auth.provider_identity_linking.verified_email_link"
+        ],
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "given": [
+          "No linked provider identity exists and the verified provider email is not yet present in the local directory."
+        ],
+        "id": "auth.provider_identity_linking.scenario.auto_create",
+        "subject_id": "auth.provider_identity_linking",
+        "then": [
+          "The system provisions one local user and future verified identities for the same email attach back to that user."
+        ],
+        "when": [
+          "The provider identity authenticates."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_identity_linking.existing_identity_reuse",
+          "auth.provider_identity_linking.auth_timestamps"
+        ],
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "given": [
+          "A provider identity is already linked to a local user."
+        ],
+        "id": "auth.provider_identity_linking.scenario.identity_reuse",
+        "subject_id": "auth.provider_identity_linking",
+        "then": [
+          "The same local user is returned and the most recent authentication timestamp is refreshed without losing the original first-authenticated timestamp."
+        ],
+        "when": [
+          "The same provider identity authenticates again."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_identity_linking.verified_email_link"
+        ],
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "given": [
+          "A local user exists without a provider identity."
+        ],
+        "id": "auth.provider_identity_linking.scenario.verified_email_attach",
+        "subject_id": "auth.provider_identity_linking",
+        "then": [
+          "The provider identity attaches to that local user instead of creating a duplicate user."
+        ],
+        "when": [
+          "A provider identity with the same verified email authenticates."
         ]
       },
       {
@@ -571,7 +666,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves new auth-provider foundation work inside that repo.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation and linking work inside that repo.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -606,6 +701,27 @@
           "verification_minimum_strength": null
         },
         "title": "Provider Auth Foundation"
+      },
+      {
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "id": "auth.provider_identity_linking",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "auth.provider_identity_linking",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code resolves provider identities to local users by reusing an existing identity, linking verified email addresses, or provisioning a new local user when needed.",
+          "surface": [
+            "lib/jido_code/accounts/provider_identity_linker.ex",
+            "lib/jido_code/accounts/user.ex",
+            "lib/jido_code/accounts/user_identity.ex",
+            "test/jido_code/accounts/provider_identity_linker_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Provider Identity Linking"
       },
       {
         "file": ".spec/specs/spec_system.spec.md",
@@ -700,7 +816,8 @@
       {
         "covers": [
           "auth.provider_foundation.local_user_identity_mapping",
-          "auth.provider_foundation.provider_catalog"
+          "auth.provider_foundation.provider_catalog",
+          "auth.provider_foundation.identity_auth_metadata"
         ],
         "file": ".spec/specs/provider_auth_foundation.spec.md",
         "kind": "source_file",
@@ -744,6 +861,48 @@
         "kind": "source_file",
         "subject_id": "auth.provider_foundation",
         "target": "test/jido_code/auth_providers/provider_config_test.exs"
+      },
+      {
+        "covers": [
+          "auth.provider_identity_linking.existing_identity_reuse",
+          "auth.provider_identity_linking.verified_email_link",
+          "auth.provider_identity_linking.auto_create_local_user",
+          "auth.provider_identity_linking.auth_timestamps"
+        ],
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/provider_identity_linker.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_identity_linking.auto_create_local_user"
+        ],
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/user.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_identity_linking.auth_timestamps"
+        ],
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/user_identity.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_identity_linking.existing_identity_reuse",
+          "auth.provider_identity_linking.verified_email_link",
+          "auth.provider_identity_linking.auto_create_local_user",
+          "auth.provider_identity_linking.auth_timestamps"
+        ],
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "test/jido_code/accounts/provider_identity_linker_test.exs"
       },
       {
         "covers": [
@@ -862,6 +1021,15 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_identity_linking.spec.md"
+      },
+      {
+        "covers": [
           "spec.workspace.readme_present"
         ],
         "file": ".spec/specs/spec_system.spec.md",
@@ -944,10 +1112,10 @@
     "decisions": 1,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 33,
-    "scenarios": 11,
-    "subjects": 8,
-    "verifications": 30
+    "requirements": 38,
+    "scenarios": 14,
+    "subjects": 9,
+    "verifications": 35
   },
   "verification": {
     "claims": [
@@ -1040,6 +1208,17 @@
         "verification_index": 4
       },
       {
+        "cover_id": "auth.provider_foundation.identity_auth_metadata",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/accounts/user_identity.ex",
+        "verification_index": 0
+      },
+      {
         "cover_id": "auth.provider_foundation.local_user_identity_mapping",
         "file": ".spec/specs/provider_auth_foundation.spec.md",
         "kind": "source_file",
@@ -1126,6 +1305,116 @@
         "subject_id": "auth.provider_foundation",
         "target": "test/jido_code/auth_providers/provider_config_test.exs",
         "verification_index": 4
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.auth_timestamps",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/provider_identity_linker.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.auto_create_local_user",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/provider_identity_linker.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.existing_identity_reuse",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/provider_identity_linker.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.verified_email_link",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/provider_identity_linker.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.auto_create_local_user",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.auth_timestamps",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "lib/jido_code/accounts/user_identity.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.auth_timestamps",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "test/jido_code/accounts/provider_identity_linker_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.auto_create_local_user",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "test/jido_code/accounts/provider_identity_linker_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.existing_identity_reuse",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "test/jido_code/accounts/provider_identity_linker_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.provider_identity_linking.verified_email_link",
+        "file": ".spec/specs/provider_identity_linking.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_identity_linking",
+        "target": "test/jido_code/accounts/provider_identity_linker_test.exs",
+        "verification_index": 3
       },
       {
         "cover_id": "auth.system.email_confirmation",
@@ -1337,6 +1626,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "verification_index": 3
+      },
+      {
         "cover_id": "spec.workspace.readme_present",
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "source_file",
@@ -1474,12 +1774,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 44
+      "linked": 56
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 8
+    "spec_count": 9
   }
 }

@@ -9,6 +9,7 @@ defmodule JidoCode.Accounts.User do
   # covers: users.admin_system.admin_managed_provisioning
   # covers: users.admin_system.self_service_auth_lifecycle
   # covers: auth.github_integration.local_user_mapping
+  # covers: auth.provider_identity_linking.auto_create_local_user
   use Ash.Resource,
     otp_app: :jido_code,
     domain: JidoCode.Accounts,
@@ -74,6 +75,11 @@ defmodule JidoCode.Accounts.User do
   postgres do
     table "users"
     repo JidoCode.Repo
+  end
+
+  code_interface do
+    define :get_by_email, action: :get_by_email
+    define :provision_from_provider_identity, action: :provision_from_provider_identity
   end
 
   actions do
@@ -212,6 +218,12 @@ defmodule JidoCode.Accounts.User do
     read :get_by_email do
       description "Looks up a user by their email"
       get_by :email
+    end
+
+    create :provision_from_provider_identity do
+      description "Provision a local user record from a verified provider identity."
+
+      accept [:email, :confirmed_at]
     end
 
     update :reset_password_with_token do

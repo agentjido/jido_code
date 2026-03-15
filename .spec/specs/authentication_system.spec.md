@@ -1,6 +1,6 @@
 # Authentication System
 
-This subject defines the baseline local authentication capabilities for `jido_code`. These local flows remain the durable fallback even as linked external provider identities are introduced separately.
+This subject defines the baseline local authentication capabilities for `jido_code`. These local flows remain the durable fallback even as linked external provider identities can later provision or attach to the same local users.
 
 ```spec-meta
 id: auth.system

@@ -34,6 +34,11 @@ surface:
   statement: The system shall persist provider-host login configuration including enablement, allowlist posture, and broker trust fields without coupling it to provider automation secrets.
   priority: must
   stability: stable
+
+- id: auth.provider_foundation.identity_auth_metadata
+  statement: Provider-linked identity records shall have durable schema support for authentication metadata such as first and most recent successful authentication timestamps.
+  priority: must
+  stability: stable
 ```
 
 ## Scenarios
@@ -42,12 +47,13 @@ surface:
 - id: auth.provider_foundation.scenario.identity_lookup
   covers:
     - auth.provider_foundation.local_user_identity_mapping
+    - auth.provider_foundation.identity_auth_metadata
   given:
     - A local user already exists.
   when:
     - The system records a provider identity for that user.
   then:
-    - Future provider lookups can resolve the same local user through the provider plus host plus subject tuple.
+    - Future provider lookups can resolve the same local user through the provider plus host plus subject tuple and keep provider-auth metadata on the identity record.
 
 - id: auth.provider_foundation.scenario.provider_config
   covers:
@@ -69,6 +75,7 @@ surface:
   covers:
     - auth.provider_foundation.local_user_identity_mapping
     - auth.provider_foundation.provider_catalog
+    - auth.provider_foundation.identity_auth_metadata
 
 - kind: source_file
   target: lib/jido_code/auth_providers.ex

@@ -1,7 +1,9 @@
 defmodule JidoCode.Accounts.UserIdentity do
   # covers: auth.provider_foundation.local_user_identity_mapping
   # covers: auth.provider_foundation.provider_catalog
+  # covers: auth.provider_foundation.identity_auth_metadata
   # covers: auth.github_integration.local_user_mapping
+  # covers: auth.provider_identity_linking.auth_timestamps
   use Ash.Resource,
     otp_app: :jido_code,
     domain: JidoCode.Accounts,
@@ -37,6 +39,7 @@ defmodule JidoCode.Accounts.UserIdentity do
         :provider_login,
         :provider_email,
         :email_verified,
+        :first_authenticated_at,
         :last_authenticated_at
       ]
     end
@@ -48,6 +51,7 @@ defmodule JidoCode.Accounts.UserIdentity do
         :provider_login,
         :provider_email,
         :email_verified,
+        :first_authenticated_at,
         :last_authenticated_at
       ]
     end
@@ -96,6 +100,11 @@ defmodule JidoCode.Accounts.UserIdentity do
     attribute :email_verified, :boolean do
       allow_nil? false
       default false
+      public? true
+    end
+
+    attribute :first_authenticated_at, :utc_datetime_usec do
+      allow_nil? true
       public? true
     end
 

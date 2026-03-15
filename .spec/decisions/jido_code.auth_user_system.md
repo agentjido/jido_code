@@ -6,6 +6,7 @@ affects:
   - package.jido_code
   - auth.system
   - auth.provider_foundation
+  - auth.provider_identity_linking
   - users.admin_system
   - auth.github_integration
 ---
@@ -24,12 +25,13 @@ At the same time, GitHub integration matters for repository automation, but it s
 
 The first setup account is the bootstrap administrator. After bootstrap, production registration stays gated and future account creation becomes an administrator-managed workflow rather than open self-service sign-up.
 
-The baseline authentication system will continue to center on email-backed identities with password sign-in, forgot-password recovery, email confirmation, and magic-link access. External provider login, when introduced, will be modeled as provider-specific identities linked back to the same local user system. GitHub App and PAT capabilities remain integration mechanisms for repository access, and any future GitHub-backed sign-in must resolve to a local user account before product authorization is evaluated.
+The baseline authentication system will continue to center on email-backed identities with password sign-in, forgot-password recovery, email confirmation, and magic-link access. External provider login, when introduced, will be modeled as provider-specific identities linked back to the same local user system. Matching verified provider email addresses may attach to an existing local user, and otherwise the provider flow may provision a new local user that still lives inside the same directory. GitHub App and PAT capabilities remain integration mechanisms for repository access, and any future GitHub-backed sign-in must resolve to a local user account before product authorization is evaluated.
 
 ## Consequences
 
 - Authentication work should extend the existing `Accounts.User` model instead of introducing a parallel owner-only identity model.
 - Provider-backed login should add linked identity records and provider configuration rather than replacing the local user table.
+- Provider-backed login should reuse an existing linked identity first, otherwise link by verified email or create a local user without creating a second authorization system.
 - Admin identification and user provisioning become first-class product concerns.
 - GitHub integration can evolve independently without blocking local authentication.
-- Specs for authentication, provider auth, user administration, and GitHub-backed identity should stay aligned with this decision as implementation progresses.
+- Specs for authentication, provider auth, provider identity linking, user administration, and GitHub-backed identity should stay aligned with this decision as implementation progresses.

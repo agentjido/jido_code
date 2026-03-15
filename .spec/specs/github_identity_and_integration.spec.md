@@ -1,6 +1,6 @@
 # GitHub Identity And Integration
 
-This subject defines how GitHub-backed access should relate to the local user system and setup-time repository integration checks.
+This subject defines how GitHub-backed access should relate to the local user system and setup-time repository integration checks, including future local-user resolution through provider identity linking.
 
 ```spec-meta
 id: auth.github_integration

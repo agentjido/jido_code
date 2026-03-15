@@ -70,4 +70,9 @@ surface:
   target: .spec/specs/github_service_credentials.spec.md
   covers:
     - package.jido_code.auth_provider_foundation_in_repo
+
+- kind: source_file
+  target: .spec/specs/provider_broker_handoff.spec.md
+  covers:
+    - package.jido_code.auth_provider_foundation_in_repo
 ```

@@ -17,7 +17,7 @@ surface:
 
 ```spec-requirements
 - id: baseline.surface.routes_landing_and_auth_only
-  statement: The browser route surface shall expose only the landing page and authentication flows while baseline mode is active.
+  statement: The browser route surface shall expose only the landing page and authentication flows, including provider-auth handshake endpoints, while baseline mode is active.
   priority: must
   stability: stable
 

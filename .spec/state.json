@@ -6,6 +6,7 @@
           "package.jido_code",
           "auth.system",
           "auth.provider_foundation",
+          "auth.provider_broker_handoff",
           "auth.provider_identity_linking",
           "auth.provider_login_policy",
           "auth.github_service_credentials",
@@ -79,6 +80,70 @@
         "stability": "evolving",
         "statement": "GitHub automation runtime callers shall resolve deployment-local credentials from environment or encrypted SecretRefs without depending on provider-login configuration state.",
         "subject_id": "auth.github_service_credentials"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.broker_jwt_validation",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Broker-issued handoff JWTs shall be verified against broker JWKS material before any local identity linking or session issuance is attempted.",
+        "subject_id": "auth.provider_broker_handoff"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.complete_endpoint_contract",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The deployment complete endpoint shall validate signed state and broker handoff JWT and stop at validated contract handoff until provider-specific login wiring is implemented.",
+        "subject_id": "auth.provider_broker_handoff"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.issuer_and_audience_validation",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Broker-issued handoff JWTs shall fail closed when issuer or audience does not match the provider-host configuration.",
+        "subject_id": "auth.provider_broker_handoff"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.nonce_binding",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Broker-issued handoff JWTs shall bind back to the signed deployment state through a matching nonce and provider context.",
+        "subject_id": "auth.provider_broker_handoff"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.nonce_replay_protection",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Successfully validated broker handoff nonces shall be single-use so replay attempts fail closed.",
+        "subject_id": "auth.provider_broker_handoff"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.start_endpoint_contract",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The deployment start endpoint shall redirect to the configured broker start URL with signed state, provider host, and deployment callback URL.",
+        "subject_id": "auth.provider_broker_handoff"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.state_token_signature",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The deployment shall issue a signed provider-auth state token that binds provider, provider host, broker base URL, redirect path, and nonce.",
+        "subject_id": "auth.provider_broker_handoff"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.state_token_ttl",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Signed provider-auth state shall expire after a bounded TTL and fail closed when reused after expiry.",
+        "subject_id": "auth.provider_broker_handoff"
       },
       {
         "file": ".spec/specs/provider_auth_foundation.spec.md",
@@ -253,7 +318,7 @@
         "id": "baseline.surface.routes_landing_and_auth_only",
         "priority": "must",
         "stability": "stable",
-        "statement": "The browser route surface shall expose only the landing page and authentication flows while baseline mode is active.",
+        "statement": "The browser route surface shall expose only the landing page and authentication flows, including provider-auth handshake endpoints, while baseline mode is active.",
         "subject_id": "baseline.surface"
       },
       {
@@ -490,6 +555,62 @@
         ],
         "when": [
           "GitHub automation resolves that credential."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.start_endpoint_contract",
+          "auth.provider_broker_handoff.complete_endpoint_contract"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "given": [
+          "A provider-host config has broker trust fields."
+        ],
+        "id": "auth.provider_broker_handoff.scenario.endpoint_contract",
+        "subject_id": "auth.provider_broker_handoff",
+        "then": [
+          "Start redirects to the broker contract URL, and complete only acknowledges validated contract handoff data."
+        ],
+        "when": [
+          "The deployment start and complete endpoints are invoked."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.broker_jwt_validation",
+          "auth.provider_broker_handoff.issuer_and_audience_validation",
+          "auth.provider_broker_handoff.nonce_binding",
+          "auth.provider_broker_handoff.nonce_replay_protection"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "given": [
+          "A broker returns a signed handoff JWT."
+        ],
+        "id": "auth.provider_broker_handoff.scenario.handoff_validation",
+        "subject_id": "auth.provider_broker_handoff",
+        "then": [
+          "Invalid issuer, audience, expiry, or replay attempts fail closed."
+        ],
+        "when": [
+          "The deployment validates that JWT against broker trust settings and the signed state nonce."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.state_token_signature",
+          "auth.provider_broker_handoff.state_token_ttl"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "given": [
+          "A deployment operator starts provider sign-in for a configured provider host."
+        ],
+        "id": "auth.provider_broker_handoff.scenario.state_round_trip",
+        "subject_id": "auth.provider_broker_handoff",
+        "then": [
+          "The provider state round-trips with the same nonce and fails once it expires."
+        ],
+        "when": [
+          "The deployment issues and later verifies the provider-auth state token."
         ]
       },
       {
@@ -887,6 +1008,30 @@
         "title": "Provider Auth Foundation"
       },
       {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "auth.provider_broker_handoff",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code signs deployment-owned provider state, validates broker JWT handoffs with issuer and audience trust, blocks nonce replay, and exposes start and complete contract endpoints without yet performing provider-specific login.",
+          "surface": [
+            "lib/jido_code/auth_providers/broker_state.ex",
+            "lib/jido_code/auth_providers/broker_nonce_store.ex",
+            "lib/jido_code/auth_providers/broker_handoff.ex",
+            "lib/jido_code_web/controllers/provider_auth_controller.ex",
+            "test/jido_code/auth_providers/broker_state_test.exs",
+            "test/jido_code/auth_providers/broker_handoff_test.exs",
+            "test/jido_code_web/controllers/provider_auth_controller_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Provider Broker Handoff"
+      },
+      {
         "file": ".spec/specs/provider_identity_linking.spec.md",
         "id": "auth.provider_identity_linking",
         "meta": {
@@ -1057,6 +1202,80 @@
         "kind": "source_file",
         "subject_id": "auth.github_service_credentials",
         "target": "test/jido_code/github/service_credentials_test.exs"
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.state_token_signature",
+          "auth.provider_broker_handoff.state_token_ttl",
+          "auth.provider_broker_handoff.nonce_binding"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_state.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.nonce_replay_protection"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_nonce_store.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.broker_jwt_validation",
+          "auth.provider_broker_handoff.issuer_and_audience_validation",
+          "auth.provider_broker_handoff.nonce_binding",
+          "auth.provider_broker_handoff.nonce_replay_protection"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_handoff.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.start_endpoint_contract",
+          "auth.provider_broker_handoff.complete_endpoint_contract"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.state_token_signature",
+          "auth.provider_broker_handoff.state_token_ttl"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_state_test.exs"
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.broker_jwt_validation",
+          "auth.provider_broker_handoff.issuer_and_audience_validation",
+          "auth.provider_broker_handoff.nonce_binding",
+          "auth.provider_broker_handoff.nonce_replay_protection"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_handoff_test.exs"
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.start_endpoint_contract",
+          "auth.provider_broker_handoff.complete_endpoint_contract"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code_web/controllers/provider_auth_controller_test.exs"
       },
       {
         "covers": [
@@ -1333,6 +1552,15 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_broker_handoff.spec.md"
+      },
+      {
+        "covers": [
           "spec.workspace.readme_present"
         ],
         "file": ".spec/specs/spec_system.spec.md",
@@ -1415,10 +1643,10 @@
     "decisions": 1,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 45,
-    "scenarios": 20,
-    "subjects": 11,
-    "verifications": 45
+    "requirements": 53,
+    "scenarios": 23,
+    "subjects": 12,
+    "verifications": 53
   },
   "verification": {
     "claims": [
@@ -1597,6 +1825,204 @@
         "subject_id": "auth.github_service_credentials",
         "target": "test/jido_code/github/service_credentials_test.exs",
         "verification_index": 3
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.nonce_binding",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_state.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.state_token_signature",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_state.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.state_token_ttl",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_state.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.nonce_replay_protection",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_nonce_store.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.broker_jwt_validation",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_handoff.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.issuer_and_audience_validation",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_handoff.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.nonce_binding",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_handoff.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.nonce_replay_protection",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code/auth_providers/broker_handoff.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.complete_endpoint_contract",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.start_endpoint_contract",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.state_token_signature",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_state_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.state_token_ttl",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_state_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.broker_jwt_validation",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_handoff_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.issuer_and_audience_validation",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_handoff_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.nonce_binding",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_handoff_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.nonce_replay_protection",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code/auth_providers/broker_handoff_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.complete_endpoint_contract",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code_web/controllers/provider_auth_controller_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.start_endpoint_contract",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code_web/controllers/provider_auth_controller_test.exs",
+        "verification_index": 6
       },
       {
         "cover_id": "auth.provider_foundation.identity_auth_metadata",
@@ -2138,6 +2564,17 @@
         "verification_index": 5
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "verification_index": 6
+      },
+      {
         "cover_id": "spec.workspace.readme_present",
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "source_file",
@@ -2275,12 +2712,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 74
+      "linked": 93
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 11
+    "spec_count": 12
   }
 }

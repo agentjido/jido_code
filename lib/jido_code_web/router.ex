@@ -98,6 +98,9 @@ defmodule JidoCodeWeb.Router do
   scope "/", JidoCodeWeb do
     pipe_through(:browser)
 
+    get("/auth/providers/:provider/start", ProviderAuthController, :start)
+    get("/auth/providers/:provider/complete", ProviderAuthController, :complete)
+
     ash_authentication_live_session :public_routes,
       on_mount: [{JidoCodeWeb.LiveUserAuth, :live_user_optional}] do
       # covers: baseline.surface.routes_landing_and_auth_only

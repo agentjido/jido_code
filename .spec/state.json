@@ -973,6 +973,8 @@
             "lib/jido_code/accounts/user.ex",
             "lib/jido_code/accounts/token.ex",
             "lib/jido_code/accounts/security_tokens.ex",
+            "test/jido_code_web/live/auth_session_live_test.exs",
+            "test/jido_code_web/live/auth_boundary_live_test.exs",
             "test/jido_code_web/live/auth_sign_out_live_test.exs"
           ],
           "verification_minimum_strength": null
@@ -1623,6 +1625,25 @@
       },
       {
         "covers": [
+          "auth.system.local_email_identity",
+          "auth.system.password_registration_and_sign_in"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_session_live_test.exs"
+      },
+      {
+        "covers": [
+          "auth.system.revocable_credentials"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_boundary_live_test.exs"
+      },
+      {
+        "covers": [
           "auth.system.revocable_credentials"
         ],
         "file": ".spec/specs/authentication_system.spec.md",
@@ -1837,7 +1858,7 @@
     "requirements": 60,
     "scenarios": 25,
     "subjects": 13,
-    "verifications": 60
+    "verifications": 62
   },
   "verification": {
     "claims": [
@@ -2766,6 +2787,39 @@
         "verification_index": 2
       },
       {
+        "cover_id": "auth.system.local_email_identity",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_session_live_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.system.password_registration_and_sign_in",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_session_live_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.system.revocable_credentials",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_boundary_live_test.exs",
+        "verification_index": 4
+      },
+      {
         "cover_id": "auth.system.revocable_credentials",
         "file": ".spec/specs/authentication_system.spec.md",
         "kind": "source_file",
@@ -2774,7 +2828,7 @@
         "strength": "linked",
         "subject_id": "auth.system",
         "target": "test/jido_code_web/live/auth_sign_out_live_test.exs",
-        "verification_index": 3
+        "verification_index": 5
       },
       {
         "cover_id": "baseline.surface.product_routes_disabled",
@@ -3090,7 +3144,7 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 110
+      "linked": 113
     },
     "threshold_failures": 0
   },

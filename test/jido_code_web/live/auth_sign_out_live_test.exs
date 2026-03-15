@@ -2,12 +2,10 @@ defmodule JidoCodeWeb.AuthSignOutLiveTest do
   # covers: auth.system.revocable_credentials
   use JidoCodeWeb.ConnCase, async: false
 
-  import Phoenix.LiveViewTest
-
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
 
-  test "sign out clears browser session credentials and redirects protected routes to sign-in", %{
+  test "sign out clears browser session credentials and restores anonymous landing state", %{
     conn: _conn
   } do
     register_owner("owner@example.com", "owner-password-123")
@@ -20,8 +18,15 @@ defmodule JidoCodeWeb.AuthSignOutLiveTest do
     assert Phoenix.Flash.get(sign_out_response.assigns.flash, :info) == "You are now signed out"
     assert get_session(sign_out_response, "user_token") == nil
 
-    assert {:error, {:redirect, %{to: "/sign-in"}}} =
-             live(recycle(sign_out_response), ~p"/settings")
+    welcome_html =
+      sign_out_response
+      |> recycle()
+      |> get(~p"/welcome")
+      |> html_response(200)
+
+    assert welcome_html =~ "Sign In"
+    assert welcome_html =~ "Create Account"
+    refute welcome_html =~ "owner@example.com"
   end
 
   test "failed session invalidation provides retry guidance and keeps session unchanged", %{conn: _conn} do
@@ -48,8 +53,14 @@ defmodule JidoCodeWeb.AuthSignOutLiveTest do
 
     assert get_session(sign_out_response, "user_token") == session_token
 
-    {:ok, settings_view, _html} = live(recycle(sign_out_response), ~p"/settings", on_error: :warn)
-    assert has_element?(settings_view, "h1", "Settings")
+    welcome_html =
+      sign_out_response
+      |> recycle()
+      |> get(~p"/welcome")
+      |> html_response(200)
+
+    assert welcome_html =~ "owner@example.com"
+    assert welcome_html =~ "Sign Out"
   end
 
   defp restore_sign_out_invalidator(nil), do: Application.delete_env(:jido_code, :sign_out_invalidator)

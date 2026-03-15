@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.AuthSessionLiveTest do
+  # covers: auth.system.local_email_identity
+  # covers: auth.system.password_registration_and_sign_in
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -6,7 +8,7 @@ defmodule JidoCodeWeb.AuthSessionLiveTest do
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
 
-  test "valid owner credentials create a browser session for protected route navigation", %{
+  test "valid local credentials create a browser session and render signed-in landing state", %{
     conn: conn
   } do
     register_owner("owner@example.com", "owner-password-123")
@@ -27,21 +29,20 @@ defmodule JidoCodeWeb.AuthSessionLiveTest do
     auth_response = build_conn() |> get(auth_redirect_path)
     assert redirected_to(auth_response, 302) == "/"
 
-    assert auth_response
-           |> get_resp_header("set-cookie")
-           |> Enum.any?(&String.contains?(&1, "_jido_code_key="))
+    session_token = get_session(auth_response, "user_token")
+    assert is_binary(session_token)
 
-    authed_conn = recycle(auth_response)
+    welcome_html =
+      auth_response
+      |> recycle()
+      |> get(~p"/welcome")
+      |> html_response(200)
 
-    {:ok, dashboard_view, _dashboard_html} = live(authed_conn, ~p"/dashboard", on_error: :warn)
-    assert has_element?(dashboard_view, "h1", "Dashboard")
-    assert has_element?(dashboard_view, "p", "Welcome, owner@example.com")
-
-    {:ok, settings_view, _settings_html} = live(recycle(authed_conn), ~p"/settings", on_error: :warn)
-    assert has_element?(settings_view, "h1", "Settings")
+    assert welcome_html =~ "owner@example.com"
+    assert welcome_html =~ "Sign Out"
   end
 
-  test "invalid owner credentials deny session creation and return a typed authentication error", %{
+  test "invalid local credentials do not create a browser session and preserve anonymous landing state", %{
     conn: conn
   } do
     register_owner("owner@example.com", "owner-password-123")
@@ -68,7 +69,14 @@ defmodule JidoCodeWeb.AuthSessionLiveTest do
     :ok = refute_redirected(sign_in_view)
     assert render(sign_in_view) =~ "Email or password was incorrect"
 
-    assert {:error, {:redirect, %{to: "/sign-in"}}} = live(build_conn(), ~p"/dashboard")
+    welcome_html =
+      build_conn()
+      |> get(~p"/welcome")
+      |> html_response(200)
+
+    assert welcome_html =~ "Sign In"
+    assert welcome_html =~ "Create Account"
+    refute welcome_html =~ "owner@example.com"
   end
 
   defp register_owner(email, password) do

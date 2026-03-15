@@ -13,6 +13,8 @@ surface:
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/accounts/token.ex
   - lib/jido_code/accounts/security_tokens.ex
+  - test/jido_code_web/live/auth_session_live_test.exs
+  - test/jido_code_web/live/auth_boundary_live_test.exs
   - test/jido_code_web/live/auth_sign_out_live_test.exs
 ```
 
@@ -105,6 +107,17 @@ surface:
 
 - kind: source_file
   target: lib/jido_code/accounts/security_tokens.ex
+  covers:
+    - auth.system.revocable_credentials
+
+- kind: source_file
+  target: test/jido_code_web/live/auth_session_live_test.exs
+  covers:
+    - auth.system.local_email_identity
+    - auth.system.password_registration_and_sign_in
+
+- kind: source_file
+  target: test/jido_code_web/live/auth_boundary_live_test.exs
   covers:
     - auth.system.revocable_credentials
 

@@ -1,46 +1,38 @@
 defmodule JidoCodeWeb.AuthBoundaryLiveTest do
+  # covers: auth.system.revocable_credentials
   use JidoCodeWeb.ConnCase, async: false
-
-  import ExUnit.CaptureLog
-  import Phoenix.LiveViewTest
 
   alias AshAuthentication.{Info, Strategy}
   alias AshAuthentication.TokenResource.Actions
   alias JidoCode.Accounts.Token
   alias JidoCode.Accounts.User
 
-  test "unauthenticated dashboard access is denied and routed to auth entry flow", %{conn: conn} do
-    log =
-      capture_log([level: :warning], fn ->
-        assert {:error, {:redirect, %{to: "/sign-in"}}} = live(conn, ~p"/dashboard")
-        Logger.flush()
-      end)
+  test "anonymous landing requests stay anonymous", %{conn: conn} do
+    welcome_html =
+      conn
+      |> get(~p"/welcome")
+      |> html_response(200)
 
-    assert log =~ "auth_boundary_check"
-    assert log =~ "outcome=deny"
-    assert log =~ "live_view=JidoCodeWeb.DashboardLive"
-    assert log =~ "reason=missing_or_expired_session"
+    assert welcome_html =~ "Sign In"
+    assert welcome_html =~ "Create Account"
+    refute welcome_html =~ "Sign Out"
   end
 
-  test "authenticated owner session resolves dashboard and logs allow boundary outcome", %{conn: _conn} do
+  test "authenticated local sessions render signed-in landing state", %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
-    {authed_conn, _session_token} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+    {authed_conn, session_token} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+    assert is_binary(session_token)
 
-    log =
-      capture_log([level: :warning], fn ->
-        {:ok, dashboard_view, _html} = live(authed_conn, ~p"/dashboard", on_error: :warn)
-        assert has_element?(dashboard_view, "h1", "Dashboard")
-        assert has_element?(dashboard_view, "p", "Welcome, owner@example.com")
-        Logger.flush()
-      end)
+    welcome_html =
+      authed_conn
+      |> get(~p"/welcome")
+      |> html_response(200)
 
-    assert log =~ "auth_boundary_check"
-    assert log =~ "outcome=allow"
-    assert log =~ "live_view=JidoCodeWeb.DashboardLive"
-    assert log =~ "reason=owner_session_present"
+    assert welcome_html =~ "owner@example.com"
+    assert welcome_html =~ "Sign Out"
   end
 
-  test "revoked session context denies dashboard access and does not render protected data", %{
+  test "revoked local sessions fall back to anonymous landing state and clear the stale session", %{
     conn: _conn
   } do
     register_owner("owner@example.com", "owner-password-123")
@@ -48,25 +40,18 @@ defmodule JidoCodeWeb.AuthBoundaryLiveTest do
     assert is_binary(session_token)
     assert :ok = Actions.revoke(Token, session_token)
 
-    log =
-      capture_log([level: :warning], fn ->
-        assert {:error, {:redirect, %{to: "/sign-in"}}} = live(authed_conn, ~p"/dashboard")
-        Logger.flush()
-      end)
-
-    denied_response = authed_conn |> recycle() |> get(~p"/dashboard")
-    assert redirected_to(denied_response, 302) == "/sign-in"
-
-    sign_in_html =
-      denied_response
+    response =
+      authed_conn
       |> recycle()
-      |> get(~p"/sign-in")
-      |> html_response(200)
+      |> get(~p"/welcome")
 
-    refute sign_in_html =~ "Welcome, owner@example.com"
-    assert log =~ "auth_boundary_check"
-    assert log =~ "outcome=deny"
-    assert log =~ "reason=missing_or_expired_session"
+    welcome_html = html_response(response, 200)
+
+    assert welcome_html =~ "Sign In"
+    assert welcome_html =~ "Create Account"
+    refute welcome_html =~ "owner@example.com"
+    refute welcome_html =~ "Sign Out"
+    assert get_session(response, "user_token") == nil
   end
 
   defp register_owner(email, password) do

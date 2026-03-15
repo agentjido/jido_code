@@ -1,6 +1,7 @@
 defmodule JidoCodeWeb.ProviderAuthControllerTest do
   # covers: auth.provider_broker_handoff.start_endpoint_contract
   # covers: auth.provider_broker_handoff.complete_endpoint_contract
+  # covers: auth.provider_login_policy.blocked_before_linking
   # covers: auth.provider_login_flow.broker_handoff_consumption
   # covers: auth.provider_login_flow.local_session_issuance
   # covers: auth.provider_login_flow.redirect_path_completion
@@ -98,7 +99,44 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     assert response["error"]["error_type"] == "provider_login_disabled"
   end
 
-  defp valid_broker_handoff(nonce) do
+  test "complete does not issue a session when the provider identity is not allowlisted", %{
+    conn: conn
+  } do
+    {:ok, _config} =
+      ProviderConfig.upsert(
+        %{
+          provider: :github,
+          provider_host: "github.com",
+          enabled: true,
+          login_enabled: true,
+          allowlist_mode: :organizations,
+          allowlist_values: ["agentjido"],
+          broker_issuer: "https://broker.example.com",
+          broker_audience: "jido-code",
+          broker_base_url: "https://broker.example.com"
+        },
+        authorize?: false
+      )
+
+    {issued_state, handoff_token} =
+      valid_broker_handoff("blocked-nonce", %{
+        "provider_email" => "blocked@example.com",
+        "organizations" => ["different-org"]
+      })
+
+    response_conn =
+      get(
+        conn,
+        ~p"/auth/providers/github/complete?provider_host=github.com&state=#{issued_state.token}&handoff_token=#{handoff_token}"
+      )
+
+    response = json_response(response_conn, 422)
+
+    assert response["error"]["error_type"] == "provider_identity_not_allowlisted"
+    assert get_session(response_conn, "user_token") == nil
+  end
+
+  defp valid_broker_handoff(nonce, claim_overrides \\ %{}) do
     {:ok, issued_state} =
       BrokerState.issue(
         %{
@@ -118,10 +156,14 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     end)
 
     handoff_token =
-      handoff_token(jwk, %{
-        "nonce" => nonce,
-        "exp" => DateTime.to_unix(DateTime.add(DateTime.utc_now(), 300, :second))
-      })
+      handoff_token(
+        jwk,
+        %{
+          "nonce" => nonce,
+          "exp" => DateTime.to_unix(DateTime.add(DateTime.utc_now(), 300, :second))
+        }
+        |> Map.merge(claim_overrides)
+      )
 
     {issued_state, handoff_token}
   end

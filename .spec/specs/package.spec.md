@@ -95,4 +95,9 @@ surface:
   target: .spec/specs/self_hosted_provider_integration.spec.md
   covers:
     - package.jido_code.auth_provider_foundation_in_repo
+
+- kind: source_file
+  target: .spec/specs/operator_provider_auth_guide.spec.md
+  covers:
+    - package.jido_code.auth_provider_foundation_in_repo
 ```

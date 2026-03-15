@@ -1,5 +1,8 @@
 # JidoCode (alpha)
 
+<!-- covers: docs.operator_provider_auth_guide.github_broker_registration_steps -->
+<!-- covers: docs.operator_provider_auth_guide.github_service_credential_setup -->
+
 [![CI](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml)
 
 JidoCode is an **Elixir/Phoenix + LiveView** application exploring a practical "AI coding orchestrator" built on the [Jido](https://github.com/agentjido/jido) agent runtime.
@@ -127,7 +130,11 @@ Visit http://localhost:4000
 Depending on what you run, you may also need:
 - `ANTHROPIC_API_KEY` — for the Claude Code runner
 - `SPRITES_API_TOKEN` — for the live Sprites client
-- GitHub App credentials — not yet documented
+- GitHub App, broker, and PAT settings — documented in the operator guide below
+
+For the current self-hosted provider-login and GitHub automation model, use the operator guide:
+
+- [`docs/self_hosted_provider_auth.md`](docs/self_hosted_provider_auth.md)
 
 ### Commands
 ```bash
@@ -207,6 +214,7 @@ specs/                          # PRD & design documents
 - [`specs/FORGE_OVERVIEW.md`](specs/FORGE_OVERVIEW.md) — Forge architecture deep dive
 - [`specs/`](specs/) — Product specs and PRD
 - [`specs/03_decisions_and_invariants.md`](specs/03_decisions_and_invariants.md) — Cross-spec source of truth
+- [`docs/self_hosted_provider_auth.md`](docs/self_hosted_provider_auth.md) — Self-hosted provider login and GitHub automation setup
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution guidelines
 - [`CHANGELOG.md`](CHANGELOG.md) — Version history
 

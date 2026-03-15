@@ -9,6 +9,9 @@ defmodule JidoCode.GitHub.ServiceCredentials do
   # covers: auth.github_service_credentials.secret_ref_names
   # covers: auth.github_service_credentials.login_service_split
   # covers: auth.github_service_credentials.secret_resolution
+  # covers: auth.self_hosted_provider_integration.login_and_service_ready
+  # covers: auth.self_hosted_provider_integration.service_independent_of_login_toggle
+  # covers: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
 
   alias JidoCode.AuthProviders.ProviderConfig
   alias JidoCode.Security.SecretRefs

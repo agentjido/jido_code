@@ -8,6 +8,9 @@ defmodule JidoCodeWeb.ProviderAuthController do
   # covers: auth.provider_login_flow.broker_handoff_consumption
   # covers: auth.provider_login_flow.local_session_issuance
   # covers: auth.provider_login_flow.redirect_path_completion
+  # covers: auth.self_hosted_provider_integration.login_and_service_ready
+  # covers: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
+  # covers: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
 
   use JidoCodeWeb, :controller
 

@@ -5,6 +5,10 @@ defmodule JidoCodeWeb.HomeLive do
   # covers: auth.operator_settings.broker_trust_configuration_ui
   # covers: auth.operator_settings.github_service_validation_feedback
   # covers: auth.operator_settings.integration_boundary_visible
+  # covers: auth.self_hosted_provider_integration.login_and_service_ready
+  # covers: auth.self_hosted_provider_integration.service_independent_of_login_toggle
+  # covers: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
+  # covers: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
   use JidoCodeWeb, :live_view
 
   require Ash.Query

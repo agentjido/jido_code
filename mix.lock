@@ -80,7 +80,7 @@
   "jido_ai": {:git, "https://github.com/agentjido/jido_ai.git", "2e42e09621f5532933acc15443eb5051932a6b15", [branch: "main"]},
   "jido_browser": {:git, "https://github.com/agentjido/jido_browser.git", "5578dafceed1c3f5a31ab22d81e65302085ea196", [branch: "main"]},
   "jido_chat": {:git, "https://github.com/agentjido/jido_chat.git", "5b6bbe24b339d72e29c2324f0b3c6d0cd476eb74", [branch: "main"]},
-  "jido_code_server": {:git, "https://github.com/pcharbon70/jido_code_server.git", "6f8e5dc2c5047177bde8050450462a60b9a4b51a", [branch: "main"]},
+  "jido_code_server": {:git, "https://github.com/pcharbon70/jido_code_server.git", "9db0e9078531cb5519c8681d5f90e61e9104c0fe", [branch: "main"]},
   "jido_command": {:git, "https://github.com/pcharbon70/jido_command.git", "d0ea3fed273fce5081b0c82931709eafbc699e8c", [branch: "main"]},
   "jido_conversation": {:git, "https://github.com/pcharbon70/jido_conversation.git", "7dd5bf55a765f9d5de3ee4d461b3d2e8d4edbfbc", [branch: "main"]},
   "jido_messaging": {:git, "https://github.com/agentjido/jido_messaging.git", "96e62c7c7573ca0e1b13a94d9609454a86fde49a", [branch: "main"]},

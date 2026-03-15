@@ -85,4 +85,9 @@ surface:
   target: .spec/specs/source_provider_adapter.spec.md
   covers:
     - package.jido_code.auth_provider_foundation_in_repo
+
+- kind: source_file
+  target: .spec/specs/operator_auth_settings.spec.md
+  covers:
+    - package.jido_code.auth_provider_foundation_in_repo
 ```

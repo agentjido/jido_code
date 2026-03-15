@@ -83,6 +83,38 @@
         "subject_id": "auth.github_service_credentials"
       },
       {
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "id": "auth.operator_settings.broker_trust_configuration_ui",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The Provider Login section shall let an operator persist provider-host enablement, allowlist posture, and broker trust fields without collecting Git automation secrets in the same form.",
+        "subject_id": "auth.operator_settings"
+      },
+      {
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "id": "auth.operator_settings.github_service_validation_feedback",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The Git Provider Integrations section shall show GitHub automation readiness feedback, including path-level validation detail and remediation, using deployment-local credential checks.",
+        "subject_id": "auth.operator_settings"
+      },
+      {
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "id": "auth.operator_settings.integration_boundary_visible",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "The operator console shall make the boundary explicit between provider-login broker configuration and deployment-local Git service secrets, and it shall keep GitLab and Bitbucket service integrations in explicit placeholder status.",
+        "subject_id": "auth.operator_settings"
+      },
+      {
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "id": "auth.operator_settings.sections_separated",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The authenticated landing page shall present separate Provider Login and Git Provider Integrations sections.",
+        "subject_id": "auth.operator_settings"
+      },
+      {
         "file": ".spec/specs/provider_broker_handoff.spec.md",
         "id": "auth.provider_broker_handoff.broker_jwt_validation",
         "priority": "must",
@@ -656,6 +688,58 @@
       },
       {
         "covers": [
+          "auth.operator_settings.github_service_validation_feedback"
+        ],
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "given": [
+          "GitHub automation depends on deployment-local credentials."
+        ],
+        "id": "auth.operator_settings.scenario.operator_refreshes_github_validation",
+        "subject_id": "auth.operator_settings",
+        "then": [
+          "The page renders path-level readiness and remediation feedback separately from provider-login settings."
+        ],
+        "when": [
+          "The operator refreshes GitHub integration validation."
+        ]
+      },
+      {
+        "covers": [
+          "auth.operator_settings.broker_trust_configuration_ui"
+        ],
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "given": [
+          "A local operator needs to enable hosted provider login."
+        ],
+        "id": "auth.operator_settings.scenario.operator_saves_broker_trust",
+        "subject_id": "auth.operator_settings",
+        "then": [
+          "The provider config persists broker trust and allowlist fields without storing Git automation secrets."
+        ],
+        "when": [
+          "The operator saves provider-host login settings on the landing page."
+        ]
+      },
+      {
+        "covers": [
+          "auth.operator_settings.sections_separated",
+          "auth.operator_settings.integration_boundary_visible"
+        ],
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "given": [
+          "A local operator is already signed in on the baseline landing page."
+        ],
+        "id": "auth.operator_settings.scenario.operator_views_console",
+        "subject_id": "auth.operator_settings",
+        "then": [
+          "The page shows separate Provider Login and Git Provider Integrations sections and keeps future provider integrations explicit."
+        ],
+        "when": [
+          "The operator opens the landing page."
+        ]
+      },
+      {
+        "covers": [
           "auth.provider_broker_handoff.start_endpoint_contract",
           "auth.provider_broker_handoff.complete_endpoint_contract"
         ],
@@ -1136,6 +1220,23 @@
         "title": "GitHub Service Credentials"
       },
       {
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "id": "auth.operator_settings",
+        "meta": {
+          "decisions": null,
+          "id": "auth.operator_settings",
+          "kind": "feature",
+          "status": "active",
+          "summary": "authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, and keep Git service secrets distinct from provider-login configuration.",
+          "surface": [
+            "lib/jido_code_web/live/home_live.ex",
+            "test/jido_code_web/live/home_live_operator_settings_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Operator Auth Settings"
+      },
+      {
         "file": ".spec/specs/package.spec.md",
         "id": "package.jido_code",
         "meta": {
@@ -1422,6 +1523,30 @@
         "kind": "source_file",
         "subject_id": "auth.github_service_credentials",
         "target": "test/jido_code/github/service_credentials_test.exs"
+      },
+      {
+        "covers": [
+          "auth.operator_settings.sections_separated",
+          "auth.operator_settings.broker_trust_configuration_ui",
+          "auth.operator_settings.github_service_validation_feedback",
+          "auth.operator_settings.integration_boundary_visible"
+        ],
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.operator_settings",
+        "target": "lib/jido_code_web/live/home_live.ex"
+      },
+      {
+        "covers": [
+          "auth.operator_settings.sections_separated",
+          "auth.operator_settings.broker_trust_configuration_ui",
+          "auth.operator_settings.github_service_validation_feedback",
+          "auth.operator_settings.integration_boundary_visible"
+        ],
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/home_live_operator_settings_test.exs"
       },
       {
         "covers": [
@@ -1882,6 +2007,15 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_auth_settings.spec.md"
+      },
+      {
+        "covers": [
           "source.provider_adapter.provider_catalog",
           "source.provider_adapter.placeholder_adapters"
         ],
@@ -2042,10 +2176,10 @@
     "decisions": 1,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 65,
-    "scenarios": 27,
-    "subjects": 14,
-    "verifications": 71
+    "requirements": 69,
+    "scenarios": 30,
+    "subjects": 15,
+    "verifications": 74
   },
   "verification": {
     "claims": [
@@ -2224,6 +2358,94 @@
         "subject_id": "auth.github_service_credentials",
         "target": "test/jido_code/github/service_credentials_test.exs",
         "verification_index": 3
+      },
+      {
+        "cover_id": "auth.operator_settings.broker_trust_configuration_ui",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.operator_settings.github_service_validation_feedback",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.operator_settings.integration_boundary_visible",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.operator_settings.sections_separated",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.operator_settings.broker_trust_configuration_ui",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/home_live_operator_settings_test.exs",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.operator_settings.github_service_validation_feedback",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/home_live_operator_settings_test.exs",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.operator_settings.integration_boundary_visible",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/home_live_operator_settings_test.exs",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.operator_settings.sections_separated",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/home_live_operator_settings_test.exs",
+        "verification_index": 1
       },
       {
         "cover_id": "auth.provider_broker_handoff.nonce_binding",
@@ -3205,6 +3427,17 @@
         "verification_index": 8
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "verification_index": 9
+      },
+      {
         "cover_id": "source.provider_adapter.placeholder_adapters",
         "file": ".spec/specs/source_provider_adapter.spec.md",
         "kind": "source_file",
@@ -3496,12 +3729,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 128
+      "linked": 137
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 14
+    "spec_count": 15
   }
 }

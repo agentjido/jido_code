@@ -3,8 +3,12 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
   # covers: auth.provider_identity_linking.verified_email_link
   # covers: auth.provider_identity_linking.auto_create_local_user
   # covers: auth.provider_identity_linking.auth_timestamps
+  # covers: auth.provider_login_policy.blocked_before_linking
   use JidoCode.DataCase, async: true
 
+  require Ash.Query
+
+  alias JidoCode.AuthProviders.ProviderConfig
   alias AshAuthentication.Info
   alias AshAuthentication.Strategy
   alias JidoCode.Accounts.ProviderIdentityLinker
@@ -15,6 +19,7 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
   @follow_up_auth_at ~U[2026-03-15 17:00:00.000000Z]
 
   test "reuses an existing provider identity and refreshes the last authenticated timestamp" do
+    enable_provider!(:github, "github.com")
     user = register_user!("provider-existing")
 
     {:ok, identity} =
@@ -53,6 +58,7 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
   end
 
   test "links a new provider subject to an existing user when the provider email is verified" do
+    enable_provider!(:gitlab, "gitlab.com")
     user = register_user!("provider-link-email")
 
     {:ok, result} =
@@ -74,6 +80,8 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
   end
 
   test "auto-creates a local user once and links later verified identities to that same user" do
+    enable_provider!(:github, "github.com")
+    enable_provider!(:bitbucket, "bitbucket.org")
     email = "provider-created@example.com"
 
     {:ok, created_result} =
@@ -117,6 +125,40 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
     assert same_user.id == created_result.user.id
   end
 
+  test "blocked provider identities fail before local account creation" do
+    {:ok, _config} =
+      ProviderConfig.upsert(
+        %{
+          provider: :github,
+          provider_host: "github.com",
+          enabled: true,
+          login_enabled: true,
+          allowlist_mode: :organizations,
+          allowlist_values: ["agentjido"]
+        },
+        authorize?: false
+      )
+
+    assert {:error, error} =
+             ProviderIdentityLinker.link(%{
+               provider: :github,
+               provider_host: "github.com",
+               provider_subject: "blocked-user",
+               provider_login: "blocked-user",
+               provider_email: "blocked@example.com",
+               email_verified: true,
+               organizations: ["different-org"],
+               authenticated_at: @initial_auth_at
+             })
+
+    assert error.error_type == "provider_identity_not_allowlisted"
+
+    assert {:ok, nil} =
+             User
+             |> Ash.Query.filter(email == ^"blocked@example.com")
+             |> Ash.read_one(authorize?: false)
+  end
+
   defp register_user!(email_prefix) do
     unique_suffix = System.unique_integer([:positive])
     email = "#{email_prefix}-#{unique_suffix}@example.com"
@@ -136,5 +178,21 @@ defmodule JidoCode.Accounts.ProviderIdentityLinkerTest do
       )
 
     user
+  end
+
+  defp enable_provider!(provider, provider_host, overrides \\ []) do
+    params =
+      %{
+        provider: provider,
+        provider_host: provider_host,
+        enabled: true,
+        login_enabled: true,
+        allowlist_mode: :none,
+        allowlist_values: []
+      }
+      |> Map.merge(Enum.into(overrides, %{}))
+
+    {:ok, config} = ProviderConfig.upsert(params, authorize?: false)
+    config
   end
 end

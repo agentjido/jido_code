@@ -1,6 +1,6 @@
 # Provider Identity Linking
 
-This subject defines how provider-backed authentication resolves back to the local user system. It is part of the repo-local foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
+This subject defines how provider-backed authentication resolves back to the local user system after provider login policy allows the identity to proceed. It is part of the repo-local foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
 
 ```spec-meta
 id: auth.provider_identity_linking

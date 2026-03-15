@@ -7,6 +7,7 @@
           "auth.system",
           "auth.provider_foundation",
           "auth.provider_identity_linking",
+          "auth.provider_login_policy",
           "users.admin_system",
           "auth.github_integration"
         ],
@@ -117,6 +118,38 @@
         "stability": "stable",
         "statement": "When no provider identity exists but the provider email is verified and matches an existing local user, the system shall attach the provider identity to that local user.",
         "subject_id": "auth.provider_identity_linking"
+      },
+      {
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "id": "auth.provider_login_policy.allowlist_evaluation",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Provider login shall evaluate the configured allowlist mode and values before local user linking proceeds.",
+        "subject_id": "auth.provider_login_policy"
+      },
+      {
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "id": "auth.provider_login_policy.blocked_before_linking",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Provider identities that fail login policy shall be rejected before the system creates or links a local user.",
+        "subject_id": "auth.provider_login_policy"
+      },
+      {
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "id": "auth.provider_login_policy.provider_enablement",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Provider login shall respect per-provider and per-host enablement flags before allowing login resolution.",
+        "subject_id": "auth.provider_login_policy"
+      },
+      {
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "id": "auth.provider_login_policy.provider_neutral_logic",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Allowlist evaluation shall remain provider-neutral so users, organizations, teams, groups, and workspaces can be evaluated through the same policy contract.",
+        "subject_id": "auth.provider_login_policy"
       },
       {
         "file": ".spec/specs/authentication_system.spec.md",
@@ -472,6 +505,58 @@
       },
       {
         "covers": [
+          "auth.provider_login_policy.blocked_before_linking"
+        ],
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "given": [
+          "A provider identity does not satisfy the configured allowlist."
+        ],
+        "id": "auth.provider_login_policy.scenario.allowlist_block",
+        "subject_id": "auth.provider_login_policy",
+        "then": [
+          "The identity is rejected before a local user is created or linked."
+        ],
+        "when": [
+          "Login is attempted."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_login_policy.allowlist_evaluation",
+          "auth.provider_login_policy.provider_neutral_logic"
+        ],
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "given": [
+          "A provider host is configured with an allowlist."
+        ],
+        "id": "auth.provider_login_policy.scenario.allowlist_pass",
+        "subject_id": "auth.provider_login_policy",
+        "then": [
+          "The login is allowed to proceed into local identity linking."
+        ],
+        "when": [
+          "Provider identity facts match the configured allowlist values."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_login_policy.provider_enablement"
+        ],
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "given": [
+          "A provider host is configured but login is disabled."
+        ],
+        "id": "auth.provider_login_policy.scenario.disabled_provider",
+        "subject_id": "auth.provider_login_policy",
+        "then": [
+          "The login is rejected before local user linking begins."
+        ],
+        "when": [
+          "A provider identity attempts login."
+        ]
+      },
+      {
+        "covers": [
           "auth.system.magic_link",
           "auth.system.local_email_identity"
         ],
@@ -666,7 +751,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation and linking work inside that repo.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation, linking, and login-policy work inside that repo.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -722,6 +807,27 @@
           "verification_minimum_strength": null
         },
         "title": "Provider Identity Linking"
+      },
+      {
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "id": "auth.provider_login_policy",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "auth.provider_login_policy",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code evaluates provider login enablement and provider-neutral allowlists before allowing provider identities to resolve into local users.",
+          "surface": [
+            "lib/jido_code/auth_providers/login_policy.ex",
+            "lib/jido_code/accounts/provider_identity_linker.ex",
+            "test/jido_code/auth_providers/login_policy_test.exs",
+            "test/jido_code/accounts/provider_identity_linker_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Provider Login Policy"
       },
       {
         "file": ".spec/specs/spec_system.spec.md",
@@ -906,6 +1012,46 @@
       },
       {
         "covers": [
+          "auth.provider_login_policy.provider_enablement",
+          "auth.provider_login_policy.allowlist_evaluation",
+          "auth.provider_login_policy.provider_neutral_logic"
+        ],
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_login_policy",
+        "target": "lib/jido_code/auth_providers/login_policy.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_login_policy.blocked_before_linking"
+        ],
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_login_policy",
+        "target": "lib/jido_code/accounts/provider_identity_linker.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_login_policy.provider_enablement",
+          "auth.provider_login_policy.allowlist_evaluation",
+          "auth.provider_login_policy.provider_neutral_logic"
+        ],
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_login_policy",
+        "target": "test/jido_code/auth_providers/login_policy_test.exs"
+      },
+      {
+        "covers": [
+          "auth.provider_login_policy.blocked_before_linking"
+        ],
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_login_policy",
+        "target": "test/jido_code/accounts/provider_identity_linker_test.exs"
+      },
+      {
+        "covers": [
           "auth.system.local_email_identity",
           "auth.system.password_registration_and_sign_in",
           "auth.system.password_reset",
@@ -1030,6 +1176,15 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_login_policy.spec.md"
+      },
+      {
+        "covers": [
           "spec.workspace.readme_present"
         ],
         "file": ".spec/specs/spec_system.spec.md",
@@ -1112,10 +1267,10 @@
     "decisions": 1,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 38,
-    "scenarios": 14,
-    "subjects": 9,
-    "verifications": 35
+    "requirements": 42,
+    "scenarios": 17,
+    "subjects": 10,
+    "verifications": 40
   },
   "verification": {
     "claims": [
@@ -1417,6 +1572,94 @@
         "verification_index": 3
       },
       {
+        "cover_id": "auth.provider_login_policy.allowlist_evaluation",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "lib/jido_code/auth_providers/login_policy.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_login_policy.provider_enablement",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "lib/jido_code/auth_providers/login_policy.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_login_policy.provider_neutral_logic",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "lib/jido_code/auth_providers/login_policy.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_login_policy.blocked_before_linking",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "lib/jido_code/accounts/provider_identity_linker.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.provider_login_policy.allowlist_evaluation",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "test/jido_code/auth_providers/login_policy_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_login_policy.provider_enablement",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "test/jido_code/auth_providers/login_policy_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_login_policy.provider_neutral_logic",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "test/jido_code/auth_providers/login_policy_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_login_policy.blocked_before_linking",
+        "file": ".spec/specs/provider_login_policy.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_login_policy",
+        "target": "test/jido_code/accounts/provider_identity_linker_test.exs",
+        "verification_index": 3
+      },
+      {
         "cover_id": "auth.system.email_confirmation",
         "file": ".spec/specs/authentication_system.spec.md",
         "kind": "source_file",
@@ -1637,6 +1880,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_login_policy.spec.md",
+        "verification_index": 4
+      },
+      {
         "cover_id": "spec.workspace.readme_present",
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "source_file",
@@ -1774,12 +2028,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 56
+      "linked": 65
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 9
+    "spec_count": 10
   }
 }

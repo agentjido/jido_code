@@ -3,11 +3,13 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
   # covers: auth.provider_identity_linking.verified_email_link
   # covers: auth.provider_identity_linking.auto_create_local_user
   # covers: auth.provider_identity_linking.auth_timestamps
+  # covers: auth.provider_login_policy.blocked_before_linking
   require Ash.Query
 
   alias JidoCode.Accounts
   alias JidoCode.Accounts.User
   alias JidoCode.Accounts.UserIdentity
+  alias JidoCode.AuthProviders.LoginPolicy
 
   @type resolution :: :existing_identity | :linked_by_email | :created_user
 
@@ -21,12 +23,28 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
   @spec link(map(), Keyword.t()) :: {:ok, result()} | {:error, term()}
   def link(params, opts) when is_map(params) do
     with {:ok, input} <- normalize_input(params),
+         :ok <- authorize_provider_login(input, opts),
          {:ok, result} <- link_identity(input, opts) do
       {:ok, result}
     end
   end
 
   def link(_params, _opts), do: {:error, :invalid_provider_identity_input}
+
+  defp authorize_provider_login(input, opts) do
+    if Keyword.get(opts, :skip_login_policy?, false) do
+      :ok
+    else
+      do_authorize_provider_login(input)
+    end
+  end
+
+  defp do_authorize_provider_login(input) do
+    case LoginPolicy.authorize(input) do
+      {:ok, _config} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp link_identity(input, opts) do
     case find_identity(input.provider, input.provider_host, input.provider_subject) do
@@ -225,6 +243,10 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
          provider_login: optional_trimmed(params, :provider_login, "provider_login"),
          provider_email: params |> map_get(:provider_email, "provider_email") |> normalize_optional_email(),
          email_verified: map_get(params, :email_verified, "email_verified") || false,
+         organizations: normalize_string_list(map_get(params, :organizations, "organizations")),
+         teams: normalize_string_list(map_get(params, :teams, "teams")),
+         groups: normalize_string_list(map_get(params, :groups, "groups")),
+         workspaces: normalize_string_list(map_get(params, :workspaces, "workspaces")),
          authenticated_at: authenticated_at
        }}
     end
@@ -258,6 +280,13 @@ defmodule JidoCode.Accounts.ProviderIdentityLinker do
   defp normalize_optional_email(""), do: nil
   defp normalize_optional_email(email) when is_binary(email), do: email |> String.trim() |> blank_to_nil()
   defp normalize_optional_email(email), do: email |> to_string() |> normalize_optional_email()
+
+  defp normalize_string_list(nil), do: []
+
+  defp normalize_string_list(values) when is_list(values),
+    do: values |> Enum.map(&normalize_optional_email/1) |> Enum.reject(&is_nil/1)
+
+  defp normalize_string_list(value), do: value |> List.wrap() |> normalize_string_list()
 
   defp normalize_authenticated_at(%DateTime{} = authenticated_at),
     do: DateTime.truncate(authenticated_at, :microsecond)

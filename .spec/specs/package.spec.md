@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation and linking work inside that repo.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation, linking, and login-policy work inside that repo.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -58,6 +58,11 @@ surface:
 
 - kind: source_file
   target: .spec/specs/provider_identity_linking.spec.md
+  covers:
+    - package.jido_code.auth_provider_foundation_in_repo
+
+- kind: source_file
+  target: .spec/specs/provider_login_policy.spec.md
   covers:
     - package.jido_code.auth_provider_foundation_in_repo
 ```

@@ -1,6 +1,6 @@
 # User Administration
 
-This subject defines the target user-management model for `jido_code` as it evolves from owner bootstrap toward a durable admin-managed account system.
+This subject defines the target user-management model for `jido_code` as it evolves from owner bootstrap toward a durable admin-managed account system. Local users remain the shared directory even when a user later gains linked external identities.
 
 ```spec-meta
 id: users.admin_system

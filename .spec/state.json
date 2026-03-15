@@ -5,6 +5,7 @@
         "affects": [
           "package.jido_code",
           "auth.system",
+          "auth.provider_foundation",
           "users.admin_system",
           "auth.github_integration"
         ],
@@ -51,6 +52,30 @@
         "stability": "stable",
         "statement": "Setup shall report whether GitHub App mode or PAT fallback is configured and whether repository access is confirmed for the current administrator context.",
         "subject_id": "auth.github_integration"
+      },
+      {
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "id": "auth.provider_foundation.local_user_identity_mapping",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "External provider identities shall resolve through a local identity record that uniquely maps provider plus host plus provider subject to one local user.",
+        "subject_id": "auth.provider_foundation"
+      },
+      {
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "id": "auth.provider_foundation.provider_catalog",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The provider auth foundation shall recognize GitHub, GitLab, and Bitbucket as the initial provider catalog.",
+        "subject_id": "auth.provider_foundation"
+      },
+      {
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "id": "auth.provider_foundation.provider_login_configuration",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The system shall persist provider-host login configuration including enablement, allowlist posture, and broker trust fields without coupling it to provider automation secrets.",
+        "subject_id": "auth.provider_foundation"
       },
       {
         "file": ".spec/specs/authentication_system.spec.md",
@@ -155,6 +180,14 @@
         "stability": "stable",
         "statement": "The repository shall prefer GitHub issues and pull requests for non-trivial collaboration and shall avoid landing changes directly on main.",
         "subject_id": "collaboration.workflow"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code.auth_provider_foundation_in_repo",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Auth-provider foundation work shall be specified and implemented inside jido_code rather than split into a separate product repo.",
+        "subject_id": "package.jido_code"
       },
       {
         "file": ".spec/specs/package.spec.md",
@@ -305,6 +338,41 @@
         ],
         "when": [
           "Setup validates GitHub integration."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_foundation.local_user_identity_mapping"
+        ],
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "given": [
+          "A local user already exists."
+        ],
+        "id": "auth.provider_foundation.scenario.identity_lookup",
+        "subject_id": "auth.provider_foundation",
+        "then": [
+          "Future provider lookups can resolve the same local user through the provider plus host plus subject tuple."
+        ],
+        "when": [
+          "The system records a provider identity for that user."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_foundation.provider_catalog",
+          "auth.provider_foundation.provider_login_configuration"
+        ],
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "given": [
+          "An operator needs to prepare hosted provider login."
+        ],
+        "id": "auth.provider_foundation.scenario.provider_config",
+        "subject_id": "auth.provider_foundation",
+        "then": [
+          "The system persists provider-neutral login settings without storing automation credentials in the same record."
+        ],
+        "when": [
+          "The operator saves provider-host configuration for an approved source provider."
         ]
       },
       {
@@ -486,7 +554,8 @@
             "lib/jido_code/setup/github_credential_checks.ex",
             "lib/jido_code/setup/github_installation_sync.ex",
             "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
-            "lib/jido_code/accounts/user.ex"
+            "lib/jido_code/accounts/user.ex",
+            "lib/jido_code/accounts/user_identity.ex"
           ],
           "verification_minimum_strength": null
         },
@@ -502,7 +571,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo and maintains a package-local Spec Led workspace.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves new auth-provider foundation work inside that repo.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -515,6 +584,28 @@
           "verification_minimum_strength": null
         },
         "title": "Package"
+      },
+      {
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "id": "auth.provider_foundation",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "auth.provider_foundation",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code persists provider-backed user identities and provider login configuration without replacing the local user system.",
+          "surface": [
+            "lib/jido_code/accounts/user_identity.ex",
+            "lib/jido_code/auth_providers.ex",
+            "lib/jido_code/auth_providers/provider_config.ex",
+            "test/jido_code/accounts/user_identity_test.exs",
+            "test/jido_code/auth_providers/provider_config_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Provider Auth Foundation"
       },
       {
         "file": ".spec/specs/spec_system.spec.md",
@@ -596,6 +687,63 @@
         "kind": "source_file",
         "subject_id": "auth.github_integration",
         "target": "lib/jido_code/accounts/user.ex"
+      },
+      {
+        "covers": [
+          "auth.github_integration.local_user_mapping"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/accounts/user_identity.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_foundation.local_user_identity_mapping",
+          "auth.provider_foundation.provider_catalog"
+        ],
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/accounts/user_identity.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_foundation.provider_login_configuration"
+        ],
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/auth_providers.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_foundation.provider_catalog",
+          "auth.provider_foundation.provider_login_configuration"
+        ],
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/auth_providers/provider_config.ex"
+      },
+      {
+        "covers": [
+          "auth.provider_foundation.local_user_identity_mapping"
+        ],
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_foundation",
+        "target": "test/jido_code/accounts/user_identity_test.exs"
+      },
+      {
+        "covers": [
+          "auth.provider_foundation.provider_catalog",
+          "auth.provider_foundation.provider_login_configuration"
+        ],
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.provider_foundation",
+        "target": "test/jido_code/auth_providers/provider_config_test.exs"
       },
       {
         "covers": [
@@ -705,6 +853,15 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_auth_foundation.spec.md"
+      },
+      {
+        "covers": [
           "spec.workspace.readme_present"
         ],
         "file": ".spec/specs/spec_system.spec.md",
@@ -787,10 +944,10 @@
     "decisions": 1,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 29,
-    "scenarios": 9,
-    "subjects": 7,
-    "verifications": 23
+    "requirements": 33,
+    "scenarios": 11,
+    "subjects": 8,
+    "verifications": 30
   },
   "verification": {
     "claims": [
@@ -870,6 +1027,105 @@
         "subject_id": "auth.github_integration",
         "target": "lib/jido_code/accounts/user.ex",
         "verification_index": 3
+      },
+      {
+        "cover_id": "auth.github_integration.local_user_mapping",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/accounts/user_identity.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "auth.provider_foundation.local_user_identity_mapping",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/accounts/user_identity.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_foundation.provider_catalog",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/accounts/user_identity.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.provider_foundation.provider_login_configuration",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/auth_providers.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.provider_foundation.provider_catalog",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/auth_providers/provider_config.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_foundation.provider_login_configuration",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "lib/jido_code/auth_providers/provider_config.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.provider_foundation.local_user_identity_mapping",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "test/jido_code/accounts/user_identity_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.provider_foundation.provider_catalog",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "test/jido_code/auth_providers/provider_config_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "auth.provider_foundation.provider_login_configuration",
+        "file": ".spec/specs/provider_auth_foundation.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_foundation",
+        "target": "test/jido_code/auth_providers/provider_config_test.exs",
+        "verification_index": 4
       },
       {
         "cover_id": "auth.system.email_confirmation",
@@ -1070,6 +1326,17 @@
         "verification_index": 1
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "verification_index": 2
+      },
+      {
         "cover_id": "spec.workspace.readme_present",
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "source_file",
@@ -1207,12 +1474,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 34
+      "linked": 44
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 7
+    "spec_count": 8
   }
 }

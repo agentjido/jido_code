@@ -312,6 +312,10 @@ defmodule JidoCode.Accounts.User do
     has_many :valid_api_keys, JidoCode.Accounts.ApiKey do
       filter expr(valid)
     end
+
+    has_many :user_identities, JidoCode.Accounts.UserIdentity do
+      destination_attribute :user_id
+    end
   end
 
   identities do

@@ -14,6 +14,7 @@ surface:
   - lib/jido_code/setup/github_installation_sync.ex
   - test/jido_code_web/live/setup_live_github_auth_mode_test.exs
   - lib/jido_code/accounts/user.ex
+  - lib/jido_code/accounts/user_identity.ex
 ```
 
 ## Requirements
@@ -99,6 +100,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code/accounts/user.ex
+  covers:
+    - auth.github_integration.local_user_mapping
+
+- kind: source_file
+  target: lib/jido_code/accounts/user_identity.ex
   covers:
     - auth.github_integration.local_user_mapping
 ```

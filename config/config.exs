@@ -87,6 +87,7 @@ config :jido_code,
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
     JidoCode.Accounts,
+    JidoCode.AuthProviders,
     JidoCode.GitHub,
     JidoCode.Projects,
     JidoCode.Orchestration,

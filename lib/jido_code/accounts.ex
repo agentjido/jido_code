@@ -9,5 +9,6 @@ defmodule JidoCode.Accounts do
     resource JidoCode.Accounts.Token
     resource JidoCode.Accounts.User
     resource JidoCode.Accounts.ApiKey
+    resource JidoCode.Accounts.UserIdentity
   end
 end

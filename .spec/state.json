@@ -22,7 +22,78 @@
       }
     ]
   },
-  "findings": [],
+  "findings": [
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code/github/service_credentials.ex does not reference covered requirement: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code/github/service_credentials.ex does not reference covered requirement: auth.self_hosted_provider_integration.login_and_service_ready"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code/github/service_credentials.ex does not reference covered requirement: auth.self_hosted_provider_integration.service_independent_of_login_toggle"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code_web/controllers/provider_auth_controller.ex does not reference covered requirement: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code_web/controllers/provider_auth_controller.ex does not reference covered requirement: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code_web/controllers/provider_auth_controller.ex does not reference covered requirement: auth.self_hosted_provider_integration.login_and_service_ready"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code_web/live/home_live.ex does not reference covered requirement: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code_web/live/home_live.ex does not reference covered requirement: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code_web/live/home_live.ex does not reference covered requirement: auth.self_hosted_provider_integration.login_and_service_ready"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "auth.self_hosted_provider_integration",
+      "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code_web/live/home_live.ex does not reference covered requirement: auth.self_hosted_provider_integration.service_independent_of_login_toggle"
+    }
+  ],
   "index": {
     "exceptions": [],
     "requirements": [
@@ -329,6 +400,38 @@
         "stability": "stable",
         "statement": "Allowlist evaluation shall remain provider-neutral so users, organizations, teams, groups, and workspaces can be evaluated through the same policy contract.",
         "subject_id": "auth.provider_login_policy"
+      },
+      {
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "id": "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Provider-login allowlist rejection shall block provider session issuance without breaking deployment-local GitHub automation validation.",
+        "subject_id": "auth.self_hosted_provider_integration"
+      },
+      {
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "id": "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Local email authentication shall remain available when broker validation is unavailable or fails for provider login.",
+        "subject_id": "auth.self_hosted_provider_integration"
+      },
+      {
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "id": "auth.self_hosted_provider_integration.login_and_service_ready",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "A self-hosted deployment shall support broker-backed GitHub login while deployment-local GitHub automation validation is simultaneously ready.",
+        "subject_id": "auth.self_hosted_provider_integration"
+      },
+      {
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "id": "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "GitHub automation validation shall remain available even when browser provider login is disabled for that provider host.",
+        "subject_id": "auth.self_hosted_provider_integration"
       },
       {
         "file": ".spec/specs/authentication_system.spec.md",
@@ -975,6 +1078,78 @@
       },
       {
         "covers": [
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "given": [
+          "Provider login is enabled and restricted by an allowlist.",
+          "Deployment-local GitHub automation credentials remain configured."
+        ],
+        "id": "auth.self_hosted_provider_integration.scenario.allowlist_rejection",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "then": [
+          "Provider login is rejected and GitHub automation readiness still renders for the local operator path."
+        ],
+        "when": [
+          "A provider identity outside the allowlist attempts sign-in."
+        ]
+      },
+      {
+        "covers": [
+          "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "given": [
+          "Provider login is enabled for GitHub.com.",
+          "Broker trust validation is unavailable."
+        ],
+        "id": "auth.self_hosted_provider_integration.scenario.broker_failure_local_fallback",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "then": [
+          "Local email sign-in and account access remain available."
+        ],
+        "when": [
+          "Provider sign-in fails."
+        ]
+      },
+      {
+        "covers": [
+          "auth.self_hosted_provider_integration.login_and_service_ready"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "given": [
+          "Provider login is enabled for GitHub.com.",
+          "Deployment-local GitHub App credentials are configured."
+        ],
+        "id": "auth.self_hosted_provider_integration.scenario.login_and_service_ready",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "then": [
+          "The local session is issued and the authenticated landing page shows GitHub automation as ready."
+        ],
+        "when": [
+          "A broker-validated GitHub identity completes sign-in."
+        ]
+      },
+      {
+        "covers": [
+          "auth.self_hosted_provider_integration.service_independent_of_login_toggle"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "given": [
+          "Browser provider login is disabled for GitHub.com.",
+          "Deployment-local GitHub automation credentials remain configured."
+        ],
+        "id": "auth.self_hosted_provider_integration.scenario.login_disabled_service_ready",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "then": [
+          "Provider login stays disabled while GitHub automation readiness remains available."
+        ],
+        "when": [
+          "An operator inspects the authenticated landing page."
+        ]
+      },
+      {
+        "covers": [
           "auth.system.magic_link",
           "auth.system.local_email_identity"
         ],
@@ -1370,6 +1545,25 @@
           "verification_minimum_strength": null
         },
         "title": "Provider Login Policy"
+      },
+      {
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "id": "auth.self_hosted_provider_integration",
+        "meta": {
+          "decisions": null,
+          "id": "auth.self_hosted_provider_integration",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection.",
+          "surface": [
+            "lib/jido_code_web/controllers/provider_auth_controller.ex",
+            "lib/jido_code_web/live/home_live.ex",
+            "lib/jido_code/github/service_credentials.ex",
+            "test/jido_code_web/integration/self_hosted_provider_auth_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Self-Hosted Provider Auth Integration"
       },
       {
         "file": ".spec/specs/source_provider_adapter.spec.md",
@@ -1819,6 +2013,52 @@
       },
       {
         "covers": [
+          "auth.self_hosted_provider_integration.login_and_service_ready",
+          "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex"
+      },
+      {
+        "covers": [
+          "auth.self_hosted_provider_integration.login_and_service_ready",
+          "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
+          "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/live/home_live.ex"
+      },
+      {
+        "covers": [
+          "auth.self_hosted_provider_integration.login_and_service_ready",
+          "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code/github/service_credentials.ex"
+      },
+      {
+        "covers": [
+          "auth.self_hosted_provider_integration.login_and_service_ready",
+          "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
+          "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/integration/self_hosted_provider_auth_test.exs"
+      },
+      {
+        "covers": [
           "auth.system.local_email_identity",
           "auth.system.password_registration_and_sign_in",
           "auth.system.password_reset",
@@ -2016,6 +2256,15 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md"
+      },
+      {
+        "covers": [
           "source.provider_adapter.provider_catalog",
           "source.provider_adapter.placeholder_adapters"
         ],
@@ -2175,11 +2424,11 @@
     "decision_parse_errors": 0,
     "decisions": 1,
     "exceptions": 0,
-    "findings": 0,
-    "requirements": 69,
-    "scenarios": 30,
-    "subjects": 15,
-    "verifications": 74
+    "findings": 10,
+    "requirements": 73,
+    "scenarios": 34,
+    "subjects": 16,
+    "verifications": 79
   },
   "verification": {
     "claims": [
@@ -3119,6 +3368,160 @@
         "verification_index": 3
       },
       {
+        "cover_id": "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.login_and_service_ready",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.login_and_service_ready",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code/github/service_credentials.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.login_and_service_ready",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code/github/service_credentials.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code/github/service_credentials.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/integration/self_hosted_provider_auth_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/integration/self_hosted_provider_auth_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.login_and_service_ready",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/integration/self_hosted_provider_auth_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/integration/self_hosted_provider_auth_test.exs",
+        "verification_index": 3
+      },
+      {
         "cover_id": "auth.system.email_confirmation",
         "file": ".spec/specs/authentication_system.spec.md",
         "kind": "source_file",
@@ -3438,6 +3841,17 @@
         "verification_index": 9
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "verification_index": 10
+      },
+      {
         "cover_id": "source.provider_adapter.placeholder_adapters",
         "file": ".spec/specs/source_provider_adapter.spec.md",
         "kind": "source_file",
@@ -3727,14 +4141,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 3,
+      "claimed": 13,
       "executed": 0,
-      "linked": 137
+      "linked": 142
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 15
+    "spec_count": 16
   }
 }

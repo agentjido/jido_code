@@ -137,6 +137,23 @@ mix precommit           # Compile + format + test
 mix coveralls.html      # Coverage report
 ```
 
+### Jido CLI Wrapper
+```bash
+# from repo root (wrapper script)
+./jidocode --skills
+
+# equivalent explicit path
+bin/jidocode --skills
+bin/jidocode --skill list
+bin/jidocode --skill run my-skill --route my/route --data '{"key":"value"}'
+
+bin/jidocode --commands
+bin/jidocode --command my-command --params '{"key":"value"}'
+
+bin/jidocode --workflows
+bin/jidocode --workflow my_workflow -file_path lib/example.ex -mode full
+```
+
 ---
 
 ## Architecture

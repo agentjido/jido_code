@@ -101,6 +101,10 @@ config :jido_code,
   mailer: [from_name: "Jido Code"],
   runtime_mode: config_env()
 
+config :jido_code, :code_server,
+  data_dir: ".jido",
+  conversation_orchestration: true
+
 # Configure the endpoint
 config :jido_code, JidoCodeWeb.Endpoint,
   url: [host: "localhost"],

@@ -704,6 +704,7 @@ defmodule JidoCodeWeb.SetupLive do
               id="setup-owner-password"
               type="password"
               label={owner_password_label(@owner_bootstrap.mode)}
+              minlength={if @owner_bootstrap.mode == :create, do: 8, else: nil}
               required
             />
             <.input
@@ -712,6 +713,7 @@ defmodule JidoCodeWeb.SetupLive do
               id="setup-owner-password-confirmation"
               type="password"
               label="Confirm owner password"
+              minlength="8"
               required
             />
             <button id="setup-owner-bootstrap-submit" type="submit" class="btn btn-primary">
@@ -759,6 +761,7 @@ defmodule JidoCodeWeb.SetupLive do
                 id="setup-owner-recovery-password"
                 type="password"
                 label="New owner password"
+                minlength="8"
                 required
               />
               <.input
@@ -766,6 +769,7 @@ defmodule JidoCodeWeb.SetupLive do
                 id="setup-owner-recovery-password-confirmation"
                 type="password"
                 label="Confirm new owner password"
+                minlength="8"
                 required
               />
               <.input
@@ -869,7 +873,11 @@ defmodule JidoCodeWeb.SetupLive do
     {:noreply, assign(socket, :save_error, @owner_step_validation_error)}
   end
 
-  def handle_event("bootstrap_owner", %{"owner" => owner_params}, socket) do
+  def handle_event(
+        "bootstrap_owner",
+        %{"owner" => owner_params},
+        %{assigns: %{onboarding_step: 2}} = socket
+      ) do
     case OwnerBootstrap.bootstrap(owner_params) do
       {:ok, owner_bootstrap_result} ->
         step_state =
@@ -912,7 +920,11 @@ defmodule JidoCodeWeb.SetupLive do
     {:noreply, assign(socket, :save_error, @owner_step_validation_error)}
   end
 
-  def handle_event("recover_owner", %{"owner_recovery" => recovery_params}, socket) do
+  def handle_event(
+        "recover_owner",
+        %{"owner_recovery" => recovery_params},
+        %{assigns: %{onboarding_step: 2, owner_bootstrap: %{mode: :confirm}}} = socket
+      ) do
     case OwnerRecovery.recover(recovery_params) do
       {:ok, owner_recovery_result} ->
         step_state =

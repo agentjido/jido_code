@@ -37,6 +37,7 @@ defmodule JidoCode.GithubIssueBot.PullRequest.Actions.PatchResultAction do
         # Spawn QualityAgent to validate the fix
         spawn_directive =
           Directive.spawn_agent(QualityAgent, :quality,
+            opts: %{id: worker_agent_id(run_id, :quality, attempt)},
             meta: %{
               run_id: run_id,
               issue: context.state.issue,
@@ -58,5 +59,10 @@ defmodule JidoCode.GithubIssueBot.PullRequest.Actions.PatchResultAction do
   def run(%{worker_type: other}, _context) do
     Logger.warning("Unexpected worker type in patch result: #{inspect(other)}")
     {:ok, %{}}
+  end
+
+  defp worker_agent_id(run_id, worker_type, attempt)
+       when is_binary(run_id) and is_atom(worker_type) and is_integer(attempt) do
+    "#{run_id}/#{worker_type}/#{attempt}"
   end
 end

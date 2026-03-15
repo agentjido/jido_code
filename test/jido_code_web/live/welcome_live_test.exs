@@ -170,7 +170,7 @@ defmodule JidoCodeWeb.WelcomeLiveTest do
     assert {:error, {:live_redirect, %{to: "/setup"}}} = live(conn, ~p"/welcome")
   end
 
-  test "shows error when bootstrap fails with invalid credentials", %{conn: conn} do
+  test "shows a friendly validation error when password is too short", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/welcome")
 
     view
@@ -183,8 +183,27 @@ defmodule JidoCodeWeb.WelcomeLiveTest do
     })
     |> render_submit()
 
-    _html = render(view)
-    assert has_element?(view, "#welcome-save-error")
+    html = render(view)
+    assert has_element?(view, "#welcome-save-error", "at least 8 characters")
+    refute html =~ "Bread Crumbs"
+  end
+
+  test "rejects malformed owner email addresses with a validation error", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/welcome")
+
+    view
+    |> form("#welcome-owner-form", %{
+      "owner" => %{
+        "email" => "not-an-email",
+        "password" => "secure-password-123",
+        "password_confirmation" => "secure-password-123"
+      }
+    })
+    |> render_submit()
+
+    html = render(view)
+    assert has_element?(view, "#welcome-save-error", "valid email address")
+    refute html =~ "Bread Crumbs"
   end
 
   # -- Helpers --

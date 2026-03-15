@@ -12,11 +12,12 @@ defmodule JidoCode.Setup.OwnerRecovery do
 
   @audit_event [:jido_code, :auth, :owner_recovery, :completed]
   @verification_phrase "RECOVER OWNER ACCESS"
-  @verification_denied_error """
-  Owner recovery verification failed. Credential reset was denied and owner state is unchanged.
-  """
+  @verification_denied_error "Owner recovery verification failed. Credential reset was denied and owner state is unchanged."
   @missing_recovery_fields_error "Owner recovery requires email and a new password."
   @password_confirmation_error "Owner recovery requires matching password confirmation."
+  @verification_phrase_required_error "Owner recovery requires the verification phrase."
+  @verification_ack_required_error "Owner recovery requires explicit recovery acknowledgement."
+  @password_length_error "Owner recovery requires a password that is at least 8 characters."
   @recovery_unavailable_error "Owner recovery is unavailable because no owner account exists yet."
   @token_generation_error "Owner recovery could not generate a sign-in token."
 
@@ -144,8 +145,17 @@ defmodule JidoCode.Setup.OwnerRecovery do
       email == "" or password == "" ->
         {:error, {:validation, @missing_recovery_fields_error}}
 
+      String.length(password) < 8 ->
+        {:error, {:validation, @password_length_error}}
+
       password_confirmation == "" or password != password_confirmation ->
         {:error, {:validation, @password_confirmation_error}}
+
+      verification_phrase == "" ->
+        {:error, {:validation, @verification_phrase_required_error}}
+
+      verification_ack != true ->
+        {:error, {:validation, @verification_ack_required_error}}
 
       true ->
         {:ok,

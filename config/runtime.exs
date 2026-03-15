@@ -22,6 +22,10 @@ end
 
 config :jido_code, JidoCodeWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if config_env() == :prod do
+  config :jido_code_server, :llm_adapter, :jido_ai
+end
+
 if secret_ref_encryption_key = System.get_env("JIDO_CODE_SECRET_REF_ENCRYPTION_KEY") do
   config :jido_code, secret_ref_encryption_key: secret_ref_encryption_key
 end

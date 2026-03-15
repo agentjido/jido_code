@@ -48,3 +48,5 @@ config :phoenix,
 config :jido_code,
   system_config_loader: &JidoCode.Setup.SystemConfig.default_loader/0,
   system_config_saver: &JidoCode.Setup.SystemConfig.default_saver/1
+
+config :jido_code_server, :llm_adapter, :deterministic

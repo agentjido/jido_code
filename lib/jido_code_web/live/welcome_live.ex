@@ -111,7 +111,7 @@ defmodule JidoCodeWeb.WelcomeLive do
                     </span>
                     <div>
                       <span class="font-medium">{check.name}</span>
-                      <span class="text-base-content/60"> —     {check.detail}</span>
+                      <span class="text-base-content/60"> —       {check.detail}</span>
                       <p :if={check.status != :pass} class="text-warning text-xs">
                         {check.remediation}
                       </p>
@@ -159,6 +159,7 @@ defmodule JidoCodeWeb.WelcomeLive do
                     field={@owner_form[:password]}
                     type="password"
                     label="Password"
+                    minlength={if @owner_mode == :create, do: 8, else: nil}
                     required
                     autocomplete="new-password"
                   />
@@ -169,6 +170,7 @@ defmodule JidoCodeWeb.WelcomeLive do
                   field={@owner_form[:password_confirmation]}
                   type="password"
                   label="Confirm password"
+                  minlength="8"
                   required
                   autocomplete="new-password"
                 />

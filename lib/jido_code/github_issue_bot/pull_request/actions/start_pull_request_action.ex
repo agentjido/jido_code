@@ -36,6 +36,7 @@ defmodule JidoCode.GithubIssueBot.PullRequest.Actions.StartPullRequestAction do
     # Spawn only PatchAgent first - sequential flow
     spawn_directive =
       Directive.spawn_agent(PatchAgent, :patch,
+        opts: %{id: worker_agent_id(run_id, :patch, 1)},
         meta: %{
           run_id: run_id,
           issue: issue,
@@ -60,5 +61,10 @@ defmodule JidoCode.GithubIssueBot.PullRequest.Actions.StartPullRequestAction do
        pr_submit_result: %{},
        attempt_history: []
      }, [spawn_directive]}
+  end
+
+  defp worker_agent_id(run_id, worker_type, attempt)
+       when is_binary(run_id) and is_atom(worker_type) and is_integer(attempt) do
+    "#{run_id}/#{worker_type}/#{attempt}"
   end
 end

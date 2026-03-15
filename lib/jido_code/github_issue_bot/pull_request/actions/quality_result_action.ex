@@ -60,6 +60,7 @@ defmodule JidoCode.GithubIssueBot.PullRequest.Actions.QualityResultAction do
 
     spawn_directive =
       Directive.spawn_agent(PRSubmitAgent, :pr_submit,
+        opts: %{id: worker_agent_id(run_id, :pr_submit, attempt)},
         meta: %{
           run_id: run_id,
           issue: context.state.issue,
@@ -105,6 +106,7 @@ defmodule JidoCode.GithubIssueBot.PullRequest.Actions.QualityResultAction do
     # Spawn new PatchAgent for retry
     spawn_directive =
       Directive.spawn_agent(PatchAgent, :patch,
+        opts: %{id: worker_agent_id(run_id, :patch, next_attempt)},
         meta: %{
           run_id: run_id,
           issue: context.state.issue,
@@ -177,5 +179,10 @@ defmodule JidoCode.GithubIssueBot.PullRequest.Actions.QualityResultAction do
     Map.get(result, :tests_passed, false) and
       Map.get(result, :lint_passed, false) and
       Map.get(result, :typecheck_passed, false)
+  end
+
+  defp worker_agent_id(run_id, worker_type, attempt)
+       when is_binary(run_id) and is_atom(worker_type) and is_integer(attempt) do
+    "#{run_id}/#{worker_type}/#{attempt}"
   end
 end

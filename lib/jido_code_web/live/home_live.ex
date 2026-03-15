@@ -1,8 +1,21 @@
 defmodule JidoCodeWeb.HomeLive do
+  # covers: auth.provider_login_flow.entrypoint_visible
+  # covers: auth.provider_login_flow.local_auth_fallback_visible
   use JidoCodeWeb, :live_view
 
+  require Ash.Query
+
+  alias JidoCode.AuthProviders
+  alias JidoCode.AuthProviders.ProviderConfig
+
   @impl true
-  def mount(_params, _session, socket), do: {:ok, socket}
+  def mount(_params, _session, socket) do
+    {:ok,
+     assign(socket,
+       github_login_path: github_login_path(),
+       github_login_enabled?: github_login_enabled?()
+     )}
+  end
 
   @impl true
   def render(assigns) do
@@ -38,6 +51,14 @@ defmodule JidoCodeWeb.HomeLive do
                   <a href="/sign-in" class="btn btn-primary btn-block">Sign In</a>
                   <a href="/register" class="btn btn-outline btn-block">Create Account</a>
                 </div>
+
+                <%= if @github_login_enabled? do %>
+                  <div class="grid gap-3">
+                    <a href={@github_login_path} class="btn btn-neutral btn-block">
+                      Sign In with GitHub
+                    </a>
+                  </div>
+                <% end %>
               <% end %>
             </div>
 
@@ -49,5 +70,19 @@ defmodule JidoCodeWeb.HomeLive do
       </div>
     </div>
     """
+  end
+
+  defp github_login_enabled? do
+    ProviderConfig
+    |> Ash.Query.filter(provider == ^:github and provider_host == ^"github.com")
+    |> Ash.read_one(domain: AuthProviders, authorize?: false)
+    |> case do
+      {:ok, %ProviderConfig{enabled: true, login_enabled: true}} -> true
+      _other -> false
+    end
+  end
+
+  defp github_login_path do
+    "/auth/providers/github/start?provider_host=github.com&redirect_path=/welcome"
   end
 end

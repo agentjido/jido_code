@@ -6,7 +6,7 @@ This subject defines the deployment-side contract for broker-issued provider log
 id: auth.provider_broker_handoff
 kind: feature
 status: active
-summary: jido_code signs deployment-owned provider state, validates broker JWT handoffs with issuer and audience trust, blocks nonce replay, and exposes start and complete contract endpoints without yet performing provider-specific login.
+summary: jido_code signs deployment-owned provider state, validates broker JWT handoffs with issuer and audience trust, blocks nonce replay, and enforces the contract that must pass before provider-specific local sign-in can proceed.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -58,7 +58,7 @@ surface:
   stability: evolving
 
 - id: auth.provider_broker_handoff.complete_endpoint_contract
-  statement: The deployment complete endpoint shall validate signed state and broker handoff JWT and stop at validated contract handoff until provider-specific login wiring is implemented.
+  statement: The deployment complete endpoint shall validate signed state and broker handoff JWT before provider-specific identity linking and local session issuance are allowed to proceed.
   priority: must
   stability: evolving
 ```
@@ -99,7 +99,7 @@ surface:
   when:
     - The deployment start and complete endpoints are invoked.
   then:
-    - Start redirects to the broker contract URL, and complete only acknowledges validated contract handoff data.
+    - Start redirects to the broker contract URL, and complete validates the broker contract before any local provider sign-in work runs.
 ```
 
 ## Verification

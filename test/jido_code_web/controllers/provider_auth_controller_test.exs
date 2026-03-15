@@ -1,9 +1,13 @@
 defmodule JidoCodeWeb.ProviderAuthControllerTest do
   # covers: auth.provider_broker_handoff.start_endpoint_contract
   # covers: auth.provider_broker_handoff.complete_endpoint_contract
+  # covers: auth.provider_login_flow.broker_handoff_consumption
+  # covers: auth.provider_login_flow.local_session_issuance
+  # covers: auth.provider_login_flow.redirect_path_completion
   use JidoCodeWeb.ConnCase, async: false
 
   alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
+  alias JidoCode.Accounts.UserIdentity
 
   @now ~U[2026-03-15 17:00:00Z]
   @resolver_env :provider_auth_broker_jwks_resolver
@@ -23,19 +27,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   end
 
   test "start redirects to the broker start contract URL", %{conn: conn} do
-    {:ok, _config} =
-      ProviderConfig.upsert(
-        %{
-          provider: :github,
-          provider_host: "github.com",
-          enabled: true,
-          login_enabled: true,
-          broker_issuer: "https://broker.example.com",
-          broker_audience: "jido-code",
-          broker_base_url: "https://broker.example.com"
-        },
-        authorize?: false
-      )
+    enable_provider_login!(:github, "github.com")
 
     conn =
       get(conn, ~p"/auth/providers/github/start?provider_host=github.com&redirect_path=/welcome")
@@ -48,14 +40,45 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     assert redirected =~ "state="
   end
 
-  test "complete validates the broker handoff contract and returns acknowledged contract data", %{conn: conn} do
+  test "complete validates the broker handoff, signs in locally, and redirects to the signed path", %{
+    conn: conn
+  } do
+    enable_provider_login!(:github, "github.com")
+    {issued_state, handoff_token} = valid_broker_handoff("controller-nonce")
+
+    conn =
+      get(
+        conn,
+        ~p"/auth/providers/github/complete?provider_host=github.com&state=#{issued_state.token}&handoff_token=#{handoff_token}"
+      )
+
+    assert redirected_to(conn, 302) == "/welcome"
+    assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Your local account was created and signed in with GitHub."
+
+    session_token = get_session(conn, "user_token")
+    assert is_binary(session_token)
+
+    welcome_html =
+      conn
+      |> recycle()
+      |> get(~p"/welcome")
+      |> html_response(200)
+
+    assert welcome_html =~ "octocat@example.com"
+    assert welcome_html =~ "Sign Out"
+
+    {:ok, identities} = UserIdentity.list_for_user(%{user_id: current_user_id(conn)}, authorize?: false)
+    assert Enum.map(identities, & &1.provider_subject) == ["12345"]
+  end
+
+  test "complete rejects provider login when provider config is disabled", %{conn: conn} do
     {:ok, _config} =
       ProviderConfig.upsert(
         %{
           provider: :github,
           provider_host: "github.com",
-          enabled: true,
-          login_enabled: true,
+          enabled: false,
+          login_enabled: false,
           broker_issuer: "https://broker.example.com",
           broker_audience: "jido-code",
           broker_base_url: "https://broker.example.com"
@@ -63,6 +86,19 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
         authorize?: false
       )
 
+    {issued_state, handoff_token} = valid_broker_handoff("disabled-nonce")
+
+    response =
+      conn
+      |> get(
+        ~p"/auth/providers/github/complete?provider_host=github.com&state=#{issued_state.token}&handoff_token=#{handoff_token}"
+      )
+      |> json_response(403)
+
+    assert response["error"]["error_type"] == "provider_login_disabled"
+  end
+
+  defp valid_broker_handoff(nonce) do
     {:ok, issued_state} =
       BrokerState.issue(
         %{
@@ -72,7 +108,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
           redirect_path: "/welcome"
         },
         now: @now,
-        nonce: "controller-nonce"
+        nonce: nonce
       )
 
     jwk = JOSE.JWK.generate_key({:okp, :Ed25519})
@@ -83,22 +119,38 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
 
     handoff_token =
       handoff_token(jwk, %{
-        "nonce" => "controller-nonce",
+        "nonce" => nonce,
         "exp" => DateTime.to_unix(DateTime.add(DateTime.utc_now(), 300, :second))
       })
 
-    response =
-      conn
-      |> get(
-        ~p"/auth/providers/github/complete?provider_host=github.com&state=#{issued_state.token}&handoff_token=#{handoff_token}"
-      )
-      |> json_response(200)
+    {issued_state, handoff_token}
+  end
 
-    assert response["status"] == "broker_handoff_validated"
-    assert response["provider"] == "github"
-    assert response["provider_host"] == "github.com"
-    assert response["nonce"] == "controller-nonce"
-    assert response["redirect_path"] == "/welcome"
+  defp current_user_id(conn) do
+    conn
+    |> recycle()
+    |> get(~p"/welcome")
+    |> Map.fetch!(:assigns)
+    |> Map.fetch!(:current_user)
+    |> Map.fetch!(:id)
+  end
+
+  defp enable_provider_login!(provider, provider_host) do
+    {:ok, config} =
+      ProviderConfig.upsert(
+        %{
+          provider: provider,
+          provider_host: provider_host,
+          enabled: true,
+          login_enabled: true,
+          broker_issuer: "https://broker.example.com",
+          broker_audience: "jido-code",
+          broker_base_url: "https://broker.example.com"
+        },
+        authorize?: false
+      )
+
+    config
   end
 
   defp handoff_token(jwk, overrides) do

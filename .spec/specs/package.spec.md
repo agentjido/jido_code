@@ -75,4 +75,9 @@ surface:
   target: .spec/specs/provider_broker_handoff.spec.md
   covers:
     - package.jido_code.auth_provider_foundation_in_repo
+
+- kind: source_file
+  target: .spec/specs/provider_login_flow.spec.md
+  covers:
+    - package.jido_code.auth_provider_foundation_in_repo
 ```

@@ -32,7 +32,7 @@ surface:
   stability: stable
 
 - id: baseline.surface.auth_entrypoints_visible
-  statement: The landing page shall present authentication entrypoints for anonymous users and a sign-out control for authenticated users.
+  statement: The landing page shall present local authentication entrypoints for anonymous users, an enabled provider-login entrypoint when configured, and a sign-out control for authenticated users.
   priority: must
   stability: stable
 

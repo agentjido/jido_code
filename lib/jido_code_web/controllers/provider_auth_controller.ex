@@ -5,16 +5,21 @@ defmodule JidoCodeWeb.ProviderAuthController do
 
   # covers: auth.provider_broker_handoff.start_endpoint_contract
   # covers: auth.provider_broker_handoff.complete_endpoint_contract
+  # covers: auth.provider_login_flow.broker_handoff_consumption
+  # covers: auth.provider_login_flow.local_session_issuance
+  # covers: auth.provider_login_flow.redirect_path_completion
 
   use JidoCodeWeb, :controller
 
-  alias JidoCode.AuthProviders.{BrokerHandoff, BrokerState, ProviderConfig}
+  alias AshAuthentication.Plug.Helpers
+  alias JidoCode.AuthProviders.{BrokerHandoff, BrokerState, ProviderConfig, ProviderLogin}
 
   def start(conn, %{"provider" => provider} = params) do
     provider_host = Map.get(params, "provider_host", default_provider_host(provider))
-    redirect_path = Map.get(params, "redirect_path", "/")
+    redirect_path = normalize_redirect_path(Map.get(params, "redirect_path", "/"))
 
     with {:ok, provider_config} <- fetch_provider_config(provider, provider_host),
+         :ok <- ensure_login_enabled(provider_config),
          {:ok, issued_state} <-
            BrokerState.issue(%{
              provider: provider,
@@ -28,6 +33,11 @@ defmodule JidoCodeWeb.ProviderAuthController do
       {:error, %{error_type: "provider_login_not_configured"} = error} ->
         conn
         |> put_status(:not_found)
+        |> json(%{error: error})
+
+      {:error, %{error_type: "provider_login_disabled"} = error} ->
+        conn
+        |> put_status(:forbidden)
         |> json(%{error: error})
 
       {:error, %{error_type: "broker_base_url_invalid"} = error} ->
@@ -46,14 +56,15 @@ defmodule JidoCodeWeb.ProviderAuthController do
     with {:ok, state_claims} <- BrokerState.verify(state_token),
          true <- state_claims.provider == provider,
          {:ok, provider_config} <- fetch_provider_config(provider, state_claims.provider_host),
-         {:ok, validated} <- BrokerHandoff.validate(handoff_token, provider_config, state_claims) do
-      json(conn, %{
-        status: "broker_handoff_validated",
-        provider: validated.provider,
-        provider_host: validated.provider_host,
-        nonce: validated.nonce,
-        redirect_path: state_claims.redirect_path
-      })
+         :ok <- ensure_login_enabled(provider_config),
+         {:ok, validated} <- BrokerHandoff.validate(handoff_token, provider_config, state_claims),
+         {:ok, sign_in_result} <- ProviderLogin.sign_in(validated.claims) do
+      conn
+      |> delete_session(:return_to)
+      |> Helpers.store_in_session(sign_in_result.session_user)
+      |> assign(:current_user, sign_in_result.session_user)
+      |> put_flash(:info, sign_in_message(sign_in_result, validated.provider))
+      |> redirect(to: state_claims.redirect_path)
     else
       false ->
         conn
@@ -71,6 +82,11 @@ defmodule JidoCodeWeb.ProviderAuthController do
         |> put_status(:not_found)
         |> json(%{error: error})
 
+      {:error, %{error_type: "provider_login_disabled"} = error} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: error})
+
       {:error, %{error_type: error_type} = error}
       when error_type in [
              "broker_handoff_invalid",
@@ -86,6 +102,17 @@ defmodule JidoCodeWeb.ProviderAuthController do
            ] ->
         conn
         |> put_status(:unauthorized)
+        |> json(%{error: error})
+
+      {:error, %{error_type: error_type} = error}
+      when error_type in [
+             "provider_identity_not_allowlisted",
+             "provider_email_required_for_auto_create",
+             "provider_sign_in_invalid_input",
+             "provider_session_token_generation_failed"
+           ] ->
+        conn
+        |> put_status(:unprocessable_entity)
         |> json(%{error: error})
 
       {:error, error} ->
@@ -120,6 +147,19 @@ defmodule JidoCodeWeb.ProviderAuthController do
       {:error, _reason} ->
         provider_not_configured(normalized_provider, provider_host)
     end
+  end
+
+  defp ensure_login_enabled(%ProviderConfig{enabled: true, login_enabled: true}), do: :ok
+
+  defp ensure_login_enabled(%ProviderConfig{} = provider_config) do
+    {:error,
+     %{
+       error_type: "provider_login_disabled",
+       message: "Provider login is disabled for this provider host.",
+       recovery_instruction: "Enable provider login before starting or completing this flow.",
+       provider: provider_config.provider,
+       provider_host: provider_config.provider_host
+     }}
   end
 
   defp provider_not_configured(provider, provider_host) do
@@ -172,6 +212,35 @@ defmodule JidoCodeWeb.ProviderAuthController do
   defp default_provider_host("gitlab"), do: "gitlab.com"
   defp default_provider_host("bitbucket"), do: "bitbucket.org"
   defp default_provider_host(_provider), do: "github.com"
+
+  defp sign_in_message(sign_in_result, provider) do
+    provider_name = provider_display_name(provider)
+
+    case sign_in_result.resolution do
+      :existing_identity -> "You are now signed in with #{provider_name}."
+      :linked_by_email -> "Your #{provider_name} identity is now linked and signed in."
+      :created_user -> "Your local account was created and signed in with #{provider_name}."
+    end
+  end
+
+  defp normalize_redirect_path(value) when is_binary(value) do
+    case String.trim(value) do
+      "/" -> "/"
+      <<"/", _::binary>> = path -> path
+      _other -> "/"
+    end
+  end
+
+  defp normalize_redirect_path(_value), do: "/"
+
+  defp provider_display_name("github"), do: "GitHub"
+  defp provider_display_name("gitlab"), do: "GitLab"
+  defp provider_display_name("bitbucket"), do: "Bitbucket"
+
+  defp provider_display_name(provider) when is_atom(provider),
+    do: provider |> Atom.to_string() |> provider_display_name()
+
+  defp provider_display_name(provider), do: provider |> to_string() |> String.capitalize()
 
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do

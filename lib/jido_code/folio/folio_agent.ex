@@ -6,7 +6,7 @@ defmodule JidoCode.Folio.FolioAgent do
   and helps manage next actions and waiting-for lists.
   """
 
-  use Jido.AI.Agent,
+  use Jido.AI.ReActAgent,
     name: "folio_agent",
     description: "GTD task manager - capture, clarify, organize, engage",
     tools: [
@@ -37,7 +37,7 @@ defmodule JidoCode.Folio.FolioAgent do
       domain: JidoCode.Folio,
       actor: %{id: "system", role: :user}
     },
-    model: :fast,
+    model: "anthropic:claude-haiku-4-5",
     max_iterations: 8,
     system_prompt: """
     You are a GTD (Getting Things Done) task manager assistant.

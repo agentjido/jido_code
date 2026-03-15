@@ -39,64 +39,69 @@ defmodule JidoCodeWeb.Router do
     plug(:accepts, ["json"])
   end
 
-  scope "/", JidoCodeWeb do
-    pipe_through(:rpc_run)
-
-    post("/rpc/run", AshTypescriptRpcController, :run)
-    post("/rpc/validate", AshTypescriptRpcController, :validate)
-  end
-
-  scope "/", JidoCodeWeb do
-    pipe_through(:browser)
-
-    ash_authentication_live_session :authenticated_routes,
-      on_mount: [{JidoCodeWeb.LiveUserAuth, :live_user_required}] do
-      live("/dashboard", DashboardLive, :index)
-      live("/workbench", WorkbenchLive, :index)
-      live("/workflows", WorkflowsLive, :index)
-      live("/agents", AgentsLive, :index)
-      live("/projects", ProjectInventoryLive, :index)
-      live("/projects/:id", ProjectDetailLive, :show)
-      live("/projects/:id/runs/:run_id", RunDetailLive, :show)
-      live("/settings", SettingsLive, :index)
-      live("/settings/:tab", SettingsLive, :index)
-
-      live("/forge", Forge.IndexLive, :index)
-      live("/forge/new", Forge.NewLive, :new)
-      live("/forge/:session_id", Forge.ShowLive, :show)
-
-      live("/folio", FolioLive, :index)
-
-      live("/demos/chat", Demos.ChatLive, :index)
-    end
-
-    get("/ash-typescript", PageController, :index)
-  end
-
-  scope "/api", JidoCodeWeb do
-    pipe_through(:github_webhook)
-
-    post("/github/webhooks", GitHubWebhookController, :create)
-  end
-
-  scope "/api/json" do
-    pipe_through([:api])
-
-    forward("/swaggerui", OpenApiSpex.Plug.SwaggerUI,
-      path: "/api/json/open_api",
-      default_model_expand_depth: 4
-    )
-
-    forward("/", JidoCodeWeb.AshJsonApiRouter)
-  end
+  # Baseline mode: comment out product, RPC, and API surfaces until the
+  # landing page plus authentication baseline is stabilized.
+  #
+  # covers: baseline.surface.product_routes_disabled
+  #
+  # scope "/", JidoCodeWeb do
+  #   pipe_through(:rpc_run)
+  #
+  #   post("/rpc/run", AshTypescriptRpcController, :run)
+  #   post("/rpc/validate", AshTypescriptRpcController, :validate)
+  # end
+  #
+  # scope "/", JidoCodeWeb do
+  #   pipe_through(:browser)
+  #
+  #   ash_authentication_live_session :authenticated_routes,
+  #     on_mount: [{JidoCodeWeb.LiveUserAuth, :live_user_required}] do
+  #     live("/dashboard", DashboardLive, :index)
+  #     live("/workbench", WorkbenchLive, :index)
+  #     live("/workflows", WorkflowsLive, :index)
+  #     live("/agents", AgentsLive, :index)
+  #     live("/projects", ProjectInventoryLive, :index)
+  #     live("/projects/:id", ProjectDetailLive, :show)
+  #     live("/projects/:id/runs/:run_id", RunDetailLive, :show)
+  #     live("/settings", SettingsLive, :index)
+  #     live("/settings/:tab", SettingsLive, :index)
+  #
+  #     live("/forge", Forge.IndexLive, :index)
+  #     live("/forge/new", Forge.NewLive, :new)
+  #     live("/forge/:session_id", Forge.ShowLive, :show)
+  #
+  #     live("/folio", FolioLive, :index)
+  #
+  #     live("/demos/chat", Demos.ChatLive, :index)
+  #   end
+  #
+  #   get("/ash-typescript", PageController, :index)
+  # end
+  #
+  # scope "/api", JidoCodeWeb do
+  #   pipe_through(:github_webhook)
+  #
+  #   post("/github/webhooks", GitHubWebhookController, :create)
+  # end
+  #
+  # scope "/api/json" do
+  #   pipe_through([:api])
+  #
+  #   forward("/swaggerui", OpenApiSpex.Plug.SwaggerUI,
+  #     path: "/api/json/open_api",
+  #     default_model_expand_depth: 4
+  #   )
+  #
+  #   forward("/", JidoCodeWeb.AshJsonApiRouter)
+  # end
 
   scope "/", JidoCodeWeb do
     pipe_through(:browser)
 
     ash_authentication_live_session :public_routes,
       on_mount: [{JidoCodeWeb.LiveUserAuth, :live_user_optional}] do
-      live("/welcome", WelcomeLive, :index)
-      live("/setup", SetupLive, :index)
+      # covers: baseline.surface.routes_landing_and_auth_only
+      live("/welcome", HomeLive, :index)
       live("/", HomeLive, :index)
     end
 
@@ -143,29 +148,26 @@ defmodule JidoCodeWeb.Router do
   # end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
-  if Application.compile_env(:jido_code, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
-    import Phoenix.LiveDashboard.Router
-
-    scope "/dev" do
-      pipe_through(:browser)
-
-      live_dashboard("/dashboard", metrics: JidoCodeWeb.Telemetry)
-      forward("/mailbox", Plug.Swoosh.MailboxPreview)
-    end
-  end
-
-  if Application.compile_env(:jido_code, :dev_routes) do
-    import AshAdmin.Router
-
-    scope "/admin" do
-      pipe_through(:browser)
-
-      ash_admin("/")
-    end
-  end
+  # Baseline mode keeps only landing plus auth routes active.
+  #
+  # if Application.compile_env(:jido_code, :dev_routes) do
+  #   import Phoenix.LiveDashboard.Router
+  #
+  #   scope "/dev" do
+  #     pipe_through(:browser)
+  #
+  #     live_dashboard("/dashboard", metrics: JidoCodeWeb.Telemetry)
+  #     forward("/mailbox", Plug.Swoosh.MailboxPreview)
+  #   end
+  # end
+  #
+  # if Application.compile_env(:jido_code, :dev_routes) do
+  #   import AshAdmin.Router
+  #
+  #   scope "/admin" do
+  #     pipe_through(:browser)
+  #
+  #     ash_admin("/")
+  #   end
+  # end
 end

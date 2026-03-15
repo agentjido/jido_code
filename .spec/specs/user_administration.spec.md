@@ -1,0 +1,110 @@
+# User Administration
+
+This subject defines the target user-management model for `jido_code` as it evolves from owner bootstrap toward a durable admin-managed account system.
+
+```spec-meta
+id: users.admin_system
+kind: feature
+status: active
+summary: jido_code boots with an initial administrator and grows into an admin-managed multi-user account system.
+decisions:
+  - jido_code.auth_user_system
+surface:
+  - lib/jido_code/setup/owner_bootstrap.ex
+  - lib/jido_code/accounts/user.ex
+  - lib/jido_code/accounts/checks/registration_allowed.ex
+```
+
+## Requirements
+
+```spec-requirements
+- id: users.admin_system.bootstrap_admin
+  statement: Initial setup shall create or confirm exactly one bootstrap administrator before admin-managed account features are used.
+  priority: must
+  stability: stable
+
+- id: users.admin_system.local_user_directory
+  statement: The account model shall treat administrators and standard members as users in one local user system rather than separate identity silos.
+  priority: must
+  stability: stable
+
+- id: users.admin_system.admin_role_assignment
+  statement: The system shall identify which users are administrators so policy, auditing, and management actions can resolve the acting admin explicitly.
+  priority: must
+  stability: stable
+
+- id: users.admin_system.admin_managed_provisioning
+  statement: Administrators shall be able to add users and initiate account creation without reopening unrestricted public registration.
+  priority: must
+  stability: stable
+
+- id: users.admin_system.self_service_auth_lifecycle
+  statement: Both administrators and standard users shall be able to sign in, sign out, and complete forgot-password recovery for their own accounts.
+  priority: must
+  stability: stable
+
+- id: users.admin_system.registration_guardrails
+  statement: Once the bootstrap administrator exists in production, open self-registration shall remain gated unless an administrator explicitly provisions or invites the account.
+  priority: must
+  stability: stable
+```
+
+## Scenarios
+
+```spec-scenarios
+- id: users.admin_system.scenario.bootstrap_admin
+  covers:
+    - users.admin_system.bootstrap_admin
+    - users.admin_system.local_user_directory
+  given:
+    - The deployment has no existing users.
+  when:
+    - Initial setup is completed.
+  then:
+    - The system establishes one bootstrap administrator who becomes the first accountable local user.
+
+- id: users.admin_system.scenario.admin_adds_user
+  covers:
+    - users.admin_system.admin_managed_provisioning
+    - users.admin_system.admin_role_assignment
+    - users.admin_system.registration_guardrails
+  given:
+    - A bootstrap administrator is signed in.
+  when:
+    - The administrator provisions a new team member account.
+  then:
+    - The new account enters the local user system without reopening unrestricted public sign-up.
+
+- id: users.admin_system.scenario.standard_user_recovers_access
+  covers:
+    - users.admin_system.self_service_auth_lifecycle
+  given:
+    - A standard user account exists in the local directory.
+  when:
+    - The user forgets their password.
+  then:
+    - The user completes self-service recovery without requiring direct administrator password handling.
+```
+
+## Verification
+
+```spec-verification
+- kind: source_file
+  target: lib/jido_code/setup/owner_bootstrap.ex
+  covers:
+    - users.admin_system.bootstrap_admin
+
+- kind: source_file
+  target: lib/jido_code/accounts/user.ex
+  covers:
+    - users.admin_system.local_user_directory
+    - users.admin_system.admin_role_assignment
+    - users.admin_system.admin_managed_provisioning
+    - users.admin_system.self_service_auth_lifecycle
+
+- kind: source_file
+  target: lib/jido_code/accounts/checks/registration_allowed.ex
+  covers:
+    - users.admin_system.registration_guardrails
+    - users.admin_system.admin_managed_provisioning
+```

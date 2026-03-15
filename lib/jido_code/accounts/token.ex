@@ -1,4 +1,5 @@
 defmodule JidoCode.Accounts.Token do
+  # covers: auth.system.revocable_credentials
   use Ash.Resource,
     otp_app: :jido_code,
     domain: JidoCode.Accounts,

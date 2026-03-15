@@ -1,4 +1,14 @@
 defmodule JidoCode.Accounts.User do
+  # covers: auth.system.local_email_identity
+  # covers: auth.system.password_registration_and_sign_in
+  # covers: auth.system.password_reset
+  # covers: auth.system.magic_link
+  # covers: auth.system.email_confirmation
+  # covers: users.admin_system.local_user_directory
+  # covers: users.admin_system.admin_role_assignment
+  # covers: users.admin_system.admin_managed_provisioning
+  # covers: users.admin_system.self_service_auth_lifecycle
+  # covers: auth.github_integration.local_user_mapping
   use Ash.Resource,
     otp_app: :jido_code,
     domain: JidoCode.Accounts,

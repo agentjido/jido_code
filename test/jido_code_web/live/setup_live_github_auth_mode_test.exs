@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.SetupLiveGitHubAuthModeTest do
+  # covers: auth.github_integration.readiness_feedback
+  # covers: auth.github_integration.non_blocking_local_auth
   use ExUnit.Case, async: true
 
   import Phoenix.Component, only: [to_form: 2]

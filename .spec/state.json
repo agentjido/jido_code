@@ -1,0 +1,1218 @@
+{
+  "decisions": {
+    "items": [
+      {
+        "affects": [
+          "package.jido_code",
+          "auth.system",
+          "users.admin_system",
+          "auth.github_integration"
+        ],
+        "date": "2026-03-15",
+        "file": ".spec/decisions/jido_code.auth_user_system.md",
+        "id": "jido_code.auth_user_system",
+        "status": "accepted",
+        "title": "Local User System With Bootstrap Admin"
+      }
+    ]
+  },
+  "findings": [],
+  "index": {
+    "exceptions": [],
+    "requirements": [
+      {
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "id": "auth.github_integration.github_app_preferred",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "When GitHub-backed automation is enabled, GitHub App mode shall be the preferred integration path over PAT fallback because it offers scoped installation access and repository-aware validation.",
+        "subject_id": "auth.github_integration"
+      },
+      {
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "id": "auth.github_integration.local_user_mapping",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "If GitHub-backed user sign-in is introduced, it shall resolve to a local user record and preserve the same administrator-versus-member role model used by local authentication.",
+        "subject_id": "auth.github_integration"
+      },
+      {
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "id": "auth.github_integration.non_blocking_local_auth",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Email/password and magic-link authentication shall remain available even when GitHub App configuration is absent or invalid.",
+        "subject_id": "auth.github_integration"
+      },
+      {
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "id": "auth.github_integration.readiness_feedback",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Setup shall report whether GitHub App mode or PAT fallback is configured and whether repository access is confirmed for the current administrator context.",
+        "subject_id": "auth.github_integration"
+      },
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system.email_confirmation",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "New email-backed identities shall support confirmation tracking before they are treated as confirmed accounts.",
+        "subject_id": "auth.system"
+      },
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system.local_email_identity",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Authentication shall be anchored to a local user record with a unique email identity.",
+        "subject_id": "auth.system"
+      },
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system.magic_link",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Local authentication shall support email magic-link sign-in and registration.",
+        "subject_id": "auth.system"
+      },
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system.password_registration_and_sign_in",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Local authentication shall support email-and-password registration and sign-in with password confirmation and minimum-length validation.",
+        "subject_id": "auth.system"
+      },
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system.password_reset",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Local authentication shall support forgot-password recovery by issuing a reset token and allowing token-based password reset.",
+        "subject_id": "auth.system"
+      },
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system.revocable_credentials",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The system shall persist session credentials and API keys so they can be listed and revoked as part of account security operations.",
+        "subject_id": "auth.system"
+      },
+      {
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "id": "baseline.surface.auth_entrypoints_visible",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The landing page shall present authentication entrypoints for anonymous users and a sign-out control for authenticated users.",
+        "subject_id": "baseline.surface"
+      },
+      {
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "id": "baseline.surface.nav_trimmed",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Shared application chrome shall not advertise disabled product areas while baseline mode is active.",
+        "subject_id": "baseline.surface"
+      },
+      {
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "id": "baseline.surface.product_routes_disabled",
+        "priority": "must",
+        "stability": "temporary",
+        "statement": "Product, setup, RPC, API, and admin route declarations shall remain commented out while baseline mode is active.",
+        "subject_id": "baseline.surface"
+      },
+      {
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "id": "baseline.surface.routes_landing_and_auth_only",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The browser route surface shall expose only the landing page and authentication flows while baseline mode is active.",
+        "subject_id": "baseline.surface"
+      },
+      {
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "id": "baseline.surface.welcome_landing_copy",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The landing page shall present the copy \"Welcome to Jido Code\" and explain that the application has been trimmed to a baseline.",
+        "subject_id": "baseline.surface"
+      },
+      {
+        "file": ".spec/specs/collaboration.spec.md",
+        "id": "collaboration.workflow.beadwork_enabled",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall instruct agents to run bw prime before starting work and use Beadwork for durable local work state.",
+        "subject_id": "collaboration.workflow"
+      },
+      {
+        "file": ".spec/specs/collaboration.spec.md",
+        "id": "collaboration.workflow.github_prs",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall prefer GitHub issues and pull requests for non-trivial collaboration and shall avoid landing changes directly on main.",
+        "subject_id": "collaboration.workflow"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code.primary_implementation_repo",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The jido_code repository shall serve as the primary product and implementation repo for active work in this workspace.",
+        "subject_id": "package.jido_code"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code.spec_led_workspace",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall maintain a package-local .spec workspace for current-truth subject specs, durable ADRs, and generated spec state.",
+        "subject_id": "package.jido_code"
+      },
+      {
+        "file": ".spec/specs/spec_system.spec.md",
+        "id": "spec.workspace.agents_present",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall include a .spec/AGENTS.md that gives local operating guidance for agents working inside the .spec workspace.",
+        "subject_id": "spec.system"
+      },
+      {
+        "file": ".spec/specs/spec_system.spec.md",
+        "id": "spec.workspace.decisions_readme_present",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall include a .spec/decisions/README.md that explains when durable ADRs belong in the workspace.",
+        "subject_id": "spec.system"
+      },
+      {
+        "file": ".spec/specs/spec_system.spec.md",
+        "id": "spec.workspace.readme_present",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall include a .spec/README.md that explains purpose, layout, and workflow.",
+        "subject_id": "spec.system"
+      },
+      {
+        "file": ".spec/specs/spec_system.spec.md",
+        "id": "spec.workspace.state_generated",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "When planning and verification run, the workspace shall generate .spec/state.json containing indexed subjects, indexed decisions, and verification state.",
+        "subject_id": "spec.system"
+      },
+      {
+        "file": ".spec/specs/user_administration.spec.md",
+        "id": "users.admin_system.admin_managed_provisioning",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Administrators shall be able to add users and initiate account creation without reopening unrestricted public registration.",
+        "subject_id": "users.admin_system"
+      },
+      {
+        "file": ".spec/specs/user_administration.spec.md",
+        "id": "users.admin_system.admin_role_assignment",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The system shall identify which users are administrators so policy, auditing, and management actions can resolve the acting admin explicitly.",
+        "subject_id": "users.admin_system"
+      },
+      {
+        "file": ".spec/specs/user_administration.spec.md",
+        "id": "users.admin_system.bootstrap_admin",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Initial setup shall create or confirm exactly one bootstrap administrator before admin-managed account features are used.",
+        "subject_id": "users.admin_system"
+      },
+      {
+        "file": ".spec/specs/user_administration.spec.md",
+        "id": "users.admin_system.local_user_directory",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The account model shall treat administrators and standard members as users in one local user system rather than separate identity silos.",
+        "subject_id": "users.admin_system"
+      },
+      {
+        "file": ".spec/specs/user_administration.spec.md",
+        "id": "users.admin_system.registration_guardrails",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Once the bootstrap administrator exists in production, open self-registration shall remain gated unless an administrator explicitly provisions or invites the account.",
+        "subject_id": "users.admin_system"
+      },
+      {
+        "file": ".spec/specs/user_administration.spec.md",
+        "id": "users.admin_system.self_service_auth_lifecycle",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Both administrators and standard users shall be able to sign in, sign out, and complete forgot-password recovery for their own accounts.",
+        "subject_id": "users.admin_system"
+      }
+    ],
+    "scenarios": [
+      {
+        "covers": [
+          "auth.github_integration.readiness_feedback",
+          "auth.github_integration.github_app_preferred"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "given": [
+          "GitHub App credentials are configured and the installation can access the expected repositories."
+        ],
+        "id": "auth.github_integration.scenario.github_app_ready",
+        "subject_id": "auth.github_integration",
+        "then": [
+          "The system reports GitHub App mode as ready for the current administrator context."
+        ],
+        "when": [
+          "Setup validates GitHub integration."
+        ]
+      },
+      {
+        "covers": [
+          "auth.github_integration.local_user_mapping"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "given": [
+          "A future GitHub-backed sign-in flow is enabled."
+        ],
+        "id": "auth.github_integration.scenario_future_github_sign_in",
+        "subject_id": "auth.github_integration",
+        "then": [
+          "The system links that identity to a local user record before authorization decisions are made."
+        ],
+        "when": [
+          "A GitHub identity authenticates successfully."
+        ]
+      },
+      {
+        "covers": [
+          "auth.github_integration.readiness_feedback",
+          "auth.github_integration.non_blocking_local_auth"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "given": [
+          "GitHub App credentials are not configured and PAT validation succeeds."
+        ],
+        "id": "auth.github_integration.scenario_pat_fallback",
+        "subject_id": "auth.github_integration",
+        "then": [
+          "The system reports PAT fallback readiness without blocking local user authentication flows."
+        ],
+        "when": [
+          "Setup validates GitHub integration."
+        ]
+      },
+      {
+        "covers": [
+          "auth.system.magic_link",
+          "auth.system.local_email_identity"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "given": [
+          "A user prefers passwordless access."
+        ],
+        "id": "auth.system.scenario.magic_link",
+        "subject_id": "auth.system",
+        "then": [
+          "The system signs in the existing user or creates the local user identity allowed by policy."
+        ],
+        "when": [
+          "The user requests and consumes a valid magic link."
+        ]
+      },
+      {
+        "covers": [
+          "auth.system.password_reset"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "given": [
+          "A user has forgotten their password."
+        ],
+        "id": "auth.system.scenario.password_reset",
+        "subject_id": "auth.system",
+        "then": [
+          "The password is changed and the user can authenticate with the new secret."
+        ],
+        "when": [
+          "The user requests reset instructions and completes the reset flow with a valid token."
+        ]
+      },
+      {
+        "covers": [
+          "auth.system.password_registration_and_sign_in",
+          "auth.system.revocable_credentials"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "given": [
+          "A user has a local email identity and a valid password."
+        ],
+        "id": "auth.system.scenario.password_sign_in",
+        "subject_id": "auth.system",
+        "then": [
+          "The system issues a revocable authenticated session token."
+        ],
+        "when": [
+          "The user signs in through the password flow."
+        ]
+      },
+      {
+        "covers": [
+          "users.admin_system.admin_managed_provisioning",
+          "users.admin_system.admin_role_assignment",
+          "users.admin_system.registration_guardrails"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "given": [
+          "A bootstrap administrator is signed in."
+        ],
+        "id": "users.admin_system.scenario.admin_adds_user",
+        "subject_id": "users.admin_system",
+        "then": [
+          "The new account enters the local user system without reopening unrestricted public sign-up."
+        ],
+        "when": [
+          "The administrator provisions a new team member account."
+        ]
+      },
+      {
+        "covers": [
+          "users.admin_system.bootstrap_admin",
+          "users.admin_system.local_user_directory"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "given": [
+          "The deployment has no existing users."
+        ],
+        "id": "users.admin_system.scenario.bootstrap_admin",
+        "subject_id": "users.admin_system",
+        "then": [
+          "The system establishes one bootstrap administrator who becomes the first accountable local user."
+        ],
+        "when": [
+          "Initial setup is completed."
+        ]
+      },
+      {
+        "covers": [
+          "users.admin_system.self_service_auth_lifecycle"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "given": [
+          "A standard user account exists in the local directory."
+        ],
+        "id": "users.admin_system.scenario.standard_user_recovers_access",
+        "subject_id": "users.admin_system",
+        "then": [
+          "The user completes self-service recovery without requiring direct administrator password handling."
+        ],
+        "when": [
+          "The user forgets their password."
+        ]
+      }
+    ],
+    "subjects": [
+      {
+        "file": ".spec/specs/authentication_system.spec.md",
+        "id": "auth.system",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "auth.system",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code authenticates local users with email-backed identities, password and magic-link flows, confirmation, and revocable session credentials.",
+          "surface": [
+            "lib/jido_code/accounts/user.ex",
+            "lib/jido_code/accounts/token.ex",
+            "lib/jido_code/accounts/security_tokens.ex",
+            "test/jido_code_web/live/auth_sign_out_live_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Authentication System"
+      },
+      {
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "id": "baseline.surface",
+        "meta": {
+          "decisions": null,
+          "id": "baseline.surface",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code exposes only a welcome landing page and authentication flows while the product surface is temporarily trimmed back.",
+          "surface": [
+            "lib/jido_code_web/router.ex",
+            "lib/jido_code_web/live/home_live.ex",
+            "lib/jido_code_web/components/layouts.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Baseline Surface"
+      },
+      {
+        "file": ".spec/specs/collaboration.spec.md",
+        "id": "collaboration.workflow",
+        "meta": {
+          "decisions": null,
+          "id": "collaboration.workflow",
+          "kind": "policy",
+          "status": "active",
+          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration.",
+          "surface": [
+            "AGENTS.md"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Collaboration Workflow"
+      },
+      {
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "id": "auth.github_integration",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "auth.github_integration",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration and preparing for optional GitHub-backed sign-in.",
+          "surface": [
+            "lib/jido_code/setup/github_credential_checks.ex",
+            "lib/jido_code/setup/github_installation_sync.ex",
+            "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
+            "lib/jido_code/accounts/user.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "GitHub Identity And Integration"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "package.jido_code",
+          "kind": "package",
+          "status": "active",
+          "summary": "jido_code is the primary implementation repo and maintains a package-local Spec Led workspace.",
+          "surface": [
+            "AGENTS.md",
+            "mix.exs",
+            ".spec/README.md",
+            ".spec/specs/*.spec.md",
+            ".spec/decisions/*.md",
+            "lib/",
+            "test/"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Package"
+      },
+      {
+        "file": ".spec/specs/spec_system.spec.md",
+        "id": "spec.system",
+        "meta": {
+          "decisions": null,
+          "id": "spec.system",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Canonical workspace contract for authored specs and generated Spec Led state.",
+          "surface": [
+            ".spec/README.md",
+            ".spec/AGENTS.md",
+            ".spec/decisions/README.md",
+            ".spec/specs/*.spec.md",
+            ".spec/decisions/*.md"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Spec System"
+      },
+      {
+        "file": ".spec/specs/user_administration.spec.md",
+        "id": "users.admin_system",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "users.admin_system",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code boots with an initial administrator and grows into an admin-managed multi-user account system.",
+          "surface": [
+            "lib/jido_code/setup/owner_bootstrap.ex",
+            "lib/jido_code/accounts/user.ex",
+            "lib/jido_code/accounts/checks/registration_allowed.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "User Administration"
+      }
+    ],
+    "verifications": [
+      {
+        "covers": [
+          "auth.github_integration.readiness_feedback",
+          "auth.github_integration.github_app_preferred",
+          "auth.github_integration.non_blocking_local_auth"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/setup/github_credential_checks.ex"
+      },
+      {
+        "covers": [
+          "auth.github_integration.github_app_preferred"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/setup/github_installation_sync.ex"
+      },
+      {
+        "covers": [
+          "auth.github_integration.readiness_feedback",
+          "auth.github_integration.non_blocking_local_auth"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs"
+      },
+      {
+        "covers": [
+          "auth.github_integration.local_user_mapping"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/accounts/user.ex"
+      },
+      {
+        "covers": [
+          "auth.system.local_email_identity",
+          "auth.system.password_registration_and_sign_in",
+          "auth.system.password_reset",
+          "auth.system.magic_link",
+          "auth.system.email_confirmation"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/user.ex"
+      },
+      {
+        "covers": [
+          "auth.system.revocable_credentials"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/token.ex"
+      },
+      {
+        "covers": [
+          "auth.system.revocable_credentials"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/security_tokens.ex"
+      },
+      {
+        "covers": [
+          "auth.system.revocable_credentials"
+        ],
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_sign_out_live_test.exs"
+      },
+      {
+        "covers": [
+          "baseline.surface.routes_landing_and_auth_only",
+          "baseline.surface.product_routes_disabled"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/router.ex"
+      },
+      {
+        "covers": [
+          "baseline.surface.welcome_landing_copy",
+          "baseline.surface.auth_entrypoints_visible"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/live/home_live.ex"
+      },
+      {
+        "covers": [
+          "baseline.surface.nav_trimmed"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/components/layouts.ex"
+      },
+      {
+        "covers": [
+          "baseline.surface.routes_landing_and_auth_only"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "command",
+        "subject_id": "baseline.surface",
+        "target": "mix compile"
+      },
+      {
+        "covers": [
+          "collaboration.workflow.beadwork_enabled",
+          "collaboration.workflow.github_prs"
+        ],
+        "file": ".spec/specs/collaboration.spec.md",
+        "kind": "source_file",
+        "subject_id": "collaboration.workflow",
+        "target": "AGENTS.md"
+      },
+      {
+        "covers": [
+          "package.jido_code.primary_implementation_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": "AGENTS.md"
+      },
+      {
+        "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/README.md"
+      },
+      {
+        "covers": [
+          "spec.workspace.readme_present"
+        ],
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "spec.system",
+        "target": ".spec/README.md"
+      },
+      {
+        "covers": [
+          "spec.workspace.agents_present"
+        ],
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "spec.system",
+        "target": ".spec/AGENTS.md"
+      },
+      {
+        "covers": [
+          "spec.workspace.decisions_readme_present"
+        ],
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "spec.system",
+        "target": ".spec/decisions/README.md"
+      },
+      {
+        "covers": [
+          "spec.workspace.state_generated"
+        ],
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "command",
+        "subject_id": "spec.system",
+        "target": "mix spec.plan"
+      },
+      {
+        "covers": [
+          "spec.workspace.state_generated"
+        ],
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "command",
+        "subject_id": "spec.system",
+        "target": "mix spec.verify"
+      },
+      {
+        "covers": [
+          "users.admin_system.bootstrap_admin"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/setup/owner_bootstrap.ex"
+      },
+      {
+        "covers": [
+          "users.admin_system.local_user_directory",
+          "users.admin_system.admin_role_assignment",
+          "users.admin_system.admin_managed_provisioning",
+          "users.admin_system.self_service_auth_lifecycle"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/user.ex"
+      },
+      {
+        "covers": [
+          "users.admin_system.registration_guardrails",
+          "users.admin_system.admin_managed_provisioning"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/checks/registration_allowed.ex"
+      }
+    ]
+  },
+  "specification_version": "1.0",
+  "summary": {
+    "decision_parse_errors": 0,
+    "decisions": 1,
+    "exceptions": 0,
+    "findings": 0,
+    "requirements": 29,
+    "scenarios": 9,
+    "subjects": 7,
+    "verifications": 23
+  },
+  "verification": {
+    "claims": [
+      {
+        "cover_id": "auth.github_integration.github_app_preferred",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/setup/github_credential_checks.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.github_integration.non_blocking_local_auth",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/setup/github_credential_checks.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.github_integration.readiness_feedback",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/setup/github_credential_checks.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.github_integration.github_app_preferred",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/setup/github_installation_sync.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.github_integration.non_blocking_local_auth",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.github_integration.readiness_feedback",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.github_integration.local_user_mapping",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.system.email_confirmation",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.system.local_email_identity",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.system.magic_link",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.system.password_registration_and_sign_in",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.system.password_reset",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.system.revocable_credentials",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/token.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.system.revocable_credentials",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "lib/jido_code/accounts/security_tokens.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.system.revocable_credentials",
+        "file": ".spec/specs/authentication_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.system",
+        "target": "test/jido_code_web/live/auth_sign_out_live_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "baseline.surface.product_routes_disabled",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/router.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "baseline.surface.routes_landing_and_auth_only",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/router.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "baseline.surface.auth_entrypoints_visible",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "baseline.surface.welcome_landing_copy",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "baseline.surface.nav_trimmed",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/components/layouts.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "baseline.surface.routes_landing_and_auth_only",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "baseline.surface",
+        "target": "mix compile",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "collaboration.workflow.beadwork_enabled",
+        "file": ".spec/specs/collaboration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "collaboration.workflow",
+        "target": "AGENTS.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "collaboration.workflow.github_prs",
+        "file": ".spec/specs/collaboration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "collaboration.workflow",
+        "target": "AGENTS.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "package.jido_code.primary_implementation_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "AGENTS.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "package.jido_code.spec_led_workspace",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/README.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "spec.workspace.readme_present",
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "spec.system",
+        "target": ".spec/README.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "spec.workspace.agents_present",
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "spec.system",
+        "target": ".spec/AGENTS.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "spec.workspace.decisions_readme_present",
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "spec.system",
+        "target": ".spec/decisions/README.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "spec.workspace.state_generated",
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "spec.system",
+        "target": "mix spec.plan",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "spec.workspace.state_generated",
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "spec.system",
+        "target": "mix spec.verify",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "users.admin_system.bootstrap_admin",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/setup/owner_bootstrap.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "users.admin_system.admin_managed_provisioning",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "users.admin_system.admin_role_assignment",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "users.admin_system.local_user_directory",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "users.admin_system.self_service_auth_lifecycle",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "users.admin_system.admin_managed_provisioning",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/checks/registration_allowed.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "users.admin_system.registration_guardrails",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/checks/registration_allowed.ex",
+        "verification_index": 2
+      }
+    ],
+    "cli_minimum_strength": null,
+    "default_minimum_strength": "claimed",
+    "strength_summary": {
+      "claimed": 3,
+      "executed": 0,
+      "linked": 34
+    },
+    "threshold_failures": 0
+  },
+  "workspace": {
+    "decision_count": 1,
+    "spec_count": 7
+  }
+}

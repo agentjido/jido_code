@@ -154,6 +154,7 @@
   "slugify": {:hex, :slugify, "1.3.1", "0d3b8b7e5c1eeaa960e44dce94382bee34a39b3ea239293e457a9c5b47cc6fd3", [:mix], [], "hexpm", "cb090bbeb056b312da3125e681d98933a360a70d327820e4b7f91645c4d8be76"},
   "sourceror": {:hex, :sourceror, "1.12.0", "da354c5f35aad3cc1132f5d5b0d8437d865e2661c263260480bab51b5eedb437", [:mix], [], "hexpm", "755703683bd014ebcd5de9acc24b68fb874a660a568d1d63f8f98cd8a6ef9cd0"},
   "spark": {:hex, :spark, "2.4.0", "f93d3ae6b5f3004e956d52f359fa40670366685447631bc7c058f4fbf250ebf3", [:mix], [{:igniter, ">= 0.3.64 and < 1.0.0-0", [hex: :igniter, repo: "hexpm", optional: true]}, {:jason, "~> 1.4", [hex: :jason, repo: "hexpm", optional: true]}, {:sourceror, "~> 1.2", [hex: :sourceror, repo: "hexpm", optional: true]}], "hexpm", "4e5185f5737cd987bb9ef377ae3462a55b8312f5007c2bc4ad6e850d14ac0111"},
+  "spec_led_ex": {:git, "https://github.com/specleddev/specled_ex.git", "b5ef58bea18f966bbab247501b738dc260489013", [branch: "main"]},
   "spitfire": {:hex, :spitfire, "0.3.10", "19aea9914132456515e8f7d592f63ab9f3130876b0252e834d2390bdd8becb24", [:mix], [], "hexpm", "6a6a5f77eb4165249c76199cd2d01fb595bac9207aed3de551918ac1c2bc9267"},
   "splode": {:hex, :splode, "0.3.0", "ff8effecc509a51245df2f864ec78d849248647c37a75886033e3b1a53ca9470", [:mix], [], "hexpm", "73cfd0892d7316d6f2c93e6e8784bd6e137b2aa38443de52fd0a25171d106d81"},
   "sprites": {:git, "https://github.com/mikehostetler/sprites-ex.git", "74e66c6c37d99d187d83988cdbd8ec5424e37642", []},

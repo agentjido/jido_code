@@ -126,19 +126,17 @@ defmodule JidoCode.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:dns_cluster, "~> 0.2.0"},
 
-      # Jido AI framework
+      # Jido runtime stack
+      {:jido_os, path: "../jido_os"},
+      # Mix conflict resolution still needs root-level pins for the directly used core packages.
       {:jido, "~> 2.0", override: true},
       {:jido_action, "~> 2.0", override: true},
       {:jido_signal, "~> 2.0", override: true},
       {:jido_ai, github: "agentjido/jido_ai", branch: "main", override: true},
-      {:jido_runic, github: "agentjido/jido_runic", override: true},
       {:libgraph, github: "zblanco/libgraph", branch: "zw/multigraph-indexes", override: true},
-      {:jido_studio, github: "agentjido/jido_studio", branch: "main"},
-      {:jido_messaging, github: "agentjido/jido_messaging", branch: "main"},
-      {:jido_chat, github: "agentjido/jido_chat", branch: "main", override: true},
+
+      # Product-specific Jido integrations
       {:jido_code_server, git: "https://github.com/pcharbon70/jido_code_server.git", branch: "main"},
-      {:req_llm, "~> 1.7", override: true},
-      {:timex, "~> 3.7", override: true},
       {:gettext, "~> 0.26", override: true},
 
       # Cloud Sandboxes
@@ -153,6 +151,7 @@ defmodule JidoCode.MixProject do
       # Development & testing
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
+      {:spec_led_ex, github: "specleddev/specled_ex", branch: "main", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0"},
       {:usage_rules, "~> 1.0", only: [:dev]},
       {:tidewave, "~> 0.5.6", only: [:dev]},
@@ -195,6 +194,7 @@ defmodule JidoCode.MixProject do
         "esbuild jido_code --minify",
         "phx.digest"
       ],
+      specs: ["spec.check", "spec.diffcheck"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
       sync_rules: ["usage_rules.sync AGENTS.md --all --link-to-folder deps --yes"],
       quality: [

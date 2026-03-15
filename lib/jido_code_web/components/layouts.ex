@@ -38,27 +38,17 @@ defmodule JidoCodeWeb.Layouts do
     ~H"""
     <header class="sticky top-0 z-40 border-b border-base-300/70 bg-base-100/90 backdrop-blur">
       <div class="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <.link navigate={~p"/dashboard"} class="text-sm font-bold tracking-[0.12em] uppercase hover:text-primary">
+        <.link navigate={~p"/"} class="text-sm font-bold tracking-[0.12em] uppercase hover:text-primary">
           Jido Code
         </.link>
 
-        <ul class="flex flex-row items-center gap-1 sm:gap-2">
-          <li>
-            <.link navigate={~p"/dashboard"} class="btn btn-ghost btn-sm">Dashboard</.link>
-          </li>
-          <li>
-            <.link navigate={~p"/forge"} class="btn btn-ghost btn-sm">Forge</.link>
-          </li>
-          <li>
-            <.link navigate={~p"/agents"} class="btn btn-ghost btn-sm">Agents</.link>
-          </li>
-          <li>
-            <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Settings</.link>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-        </ul>
+        <%!-- covers: baseline.surface.nav_trimmed --%>
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-medium uppercase tracking-[0.2em] text-base-content/45">
+            Landing + Auth Only
+          </span>
+          <.theme_toggle />
+        </div>
       </div>
     </header>
 

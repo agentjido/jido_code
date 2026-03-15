@@ -124,18 +124,22 @@ defmodule JidoCodeWeb.FolioLive do
     if input == "" or socket.assigns.running? or is_nil(socket.assigns.agent_pid) do
       {:noreply, socket}
     else
-      :ok = FolioAgent.ask(socket.assigns.agent_pid, input)
+      case FolioAgent.ask(socket.assigns.agent_pid, input) do
+        {:ok, _request} ->
+          user_msg = %{id: gen_id(), role: :user, content: input}
+          pending_msg = %{id: gen_id(), role: :assistant, content: "", pending: true}
 
-      user_msg = %{id: gen_id(), role: :user, content: input}
-      pending_msg = %{id: gen_id(), role: :assistant, content: "", pending: true}
+          {:noreply,
+           socket
+           |> assign(:input, "")
+           |> assign(:running?, true)
+           |> assign(:trace, %Trace{})
+           |> assign(:messages, socket.assigns.messages ++ [user_msg, pending_msg])
+           |> schedule_poll()}
 
-      {:noreply,
-       socket
-       |> assign(:input, "")
-       |> assign(:running?, true)
-       |> assign(:trace, %Trace{})
-       |> assign(:messages, socket.assigns.messages ++ [user_msg, pending_msg])
-       |> schedule_poll()}
+        {:error, reason} ->
+          {:noreply, assign(socket, :error, "Failed to send message: #{inspect(reason)}")}
+      end
     end
   end
 

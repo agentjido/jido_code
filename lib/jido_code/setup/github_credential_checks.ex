@@ -2,6 +2,9 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   @moduledoc """
   Validates GitHub integration credentials before setup step 4 can advance.
   """
+  # covers: auth.github_integration.readiness_feedback
+  # covers: auth.github_integration.github_app_preferred
+  # covers: auth.github_integration.non_blocking_local_auth
 
   alias JidoCode.GitHub.HTTPClient
 

@@ -2,6 +2,7 @@ defmodule JidoCode.Setup.GitHubInstallationSync do
   @moduledoc """
   Applies GitHub installation webhook events to onboarding repository availability metadata.
   """
+  # covers: auth.github_integration.github_app_preferred
 
   alias JidoCode.Setup.SystemConfig
 

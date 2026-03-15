@@ -2,6 +2,7 @@ defmodule JidoCode.Setup.OwnerBootstrap do
   @moduledoc """
   Handles setup step 2 owner bootstrap in single-user mode.
   """
+  # covers: users.admin_system.bootstrap_admin
 
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts

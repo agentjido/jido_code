@@ -1,0 +1,33 @@
+---
+id: jido_code.auth_user_system
+status: accepted
+date: 2026-03-15
+affects:
+  - package.jido_code
+  - auth.system
+  - users.admin_system
+  - auth.github_integration
+---
+
+# Local User System With Bootstrap Admin
+
+## Context
+
+`jido_code` already contains local email/password and magic-link authentication, token storage, owner bootstrap, and GitHub integration readiness checks. The product surface has been trimmed to a spec-led baseline, and the next implementation phase needs a stable account model that can grow from the current single-owner setup into a multi-user product.
+
+At the same time, GitHub integration matters for repository automation, but it should not displace the product's own user and authorization model.
+
+## Decision
+
+`jido_code` will treat local user records as the source of truth for product identity and authorization.
+
+The first setup account is the bootstrap administrator. After bootstrap, production registration stays gated and future account creation becomes an administrator-managed workflow rather than open self-service sign-up.
+
+The baseline authentication system will continue to center on email-backed identities with password sign-in, forgot-password recovery, email confirmation, and magic-link access. GitHub App and PAT capabilities remain integration mechanisms for repository access, and any future GitHub-backed sign-in must resolve to a local user account before product authorization is evaluated.
+
+## Consequences
+
+- Authentication work should extend the existing `Accounts.User` model instead of introducing a parallel owner-only identity model.
+- Admin identification and user provisioning become first-class product concerns.
+- GitHub integration can evolve independently without blocking local authentication.
+- Specs for authentication, user administration, and GitHub-backed identity should stay aligned with this decision as implementation progresses.

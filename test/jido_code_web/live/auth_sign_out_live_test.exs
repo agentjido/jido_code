@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.AuthSignOutLiveTest do
+  # covers: auth.system.revocable_credentials
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

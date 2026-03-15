@@ -8,6 +8,7 @@ affects:
   - auth.provider_foundation
   - auth.provider_identity_linking
   - auth.provider_login_policy
+  - auth.github_service_credentials
   - users.admin_system
   - auth.github_integration
 ---
@@ -26,7 +27,7 @@ At the same time, GitHub integration matters for repository automation, but it s
 
 The first setup account is the bootstrap administrator. After bootstrap, production registration stays gated and future account creation becomes an administrator-managed workflow rather than open self-service sign-up.
 
-The baseline authentication system will continue to center on email-backed identities with password sign-in, forgot-password recovery, email confirmation, and magic-link access. External provider login, when introduced, will be modeled as provider-specific identities linked back to the same local user system. Matching verified provider email addresses may attach to an existing local user, and otherwise the provider flow may provision a new local user that still lives inside the same directory. Provider-host login policy and allowlists must be evaluated before any provider identity is allowed to create or link a local user. GitHub App and PAT capabilities remain integration mechanisms for repository access, and any future GitHub-backed sign-in must resolve to a local user account before product authorization is evaluated.
+The baseline authentication system will continue to center on email-backed identities with password sign-in, forgot-password recovery, email confirmation, and magic-link access. External provider login, when introduced, will be modeled as provider-specific identities linked back to the same local user system. Matching verified provider email addresses may attach to an existing local user, and otherwise the provider flow may provision a new local user that still lives inside the same directory. Provider-host login policy and allowlists must be evaluated before any provider identity is allowed to create or link a local user. GitHub App and PAT capabilities remain integration mechanisms for repository access, and any future GitHub-backed sign-in must resolve to a local user account before product authorization is evaluated. Broker-managed login configuration and deployment-local GitHub automation credentials remain separate concerns.
 
 ## Consequences
 
@@ -36,4 +37,5 @@ The baseline authentication system will continue to center on email-backed ident
 - Provider-backed login should fail closed when the provider-host login policy or allowlist does not authorize the identity.
 - Admin identification and user provisioning become first-class product concerns.
 - GitHub integration can evolve independently without blocking local authentication.
+- GitHub automation secrets should be named and managed as deployment-local credentials rather than as provider-login broker settings.
 - Specs for authentication, provider auth, provider identity linking, provider login policy, user administration, and GitHub-backed identity should stay aligned with this decision as implementation progresses.

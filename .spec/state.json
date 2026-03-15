@@ -8,6 +8,7 @@
           "auth.provider_foundation",
           "auth.provider_identity_linking",
           "auth.provider_login_policy",
+          "auth.github_service_credentials",
           "users.admin_system",
           "auth.github_integration"
         ],
@@ -54,6 +55,30 @@
         "stability": "stable",
         "statement": "Setup shall report whether GitHub App mode or PAT fallback is configured and whether repository access is confirmed for the current administrator context.",
         "subject_id": "auth.github_integration"
+      },
+      {
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "id": "auth.github_service_credentials.login_service_split",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Provider-login broker configuration shall remain distinct from deployment-local GitHub automation credentials and shall not be reused as the automation credential source.",
+        "subject_id": "auth.github_service_credentials"
+      },
+      {
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "id": "auth.github_service_credentials.secret_ref_names",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "GitHub automation credentials shall use canonical deployment-local SecretRef names for GitHub App ID, GitHub App private key, GitHub webhook secret, and PAT fallback.",
+        "subject_id": "auth.github_service_credentials"
+      },
+      {
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "id": "auth.github_service_credentials.secret_resolution",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "GitHub automation runtime callers shall resolve deployment-local credentials from environment or encrypted SecretRefs without depending on provider-login configuration state.",
+        "subject_id": "auth.github_service_credentials"
       },
       {
         "file": ".spec/specs/provider_auth_foundation.spec.md",
@@ -416,6 +441,59 @@
       },
       {
         "covers": [
+          "auth.github_service_credentials.secret_resolution"
+        ],
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "given": [
+          "A deployment-local GitHub automation secret exists in encrypted SecretRefs.",
+          "The same credential is also present in root environment configuration."
+        ],
+        "id": "auth.github_service_credentials.scenario_env_overrides_secret_ref",
+        "subject_id": "auth.github_service_credentials",
+        "then": [
+          "The root environment value wins and the secret-ref metadata remains non-authoritative for that resolution."
+        ],
+        "when": [
+          "GitHub automation resolves that credential."
+        ]
+      },
+      {
+        "covers": [
+          "auth.github_service_credentials.login_service_split"
+        ],
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "given": [
+          "Provider-login configuration is stored in the provider config model."
+        ],
+        "id": "auth.github_service_credentials.scenario_login_broker_separated",
+        "subject_id": "auth.github_service_credentials",
+        "then": [
+          "The automation model names deployment-local service secrets separately from provider-login broker fields."
+        ],
+        "when": [
+          "GitHub automation service credentials are described for setup and runtime callers."
+        ]
+      },
+      {
+        "covers": [
+          "auth.github_service_credentials.secret_ref_names",
+          "auth.github_service_credentials.secret_resolution"
+        ],
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "given": [
+          "A deployment-local GitHub automation secret is absent from runtime env and present in encrypted SecretRefs under its canonical name."
+        ],
+        "id": "auth.github_service_credentials.scenario_secret_ref_fallback",
+        "subject_id": "auth.github_service_credentials",
+        "then": [
+          "The encrypted SecretRef value is used."
+        ],
+        "when": [
+          "GitHub automation resolves that credential."
+        ]
+      },
+      {
+        "covers": [
           "auth.provider_foundation.local_user_identity_mapping",
           "auth.provider_foundation.identity_auth_metadata"
         ],
@@ -742,6 +820,27 @@
         "title": "GitHub Identity And Integration"
       },
       {
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "id": "auth.github_service_credentials",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "auth.github_service_credentials",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code keeps GitHub automation credentials deployment-local, names them through canonical SecretRefs, and does not reuse provider-login broker configuration for automation.",
+          "surface": [
+            "lib/jido_code/github/service_credentials.ex",
+            "lib/jido_code/setup/github_credential_checks.ex",
+            "lib/jido_code/github/webhook_signature.ex",
+            "test/jido_code/github/service_credentials_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "GitHub Service Credentials"
+      },
+      {
         "file": ".spec/specs/package.spec.md",
         "id": "package.jido_code",
         "meta": {
@@ -751,7 +850,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation, linking, and login-policy work inside that repo.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -918,6 +1017,46 @@
         "kind": "source_file",
         "subject_id": "auth.github_integration",
         "target": "lib/jido_code/accounts/user_identity.ex"
+      },
+      {
+        "covers": [
+          "auth.github_service_credentials.secret_ref_names",
+          "auth.github_service_credentials.login_service_split",
+          "auth.github_service_credentials.secret_resolution"
+        ],
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/github/service_credentials.ex"
+      },
+      {
+        "covers": [
+          "auth.github_service_credentials.login_service_split"
+        ],
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/setup/github_credential_checks.ex"
+      },
+      {
+        "covers": [
+          "auth.github_service_credentials.secret_resolution"
+        ],
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/github/webhook_signature.ex"
+      },
+      {
+        "covers": [
+          "auth.github_service_credentials.secret_ref_names",
+          "auth.github_service_credentials.login_service_split",
+          "auth.github_service_credentials.secret_resolution"
+        ],
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_service_credentials",
+        "target": "test/jido_code/github/service_credentials_test.exs"
       },
       {
         "covers": [
@@ -1185,6 +1324,15 @@
       },
       {
         "covers": [
+          "package.jido_code.auth_provider_foundation_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/github_service_credentials.spec.md"
+      },
+      {
+        "covers": [
           "spec.workspace.readme_present"
         ],
         "file": ".spec/specs/spec_system.spec.md",
@@ -1267,10 +1415,10 @@
     "decisions": 1,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 42,
-    "scenarios": 17,
-    "subjects": 10,
-    "verifications": 40
+    "requirements": 45,
+    "scenarios": 20,
+    "subjects": 11,
+    "verifications": 45
   },
   "verification": {
     "claims": [
@@ -1361,6 +1509,94 @@
         "subject_id": "auth.github_integration",
         "target": "lib/jido_code/accounts/user_identity.ex",
         "verification_index": 4
+      },
+      {
+        "cover_id": "auth.github_service_credentials.login_service_split",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/github/service_credentials.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.github_service_credentials.secret_ref_names",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/github/service_credentials.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.github_service_credentials.secret_resolution",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/github/service_credentials.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "auth.github_service_credentials.login_service_split",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/setup/github_credential_checks.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.github_service_credentials.secret_resolution",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "lib/jido_code/github/webhook_signature.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "auth.github_service_credentials.login_service_split",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "test/jido_code/github/service_credentials_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.github_service_credentials.secret_ref_names",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "test/jido_code/github/service_credentials_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.github_service_credentials.secret_resolution",
+        "file": ".spec/specs/github_service_credentials.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_service_credentials",
+        "target": "test/jido_code/github/service_credentials_test.exs",
+        "verification_index": 3
       },
       {
         "cover_id": "auth.provider_foundation.identity_auth_metadata",
@@ -1891,6 +2127,17 @@
         "verification_index": 4
       },
       {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/github_service_credentials.spec.md",
+        "verification_index": 5
+      },
+      {
         "cover_id": "spec.workspace.readme_present",
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "source_file",
@@ -2028,12 +2275,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 65
+      "linked": 74
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 1,
-    "spec_count": 10
+    "spec_count": 11
   }
 }

@@ -2,11 +2,13 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   @moduledoc """
   Validates GitHub integration credentials before setup step 4 can advance.
   """
+
   # covers: auth.github_integration.readiness_feedback
   # covers: auth.github_integration.github_app_preferred
   # covers: auth.github_integration.non_blocking_local_auth
+  # covers: auth.github_service_credentials.login_service_split
 
-  alias JidoCode.GitHub.HTTPClient
+  alias JidoCode.GitHub.{HTTPClient, ServiceCredentials}
 
   @default_checker_remediation "Verify GitHub credential checker configuration and retry setup."
   @default_repo_access_remediation "Grant repository access for this owner context and retry validation."
@@ -591,46 +593,7 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   end
 
   defp path_definitions do
-    [
-      %{
-        path: :github_app,
-        name: "GitHub App",
-        env: ["GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY"],
-        app_env: [:github_app_id, :github_app_private_key],
-        repo_env: "GITHUB_APP_ACCESSIBLE_REPOS",
-        repo_app_env: :github_app_accessible_repos,
-        api_token_env: "GITHUB_APP_INSTALLATION_TOKEN",
-        api_token_app_env: :github_app_installation_token,
-        expected_repo_env: "GITHUB_APP_EXPECTED_REPOS",
-        expected_repo_app_env: :github_app_expected_repos,
-        tracks_expected_repositories: true,
-        not_configured_detail:
-          "GitHub App credentials are not fully configured (`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` are required).",
-        not_configured_remediation: "Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`, then retry validation.",
-        not_configured_error_type: "github_app_not_configured",
-        owner_context_error_type: "github_app_owner_context_missing",
-        repo_access_error_type: "github_app_repository_access_unverified",
-        installation_access_error_type: "github_app_installation_access_missing_repositories",
-        installation_access_remediation:
-          "Grant GitHub App installation access to expected repositories and retry validation."
-      },
-      %{
-        path: :pat,
-        name: "Personal Access Token (PAT)",
-        env: ["GITHUB_PAT"],
-        app_env: [:github_pat],
-        repo_env: "GITHUB_PAT_ACCESSIBLE_REPOS",
-        repo_app_env: :github_pat_accessible_repos,
-        api_token_env: "GITHUB_PAT",
-        api_token_app_env: :github_pat,
-        tracks_expected_repositories: false,
-        not_configured_detail: "No GitHub personal access token fallback is configured (`GITHUB_PAT`).",
-        not_configured_remediation: "Set `GITHUB_PAT` and retry validation.",
-        not_configured_error_type: "github_pat_not_configured",
-        owner_context_error_type: "github_pat_owner_context_missing",
-        repo_access_error_type: "github_pat_repository_access_unverified"
-      }
-    ]
+    ServiceCredentials.path_definitions()
   end
 
   defp path_definition(path) do
@@ -651,10 +614,12 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
 
   defp credential_values(definition) do
     definition
-    |> Map.fetch!(:env)
-    |> Enum.zip(Map.fetch!(definition, :app_env))
-    |> Enum.map(fn {env, app_env} ->
-      credential_value(env, app_env)
+    |> Map.get(:credential_keys, [])
+    |> Enum.map(fn credential ->
+      case ServiceCredentials.resolve(credential) do
+        {:ok, value, _diagnostics} -> value
+        {:error, _status, _diagnostics} -> nil
+      end
     end)
   end
 
@@ -745,13 +710,22 @@ defmodule JidoCode.Setup.GitHubCredentialChecks do
   end
 
   defp api_token(definition) do
-    token_env = Map.get(definition, :api_token_env)
-    token_app_env = Map.get(definition, :api_token_app_env)
+    case Map.get(definition, :api_token_credential) do
+      credential when credential in [:app_id, :app_private_key, :webhook_secret, :pat] ->
+        case ServiceCredentials.resolve(credential) do
+          {:ok, value, _diagnostics} -> value
+          {:error, _status, _diagnostics} -> nil
+        end
 
-    if is_binary(token_env) and is_atom(token_app_env) do
-      credential_value(token_env, token_app_env)
-    else
-      nil
+      _other ->
+        token_env = Map.get(definition, :api_token_env)
+        token_app_env = Map.get(definition, :api_token_app_env)
+
+        if is_binary(token_env) and is_atom(token_app_env) do
+          credential_value(token_env, token_app_env)
+        else
+          nil
+        end
     end
   end
 

@@ -3,6 +3,10 @@ defmodule JidoCode.GitHub.WebhookSignature do
   Verifies `X-Hub-Signature-256` headers for inbound GitHub webhook deliveries.
   """
 
+  # covers: auth.github_service_credentials.secret_resolution
+
+  alias JidoCode.GitHub.ServiceCredentials
+
   @signature_prefix "sha256="
   @sha256_hex_length 64
   @sha256_hex_pattern ~r/\A[0-9a-fA-F]{64}\z/
@@ -32,17 +36,11 @@ defmodule JidoCode.GitHub.WebhookSignature do
   def verify(_payload, _signature_header), do: {:error, :signature_mismatch}
 
   defp fetch_secret do
-    case Application.get_env(:jido_code, :github_webhook_secret) do
-      secret when is_binary(secret) ->
-        trimmed_secret = String.trim(secret)
+    case ServiceCredentials.resolve(:webhook_secret) do
+      {:ok, secret, _diagnostics} ->
+        {:ok, secret}
 
-        if trimmed_secret == "" do
-          {:error, :missing_webhook_secret}
-        else
-          {:ok, trimmed_secret}
-        end
-
-      _ ->
+      {:error, _status, _diagnostics} ->
         {:error, :missing_webhook_secret}
     end
   end

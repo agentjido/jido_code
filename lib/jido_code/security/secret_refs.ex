@@ -144,6 +144,19 @@ defmodule JidoCode.Security.SecretRefs do
           continuity_alarm: boolean()
         }
 
+  @typedoc """
+  Decrypted operational secret value with non-sensitive metadata.
+  """
+  @type operational_secret_value :: %{
+          id: Ecto.UUID.t(),
+          scope: :instance | :project | :integration,
+          name: String.t(),
+          key_version: integer(),
+          source: :env | :onboarding | :rotation,
+          last_rotated_at: DateTime.t(),
+          value: String.t()
+        }
+
   @doc """
   Provider options shown in `/settings/security` rotation controls.
   """
@@ -193,6 +206,78 @@ defmodule JidoCode.Security.SecretRefs do
          typed_error(
            "provider_credential_unavailable",
            "Provider credential context could not be loaded.",
+           @read_failed_recovery_instruction
+         )}
+    end
+  end
+
+  @doc """
+  Reads a decrypted operational secret value and non-sensitive metadata.
+  """
+  @spec operational_secret_value(atom() | String.t(), String.t()) ::
+          {:ok, operational_secret_value()} | {:error, typed_error()}
+  def operational_secret_value(scope, name) do
+    with {:ok, normalized_scope} <- normalize_scope(scope),
+         {:ok, normalized_name} <- normalize_name(name),
+         {:ok, secret_ref} <- get_secret_ref(normalized_scope, normalized_name),
+         {:ok, active_secret_ref} <- require_existing_secret_ref(secret_ref),
+         {:ok, value} <- decrypt_secret_value(active_secret_ref.ciphertext) do
+      {:ok,
+       %{
+         id: active_secret_ref.id,
+         scope: active_secret_ref.scope,
+         name: active_secret_ref.name,
+         key_version: active_secret_ref.key_version,
+         source: active_secret_ref.source,
+         last_rotated_at: active_secret_ref.last_rotated_at,
+         value: value
+       }}
+    else
+      {:error, :invalid_scope} ->
+        {:error,
+         typed_error(
+           "secret_scope_invalid",
+           "Secret scope must be one of instance, project, or integration.",
+           @read_failed_recovery_instruction
+         )}
+
+      {:error, :invalid_name} ->
+        {:error,
+         typed_error(
+           "secret_name_invalid",
+           "Secret name must be a non-empty string.",
+           @read_failed_recovery_instruction
+         )}
+
+      {:error, :not_found} ->
+        {:error,
+         typed_error(
+           "secret_ref_missing",
+           "Operational secret is not available.",
+           "Store this secret in Security settings before retrying."
+         )}
+
+      {:error, :decryption_config_unavailable} ->
+        {:error,
+         typed_error(
+           "secret_ref_decryption_unavailable",
+           "Secret decryption is unavailable and the secret could not be loaded.",
+           @encryption_unavailable_recovery_instruction
+         )}
+
+      {:error, :decryption_failed} ->
+        {:error,
+         typed_error(
+           "secret_ref_unavailable",
+           "Operational secret could not be decrypted.",
+           @read_failed_recovery_instruction
+         )}
+
+      {:error, _reason} ->
+        {:error,
+         typed_error(
+           "secret_ref_unavailable",
+           "Operational secret could not be loaded.",
            @read_failed_recovery_instruction
          )}
     end
@@ -694,6 +779,10 @@ defmodule JidoCode.Security.SecretRefs do
 
   defp secret_ref_not_found?(_reason), do: false
 
+  defp require_existing_secret_ref(%SecretRef{} = secret_ref), do: {:ok, secret_ref}
+  defp require_existing_secret_ref(nil), do: {:error, :not_found}
+  defp require_existing_secret_ref(_secret_ref), do: {:error, :not_found}
+
   defp next_key_version(nil), do: {:ok, 1}
 
   defp next_key_version(%SecretRef{key_version: key_version}) when is_integer(key_version) do
@@ -717,6 +806,30 @@ defmodule JidoCode.Security.SecretRefs do
   defp normalize_scope("project"), do: {:ok, :project}
   defp normalize_scope("integration"), do: {:ok, :integration}
   defp normalize_scope(_scope), do: {:error, :invalid_scope}
+
+  defp decrypt_secret_value(ciphertext) when is_binary(ciphertext) do
+    case Encryption.decrypt(ciphertext) do
+      {:ok, value} when is_binary(value) ->
+        case String.trim(value) do
+          "" -> {:error, :decryption_failed}
+          trimmed -> {:ok, trimmed}
+        end
+
+      {:ok, _value} ->
+        {:error, :decryption_failed}
+
+      {:error, :decryption_config_unavailable} ->
+        {:error, :decryption_config_unavailable}
+
+      {:error, :decryption_failed} ->
+        {:error, :decryption_failed}
+
+      {:error, _reason} ->
+        {:error, :decryption_failed}
+    end
+  end
+
+  defp decrypt_secret_value(_ciphertext), do: {:error, :decryption_failed}
 
   defp normalize_name(name) when is_binary(name) do
     case String.trim(name) do

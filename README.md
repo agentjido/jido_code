@@ -1,6 +1,6 @@
 # JidoCode (alpha)
 
-[![CI](https://github.com/agentjido/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/agentjido/jido_code/actions/workflows/ci.yml)
+[![CI](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml)
 
 JidoCode is an **Elixir/Phoenix + LiveView** application exploring a practical "AI coding orchestrator" built on the [Jido](https://github.com/agentjido/jido) agent runtime.
 
@@ -109,7 +109,7 @@ The intended direction (documented in [`specs/`](specs/)):
 
 ### Setup
 ```bash
-git clone https://github.com/agentjido/jido_code.git
+git clone https://github.com/epic-creative/jido_code.git
 cd jido_code
 
 mix setup

@@ -6,7 +6,7 @@ defmodule JidoCode.Folio.FolioAgent do
   and helps manage next actions and waiting-for lists.
   """
 
-  use Jido.AI.ReActAgent,
+  use Jido.AI.Agent,
     name: "folio_agent",
     description: "GTD task manager - capture, clarify, organize, engage",
     tools: [

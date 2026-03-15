@@ -6,7 +6,7 @@ Thank you for your interest in contributing to JidoCode! This document provides 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/agentjido/jido_code.git
+   git clone https://github.com/epic-creative/jido_code.git
    cd jido_code
    ```
 

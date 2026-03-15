@@ -2,7 +2,7 @@ defmodule JidoCode.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/agentjido/jido_code"
+  @source_url "https://github.com/epic-creative/jido_code"
 
   def project do
     [
@@ -77,11 +77,11 @@ defmodule JidoCode.MixProject do
   defp deps do
     [
       # Core framework
-      {:phoenix, "~> 1.8.3"},
+      {:phoenix, "~> 1.8"},
       {:phoenix_ecto, "~> 4.5"},
       {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_view, "~> 1.1.0"},
-      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:phoenix_live_view, "~> 1.1"},
+      {:phoenix_live_dashboard, "~> 0.8"},
       {:bandit, "~> 1.5"},
 
       # Ash framework and extensions
@@ -91,7 +91,7 @@ defmodule JidoCode.MixProject do
       {:ash_json_api, "~> 1.0"},
       {:ash_authentication, "~> 4.0"},
       {:ash_authentication_phoenix, "~> 2.0"},
-      {:ash_admin, "~> 0.13"},
+      {:ash_admin, "~> 0.14"},
       {:ash_archival, "~> 2.0"},
       {:ash_paper_trail, "~> 0.5"},
       {:ash_cloak, "~> 0.2"},
@@ -127,15 +127,16 @@ defmodule JidoCode.MixProject do
       {:dns_cluster, "~> 0.2.0"},
 
       # Jido AI framework
-      {:jido, "~> 2.0.0-rc"},
-      {:jido_action, "~> 2.0.0-rc", override: true},
-      {:jido_signal, "~> 2.0.0-rc"},
+      {:jido, "~> 2.0", override: true},
+      {:jido_action, "~> 2.0", override: true},
+      {:jido_signal, "~> 2.0", override: true},
       {:jido_ai, github: "agentjido/jido_ai", branch: "main", override: true},
       {:jido_runic, github: "agentjido/jido_runic", branch: "main"},
       {:libgraph, github: "zblanco/libgraph", branch: "zw/multigraph-indexes", override: true},
       {:jido_studio, github: "agentjido/jido_studio", branch: "main"},
       {:jido_messaging, github: "agentjido/jido_messaging", branch: "main"},
-      {:req_llm, "~> 1.4", override: true},
+      {:jido_chat, github: "agentjido/jido_chat", branch: "main", override: true},
+      {:req_llm, "~> 1.7", override: true},
       {:timex, "~> 3.7", override: true},
       {:gettext, "~> 0.26", override: true},
 
@@ -146,14 +147,14 @@ defmodule JidoCode.MixProject do
       {:live_toast, "~> 0.8"},
       {:jason, "~> 1.2"},
       {:picosat_elixir, "~> 0.2"},
-      {:mdex, "~> 0.4"},
+      {:mdex, "~> 0.11"},
 
       # Development & testing
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
       {:lazy_html, ">= 0.1.0"},
       {:usage_rules, "~> 1.0", only: [:dev]},
-      {:tidewave, "~> 0.5", only: [:dev]},
+      {:tidewave, "~> 0.5.6", only: [:dev]},
       # TODO: re-enable once startup perf is fixed (v0.6.0 adds ~28s to boot)
       # {:live_debugger, "~> 0.5", only: [:dev]},
 

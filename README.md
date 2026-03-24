@@ -58,10 +58,10 @@ Agent code implementing an issue lifecycle pipeline:
 
 ### Folio: GTD Task Manager Demo
 
-A separate demo domain showcasing `Jido.AI.ReActAgent`:
+A separate demo domain showcasing `Jido.AI.Agent`:
 
 - `Folio.Project`, `InboxItem`, `Action` resources (ETS data layer)
-- `FolioAgent` — ReActAgent with ~15 tools, `model: :fast`, `max_iterations: 8`
+- `FolioAgent` — AI agent with ~15 tools, `model: :fast`, `max_iterations: 8`
 - `FolioLive` — chat-based GTD UI with agent state polling
 
 ### Web App + Auth
@@ -107,7 +107,7 @@ The intended direction (documented in [`specs/`](specs/)):
 ## Local Development
 
 ### Prerequisites
-- Elixir `~> 1.18`
+- Elixir `~> 1.19`
 - PostgreSQL 14+
 
 ### Setup

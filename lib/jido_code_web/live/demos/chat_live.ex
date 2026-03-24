@@ -2,7 +2,7 @@ defmodule JidoCodeWeb.Demos.ChatLive do
   @moduledoc """
   Demo: AI Chat Agent with ReAct Loop
 
-  Demonstrates Jido.AI ReActAgent with full observability:
+  Demonstrates a `Jido.AI.Agent` with full observability:
   - Streaming text display with iteration tracking
   - Tool call lifecycle (planned → executing → completed)
   - Thinking/reasoning visibility
@@ -391,7 +391,7 @@ defmodule JidoCodeWeb.Demos.ChatLive do
       <div class="space-y-6 max-w-7xl mx-auto">
         <.header>
           AI Chat Agent Demo
-          <:subtitle>ReActAgent with streaming, tool calls, and full observability</:subtitle>
+          <:subtitle>AI agent with streaming, tool calls, and full observability</:subtitle>
         </.header>
 
         <%!-- Error Display --%>

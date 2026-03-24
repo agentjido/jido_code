@@ -101,7 +101,7 @@ defmodule JidoCode.GithubIssueBot.Research.Workers.Actions.ReproductionAction do
 
   # Extract version for a specific component
   defp extract_version(body, component) do
-    # Match patterns like "Elixir: 1.18" or "OTP: 27" or "Jido: 2.0.0-rc.2"
+    # Match patterns like "Elixir: 1.19" or "OTP: 27" or "Jido: 2.1.0"
     case Regex.run(~r/#{component}[:\s]+(\d+[\.\d\-\w]*)/i, body) do
       [_, version] -> version
       _ -> nil

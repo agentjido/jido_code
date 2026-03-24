@@ -1,13 +1,13 @@
 defmodule JidoCode.Demos.ChatAgent do
   @moduledoc """
-  AI chat assistant with tools using ReActAgent.
+  AI chat assistant with tools using `Jido.AI.Agent`.
 
-  Demonstrates Jido.AI ReActAgent with available tools:
+  Demonstrates a Jido AI agent with available tools:
   - Arithmetic tools (add, subtract, multiply, divide, square)
   - Uses :fast model (Claude Haiku) for quick responses
   - Streams responses via polling
   """
-  use Jido.AI.ReActAgent,
+  use Jido.AI.Agent,
     name: "demo_chat_agent",
     description: "AI chat assistant with arithmetic tools",
     tools: [

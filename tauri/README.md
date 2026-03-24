@@ -4,7 +4,7 @@ Desktop application powered by Phoenix LiveView and Tauri. Packages the Phoenix 
 
 ## Prerequisites
 
-- Elixir 1.18+, Erlang OTP 27+
+- Elixir 1.19+, Erlang OTP 27+
 - Rust 1.92+, Cargo
 - Node.js 24+, npm
 - Zig 0.15+ (required by Burrito, install via [ZVM](https://github.com/marler4/zvm): `zvm install 0.15.2`)

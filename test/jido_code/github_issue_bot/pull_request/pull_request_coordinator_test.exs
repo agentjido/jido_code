@@ -33,7 +33,7 @@ defmodule JidoCode.GithubIssueBotTest.PullRequest.PullRequestCoordinatorTest do
     All state should be preserved.
 
     ## Version
-    - Elixir: 1.18
+    - Elixir: 1.19
     - OTP: 27
     """,
     labels: ["bug"]
@@ -49,7 +49,7 @@ defmodule JidoCode.GithubIssueBotTest.PullRequest.PullRequestCoordinatorTest do
     Test intermittently fails with timeout.
 
     ## Version
-    - Elixir: 1.18
+    - Elixir: 1.19
     - OTP: 27
     """,
     labels: ["bug"]
@@ -65,7 +65,7 @@ defmodule JidoCode.GithubIssueBotTest.PullRequest.PullRequestCoordinatorTest do
     Something is broken but we can't figure out what.
 
     ## Version
-    - Elixir: 1.18
+    - Elixir: 1.19
     - OTP: 27
     """,
     labels: ["bug"]

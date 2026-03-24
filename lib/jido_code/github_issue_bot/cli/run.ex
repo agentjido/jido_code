@@ -37,9 +37,9 @@ defmodule JidoCode.GithubIssueBot.CLI.Run do
     Nested maps are flattened.
 
     ## Version
-    - Elixir: 1.18
+    - Elixir: 1.19
     - OTP: 27
-    - Jido: 2.0.0-rc.2
+    - Jido: 2.1.0
     """,
     labels: ["bug"]
   }

@@ -35,9 +35,9 @@ defmodule JidoCode.GithubIssueBotTest.Research.ResearchCoordinatorTest do
     Nested maps are flattened.
 
     ## Version
-    - Elixir: 1.18
+    - Elixir: 1.19
     - OTP: 27
-    - Jido: 2.0.0-rc.2
+    - Jido: 2.1.0
     """,
     labels: ["bug"]
   }
@@ -178,7 +178,7 @@ defmodule JidoCode.GithubIssueBotTest.Research.ResearchCoordinatorTest do
       assert length(reproduction.steps) >= 4
 
       # Should extract environment info
-      assert reproduction.environment.elixir_version == "1.18"
+      assert reproduction.environment.elixir_version == "1.19"
       assert reproduction.environment.otp_version == "27"
     end
 

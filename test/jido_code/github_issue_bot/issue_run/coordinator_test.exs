@@ -16,7 +16,7 @@ defmodule JidoCode.GithubIssueBotTest.IssueRun.CoordinatorTest do
     3. Observe the error
 
     ## Version
-    Elixir: 1.18
+    Elixir: 1.19
     OTP: 27
     """,
     labels: ["bug"]

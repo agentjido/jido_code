@@ -8,7 +8,7 @@ defmodule JidoCode.MixProject do
     [
       app: :jido_code,
       version: @version,
-      elixir: "~> 1.18",
+      elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -129,10 +129,10 @@ defmodule JidoCode.MixProject do
       # Jido runtime stack
       {:jido_os, path: "../jido_os"},
       # Mix conflict resolution still needs root-level pins for the directly used core packages.
-      {:jido, "~> 2.0", override: true},
-      {:jido_action, "~> 2.0", override: true},
+      {:jido, "~> 2.1", override: true},
+      {:jido_action, "~> 2.1", override: true},
       {:jido_signal, "~> 2.0", override: true},
-      {:jido_ai, github: "agentjido/jido_ai", branch: "main", override: true},
+      {:jido_ai, "~> 2.0", override: true},
       {:libgraph, github: "zblanco/libgraph", branch: "zw/multigraph-indexes", override: true},
 
       # Product-specific Jido integrations

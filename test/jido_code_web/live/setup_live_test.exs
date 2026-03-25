@@ -368,6 +368,64 @@ defmodule JidoCodeWeb.SetupLiveTest do
            } = Application.get_env(:jido_code, :system_config)
   end
 
+  test "continue setup sign-in from later onboarding steps does not advance onboarding progress", %{
+    conn: conn
+  } do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{
+          "validated_note" => "System prerequisites verified (welcome flow).",
+          "prerequisite_checks" => %{"status" => "pass"}
+        },
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
+
+    assert render(view) =~ "Continue Setup"
+    assert render(view) =~ "owner@example.com"
+
+    view
+    |> form("#continue-setup-owner-form", %{
+      "owner" => %{
+        "email" => "owner@example.com",
+        "password" => "owner-password-123"
+      }
+    })
+    |> render_submit()
+
+    auth_redirect_path =
+      view
+      |> assert_redirect()
+      |> redirect_path()
+
+    authed_response = build_conn() |> get(auth_redirect_path)
+    assert redirected_to(authed_response, 302) == "/setup"
+
+    {:ok, setup_view, _html} = live(recycle(authed_response), ~p"/setup", on_error: :warn)
+    assert has_element?(setup_view, "#resolved-onboarding-step", "Step 3")
+
+    assert %{
+             onboarding_step: 3,
+             onboarding_state: %{
+               "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+               "2" => %{"validated_note" => "Owner account bootstrapped."}
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    refute Map.has_key?(Application.get_env(:jido_code, :system_config).onboarding_state, "3")
+  end
+
   test "continue setup recovery on /welcome requires explicit verification, resets credentials, and records recovery audit metadata",
        %{conn: conn} do
     attach_owner_recovery_audit_handler()

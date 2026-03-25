@@ -744,24 +744,34 @@ defmodule JidoCodeWeb.HomeLive do
   end
 
   defp persist_bootstrap_progress(%{config: %SystemConfig{} = config}, prerequisite_report, result) do
-    if config.onboarding_step == 1 do
-      with {:ok, _config} <- SystemConfig.save_step_progress(bootstrap_step_1_state(prerequisite_report)),
-           {:ok, saved_config} <- SystemConfig.save_step_progress(bootstrap_step_2_state(result)) do
-        {:ok, saved_config}
-      end
-    else
-      SystemConfig.save_step_progress(bootstrap_step_2_state(result))
+    cond do
+      config.onboarding_step == 1 ->
+        with {:ok, _config} <- SystemConfig.save_step_progress(bootstrap_step_1_state(prerequisite_report)),
+             {:ok, saved_config} <- SystemConfig.save_step_progress(bootstrap_step_2_state(result)) do
+          {:ok, saved_config}
+        end
+
+      config.onboarding_step == 2 ->
+        SystemConfig.save_step_progress(bootstrap_step_2_state(result))
+
+      true ->
+        {:ok, config}
     end
   end
 
   defp persist_recovery_progress(%{config: %SystemConfig{} = config}, prerequisite_report, result) do
-    if config.onboarding_step == 1 do
-      with {:ok, _config} <- SystemConfig.save_step_progress(bootstrap_step_1_state(prerequisite_report)),
-           {:ok, saved_config} <- SystemConfig.save_step_progress(recovery_step_2_state(result)) do
-        {:ok, saved_config}
-      end
-    else
-      SystemConfig.save_step_progress(recovery_step_2_state(result))
+    cond do
+      config.onboarding_step == 1 ->
+        with {:ok, _config} <- SystemConfig.save_step_progress(bootstrap_step_1_state(prerequisite_report)),
+             {:ok, saved_config} <- SystemConfig.save_step_progress(recovery_step_2_state(result)) do
+          {:ok, saved_config}
+        end
+
+      config.onboarding_step == 2 ->
+        SystemConfig.save_step_progress(recovery_step_2_state(result))
+
+      true ->
+        {:ok, config}
     end
   end
 

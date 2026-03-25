@@ -38,7 +38,7 @@ surface:
   stability: stable
 
 - id: package.jido_code.package_quality_mix_surface_aligned
-  statement: "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor."
+  statement: "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor."
   priority: must
   stability: evolving
 
@@ -69,6 +69,11 @@ surface:
 
 - kind: source_file
   target: mix.exs
+  covers:
+    - package.jido_code.package_quality_mix_surface_aligned
+
+- kind: command
+  target: mix help command
   covers:
     - package.jido_code.package_quality_mix_surface_aligned
 

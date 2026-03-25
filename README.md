@@ -178,21 +178,16 @@ mix docs                # Build docs including package-quality alignment notes
 
 Release automation is version-controlled in `.github/workflows/release.yml`. Maintainers should keep `CHANGELOG.md` current, ensure `mix q`, `mix coveralls`, and the relevant spec checks pass, then use the GitHub workflow to cut a tagged release from repository state instead of relying on ad hoc local release commands.
 
-### Jido CLI Wrapper
+### Jido CLI Surfaces
 ```bash
-# from repo root (wrapper script)
-./jidocode --skills
+mix skill.list
+mix skill.run my-skill --route my/route --data '{"key":"value"}'
 
-# equivalent explicit path
-bin/jidocode --skills
-bin/jidocode --skill list
-bin/jidocode --skill run my-skill --route my/route --data '{"key":"value"}'
+mix command list
+mix command my-command --params '{"key":"value"}'
 
-bin/jidocode --commands
-bin/jidocode --command my-command --params '{"key":"value"}'
-
-bin/jidocode --workflows
-bin/jidocode --workflow my_workflow -file_path lib/example.ex -mode full
+mix workflow.control definitions
+mix workflow.run my_workflow --inputs '{"file_path":"lib/example.ex","mode":"full"}'
 ```
 
 ---

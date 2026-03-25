@@ -106,8 +106,7 @@ defmodule JidoCode.MixProject do
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "LICENSE",
-        ".dialyzer_ignore.exs",
-        "usage-rules.md"
+        ".dialyzer_ignore.exs"
       ],
       maintainers: ["Jido.Code contributors"],
       licenses: ["Apache-2.0"],
@@ -199,11 +198,9 @@ defmodule JidoCode.MixProject do
       {:zoi, "~> 0.17"},
 
       # Development & testing
-      {:igniter, "~> 0.6", only: [:dev, :test]},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
       {:spec_led_ex, github: "specleddev/specled_ex", branch: "main", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0"},
-      {:usage_rules, "~> 1.0", only: [:dev]},
       {:tidewave, "~> 0.5.6", only: [:dev]},
       # TODO: re-enable once startup perf is fixed (v0.6.0 adds ~28s to boot)
       # {:live_debugger, "~> 0.5", only: [:dev]},
@@ -252,7 +249,6 @@ defmodule JidoCode.MixProject do
         "compile --warnings-as-errors",
         "test"
       ],
-      sync_rules: ["usage_rules.sync AGENTS.md --all --link-to-folder deps --yes"],
       quality: [
         "deps.unlock --check-unused",
         "format --check-formatted",

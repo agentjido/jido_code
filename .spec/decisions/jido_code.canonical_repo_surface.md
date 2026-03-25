@@ -21,6 +21,7 @@ The cleanup goal is not to erase product-specific surfaces such as `.spec`, `AGE
 The repository should prefer a canonical Phoenix/Elixir root surface:
 
 - contributor workflows should use Mix commands directly, including the `spec_led_ex` Mix task surface for `.spec`
+- repo-owned operator/runtime CLIs should prefer direct Mix tasks, such as `mix command`, over repo-root shell wrapper scripts
 - redundant shell wrappers and one-off helper scripts should be removed when an equivalent Mix task or documented workflow already exists
 - product-specific surfaces that are part of the actual repo contract, including `.spec`, `AGENTS.md`, and `tauri/`, should remain first-class
 - deployment helper files may live under a dedicated `deploy/` folder, while top-level tooling entry files that external tooling expects at the repo root may stay there

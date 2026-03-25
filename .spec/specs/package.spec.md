@@ -23,6 +23,7 @@ surface:
   - config/
   - docs/
   - lib/
+  - lib/mix/tasks/*.ex
   - test/
 ```
 
@@ -48,6 +49,11 @@ surface:
   statement: Contributor-facing quality, development-command, CI, release, and spec-alignment surfaces shall live in version-controlled repo files instead of ad hoc local state.
   priority: must
   stability: evolving
+
+- id: package.jido_code.mix_first_cli_surface
+  statement: Repository-owned terminal entrypoints shall prefer direct Mix tasks over repo-root shell wrapper scripts.
+  priority: should
+  stability: evolving
 ```
 
 ## Verification
@@ -67,6 +73,21 @@ surface:
   target: mix.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
+
+- kind: command
+  target: mix help command
+  covers:
+    - package.jido_code.mix_first_cli_surface
+
+- kind: command
+  target: test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode
+  covers:
+    - package.jido_code.mix_first_cli_surface
+
+- kind: command
+  target: test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex
+  covers:
+    - package.jido_code.mix_first_cli_surface
 
 - kind: source_file
   target: .doctor.exs

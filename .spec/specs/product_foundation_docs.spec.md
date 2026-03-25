@@ -45,7 +45,7 @@ surface:
   stability: evolving
 
 - id: docs.product_foundation.docs_index_present
-  statement: The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide and the repo-local spec workflow.
+  statement: The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide, the repo-local spec workflow, and the direct Mix-based CLI surfaces.
   priority: must
   stability: stable
 ```

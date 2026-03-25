@@ -643,7 +643,7 @@
         "id": "developer.workflow.docs_split",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` Mix task workflow.",
+        "statement": "Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow and direct Mix task entrypoints instead of repo shell wrappers.",
         "subject_id": "developer.workflow"
       },
       {
@@ -707,7 +707,7 @@
         "id": "docs.product_foundation.docs_index_present",
         "priority": "must",
         "stability": "stable",
-        "statement": "The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide and the repo-local spec workflow.",
+        "statement": "The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide, the repo-local spec workflow, and the direct Mix-based CLI surfaces.",
         "subject_id": "docs.product_foundation"
       },
       {
@@ -740,6 +740,14 @@
         "priority": "should",
         "stability": "evolving",
         "statement": "Auth-provider foundation work shall be specified and implemented inside jido_code rather than split into a separate product repo.",
+        "subject_id": "package.jido_code"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code.mix_first_cli_surface",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Repository-owned terminal entrypoints shall prefer direct Mix tasks over repo-root shell wrapper scripts.",
         "subject_id": "package.jido_code"
       },
       {
@@ -795,7 +803,7 @@
         "id": "package.jido_code.package_quality_mix_surface_aligned",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor.",
+        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -1960,6 +1968,7 @@
             "config/",
             "docs/",
             "lib/",
+            "lib/mix/tasks/*.ex",
             "test/"
           ],
           "verification_minimum_strength": null
@@ -2871,7 +2880,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck' README.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|mix skill.list|mix command list|mix workflow.control definitions' README.md"
       },
       {
         "covers": [
@@ -2992,6 +3001,24 @@
         "kind": "source_file",
         "subject_id": "package.jido_code",
         "target": "mix.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.mix_first_cli_surface"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code",
+        "target": "mix help command"
+      },
+      {
+        "covers": [
+          "package.jido_code.mix_first_cli_surface"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode"
       },
       {
         "covers": [
@@ -3128,6 +3155,15 @@
         "kind": "source_file",
         "subject_id": "package.jido_code.package_quality_standards",
         "target": "mix.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_mix_surface_aligned"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "mix help command"
       },
       {
         "covers": [
@@ -3310,10 +3346,10 @@
     "decisions": 6,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 105,
+    "requirements": 106,
     "scenarios": 46,
     "subjects": 22,
-    "verifications": 108
+    "verifications": 111
   },
   "verification": {
     "claims": [
@@ -4876,7 +4912,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck' README.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|mix skill.list|mix command list|mix workflow.control definitions' README.md",
         "verification_index": 5
       },
       {
@@ -5056,6 +5092,28 @@
         "verification_index": 2
       },
       {
+        "cover_id": "package.jido_code.mix_first_cli_surface",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code",
+        "target": "mix help command",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "package.jido_code.mix_first_cli_surface",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "verification_index": 4
+      },
+      {
         "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
@@ -5064,7 +5122,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".doctor.exs",
-        "verification_index": 3
+        "verification_index": 5
       },
       {
         "cover_id": "package.jido_code.version_controlled_quality_surfaces",
@@ -5075,28 +5133,6 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".dialyzer_ignore.exs",
-        "verification_index": 4
-      },
-      {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 6
       },
       {
@@ -5107,7 +5143,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 7
       },
       {
@@ -5118,7 +5154,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 8
       },
       {
@@ -5129,7 +5165,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 9
       },
       {
@@ -5140,7 +5176,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 10
       },
       {
@@ -5151,7 +5187,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 11
       },
       {
@@ -5162,7 +5198,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 12
       },
       {
@@ -5173,7 +5209,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 13
       },
       {
@@ -5184,8 +5220,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 14
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 16
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -5232,6 +5290,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "mix help command",
+        "verification_index": 3
+      },
+      {
         "cover_id": "package.jido_code.package_quality_exceptions_documented",
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "source_file",
@@ -5240,7 +5309,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code.package_quality_standards",
         "target": ".dialyzer_ignore.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
@@ -5251,7 +5320,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code.package_quality_standards",
         "target": ".dialyzer_ignore.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "package.jido_code.package_quality_ci_and_release_present",
@@ -5262,7 +5331,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
         "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "source.provider_adapter.placeholder_adapters",
@@ -5554,7 +5623,7 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 15,
+      "claimed": 18,
       "executed": 0,
       "linked": 188
     },

@@ -7,6 +7,8 @@ id: developer.workflow
 kind: policy
 status: active
 summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow while isolating desktop runtime configuration behind desktop-specific entrypoints.
+decisions:
+  - jido_code.local_developer_workflow
 surface:
   - mix.exs
   - config/dev.exs
@@ -33,6 +35,11 @@ surface:
 
 - id: developer.workflow.phoenix_mix_surface
   statement: The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup` and `mix test` provisions the test database with Ecto tasks instead of making `ash.setup` the public entrypoint.
+  priority: must
+  stability: evolving
+
+- id: developer.workflow.docs_split
+  statement: Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide.
   priority: must
   stability: evolving
 ```
@@ -64,4 +71,24 @@ surface:
   target: "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs"
   covers:
     - developer.workflow.phoenix_mix_surface
+
+- kind: command
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test' README.md"
+  covers:
+    - developer.workflow.docs_split
+
+- kind: command
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|tauri/README.md' CONTRIBUTING.md"
+  covers:
+    - developer.workflow.docs_split
+
+- kind: command
+  target: "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example"
+  covers:
+    - developer.workflow.docs_split
+
+- kind: command
+  target: "rg -n 'not the normal contributor workflow|mix setup|mix phx.server|DATABASE_URL' tauri/README.md"
+  covers:
+    - developer.workflow.docs_split
 ```

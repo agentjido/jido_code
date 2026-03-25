@@ -15,15 +15,29 @@ Thank you for your interest in contributing to JidoCode! This document provides 
    mise install
    ```
 
-3. Install dependencies:
+3. Start PostgreSQL locally.
+
+   Normal contributor development uses the defaults from `config/dev.exs` and `config/test.exs`:
+
+   - `localhost:5432`
+   - username/password `postgres` / `postgres`
+   - databases `jido_code_dev` and `jido_code_test*`
+
+4. Install dependencies and set up the development database:
    ```bash
    mix setup
    ```
 
-4. Start the development server:
+5. Start the development server:
    ```bash
    mix phx.server
    ```
+
+For day-to-day development:
+
+- `mix test` provisions the test database and runs the test suite
+- `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
+- `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 
 ## Code Quality
 

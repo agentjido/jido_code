@@ -22,6 +22,19 @@
       },
       {
         "affects": [
+          "developer.workflow",
+          "docs.product_foundation",
+          "package.jido_code",
+          "package.jido_code.package_quality_standards"
+        ],
+        "date": "2026-03-25",
+        "file": ".spec/decisions/jido_code.local_developer_workflow.md",
+        "id": "jido_code.local_developer_workflow",
+        "status": "accepted",
+        "title": "Local Phoenix Developer Workflow"
+      },
+      {
+        "affects": [
           "package.jido_code",
           "docs.product_foundation"
         ],
@@ -615,6 +628,14 @@
       },
       {
         "file": ".spec/specs/developer_workflow.spec.md",
+        "id": "developer.workflow.docs_split",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide.",
+        "subject_id": "developer.workflow"
+      },
+      {
+        "file": ".spec/specs/developer_workflow.spec.md",
         "id": "developer.workflow.host_postgres_defaults",
         "priority": "must",
         "stability": "stable",
@@ -674,7 +695,7 @@
         "id": "docs.product_foundation.docs_index_present",
         "priority": "must",
         "stability": "stable",
-        "statement": "The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section.",
+        "statement": "The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide.",
         "subject_id": "docs.product_foundation"
       },
       {
@@ -1785,7 +1806,9 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "id": "developer.workflow",
         "meta": {
-          "decisions": null,
+          "decisions": [
+            "jido_code.local_developer_workflow"
+          ],
           "id": "developer.workflow",
           "kind": "policy",
           "status": "active",
@@ -1964,12 +1987,13 @@
         "id": "docs.product_foundation",
         "meta": {
           "decisions": [
-            "jido_code.namespace_and_control_naming"
+            "jido_code.namespace_and_control_naming",
+            "jido_code.local_developer_workflow"
           ],
           "id": "docs.product_foundation",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code publishes a concise vision doc, a terse technical implementation doc, a first data ontology doc, and repository-level doc indexes that point operators and contributors to those foundational materials.",
+          "summary": "Jido.Code publishes a concise vision doc, a terse technical implementation doc, a first data ontology doc, and repository-level doc indexes that point operators and contributors to those foundational materials alongside the adjacent contributor guides.",
           "surface": [
             "docs/VISION.md",
             "docs/TECHNICAL_IMPLEMENTATION.md",
@@ -2828,6 +2852,42 @@
       },
       {
         "covers": [
+          "developer.workflow.docs_split"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test' README.md"
+      },
+      {
+        "covers": [
+          "developer.workflow.docs_split"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|tauri/README.md' CONTRIBUTING.md"
+      },
+      {
+        "covers": [
+          "developer.workflow.docs_split"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example"
+      },
+      {
+        "covers": [
+          "developer.workflow.docs_split"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'not the normal contributor workflow|mix setup|mix phx.server|DATABASE_URL' tauri/README.md"
+      },
+      {
+        "covers": [
           "docs.operator_provider_auth_guide.github_broker_registration_steps",
           "docs.operator_provider_auth_guide.github_service_credential_setup",
           "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
@@ -3233,13 +3293,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 4,
+    "decisions": 5,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 104,
+    "requirements": 105,
     "scenarios": 46,
     "subjects": 22,
-    "verifications": 104
+    "verifications": 108
   },
   "verification": {
     "claims": [
@@ -4795,6 +4855,50 @@
         "verification_index": 4
       },
       {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test' README.md",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|tauri/README.md' CONTRIBUTING.md",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'not the normal contributor workflow|mix setup|mix phx.server|DATABASE_URL' tauri/README.md",
+        "verification_index": 8
+      },
+      {
         "cover_id": "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
         "file": ".spec/specs/operator_provider_auth_guide.spec.md",
         "kind": "source_file",
@@ -5436,14 +5540,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 11,
+      "claimed": 15,
       "executed": 0,
       "linked": 188
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 4,
+    "decision_count": 5,
     "spec_count": 22
   }
 }

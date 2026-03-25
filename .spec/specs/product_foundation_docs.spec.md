@@ -7,9 +7,10 @@ be, how it approaches implementation, and how its first durable data model is sh
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code publishes a concise vision doc, a terse technical implementation doc, a first data ontology doc, and repository-level doc indexes that point operators and contributors to those foundational materials.
+summary: Jido.Code publishes a concise vision doc, a terse technical implementation doc, a first data ontology doc, and repository-level doc indexes that point operators and contributors to those foundational materials alongside the adjacent contributor guides.
 decisions:
   - jido_code.namespace_and_control_naming
+  - jido_code.local_developer_workflow
 surface:
   - docs/VISION.md
   - docs/TECHNICAL_IMPLEMENTATION.md
@@ -43,7 +44,7 @@ surface:
   stability: evolving
 
 - id: docs.product_foundation.docs_index_present
-  statement: The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section.
+  statement: The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide.
   priority: must
   stability: stable
 ```

@@ -116,6 +116,13 @@ mise install
 ```
 
 ### Setup
+
+Normal repository development uses the repo root and a host PostgreSQL instance. The expected local defaults are:
+
+- PostgreSQL on `localhost:5432`
+- username/password `postgres` / `postgres`
+- databases `jido_code_dev` and `jido_code_test*`
+
 ```bash
 git clone https://github.com/epic-creative/jido_code.git
 cd jido_code
@@ -127,11 +134,17 @@ mix phx.server
 
 Visit http://localhost:4000
 
+`mix setup` installs dependencies, runs `ecto.setup`, and builds assets. `mix test` provisions the test database automatically. `mix ecto.reset` drops and recreates the local development database.
+
+Desktop packaging and runtime work live in [`tauri/README.md`](tauri/README.md) and are not required for normal repository development.
+
 ### Environment Variables
 
 `.env.example` currently includes:
-- `SECRET_KEY_BASE`, `PORT`, `PHX_HOST`, `CANONICAL_HOST`
+- `DATABASE_URL`, `SECRET_KEY_BASE`, `PORT`, `PHX_HOST`, `CANONICAL_HOST`
 - `RESEND_API_KEY`, `MAILER_FROM_EMAIL`
+
+For normal local development, leave `DATABASE_URL` unset and use the `config/dev.exs` and `config/test.exs` defaults above.
 
 Depending on what you run, you may also need:
 - `ANTHROPIC_API_KEY` — for the Claude Code runner
@@ -144,8 +157,11 @@ For the current self-hosted provider-login and GitHub automation model, use the 
 
 ### Commands
 ```bash
+mix setup             # Deps + ecto.setup + asset build
+mix phx.server        # Start the local Phoenix server
+mix ecto.reset        # Drop, recreate, migrate, and seed the dev DB
 mix q                   # Shorthand for the canonical quality gate
-mix test                # Run tests
+mix test                # Create/migrate the test DB and run tests
 mix coveralls           # Run tests with coverage summary
 mix quality             # Deps hygiene + format + compile + credo + dialyzer + doctor
 mix precommit           # Compile + format + test
@@ -237,6 +253,7 @@ specs/                          # PRD & design documents
 - [`specs/03_decisions_and_invariants.md`](specs/03_decisions_and_invariants.md) — Cross-spec source of truth
 - [`docs/self_hosted_provider_auth.md`](docs/self_hosted_provider_auth.md) — Self-hosted provider login and GitHub automation setup
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution guidelines
+- [`tauri/README.md`](tauri/README.md) — Desktop packaging and runtime guide, separate from normal repo-root development
 - [`CHANGELOG.md`](CHANGELOG.md) — Version history
 
 ---

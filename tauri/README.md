@@ -2,6 +2,15 @@
 
 Desktop application powered by Phoenix LiveView and Tauri. Packages the Phoenix backend as a standalone executable via Burrito, wrapped in a native Tauri window.
 
+This is not the normal contributor workflow. For day-to-day repository development, work from the repo root with:
+
+```bash
+mix setup
+mix phx.server
+```
+
+using a host PostgreSQL instance on `localhost:5432` with `postgres` / `postgres`.
+
 ## Prerequisites
 
 - Elixir 1.18+, Erlang OTP 27+
@@ -44,13 +53,15 @@ To run Tauri in dev mode (still requires a built Phoenix sidecar binary):
 cd tauri && npx tauri dev
 ```
 
+This desktop path is separate from the normal repo-root development flow above.
+
 ## How it works
 
 1. **Burrito** wraps the Phoenix release into platform-specific executables with an embedded Erlang runtime
 2. **Tauri** launches the Phoenix binary as a sidecar process on `localhost:4000`
 3. A loading screen is shown while the backend boots
 4. Once the backend responds, Tauri opens a webview pointing to `localhost:4000`
-5. The user must have PostgreSQL running - the app defaults to `postgres:postgres@localhost/jido_code_dev` if `DATABASE_URL` is not set
+5. The desktop sidecar currently expects either an explicit `DATABASE_URL` or a host PostgreSQL instance; if `DATABASE_URL` is unset it falls back to `ecto://postgres:postgres@localhost/jido_code_dev`
 
 ## Environment variables
 

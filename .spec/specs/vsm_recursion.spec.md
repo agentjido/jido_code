@@ -12,8 +12,6 @@ decisions:
   - jido_code.vsm_recursion_and_scope
 surface:
   - .spec/decisions/jido_code.vsm_recursion_and_scope.md
-  - docs/TECHNICAL_IMPLEMENTATION.md
-  - docs/DATA_ONTOLOGY.md
 ```
 
 ## Requirements

@@ -2,6 +2,8 @@
 
 This subject defines the reproducible self-hosted behavior for broker-backed provider login and deployment-local GitHub automation in `jido_code`. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
 
+<!-- covers: docs.operator_provider_auth_guide.repo_local_auth_contract_modeled -->
+
 ```spec-meta
 id: auth.self_hosted_provider_integration
 kind: feature

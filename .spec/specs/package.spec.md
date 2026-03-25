@@ -12,10 +12,7 @@ decisions:
   - jido_code.canonical_repo_surface
 surface:
   - AGENTS.md
-  - coveralls.json
   - mix.exs
-  - .doctor.exs
-  - .dialyzer_ignore.exs
   - .spec/README.md
   - .spec/specs/*.spec.md
   - .spec/decisions/*.md
@@ -24,7 +21,6 @@ surface:
   - Dockerfile
   - fly.toml
   - deploy/
-  - docs/
   - lib/
   - lib/mix/tasks/*.ex
   - test/
@@ -101,16 +97,6 @@ surface:
   target: test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex
   covers:
     - package.jido_code.mix_first_cli_surface
-
-- kind: source_file
-  target: .doctor.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: .dialyzer_ignore.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
   target: .spec/specs/provider_auth_foundation.spec.md

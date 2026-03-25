@@ -62,7 +62,7 @@ mix coveralls
 mix coveralls.html
 ```
 
-The canonical package-quality comparison for this repo lives in [`docs/PACKAGE_QUALITY_ALIGNMENT.md`](docs/PACKAGE_QUALITY_ALIGNMENT.md).
+The repo-local package-quality baseline is expressed through `mix.exs`, this guide, the top-level `README.md`, and the current-truth subjects under `.spec/`.
 
 ## Commit Messages
 

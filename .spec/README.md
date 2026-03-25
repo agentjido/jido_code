@@ -6,6 +6,7 @@ The authored specs and generated state in this folder are maintained through the
 
 <!-- spec.workspace.readme_present -->
 <!-- covers: package.jido_code.spec_led_workspace -->
+<!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 
 ## Canonical Layout
 

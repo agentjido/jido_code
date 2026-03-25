@@ -15,6 +15,7 @@ affects:
 <!-- covers: architecture.execution_pipeline.run_is_projection_of_workflow_state -->
 <!-- covers: architecture.execution_pipeline.repo_prep_and_validation_are_explicit_steps -->
 <!-- covers: architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep -->
+<!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 
 # Runic Execution Model
 

@@ -14,6 +14,7 @@ affects:
 <!-- covers: architecture.vsm_recursion.work_items_not_default_vsm -->
 <!-- covers: architecture.vsm_recursion.promotion_rule_defined -->
 <!-- covers: architecture.vsm_recursion.algedonic_escalation -->
+<!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 
 # VSM Recursion And Scope
 

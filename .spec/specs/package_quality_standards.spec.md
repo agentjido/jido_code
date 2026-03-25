@@ -16,19 +16,18 @@ surface:
   - CONTRIBUTING.md
   - CHANGELOG.md
   - LICENSE
-  - coveralls.json
-  - .dialyzer_ignore.exs
   - AGENTS.md
+  - .spec/README.md
+  - .spec/specs/package_quality_standards.spec.md
   - .github/workflows/ci.yml
   - .github/workflows/release.yml
-  - docs/PACKAGE_QUALITY_ALIGNMENT.md
 ```
 
 ## Requirements
 
 ```spec-requirements
 - id: package.jido_code.package_quality_alignment_doc_present
-  statement: "The repository shall keep a repo-local comparison document that maps jido_code to the canonical Jido package quality standards and records any explicit product-repo exceptions."
+  statement: "The repository shall keep its package-quality alignment and any explicit product-repo exceptions documented in version-controlled repo files or specs."
   priority: must
   stability: stable
 
@@ -57,7 +56,7 @@ surface:
 
 ```spec-verification
 - kind: source_file
-  target: docs/PACKAGE_QUALITY_ALIGNMENT.md
+  target: .spec/specs/package_quality_standards.spec.md
   covers:
     - package.jido_code.package_quality_alignment_doc_present
     - package.jido_code.package_quality_exceptions_documented
@@ -77,11 +76,10 @@ surface:
   covers:
     - package.jido_code.package_quality_mix_surface_aligned
 
-- kind: source_file
-  target: .dialyzer_ignore.exs
+- kind: command
+  target: mix help coveralls
   covers:
     - package.jido_code.package_quality_mix_surface_aligned
-    - package.jido_code.package_quality_exceptions_documented
 
 - kind: command
   target: test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml

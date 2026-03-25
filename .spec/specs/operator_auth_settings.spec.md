@@ -2,6 +2,8 @@
 
 This subject defines the authenticated landing-page operator console used to configure hosted provider login separately from deployment-local Git provider automation. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
 
+<!-- covers: docs.operator_provider_auth_guide.repo_local_auth_contract_modeled -->
+
 ```spec-meta
 id: auth.operator_settings
 kind: feature

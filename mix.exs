@@ -91,7 +91,7 @@ defmodule JidoCode.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md", "CONTRIBUTING.md", "docs/PACKAGE_QUALITY_ALIGNMENT.md"]
+      extras: ["README.md", "CHANGELOG.md", "CONTRIBUTING.md", ".spec/README.md"]
     ]
   end
 
@@ -113,7 +113,7 @@ defmodule JidoCode.MixProject do
       links: %{
         "Documentation" => "#{@source_url}#documentation",
         "GitHub" => @source_url,
-        "Package Quality Alignment" => "#{@source_url}/blob/main/docs/PACKAGE_QUALITY_ALIGNMENT.md",
+        "Spec Workspace" => "#{@source_url}/tree/main/.spec",
         "Website" => "https://jido.run"
       }
     ]

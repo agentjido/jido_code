@@ -1,123 +1,18 @@
-# Jido.Code (alpha)
+# Jido.Code
 
 [![CI](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml)
 
-Jido.Code is an **Elixir/Phoenix + LiveView** application exploring a practical "AI coding orchestrator" built on the [Jido](https://github.com/agentjido/jido) agent runtime.
+Jido.Code is the primary product and implementation repo in this workspace. It is a Phoenix + LiveView application built on Ash, Postgres, and the Jido runtime, with a separate Tauri desktop packaging path.
 
-Today, the repo contains two substantial, working showcases:
+Status today is alpha and developer-focused. The repo is real, runnable software, but it is still evolving toward the broader product shape described in the repo-local spec workspace.
 
-1. **Forge** — a production-quality OTP subsystem for running **isolated, observable execution sessions** (via [Sprites](https://fly.io) sandboxes or a local fake client) with pluggable runners, iteration control, persistence, and a real streaming terminal UI.
+<!-- covers: docs.product_foundation.readme_quickstart_present -->
+<!-- covers: docs.operator_provider_auth_guide.local_quickstart_excludes_operator_setup -->
+## Quickstart
 
-2. **GitHub Issue Bot** — a real multi-agent system demonstrating Jido patterns (coordination, fan-out, signal routing) for issue triage, research, and PR planning — currently as agent code + a debug CLI runner, not yet wired into the web UI as a product feature.
+Normal repository development uses the repo root and a host PostgreSQL instance.
 
-> **Status: alpha / developer-focused.** Several documents in [`./specs`](specs/) describe an intended product direction; this README is intentionally limited to what exists in the codebase today.
-
-The repo aligns to the canonical Jido package quality standards where they apply to a product repo and documents the remaining exceptions in [`docs/PACKAGE_QUALITY_ALIGNMENT.md`](docs/PACKAGE_QUALITY_ALIGNMENT.md).
-
----
-
-## What Works Today
-
-### Forge: Sandbox Sessions with Streaming UI
-
-Forge is a parallel execution subsystem with proper OTP structure:
-
-- **Public API** (`JidoCode.Forge`): `start_session`, `stop_session`, `exec`, `cmd`, `run_loop`, `run_iteration`, `apply_input`, `resume`, `cancel`, `create_checkpoint`
-- **Lifecycle management** (`Forge.Manager`): `DynamicSupervisor` + `Registry`, concurrency limits (default 50 total, per-runner limits)
-- **Per-session runtime** (`Forge.SpriteSession`): GenServer handling provision → bootstrap → init runner → iterate → input → cleanup
-- **Runner behaviour** (`Forge.Runner`): iteration statuses `:continue`, `:done`, `:needs_input`, `:blocked`, `:error`
-- **Built-in runners**:
-  - `ClaudeCode` — complete Claude Code CLI runner with `--output-format stream-json` parsing
-  - `Shell` — shell command runner
-  - `Workflow` — data-driven step runner
-  - `Custom` — user-provided runner
-- **Sprite clients**: `Live` (real Sprites SDK) and `Fake` (dev/test)
-- **Persistence + observability**: Ash resources for session events, PubSub broadcasting on `forge:sessions` and `forge:session:<id>`
-- **LiveView UI**: session list, creation form, and a real terminal UI with streaming output, iteration controls, input prompts, and colocated JS hooks for scrolling + command history
-
-See [`specs/FORGE_OVERVIEW.md`](specs/FORGE_OVERVIEW.md) for the full architecture.
-
-### GitHub Issue Bot: Multi-Agent Jido Showcase
-
-Agent code implementing an issue lifecycle pipeline:
-
-- `CoordinatorAgent` drives: `issue.start` → triage → research → PR
-- **Research fan-out**: `ResearchCoordinator` with 4 parallel workers (CodeSearch, PRSearch, Reproduction, RootCause)
-- **PR fan-out**: `PullRequestCoordinator` with 3 workers (Patch, Quality, PRSubmit)
-- Each worker has its own agent + action module
-- Uses Jido signal routing, fan-out coordination, and directive patterns
-- Includes a CLI runner for debugging
-
-### GitHub Domain
-
-- `GitHub.Repo` (AshPostgres) with code interface for CRUD + enable/disable
-- `GitHub.WebhookDelivery` — persisted webhook payloads
-- `GitHub.IssueAnalysis` — persisted analyses
-- `GitHub.WebhookSensor` — polls pending deliveries and emits Jido signals (e.g. `github.issues.opened`)
-
-### Folio: GTD Task Manager Demo
-
-A separate demo domain showcasing `Jido.AI.ReActAgent`:
-
-- `Folio.Project`, `InboxItem`, `Action` resources (ETS data layer)
-- `FolioAgent` — ReActAgent with ~15 tools, `model: :fast`, `max_iterations: 8`
-- `FolioLive` — chat-based GTD UI with agent state polling
-
-### Web App + Auth
-
-- Phoenix 1.8 + LiveView with AshAuthentication (password, magic link, API key)
-- Authenticated routes: `/forge/*`, `/folio`, `/settings`, `/dashboard`, `/demos/chat`
-- `SettingsLive` — tabbed UI managing GitHub repos via `AshPhoenix.Form`
-- Tailwind v4 + DaisyUI theme system with core Phoenix components
-- JSON:API endpoints + Swagger UI at `/api/json`
-- Health check at `GET /status`
-
----
-
-## What Is Not Implemented (Yet)
-
-- No onboarding wizard or first-run flow
-- No `SystemConfig`, credential resources, or centralized settings store
-- No Runic workflow engine integration
-- No git operations, branch/commit automation, or PR creation in the web product flow
-- GitHub Issue Bot is not wired end-to-end (webhooks → repo workspace → Forge → PR)
-- `.env.example` does not include several keys you'll need in practice (e.g. `ANTHROPIC_API_KEY`, `SPRITES_API_TOKEN`, GitHub App credentials)
-- Dashboard is a stub
-- Test coverage is sparse (9 test files, mostly Issue Bot + controller tests)
-
-See [`specs/03_decisions_and_invariants.md`](specs/03_decisions_and_invariants.md) and [`specs/02_requirements_and_scope.md`](specs/02_requirements_and_scope.md) for the canonical planning baseline.
-
----
-
-## Product Vision
-
-The intended direction (documented in [`specs/`](specs/)):
-
-- **Onboarding wizard** — configure API keys, GitHub App, and environment on first run
-- **Project import** — clone repos to local workspaces or Sprite sandboxes
-- **Durable workflows** — Runic DAG-based pipelines (plan → implement → test → approve → ship)
-- **Human approval gates** — nothing ships without review
-- **Auto commit + PR** — branch, commit, push, and open PRs automatically
-- **Webhook-triggered agents** — automated issue triage and research
-- **Real-time observability** — execution timelines, cost tracking, artifact browsing
-
----
-
-## Local Development
-
-### Prerequisites
-- Elixir `~> 1.18`
-- PostgreSQL 14+
-
-The repo toolchain is pinned in `mise.toml`. If you use `mise`, install the local toolchain with:
-
-```bash
-mise install
-```
-
-### Setup
-
-Normal repository development uses the repo root and a host PostgreSQL instance. The expected local defaults are:
+Expected local defaults:
 
 - PostgreSQL on `localhost:5432`
 - username/password `postgres` / `postgres`
@@ -132,53 +27,61 @@ mix setup
 mix phx.server
 ```
 
-Visit http://localhost:4000
+Then open http://localhost:4000
 
-`mix setup` installs dependencies, runs `ecto.setup`, and builds assets. `mix test` provisions the test database automatically. `mix ecto.reset` drops and recreates the local development database.
+For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies, prepares the development database, and builds assets. `mix test` provisions the test database automatically. Desktop packaging is separate and lives in [`tauri/README.md`](tauri/README.md).
 
-Desktop packaging and runtime work live in [`tauri/README.md`](tauri/README.md) and are not required for normal repository development.
+## What This Repo Contains
 
-Repo-local specs are maintained through the `spec_led_ex` Mix task surface under [`.spec/`](.spec/). When behavior, docs, or tests change, update the current-truth spec subjects and run the spec checks alongside the normal quality loop.
+Jido.Code currently centers on a few concrete areas:
 
-### Environment Variables
+- a Phoenix web app with AshAuthentication-backed sign-in, settings, setup, and dashboard/workbench routes
+- Forge, an OTP subsystem for isolated execution sessions with observable events and a LiveView terminal UI
+- GitHub integration primitives for repos, webhook deliveries, analyses, and automation-oriented workflows
+- Jido-oriented command, skill, and workflow task surfaces for local operator and developer use
+- a Tauri desktop packaging path that wraps the Phoenix backend as a sidecar application
 
-`.env.example` currently includes:
-- `DATABASE_URL`, `SECRET_KEY_BASE`, `PORT`, `PHX_HOST`, `CANONICAL_HOST`
-- `RESEND_API_KEY`, `MAILER_FROM_EMAIL`
+The product direction is still broader than the currently finished UX. Treat this repo as a working implementation base, not a finished end-user product.
 
-For normal local development, leave `DATABASE_URL` unset and use the `config/dev.exs` and `config/test.exs` defaults above.
+## Local Development
 
-Depending on what you run, you may also need:
-- `ANTHROPIC_API_KEY` — for the Claude Code runner
-- `SPRITES_API_TOKEN` — for the live Sprites client
-- GitHub App, broker, and PAT settings — documented in the operator guide below
+The repo toolchain is pinned in `mise.toml`. Normal day-to-day development should feel like a conventional Phoenix app:
 
-For the current self-hosted provider-login and GitHub automation model, use the operator guide:
-
-- [`docs/self_hosted_provider_auth.md`](docs/self_hosted_provider_auth.md)
-
-### Commands
 ```bash
-mix setup             # Deps + ecto.setup + asset build
-mix phx.server        # Start the local Phoenix server
-mix ecto.reset        # Drop, recreate, migrate, and seed the dev DB
-mix q                   # Shorthand for the canonical quality gate
-mix test                # Create/migrate the test DB and run tests
-mix coveralls           # Run tests with coverage summary
-mix quality             # Deps hygiene + format + compile + credo + dialyzer + doctor
-mix precommit           # Compile + format + test
-mix coveralls.html      # Coverage report
-mix spec.verify --debug # Verify spec coverage and targets
-mix spec.check          # Check spec authoring rules
-mix spec.diffcheck      # Check changed files against current specs
-mix docs                # Build docs including package-quality alignment notes
+mix setup
+mix phx.server
+mix test
+mix ecto.reset
 ```
 
-### Release Workflow
+`.env.example` includes the main runtime overrides. For the normal contributor path, the important rule is still: leave `DATABASE_URL` unset and use the checked-in `config/dev.exs` and `config/test.exs` defaults.
 
-Release automation is version-controlled in `.github/workflows/release.yml`. Maintainers should keep `CHANGELOG.md` current, ensure `mix q`, `mix coveralls`, and the relevant spec checks pass, then use the GitHub workflow to cut a tagged release from repository state instead of relying on ad hoc local release commands.
+You may also need extra credentials depending on what you are exercising:
 
-### Jido CLI Surfaces
+- `ANTHROPIC_API_KEY` for Claude-powered flows
+- `SPRITES_API_TOKEN` for live Sprites-backed execution
+- mail provider settings such as `RESEND_API_KEY`
+
+## Day-To-Day Commands
+
+```bash
+mix setup               # deps, ecto.setup, and asset build
+mix phx.server          # start the local Phoenix server
+mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
+mix test                # create/migrate the test DB and run tests
+mix q                   # shorthand for the canonical quality gate
+mix quality             # deps hygiene, format, compile, credo, dialyzer, doctor
+mix precommit           # compile, format, and test
+mix coveralls           # run tests with coverage summary
+mix coveralls.html      # generate the HTML coverage report
+mix spec.verify --debug # verify spec coverage and verification targets
+mix spec.check          # check spec authoring rules
+mix spec.diffcheck      # check changed files against current-truth specs
+mix docs                # build ExDoc output from the repo docs surface
+```
+
+Repo-owned CLI surfaces stay Mix-first:
+
 ```bash
 mix skill.list
 mix skill.run my-skill --route my/route --data '{"key":"value"}'
@@ -190,73 +93,54 @@ mix workflow.control definitions
 mix workflow.run my_workflow --inputs '{"file_path":"lib/example.ex","mode":"full"}'
 ```
 
----
+<!-- covers: docs.product_foundation.docs_index_present -->
+<!-- covers: docs.product_foundation.product_summary_present -->
+<!-- covers: docs.operator_provider_auth_guide.external_operator_docs_allowed -->
+## Repo Guides
 
-## Architecture
+The canonical repo-facing guides now live here:
 
-```
-lib/
-├── jido_code/                  # Core business logic
-│   ├── accounts/               # AshAuthentication (User, Token, ApiKey)
-│   ├── forge/                  # Sandbox execution engine
-│   │   ├── runners/            # Shell, ClaudeCode, Workflow, Custom
-│   │   ├── resources/          # Ash resources (Session, Event, Checkpoint, ...)
-│   │   ├── sprite_client/      # Fake + Live Sprites clients
-│   │   ├── manager.ex          # Lifecycle + concurrency GenServer
-│   │   ├── sprite_session.ex   # Per-session GenServer
-│   │   ├── operations.ex       # Resume, cancel, checkpoint orchestration
-│   │   └── pubsub.ex           # PubSub helpers
-│   ├── folio/                  # GTD task manager demo
-│   ├── github/                 # GitHub integration (Repo, Webhook, Sensor)
-│   └── github_issue_bot/       # Multi-agent issue bot
-│       ├── issue_run/          # Coordinator agent + actions
-│       ├── triage/             # Triage agent + action
-│       ├── research/           # Research coordinator + 4 workers
-│       └── pull_request/       # PR coordinator + 3 workers
-├── jido_code_web/              # Web layer
-│   ├── components/             # Core and app-specific Phoenix UI components
-│   ├── live/                   # LiveView modules
-│   │   ├── forge/              # Session list, create, show (terminal UI)
-│   │   ├── demos/              # Chat demo
-│   │   ├── folio_live.ex       # GTD demo
-│   │   └── settings_live.ex    # Settings (GitHub repos)
-│   └── router.ex               # Routes + AshAuthentication
-specs/                          # PRD & design documents
+- [`.spec/README.md`](.spec/README.md) for the repo-local Spec Led Development workflow
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) for contributor setup and quality expectations
+- [`tauri/README.md`](tauri/README.md) for the separate desktop packaging/runtime path
+- [`CHANGELOG.md`](CHANGELOG.md) for release history
+- [`AGENTS.md`](AGENTS.md) for local agent operating guidance in this repo
+
+The durable architecture and product-shaping decisions live in [`.spec/decisions/`](.spec/decisions/), especially:
+
+- [`.spec/decisions/jido_code.runic_execution_model.md`](.spec/decisions/jido_code.runic_execution_model.md)
+- [`.spec/decisions/jido_code.vsm_recursion_and_scope.md`](.spec/decisions/jido_code.vsm_recursion_and_scope.md)
+- [`.spec/decisions/jido_code.local_developer_workflow.md`](.spec/decisions/jido_code.local_developer_workflow.md)
+
+## Repo Shape
+
+```text
+assets/   frontend assets
+config/   Phoenix, Ash, and runtime configuration
+deploy/   container and deploy helper files
+lib/      application and web code
+priv/     repo migrations, seeds, and static assets
+tauri/    desktop packaging app
+test/     tests and support code
+.spec/    current-truth specs and ADRs
 ```
 
-### Jido Ecosystem Dependencies
+## Main Technologies
 
 | Package | Role |
-|---------|------|
-| [`jido`](https://github.com/agentjido/jido) | Agent runtime, strategies, signals |
-| [`jido_action`](https://github.com/agentjido/jido_action) | Composable action definitions |
-| [`jido_signal`](https://github.com/agentjido/jido_signal) | Agent communication envelopes |
-| [`jido_ai`](https://github.com/agentjido/jido_ai) | LLM integration (Anthropic, OpenAI) |
-| [`req_llm`](https://github.com/agentjido/req_llm) | HTTP LLM client |
-| [`ash`](https://ash-hq.org) | Data modeling, persistence |
-| [`sprites`](https://fly.io) | Cloud sandbox containers |
+| --- | --- |
+| [`phoenix`](https://github.com/phoenixframework/phoenix) | Web framework and router |
+| [`phoenix_live_view`](https://github.com/phoenixframework/phoenix_live_view) | Interactive server-rendered UI |
+| [`ash`](https://ash-hq.org) | Resource modeling and application layer |
+| [`ash_postgres`](https://github.com/ash-project/ash_postgres) | Primary data layer integration |
+| [`jido`](https://github.com/agentjido/jido) | Agent runtime, signals, and orchestration patterns |
+| [`req`](https://github.com/wojtekmach/req) | HTTP client |
+| [`burrito`](https://github.com/burrito-elixir/burrito) | Phoenix desktop sidecar packaging |
+| [`tauri`](https://v2.tauri.app) | Native desktop shell |
 
----
+## Release Notes
 
-## Documentation
-
-<!-- covers: docs.product_foundation.docs_index_present -->
-
-- [`docs/VISION.md`](docs/VISION.md) - product thesis, trust model, and initial scope
-- [`docs/TECHNICAL_IMPLEMENTATION.md`](docs/TECHNICAL_IMPLEMENTATION.md) - technical approach, control loop, and Ash domain layout
-- [`docs/DATA_ONTOLOGY.md`](docs/DATA_ONTOLOGY.md) - base data ontology for repository control
-- [`docs/factory_gaps.md`](docs/factory_gaps.md) - Jido-centric comparison note on what to learn from Factory.ai and where Jido should go further
-- [`docs/PACKAGE_QUALITY_ALIGNMENT.md`](docs/PACKAGE_QUALITY_ALIGNMENT.md) - comparison against the canonical Jido package quality standards
-- [`docs/README.md`](docs/README.md) - docs index
-- [`specs/FORGE_OVERVIEW.md`](specs/FORGE_OVERVIEW.md) — Forge architecture deep dive
-- [`specs/`](specs/) — Product specs and PRD
-- [`specs/03_decisions_and_invariants.md`](specs/03_decisions_and_invariants.md) — Cross-spec source of truth
-- [`docs/self_hosted_provider_auth.md`](docs/self_hosted_provider_auth.md) — Self-hosted provider login and GitHub automation setup
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution guidelines
-- [`tauri/README.md`](tauri/README.md) — Desktop packaging and runtime guide, separate from normal repo-root development
-- [`CHANGELOG.md`](CHANGELOG.md) — Version history
-
----
+Release automation is version-controlled in [`.github/workflows/release.yml`](.github/workflows/release.yml). Keep [`CHANGELOG.md`](CHANGELOG.md) current, run the relevant quality and spec checks, and cut releases from the workflow instead of relying on ad hoc local release steps.
 
 ## License
 

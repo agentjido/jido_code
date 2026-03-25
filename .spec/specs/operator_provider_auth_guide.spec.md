@@ -1,36 +1,36 @@
 # Operator Provider Auth Guide
 
-This subject defines the operator-facing documentation required to configure self-hosted provider login and deployment-local GitHub automation in `jido_code`. It is part of the repo-local auth-provider foundation captured by `package.jido_code.auth_provider_foundation_in_repo`.
+This subject defines the repo-local boundary around self-hosted provider login and deployment-local GitHub automation guidance in `jido_code`. The full step-by-step operator prose may live outside this repo, but the repo must keep the implementation contract and contributor-facing separation current.
+
+<!-- covers: package.jido_code.auth_provider_foundation_in_repo -->
 
 ```spec-meta
 id: docs.operator_provider_auth_guide
 kind: feature
 status: active
-summary: jido_code publishes an operator guide that explains broker-managed GitHub login, deployment-local GitHub service credentials, callback and allowlist behavior, and future GitLab or Bitbucket posture without requiring operators to read implementation code.
+summary: jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository.
 surface:
-  - docs/self_hosted_provider_auth.md
+  - README.md
+  - .spec/specs/operator_auth_settings.spec.md
+  - .spec/specs/github_service_credentials.spec.md
+  - .spec/specs/self_hosted_provider_integration.spec.md
 ```
 
 ## Requirements
 
 ```spec-requirements
-- id: docs.operator_provider_auth_guide.github_broker_registration_steps
-  statement: The operator guide shall describe the exact GitHub login app registration fields used for the broker-managed login model.
+- id: docs.operator_provider_auth_guide.local_quickstart_excludes_operator_setup
+  statement: Contributor-facing quickstart docs shall keep deployment-specific provider-login setup out of the normal local development path.
   priority: must
   stability: evolving
 
-- id: docs.operator_provider_auth_guide.github_service_credential_setup
-  statement: The operator guide shall describe deployment-local GitHub service credential setup, including canonical SecretRef names and supported environment variables.
+- id: docs.operator_provider_auth_guide.repo_local_auth_contract_modeled
+  statement: The repository shall keep the self-hosted provider auth, GitHub service-credential, and callback/allowlist contract modeled in repo-local specs even when the prose operator guide is maintained outside the repository.
   priority: must
   stability: stable
 
-- id: docs.operator_provider_auth_guide.callback_and_allowlist_explained
-  statement: The operator guide shall explain the callback, redirect, signed-state, and allowlist flow for self-hosted provider login.
-  priority: must
-  stability: stable
-
-- id: docs.operator_provider_auth_guide.future_provider_notes
-  statement: The operator guide shall explain the current future-provider posture for GitLab and Bitbucket so operators do not assume those integrations are production-ready yet.
+- id: docs.operator_provider_auth_guide.external_operator_docs_allowed
+  statement: The repository may keep the detailed operator prose outside the repo as long as repo-local docs do not claim an in-repo guide exists.
   priority: should
   stability: evolving
 ```
@@ -40,44 +40,57 @@ surface:
 ```spec-scenarios
 - id: docs.operator_provider_auth_guide.scenario.github_login_setup
   covers:
-    - docs.operator_provider_auth_guide.github_broker_registration_steps
-    - docs.operator_provider_auth_guide.callback_and_allowlist_explained
+    - docs.operator_provider_auth_guide.local_quickstart_excludes_operator_setup
+    - docs.operator_provider_auth_guide.repo_local_auth_contract_modeled
   given:
     - An operator needs to enable hosted GitHub login for a self-hosted deployment.
   when:
-    - The operator reads the provider auth guide.
+    - The operator inspects the repo-local guidance and specs.
   then:
-    - The guide explains the broker-managed callback model and the exact deployment-side fields to configure.
+    - The local developer quickstart stays clean, and the repo-local specs still capture the underlying login and callback contract.
 
 - id: docs.operator_provider_auth_guide.scenario.github_service_setup
   covers:
-    - docs.operator_provider_auth_guide.github_service_credential_setup
+    - docs.operator_provider_auth_guide.repo_local_auth_contract_modeled
   given:
     - An operator needs GitHub automation to work in the same deployment.
   when:
-    - The operator reads the provider auth guide.
+    - The operator inspects the repo-local specs.
   then:
-    - The guide lists the deployment-local secrets, env vars, and readiness expectations without mixing them into broker login config.
+    - The repo still captures the deployment-local secrets, env vars, and readiness expectations without mixing them into the contributor quickstart.
 
 - id: docs.operator_provider_auth_guide.scenario.future_provider_expectations
   covers:
-    - docs.operator_provider_auth_guide.future_provider_notes
+    - docs.operator_provider_auth_guide.external_operator_docs_allowed
   given:
-    - An operator is evaluating GitLab and Bitbucket.
+    - A maintainer keeps detailed operator prose outside the repo.
   when:
-    - The operator reads the provider auth guide.
+    - The maintainer updates the repo-facing docs.
   then:
-    - The guide makes it clear that those providers are modeled but not operator-ready end to end yet.
+    - The repo does not advertise a missing in-repo operator guide.
 ```
 
 ## Verification
 
 ```spec-verification
 - kind: source_file
-  target: docs/self_hosted_provider_auth.md
+  target: README.md
   covers:
-    - docs.operator_provider_auth_guide.github_broker_registration_steps
-    - docs.operator_provider_auth_guide.github_service_credential_setup
-    - docs.operator_provider_auth_guide.callback_and_allowlist_explained
-    - docs.operator_provider_auth_guide.future_provider_notes
+    - docs.operator_provider_auth_guide.local_quickstart_excludes_operator_setup
+    - docs.operator_provider_auth_guide.external_operator_docs_allowed
+
+- kind: source_file
+  target: .spec/specs/operator_auth_settings.spec.md
+  covers:
+    - docs.operator_provider_auth_guide.repo_local_auth_contract_modeled
+
+- kind: source_file
+  target: .spec/specs/github_service_credentials.spec.md
+  covers:
+    - docs.operator_provider_auth_guide.repo_local_auth_contract_modeled
+
+- kind: source_file
+  target: .spec/specs/self_hosted_provider_integration.spec.md
+  covers:
+    - docs.operator_provider_auth_guide.repo_local_auth_contract_modeled
 ```

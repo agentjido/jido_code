@@ -12,8 +12,6 @@ decisions:
   - jido_code.runic_execution_model
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
-  - docs/TECHNICAL_IMPLEMENTATION.md
-  - docs/DATA_ONTOLOGY.md
 ```
 
 ## Requirements

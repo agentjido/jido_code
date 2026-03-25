@@ -97,8 +97,8 @@ RUN gunzip ./hivemind-v1.1.0-linux-amd64.gz
 RUN chmod +x ./hivemind-v1.1.0-linux-amd64
 RUN mv ./hivemind-v1.1.0-linux-amd64 ./bin/hivemind
 
-COPY Procfile ./
-COPY entrypoint ./bin
+COPY deploy/Procfile ./Procfile
+COPY deploy/entrypoint.sh ./bin/entrypoint
 RUN chmod +x ./bin/entrypoint
 
 USER nobody

@@ -21,6 +21,9 @@ surface:
   - .spec/decisions/*.md
   - .github/
   - config/
+  - Dockerfile
+  - fly.toml
+  - deploy/
   - docs/
   - lib/
   - lib/mix/tasks/*.ex
@@ -50,6 +53,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: package.jido_code.version_controlled_deploy_surfaces
+  statement: Deployment entry files shall remain version-controlled, keeping top-level tooling entry files such as Dockerfile and fly.toml at the repo root while moving auxiliary deploy helpers under deploy/.
+  priority: should
+  stability: evolving
+
 - id: package.jido_code.mix_first_cli_surface
   statement: Repository-owned terminal entrypoints shall prefer direct Mix tasks over repo-root shell wrapper scripts.
   priority: should
@@ -73,6 +81,11 @@ surface:
   target: mix.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
+
+- kind: command
+  target: test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml
+  covers:
+    - package.jido_code.version_controlled_deploy_surfaces
 
 - kind: command
   target: mix help command

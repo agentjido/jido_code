@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -44,7 +44,7 @@ surface:
   stability: evolving
 
 - id: package.jido_code.version_controlled_quality_surfaces
-  statement: Contributor-facing quality, CI, release, and spec-alignment surfaces shall live in version-controlled repo files instead of ad hoc local state.
+  statement: Contributor-facing quality, development-command, CI, release, and spec-alignment surfaces shall live in version-controlled repo files instead of ad hoc local state.
   priority: must
   stability: evolving
 ```

@@ -622,6 +622,14 @@
         "subject_id": "developer.workflow"
       },
       {
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "id": "developer.workflow.phoenix_mix_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup` and `mix test` provisions the test database with Ecto tasks instead of making `ash.setup` the public entrypoint.",
+        "subject_id": "developer.workflow"
+      },
+      {
         "file": ".spec/specs/operator_provider_auth_guide.spec.md",
         "id": "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
         "priority": "must",
@@ -722,7 +730,7 @@
         "id": "package.jido_code.version_controlled_quality_surfaces",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Contributor-facing quality, CI, release, and spec-alignment surfaces shall live in version-controlled repo files instead of ad hoc local state.",
+        "statement": "Contributor-facing quality, development-command, CI, release, and spec-alignment surfaces shall live in version-controlled repo files instead of ad hoc local state.",
         "subject_id": "package.jido_code"
       },
       {
@@ -754,7 +762,7 @@
         "id": "package.jido_code.package_quality_mix_surface_aligned",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The repository shall provide a standards-aligned mix quality surface with coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor.",
+        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -1902,7 +1910,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.",
           "surface": [
             "AGENTS.md",
             "coveralls.json",
@@ -1932,7 +1940,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality surfaces from the Jido package standards current while documenting explicit product-repo exceptions.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current while documenting explicit product-repo exceptions.",
           "surface": [
             "mix.exs",
             "README.md",
@@ -2802,6 +2810,24 @@
       },
       {
         "covers": [
+          "developer.workflow.phoenix_mix_surface"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'setup: \\[\"deps.get\", \"git_hooks.install\", \"ecto.setup\", \"assets.setup\", \"assets.build\"\\]' mix.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.phoenix_mix_surface"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs"
+      },
+      {
+        "covers": [
           "docs.operator_provider_auth_guide.github_broker_registration_steps",
           "docs.operator_provider_auth_guide.github_service_credential_setup",
           "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
@@ -3210,10 +3236,10 @@
     "decisions": 4,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 103,
+    "requirements": 104,
     "scenarios": 46,
     "subjects": 22,
-    "verifications": 102
+    "verifications": 104
   },
   "verification": {
     "claims": [
@@ -4747,6 +4773,28 @@
         "verification_index": 2
       },
       {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'setup: \\[\"deps.get\", \"git_hooks.install\", \"ecto.setup\", \"assets.setup\", \"assets.build\"\\]' mix.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "developer.workflow.phoenix_mix_surface",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs",
+        "verification_index": 4
+      },
+      {
         "cover_id": "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
         "file": ".spec/specs/operator_provider_auth_guide.spec.md",
         "kind": "source_file",
@@ -5388,7 +5436,7 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 9,
+      "claimed": 11,
       "executed": 0,
       "linked": 188
     },

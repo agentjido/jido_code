@@ -30,6 +30,11 @@ surface:
   statement: Desktop runtime configuration shall stay isolated behind desktop-specific entrypoints so it does not become the default contributor workflow.
   priority: must
   stability: evolving
+
+- id: developer.workflow.phoenix_mix_surface
+  statement: The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup` and `mix test` provisions the test database with Ecto tasks instead of making `ash.setup` the public entrypoint.
+  priority: must
+  stability: evolving
 ```
 
 ## Verification
@@ -49,4 +54,14 @@ surface:
   target: "rg -n 'BURRITO_TARGET|DATABASE_URL' config/runtime.exs"
   covers:
     - developer.workflow.desktop_runtime_isolated
+
+- kind: command
+  target: "rg -n 'setup: \\[\"deps.get\", \"git_hooks.install\", \"ecto.setup\", \"assets.setup\", \"assets.build\"\\]' mix.exs"
+  covers:
+    - developer.workflow.phoenix_mix_surface
+
+- kind: command
+  target: "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs"
+  covers:
+    - developer.workflow.phoenix_mix_surface
 ```

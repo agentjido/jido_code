@@ -6,7 +6,7 @@ This subject defines how `jido_code` aligns with the canonical Jido package qual
 id: package.jido_code.package_quality_standards
 kind: policy
 status: active
-summary: jido_code keeps the contributor-facing quality surfaces from the Jido package standards current while documenting explicit product-repo exceptions.
+summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current while documenting explicit product-repo exceptions.
 decisions:
   - jido_code.namespace_and_control_naming
 surface:
@@ -38,7 +38,7 @@ surface:
   stability: stable
 
 - id: package.jido_code.package_quality_mix_surface_aligned
-  statement: "The repository shall provide a standards-aligned mix quality surface with coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor."
+  statement: "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor."
   priority: must
   stability: evolving
 

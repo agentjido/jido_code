@@ -10,12 +10,17 @@ Thank you for your interest in contributing to JidoCode! This document provides 
    cd jido_code
    ```
 
-2. Install dependencies:
+2. Install the repo toolchain:
+   ```bash
+   mise install
+   ```
+
+3. Install dependencies:
    ```bash
    mix setup
    ```
 
-3. Start the development server:
+4. Start the development server:
    ```bash
    mix phx.server
    ```

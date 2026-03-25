@@ -109,11 +109,18 @@ The intended direction (documented in [`specs/`](specs/)):
 - Elixir `~> 1.18`
 - PostgreSQL 14+
 
+The repo toolchain is pinned in `mise.toml`. If you use `mise`, install the local toolchain with:
+
+```bash
+mise install
+```
+
 ### Setup
 ```bash
 git clone https://github.com/epic-creative/jido_code.git
 cd jido_code
 
+mise install
 mix setup
 mix phx.server
 ```

@@ -606,6 +606,22 @@
         "subject_id": "collaboration.workflow"
       },
       {
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "id": "developer.workflow.desktop_runtime_isolated",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Desktop runtime configuration shall stay isolated behind desktop-specific entrypoints so it does not become the default contributor workflow.",
+        "subject_id": "developer.workflow"
+      },
+      {
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "id": "developer.workflow.host_postgres_defaults",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Normal repository development and test configuration shall default to a host Postgres instance instead of requiring the desktop runtime path.",
+        "subject_id": "developer.workflow"
+      },
+      {
         "file": ".spec/specs/operator_provider_auth_guide.spec.md",
         "id": "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
         "priority": "must",
@@ -1758,6 +1774,29 @@
         "title": "Collaboration Workflow"
       },
       {
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "id": "developer.workflow",
+        "meta": {
+          "decisions": null,
+          "id": "developer.workflow",
+          "kind": "policy",
+          "status": "active",
+          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow while isolating desktop runtime configuration behind desktop-specific entrypoints.",
+          "surface": [
+            "mix.exs",
+            "config/dev.exs",
+            "config/test.exs",
+            "config/runtime.exs",
+            "README.md",
+            "CONTRIBUTING.md",
+            ".env.example",
+            "tauri/README.md"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Developer Workflow"
+      },
+      {
         "file": ".spec/specs/execution_pipeline.spec.md",
         "id": "architecture.execution_pipeline",
         "meta": {
@@ -1866,6 +1905,7 @@
           "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.",
           "surface": [
             "AGENTS.md",
+            "coveralls.json",
             "mix.exs",
             ".doctor.exs",
             ".dialyzer_ignore.exs",
@@ -1899,6 +1939,7 @@
             "CONTRIBUTING.md",
             "CHANGELOG.md",
             "LICENSE",
+            "coveralls.json",
             ".dialyzer_ignore.exs",
             "AGENTS.md",
             "usage-rules.md",
@@ -2734,6 +2775,33 @@
       },
       {
         "covers": [
+          "developer.workflow.host_postgres_defaults"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'postgres|localhost|jido_code_dev' config/dev.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.host_postgres_defaults"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'postgres|localhost|jido_code_test' config/test.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.desktop_runtime_isolated"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'BURRITO_TARGET|DATABASE_URL' config/runtime.exs"
+      },
+      {
+        "covers": [
           "docs.operator_provider_auth_guide.github_broker_registration_steps",
           "docs.operator_provider_auth_guide.github_service_credential_setup",
           "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
@@ -3142,10 +3210,10 @@
     "decisions": 4,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 101,
+    "requirements": 103,
     "scenarios": 46,
-    "subjects": 21,
-    "verifications": 99
+    "subjects": 22,
+    "verifications": 102
   },
   "verification": {
     "claims": [
@@ -4646,6 +4714,39 @@
         "verification_index": 0
       },
       {
+        "cover_id": "developer.workflow.host_postgres_defaults",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'postgres|localhost|jido_code_dev' config/dev.exs",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "developer.workflow.host_postgres_defaults",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'postgres|localhost|jido_code_test' config/test.exs",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "developer.workflow.desktop_runtime_isolated",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'BURRITO_TARGET|DATABASE_URL' config/runtime.exs",
+        "verification_index": 2
+      },
+      {
         "cover_id": "docs.operator_provider_auth_guide.callback_and_allowlist_explained",
         "file": ".spec/specs/operator_provider_auth_guide.spec.md",
         "kind": "source_file",
@@ -5287,7 +5388,7 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 6,
+      "claimed": 9,
       "executed": 0,
       "linked": 188
     },
@@ -5295,6 +5396,6 @@
   },
   "workspace": {
     "decision_count": 4,
-    "spec_count": 21
+    "spec_count": 22
   }
 }

@@ -23,8 +23,6 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     :github_pat_accessible_repos
   ]
 
-  @now ~U[2026-03-15 19:15:00Z]
-
   setup do
     BrokerNonceStore.reset!()
 
@@ -190,7 +188,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
         broker_base_url: "https://broker.example.com",
         redirect_path: redirect_path
       },
-      now: @now,
+      now: current_now(),
       nonce: nonce
     )
   end
@@ -327,5 +325,9 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     jwk
     |> JOSE.JWK.to_public_map()
     |> elem(1)
+  end
+
+  defp current_now do
+    DateTime.utc_now() |> DateTime.truncate(:second)
   end
 end

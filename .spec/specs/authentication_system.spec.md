@@ -6,7 +6,7 @@ This subject defines the baseline local authentication capabilities for `jido_co
 id: auth.system
 kind: feature
 status: active
-summary: jido_code authenticates local users with email-backed identities, password and magic-link flows, confirmation, and revocable session credentials.
+summary: jido_code authenticates local users with email-backed identities, password and magic-link flows, confirmation, and revocable session credentials backed by persisted security-token surfaces.
 decisions:
   - jido_code.auth_user_system
 surface:

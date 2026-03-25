@@ -1,8 +1,11 @@
 defmodule JidoCode.MixProject do
+  # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: package.jido_code.package_quality_mix_surface_aligned
   use Mix.Project
 
   @version "0.1.0"
   @source_url "https://github.com/epic-creative/jido_code"
+  @description "Primary Jido.Code product and implementation repository."
 
   def project do
     [
@@ -17,6 +20,22 @@ defmodule JidoCode.MixProject do
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       consolidate_protocols: Mix.env() != :dev,
+      name: "Jido.Code",
+      description: @description,
+      source_url: @source_url,
+      homepage_url: "https://jido.run",
+      package: package(),
+      test_coverage: [
+        tool: ExCoveralls,
+        summary: [threshold: 60],
+        export: "cov"
+      ],
+      dialyzer: [
+        plt_local_path: "priv/plts/project.plt",
+        plt_core_path: "priv/plts/core.plt",
+        ignore_warnings: ".dialyzer_ignore.exs",
+        list_unused_filters: true
+      ],
       docs: docs()
     ]
   end
@@ -33,7 +52,12 @@ defmodule JidoCode.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.github": :test,
+        "coveralls.html": :test,
+        precommit: :test
+      ]
     ]
   end
 
@@ -67,7 +91,32 @@ defmodule JidoCode.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md", "CONTRIBUTING.md"]
+      extras: ["README.md", "CHANGELOG.md", "CONTRIBUTING.md", "docs/PACKAGE_QUALITY_ALIGNMENT.md"]
+    ]
+  end
+
+  defp package do
+    [
+      files: [
+        "lib",
+        "assets",
+        "priv",
+        "mix.exs",
+        "README.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        ".dialyzer_ignore.exs",
+        "usage-rules.md"
+      ],
+      maintainers: ["Jido.Code contributors"],
+      licenses: ["Apache-2.0"],
+      links: %{
+        "Documentation" => "#{@source_url}#documentation",
+        "GitHub" => @source_url,
+        "Package Quality Alignment" => "#{@source_url}/blob/main/docs/PACKAGE_QUALITY_ALIGNMENT.md",
+        "Website" => "https://jido.run"
+      }
     ]
   end
 
@@ -147,6 +196,7 @@ defmodule JidoCode.MixProject do
       {:jason, "~> 1.2"},
       {:picosat_elixir, "~> 0.2"},
       {:mdex, "~> 0.11"},
+      {:zoi, "~> 0.17"},
 
       # Development & testing
       {:igniter, "~> 0.6", only: [:dev, :test]},
@@ -183,7 +233,7 @@ defmodule JidoCode.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ash.setup", "assets.setup", "assets.build", "run priv/repo/seeds.exs"],
+      setup: ["deps.get", "git_hooks.install", "ash.setup", "assets.setup", "assets.build", "run priv/repo/seeds.exs"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ash.setup --quiet", "test"],
@@ -194,13 +244,21 @@ defmodule JidoCode.MixProject do
         "esbuild jido_code --minify",
         "phx.digest"
       ],
+      q: ["quality"],
       specs: ["spec.check", "spec.diffcheck"],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
+      precommit: [
+        "deps.unlock --check-unused",
+        "format --check-formatted",
+        "compile --warnings-as-errors",
+        "test"
+      ],
       sync_rules: ["usage_rules.sync AGENTS.md --all --link-to-folder deps --yes"],
       quality: [
-        "compile --warnings-as-errors",
+        "deps.unlock --check-unused",
         "format --check-formatted",
-        "credo --strict",
+        "compile --warnings-as-errors",
+        "credo --min-priority higher",
+        "dialyzer",
         "doctor --raise"
       ]
     ]

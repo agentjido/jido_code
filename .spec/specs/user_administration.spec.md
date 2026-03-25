@@ -6,7 +6,7 @@ This subject defines the target user-management model for `jido_code` as it evol
 id: users.admin_system
 kind: feature
 status: active
-summary: jido_code boots with an initial administrator and grows into an admin-managed multi-user account system.
+summary: jido_code boots with an initial administrator through the welcome/setup path and grows into an admin-managed multi-user account system with guarded registration.
 decisions:
   - jido_code.auth_user_system
 surface:

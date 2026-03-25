@@ -12,6 +12,8 @@ Today, the repo contains two substantial, working showcases:
 
 > **Status: alpha / developer-focused.** Several documents in [`./specs`](specs/) describe an intended product direction; this README is intentionally limited to what exists in the codebase today.
 
+The repo aligns to the canonical Jido package quality standards where they apply to a product repo and documents the remaining exceptions in [`docs/PACKAGE_QUALITY_ALIGNMENT.md`](docs/PACKAGE_QUALITY_ALIGNMENT.md).
+
 ---
 
 ## What Works Today
@@ -135,11 +137,18 @@ For the current self-hosted provider-login and GitHub automation model, use the 
 
 ### Commands
 ```bash
+mix q                   # Shorthand for the canonical quality gate
 mix test                # Run tests
-mix quality             # Compile warnings + format + credo + doctor
+mix coveralls           # Run tests with coverage summary
+mix quality             # Deps hygiene + format + compile + credo + dialyzer + doctor
 mix precommit           # Compile + format + test
 mix coveralls.html      # Coverage report
+mix docs                # Build docs including package-quality alignment notes
 ```
+
+### Release Workflow
+
+Release automation is version-controlled in `.github/workflows/release.yml`. Maintainers should keep `CHANGELOG.md` current, ensure `mix q`, `mix coveralls`, and the relevant spec checks pass, then use the GitHub workflow to cut a tagged release from repository state instead of relying on ad hoc local release commands.
 
 ### Jido CLI Wrapper
 ```bash
@@ -214,6 +223,7 @@ specs/                          # PRD & design documents
 - [`docs/TECHNICAL_IMPLEMENTATION.md`](docs/TECHNICAL_IMPLEMENTATION.md) - technical approach, control loop, and Ash domain layout
 - [`docs/DATA_ONTOLOGY.md`](docs/DATA_ONTOLOGY.md) - base data ontology for repository control
 - [`docs/factory_gaps.md`](docs/factory_gaps.md) - Jido-centric comparison note on what to learn from Factory.ai and where Jido should go further
+- [`docs/PACKAGE_QUALITY_ALIGNMENT.md`](docs/PACKAGE_QUALITY_ALIGNMENT.md) - comparison against the canonical Jido package quality standards
 - [`docs/README.md`](docs/README.md) - docs index
 - [`specs/FORGE_OVERVIEW.md`](specs/FORGE_OVERVIEW.md) — Forge architecture deep dive
 - [`specs/`](specs/) — Product specs and PRD

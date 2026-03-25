@@ -1,33 +1,36 @@
 # Baseline Surface
 
-This subject defines the intentionally reduced application surface used to re-establish a Spec Led Development baseline.
+This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
 ```spec-meta
 id: baseline.surface
 kind: feature
 status: active
-summary: jido_code exposes only a welcome landing page and authentication flows while the product surface is temporarily trimmed back.
+summary: jido_code exposes a welcome landing page and auth entrypoints at the public edge while keeping authenticated product, RPC, API, and dev surfaces declared in the router.
 surface:
   - lib/jido_code_web/router.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/components/layouts.ex
+  - test/jido_code_web/controllers/page_controller_test.exs
+  - test/jido_code_web/live/home_live_test.exs
+  - test/jido_code_web/live/welcome_live_test.exs
 ```
 
 ## Requirements
 
 ```spec-requirements
-- id: baseline.surface.routes_landing_and_auth_only
-  statement: The browser route surface shall expose only the landing page and authentication flows, including provider-auth handshake endpoints, while baseline mode is active.
+- id: baseline.surface.public_entry_routes
+  statement: The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available as the public operator entry surface.
   priority: must
   stability: stable
 
-- id: baseline.surface.product_routes_disabled
-  statement: Product, setup, RPC, API, and admin route declarations shall remain commented out while baseline mode is active.
+- id: baseline.surface.product_routes_declared
+  statement: Authenticated product routes and deployment integration routes shall remain declared in the router rather than being commented out or silently disabled.
   priority: must
-  stability: temporary
+  stability: evolving
 
 - id: baseline.surface.welcome_landing_copy
-  statement: The landing page shall present the copy "Welcome to Jido Code" and explain that the application has been trimmed to a baseline.
+  statement: The welcome landing page shall present the copy "Welcome to Jido Code" and act as the operator-facing starting point for sign-in and setup.
   priority: must
   stability: stable
 
@@ -36,8 +39,8 @@ surface:
   priority: must
   stability: stable
 
-- id: baseline.surface.nav_trimmed
-  statement: Shared application chrome shall not advertise disabled product areas while baseline mode is active.
+- id: baseline.surface.root_redirects_to_welcome
+  statement: The root path shall redirect to `/welcome` so the operator-facing landing route stays canonical even as authenticated product routes expand.
   priority: must
   stability: stable
 ```
@@ -48,8 +51,9 @@ surface:
 - kind: source_file
   target: lib/jido_code_web/router.ex
   covers:
-    - baseline.surface.routes_landing_and_auth_only
-    - baseline.surface.product_routes_disabled
+    - baseline.surface.public_entry_routes
+    - baseline.surface.product_routes_declared
+    - baseline.surface.root_redirects_to_welcome
 
 - kind: source_file
   target: lib/jido_code_web/live/home_live.ex
@@ -58,12 +62,24 @@ surface:
     - baseline.surface.auth_entrypoints_visible
 
 - kind: source_file
-  target: lib/jido_code_web/components/layouts.ex
+  target: test/jido_code_web/controllers/page_controller_test.exs
   covers:
-    - baseline.surface.nav_trimmed
+    - baseline.surface.root_redirects_to_welcome
+
+- kind: source_file
+  target: test/jido_code_web/live/home_live_test.exs
+  covers:
+    - baseline.surface.auth_entrypoints_visible
+    - baseline.surface.welcome_landing_copy
+
+- kind: source_file
+  target: test/jido_code_web/live/welcome_live_test.exs
+  covers:
+    - baseline.surface.welcome_landing_copy
 
 - kind: command
   target: mix compile
   covers:
-    - baseline.surface.routes_landing_and_auth_only
+    - baseline.surface.public_entry_routes
+    - baseline.surface.product_routes_declared
 ```

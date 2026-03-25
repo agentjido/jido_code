@@ -6,7 +6,7 @@ This subject defines the deployment-side contract for broker-issued provider log
 id: auth.provider_broker_handoff
 kind: feature
 status: active
-summary: jido_code signs deployment-owned provider state, validates broker JWT handoffs with issuer and audience trust, blocks nonce replay, and enforces the contract that must pass before provider-specific local sign-in can proceed.
+summary: jido_code signs deployment-owned provider state, validates broker JWT handoffs with issuer and audience trust, blocks nonce replay with a consistent request clock, and enforces the contract that must pass before provider-specific local sign-in can proceed.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -48,7 +48,7 @@ surface:
   stability: stable
 
 - id: auth.provider_broker_handoff.nonce_replay_protection
-  statement: Successfully validated broker handoff nonces shall be single-use so replay attempts fail closed.
+  statement: Successfully validated broker handoff nonces shall be single-use so replay attempts fail closed and expiry evaluation stays consistent with the validating request clock.
   priority: must
   stability: stable
 

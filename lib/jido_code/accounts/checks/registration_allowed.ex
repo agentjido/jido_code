@@ -3,6 +3,7 @@ defmodule JidoCode.Accounts.Checks.RegistrationAllowed do
   Allows authentication interactions, while blocking open registration in production
   after the owner account exists.
   """
+
   # covers: users.admin_system.registration_guardrails
   # covers: users.admin_system.admin_managed_provisioning
 

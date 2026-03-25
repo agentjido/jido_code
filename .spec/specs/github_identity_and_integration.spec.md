@@ -6,7 +6,7 @@ This subject defines how GitHub-backed access should relate to the local user sy
 id: auth.github_integration
 kind: feature
 status: active
-summary: jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration and preparing for optional GitHub-backed sign-in.
+summary: jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration, synchronizing installation readiness, and preparing for optional GitHub-backed sign-in.
 decisions:
   - jido_code.auth_user_system
 surface:

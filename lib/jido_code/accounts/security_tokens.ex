@@ -2,6 +2,7 @@ defmodule JidoCode.Accounts.SecurityTokens do
   @moduledoc """
   Product-level token and API key status/revocation actions for `/settings/security`.
   """
+
   # covers: auth.system.revocable_credentials
 
   require Ash.Query

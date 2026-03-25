@@ -7,14 +7,53 @@ on:
     branches: [main]
 
 env:
-  MIX_ENV: test
   ELIXIR_VERSION: "1.18"
   OTP_VERSION: "27"
 
 jobs:
-  test:
-    name: Test
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Restore deps cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
+
+      - name: Restore PLT cache
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-plt-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Run standards-aligned quality gate
+        run: mix q
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/jido_code_test
 
     services:
       postgres:
@@ -53,22 +92,14 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Check formatting
-        run: mix format --check-formatted
+      - name: Prepare Ash test setup
+        run: mix ash.setup --quiet
 
-      - name: Compile with warnings as errors
-        run: mix compile --warnings-as-errors
+      - name: Enforce coverage threshold
+        run: mix coveralls
 
-      - name: Run Credo
-        run: mix credo --strict
-
-      - name: Run tests
-        run: mix test
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/jido_code_test
-
-  dialyzer:
-    name: Dialyzer
+  specs:
+    name: Specs
     runs-on: ubuntu-latest
 
     steps:
@@ -90,21 +121,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-mix-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
 
-      - name: Restore PLT cache
-        uses: actions/cache@v4
-        id: plt_cache
-        with:
-          path: priv/plts
-          key: ${{ runner.os }}-plt-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-plt-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
-
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Create PLTs
-        if: steps.plt_cache.outputs.cache-hit != 'true'
-        run: mix dialyzer --plt
+      - name: Verify specs
+        run: mix spec.check
 
-      - name: Run Dialyzer
-        run: mix dialyzer --format github
+      - name: Check for spec drift
+        run: mix spec.diffcheck

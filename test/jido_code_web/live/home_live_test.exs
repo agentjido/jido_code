@@ -1,5 +1,6 @@
 defmodule JidoCodeWeb.HomeLiveTest do
   # covers: baseline.surface.auth_entrypoints_visible
+  # covers: baseline.surface.welcome_landing_copy
   # covers: auth.provider_login_flow.entrypoint_visible
   # covers: auth.provider_login_flow.local_auth_fallback_visible
   use JidoCodeWeb.ConnCase, async: false

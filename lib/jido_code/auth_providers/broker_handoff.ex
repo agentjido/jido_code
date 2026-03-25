@@ -37,15 +37,16 @@ defmodule JidoCode.AuthProviders.BrokerHandoff do
 
   def validate(token, provider_config, expected_state, opts)
       when is_binary(token) and is_map(provider_config) and is_map(expected_state) and is_list(opts) do
+    now = Keyword.get(opts, :now, DateTime.utc_now() |> DateTime.truncate(:second))
+
     with {:ok, jwks} <- resolve_jwks(provider_config, opts),
          {:ok, claims} <- verify_signature(token, jwks),
          {:ok, expires_at} <- parse_expiry(Map.get(claims, "exp")),
          :ok <- validate_issuer(claims, provider_config),
          :ok <- validate_audience(claims, provider_config),
          :ok <- validate_state_binding(claims, expected_state),
-         :ok <-
-           ensure_not_expired(expires_at, Keyword.get(opts, :now, DateTime.utc_now() |> DateTime.truncate(:second))),
-         :ok <- consume_nonce(Map.get(claims, "nonce"), expires_at) do
+         :ok <- ensure_not_expired(expires_at, now),
+         :ok <- consume_nonce(Map.get(claims, "nonce"), expires_at, now) do
       {:ok,
        %{
          issuer: Map.get(claims, "iss"),
@@ -273,8 +274,8 @@ defmodule JidoCode.AuthProviders.BrokerHandoff do
     end
   end
 
-  defp consume_nonce(nonce, expires_at) when is_binary(nonce) do
-    case BrokerNonceStore.consume(nonce, expires_at) do
+  defp consume_nonce(nonce, expires_at, now) when is_binary(nonce) do
+    case BrokerNonceStore.consume(nonce, expires_at, now) do
       :ok ->
         :ok
 
@@ -296,7 +297,7 @@ defmodule JidoCode.AuthProviders.BrokerHandoff do
     end
   end
 
-  defp consume_nonce(_nonce, _expires_at) do
+  defp consume_nonce(_nonce, _expires_at, _now) do
     {:error,
      typed_error(
        "broker_handoff_invalid_nonce",

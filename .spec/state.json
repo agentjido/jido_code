@@ -290,7 +290,7 @@
         "id": "auth.provider_broker_handoff.nonce_replay_protection",
         "priority": "must",
         "stability": "stable",
-        "statement": "Successfully validated broker handoff nonces shall be single-use so replay attempts fail closed.",
+        "statement": "Successfully validated broker handoff nonces shall be single-use so replay attempts fail closed and expiry evaluation stays consistent with the validating request clock.",
         "subject_id": "auth.provider_broker_handoff"
       },
       {
@@ -559,26 +559,26 @@
       },
       {
         "file": ".spec/specs/baseline_surface.spec.md",
-        "id": "baseline.surface.nav_trimmed",
+        "id": "baseline.surface.product_routes_declared",
         "priority": "must",
-        "stability": "stable",
-        "statement": "Shared application chrome shall not advertise disabled product areas while baseline mode is active.",
+        "stability": "evolving",
+        "statement": "Authenticated product routes and deployment integration routes shall remain declared in the router rather than being commented out or silently disabled.",
         "subject_id": "baseline.surface"
       },
       {
         "file": ".spec/specs/baseline_surface.spec.md",
-        "id": "baseline.surface.product_routes_disabled",
+        "id": "baseline.surface.public_entry_routes",
         "priority": "must",
-        "stability": "temporary",
-        "statement": "Product, setup, RPC, API, and admin route declarations shall remain commented out while baseline mode is active.",
+        "stability": "stable",
+        "statement": "The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available as the public operator entry surface.",
         "subject_id": "baseline.surface"
       },
       {
         "file": ".spec/specs/baseline_surface.spec.md",
-        "id": "baseline.surface.routes_landing_and_auth_only",
+        "id": "baseline.surface.root_redirects_to_welcome",
         "priority": "must",
         "stability": "stable",
-        "statement": "The browser route surface shall expose only the landing page and authentication flows, including provider-auth handshake endpoints, while baseline mode is active.",
+        "statement": "The root path shall redirect to `/welcome` so the operator-facing landing route stays canonical even as authenticated product routes expand.",
         "subject_id": "baseline.surface"
       },
       {
@@ -586,7 +586,7 @@
         "id": "baseline.surface.welcome_landing_copy",
         "priority": "must",
         "stability": "stable",
-        "statement": "The landing page shall present the copy \"Welcome to Jido Code\" and explain that the application has been trimmed to a baseline.",
+        "statement": "The welcome landing page shall present the copy \"Welcome to Jido Code\" and act as the operator-facing starting point for sign-in and setup.",
         "subject_id": "baseline.surface"
       },
       {
@@ -700,6 +700,54 @@
         "stability": "stable",
         "statement": "The repository shall maintain a package-local .spec workspace for current-truth subject specs, durable ADRs, and generated spec state.",
         "subject_id": "package.jido_code"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code.version_controlled_quality_surfaces",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Contributor-facing quality, CI, release, and spec-alignment surfaces shall live in version-controlled repo files instead of ad hoc local state.",
+        "subject_id": "package.jido_code"
+      },
+      {
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "id": "package.jido_code.package_quality_alignment_doc_present",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall keep a repo-local comparison document that maps jido_code to the canonical Jido package quality standards and records any explicit product-repo exceptions.",
+        "subject_id": "package.jido_code.package_quality_standards"
+      },
+      {
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "id": "package.jido_code.package_quality_ci_and_release_present",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The repository shall keep version-controlled CI and release workflows that enforce the documented package quality baseline for this repo.",
+        "subject_id": "package.jido_code.package_quality_standards"
+      },
+      {
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "id": "package.jido_code.package_quality_exceptions_documented",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Any repo-specific deviation from the canonical package standards shall be explicit and documented instead of remaining implicit drift.",
+        "subject_id": "package.jido_code.package_quality_standards"
+      },
+      {
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "id": "package.jido_code.package_quality_mix_surface_aligned",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The repository shall provide a standards-aligned mix quality surface with coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor.",
+        "subject_id": "package.jido_code.package_quality_standards"
+      },
+      {
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "id": "package.jido_code.package_quality_required_files_present",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall include the contributor-facing root files required by the package quality standards: README, CHANGELOG, CONTRIBUTING, AGENTS, LICENSE, and usage-rules.",
+        "subject_id": "package.jido_code.package_quality_standards"
       },
       {
         "file": ".spec/specs/source_provider_adapter.spec.md",
@@ -1659,7 +1707,7 @@
           "id": "auth.system",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code authenticates local users with email-backed identities, password and magic-link flows, confirmation, and revocable session credentials.",
+          "summary": "jido_code authenticates local users with email-backed identities, password and magic-link flows, confirmation, and revocable session credentials backed by persisted security-token surfaces.",
           "surface": [
             "lib/jido_code/accounts/user.ex",
             "lib/jido_code/accounts/token.ex",
@@ -1680,11 +1728,14 @@
           "id": "baseline.surface",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes only a welcome landing page and authentication flows while the product surface is temporarily trimmed back.",
+          "summary": "jido_code exposes a welcome landing page and auth entrypoints at the public edge while keeping authenticated product, RPC, API, and dev surfaces declared in the router.",
           "surface": [
             "lib/jido_code_web/router.ex",
             "lib/jido_code_web/live/home_live.ex",
-            "lib/jido_code_web/components/layouts.ex"
+            "lib/jido_code_web/components/layouts.ex",
+            "test/jido_code_web/controllers/page_controller_test.exs",
+            "test/jido_code_web/live/home_live_test.exs",
+            "test/jido_code_web/live/welcome_live_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -1736,7 +1787,7 @@
           "id": "auth.github_integration",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration and preparing for optional GitHub-backed sign-in.",
+          "summary": "jido_code keeps local user accounts as the source of truth while supporting GitHub App and PAT integration, synchronizing installation readiness, and preparing for optional GitHub-backed sign-in.",
           "surface": [
             "lib/jido_code/setup/github_credential_checks.ex",
             "lib/jido_code/setup/github_installation_sync.ex",
@@ -1812,19 +1863,52 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
+            ".doctor.exs",
+            ".dialyzer_ignore.exs",
             ".spec/README.md",
             ".spec/specs/*.spec.md",
             ".spec/decisions/*.md",
+            ".github/",
+            "config/",
+            "docs/",
             "lib/",
             "test/"
           ],
           "verification_minimum_strength": null
         },
         "title": "Package"
+      },
+      {
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "id": "package.jido_code.package_quality_standards",
+        "meta": {
+          "decisions": [
+            "jido_code.namespace_and_control_naming"
+          ],
+          "id": "package.jido_code.package_quality_standards",
+          "kind": "policy",
+          "status": "active",
+          "summary": "jido_code keeps the contributor-facing quality surfaces from the Jido package standards current while documenting explicit product-repo exceptions.",
+          "surface": [
+            "mix.exs",
+            "README.md",
+            "CONTRIBUTING.md",
+            "CHANGELOG.md",
+            "LICENSE",
+            ".dialyzer_ignore.exs",
+            "AGENTS.md",
+            "usage-rules.md",
+            ".github/workflows/ci.yml",
+            ".github/workflows/release.yml",
+            "docs/PACKAGE_QUALITY_ALIGNMENT.md"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Package Quality Standards"
       },
       {
         "file": ".spec/specs/product_foundation_docs.spec.md",
@@ -1881,7 +1965,7 @@
           "id": "auth.provider_broker_handoff",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code signs deployment-owned provider state, validates broker JWT handoffs with issuer and audience trust, blocks nonce replay, and enforces the contract that must pass before provider-specific local sign-in can proceed.",
+          "summary": "jido_code signs deployment-owned provider state, validates broker JWT handoffs with issuer and audience trust, blocks nonce replay with a consistent request clock, and enforces the contract that must pass before provider-specific local sign-in can proceed.",
           "surface": [
             "lib/jido_code/auth_providers/broker_state.ex",
             "lib/jido_code/auth_providers/broker_nonce_store.ex",
@@ -1926,7 +2010,7 @@
           "id": "auth.provider_login_flow",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a GitHub provider sign-in entrypoint, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in.",
+          "summary": "jido_code exposes a GitHub provider sign-in entrypoint, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.",
           "surface": [
             "lib/jido_code/auth_providers/provider_login.ex",
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
@@ -1968,7 +2052,7 @@
           "id": "auth.self_hosted_provider_integration",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection.",
+          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection against the `/welcome` landing flow.",
           "surface": [
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
             "lib/jido_code_web/live/home_live.ex",
@@ -2032,7 +2116,7 @@
           "id": "users.admin_system",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code boots with an initial administrator and grows into an admin-managed multi-user account system.",
+          "summary": "jido_code boots with an initial administrator through the welcome/setup path and grows into an admin-managed multi-user account system with guarded registration.",
           "surface": [
             "lib/jido_code/setup/owner_bootstrap.ex",
             "lib/jido_code/accounts/user.ex",
@@ -2581,8 +2665,9 @@
       },
       {
         "covers": [
-          "baseline.surface.routes_landing_and_auth_only",
-          "baseline.surface.product_routes_disabled"
+          "baseline.surface.public_entry_routes",
+          "baseline.surface.product_routes_declared",
+          "baseline.surface.root_redirects_to_welcome"
         ],
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
@@ -2601,16 +2686,36 @@
       },
       {
         "covers": [
-          "baseline.surface.nav_trimmed"
+          "baseline.surface.root_redirects_to_welcome"
         ],
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
         "subject_id": "baseline.surface",
-        "target": "lib/jido_code_web/components/layouts.ex"
+        "target": "test/jido_code_web/controllers/page_controller_test.exs"
       },
       {
         "covers": [
-          "baseline.surface.routes_landing_and_auth_only"
+          "baseline.surface.auth_entrypoints_visible",
+          "baseline.surface.welcome_landing_copy"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/home_live_test.exs"
+      },
+      {
+        "covers": [
+          "baseline.surface.welcome_landing_copy"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/welcome_live_test.exs"
+      },
+      {
+        "covers": [
+          "baseline.surface.public_entry_routes",
+          "baseline.surface.product_routes_declared"
         ],
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "command",
@@ -2713,6 +2818,33 @@
       },
       {
         "covers": [
+          "package.jido_code.version_controlled_quality_surfaces"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": "mix.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.version_controlled_quality_surfaces"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".doctor.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.version_controlled_quality_surfaces"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".dialyzer_ignore.exs"
+      },
+      {
+        "covers": [
           "package.jido_code.auth_provider_foundation_in_repo"
         ],
         "file": ".spec/specs/package.spec.md",
@@ -2800,6 +2932,53 @@
         "kind": "source_file",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/operator_provider_auth_guide.spec.md"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_alignment_doc_present",
+          "package.jido_code.package_quality_exceptions_documented"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "docs/PACKAGE_QUALITY_ALIGNMENT.md"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_required_files_present"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE -a -f usage-rules.md"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_mix_surface_aligned"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "mix.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_mix_surface_aligned",
+          "package.jido_code.package_quality_exceptions_documented"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": ".dialyzer_ignore.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_ci_and_release_present"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml"
       },
       {
         "covers": [
@@ -2963,10 +3142,10 @@
     "decisions": 4,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 95,
+    "requirements": 101,
     "scenarios": 46,
-    "subjects": 20,
-    "verifications": 89
+    "subjects": 21,
+    "verifications": 99
   },
   "verification": {
     "claims": [
@@ -4324,7 +4503,7 @@
         "verification_index": 5
       },
       {
-        "cover_id": "baseline.surface.product_routes_disabled",
+        "cover_id": "baseline.surface.product_routes_declared",
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -4335,7 +4514,18 @@
         "verification_index": 0
       },
       {
-        "cover_id": "baseline.surface.routes_landing_and_auth_only",
+        "cover_id": "baseline.surface.public_entry_routes",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/router.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "baseline.surface.root_redirects_to_welcome",
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -4368,18 +4558,51 @@
         "verification_index": 1
       },
       {
-        "cover_id": "baseline.surface.nav_trimmed",
+        "cover_id": "baseline.surface.root_redirects_to_welcome",
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "baseline.surface",
-        "target": "lib/jido_code_web/components/layouts.ex",
+        "target": "test/jido_code_web/controllers/page_controller_test.exs",
         "verification_index": 2
       },
       {
-        "cover_id": "baseline.surface.routes_landing_and_auth_only",
+        "cover_id": "baseline.surface.auth_entrypoints_visible",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/home_live_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "baseline.surface.welcome_landing_copy",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/home_live_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "baseline.surface.welcome_landing_copy",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/welcome_live_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "baseline.surface.product_routes_declared",
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "command",
         "meets_minimum": true,
@@ -4387,7 +4610,18 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "mix compile",
-        "verification_index": 3
+        "verification_index": 5
+      },
+      {
+        "cover_id": "baseline.surface.public_entry_routes",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "baseline.surface",
+        "target": "mix compile",
+        "verification_index": 5
       },
       {
         "cover_id": "collaboration.workflow.beadwork_enabled",
@@ -4544,36 +4778,36 @@
         "verification_index": 1
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "mix.exs",
         "verification_index": 2
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".doctor.exs",
         "verification_index": 3
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".dialyzer_ignore.exs",
         "verification_index": 4
       },
       {
@@ -4584,7 +4818,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 5
       },
       {
@@ -4595,7 +4829,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 6
       },
       {
@@ -4606,7 +4840,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 7
       },
       {
@@ -4617,7 +4851,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 8
       },
       {
@@ -4628,7 +4862,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 9
       },
       {
@@ -4639,7 +4873,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 10
       },
       {
@@ -4650,8 +4884,118 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 11
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "verification_index": 12
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "verification_index": 13
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 14
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_alignment_doc_present",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "docs/PACKAGE_QUALITY_ALIGNMENT.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_exceptions_documented",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "docs/PACKAGE_QUALITY_ALIGNMENT.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_required_files_present",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE -a -f usage-rules.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "mix.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_exceptions_documented",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": ".dialyzer_ignore.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": ".dialyzer_ignore.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_ci_and_release_present",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml",
+        "verification_index": 4
       },
       {
         "cover_id": "source.provider_adapter.placeholder_adapters",
@@ -4943,14 +5287,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 3,
+      "claimed": 6,
       "executed": 0,
-      "linked": 176
+      "linked": 188
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 4,
-    "spec_count": 20
+    "spec_count": 21
   }
 }

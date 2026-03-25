@@ -14,10 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JidoCode.Error module with Splode for centralized error handling
 - GitHub Actions CI/CD workflows
 - Quality tooling (Credo, Dialyxir, Doctor, ExCoveralls)
+- Package quality standards alignment document and root usage rules
+- Standards-aligned mix metadata, coverage, and release scaffolding
 
 ### Changed
 
 - Updated to Elixir 1.18
+- Quality tooling now follows the canonical Jido package standards surface for this repo
 
 ## [0.1.0] - Unreleased
 

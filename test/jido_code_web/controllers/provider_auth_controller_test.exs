@@ -10,7 +10,6 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
   alias JidoCode.Accounts.UserIdentity
 
-  @now ~U[2026-03-15 17:00:00Z]
   @resolver_env :provider_auth_broker_jwks_resolver
 
   setup do
@@ -137,6 +136,8 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   end
 
   defp valid_broker_handoff(nonce, claim_overrides \\ %{}) do
+    now = current_now()
+
     {:ok, issued_state} =
       BrokerState.issue(
         %{
@@ -145,7 +146,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
           broker_base_url: "https://broker.example.com",
           redirect_path: "/welcome"
         },
-        now: @now,
+        now: now,
         nonce: nonce
       )
 
@@ -175,6 +176,10 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
     |> Map.fetch!(:assigns)
     |> Map.fetch!(:current_user)
     |> Map.fetch!(:id)
+  end
+
+  defp current_now do
+    DateTime.utc_now() |> DateTime.truncate(:second)
   end
 
   defp enable_provider_login!(provider, provider_host) do

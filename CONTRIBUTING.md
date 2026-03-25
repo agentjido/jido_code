@@ -25,20 +25,24 @@ Thank you for your interest in contributing to JidoCode! This document provides 
 Before submitting a PR, ensure all quality checks pass:
 
 ```bash
-mix quality
+mix q
 ```
 
 This runs:
-- `mix compile --warnings-as-errors` - Compilation with strict warnings
 - `mix format --check-formatted` - Code formatting check
-- `mix credo --strict` - Static code analysis
+- `mix compile --warnings-as-errors` - Compilation with strict warnings
+- `mix credo --min-priority higher` - Standards-aligned static code analysis
+- `mix dialyzer` - Static type analysis
 - `mix doctor --raise` - Documentation coverage check
 
 For running tests with coverage:
 
 ```bash
+mix coveralls
 mix coveralls.html
 ```
+
+The canonical package-quality comparison for this repo lives in [`docs/PACKAGE_QUALITY_ALIGNMENT.md`](docs/PACKAGE_QUALITY_ALIGNMENT.md).
 
 ## Commit Messages
 
@@ -80,9 +84,13 @@ git commit -m "docs: update installation instructions"
 2. Create a feature branch: `git checkout -b feat/my-feature`
 3. Make your changes
 4. Run quality checks: `mix quality`
-5. Run tests: `mix test`
+5. Run tests: `mix coveralls`
 6. Commit using conventional commits
 7. Push and open a Pull Request
+
+## Release Workflow
+
+Release automation is kept in `.github/workflows/release.yml` and should remain the source of truth for maintainers. Prepare releases from repository state by updating `CHANGELOG.md`, verifying `mix q`, `mix coveralls`, and the relevant spec checks, then running the version-controlled GitHub workflow instead of relying on undocumented local release steps.
 
 ## Reporting Issues
 

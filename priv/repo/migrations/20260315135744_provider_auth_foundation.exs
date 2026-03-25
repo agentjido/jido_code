@@ -32,7 +32,8 @@ defmodule JidoCode.Repo.Migrations.ProviderAuthFoundation do
             name: "user_identities_user_id_fkey",
             type: :uuid,
             prefix: "public"
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:user_identities, [:provider, :provider_host, :provider_subject],

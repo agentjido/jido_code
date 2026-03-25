@@ -9,10 +9,10 @@ defmodule JidoCode.AuthProviders.BrokerNonceStore do
 
   @type consume_error :: :expired | :replayed
 
-  @spec consume(String.t(), DateTime.t()) :: :ok | {:error, consume_error()}
-  def consume(nonce, %DateTime{} = expires_at) when is_binary(nonce) do
+  @spec consume(String.t(), DateTime.t(), DateTime.t()) :: :ok | {:error, consume_error()}
+  def consume(nonce, %DateTime{} = expires_at, %DateTime{} = now) when is_binary(nonce) do
     table = ensure_table()
-    now_unix = DateTime.utc_now() |> DateTime.to_unix()
+    now_unix = DateTime.to_unix(now)
     expires_at_unix = DateTime.to_unix(expires_at)
 
     cleanup_expired(table, now_unix)
@@ -32,7 +32,7 @@ defmodule JidoCode.AuthProviders.BrokerNonceStore do
     end
   end
 
-  def consume(_nonce, _expires_at), do: {:error, :expired}
+  def consume(_nonce, _expires_at, _now), do: {:error, :expired}
 
   @doc false
   def reset! do

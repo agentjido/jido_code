@@ -2,7 +2,7 @@ defmodule JidoCodeWeb.PageController do
   use JidoCodeWeb, :controller
 
   def home(conn, _params) do
-    render(conn, :home)
+    redirect(conn, to: ~p"/welcome")
   end
 
   def index conn, _params do

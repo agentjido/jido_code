@@ -11,6 +11,7 @@ This folder contains product-facing and operator-facing documentation for the
 - [`TECHNICAL_IMPLEMENTATION.md`](./TECHNICAL_IMPLEMENTATION.md) - terse technical approach, control loop, and Ash domain layout
 - [`DATA_ONTOLOGY.md`](./DATA_ONTOLOGY.md) - base data model and Ash resource framing for repository control
 - [`factory_gaps.md`](./factory_gaps.md) - Jido-centric comparison note on what to learn from Factory.ai without copying its product shape
+- [`PACKAGE_QUALITY_ALIGNMENT.md`](./PACKAGE_QUALITY_ALIGNMENT.md) - repo-local comparison against the canonical Jido package quality standards
 - [`self_hosted_provider_auth.md`](./self_hosted_provider_auth.md) - operator guide for self-hosted provider login and GitHub service integration
 
 ## Intended Additions

@@ -111,7 +111,7 @@ defmodule JidoCodeWeb.WelcomeLive do
                     </span>
                     <div>
                       <span class="font-medium">{check.name}</span>
-                      <span class="text-base-content/60"> —       {check.detail}</span>
+                      <span class="text-base-content/60">{[" — ", check.detail]}</span>
                       <p :if={check.status != :pass} class="text-warning text-xs">
                         {check.remediation}
                       </p>

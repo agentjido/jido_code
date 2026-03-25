@@ -1,6 +1,13 @@
 import Config
 config :ash, policies: [show_policy_breakdowns?: true]
 
+config :git_ops,
+  mix_project: JidoCode.MixProject,
+  changelog_file: "CHANGELOG.md",
+  repository_url: "https://github.com/epic-creative/jido_code",
+  manage_mix_version?: true,
+  version_tag_prefix: "v"
+
 # Configure your database
 config :jido_code, JidoCode.Repo,
   username: "postgres",

@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.PageControllerTest do
+  # covers: baseline.surface.root_redirects_to_welcome
   use JidoCodeWeb.ConnCase
 
   test "GET / redirects to welcome when onboarding is incomplete", %{conn: conn} do

@@ -6,7 +6,7 @@ This subject defines the first broker-backed provider login path that is live in
 id: auth.provider_login_flow
 kind: feature
 status: active
-summary: jido_code exposes a GitHub provider sign-in entrypoint, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in.
+summary: jido_code exposes a GitHub provider sign-in entrypoint, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.
 decisions:
   - jido_code.auth_user_system
 surface:

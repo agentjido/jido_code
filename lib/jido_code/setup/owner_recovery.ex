@@ -1,4 +1,6 @@
 defmodule JidoCode.Setup.OwnerRecovery do
+  # covers: users.admin_system.bootstrap_admin
+  # covers: users.admin_system.admin_role_assignment
   @moduledoc """
   Handles setup step 2 owner credential recovery with explicit verification checks.
   """
@@ -59,13 +61,14 @@ defmodule JidoCode.Setup.OwnerRecovery do
          {:ok, normalized_params} <- normalize_params(params),
          :ok <- verify_recovery(owner, normalized_params),
          {:ok, signed_in_owner} <- reset_and_sign_in(owner, normalized_params),
-         {:ok, token} <- fetch_token(signed_in_owner) do
-      audit = build_audit_metadata(signed_in_owner)
+         {:ok, token} <- fetch_token(signed_in_owner),
+         {:ok, promoted_owner} <- maybe_promote_bootstrap_admin(signed_in_owner) do
+      audit = build_audit_metadata(promoted_owner)
       emit_audit_event(audit)
 
       {:ok,
        %{
-         owner: signed_in_owner,
+         owner: promoted_owner,
          token: token,
          owner_mode: :recovered,
          validated_note: "Owner account recovered.",
@@ -88,7 +91,7 @@ defmodule JidoCode.Setup.OwnerRecovery do
   @spec serialize_audit_for_state(audit_metadata()) :: map()
   def serialize_audit_for_state(audit_metadata) when is_map(audit_metadata) do
     %{
-      "route" => Map.get(audit_metadata, :route, "/setup"),
+      "route" => Map.get(audit_metadata, :route, "/welcome"),
       "owner_id" => to_string(Map.get(audit_metadata, :owner_id, "")),
       "owner_email" => to_string(Map.get(audit_metadata, :owner_email, "")),
       "recovery_mode" => audit_metadata |> Map.get(:recovery_mode, :bootstrap) |> Atom.to_string(),
@@ -236,13 +239,22 @@ defmodule JidoCode.Setup.OwnerRecovery do
 
   defp build_audit_metadata(owner) do
     %{
-      route: "/setup",
+      route: "/welcome",
       owner_id: Map.get(owner, :id),
       owner_email: to_string(Map.get(owner, :email, "")),
       recovery_mode: :bootstrap,
       verified_at: DateTime.utc_now() |> DateTime.truncate(:second),
       verification_steps: verification_steps()
     }
+  end
+
+  defp maybe_promote_bootstrap_admin(%User{is_admin: true} = owner), do: {:ok, owner}
+
+  defp maybe_promote_bootstrap_admin(%User{} = owner) do
+    case User.promote_to_admin(owner, authorize?: false) do
+      {:ok, promoted_owner} -> {:ok, Map.put(promoted_owner, :__metadata__, Map.get(owner, :__metadata__, %{}))}
+      {:error, reason} -> {:error, {:owner_recovery_failed, format_authentication_error(reason)}}
+    end
   end
 
   defp emit_audit_event(audit_metadata) do

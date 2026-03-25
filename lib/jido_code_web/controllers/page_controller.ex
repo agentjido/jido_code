@@ -5,6 +5,10 @@ defmodule JidoCodeWeb.PageController do
     redirect(conn, to: ~p"/welcome")
   end
 
+  def register_redirect(conn, _params) do
+    redirect(conn, to: ~p"/welcome")
+  end
+
   def index conn, _params do
     render(conn, :index)
   end

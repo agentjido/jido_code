@@ -68,15 +68,15 @@ defmodule JidoCode.Setup.OwnerBootstrap do
   def bootstrap(_params), do: {:error, {:validation, @missing_credentials_error}}
 
   defp do_bootstrap(%{mode: :create}, normalized_params) do
-    strategy = password_strategy()
-
-    register_params = %{
-      "email" => normalized_params.email,
-      "password" => normalized_params.password,
-      "password_confirmation" => normalized_params.password_confirmation
-    }
-
-    case Strategy.action(strategy, :register, register_params, context: %{token_type: :sign_in}) do
+    case User.bootstrap_admin(
+           %{
+             email: normalized_params.email,
+             password: normalized_params.password,
+             password_confirmation: normalized_params.password_confirmation
+           },
+           authorize?: false,
+           context: %{token_type: :sign_in}
+         ) do
       {:ok, owner} ->
         owner_result(owner, :created)
 
@@ -96,7 +96,9 @@ defmodule JidoCode.Setup.OwnerBootstrap do
 
       case Strategy.action(strategy, :sign_in, sign_in_params, context: %{token_type: :sign_in}) do
         {:ok, confirmed_owner} ->
-          owner_result(confirmed_owner, :confirmed)
+          with {:ok, promoted_owner} <- maybe_promote_bootstrap_admin(confirmed_owner) do
+            owner_result(promoted_owner, :confirmed)
+          end
 
         {:error, reason} ->
           {:error, {:owner_bootstrap_failed, format_authentication_error(reason)}}
@@ -182,6 +184,15 @@ defmodule JidoCode.Setup.OwnerBootstrap do
 
   defp list_owners do
     Ash.read(User, domain: Accounts, authorize?: false)
+  end
+
+  defp maybe_promote_bootstrap_admin(%User{is_admin: true} = owner), do: {:ok, owner}
+
+  defp maybe_promote_bootstrap_admin(%User{} = owner) do
+    case User.promote_to_admin(owner, authorize?: false) do
+      {:ok, promoted_owner} -> {:ok, Map.put(promoted_owner, :__metadata__, Map.get(owner, :__metadata__, %{}))}
+      {:error, reason} -> {:error, {:owner_bootstrap_failed, format_authentication_error(reason)}}
+    end
   end
 
   defp password_strategy do

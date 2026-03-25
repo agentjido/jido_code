@@ -1,7 +1,7 @@
 defmodule JidoCode.Accounts.Checks.RegistrationAllowed do
   @moduledoc """
   Allows authentication interactions, while blocking open registration in production
-  after the owner account exists.
+  once a local user already exists.
   """
 
   # covers: users.admin_system.registration_guardrails
@@ -9,12 +9,9 @@ defmodule JidoCode.Accounts.Checks.RegistrationAllowed do
 
   use Ash.Policy.SimpleCheck
 
-  alias Ash.Query
-  alias JidoCode.Accounts
-  alias JidoCode.Accounts.User
-  alias JidoCode.Setup.RuntimeMode
+  alias JidoCode.Setup.BootstrapStatus
 
-  @restricted_registration_actions [:register_with_password, :sign_in_with_magic_link]
+  @restricted_registration_actions [:register_with_password]
 
   @impl true
   def match?(_actor, %{action: %{name: action_name}}, _opts) do
@@ -25,26 +22,12 @@ defmodule JidoCode.Accounts.Checks.RegistrationAllowed do
 
   @impl true
   def describe(_opts) do
-    "registration actions are restricted in production once an owner exists"
+    "registration actions are restricted once the first local user exists"
   end
 
   defp registration_allowed?(action_name) when action_name in @restricted_registration_actions do
-    if RuntimeMode.production?() do
-      not owner_exists?()
-    else
-      true
-    end
+    not BootstrapStatus.first_user_exists?()
   end
 
   defp registration_allowed?(_action_name), do: true
-
-  defp owner_exists? do
-    query = Query.limit(User, 1)
-
-    case Ash.read(query, domain: Accounts, authorize?: false) do
-      {:ok, []} -> false
-      {:ok, _owners} -> true
-      {:error, _reason} -> true
-    end
-  end
 end

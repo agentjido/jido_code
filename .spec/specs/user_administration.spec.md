@@ -6,20 +6,24 @@ This subject defines the target user-management model for `jido_code` as it evol
 id: users.admin_system
 kind: feature
 status: active
-summary: jido_code boots with an initial administrator through the welcome/setup path and grows into an admin-managed multi-user account system with guarded registration.
+summary: jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then grows into an admin-managed multi-user account system with guarded registration.
 decisions:
   - jido_code.auth_user_system
 surface:
+  - lib/jido_code/setup/bootstrap_status.ex
   - lib/jido_code/setup/owner_bootstrap.ex
+  - lib/jido_code/setup/owner_recovery.ex
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/accounts/checks/registration_allowed.ex
+  - lib/jido_code_web/live/home_live.ex
+  - test/jido_code_web/live/setup_live_test.exs
 ```
 
 ## Requirements
 
 ```spec-requirements
 - id: users.admin_system.bootstrap_admin
-  statement: Initial setup shall create or confirm exactly one bootstrap administrator before admin-managed account features are used.
+  statement: Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, and mark it as an administrator before admin-managed account features are used.
   priority: must
   stability: stable
 
@@ -44,7 +48,7 @@ surface:
   stability: stable
 
 - id: users.admin_system.registration_guardrails
-  statement: Once the bootstrap administrator exists in production, open self-registration shall remain gated unless an administrator explicitly provisions or invites the account.
+  statement: Once the bootstrap administrator exists, open self-registration shall remain gated unless an administrator explicitly provisions or invites the account.
   priority: must
   stability: stable
 ```
@@ -59,9 +63,9 @@ surface:
   given:
     - The deployment has no existing users.
   when:
-    - Initial setup is completed.
+    - The operator completes first-run bootstrap from `/welcome`.
   then:
-    - The system establishes one bootstrap administrator who becomes the first accountable local user.
+    - The system establishes one bootstrap administrator who becomes the first accountable local user and signs that administrator into the remaining onboarding flow.
 
 - id: users.admin_system.scenario.admin_adds_user
   covers:
@@ -90,9 +94,21 @@ surface:
 
 ```spec-verification
 - kind: source_file
+  target: lib/jido_code/setup/bootstrap_status.ex
+  covers:
+    - users.admin_system.bootstrap_admin
+    - users.admin_system.registration_guardrails
+
+- kind: source_file
   target: lib/jido_code/setup/owner_bootstrap.ex
   covers:
     - users.admin_system.bootstrap_admin
+
+- kind: source_file
+  target: lib/jido_code/setup/owner_recovery.ex
+  covers:
+    - users.admin_system.bootstrap_admin
+    - users.admin_system.admin_role_assignment
 
 - kind: source_file
   target: lib/jido_code/accounts/user.ex
@@ -107,4 +123,17 @@ surface:
   covers:
     - users.admin_system.registration_guardrails
     - users.admin_system.admin_managed_provisioning
+
+- kind: source_file
+  target: lib/jido_code_web/live/home_live.ex
+  covers:
+    - users.admin_system.bootstrap_admin
+    - users.admin_system.registration_guardrails
+
+- kind: source_file
+  target: test/jido_code_web/live/setup_live_test.exs
+  covers:
+    - users.admin_system.bootstrap_admin
+    - users.admin_system.admin_role_assignment
+    - users.admin_system.registration_guardrails
 ```

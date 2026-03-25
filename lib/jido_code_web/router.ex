@@ -16,6 +16,7 @@ defmodule JidoCodeWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(:load_from_session)
+    plug(JidoCodeWeb.Plugs.PublicBootstrapAuthGate)
   end
 
   pipeline :api do
@@ -106,13 +107,13 @@ defmodule JidoCodeWeb.Router do
     end
 
     get("/", PageController, :home)
+    get("/register", PageController, :register_redirect)
 
     auth_routes(AuthController, JidoCode.Accounts.User, path: "/auth")
     sign_out_route(AuthController)
 
     # Remove these if you'd like to use your own authentication views
     sign_in_route(
-      register_path: "/register",
       reset_path: "/reset",
       auth_routes_prefix: "/auth",
       on_mount: [{JidoCodeWeb.LiveUserAuth, :live_no_user}],

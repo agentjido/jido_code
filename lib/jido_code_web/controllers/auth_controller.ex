@@ -4,11 +4,13 @@ defmodule JidoCodeWeb.AuthController do
 
   require Logger
 
+  alias JidoCode.Setup.BootstrapStatus
+
   @sign_out_success_message "You are now signed out"
   @sign_out_retry_message "Sign-out could not complete. Please retry; your current session is still active."
 
   def success(conn, activity, user, _token) do
-    return_to = get_session(conn, :return_to) || ~p"/"
+    return_to = get_session(conn, :return_to) || default_return_to()
 
     message =
       case activity do
@@ -88,4 +90,12 @@ defmodule JidoCodeWeb.AuthController do
   end
 
   defp default_sign_out_invalidator(conn, otp_app), do: clear_session(conn, otp_app)
+
+  defp default_return_to do
+    case BootstrapStatus.current().state do
+      :continue_setup -> ~p"/setup"
+      :ready -> ~p"/"
+      _other -> ~p"/welcome"
+    end
+  end
 end

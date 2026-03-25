@@ -76,27 +76,31 @@ defmodule JidoCodeWeb.SetupLive do
 
     owner_bootstrap = resolve_owner_bootstrap(onboarding_step)
 
-    {:ok,
-     socket
-     |> assign(:onboarding_step, onboarding_step)
-     |> assign(:onboarding_state, onboarding_state)
-     |> assign(:default_environment, default_environment)
-     |> assign(:workspace_root, workspace_root)
-     |> assign(:prerequisite_report, prerequisite_report)
-     |> assign(:provider_credential_report, provider_credential_report)
-     |> assign(:github_credential_report, github_credential_report)
-     |> assign(:webhook_simulation_report, webhook_simulation_report)
-     |> assign(:environment_defaults_report, environment_defaults_report)
-     |> assign(:project_import_report, project_import_report)
-     |> assign(:repository_listing_report, repository_listing_report)
-     |> assign(:available_repositories, available_repositories)
-     |> assign(:owner_bootstrap, owner_bootstrap)
-     |> assign(:save_error, owner_bootstrap_error(owner_bootstrap))
-     |> assign(:redirect_reason, params["reason"] || "onboarding_incomplete")
-     |> assign(:diagnostic, diagnostic)
-     |> assign_step_form(onboarding_step, onboarding_state, default_environment, workspace_root)
-     |> assign_owner_form(onboarding_step, onboarding_state, owner_bootstrap)
-     |> assign_recovery_form(onboarding_step, onboarding_state, owner_bootstrap)}
+    if onboarding_step < 3 do
+      {:ok, push_navigate(socket, to: ~p"/welcome")}
+    else
+      {:ok,
+       socket
+       |> assign(:onboarding_step, onboarding_step)
+       |> assign(:onboarding_state, onboarding_state)
+       |> assign(:default_environment, default_environment)
+       |> assign(:workspace_root, workspace_root)
+       |> assign(:prerequisite_report, prerequisite_report)
+       |> assign(:provider_credential_report, provider_credential_report)
+       |> assign(:github_credential_report, github_credential_report)
+       |> assign(:webhook_simulation_report, webhook_simulation_report)
+       |> assign(:environment_defaults_report, environment_defaults_report)
+       |> assign(:project_import_report, project_import_report)
+       |> assign(:repository_listing_report, repository_listing_report)
+       |> assign(:available_repositories, available_repositories)
+       |> assign(:owner_bootstrap, owner_bootstrap)
+       |> assign(:save_error, owner_bootstrap_error(owner_bootstrap))
+       |> assign(:redirect_reason, params["reason"] || "onboarding_incomplete")
+       |> assign(:diagnostic, diagnostic)
+       |> assign_step_form(onboarding_step, onboarding_state, default_environment, workspace_root)
+       |> assign_owner_form(onboarding_step, onboarding_state, owner_bootstrap)
+       |> assign_recovery_form(onboarding_step, onboarding_state, owner_bootstrap)}
+    end
   end
 
   @impl true

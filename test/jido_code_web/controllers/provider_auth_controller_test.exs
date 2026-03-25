@@ -7,7 +7,9 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   # covers: auth.provider_login_flow.redirect_path_completion
   use JidoCodeWeb.ConnCase, async: false
 
+  alias AshAuthentication.{Info, Strategy}
   alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
+  alias JidoCode.Accounts.User
   alias JidoCode.Accounts.UserIdentity
 
   @resolver_env :provider_auth_broker_jwks_resolver
@@ -27,6 +29,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   end
 
   test "start redirects to the broker start contract URL", %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
     enable_provider_login!(:github, "github.com")
 
     conn =
@@ -43,6 +46,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   test "complete validates the broker handoff, signs in locally, and redirects to the signed path", %{
     conn: conn
   } do
+    register_owner("owner@example.com", "owner-password-123")
     enable_provider_login!(:github, "github.com")
     {issued_state, handoff_token} = valid_broker_handoff("controller-nonce")
 
@@ -72,6 +76,8 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   end
 
   test "complete rejects provider login when provider config is disabled", %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
     {:ok, _config} =
       ProviderConfig.upsert(
         %{
@@ -101,6 +107,8 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   test "complete does not issue a session when the provider identity is not allowlisted", %{
     conn: conn
   } do
+    register_owner("owner@example.com", "owner-password-123")
+
     {:ok, _config} =
       ProviderConfig.upsert(
         %{
@@ -198,6 +206,24 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
       )
 
     config
+  end
+
+  defp register_owner(email, password) do
+    strategy = Info.strategy!(User, :password)
+
+    {:ok, _owner} =
+      Strategy.action(
+        strategy,
+        :register,
+        %{
+          "email" => email,
+          "password" => password,
+          "password_confirmation" => password
+        },
+        context: %{token_type: :sign_in}
+      )
+
+    :ok
   end
 
   defp handoff_token(jwk, overrides) do

@@ -13,8 +13,7 @@ defmodule JidoCodeWeb.AuthBoundaryLiveTest do
       |> get(~p"/welcome")
       |> html_response(200)
 
-    assert welcome_html =~ "Sign In"
-    assert welcome_html =~ "Create Account"
+    assert welcome_html =~ "Create your admin account"
     refute welcome_html =~ "Sign Out"
   end
 
@@ -48,7 +47,7 @@ defmodule JidoCodeWeb.AuthBoundaryLiveTest do
     welcome_html = html_response(response, 200)
 
     assert welcome_html =~ "Sign In"
-    assert welcome_html =~ "Create Account"
+    refute welcome_html =~ "Create Account"
     refute welcome_html =~ "owner@example.com"
     refute welcome_html =~ "Sign Out"
     assert get_session(response, "user_token") == nil

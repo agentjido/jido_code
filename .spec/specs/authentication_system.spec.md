@@ -6,7 +6,7 @@ This subject defines the baseline local authentication capabilities for `jido_co
 id: auth.system
 kind: feature
 status: active
-summary: jido_code authenticates local users with email-backed identities, password and magic-link flows, confirmation, and revocable session credentials backed by persisted security-token surfaces.
+summary: jido_code authenticates local users with email-backed identities, first-run password bootstrap, password and magic-link sign-in, confirmation tracking, and revocable session credentials backed by persisted security-token surfaces.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -27,7 +27,7 @@ surface:
   stability: stable
 
 - id: auth.system.password_registration_and_sign_in
-  statement: Local authentication shall support email-and-password registration and sign-in with password confirmation and minimum-length validation.
+  statement: Local authentication shall support first-run bootstrap-admin creation and later email-and-password sign-in with password confirmation and minimum-length validation.
   priority: must
   stability: stable
 
@@ -37,7 +37,7 @@ surface:
   stability: stable
 
 - id: auth.system.magic_link
-  statement: Local authentication shall support email magic-link sign-in and registration.
+  statement: Local authentication shall support email magic-link sign-in for existing local users.
   priority: must
   stability: stable
 
@@ -85,7 +85,7 @@ surface:
   when:
     - The user requests and consumes a valid magic link.
   then:
-    - The system signs in the existing user or creates the local user identity allowed by policy.
+    - The system signs in the existing local user without reopening public self-registration.
 ```
 
 ## Verification

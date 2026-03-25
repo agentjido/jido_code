@@ -53,6 +53,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   test "self-hosted deployment supports provider login and GitHub service auth together", %{
     conn: conn
   } do
+    register_owner("owner@example.com", "owner-password-123")
     configure_github_service_ready!()
     enable_provider_login!(:github, "github.com")
     {issued_state, handoff_token} = valid_broker_handoff("integration-enabled")
@@ -74,6 +75,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   end
 
   test "GitHub service auth remains available when provider login is disabled", %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
     configure_github_service_ready!()
     enable_provider_login!(:github, "github.com", enabled: false, login_enabled: false)
     {issued_state, handoff_token} = valid_broker_handoff("integration-disabled")
@@ -87,7 +89,6 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
 
     assert response["error"]["error_type"] == "provider_login_disabled"
 
-    register_owner("owner@example.com", "owner-password-123")
     {authed_conn, _session_token, _owner} = authenticate_owner_conn("owner@example.com", "owner-password-123")
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
@@ -97,6 +98,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   end
 
   test "broker unavailability keeps local email auth as the fallback path", %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
     enable_provider_login!(:github, "github.com")
     {:ok, issued_state} = issue_state("broker-unavailable")
 
@@ -116,7 +118,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     {:ok, anonymous_view, _html} = live(build_conn(), ~p"/welcome")
 
     assert has_element?(anonymous_view, "a", "Sign In")
-    assert has_element?(anonymous_view, "a", "Create Account")
+    refute has_element?(anonymous_view, "a", "Create Account")
 
     assert has_element?(
              anonymous_view,
@@ -136,6 +138,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   test "allowlist rejection blocks provider login without breaking GitHub service readiness", %{
     conn: conn
   } do
+    register_owner("owner@example.com", "owner-password-123")
     configure_github_service_ready!()
 
     enable_provider_login!(:github, "github.com",
@@ -160,7 +163,6 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     assert response["error"]["error_type"] == "provider_identity_not_allowlisted"
     assert get_session(response_conn, "user_token") == nil
 
-    register_owner("owner@example.com", "owner-password-123")
     {authed_conn, _session_token, _owner} = authenticate_owner_conn("owner@example.com", "owner-password-123")
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
@@ -235,18 +237,14 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   end
 
   defp register_owner(email, password) do
-    strategy = Info.strategy!(User, :password)
-
     {:ok, _owner} =
-      Strategy.action(
-        strategy,
-        :register,
+      User.bootstrap_admin(
         %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
+          email: email,
+          password: password,
+          password_confirmation: password
         },
-        context: %{token_type: :sign_in}
+        authorize?: false
       )
 
     :ok

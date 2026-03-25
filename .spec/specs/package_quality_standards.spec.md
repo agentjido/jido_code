@@ -9,6 +9,7 @@ status: active
 summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current while documenting explicit product-repo exceptions.
 decisions:
   - jido_code.namespace_and_control_naming
+  - jido_code.canonical_repo_surface
 surface:
   - mix.exs
   - README.md
@@ -18,7 +19,6 @@ surface:
   - coveralls.json
   - .dialyzer_ignore.exs
   - AGENTS.md
-  - usage-rules.md
   - .github/workflows/ci.yml
   - .github/workflows/release.yml
   - docs/PACKAGE_QUALITY_ALIGNMENT.md
@@ -33,7 +33,7 @@ surface:
   stability: stable
 
 - id: package.jido_code.package_quality_required_files_present
-  statement: "The repository shall include the contributor-facing root files required by the package quality standards: README, CHANGELOG, CONTRIBUTING, AGENTS, LICENSE, and usage-rules."
+  statement: "The repository shall include the contributor-facing root files required by the package quality standards for this product repo: README, CHANGELOG, CONTRIBUTING, AGENTS, and LICENSE."
   priority: must
   stability: stable
 
@@ -63,7 +63,7 @@ surface:
     - package.jido_code.package_quality_exceptions_documented
 
 - kind: command
-  target: test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE -a -f usage-rules.md
+  target: test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE
   covers:
     - package.jido_code.package_quality_required_files_present
 

@@ -37,6 +37,7 @@ For day-to-day development:
 
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
+- `mix spec.verify --debug`, `mix spec.check`, and `mix spec.diffcheck` are the repo-local `spec_led_ex` checks for `.spec/`
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 
 ## Code Quality

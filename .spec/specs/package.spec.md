@@ -9,6 +9,7 @@ status: active
 summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.
 decisions:
   - jido_code.auth_user_system
+  - jido_code.canonical_repo_surface
 surface:
   - AGENTS.md
   - coveralls.json

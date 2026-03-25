@@ -2,6 +2,8 @@
 
 This folder is the package-local Spec Led Development layer for `jido_code`, the primary implementation repo in this workspace.
 
+The authored specs and generated state in this folder are maintained through the `spec_led_ex` Mix task surface from the repository root.
+
 <!-- spec.workspace.readme_present -->
 <!-- covers: package.jido_code.spec_led_workspace -->
 

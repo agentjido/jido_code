@@ -29,6 +29,10 @@ config :ash_json_api,
   show_public_calculations_when_loaded?: false,
   authorize_update_destroy_with_error?: true
 
+config :git_hooks,
+  auto_install: false,
+  project_path: Path.expand("..", __DIR__)
+
 config :ash,
   allow_forbidden_field_for_relationships_by_default?: true,
   include_embedded_source_by_default?: false,

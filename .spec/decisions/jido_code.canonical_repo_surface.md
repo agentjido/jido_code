@@ -1,0 +1,33 @@
+---
+id: jido_code.canonical_repo_surface
+status: accepted
+date: 2026-03-25
+affects:
+  - package.jido_code
+  - package.jido_code.package_quality_standards
+  - docs.product_foundation
+---
+
+# Canonical repo surface
+
+## Context
+
+`jido_code` is a Phoenix product repo with desktop packaging, a package-local `.spec` workspace, and several contributor-facing quality tools. Over time the repository accumulated root-level wrapper scripts, package-policy residue, and deployment helpers that were useful in isolation but made the repo feel less like a normal Elixir/Phoenix application.
+
+The cleanup goal is not to erase product-specific surfaces such as `.spec`, `AGENTS.md`, or `tauri/`. It is to keep the contributor workflow anchored on standard Mix and Phoenix entrypoints, while moving auxiliary deployment helpers and deleting redundant wrapper layers that do not carry durable product value.
+
+## Decision
+
+The repository should prefer a canonical Phoenix/Elixir root surface:
+
+- contributor workflows should use Mix commands directly, including the `spec_led_ex` Mix task surface for `.spec`
+- redundant shell wrappers and one-off helper scripts should be removed when an equivalent Mix task or documented workflow already exists
+- product-specific surfaces that are part of the actual repo contract, including `.spec`, `AGENTS.md`, and `tauri/`, should remain first-class
+- deployment helper files may live under a dedicated `deploy/` folder, while top-level tooling entry files that external tooling expects at the repo root may stay there
+- repo policy should be expressed through version-controlled specs, docs, and Mix configuration rather than through an extra root `usage-rules.md` file
+
+## Consequences
+
+- README, CONTRIBUTING, package-quality docs, and subject specs must describe the Mix-first workflow explicitly.
+- Any removal of root helper files requires updating both specs and deploy references so the simplified layout remains current truth.
+- Keeping worktree-based branch flow healthy is part of this policy, so contributor tooling such as git hook installation must work without assuming a literal `.git/` directory.

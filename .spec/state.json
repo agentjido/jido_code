@@ -22,6 +22,18 @@
       },
       {
         "affects": [
+          "package.jido_code",
+          "package.jido_code.package_quality_standards",
+          "docs.product_foundation"
+        ],
+        "date": "2026-03-25",
+        "file": ".spec/decisions/jido_code.canonical_repo_surface.md",
+        "id": "jido_code.canonical_repo_surface",
+        "status": "accepted",
+        "title": "Canonical repo surface"
+      },
+      {
+        "affects": [
           "developer.workflow",
           "docs.product_foundation",
           "package.jido_code",
@@ -631,7 +643,7 @@
         "id": "developer.workflow.docs_split",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide.",
+        "statement": "Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` Mix task workflow.",
         "subject_id": "developer.workflow"
       },
       {
@@ -695,7 +707,7 @@
         "id": "docs.product_foundation.docs_index_present",
         "priority": "must",
         "stability": "stable",
-        "statement": "The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide.",
+        "statement": "The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide and the repo-local spec workflow.",
         "subject_id": "docs.product_foundation"
       },
       {
@@ -791,7 +803,7 @@
         "id": "package.jido_code.package_quality_required_files_present",
         "priority": "must",
         "stability": "stable",
-        "statement": "The repository shall include the contributor-facing root files required by the package quality standards: README, CHANGELOG, CONTRIBUTING, AGENTS, LICENSE, and usage-rules.",
+        "statement": "The repository shall include the contributor-facing root files required by the package quality standards for this product repo: README, CHANGELOG, CONTRIBUTING, AGENTS, and LICENSE.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -1928,7 +1940,8 @@
         "id": "package.jido_code",
         "meta": {
           "decisions": [
-            "jido_code.auth_user_system"
+            "jido_code.auth_user_system",
+            "jido_code.canonical_repo_surface"
           ],
           "id": "package.jido_code",
           "kind": "package",
@@ -1958,7 +1971,8 @@
         "id": "package.jido_code.package_quality_standards",
         "meta": {
           "decisions": [
-            "jido_code.namespace_and_control_naming"
+            "jido_code.namespace_and_control_naming",
+            "jido_code.canonical_repo_surface"
           ],
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
@@ -1973,7 +1987,6 @@
             "coveralls.json",
             ".dialyzer_ignore.exs",
             "AGENTS.md",
-            "usage-rules.md",
             ".github/workflows/ci.yml",
             ".github/workflows/release.yml",
             "docs/PACKAGE_QUALITY_ALIGNMENT.md"
@@ -1988,7 +2001,8 @@
         "meta": {
           "decisions": [
             "jido_code.namespace_and_control_naming",
-            "jido_code.local_developer_workflow"
+            "jido_code.local_developer_workflow",
+            "jido_code.canonical_repo_surface"
           ],
           "id": "docs.product_foundation",
           "kind": "feature",
@@ -2857,7 +2871,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test' README.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck' README.md"
       },
       {
         "covers": [
@@ -2866,7 +2880,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|tauri/README.md' CONTRIBUTING.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|tauri/README.md' CONTRIBUTING.md"
       },
       {
         "covers": [
@@ -3104,7 +3118,7 @@
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "command",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE -a -f usage-rules.md"
+        "target": "test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE"
       },
       {
         "covers": [
@@ -3293,7 +3307,7 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 5,
+    "decisions": 6,
     "exceptions": 0,
     "findings": 0,
     "requirements": 105,
@@ -4862,7 +4876,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test' README.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck' README.md",
         "verification_index": 5
       },
       {
@@ -4873,7 +4887,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|tauri/README.md' CONTRIBUTING.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|tauri/README.md' CONTRIBUTING.md",
         "verification_index": 6
       },
       {
@@ -5203,7 +5217,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE -a -f usage-rules.md",
+        "target": "test -f README.md -a -f CHANGELOG.md -a -f CONTRIBUTING.md -a -f AGENTS.md -a -f LICENSE",
         "verification_index": 1
       },
       {
@@ -5547,7 +5561,7 @@
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 5,
+    "decision_count": 6,
     "spec_count": 22
   }
 }

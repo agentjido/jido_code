@@ -11,6 +11,7 @@ summary: Jido.Code publishes a concise vision doc, a terse technical implementat
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.local_developer_workflow
+  - jido_code.canonical_repo_surface
 surface:
   - docs/VISION.md
   - docs/TECHNICAL_IMPLEMENTATION.md
@@ -44,7 +45,7 @@ surface:
   stability: evolving
 
 - id: docs.product_foundation.docs_index_present
-  statement: The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide.
+  statement: The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section while linking adjacent contributor guides, including the separate desktop packaging guide and the repo-local spec workflow.
   priority: must
   stability: stable
 ```

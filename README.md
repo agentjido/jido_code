@@ -138,6 +138,8 @@ Visit http://localhost:4000
 
 Desktop packaging and runtime work live in [`tauri/README.md`](tauri/README.md) and are not required for normal repository development.
 
+Repo-local specs are maintained through the `spec_led_ex` Mix task surface under [`.spec/`](.spec/). When behavior, docs, or tests change, update the current-truth spec subjects and run the spec checks alongside the normal quality loop.
+
 ### Environment Variables
 
 `.env.example` currently includes:
@@ -166,6 +168,9 @@ mix coveralls           # Run tests with coverage summary
 mix quality             # Deps hygiene + format + compile + credo + dialyzer + doctor
 mix precommit           # Compile + format + test
 mix coveralls.html      # Coverage report
+mix spec.verify --debug # Verify spec coverage and targets
+mix spec.check          # Check spec authoring rules
+mix spec.diffcheck      # Check changed files against current specs
 mix docs                # Build docs including package-quality alignment notes
 ```
 

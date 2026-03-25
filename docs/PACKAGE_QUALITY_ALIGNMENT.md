@@ -14,6 +14,7 @@ These standards apply directly and should stay implemented in this repo:
 
 - Required contributor files at the repository root.
 - A standards-aligned `mix quality` surface, including `doctor --raise`.
+- Spec-led verification through the version-controlled `spec_led_ex` Mix task surface.
 - CI coverage, release automation, and dependency hygiene.
 - README and contributor docs that explain installation, quality, and release flow.
 
@@ -22,6 +23,7 @@ These standards apply directly and should stay implemented in this repo:
 The following deviations are intentional and documented rather than treated as drift:
 
 - `jido_code` is a Phoenix product repo, not a Hex-first library package. Release automation should still be version-controlled and reproducible, but Hex publish metadata is readiness scaffolding rather than an immediate publishing commitment.
+- Package-level usage rules are enforced through `.spec`, `AGENTS.md`, and explicit dependency documentation instead of a root `usage-rules.md` file.
 - Runtime modules still use `JidoCode.*` while conceptual product docs use `Jido.Code.*`. This is a deliberate migration state captured in `.spec/decisions/jido_code.namespace_and_control_naming.md`.
 - Product-owned demo and showcase domains under `lib/` are part of the shipped application surface, not standalone tutorial examples that should be split into a top-level `examples/` directory.
 - Ash resources remain the canonical product modeling layer. Zoi should be used directly for option and struct validation when plain schemas are the right fit, but not as a blanket replacement for Ash resources.
@@ -33,7 +35,6 @@ The following deviations are intentional and documented rather than treated as d
 
 The standards comparison identified these repo-applicable gaps to close:
 
-- Add the missing root `usage-rules.md`.
 - Align `mix.exs` with the standards for coverage metadata, preferred CLI envs, and the `mix q` shortcut.
 - Restore the standards-aligned quality gate by removing the accidental baseline route disablement and by fixing documentation-tool configuration.
 - Add a version-controlled release workflow and document the release path for maintainers.
@@ -41,7 +42,6 @@ The standards comparison identified these repo-applicable gaps to close:
 
 ## Done In This Pass
 
-- Added the missing root `usage-rules.md`.
 - Aligned `mix.exs` with standards-facing metadata, coverage settings, package metadata, direct `zoi` dependency declaration, `mix q`, and a standards-aligned `mix quality` alias.
 - Added `.doctor.exs` and a compatibility placeholder for generated Folio modules whose compile source is `nofile`, so Doctor can be configured consistently inside this repo.
 - Added `.dialyzer_ignore.exs` and wired Dialyzer to use it with unused-filter checking so the standards-aligned quality gate can pass while making the remaining static-analysis backlog explicit.

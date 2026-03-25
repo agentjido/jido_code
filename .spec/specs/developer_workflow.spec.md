@@ -39,7 +39,7 @@ surface:
   stability: evolving
 
 - id: developer.workflow.docs_split
-  statement: Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide.
+  statement: Contributor-facing setup docs and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` Mix task workflow.
   priority: must
   stability: evolving
 ```
@@ -73,12 +73,12 @@ surface:
     - developer.workflow.phoenix_mix_surface
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test' README.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck' README.md"
   covers:
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|tauri/README.md' CONTRIBUTING.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|tauri/README.md' CONTRIBUTING.md"
   covers:
     - developer.workflow.docs_split
 

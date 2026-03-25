@@ -1,11 +1,8 @@
-# JidoCode (alpha)
-
-<!-- covers: docs.operator_provider_auth_guide.github_broker_registration_steps -->
-<!-- covers: docs.operator_provider_auth_guide.github_service_credential_setup -->
+# Jido.Code (alpha)
 
 [![CI](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml/badge.svg)](https://github.com/epic-creative/jido_code/actions/workflows/ci.yml)
 
-JidoCode is an **Elixir/Phoenix + LiveView** application exploring a practical "AI coding orchestrator" built on the [Jido](https://github.com/agentjido/jido) agent runtime.
+Jido.Code is an **Elixir/Phoenix + LiveView** application exploring a practical "AI coding orchestrator" built on the [Jido](https://github.com/agentjido/jido) agent runtime.
 
 Today, the repo contains two substantial, working showcases:
 
@@ -211,6 +208,13 @@ specs/                          # PRD & design documents
 
 ## Documentation
 
+<!-- covers: docs.product_foundation.docs_index_present -->
+
+- [`docs/VISION.md`](docs/VISION.md) - product thesis, trust model, and initial scope
+- [`docs/TECHNICAL_IMPLEMENTATION.md`](docs/TECHNICAL_IMPLEMENTATION.md) - technical approach, control loop, and Ash domain layout
+- [`docs/DATA_ONTOLOGY.md`](docs/DATA_ONTOLOGY.md) - base data ontology for repository control
+- [`docs/factory_gaps.md`](docs/factory_gaps.md) - Jido-centric comparison note on what to learn from Factory.ai and where Jido should go further
+- [`docs/README.md`](docs/README.md) - docs index
 - [`specs/FORGE_OVERVIEW.md`](specs/FORGE_OVERVIEW.md) — Forge architecture deep dive
 - [`specs/`](specs/) — Product specs and PRD
 - [`specs/03_decisions_and_invariants.md`](specs/03_decisions_and_invariants.md) — Cross-spec source of truth

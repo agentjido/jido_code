@@ -9,7 +9,6 @@ status: active
 summary: jido_code publishes an operator guide that explains broker-managed GitHub login, deployment-local GitHub service credentials, callback and allowlist behavior, and future GitLab or Bitbucket posture without requiring operators to read implementation code.
 surface:
   - docs/self_hosted_provider_auth.md
-  - README.md
 ```
 
 ## Requirements
@@ -81,10 +80,4 @@ surface:
     - docs.operator_provider_auth_guide.github_service_credential_setup
     - docs.operator_provider_auth_guide.callback_and_allowlist_explained
     - docs.operator_provider_auth_guide.future_provider_notes
-
-- kind: source_file
-  target: README.md
-  covers:
-    - docs.operator_provider_auth_guide.github_broker_registration_steps
-    - docs.operator_provider_auth_guide.github_service_credential_setup
 ```

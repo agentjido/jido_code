@@ -19,6 +19,41 @@
         "id": "jido_code.auth_user_system",
         "status": "accepted",
         "title": "Local User System With Bootstrap Admin"
+      },
+      {
+        "affects": [
+          "package.jido_code",
+          "docs.product_foundation"
+        ],
+        "date": "2026-03-23",
+        "file": ".spec/decisions/jido_code.namespace_and_control_naming.md",
+        "id": "jido_code.namespace_and_control_naming",
+        "status": "accepted",
+        "title": "Canonical Namespace And Control-Plane Naming"
+      },
+      {
+        "affects": [
+          "package.jido_code",
+          "architecture.execution_pipeline",
+          "docs.product_foundation"
+        ],
+        "date": "2026-03-23",
+        "file": ".spec/decisions/jido_code.runic_execution_model.md",
+        "id": "jido_code.runic_execution_model",
+        "status": "accepted",
+        "title": "Runic Execution Model"
+      },
+      {
+        "affects": [
+          "package.jido_code",
+          "architecture.vsm_recursion",
+          "docs.product_foundation"
+        ],
+        "date": "2026-03-23",
+        "file": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "id": "jido_code.vsm_recursion_and_scope",
+        "status": "accepted",
+        "title": "VSM Recursion And Scope"
       }
     ]
   },
@@ -26,6 +61,110 @@
   "index": {
     "exceptions": [],
     "requirements": [
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall use Jido.Runic strategy and directive machinery to connect workflow planning with Jido runtime directives and completion signals.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall treat Jido.Runic as the canonical execution integration layer for repository runs and workflow-driven step orchestration.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.repo_prep_and_validation_are_explicit_steps",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Repository-specific prep and validation activities such as sync, dependency install, lint, tests, and spec checks shall be modeled as explicit workflow steps when they affect execution evidence or control decisions.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.run_is_projection_of_workflow_state",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The durable Run resource shall be a control-plane projection around Jido.Runic-managed workflow state rather than a duplicate step engine.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.runic_is_underlying_dag_engine",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall treat Runic as the underlying DAG and runnable substrate beneath Jido.Runic rather than as the primary integration surface.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "Generic sandbox bootstrap shall remain distinct from repository-specific prep performed inside a workflow run.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.sprite_session_owns_sandbox_lifecycle",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Sprite session resources shall own sandbox provisioning, generic bootstrap, checkpointing, and resume lifecycle.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "id": "architecture.vsm_recursion.algedonic_escalation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Viability-threatening conditions shall support direct escalation from lower levels to higher policy levels without waiting for normal queue progression.",
+        "subject_id": "architecture.vsm_recursion"
+      },
+      {
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "id": "architecture.vsm_recursion.factory_is_viable_system",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall model the factory instance as a viable system whose primary operational units are ManagedRepo records.",
+        "subject_id": "architecture.vsm_recursion"
+      },
+      {
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "id": "architecture.vsm_recursion.managed_repo_is_viable_system",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Each ManagedRepo shall be treated as a recursive viable system with explicit operational, coordination, control, intelligence, and policy responsibilities.",
+        "subject_id": "architecture.vsm_recursion"
+      },
+      {
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "id": "architecture.vsm_recursion.promotion_rule_defined",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The architecture shall define the conditions under which a lower-level work unit may be promoted into its own recursive viable subsystem.",
+        "subject_id": "architecture.vsm_recursion"
+      },
+      {
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "id": "architecture.vsm_recursion.repo_system1_scope",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "ManagedRepo System 1 shall be expressed through operational work loops represented by WorkItem categories and executed through Run records.",
+        "subject_id": "architecture.vsm_recursion"
+      },
+      {
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "id": "architecture.vsm_recursion.work_items_not_default_vsm",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "WorkItem and Run shall be treated as operational records rather than full viable systems unless they are explicitly promoted through a lower-level viability rule.",
+        "subject_id": "architecture.vsm_recursion"
+      },
       {
         "file": ".spec/specs/github_identity_and_integration.spec.md",
         "id": "auth.github_integration.github_app_preferred",
@@ -499,6 +638,46 @@
         "subject_id": "docs.operator_provider_auth_guide"
       },
       {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation.data_ontology_defined",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The repository shall publish a first data ontology that defines the preferred control-plane record names, their relationships, and the initial Ash resource framing.",
+        "subject_id": "docs.product_foundation"
+      },
+      {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation.docs_index_present",
+        "priority": "must",
+        "stability": "stable",
+        "statement": "The repository shall expose the foundation docs through both docs/README.md and the top-level README documentation section.",
+        "subject_id": "docs.product_foundation"
+      },
+      {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation.factory_gap_note_present",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "The repository shall publish a Jido-centric product comparison note that captures what Jido.Code should learn from Factory.ai and where it should deliberately differentiate.",
+        "subject_id": "docs.product_foundation"
+      },
+      {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation.technical_approach_defined",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The repository shall publish a technical implementation document that states the technical stance, the durable control loop, and the intended Ash domain layout.",
+        "subject_id": "docs.product_foundation"
+      },
+      {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation.vision_defined",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The repository shall publish a vision document that states the core product idea, what Jido.Code is building, the trust model, and the initial scope.",
+        "subject_id": "docs.product_foundation"
+      },
+      {
         "file": ".spec/specs/package.spec.md",
         "id": "package.jido_code.auth_provider_foundation_in_repo",
         "priority": "should",
@@ -644,6 +823,132 @@
       }
     ],
     "scenarios": [
+      {
+        "covers": [
+          "architecture.execution_pipeline.sprite_session_owns_sandbox_lifecycle",
+          "architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "given": [
+          "A run starts in a fresh sprite with no active workspace state."
+        ],
+        "id": "architecture.execution_pipeline.scenario_fresh_sprite_run",
+        "subject_id": "architecture.execution_pipeline",
+        "then": [
+          "Session bootstrap handles sandbox setup first, and repository prep remains explicit workflow work inside the run."
+        ],
+        "when": [
+          "The system prepares execution for repository work."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
+          "architecture.execution_pipeline.runic_is_underlying_dag_engine",
+          "architecture.execution_pipeline.jido_runic_bridges_runtime",
+          "architecture.execution_pipeline.run_is_projection_of_workflow_state"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "given": [
+          "A managed repository launches a new run for a work item."
+        ],
+        "id": "architecture.execution_pipeline.scenario_runic_drives_execution",
+        "subject_id": "architecture.execution_pipeline",
+        "then": [
+          "Jido.Runic drives execution, Runic provides the underlying workflow mechanics, and the Ash Run record reflects the resulting control-plane state."
+        ],
+        "when": [
+          "The run advances through planning and execution."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.execution_pipeline.repo_prep_and_validation_are_explicit_steps"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "given": [
+          "A run reaches repository validation after implementation or repair work."
+        ],
+        "id": "architecture.execution_pipeline.scenario_validation_fans_out",
+        "subject_id": "architecture.execution_pipeline",
+        "then": [
+          "They may be represented as explicit workflow steps that fan out and rejoin before the next approval or landing decision."
+        ],
+        "when": [
+          "Lint, tests, and spec checks can execute independently."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.vsm_recursion.factory_is_viable_system",
+          "architecture.vsm_recursion.managed_repo_is_viable_system"
+        ],
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "given": [
+          "The factory is supervising multiple managed repositories."
+        ],
+        "id": "architecture.vsm_recursion.scenario.factory_supervises_repos",
+        "subject_id": "architecture.vsm_recursion",
+        "then": [
+          "ManagedRepo units are treated as the factory's operational subsystems rather than as unrelated records."
+        ],
+        "when": [
+          "Operators reason about capacity, policy, and cross-repo demand."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.vsm_recursion.managed_repo_is_viable_system",
+          "architecture.vsm_recursion.repo_system1_scope"
+        ],
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "given": [
+          "A managed repository receives new demand from intake or observation."
+        ],
+        "id": "architecture.vsm_recursion.scenario_repo_turns_demand_into_work",
+        "subject_id": "architecture.vsm_recursion",
+        "then": [
+          "WorkItem and Run operate inside the repo's System 1 scope while coordination, control, and policy remain explicit at the repo level."
+        ],
+        "when": [
+          "The repository orchestrator assesses that demand and creates work."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.vsm_recursion.algedonic_escalation"
+        ],
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "given": [
+          "A viability-threatening condition appears inside a managed repository."
+        ],
+        "id": "architecture.vsm_recursion.scenario_viability_threat_bypasses_normal_flow",
+        "subject_id": "architecture.vsm_recursion",
+        "then": [
+          "The condition can bypass the normal queue and escalate directly to higher policy authority."
+        ],
+        "when": [
+          "Normal queue processing would be too slow or too noisy to preserve control."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.vsm_recursion.work_items_not_default_vsm",
+          "architecture.vsm_recursion.promotion_rule_defined"
+        ],
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "given": [
+          "A single work item or run is created for routine repository work."
+        ],
+        "id": "architecture.vsm_recursion.scenario_work_packet_not_overmodeled",
+        "subject_id": "architecture.vsm_recursion",
+        "then": [
+          "The work packet remains an operational record unless it has persistent identity, bounded mission, its own coordination needs, its own feedback loop, and distinct policy constraints."
+        ],
+        "when": [
+          "The architecture classifies its control scope."
+        ]
+      },
       {
         "covers": [
           "auth.github_integration.readiness_feedback",
@@ -1216,6 +1521,43 @@
       },
       {
         "covers": [
+          "docs.product_foundation.docs_index_present"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "given": [
+          "A contributor starts from the docs index or the repository README."
+        ],
+        "id": "docs.product_foundation.scenario.docs_are_discoverable",
+        "subject_id": "docs.product_foundation",
+        "then": [
+          "The vision, technical implementation, and data ontology docs are linked directly."
+        ],
+        "when": [
+          "The contributor looks for foundational product documentation."
+        ]
+      },
+      {
+        "covers": [
+          "docs.product_foundation.vision_defined",
+          "docs.product_foundation.technical_approach_defined",
+          "docs.product_foundation.data_ontology_defined",
+          "docs.product_foundation.factory_gap_note_present"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "given": [
+          "A contributor wants to understand what Jido.Code is trying to build before editing implementation code."
+        ],
+        "id": "docs.product_foundation.scenario.new_contributor_reads_foundation",
+        "subject_id": "docs.product_foundation",
+        "then": [
+          "The docs explain the product thesis, the technical stance, the base control-plane model, and how Jido.Code should position itself relative to adjacent agent-development products without requiring code spelunking."
+        ],
+        "when": [
+          "The contributor reads the foundation docs."
+        ]
+      },
+      {
+        "covers": [
           "source.provider_adapter.behavior_contract",
           "source.provider_adapter.github_adapter",
           "source.provider_adapter.github_app_preferred"
@@ -1365,6 +1707,26 @@
         "title": "Collaboration Workflow"
       },
       {
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline",
+        "meta": {
+          "decisions": [
+            "jido_code.runic_execution_model"
+          ],
+          "id": "architecture.execution_pipeline",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code centers execution on Jido.Runic, which drives Runic workflows through the Jido runtime while sprite sessions provide sandbox lifecycle and Ash resources provide durable governance projections.",
+          "surface": [
+            ".spec/decisions/jido_code.runic_execution_model.md",
+            "docs/TECHNICAL_IMPLEMENTATION.md",
+            "docs/DATA_ONTOLOGY.md"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Execution Pipeline"
+      },
+      {
         "file": ".spec/specs/github_identity_and_integration.spec.md",
         "id": "auth.github_integration",
         "meta": {
@@ -1434,8 +1796,7 @@
           "status": "active",
           "summary": "jido_code publishes an operator guide that explains broker-managed GitHub login, deployment-local GitHub service credentials, callback and allowlist behavior, and future GitLab or Bitbucket posture without requiring operators to read implementation code.",
           "surface": [
-            "docs/self_hosted_provider_auth.md",
-            "README.md"
+            "docs/self_hosted_provider_auth.md"
           ],
           "verification_minimum_strength": null
         },
@@ -1464,6 +1825,29 @@
           "verification_minimum_strength": null
         },
         "title": "Package"
+      },
+      {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation",
+        "meta": {
+          "decisions": [
+            "jido_code.namespace_and_control_naming"
+          ],
+          "id": "docs.product_foundation",
+          "kind": "feature",
+          "status": "active",
+          "summary": "Jido.Code publishes a concise vision doc, a terse technical implementation doc, a first data ontology doc, and repository-level doc indexes that point operators and contributors to those foundational materials.",
+          "surface": [
+            "docs/VISION.md",
+            "docs/TECHNICAL_IMPLEMENTATION.md",
+            "docs/DATA_ONTOLOGY.md",
+            "docs/factory_gaps.md",
+            "docs/README.md",
+            "README.md"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Product Foundation Docs"
       },
       {
         "file": ".spec/specs/provider_auth_foundation.spec.md",
@@ -1657,9 +2041,58 @@
           "verification_minimum_strength": null
         },
         "title": "User Administration"
+      },
+      {
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "id": "architecture.vsm_recursion",
+        "meta": {
+          "decisions": [
+            "jido_code.vsm_recursion_and_scope"
+          ],
+          "id": "architecture.vsm_recursion",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code models the factory instance and each ManagedRepo as recursive viable systems, while treating WorkItem and Run as operational records unless explicitly promoted to lower-level viable subsystems.",
+          "surface": [
+            ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+            "docs/TECHNICAL_IMPLEMENTATION.md",
+            "docs/DATA_ONTOLOGY.md"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "VSM Recursion"
       }
     ],
     "verifications": [
+      {
+        "covers": [
+          "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
+          "architecture.execution_pipeline.runic_is_underlying_dag_engine",
+          "architecture.execution_pipeline.jido_runic_bridges_runtime",
+          "architecture.execution_pipeline.sprite_session_owns_sandbox_lifecycle",
+          "architecture.execution_pipeline.run_is_projection_of_workflow_state",
+          "architecture.execution_pipeline.repo_prep_and_validation_are_explicit_steps",
+          "architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md"
+      },
+      {
+        "covers": [
+          "architecture.vsm_recursion.factory_is_viable_system",
+          "architecture.vsm_recursion.managed_repo_is_viable_system",
+          "architecture.vsm_recursion.repo_system1_scope",
+          "architecture.vsm_recursion.work_items_not_default_vsm",
+          "architecture.vsm_recursion.promotion_rule_defined",
+          "architecture.vsm_recursion.algedonic_escalation"
+        ],
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.vsm_recursion",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md"
+      },
       {
         "covers": [
           "auth.github_integration.readiness_feedback",
@@ -2208,12 +2641,56 @@
       },
       {
         "covers": [
-          "docs.operator_provider_auth_guide.github_broker_registration_steps",
-          "docs.operator_provider_auth_guide.github_service_credential_setup"
+          "docs.product_foundation.vision_defined"
         ],
-        "file": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
         "kind": "source_file",
-        "subject_id": "docs.operator_provider_auth_guide",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/VISION.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.technical_approach_defined"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/TECHNICAL_IMPLEMENTATION.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.data_ontology_defined"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/DATA_ONTOLOGY.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.factory_gap_note_present"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/factory_gaps.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.docs_index_present"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/README.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.docs_index_present"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
         "target": "README.md"
       },
       {
@@ -2483,16 +2960,159 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 1,
+    "decisions": 4,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 77,
-    "scenarios": 37,
-    "subjects": 17,
-    "verifications": 82
+    "requirements": 95,
+    "scenarios": 46,
+    "subjects": 20,
+    "verifications": 89
   },
   "verification": {
     "claims": [
+      {
+        "cover_id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.repo_prep_and_validation_are_explicit_steps",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.run_is_projection_of_workflow_state",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.runic_is_underlying_dag_engine",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.sprite_session_owns_sandbox_lifecycle",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.algedonic_escalation",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.factory_is_viable_system",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.managed_repo_is_viable_system",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.promotion_rule_defined",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.repo_system1_scope",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.work_items_not_default_vsm",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 0
+      },
       {
         "cover_id": "auth.github_integration.github_app_preferred",
         "file": ".spec/specs/github_identity_and_integration.spec.md",
@@ -3836,26 +4456,70 @@
         "verification_index": 0
       },
       {
-        "cover_id": "docs.operator_provider_auth_guide.github_broker_registration_steps",
-        "file": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "cover_id": "docs.product_foundation.vision_defined",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
-        "subject_id": "docs.operator_provider_auth_guide",
-        "target": "README.md",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/VISION.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "docs.product_foundation.technical_approach_defined",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/TECHNICAL_IMPLEMENTATION.md",
         "verification_index": 1
       },
       {
-        "cover_id": "docs.operator_provider_auth_guide.github_service_credential_setup",
-        "file": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "cover_id": "docs.product_foundation.data_ontology_defined",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
-        "subject_id": "docs.operator_provider_auth_guide",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/DATA_ONTOLOGY.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "docs.product_foundation.factory_gap_note_present",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/factory_gaps.md",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "docs.product_foundation.docs_index_present",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": "docs/README.md",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "docs.product_foundation.docs_index_present",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
         "target": "README.md",
-        "verification_index": 1
+        "verification_index": 5
       },
       {
         "cover_id": "package.jido_code.primary_implementation_repo",
@@ -4281,12 +4945,12 @@
     "strength_summary": {
       "claimed": 3,
       "executed": 0,
-      "linked": 159
+      "linked": 176
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 1,
-    "spec_count": 17
+    "decision_count": 4,
+    "spec_count": 20
   }
 }

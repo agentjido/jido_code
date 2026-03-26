@@ -13,10 +13,12 @@ summary: jido_code exposes a state-aware `/welcome` landing page and public auth
 surface:
   - lib/jido_code_web/router.ex
   - lib/jido_code_web/live/home_live.ex
+  - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex
   - lib/jido_code_web/components/layouts.ex
   - test/jido_code_web/controllers/page_controller_test.exs
   - test/jido_code_web/live/home_live_test.exs
+  - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/welcome_live_test.exs
 ```
 
@@ -72,6 +74,11 @@ surface:
     - baseline.surface.welcome_surface_consolidated
 
 - kind: source_file
+  target: lib/jido_code_web/live/setup_live.ex
+  covers:
+    - baseline.surface.public_entry_routes
+
+- kind: source_file
   target: lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex
   covers:
     - baseline.surface.public_entry_routes
@@ -87,6 +94,11 @@ surface:
   covers:
     - baseline.surface.auth_entrypoints_visible
     - baseline.surface.welcome_landing_copy
+
+- kind: source_file
+  target: test/jido_code_web/live/setup_live_test.exs
+  covers:
+    - baseline.surface.public_entry_routes
 
 - kind: source_file
   target: test/jido_code_web/live/welcome_live_test.exs

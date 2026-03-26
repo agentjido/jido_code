@@ -16,10 +16,13 @@ surface:
   - .spec/specs/user_administration.spec.md
   - .spec/specs/github_identity_and_integration.spec.md
   - lib/jido_code/setup/deployment_mode.ex
+  - lib/jido_code/setup/project_import.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code/projects/project.ex
+  - test/jido_code/setup/project_import_test.exs
+  - test/jido_code/projects/project_test.exs
   - test/jido_code/setup/deployment_mode_test.exs
 ```
 
@@ -52,7 +55,7 @@ surface:
   stability: evolving
 
 - id: setup.onboarding.repo_source_per_project
-  statement: Repository source selection shall remain a per-project concern so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.
+  statement: Repository source selection shall remain a per-project concern, with each project carrying its own source kind and source identity so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.
   priority: must
   stability: evolving
 ```
@@ -72,6 +75,16 @@ surface:
     - The administrator reaches the signed-in start surface.
   then:
     - The app enters a lightweight start flow that can emphasize attaching a local repository without requiring the admin to finish every optional integration first.
+
+- id: setup.onboarding.scenario.local_project_record
+  covers:
+    - setup.onboarding.repo_source_per_project
+  given:
+    - A desktop deployment needs to register a local repository as a project.
+  when:
+    - The project record is created for that local repository.
+  then:
+    - The record stores its local source kind and source identity on the project itself instead of inferring repository behavior from a global mode.
 
 - id: setup.onboarding.scenario_cloud_start
   covers:
@@ -123,6 +136,26 @@ surface:
 
 - kind: source_file
   target: .spec/specs/setup_onboarding.spec.md
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: lib/jido_code/projects/project.ex
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: lib/jido_code/setup/project_import.ex
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: test/jido_code/projects/project_test.exs
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: test/jido_code/setup/project_import_test.exs
   covers:
     - setup.onboarding.repo_source_per_project
 

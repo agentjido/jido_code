@@ -1,4 +1,5 @@
 defmodule JidoCode.Setup.ProjectImportTest do
+  # covers: setup.onboarding.repo_source_per_project
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Projects.Project
@@ -28,7 +29,7 @@ defmodule JidoCode.Setup.ProjectImportTest do
     :ok
   end
 
-  test "run/3 creates project records with github_full_name and default_branch metadata" do
+  test "run/3 creates project records with source identity and default_branch metadata" do
     onboarding_state = %{
       "4" => %{
         "github_credentials" => %{
@@ -48,7 +49,10 @@ defmodule JidoCode.Setup.ProjectImportTest do
 
     refute ProjectImport.blocked?(report)
     assert report.status == :ready
+    assert report.project_record.source_kind == :github
+    assert report.project_record.source_identifier == "owner/repo-one"
     assert report.project_record.github_full_name == "owner/repo-one"
+    assert report.project_record.local_path == nil
     assert report.project_record.default_branch == "develop"
     assert report.project_record.import_mode == :created
     assert report.project_record.clone_status == :ready
@@ -58,8 +62,10 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert %DateTime{} = report.baseline_metadata.last_synced_at
 
     {:ok, [project]} =
-      Project.read(query: [filter: [github_full_name: "owner/repo-one"], limit: 1])
+      Project.read(query: [filter: [source_kind: :github, source_identifier: "owner/repo-one"], limit: 1])
 
+    assert project.source_kind == :github
+    assert project.source_identifier == "owner/repo-one"
     assert project.github_full_name == "owner/repo-one"
     assert project.default_branch == "develop"
     assert project.settings["workspace"]["clone_status"] == "ready"

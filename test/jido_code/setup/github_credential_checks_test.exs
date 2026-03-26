@@ -1,4 +1,6 @@
 defmodule JidoCode.Setup.GitHubCredentialChecksTest do
+  # covers: auth.github_integration.readiness_feedback
+  # covers: auth.github_integration.non_blocking_local_auth
   use ExUnit.Case, async: true
 
   alias JidoCode.Setup.GitHubCredentialChecks

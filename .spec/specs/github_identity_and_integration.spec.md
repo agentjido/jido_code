@@ -14,9 +14,10 @@ decisions:
 surface:
   - lib/jido_code/setup/github_credential_checks.ex
   - lib/jido_code/setup/github_installation_sync.ex
-  - test/jido_code_web/live/setup_live_github_auth_mode_test.exs
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/accounts/user_identity.ex
+  - test/jido_code/setup/github_credential_checks_test.exs
+  - test/jido_code_web/live/setup_live_github_auth_mode_test.exs
 ```
 
 ## Requirements
@@ -53,7 +54,7 @@ surface:
   given:
     - GitHub App credentials are configured and the installation can access the expected repositories.
   when:
-    - Setup validates GitHub integration.
+    - A signed-in follow-up surface validates GitHub integration.
   then:
     - The system reports GitHub App mode as ready for the current administrator context.
 
@@ -64,7 +65,7 @@ surface:
   given:
     - GitHub App credentials are not configured and PAT validation succeeds.
   when:
-    - Setup validates GitHub integration.
+    - A signed-in follow-up surface validates GitHub integration.
   then:
     - The system reports PAT fallback readiness without blocking local user authentication flows.
 
@@ -95,12 +96,6 @@ surface:
     - auth.github_integration.github_app_preferred
 
 - kind: source_file
-  target: test/jido_code_web/live/setup_live_github_auth_mode_test.exs
-  covers:
-    - auth.github_integration.readiness_feedback
-    - auth.github_integration.non_blocking_local_auth
-
-- kind: source_file
   target: lib/jido_code/accounts/user.ex
   covers:
     - auth.github_integration.local_user_mapping
@@ -109,4 +104,15 @@ surface:
   target: lib/jido_code/accounts/user_identity.ex
   covers:
     - auth.github_integration.local_user_mapping
+
+- kind: source_file
+  target: test/jido_code/setup/github_credential_checks_test.exs
+  covers:
+    - auth.github_integration.readiness_feedback
+    - auth.github_integration.non_blocking_local_auth
+
+- kind: source_file
+  target: test/jido_code_web/live/setup_live_github_auth_mode_test.exs
+  covers:
+    - auth.github_integration.non_blocking_local_auth
 ```

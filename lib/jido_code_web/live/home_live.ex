@@ -3,6 +3,7 @@ defmodule JidoCodeWeb.HomeLive do
   # covers: baseline.surface.welcome_surface_consolidated
   # covers: users.admin_system.bootstrap_admin
   # covers: users.admin_system.registration_guardrails
+  # covers: setup.onboarding.deployment_mode_auto_detected
   # covers: auth.provider_login_flow.entrypoint_visible
   # covers: auth.provider_login_flow.local_auth_fallback_visible
   # covers: auth.operator_settings.sections_separated
@@ -25,6 +26,7 @@ defmodule JidoCodeWeb.HomeLive do
   alias JidoCode.AuthProviders.ProviderConfig
   alias JidoCode.GitHub.ServiceCredentials
   alias JidoCode.Setup.BootstrapStatus
+  alias JidoCode.Setup.DeploymentMode
   alias JidoCode.Setup.GitHubCredentialChecks
   alias JidoCode.Setup.OwnerBootstrap
   alias JidoCode.Setup.OwnerRecovery
@@ -75,7 +77,7 @@ defmodule JidoCodeWeb.HomeLive do
       socket =
         socket
         |> assign(:bootstrap_status, bootstrap_status)
-        |> assign(:desktop_runtime?, desktop_runtime?())
+        |> assign(:deployment_mode, DeploymentMode.current())
         |> assign(:prereq_status, initial_prereq_status(bootstrap_status))
         |> assign(:prereq_report, nil)
         |> assign(:owner_mode, owner_status.mode)
@@ -234,7 +236,7 @@ defmodule JidoCodeWeb.HomeLive do
                   </p>
                   <h1 class="text-4xl font-bold text-base-content">Create your admin account</h1>
                   <p class="text-base leading-7 text-base-content/70">
-                    {bootstrap_intro_copy(@desktop_runtime?)}
+                    {bootstrap_intro_copy(@deployment_mode)}
                   </p>
                 </div>
 
@@ -435,7 +437,7 @@ defmodule JidoCodeWeb.HomeLive do
                   </p>
                   <h1 class="text-4xl font-bold text-base-content">Welcome to Jido Code</h1>
                   <p class="text-base leading-7 text-base-content/70">
-                    {ready_intro_copy(@desktop_runtime?)}
+                    {ready_intro_copy(@deployment_mode)}
                   </p>
                 </div>
 
@@ -826,19 +828,19 @@ defmodule JidoCodeWeb.HomeLive do
   defp normalize_checkbox("on"), do: true
   defp normalize_checkbox(_value), do: false
 
-  defp bootstrap_intro_copy(true),
+  defp bootstrap_intro_copy(:desktop),
     do:
       "This is a brand-new desktop install. We’ll verify the local runtime, create your first admin account, and then continue into setup."
 
-  defp bootstrap_intro_copy(false),
+  defp bootstrap_intro_copy(_deployment_mode),
     do:
       "This is a brand-new install. We’ll verify the runtime, create the first admin account, and then continue into the rest of setup."
 
-  defp ready_intro_copy(true),
+  defp ready_intro_copy(:desktop),
     do:
       "Sign in to this desktop install. The first-run bootstrap is complete, and public account creation is now disabled."
 
-  defp ready_intro_copy(false),
+  defp ready_intro_copy(_deployment_mode),
     do: "Sign in to this install. The first-run bootstrap is complete, and public account creation is now disabled."
 
   defp prerequisite_banner_message(:timeout),
@@ -876,10 +878,6 @@ defmodule JidoCodeWeb.HomeLive do
 
     query = URI.encode_query(%{"token" => token})
     "#{path}?#{query}"
-  end
-
-  defp desktop_runtime? do
-    System.get_env("BURRITO_TARGET") not in [nil, ""]
   end
 
   defp refresh_operator_settings(%{assigns: %{current_user: nil}} = socket) do

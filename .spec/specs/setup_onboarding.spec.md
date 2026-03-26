@@ -15,11 +15,12 @@ surface:
   - .spec/specs/baseline_surface.spec.md
   - .spec/specs/user_administration.spec.md
   - .spec/specs/github_identity_and_integration.spec.md
+  - lib/jido_code/setup/deployment_mode.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
-  - lib/jido_code/setup/runtime_mode.ex
   - lib/jido_code/projects/project.ex
+  - test/jido_code/setup/deployment_mode_test.exs
 ```
 
 ## Requirements
@@ -116,8 +117,17 @@ surface:
     - setup.onboarding.deferred_integrations
 
 - kind: source_file
-  target: .spec/specs/setup_onboarding.spec.md
+  target: lib/jido_code/setup/deployment_mode.ex
   covers:
     - setup.onboarding.deployment_mode_auto_detected
+
+- kind: source_file
+  target: .spec/specs/setup_onboarding.spec.md
+  covers:
     - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: test/jido_code/setup/deployment_mode_test.exs
+  covers:
+    - setup.onboarding.deployment_mode_auto_detected
 ```

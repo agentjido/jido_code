@@ -2,6 +2,9 @@
 
 This subject defines the current browser-facing landing, auth, and routed product surface that operators reach first in `jido_code`.
 
+<!-- covers: setup.onboarding.post_bootstrap_start_surface -->
+<!-- covers: setup.onboarding.runtime_health_transparent_unless_blocking -->
+
 ```spec-meta
 id: baseline.surface
 kind: feature
@@ -21,7 +24,7 @@ surface:
 
 ```spec-requirements
 - id: baseline.surface.public_entry_routes
-  statement: The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run entry and `/setup` resuming post-bootstrap onboarding.
+  statement: The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and `/setup` acting as the signed-in post-bootstrap start surface.
   priority: must
   stability: stable
 
@@ -31,7 +34,7 @@ surface:
   stability: evolving
 
 - id: baseline.surface.welcome_landing_copy
-  statement: The `/welcome` landing page shall act as the operator-facing starting point and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.
+  statement: The `/welcome` landing page shall act as the operator-facing starting point, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.
   priority: must
   stability: stable
 
@@ -44,6 +47,11 @@ surface:
   statement: The root path shall redirect to `/welcome` so the operator-facing landing route stays canonical even as authenticated product routes expand.
   priority: must
   stability: stable
+
+- id: baseline.surface.welcome_surface_consolidated
+  statement: The canonical `/welcome` route shall be implemented by the state-aware home live view rather than a separate legacy welcome live implementation.
+  priority: must
+  stability: evolving
 ```
 
 ## Verification
@@ -61,6 +69,7 @@ surface:
   covers:
     - baseline.surface.welcome_landing_copy
     - baseline.surface.auth_entrypoints_visible
+    - baseline.surface.welcome_surface_consolidated
 
 - kind: source_file
   target: lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex
@@ -83,6 +92,11 @@ surface:
   target: test/jido_code_web/live/welcome_live_test.exs
   covers:
     - baseline.surface.welcome_landing_copy
+
+- kind: command
+  target: test ! -e lib/jido_code_web/live/welcome_live.ex
+  covers:
+    - baseline.surface.welcome_surface_consolidated
 
 - kind: command
   target: mix compile

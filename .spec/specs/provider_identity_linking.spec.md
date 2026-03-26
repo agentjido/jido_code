@@ -6,7 +6,7 @@ This subject defines how provider-backed authentication resolves back to the loc
 id: auth.provider_identity_linking
 kind: feature
 status: active
-summary: jido_code resolves provider identities to local users by reusing an existing identity, linking verified email addresses, or provisioning a new local user when needed.
+summary: jido_code resolves provider identities to local users by reusing an existing identity, linking verified email addresses, or provisioning a new local user when needed once provider login is allowed after local bootstrap.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -30,7 +30,7 @@ surface:
   stability: stable
 
 - id: auth.provider_identity_linking.auto_create_local_user
-  statement: When no linked identity exists and no existing local user matches by verified provider email, the system shall provision a local user record from provider identity data.
+  statement: Once provider login is allowed after local bootstrap, when no linked identity exists and no existing local user matches by verified provider email, the system shall provision a local user record from provider identity data.
   priority: must
   stability: stable
 
@@ -69,6 +69,7 @@ surface:
     - auth.provider_identity_linking.auto_create_local_user
     - auth.provider_identity_linking.verified_email_link
   given:
+    - Local bootstrap is complete.
     - No linked provider identity exists and the verified provider email is not yet present in the local directory.
   when:
     - The provider identity authenticates.

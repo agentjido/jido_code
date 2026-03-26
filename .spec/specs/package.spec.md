@@ -61,6 +61,11 @@ surface:
   statement: Repository-owned terminal entrypoints shall prefer direct Mix tasks over repo-root shell wrapper scripts.
   priority: should
   stability: evolving
+
+- id: package.jido_code.bootstrap_and_start_surfaces_in_repo
+  statement: First-run bootstrap, signed-in start surfaces, and their auth-boundary behavior shall be specified and implemented inside jido_code rather than split into external installers or repo-local-only conventions.
+  priority: must
+  stability: evolving
 ```
 
 ## Verification
@@ -155,4 +160,9 @@ surface:
   target: .spec/specs/operator_provider_auth_guide.spec.md
   covers:
     - package.jido_code.auth_provider_foundation_in_repo
+
+- kind: source_file
+  target: .spec/specs/setup_onboarding.spec.md
+  covers:
+    - package.jido_code.bootstrap_and_start_surfaces_in_repo
 ```

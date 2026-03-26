@@ -5,12 +5,14 @@ defmodule JidoCodeWeb.ProviderAuthController do
 
   # covers: auth.provider_broker_handoff.start_endpoint_contract
   # covers: auth.provider_broker_handoff.complete_endpoint_contract
+  # covers: auth.provider_broker_handoff.bootstrap_gate_before_handoff
   # covers: auth.provider_login_flow.broker_handoff_consumption
   # covers: auth.provider_login_flow.local_session_issuance
   # covers: auth.provider_login_flow.redirect_path_completion
   # covers: auth.self_hosted_provider_integration.login_and_service_ready
   # covers: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
   # covers: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
+  # covers: auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
 
   use JidoCodeWeb, :controller
 

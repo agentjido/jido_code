@@ -1,5 +1,6 @@
 defmodule JidoCodeWeb.HomeLive do
   # covers: baseline.surface.auth_entrypoints_visible
+  # covers: baseline.surface.welcome_surface_consolidated
   # covers: users.admin_system.bootstrap_admin
   # covers: users.admin_system.registration_guardrails
   # covers: auth.provider_login_flow.entrypoint_visible
@@ -8,10 +9,12 @@ defmodule JidoCodeWeb.HomeLive do
   # covers: auth.operator_settings.broker_trust_configuration_ui
   # covers: auth.operator_settings.github_service_validation_feedback
   # covers: auth.operator_settings.integration_boundary_visible
+  # covers: auth.operator_settings.hidden_during_bootstrap_entry
   # covers: auth.self_hosted_provider_integration.login_and_service_ready
   # covers: auth.self_hosted_provider_integration.service_independent_of_login_toggle
   # covers: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
   # covers: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
+  # covers: auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
   use JidoCodeWeb, :live_view
 
   require Ash.Query

@@ -2,6 +2,8 @@
 
 This subject defines the target user-management model for `jido_code` as it evolves from owner bootstrap toward a durable admin-managed account system. Local users remain the shared directory even when a user later gains linked external identities or is first provisioned from a provider login.
 
+<!-- covers: setup.onboarding.admin_bootstrap_completion_gate -->
+
 ```spec-meta
 id: users.admin_system
 kind: feature
@@ -23,7 +25,7 @@ surface:
 
 ```spec-requirements
 - id: users.admin_system.bootstrap_admin
-  statement: Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, and mark it as an administrator before admin-managed account features are used.
+  statement: Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, mark it as an administrator, and treat that signed-in bootstrap outcome as the only hard first-run account gate before optional product setup is deferred.
   priority: must
   stability: stable
 
@@ -65,7 +67,7 @@ surface:
   when:
     - The operator completes first-run bootstrap from `/welcome`.
   then:
-    - The system establishes one bootstrap administrator who becomes the first accountable local user and signs that administrator into the remaining onboarding flow.
+    - The system establishes one bootstrap administrator who becomes the first accountable local user and signs that administrator into the product, while optional repo and integration setup continues as signed-in follow-up work.
 
 - id: users.admin_system.scenario.admin_adds_user
   covers:

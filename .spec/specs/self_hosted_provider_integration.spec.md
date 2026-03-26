@@ -8,7 +8,7 @@ This subject defines the reproducible self-hosted behavior for broker-backed pro
 id: auth.self_hosted_provider_integration
 kind: feature
 status: active
-summary: jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection against the `/welcome` landing flow.
+summary: jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login after local bootstrap, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection against the `/welcome` landing flow.
 surface:
   - lib/jido_code_web/controllers/provider_auth_controller.ex
   - lib/jido_code_web/live/home_live.ex
@@ -36,6 +36,11 @@ surface:
 
 - id: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
   statement: Provider-login allowlist rejection shall block provider session issuance without breaking deployment-local GitHub automation validation.
+  priority: must
+  stability: evolving
+
+- id: auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
+  statement: A self-hosted deployment shall keep local first-admin bootstrap primary and refuse provider login until bootstrap produces a valid local admin state.
   priority: must
   stability: evolving
 ```
@@ -86,6 +91,16 @@ surface:
     - A provider identity outside the allowlist attempts sign-in.
   then:
     - Provider login is rejected and GitHub automation readiness still renders for the local operator path.
+
+- id: auth.self_hosted_provider_integration.scenario.bootstrap_required
+  covers:
+    - auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
+  given:
+    - A brand-new self-hosted install has not yet completed local bootstrap.
+  when:
+    - An operator tries to start provider login from the public entry surface.
+  then:
+    - The provider path stays unavailable and the local bootstrap path remains the required public entry route.
 ```
 
 ## Verification
@@ -97,6 +112,7 @@ surface:
     - auth.self_hosted_provider_integration.login_and_service_ready
     - auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
     - auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
+    - auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
 
 - kind: source_file
   target: lib/jido_code_web/live/home_live.ex
@@ -105,6 +121,7 @@ surface:
     - auth.self_hosted_provider_integration.service_independent_of_login_toggle
     - auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
     - auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
+    - auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
 
 - kind: source_file
   target: lib/jido_code/github/service_credentials.ex
@@ -120,4 +137,5 @@ surface:
     - auth.self_hosted_provider_integration.service_independent_of_login_toggle
     - auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
     - auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
+    - auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
 ```

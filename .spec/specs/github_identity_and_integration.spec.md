@@ -2,6 +2,8 @@
 
 This subject defines how GitHub-backed access should relate to the local user system and setup-time repository integration checks, including future local-user resolution through provider identity linking.
 
+<!-- covers: setup.onboarding.deferred_integrations -->
+
 ```spec-meta
 id: auth.github_integration
 kind: feature
@@ -21,7 +23,7 @@ surface:
 
 ```spec-requirements
 - id: auth.github_integration.readiness_feedback
-  statement: Setup shall report whether GitHub App mode or PAT fallback is configured and whether repository access is confirmed for the current administrator context.
+  statement: Signed-in GitHub setup and follow-up product surfaces shall report whether GitHub App mode or PAT fallback is configured and whether repository access is confirmed for the current administrator context.
   priority: must
   stability: stable
 
@@ -36,7 +38,7 @@ surface:
   stability: stable
 
 - id: auth.github_integration.non_blocking_local_auth
-  statement: Email/password and magic-link authentication shall remain available even when GitHub App configuration is absent or invalid.
+  statement: Email/password and magic-link authentication shall remain available even when GitHub App configuration is absent or invalid, and missing GitHub setup shall not block the initial signed-in product entry path.
   priority: must
   stability: stable
 ```

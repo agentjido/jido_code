@@ -8,7 +8,7 @@ This subject defines the authenticated landing-page operator console used to con
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, and keep Git service secrets distinct from provider-login configuration.
+summary: authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete.
 surface:
   - lib/jido_code_web/live/home_live.ex
   - test/jido_code_web/live/home_live_operator_settings_test.exs
@@ -36,6 +36,11 @@ surface:
   statement: The operator console shall make the boundary explicit between provider-login broker configuration and deployment-local Git service secrets, and it shall keep GitLab and Bitbucket service integrations in explicit placeholder status.
   priority: should
   stability: evolving
+
+- id: auth.operator_settings.hidden_during_bootstrap_entry
+  statement: The operator auth-settings console shall remain secondary to first-run bootstrap and continue-setup states, only appearing once the signed-in landing page is allowed to render its ready-state operator surfaces.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -45,6 +50,7 @@ surface:
   covers:
     - auth.operator_settings.sections_separated
     - auth.operator_settings.integration_boundary_visible
+    - auth.operator_settings.hidden_during_bootstrap_entry
   given:
     - A local operator is already signed in on the baseline landing page.
   when:
@@ -83,6 +89,7 @@ surface:
     - auth.operator_settings.broker_trust_configuration_ui
     - auth.operator_settings.github_service_validation_feedback
     - auth.operator_settings.integration_boundary_visible
+    - auth.operator_settings.hidden_during_bootstrap_entry
 
 - kind: source_file
   target: test/jido_code_web/live/home_live_operator_settings_test.exs
@@ -91,4 +98,5 @@ surface:
     - auth.operator_settings.broker_trust_configuration_ui
     - auth.operator_settings.github_service_validation_feedback
     - auth.operator_settings.integration_boundary_visible
+    - auth.operator_settings.hidden_during_bootstrap_entry
 ```

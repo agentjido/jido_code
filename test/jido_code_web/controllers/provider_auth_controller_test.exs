@@ -1,6 +1,7 @@
 defmodule JidoCodeWeb.ProviderAuthControllerTest do
   # covers: auth.provider_broker_handoff.start_endpoint_contract
   # covers: auth.provider_broker_handoff.complete_endpoint_contract
+  # covers: auth.provider_broker_handoff.bootstrap_gate_before_handoff
   # covers: auth.provider_login_policy.blocked_before_linking
   # covers: auth.provider_login_flow.broker_handoff_consumption
   # covers: auth.provider_login_flow.local_session_issuance

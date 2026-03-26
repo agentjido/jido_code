@@ -3,6 +3,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   # covers: auth.self_hosted_provider_integration.service_independent_of_login_toggle
   # covers: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
   # covers: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
+  # covers: auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

@@ -615,6 +615,38 @@
         "subject_id": "baseline.surface"
       },
       {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.public_jido_os_service_boundary",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "jido_code shall route coding-assistance requests through public `Jido.Os.CodingAssist.Service` and session/runtime agent APIs instead of reaching into private coding agent internals.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.runtime_bootstrap_defaults",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "A product-local runtime helper shall bootstrap the embedded jido_os instance and seed development/test defaults for AI runtime descriptors, coding capabilities, and allow policies.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.session_authority_delegation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Session lookup, project binding, and session AI-preference updates shall delegate through the canonical jido_os session and directory authorities.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.session_prepared_before_assist",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Coding-assistance requests shall ensure the target jido_os instance and session exist before invoking the coding-assistance service.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
         "file": ".spec/specs/collaboration.spec.md",
         "id": "collaboration.workflow.beadwork_enabled",
         "priority": "must",
@@ -660,6 +692,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup` and `mix test` provisions the test database with Ecto tasks instead of making `ash.setup` the public entrypoint.",
+        "subject_id": "developer.workflow"
+      },
+      {
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "id": "developer.workflow.repo_toolchain_asdf",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The repository shall pin contributor tool versions in a root `.tool-versions` file and contributor setup docs shall use `asdf install` for the normal local development path.",
         "subject_id": "developer.workflow"
       },
       {
@@ -717,6 +757,30 @@
         "stability": "evolving",
         "statement": "The top-level README shall give contributors a quickstart for the normal host-Postgres Phoenix workflow.",
         "subject_id": "docs.product_foundation"
+      },
+      {
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "id": "jido_os.runtime.compatibility.local_override_present",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "jido_code shall satisfy its `:jido_os` dependency from a version-controlled repo-local compatibility package so CI and contributors do not need a separate sibling checkout just to compile the coding-assistance boundary.",
+        "subject_id": "jido_os.runtime.compatibility"
+      },
+      {
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "id": "jido_os.runtime.compatibility.public_runtime_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The compatibility package shall expose the public `Jido.Os` runtime, session, directory, and coding-assistance modules that `JidoCode.JidoOsRuntime` and `JidoCode.CodingAssistance` call.",
+        "subject_id": "jido_os.runtime.compatibility"
+      },
+      {
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "id": "jido_os.runtime.compatibility.session_and_envelope_behaviour",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The compatibility package shall support instance bootstrap, session creation/loading, project binding, AI-preference updates, and typed coding-assistance envelopes for the wrapper test surface.",
+        "subject_id": "jido_os.runtime.compatibility"
       },
       {
         "file": ".spec/specs/package.spec.md",
@@ -925,6 +989,30 @@
         "stability": "stable",
         "statement": "Both administrators and standard users shall be able to sign in, sign out, and complete forgot-password recovery for their own accounts.",
         "subject_id": "users.admin_system"
+      },
+      {
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "id": "workflow.runtime.compatibility.action_workflow_execution",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The compatibility runtime shall parse workflow frontmatter inputs from markdown assets and execute action-backed workflow steps that bind `input:` and `result:` references, returning a completed execution envelope for `workflow.run.*` calls.",
+        "subject_id": "workflow.runtime.compatibility"
+      },
+      {
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "id": "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The local compatibility package shall expose the `JidoWorkflow.Workflow.Loader.load_markdown/1` and `JidoWorkflow.Workflow.Engine.execute_definition/3` APIs that jido_code_server expects for workflow asset registration and execution.",
+        "subject_id": "workflow.runtime.compatibility"
+      },
+      {
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "id": "workflow.runtime.compatibility.local_override_present",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "jido_code shall override the transitive `:jido_workflow` dependency with a version-controlled local compatibility package so repository CI does not depend on private external Git credentials just to resolve dependencies.",
+        "subject_id": "workflow.runtime.compatibility"
       }
     ],
     "scenarios": [
@@ -1798,6 +1886,24 @@
         "title": "Baseline Surface"
       },
       {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary",
+        "meta": {
+          "decisions": null,
+          "id": "coding_assistance.boundary",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through the public coding-assistance service, and delegates session/project/AI-preference state to the canonical jido_os runtime agents.",
+          "surface": [
+            "lib/jido_code/coding_assistance.ex",
+            "lib/jido_code/jido_os_runtime.ex",
+            "test/jido_code/coding_assistance_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Coding Assistance Boundary"
+      },
+      {
         "file": ".spec/specs/collaboration.spec.md",
         "id": "collaboration.workflow",
         "meta": {
@@ -1825,6 +1931,7 @@
           "status": "active",
           "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
           "surface": [
+            ".tool-versions",
             "mix.exs",
             "config/dev.exs",
             "config/test.exs",
@@ -1900,6 +2007,25 @@
         "title": "GitHub Service Credentials"
       },
       {
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "id": "jido_os.runtime.compatibility",
+        "meta": {
+          "decisions": null,
+          "id": "jido_os.runtime.compatibility",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, and coding-assistance APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI.",
+          "surface": [
+            "mix.exs",
+            "compat/jido_os/mix.exs",
+            "compat/jido_os/lib/**/*.ex",
+            "test/jido_code/coding_assistance_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Jido OS Runtime Compatibility"
+      },
+      {
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "id": "auth.operator_settings",
         "meta": {
@@ -1946,7 +2072,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps repo-local compatibility packages version-controlled when product features would otherwise depend on sibling workspace checkouts or private transitive repos.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -1954,6 +2080,7 @@
             ".spec/specs/*.spec.md",
             ".spec/decisions/*.md",
             ".github/",
+            "compat/",
             "config/",
             "Dockerfile",
             "fly.toml",
@@ -1977,7 +2104,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current while documenting explicit product-repo exceptions.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring when CI needs self-contained dependency resolution, while documenting explicit product-repo exceptions.",
           "surface": [
             "mix.exs",
             "README.md",
@@ -1985,6 +2112,7 @@
             "CHANGELOG.md",
             "LICENSE",
             "AGENTS.md",
+            "compat/",
             ".spec/README.md",
             ".spec/specs/package_quality_standards.spec.md",
             ".github/workflows/ci.yml",
@@ -2229,6 +2357,25 @@
           "verification_minimum_strength": null
         },
         "title": "VSM Recursion"
+      },
+      {
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "id": "workflow.runtime.compatibility",
+        "meta": {
+          "decisions": null,
+          "id": "workflow.runtime.compatibility",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency.",
+          "surface": [
+            "mix.exs",
+            "compat/jido_workflow/mix.exs",
+            "compat/jido_workflow/lib/**/*.ex",
+            "test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Workflow Runtime Compatibility"
       }
     ],
     "verifications": [
@@ -2808,6 +2955,48 @@
       },
       {
         "covers": [
+          "coding_assistance.boundary.public_jido_os_service_boundary",
+          "coding_assistance.boundary.session_prepared_before_assist",
+          "coding_assistance.boundary.session_authority_delegation"
+        ],
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/coding_assistance.ex"
+      },
+      {
+        "covers": [
+          "coding_assistance.boundary.runtime_bootstrap_defaults"
+        ],
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/jido_os_runtime.ex"
+      },
+      {
+        "covers": [
+          "coding_assistance.boundary.session_prepared_before_assist",
+          "coding_assistance.boundary.session_authority_delegation"
+        ],
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "subject_id": "coding_assistance.boundary",
+        "target": "test/jido_code/coding_assistance_test.exs"
+      },
+      {
+        "covers": [
+          "coding_assistance.boundary.public_jido_os_service_boundary",
+          "coding_assistance.boundary.session_prepared_before_assist",
+          "coding_assistance.boundary.runtime_bootstrap_defaults",
+          "coding_assistance.boundary.session_authority_delegation"
+        ],
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "command",
+        "subject_id": "coding_assistance.boundary",
+        "target": "mix test test/jido_code/coding_assistance_test.exs"
+      },
+      {
+        "covers": [
           "collaboration.workflow.beadwork_enabled",
           "collaboration.workflow.github_prs"
         ],
@@ -2887,6 +3076,33 @@
         "kind": "command",
         "subject_id": "developer.workflow",
         "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|tauri/README.md' CONTRIBUTING.md"
+      },
+      {
+        "covers": [
+          "developer.workflow.repo_toolchain_asdf"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions"
+      },
+      {
+        "covers": [
+          "developer.workflow.repo_toolchain_asdf"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'asdf install|\\.tool-versions' README.md"
+      },
+      {
+        "covers": [
+          "developer.workflow.repo_toolchain_asdf"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'asdf install' CONTRIBUTING.md"
       },
       {
         "covers": [
@@ -2980,6 +3196,67 @@
         "kind": "source_file",
         "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md"
+      },
+      {
+        "covers": [
+          "jido_os.runtime.compatibility.local_override_present"
+        ],
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "mix.exs"
+      },
+      {
+        "covers": [
+          "jido_os.runtime.compatibility.public_runtime_surface",
+          "jido_os.runtime.compatibility.session_and_envelope_behaviour"
+        ],
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/system_instance_supervisor.ex"
+      },
+      {
+        "covers": [
+          "jido_os.runtime.compatibility.public_runtime_surface",
+          "jido_os.runtime.compatibility.session_and_envelope_behaviour"
+        ],
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/session/runtime_agent.ex"
+      },
+      {
+        "covers": [
+          "jido_os.runtime.compatibility.public_runtime_surface",
+          "jido_os.runtime.compatibility.session_and_envelope_behaviour"
+        ],
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/coding_assist/service.ex"
+      },
+      {
+        "covers": [
+          "jido_os.runtime.compatibility.local_override_present",
+          "jido_os.runtime.compatibility.public_runtime_surface",
+          "jido_os.runtime.compatibility.session_and_envelope_behaviour"
+        ],
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "test/jido_code/coding_assistance_test.exs"
+      },
+      {
+        "covers": [
+          "jido_os.runtime.compatibility.local_override_present",
+          "jido_os.runtime.compatibility.public_runtime_surface",
+          "jido_os.runtime.compatibility.session_and_envelope_behaviour"
+        ],
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "command",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "mix test test/jido_code/coding_assistance_test.exs"
       },
       {
         "covers": [
@@ -3342,6 +3619,65 @@
         "kind": "source_file",
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/checks/registration_allowed.ex"
+      },
+      {
+        "covers": [
+          "workflow.runtime.compatibility.local_override_present"
+        ],
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "mix.exs"
+      },
+      {
+        "covers": [
+          "workflow.runtime.compatibility.legacy_loader_and_engine_surface"
+        ],
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "compat/jido_workflow/lib/jido_workflow/workflow/loader.ex"
+      },
+      {
+        "covers": [
+          "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+          "workflow.runtime.compatibility.action_workflow_execution"
+        ],
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "compat/jido_workflow/lib/jido_workflow/workflow/engine.ex"
+      },
+      {
+        "covers": [
+          "workflow.runtime.compatibility.action_workflow_execution"
+        ],
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "compat/jido_workflow/lib/jido_workflow/workflow/markdown_parser.ex"
+      },
+      {
+        "covers": [
+          "workflow.runtime.compatibility.local_override_present",
+          "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+          "workflow.runtime.compatibility.action_workflow_execution"
+        ],
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs"
+      },
+      {
+        "covers": [
+          "workflow.runtime.compatibility.local_override_present",
+          "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+          "workflow.runtime.compatibility.action_workflow_execution"
+        ],
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "command",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "mix test test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs"
       }
     ]
   },
@@ -3351,10 +3687,10 @@
     "decisions": 6,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 105,
+    "requirements": 116,
     "scenarios": 46,
-    "subjects": 22,
-    "verifications": 113
+    "subjects": 25,
+    "verifications": 132
   },
   "verification": {
     "claims": [
@@ -4833,6 +5169,116 @@
         "verification_index": 5
       },
       {
+        "cover_id": "coding_assistance.boundary.public_jido_os_service_boundary",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/coding_assistance.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "coding_assistance.boundary.session_authority_delegation",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/coding_assistance.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/coding_assistance.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "coding_assistance.boundary.runtime_bootstrap_defaults",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/jido_os_runtime.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "coding_assistance.boundary.session_authority_delegation",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "test/jido_code/coding_assistance_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "test/jido_code/coding_assistance_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "coding_assistance.boundary.public_jido_os_service_boundary",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "coding_assistance.boundary",
+        "target": "mix test test/jido_code/coding_assistance_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "coding_assistance.boundary.runtime_bootstrap_defaults",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "coding_assistance.boundary",
+        "target": "mix test test/jido_code/coding_assistance_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "coding_assistance.boundary.session_authority_delegation",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "coding_assistance.boundary",
+        "target": "mix test test/jido_code/coding_assistance_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "coding_assistance.boundary",
+        "target": "mix test test/jido_code/coding_assistance_test.exs",
+        "verification_index": 3
+      },
+      {
         "cover_id": "collaboration.workflow.beadwork_enabled",
         "file": ".spec/specs/collaboration.spec.md",
         "kind": "source_file",
@@ -4943,6 +5389,39 @@
         "verification_index": 7
       },
       {
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'asdf install|\\.tool-versions' README.md",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'asdf install' CONTRIBUTING.md",
+        "verification_index": 10
+      },
+      {
         "cover_id": "developer.workflow.docs_split",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
@@ -4951,7 +5430,7 @@
         "strength": "claimed",
         "subject_id": "developer.workflow",
         "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
-        "verification_index": 8
+        "verification_index": 11
       },
       {
         "cover_id": "developer.workflow.docs_split",
@@ -4962,7 +5441,7 @@
         "strength": "claimed",
         "subject_id": "developer.workflow",
         "target": "rg -n 'not the normal contributor workflow|mix setup|mix phx.server|DATABASE_URL' tauri/README.md",
-        "verification_index": 9
+        "verification_index": 12
       },
       {
         "cover_id": "docs.operator_provider_auth_guide.external_operator_docs_allowed",
@@ -5084,6 +5563,149 @@
         "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
         "verification_index": 3
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.local_override_present",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "mix.exs",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.public_runtime_surface",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/system_instance_supervisor.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.session_and_envelope_behaviour",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/system_instance_supervisor.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.public_runtime_surface",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/session/runtime_agent.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.session_and_envelope_behaviour",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/session/runtime_agent.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.public_runtime_surface",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/coding_assist/service.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.session_and_envelope_behaviour",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "compat/jido_os/lib/jido/os/coding_assist/service.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.local_override_present",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "test/jido_code/coding_assistance_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.public_runtime_surface",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "test/jido_code/coding_assistance_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.session_and_envelope_behaviour",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "test/jido_code/coding_assistance_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.local_override_present",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "mix test test/jido_code/coding_assistance_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.public_runtime_surface",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "mix test test/jido_code/coding_assistance_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "jido_os.runtime.compatibility.session_and_envelope_behaviour",
+        "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "jido_os.runtime.compatibility",
+        "target": "mix test test/jido_code/coding_assistance_test.exs",
+        "verification_index": 5
       },
       {
         "cover_id": "package.jido_code.primary_implementation_repo",
@@ -5634,19 +6256,140 @@
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/checks/registration_allowed.ex",
         "verification_index": 2
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.local_override_present",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "mix.exs",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "compat/jido_workflow/lib/jido_workflow/workflow/loader.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.action_workflow_execution",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "compat/jido_workflow/lib/jido_workflow/workflow/engine.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "compat/jido_workflow/lib/jido_workflow/workflow/engine.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.action_workflow_execution",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "compat/jido_workflow/lib/jido_workflow/workflow/markdown_parser.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.action_workflow_execution",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.local_override_present",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.action_workflow_execution",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "mix test test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.legacy_loader_and_engine_surface",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "mix test test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "workflow.runtime.compatibility.local_override_present",
+        "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "workflow.runtime.compatibility",
+        "target": "mix test test/jido_code/workflow_runtime/jido_workflow_compatibility_test.exs",
+        "verification_index": 5
       }
     ],
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 22,
+      "claimed": 35,
       "executed": 0,
-      "linked": 185
+      "linked": 209
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 6,
-    "spec_count": 22
+    "spec_count": 25
   }
 }

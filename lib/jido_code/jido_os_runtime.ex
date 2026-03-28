@@ -1,4 +1,5 @@
 defmodule JidoCode.JidoOsRuntime do
+  # covers: coding_assistance.boundary.runtime_bootstrap_defaults
   @moduledoc """
   Helpers for bootstrapping and accessing the embedded `jido_os` runtime.
 

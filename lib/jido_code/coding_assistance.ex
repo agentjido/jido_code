@@ -1,4 +1,7 @@
 defmodule JidoCode.CodingAssistance do
+  # covers: coding_assistance.boundary.public_jido_os_service_boundary
+  # covers: coding_assistance.boundary.session_prepared_before_assist
+  # covers: coding_assistance.boundary.session_authority_delegation
   @moduledoc """
   Thin product-context boundary for provider-neutral coding-assistance requests.
 

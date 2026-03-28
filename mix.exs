@@ -1,6 +1,8 @@
 defmodule JidoCode.MixProject do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: package.jido_code.package_quality_mix_surface_aligned
+  # covers: jido_os.runtime.compatibility.local_override_present
+  # covers: workflow.runtime.compatibility.local_override_present
   use Mix.Project
 
   @version "0.1.0"
@@ -175,12 +177,13 @@ defmodule JidoCode.MixProject do
       {:dns_cluster, "~> 0.2.0"},
 
       # Jido runtime stack
-      {:jido_os, path: "../jido_os"},
+      {:jido_os, path: "compat/jido_os"},
       # Mix conflict resolution still needs root-level pins for the directly used core packages.
       {:jido, "~> 2.0", override: true},
       {:jido_action, "~> 2.0", override: true},
       {:jido_signal, "~> 2.0", override: true},
       {:jido_ai, github: "agentjido/jido_ai", branch: "main", override: true},
+      {:jido_workflow, path: "compat/jido_workflow", override: true},
       {:libgraph, github: "zblanco/libgraph", branch: "zw/multigraph-indexes", override: true},
 
       # Product-specific Jido integrations
@@ -252,6 +255,7 @@ defmodule JidoCode.MixProject do
       quality: [
         "deps.unlock --check-unused",
         "format --check-formatted",
+        "deps.compile",
         "compile --warnings-as-errors",
         "credo --min-priority higher",
         "dialyzer",

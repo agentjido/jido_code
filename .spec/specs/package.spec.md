@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and evolves auth-provider foundation, linking, login-policy, and GitHub service-credential work inside that repo.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps repo-local compatibility packages version-controlled when product features would otherwise depend on sibling workspace checkouts or private transitive repos.
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
@@ -17,6 +17,7 @@ surface:
   - .spec/specs/*.spec.md
   - .spec/decisions/*.md
   - .github/
+  - compat/
   - config/
   - Dockerfile
   - fly.toml

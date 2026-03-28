@@ -1,4 +1,9 @@
 defmodule JidoCode.CodingAssistanceTest do
+  # covers: coding_assistance.boundary.session_prepared_before_assist
+  # covers: coding_assistance.boundary.session_authority_delegation
+  # covers: jido_os.runtime.compatibility.local_override_present
+  # covers: jido_os.runtime.compatibility.public_runtime_surface
+  # covers: jido_os.runtime.compatibility.session_and_envelope_behaviour
   use ExUnit.Case, async: false
 
   alias JidoCode.CodingAssistance
@@ -59,6 +64,29 @@ defmodule JidoCode.CodingAssistanceTest do
 
     assert {:ok, selection} = CodingAssistance.get_ai_selection(session_id, actor_id)
     assert selection.preferred_model_profile == "balanced"
+  end
+
+  test "project binding helpers update session project assignment through the directory boundary" do
+    actor_id = "user-3"
+    session_id = "thread-3"
+
+    assert {:ok, _session} = CodingAssistance.ensure_session(session_id, actor_id)
+
+    assert {:ok, bound} =
+             CodingAssistance.bind_project(session_id, actor_id, "project-a")
+
+    assert bound.project_id == "project-a"
+
+    assert {:ok, rebound} =
+             CodingAssistance.rebind_project(session_id, actor_id, "project-b")
+
+    assert rebound.project_id == "project-b"
+
+    assert {:ok, unbound} = CodingAssistance.unbind_project(session_id, actor_id)
+    refute Map.has_key?(unbound, :project_id)
+
+    assert {:ok, reloaded} = CodingAssistance.lookup_session(session_id, actor_id)
+    refute Map.has_key?(reloaded, :project_id)
   end
 
   defp restore_env(app, key, nil), do: Application.delete_env(app, key)

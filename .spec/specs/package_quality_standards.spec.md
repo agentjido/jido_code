@@ -6,7 +6,7 @@ This subject defines how `jido_code` aligns with the canonical Jido package qual
 id: package.jido_code.package_quality_standards
 kind: policy
 status: active
-summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current while documenting explicit product-repo exceptions.
+summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring when CI needs self-contained dependency resolution, while documenting explicit product-repo exceptions.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.canonical_repo_surface
@@ -17,6 +17,7 @@ surface:
   - CHANGELOG.md
   - LICENSE
   - AGENTS.md
+  - compat/
   - .spec/README.md
   - .spec/specs/package_quality_standards.spec.md
   - .github/workflows/ci.yml

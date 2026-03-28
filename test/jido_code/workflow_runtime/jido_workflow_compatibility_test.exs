@@ -48,7 +48,8 @@ defmodule JidoCode.WorkflowRuntime.JidoWorkflowCompatibilityTest do
       |> Runtime.list_tools()
       |> Enum.find(&(&1.name == "workflow.run.example_workflow"))
 
-    assert workflow_tool.registration == %{status: :registered}
+    assert workflow_tool.kind == :workflow_run
+    assert workflow_tool.asset_name == "example_workflow"
     assert get_in(workflow_tool, [:input_schema, "properties", "file_path", "type"]) == "string"
     assert get_in(workflow_tool, [:input_schema, "properties", "inputs", "required"]) == ["file_path"]
 

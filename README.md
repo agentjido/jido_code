@@ -22,7 +22,7 @@ Expected local defaults:
 git clone https://github.com/epic-creative/jido_code.git
 cd jido_code
 
-mise install
+asdf install
 mix setup
 mix phx.server
 ```
@@ -45,7 +45,7 @@ The product direction is still broader than the currently finished UX. Treat thi
 
 ## Local Development
 
-The repo toolchain is pinned in `mise.toml`. Normal day-to-day development should feel like a conventional Phoenix app:
+The repo toolchain is pinned in `.tool-versions` for `asdf`. Normal day-to-day development should feel like a conventional Phoenix app:
 
 ```bash
 mix setup
@@ -74,9 +74,10 @@ mix quality             # deps hygiene, format, compile, credo, dialyzer, doctor
 mix precommit           # compile, format, and test
 mix coveralls           # run tests with coverage summary
 mix coveralls.html      # generate the HTML coverage report
-mix spec.verify --debug # verify spec coverage and verification targets
-mix spec.check          # check spec authoring rules
-mix spec.diffcheck      # check changed files against current-truth specs
+mix spec.prime --base HEAD      # print session-start Spec Led context for the current branch
+mix spec.next                   # point at the next subject or ADR update for current changes
+mix spec.check --base origin/main # run the full Spec Led gate and branch coherence checks
+mix spec.status                 # summarize current coverage and verification strength
 mix docs                # build ExDoc output from the repo docs surface
 ```
 

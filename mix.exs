@@ -245,7 +245,7 @@ defmodule JidoCode.MixProject do
         "phx.digest"
       ],
       q: ["quality"],
-      specs: ["spec.check", "spec.diffcheck"],
+      specs: ["spec.check"],
       precommit: [
         "deps.unlock --check-unused",
         "format --check-formatted",

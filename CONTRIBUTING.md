@@ -12,7 +12,7 @@ Thank you for your interest in contributing to JidoCode! This document provides 
 
 2. Install the repo toolchain:
    ```bash
-   mise install
+   asdf install
    ```
 
 3. Start PostgreSQL locally.
@@ -37,7 +37,7 @@ For day-to-day development:
 
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
-- `mix spec.verify --debug`, `mix spec.check`, and `mix spec.diffcheck` are the repo-local `spec_led_ex` checks for `.spec/`
+- `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 
 ## Code Quality

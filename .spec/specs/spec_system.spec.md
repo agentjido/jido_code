@@ -34,7 +34,7 @@ surface:
   stability: stable
 
 - id: spec.workspace.state_generated
-  statement: When planning and verification run, the workspace shall generate .spec/state.json containing indexed subjects, indexed decisions, and verification state.
+  statement: When Spec Led indexing and validation run, the workspace shall generate .spec/state.json containing indexed subjects, indexed decisions, and verification state.
   priority: must
   stability: stable
 ```
@@ -58,12 +58,12 @@ surface:
     - spec.workspace.decisions_readme_present
 
 - kind: command
-  target: mix spec.plan
+  target: mix spec.index
   covers:
     - spec.workspace.state_generated
 
 - kind: command
-  target: mix spec.verify
+  target: mix spec.validate
   covers:
     - spec.workspace.state_generated
 ```

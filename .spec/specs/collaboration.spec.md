@@ -6,7 +6,7 @@ This subject defines the repository collaboration and local work-management cont
 id: collaboration.workflow
 kind: policy
 status: active
-summary: jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration.
+summary: jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow.
 surface:
   - AGENTS.md
 ```

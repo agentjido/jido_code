@@ -45,12 +45,11 @@ This repo uses `bw` (beadwork) for durable local agent work state.
 Useful commands:
 
 ```bash
-mix spec.plan
-mix spec.verify --debug
-mix spec.check
-mix spec.diffcheck
-mix spec.report
-mix spec.adr.new <slug> --title "Decision title"
+mix spec.prime --base HEAD
+mix spec.next
+mix spec.check --base origin/main
+mix spec.status
+mix spec.decision.new <slug> --title "Decision title"
 ```
 
 ## Engineering Guardrails

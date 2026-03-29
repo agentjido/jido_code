@@ -34,6 +34,19 @@
       },
       {
         "affects": [
+          "package.jido_code",
+          "architecture.conversation_driver",
+          "coding_assistance.boundary",
+          "docs.product_foundation"
+        ],
+        "date": "2026-03-29",
+        "file": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+        "id": "jido_code.coding_assistance_conversation_driver",
+        "status": "accepted",
+        "title": "Coding Assistance Conversation Driver"
+      },
+      {
+        "affects": [
           "developer.workflow",
           "docs.product_foundation",
           "package.jido_code",
@@ -86,6 +99,46 @@
   "index": {
     "exceptions": [],
     "requirements": [
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.actor_context_propagated",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The conversation path shall propagate the initiating actor and request context before coding-assistance execution begins.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.code_server_routes_through_boundary",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Project-scoped conversation entrypoints shall route coding-assistance turns through `JidoCode.CodingAssistance` instead of coupling UI or `CodeServer` directly to jido_os internals.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.coding_assistance_is_first_class_driver",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "`JidoCode.CodingAssistance` shall be the first-class product conversation driver boundary for coding conversations rather than a hidden downstream helper behind a generic LLM-adapter slot.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.conversation_identity_maps_to_session",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Conversation identity shall align `conversation_id` with the coding-assistance `session_id`, while `project_id` remains the binding used to scope that session.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.subscriber_event_contract_preserved",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The coding-assistance conversation driver shall translate service responses back into the existing conversation event model so subscriber-facing UI integrations remain stable while the driver changes.",
+        "subject_id": "architecture.conversation_driver"
+      },
       {
         "file": ".spec/specs/execution_pipeline.spec.md",
         "id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -616,6 +669,14 @@
       },
       {
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.product_local_driver_api",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The coding-assistance boundary shall expose a product-local API that gathers actor, session, project, collaboration, prompt, and operation shaping so higher-level conversation drivers do not assemble jido_os runtime internals themselves.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "id": "coding_assistance.boundary.public_jido_os_service_boundary",
         "priority": "must",
         "stability": "evolving",
@@ -939,7 +1000,7 @@
         "id": "spec.workspace.state_generated",
         "priority": "must",
         "stability": "stable",
-        "statement": "When planning and verification run, the workspace shall generate .spec/state.json containing indexed subjects, indexed decisions, and verification state.",
+        "statement": "When Spec Led indexing and validation run, the workspace shall generate .spec/state.json containing indexed subjects, indexed decisions, and verification state.",
         "subject_id": "spec.system"
       },
       {
@@ -1016,6 +1077,43 @@
       }
     ],
     "scenarios": [
+      {
+        "covers": [
+          "architecture.conversation_driver.subscriber_event_contract_preserved"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "given": [
+          "Conversation subscribers already render assistant stream, final assistant messages, and failure states from the existing event bus."
+        ],
+        "id": "architecture.conversation_driver.scenario_existing_ui_event_contract_survives_driver_swap",
+        "subject_id": "architecture.conversation_driver",
+        "then": [
+          "Subscribers continue to receive the existing conversation event model instead of a second UI-specific protocol."
+        ],
+        "when": [
+          "The coding-assistance driver becomes the primary engine for coding turns."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.conversation_driver.coding_assistance_is_first_class_driver",
+          "architecture.conversation_driver.code_server_routes_through_boundary",
+          "architecture.conversation_driver.conversation_identity_maps_to_session",
+          "architecture.conversation_driver.actor_context_propagated"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "given": [
+          "A project conversation is active for a managed repository."
+        ],
+        "id": "architecture.conversation_driver.scenario_turn_routes_through_coding_assistance",
+        "subject_id": "architecture.conversation_driver",
+        "then": [
+          "The conversation path carries actor and request context, uses the conversation identity as the coding-assistance session identity, and routes the turn through `JidoCode.CodingAssistance` before any jido_os service call occurs."
+        ],
+        "when": [
+          "A user sends a coding-oriented conversation turn."
+        ]
+      },
       {
         "covers": [
           "architecture.execution_pipeline.sprite_session_owns_sandbox_lifecycle",
@@ -1889,11 +1987,13 @@
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "id": "coding_assistance.boundary",
         "meta": {
-          "decisions": null,
+          "decisions": [
+            "jido_code.coding_assistance_conversation_driver"
+          ],
           "id": "coding_assistance.boundary",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through the public coding-assistance service, and delegates session/project/AI-preference state to the canonical jido_os runtime agents.",
+          "summary": "jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through the public coding-assistance service, delegates session/project/AI-preference state to the canonical jido_os runtime agents, and keeps higher-level conversation drivers out of jido_os internals.",
           "surface": [
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code/jido_os_runtime.ex",
@@ -1911,13 +2011,34 @@
           "id": "collaboration.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration.",
+          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow.",
           "surface": [
             "AGENTS.md"
           ],
           "verification_minimum_strength": null
         },
         "title": "Collaboration Workflow"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver",
+        "meta": {
+          "decisions": [
+            "jido_code.coding_assistance_conversation_driver"
+          ],
+          "id": "architecture.conversation_driver",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Coding conversations center on `JidoCode.CodingAssistance` as the first-class driver boundary while `CodeServer`, UI subscribers, and jido_os session state stay aligned through a stable conversation event contract.",
+          "surface": [
+            ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+            "lib/jido_code/code_server.ex",
+            "lib/jido_code/coding_assistance.ex",
+            "lib/jido_code_web/live/project_detail_live.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Conversation Driver Architecture"
       },
       {
         "file": ".spec/specs/developer_workflow.spec.md",
@@ -2104,7 +2225,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring when CI needs self-contained dependency resolution, while documenting explicit product-repo exceptions.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring and the current repo-local Spec Led gate surface in docs and CI, while documenting explicit product-repo exceptions.",
           "surface": [
             "mix.exs",
             "README.md",
@@ -2139,6 +2260,7 @@
             "README.md",
             "CONTRIBUTING.md",
             ".spec/README.md",
+            ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
             ".spec/decisions/jido_code.runic_execution_model.md",
             ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
             "tauri/README.md"
@@ -2379,6 +2501,19 @@
       }
     ],
     "verifications": [
+      {
+        "covers": [
+          "architecture.conversation_driver.coding_assistance_is_first_class_driver",
+          "architecture.conversation_driver.code_server_routes_through_boundary",
+          "architecture.conversation_driver.conversation_identity_maps_to_session",
+          "architecture.conversation_driver.actor_context_propagated",
+          "architecture.conversation_driver.subscriber_event_contract_preserved"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md"
+      },
       {
         "covers": [
           "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
@@ -2957,7 +3092,8 @@
         "covers": [
           "coding_assistance.boundary.public_jido_os_service_boundary",
           "coding_assistance.boundary.session_prepared_before_assist",
-          "coding_assistance.boundary.session_authority_delegation"
+          "coding_assistance.boundary.session_authority_delegation",
+          "coding_assistance.boundary.product_local_driver_api"
         ],
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "kind": "source_file",
@@ -3066,7 +3202,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
       },
       {
         "covers": [
@@ -3075,7 +3211,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|tauri/README.md' CONTRIBUTING.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
       },
       {
         "covers": [
@@ -3187,6 +3323,15 @@
         "kind": "source_file",
         "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.runic_execution_model.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.durable_architecture_record_in_spec_workspace"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md"
       },
       {
         "covers": [
@@ -3578,7 +3723,7 @@
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "command",
         "subject_id": "spec.system",
-        "target": "mix spec.plan"
+        "target": "mix spec.index"
       },
       {
         "covers": [
@@ -3587,7 +3732,7 @@
         "file": ".spec/specs/spec_system.spec.md",
         "kind": "command",
         "subject_id": "spec.system",
-        "target": "mix spec.verify"
+        "target": "mix spec.validate"
       },
       {
         "covers": [
@@ -3684,16 +3829,71 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 6,
+    "decisions": 7,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 116,
-    "scenarios": 46,
-    "subjects": 25,
-    "verifications": 132
+    "requirements": 122,
+    "scenarios": 48,
+    "subjects": 26,
+    "verifications": 134
   },
   "verification": {
     "claims": [
+      {
+        "cover_id": "architecture.conversation_driver.actor_context_propagated",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.conversation_driver.code_server_routes_through_boundary",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.conversation_driver.coding_assistance_is_first_class_driver",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_identity_maps_to_session",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.conversation_driver.subscriber_event_contract_preserved",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+        "verification_index": 0
+      },
       {
         "cover_id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
         "file": ".spec/specs/execution_pipeline.spec.md",
@@ -5169,6 +5369,17 @@
         "verification_index": 5
       },
       {
+        "cover_id": "coding_assistance.boundary.product_local_driver_api",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/coding_assistance.ex",
+        "verification_index": 0
+      },
+      {
         "cover_id": "coding_assistance.boundary.public_jido_os_service_boundary",
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "kind": "source_file",
@@ -5374,7 +5585,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|mix skill.list|mix command list|mix workflow.control definitions' README.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
         "verification_index": 6
       },
       {
@@ -5385,7 +5596,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|tauri/README.md' CONTRIBUTING.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
         "verification_index": 7
       },
       {
@@ -5561,8 +5772,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
         "verification_index": 3
+      },
+      {
+        "cover_id": "docs.product_foundation.durable_architecture_record_in_spec_workspace",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 4
       },
       {
         "cover_id": "jido_os.runtime.compatibility.local_override_present",
@@ -6166,7 +6388,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "spec.system",
-        "target": "mix spec.plan",
+        "target": "mix spec.index",
         "verification_index": 3
       },
       {
@@ -6177,7 +6399,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "spec.system",
-        "target": "mix spec.verify",
+        "target": "mix spec.validate",
         "verification_index": 4
       },
       {
@@ -6384,12 +6606,12 @@
     "strength_summary": {
       "claimed": 35,
       "executed": 0,
-      "linked": 209
+      "linked": 216
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 6,
-    "spec_count": 25
+    "decision_count": 7,
+    "spec_count": 26
   }
 }

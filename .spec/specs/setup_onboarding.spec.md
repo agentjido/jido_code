@@ -8,7 +8,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, presents that path through a refined welcome surface, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work.
 decisions:
   - jido_code.auth_user_system
 surface:

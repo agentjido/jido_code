@@ -9,7 +9,7 @@ This subject defines the current browser-facing landing, auth, and routed produc
 id: baseline.surface
 kind: feature
 status: active
-summary: jido_code exposes a state-aware `/welcome` landing page and public auth entrypoints while keeping authenticated product, RPC, API, and dev surfaces declared in the router.
+summary: jido_code exposes a state-aware `/welcome` landing page with a refined welcome surface and public auth entrypoints while keeping authenticated product, RPC, API, and dev surfaces declared in the router.
 surface:
   - lib/jido_code_web/router.ex
   - lib/jido_code_web/live/home_live.ex

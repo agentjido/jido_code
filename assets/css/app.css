@@ -6,7 +6,7 @@
 @source "../../deps/live_toast/lib";
 
 @import "./syntax.css";
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @plugin "../vendor/heroicons";
 
@@ -155,6 +155,7 @@
   --color-code-function: hsl(var(--code-function));
   --color-code-type: hsl(var(--code-type));
 
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   --radius-lg: var(--radius);
@@ -367,7 +368,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
   }
 
   html {
@@ -497,7 +498,95 @@
   .quickstart-card:hover {
     border-color: hsl(var(--primary) / 0.4);
   }
-}
+
+  .welcome-shell {
+    @apply min-h-screen bg-background text-foreground;
+    background-image:
+      linear-gradient(hsl(0 0% 14% / 0.32) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 14% / 0.32) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  .welcome-shell__logo-mark {
+    @apply flex size-8 items-center justify-center rounded-lg border;
+    color: hsl(var(--accent-green));
+    border-color: hsl(var(--accent-green) / 0.22);
+    background: hsl(var(--accent-green) / 0.12);
+  }
+
+  .setup-shell {
+    @apply min-h-screen bg-background text-foreground;
+    background-image:
+      linear-gradient(hsl(0 0% 14% / 0.28) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 14% / 0.28) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  .setup-panel,
+  .setup-section {
+    border: 1px solid hsl(0 0% 14% / 0.9);
+    background: hsl(0 0% 4% / 0.78);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.02);
+    backdrop-filter: blur(10px);
+    @apply rounded-2xl p-5;
+  }
+
+  .setup-card {
+    border: 1px solid hsl(0 0% 14% / 0.9);
+    background: hsl(0 0% 6% / 0.74);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.02);
+    @apply rounded-xl p-4;
+  }
+
+  .setup-alert {
+    @apply flex items-start gap-3 rounded-xl px-4 py-3 text-[13px] leading-6;
+    border: 1px solid hsl(0 0% 14% / 0.9);
+    background: hsl(0 0% 6% / 0.78);
+  }
+
+  .setup-alert--warning {
+    border-color: hsl(var(--accent-yellow) / 0.24);
+    background: hsl(var(--accent-yellow) / 0.08);
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  .setup-alert--error {
+    border-color: hsl(var(--destructive) / 0.24);
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+  }
+
+  .setup-status {
+    @apply inline-flex items-center gap-2 px-0 py-0 text-[12px] font-medium tracking-normal;
+    font-family: var(--font-sans);
+  }
+
+  .setup-status::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: currentColor;
+    display: inline-block;
+    flex: 0 0 auto;
+  }
+
+  .setup-status--success {
+    color: hsl(var(--accent-green));
+  }
+
+  .setup-status--warning {
+    color: hsl(var(--accent-yellow));
+  }
+
+  .setup-status--error {
+    color: hsl(var(--destructive));
+  }
+
+  .setup-status--info {
+    color: hsl(var(--accent));
+  }
+  }
 
 @layer utilities {
   .syntax-keyword {

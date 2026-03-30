@@ -8,7 +8,7 @@ This subject defines the target user-management model for `jido_code` as it evol
 id: users.admin_system
 kind: feature
 status: active
-summary: jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then grows into an admin-managed multi-user account system with guarded registration.
+summary: jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight start surface before growing into an admin-managed multi-user account system with guarded registration.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -27,7 +27,7 @@ surface:
 
 ```spec-requirements
 - id: users.admin_system.bootstrap_admin
-  statement: Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, mark it as an administrator, and treat that signed-in bootstrap outcome as the only hard first-run account gate before optional product setup is deferred.
+  statement: Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, mark it as an administrator, and treat that signed-in bootstrap outcome as the only hard first-run account gate before optional product setup is deferred into a signed-in start surface.
   priority: must
   stability: stable
 
@@ -70,6 +70,7 @@ surface:
     - The operator completes first-run bootstrap from `/welcome`.
   then:
     - The system establishes one bootstrap administrator who becomes the first accountable local user and signs that administrator into the product, while optional repo and integration setup continues as signed-in follow-up work.
+    - The signed-in admin is not blocked on provider, GitHub, or project setup before entering the product.
 
 - id: users.admin_system.scenario.admin_adds_user
   covers:

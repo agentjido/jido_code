@@ -15,11 +15,18 @@ surface:
   - .spec/specs/baseline_surface.spec.md
   - .spec/specs/user_administration.spec.md
   - .spec/specs/github_identity_and_integration.spec.md
+  - lib/jido_code/setup/deployment_mode.ex
+  - lib/jido_code/setup/project_import.ex
   - lib/jido_code_web/live/home_live.ex
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
-  - lib/jido_code/setup/runtime_mode.ex
   - lib/jido_code/projects/project.ex
+  - priv/repo/migrations/20260326122740_add_project_source_identity.exs
+  - priv/resource_snapshots/repo/projects/20260326122740.json
+  - test/jido_code_web/live/setup_live_test.exs
+  - test/jido_code/setup/project_import_test.exs
+  - test/jido_code/projects/project_test.exs
+  - test/jido_code/setup/deployment_mode_test.exs
 ```
 
 ## Requirements
@@ -50,8 +57,13 @@ surface:
   priority: must
   stability: evolving
 
+- id: setup.onboarding.start_path_preference_persisted
+  statement: The signed-in start surface shall let the administrator save a preferred first path such as local repo, GitHub, or later without reintroducing blocking step-gated verification.
+  priority: must
+  stability: evolving
+
 - id: setup.onboarding.repo_source_per_project
-  statement: Repository source selection shall remain a per-project concern so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.
+  statement: Repository source selection shall remain a per-project concern, with each project carrying its own source kind and source identity so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.
   priority: must
   stability: evolving
 ```
@@ -70,7 +82,17 @@ surface:
   when:
     - The administrator reaches the signed-in start surface.
   then:
-    - The app enters a lightweight start flow that can emphasize attaching a local repository without requiring the admin to finish every optional integration first.
+    - The app enters a lightweight start flow that can emphasize attaching a local repository and persist that preference without requiring the admin to finish every optional integration first.
+
+- id: setup.onboarding.scenario.local_project_record
+  covers:
+    - setup.onboarding.repo_source_per_project
+  given:
+    - A desktop deployment needs to register a local repository as a project.
+  when:
+    - The project record is created for that local repository.
+  then:
+    - The record stores its local source kind and source identity on the project itself instead of inferring repository behavior from a global mode.
 
 - id: setup.onboarding.scenario_cloud_start
   covers:
@@ -83,7 +105,7 @@ surface:
   when:
     - The administrator reaches the signed-in start surface.
   then:
-    - The app may emphasize hosted source-control follow-up work such as GitHub connection, but the administrator can still enter the product without completing those integrations immediately.
+    - The app may emphasize hosted source-control follow-up work such as GitHub connection, persist that preference, and still defer those integrations out of the blocking onboarding path.
 
 - id: setup.onboarding.scenario_blocking_runtime_fault
   covers:
@@ -116,8 +138,53 @@ surface:
     - setup.onboarding.deferred_integrations
 
 - kind: source_file
-  target: .spec/specs/setup_onboarding.spec.md
+  target: lib/jido_code/setup/deployment_mode.ex
   covers:
     - setup.onboarding.deployment_mode_auto_detected
+
+- kind: source_file
+  target: lib/jido_code_web/live/setup_live.ex
+  covers:
+    - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.deployment_mode_auto_detected
+    - setup.onboarding.deferred_integrations
+    - setup.onboarding.start_path_preference_persisted
+
+- kind: source_file
+  target: .spec/specs/setup_onboarding.spec.md
+  covers:
     - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: lib/jido_code/projects/project.ex
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: lib/jido_code/setup/project_import.ex
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: test/jido_code/projects/project_test.exs
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: test/jido_code/setup/project_import_test.exs
+  covers:
+    - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: test/jido_code/setup/deployment_mode_test.exs
+  covers:
+    - setup.onboarding.deployment_mode_auto_detected
+
+- kind: source_file
+  target: test/jido_code_web/live/setup_live_test.exs
+  covers:
+    - setup.onboarding.post_bootstrap_start_surface
+    - setup.onboarding.deployment_mode_auto_detected
+    - setup.onboarding.deferred_integrations
+    - setup.onboarding.start_path_preference_persisted
 ```

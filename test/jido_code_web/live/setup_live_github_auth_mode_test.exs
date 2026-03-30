@@ -1,192 +1,107 @@
 defmodule JidoCodeWeb.SetupLiveGitHubAuthModeTest do
-  # covers: auth.github_integration.readiness_feedback
   # covers: auth.github_integration.non_blocking_local_auth
-  use ExUnit.Case, async: true
+  use JidoCodeWeb.ConnCase, async: false
 
-  import Phoenix.Component, only: [to_form: 2]
-  import Phoenix.LiveViewTest, only: [render_component: 2]
+  alias AshAuthentication.{Info, Strategy}
+  alias JidoCode.Accounts.User
 
-  alias JidoCodeWeb.SetupLive
+  import Phoenix.LiveViewTest
 
-  @checked_at ~U[2026-02-13 12:34:56Z]
+  setup do
+    original_config = Application.get_env(:jido_code, :system_config, :__missing__)
+    original_target = System.get_env("BURRITO_TARGET")
 
-  setup_all do
-    case Process.whereis(JidoCodeWeb.Endpoint) do
-      nil -> start_supervised!(JidoCodeWeb.Endpoint)
-      _pid -> :ok
-    end
+    on_exit(fn ->
+      restore_env(:system_config, original_config)
+      restore_system_env("BURRITO_TARGET", original_target)
+    end)
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    System.delete_env("BURRITO_TARGET")
+    :ok
+  end
+
+  test "cloud installs keep GitHub follow-up available without blocking local admin entry", %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
+
+    {:ok, view, _html} =
+      conn
+      |> authenticate_owner_conn("owner@example.com", "owner-password-123")
+      |> live(~p"/setup", on_error: :warn)
+
+    assert has_element?(view, "#setup-start-choice-github")
+    assert has_element?(view, "#setup-start-choice-later")
+    refute has_element?(view, "#setup-start-choice-local_repo")
+  end
+
+  defp register_owner(email, password) do
+    strategy = Info.strategy!(User, :password)
+
+    {:ok, _owner} =
+      Strategy.action(
+        strategy,
+        :register,
+        %{
+          "email" => email,
+          "password" => password,
+          "password_confirmation" => password
+        },
+        context: %{token_type: :sign_in}
+      )
 
     :ok
   end
 
-  test "render/1 shows PAT fallback mode with reduced-granularity feedback when GitHub App is not configured" do
-    html =
-      render_component(
-        &SetupLive.render/1,
-        setup_live_assigns(pat_fallback_ready_report())
+  defp authenticate_owner_conn(conn, email, password) do
+    strategy = Info.strategy!(User, :password)
+
+    {:ok, owner} =
+      Strategy.action(
+        strategy,
+        :sign_in,
+        %{"email" => email, "password" => password},
+        context: %{token_type: :sign_in}
       )
 
-    assert html =~ ~s(id="setup-github-auth-mode")
-    assert html =~ "PAT fallback"
-    assert html =~ "reduced granularity relative to GitHub App mode"
-    assert html =~ ~s(id="setup-github-readiness-status")
-    assert html =~ "Ready"
+    token =
+      owner
+      |> Map.get(:__metadata__, %{})
+      |> Map.fetch!(:token)
+
+    auth_response = conn |> get(owner_sign_in_with_token_path(strategy, token))
+    recycle(auth_response)
   end
 
-  test "render/1 keeps mode not ready when PAT validation fails and GitHub App is not configured" do
-    html =
-      render_component(
-        &SetupLive.render/1,
-        setup_live_assigns(pat_fallback_invalid_report())
-      )
+  defp owner_sign_in_with_token_path(strategy, token) do
+    strategy_path =
+      strategy
+      |> Strategy.routes()
+      |> Enum.find_value(fn
+        {path, :sign_in_with_token} -> path
+        _ -> nil
+      end)
 
-    assert html =~ ~s(id="setup-github-auth-mode")
-    assert html =~ "Not ready"
-    refute html =~ ~s(id="setup-github-auth-mode-feedback")
-    assert html =~ ~s(id="setup-github-readiness-status")
-    assert html =~ "Blocked"
-    assert html =~ "github_pat_credentials_invalid"
+    path = Path.join("/auth", String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/"))
+    query = URI.encode_query(%{"token" => token})
+
+    "#{path}?#{query}"
   end
 
-  defp setup_live_assigns(github_report) do
-    %{
-      flash: %{},
-      onboarding_step: 4,
-      onboarding_state: %{},
-      default_environment: :sprite,
-      workspace_root: nil,
-      prerequisite_report: nil,
-      provider_credential_report: nil,
-      github_credential_report: github_report,
-      webhook_simulation_report: nil,
-      environment_defaults_report: nil,
-      project_import_report: nil,
-      available_repositories: [],
-      owner_bootstrap: %{mode: :inactive, owner_email: nil, error: nil},
-      save_error: nil,
-      redirect_reason: "onboarding_incomplete",
-      diagnostic: "Setup is required before protected routes are available.",
-      step_form: default_step_form(),
-      owner_form: default_owner_form(),
-      owner_recovery_form: default_owner_recovery_form()
-    }
-  end
+  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_env(key, value), do: Application.put_env(:jido_code, key, value)
 
-  defp default_step_form do
-    to_form(
-      %{
-        "validated_note" => "",
-        "execution_mode" => "cloud",
-        "workspace_root" => "",
-        "repository_full_name" => ""
-      },
-      as: :step
-    )
-  end
-
-  defp default_owner_form do
-    to_form(
-      %{
-        "email" => "",
-        "password" => "",
-        "password_confirmation" => ""
-      },
-      as: :owner
-    )
-  end
-
-  defp default_owner_recovery_form do
-    to_form(
-      %{
-        "email" => "",
-        "password" => "",
-        "password_confirmation" => "",
-        "verification_phrase" => "",
-        "verification_ack" => false
-      },
-      as: :owner_recovery
-    )
-  end
-
-  defp pat_fallback_ready_report do
-    %{
-      checked_at: @checked_at,
-      status: :ready,
-      owner_context: "owner@example.com",
-      paths: [
-        %{
-          path: :github_app,
-          name: "GitHub App",
-          status: :not_configured,
-          previous_status: :not_configured,
-          transition: "Not configured -> Not configured",
-          owner_context: "owner@example.com",
-          repository_access: :unconfirmed,
-          repositories: [],
-          detail:
-            "GitHub App credentials are not fully configured (`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` are required).",
-          remediation: "Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`, then retry validation.",
-          error_type: "github_app_not_configured",
-          validated_at: nil,
-          checked_at: @checked_at
-        },
-        %{
-          path: :pat,
-          name: "Personal Access Token (PAT)",
-          status: :ready,
-          previous_status: :not_configured,
-          transition: "Not configured -> Ready",
-          owner_context: "owner@example.com",
-          repository_access: :confirmed,
-          repositories: ["owner/repo-one"],
-          detail: "GitHub PAT fallback confirms repository access.",
-          remediation: "Credential path is ready.",
-          error_type: nil,
-          validated_at: @checked_at,
-          checked_at: @checked_at
-        }
-      ]
-    }
-  end
-
-  defp pat_fallback_invalid_report do
-    %{
-      checked_at: @checked_at,
-      status: :blocked,
-      owner_context: "owner@example.com",
-      paths: [
-        %{
-          path: :github_app,
-          name: "GitHub App",
-          status: :not_configured,
-          previous_status: :not_configured,
-          transition: "Not configured -> Not configured",
-          owner_context: "owner@example.com",
-          repository_access: :unconfirmed,
-          repositories: [],
-          detail:
-            "GitHub App credentials are not fully configured (`GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` are required).",
-          remediation: "Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`, then retry validation.",
-          error_type: "github_app_not_configured",
-          validated_at: nil,
-          checked_at: @checked_at
-        },
-        %{
-          path: :pat,
-          name: "Personal Access Token (PAT)",
-          status: :invalid,
-          previous_status: :not_configured,
-          transition: "Not configured -> Invalid",
-          owner_context: "owner@example.com",
-          repository_access: :unconfirmed,
-          repositories: [],
-          detail: "Configured GitHub PAT failed validation.",
-          remediation: "Set a valid `GITHUB_PAT` and retry validation.",
-          error_type: "github_pat_credentials_invalid",
-          validated_at: nil,
-          checked_at: @checked_at
-        }
-      ]
-    }
-  end
+  defp restore_system_env(key, nil), do: System.delete_env(key)
+  defp restore_system_env(key, value), do: System.put_env(key, value)
 end

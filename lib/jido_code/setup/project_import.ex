@@ -1,4 +1,5 @@
 defmodule JidoCode.Setup.ProjectImport do
+  # covers: setup.onboarding.repo_source_per_project
   @moduledoc """
   Imports the selected repository during setup step 7 and initializes baseline project metadata.
   """
@@ -21,7 +22,10 @@ defmodule JidoCode.Setup.ProjectImport do
   @type project_record :: %{
           id: String.t(),
           name: String.t(),
-          github_full_name: String.t(),
+          source_kind: :github | :local,
+          source_identifier: String.t(),
+          github_full_name: String.t() | nil,
+          local_path: String.t() | nil,
           default_branch: String.t(),
           import_mode: import_mode(),
           imported_at: DateTime.t(),
@@ -745,7 +749,7 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp ensure_project_record(name, selected_repository, default_branch) do
-    case Project.read(query: [filter: [github_full_name: selected_repository], limit: 1]) do
+    case Project.read(query: [filter: [source_kind: :github, source_identifier: selected_repository], limit: 1]) do
       {:ok, [existing_project | _]} ->
         update_attributes = %{
           name: name,
@@ -763,6 +767,8 @@ defmodule JidoCode.Setup.ProjectImport do
       {:ok, []} ->
         create_attributes = %{
           name: name,
+          source_kind: :github,
+          source_identifier: selected_repository,
           github_full_name: selected_repository,
           default_branch: default_branch
         }
@@ -813,14 +819,26 @@ defmodule JidoCode.Setup.ProjectImport do
 
   defp project_record(project, import_mode, imported_at) when is_map(project) do
     workspace_settings = project_workspace_settings(project)
+    github_full_name = project |> map_get(:github_full_name, "github_full_name") |> normalize_optional_string()
+    local_path = project |> map_get(:local_path, "local_path") |> normalize_optional_string()
+    source_kind = project |> map_get(:source_kind, "source_kind", :github) |> normalize_source_kind(:github)
+
+    source_identifier =
+      project
+      |> map_get(:source_identifier, "source_identifier")
+      |> normalize_optional_string()
+      |> case do
+        nil -> github_full_name || local_path || project |> map_get(:id, "id") |> to_string()
+        identifier -> identifier
+      end
 
     %{
       id: project |> map_get(:id, "id") |> to_string(),
       name: project |> map_get(:name, "name") |> to_string(),
-      github_full_name:
-        project
-        |> map_get(:github_full_name, "github_full_name")
-        |> to_string(),
+      source_kind: source_kind,
+      source_identifier: source_identifier,
+      github_full_name: github_full_name,
+      local_path: local_path,
       default_branch:
         project
         |> map_get(:default_branch, "default_branch", @default_branch)
@@ -1120,12 +1138,22 @@ defmodule JidoCode.Setup.ProjectImport do
     %{
       "id" => map_get(project_record, :id, "id"),
       "name" => map_get(project_record, :name, "name"),
+      "source_kind" =>
+        project_record
+        |> map_get(:source_kind, "source_kind", :github)
+        |> normalize_source_kind(:github)
+        |> Atom.to_string(),
+      "source_identifier" =>
+        map_get(project_record, :source_identifier, "source_identifier") ||
+          map_get(project_record, :github_full_name, "github_full_name") ||
+          map_get(project_record, :full_name, "full_name"),
       "github_full_name" =>
         map_get(project_record, :github_full_name, "github_full_name") ||
           map_get(project_record, :full_name, "full_name"),
       "full_name" =>
         map_get(project_record, :github_full_name, "github_full_name") ||
           map_get(project_record, :full_name, "full_name"),
+      "local_path" => map_get(project_record, :local_path, "local_path"),
       "default_branch" => map_get(project_record, :default_branch, "default_branch", @default_branch),
       "import_mode" =>
         project_record
@@ -1216,6 +1244,10 @@ defmodule JidoCode.Setup.ProjectImport do
        when is_map(project_record) do
     id = project_record |> map_get(:id, "id") |> normalize_optional_string()
     name = project_record |> map_get(:name, "name") |> normalize_optional_string()
+    source_kind = project_record |> map_get(:source_kind, "source_kind", :github) |> normalize_source_kind(:github)
+
+    source_identifier =
+      project_record |> map_get(:source_identifier, "source_identifier") |> normalize_optional_string()
 
     github_full_name =
       project_record
@@ -1224,6 +1256,11 @@ defmodule JidoCode.Setup.ProjectImport do
         nil -> map_get(project_record, :full_name, "full_name")
         github_full_name -> github_full_name
       end
+      |> normalize_optional_string()
+
+    local_path =
+      project_record
+      |> map_get(:local_path, "local_path")
       |> normalize_optional_string()
 
     default_branch =
@@ -1235,11 +1272,18 @@ defmodule JidoCode.Setup.ProjectImport do
         normalized_default_branch -> normalized_default_branch
       end
 
-    if Enum.all?([id, name, github_full_name, default_branch], &is_binary/1) do
+    resolved_source_identifier = source_identifier || github_full_name || local_path
+
+    if Enum.all?([id, name, default_branch], &is_binary/1) and
+         source_kind in [:github, :local] and
+         is_binary(resolved_source_identifier) do
       %{
         id: id,
         name: name,
+        source_kind: source_kind,
+        source_identifier: resolved_source_identifier,
         github_full_name: github_full_name,
+        local_path: local_path,
         default_branch: default_branch,
         import_mode:
           project_record
@@ -1268,6 +1312,19 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp normalize_project_record(_project_record, _default_imported_at), do: nil
+
+  defp normalize_source_kind(source_kind, _default) when source_kind in [:github, :local],
+    do: source_kind
+
+  defp normalize_source_kind(source_kind, default) when is_binary(source_kind) do
+    case String.trim(source_kind) do
+      "github" -> :github
+      "local" -> :local
+      _other -> default
+    end
+  end
+
+  defp normalize_source_kind(_source_kind, default), do: default
 
   defp normalize_baseline_metadata(baseline_metadata, default_initialized_at)
        when is_map(baseline_metadata) do
@@ -1671,6 +1728,8 @@ defmodule JidoCode.Setup.ProjectImport do
 
   defp normalize_error_detail(detail) when is_binary(detail) and detail != "", do: detail
   defp normalize_error_detail(detail), do: inspect(detail)
+
+  defp normalize_optional_string(nil), do: nil
 
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do

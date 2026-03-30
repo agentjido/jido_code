@@ -37,7 +37,7 @@ surface:
   stability: evolving
 
 - id: architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects
-  statement: The preferred control-plane repository model shall distinguish `SourceRepo` as the external Git identity and `ManagedRepo` as the durable internal managed wrapper, with current `Project` naming treated as transitional implementation vocabulary.
+  statement: The preferred control-plane repository model shall distinguish `SourceRepo` as the external Git identity and `ManagedRepo` as the durable internal managed wrapper, with current `Project` naming treated as transitional implementation vocabulary and carrying enough source identity to represent either hosted or local repositories during the transition.
   priority: must
   stability: evolving
 

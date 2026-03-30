@@ -6,7 +6,7 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-project source identity feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
 surface:
@@ -29,7 +29,7 @@ surface:
 
 ```spec-requirements
 - id: architecture.policy_layers.repository_governance_policy_is_repo_control_layer
-  statement: Repository behavior, approval thresholds, autonomy limits, and review expectations shall be governed through repo-level governance objects such as `PolicySet` and adjacent posture or review rules.
+  statement: Repository behavior, approval thresholds, autonomy limits, review expectations, and per-project source identity shall be governed through repo-level governance objects such as `PolicySet` and adjacent posture or review rules instead of being inferred from the global deployment mode.
   priority: must
   stability: evolving
 
@@ -70,6 +70,7 @@ surface:
     - The system decides whether work may be created, executed, or exposed.
   then:
     - Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.
+    - Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.
 ```
 
 ## Verification

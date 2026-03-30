@@ -1,6 +1,7 @@
 defmodule JidoCodeWeb.HomeLiveTest do
   # covers: baseline.surface.auth_entrypoints_visible
   # covers: baseline.surface.welcome_landing_copy
+  # covers: setup.onboarding.deployment_mode_auto_detected
   # covers: auth.provider_login_flow.entrypoint_visible
   # covers: auth.provider_login_flow.local_auth_fallback_visible
   use JidoCodeWeb.ConnCase, async: false
@@ -8,6 +9,19 @@ defmodule JidoCodeWeb.HomeLiveTest do
   import Phoenix.LiveViewTest
 
   alias JidoCode.AuthProviders.ProviderConfig
+
+  setup do
+    original_target = System.get_env("BURRITO_TARGET")
+
+    on_exit(fn ->
+      case original_target do
+        nil -> System.delete_env("BURRITO_TARGET")
+        value -> System.put_env("BURRITO_TARGET", value)
+      end
+    end)
+
+    :ok
+  end
 
   test "landing page opens first-run bootstrap when no users exist", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/welcome")
@@ -24,6 +38,14 @@ defmodule JidoCodeWeb.HomeLiveTest do
 
     refute html =~ "Sign In with GitHub"
     refute html =~ "Create Account"
+  end
+
+  test "landing page uses desktop bootstrap copy when deployment mode auto-detects desktop", %{conn: conn} do
+    System.put_env("BURRITO_TARGET", "darwin-aarch64")
+
+    {:ok, _view, html} = live(conn, ~p"/welcome")
+
+    assert html =~ "brand-new desktop install"
   end
 
   test "landing page exposes sign-in and GitHub login once a local user already exists", %{conn: conn} do

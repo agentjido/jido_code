@@ -69,8 +69,8 @@ mix setup               # deps, ecto.setup, and asset build
 mix phx.server          # start the local Phoenix server
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
 mix test                # create/migrate the test DB and run tests
-mix q                   # shorthand for the canonical quality gate
-mix quality             # deps hygiene, format, compile, credo, dialyzer, doctor
+mix q                   # fast merge-safe quality gate
+mix quality             # fast gate plus doctor and dialyzer debt surfacing
 mix precommit           # compile, format, and test
 mix coveralls           # run tests with coverage summary
 mix coveralls.html      # generate the HTML coverage report

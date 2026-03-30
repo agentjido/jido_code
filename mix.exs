@@ -34,9 +34,7 @@ defmodule JidoCode.MixProject do
       ],
       dialyzer: [
         plt_local_path: "priv/plts/project.plt",
-        plt_core_path: "priv/plts/core.plt",
-        ignore_warnings: ".dialyzer_ignore.exs",
-        list_unused_filters: true
+        plt_core_path: "priv/plts/core.plt"
       ],
       docs: docs()
     ]
@@ -107,8 +105,7 @@ defmodule JidoCode.MixProject do
         "README.md",
         "CHANGELOG.md",
         "CONTRIBUTING.md",
-        "LICENSE",
-        ".dialyzer_ignore.exs"
+        "LICENSE"
       ],
       maintainers: ["Jido.Code contributors"],
       licenses: ["Apache-2.0"],
@@ -244,7 +241,7 @@ defmodule JidoCode.MixProject do
         "esbuild jido_code --minify",
         "phx.digest"
       ],
-      q: ["quality"],
+      q: ["quality.fast"],
       specs: ["spec.check"],
       precommit: [
         "deps.unlock --check-unused",
@@ -252,14 +249,17 @@ defmodule JidoCode.MixProject do
         "compile --warnings-as-errors",
         "test"
       ],
-      quality: [
+      "quality.fast": [
         "deps.unlock --check-unused",
         "format --check-formatted",
         "deps.compile",
         "compile --warnings-as-errors",
-        "credo --min-priority higher",
-        "dialyzer",
-        "doctor --raise"
+        "credo --min-priority higher"
+      ],
+      quality: [
+        "quality.fast",
+        "doctor --raise",
+        "dialyzer"
       ]
     ]
   end

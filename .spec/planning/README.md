@@ -1,5 +1,7 @@
 # Jido.Code Factory Control-Plane Migration Plan
 
+<!-- covers: package.jido_code.spec_led_workspace -->
+
 This directory contains a phased migration plan for aligning `jido_code` with the
 factory-control-plane architecture recorded in the current ADR and subject specs.
 

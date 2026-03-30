@@ -1093,7 +1093,7 @@
         "id": "package.jido_code.spec_led_workspace",
         "priority": "must",
         "stability": "stable",
-        "statement": "The repository shall maintain a package-local .spec workspace for current-truth subject specs, durable ADRs, and generated spec state.",
+        "statement": "The repository shall maintain a package-local .spec workspace for current-truth subject specs, durable ADRs, implementation planning, and generated spec state.",
         "subject_id": "package.jido_code"
       },
       {
@@ -2643,8 +2643,10 @@
             "AGENTS.md",
             "mix.exs",
             ".spec/README.md",
+            ".spec/AGENTS.md",
             ".spec/specs/*.spec.md",
             ".spec/decisions/*.md",
+            ".spec/planning/*.md",
             ".github/",
             "compat/",
             "config/",
@@ -2967,7 +2969,7 @@
           "id": "workflow.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency.",
+          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override.",
           "surface": [
             "mix.exs",
             "compat/jido_workflow/mix.exs",
@@ -3992,6 +3994,15 @@
       },
       {
         "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/planning/README.md"
+      },
+      {
+        "covers": [
           "package.jido_code.version_controlled_quality_surfaces"
         ],
         "file": ".spec/specs/package.spec.md",
@@ -4413,7 +4424,7 @@
     "requirements": 147,
     "scenarios": 56,
     "subjects": 29,
-    "verifications": 143
+    "verifications": 144
   },
   "verification": {
     "claims": [
@@ -6816,6 +6827,17 @@
         "verification_index": 1
       },
       {
+        "cover_id": "package.jido_code.spec_led_workspace",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/planning/README.md",
+        "verification_index": 2
+      },
+      {
         "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
@@ -6824,7 +6846,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": "mix.exs",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -6835,17 +6857,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 3
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 4
       },
       {
@@ -6856,7 +6867,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 5
       },
       {
@@ -6867,18 +6878,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 6
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 7
       },
       {
@@ -6889,7 +6900,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 8
       },
       {
@@ -6900,7 +6911,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 9
       },
       {
@@ -6911,7 +6922,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 10
       },
       {
@@ -6922,7 +6933,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 11
       },
       {
@@ -6933,7 +6944,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 12
       },
       {
@@ -6944,7 +6955,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 13
       },
       {
@@ -6955,7 +6966,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 14
       },
       {
@@ -6966,7 +6977,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 15
       },
       {
@@ -6977,8 +6988,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 16
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 17
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -7481,7 +7503,7 @@
     "strength_summary": {
       "claimed": 35,
       "executed": 0,
-      "linked": 243
+      "linked": 244
     },
     "threshold_failures": 0
   },

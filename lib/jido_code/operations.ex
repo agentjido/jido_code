@@ -11,5 +11,6 @@ defmodule JidoCode.Operations do
     resource JidoCode.Operations.ExternalObject
     resource JidoCode.Operations.Observation
     resource JidoCode.Operations.Intake
+    resource JidoCode.Operations.WorkItem
   end
 end

@@ -7,6 +7,7 @@ affects:
   - architecture.factory_control_plane
   - architecture.demand_ingress
   - architecture.event_assessment_synthesis
+  - architecture.work_synthesis
   - architecture.policy_layers
   - architecture.conversation_driver
   - docs.product_foundation
@@ -26,6 +27,11 @@ affects:
 <!-- covers: architecture.event_assessment_synthesis.assessment_records_interpret_events -->
 <!-- covers: architecture.event_assessment_synthesis.assessment_priority_and_next_action -->
 <!-- covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs -->
+<!-- covers: architecture.work_synthesis.work_item_is_canonical_operational_record -->
+<!-- covers: architecture.work_synthesis.work_item_metadata_and_origin_links_preserved -->
+<!-- covers: architecture.work_synthesis.work_item_creation_can_stop_before_execution -->
+<!-- covers: architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression -->
+<!-- covers: architecture.work_synthesis.work_item_auditability_preserved -->
 <!-- covers: architecture.policy_layers.repository_governance_policy_is_repo_control_layer -->
 <!-- covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane -->
 <!-- covers: architecture.policy_layers.runtime_policy_governs_session_and_turn_capability -->
@@ -101,6 +107,12 @@ After ingress capture, interpretation becomes a system-owned control-plane step.
 not written directly by external ingress actors, so typed actionable meaning,
 priority, urgency, and recommended next action remain part of the governed
 factory loop instead of becoming ad hoc feature-local side effects.
+
+Once actionable meaning exists, the next durable step is `WorkItem`, not
+immediate execution. Equivalent work demand should reconcile through governed
+work synthesis that can create a new work record, reprioritize an existing one,
+or suppress a duplicate while retaining an audit trail of why the work state
+changed.
 
 Repo-native state layers are first-class inputs to the factory, but not replacements
 for the product control plane. Authored `.spec/` state and optional Git-native

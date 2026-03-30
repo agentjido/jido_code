@@ -51,6 +51,7 @@
           "architecture.factory_control_plane",
           "architecture.demand_ingress",
           "architecture.event_assessment_synthesis",
+          "architecture.work_synthesis",
           "architecture.policy_layers",
           "architecture.conversation_driver",
           "docs.product_foundation"
@@ -521,6 +522,46 @@
         "stability": "stable",
         "statement": "WorkItem and Run shall be treated as operational records rather than full viable systems unless they are explicitly promoted through a lower-level viability rule.",
         "subject_id": "architecture.vsm_recursion"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.work_item_auditability_preserved",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Work synthesis shall preserve auditability for why a work item was created, refreshed, reprioritized, or treated as a suppressed duplicate.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Work synthesis shall be able to stop at durable `WorkItem` creation without requiring immediate run launch so the control plane can record actionable work even when execution stays deferred or optional.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall create durable `WorkItem` records as the canonical operational object between assessment and execution instead of hiding work creation inside feature-specific launch paths.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Each `WorkItem` shall preserve managed-repository scope, originating assessment and event links, initiating demand references, category, priority, status, recommended action, and initiating actor metadata.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Equivalent work candidates for the same managed-repository context shall reconcile through reprioritization or duplicate suppression rather than always creating a new open work item.",
+        "subject_id": "architecture.work_synthesis"
       },
       {
         "file": ".spec/specs/github_identity_and_integration.spec.md",
@@ -1879,6 +1920,43 @@
       },
       {
         "covers": [
+          "architecture.work_synthesis.work_item_is_canonical_operational_record",
+          "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_creation_can_stop_before_execution"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "given": [
+          "A managed repository has a durable assessment derived from normalized demand."
+        ],
+        "id": "architecture.work_synthesis.scenario_assessment_creates_repo_scoped_work",
+        "subject_id": "architecture.work_synthesis",
+        "then": [
+          "A durable open `WorkItem` is created with repo scope, origin links, recommended action, and initiating actor metadata even if no run launches immediately."
+        ],
+        "when": [
+          "The control plane synthesizes operational work."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+          "architecture.work_synthesis.work_item_auditability_preserved"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "given": [
+          "Fresh assessments describe equivalent work demand for the same managed repository."
+        ],
+        "id": "architecture.work_synthesis.scenario_equivalent_work_is_reconciled",
+        "subject_id": "architecture.work_synthesis",
+        "then": [
+          "Existing open work is updated or duplicate demand is suppressed with an audit trail instead of spawning uncontrolled duplicate work items."
+        ],
+        "when": [
+          "The control plane synthesizes work from those assessments."
+        ]
+      },
+      {
+        "covers": [
           "auth.github_integration.readiness_feedback",
           "auth.github_integration.github_app_preferred"
         ],
@@ -2931,13 +3009,16 @@
             "lib/jido_code/operations/intake.ex",
             "lib/jido_code/operations/ingress.ex",
             "lib/jido_code/operations/synthesis.ex",
+            "lib/jido_code/operations/work_item.ex",
+            "lib/jido_code/operations/work_synthesis.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/orchestration/workflow_run.ex",
             "lib/jido_code/code_server.ex",
             "priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs",
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
-            "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs"
+            "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
+            "priv/repo/migrations/20260330195000_add_operations_work_items.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3162,11 +3243,14 @@
             "lib/jido_code/operations/intake.ex",
             "lib/jido_code/operations/ingress.ex",
             "lib/jido_code/operations/synthesis.ex",
+            "lib/jido_code/operations/work_item.ex",
+            "lib/jido_code/operations/work_synthesis.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/jido_os_runtime.ex",
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
-            "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs"
+            "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
+            "priv/repo/migrations/20260330195000_add_operations_work_items.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3452,6 +3536,30 @@
         "title": "VSM Recursion"
       },
       {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis",
+        "meta": {
+          "decisions": [
+            "jido_code.namespace_and_control_naming",
+            "jido_code.factory_control_plane_and_runtime_overlay"
+          ],
+          "id": "architecture.work_synthesis",
+          "kind": "feature",
+          "status": "active",
+          "summary": "Jido.Code turns durable assessments into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, and reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths.",
+          "surface": [
+            "lib/jido_code/operations/work_item.ex",
+            "lib/jido_code/operations/work_synthesis.ex",
+            "lib/jido_code/operations/synthesis.ex",
+            "lib/jido_code/operations/ingress.ex",
+            "priv/repo/migrations/20260330195000_add_operations_work_items.exs",
+            "test/jido_code/operations/work_synthesis_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Work Synthesis"
+      },
+      {
         "file": ".spec/specs/workflow_runtime_compatibility.spec.md",
         "id": "workflow.runtime.compatibility",
         "meta": {
@@ -3698,6 +3806,58 @@
         "kind": "source_file",
         "subject_id": "architecture.vsm_recursion",
         "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.work_item_is_canonical_operational_record",
+          "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+          "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+          "architecture.work_synthesis.work_item_auditability_preserved"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_item.ex"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.work_item_is_canonical_operational_record",
+          "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+          "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+          "architecture.work_synthesis.work_item_auditability_preserved"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.work_item_is_canonical_operational_record",
+          "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+          "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+          "architecture.work_synthesis.work_item_auditability_preserved"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/work_synthesis_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.work_item_is_canonical_operational_record",
+          "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+          "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+          "architecture.work_synthesis.work_item_auditability_preserved"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "command",
+        "subject_id": "architecture.work_synthesis",
+        "target": "mix test test/jido_code/operations/work_synthesis_test.exs"
       },
       {
         "covers": [
@@ -4688,6 +4848,15 @@
       },
       {
         "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/work_synthesis.spec.md"
+      },
+      {
+        "covers": [
           "package.jido_code.version_controlled_quality_surfaces"
         ],
         "file": ".spec/specs/package.spec.md",
@@ -5281,10 +5450,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 169,
-    "scenarios": 66,
-    "subjects": 32,
-    "verifications": 180
+    "requirements": 174,
+    "scenarios": 68,
+    "subjects": 33,
+    "verifications": 185
   },
   "verification": {
     "claims": [
@@ -6112,6 +6281,226 @@
         "subject_id": "architecture.vsm_recursion",
         "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
         "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_item.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_item.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_item.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_item.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_item.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.work_synthesis",
+        "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.work_synthesis",
+        "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.work_synthesis",
+        "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.work_synthesis",
+        "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.work_synthesis",
+        "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
+        "verification_index": 3
       },
       {
         "cover_id": "auth.github_integration.github_app_preferred",
@@ -8259,6 +8648,17 @@
         "verification_index": 4
       },
       {
+        "cover_id": "package.jido_code.spec_led_workspace",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/work_synthesis.spec.md",
+        "verification_index": 5
+      },
+      {
         "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
@@ -8267,7 +8667,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": "mix.exs",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -8278,17 +8678,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 6
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 7
       },
       {
@@ -8299,7 +8688,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 8
       },
       {
@@ -8310,18 +8699,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 9
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 10
       },
       {
@@ -8332,7 +8721,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 11
       },
       {
@@ -8343,7 +8732,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 12
       },
       {
@@ -8354,7 +8743,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 13
       },
       {
@@ -8365,7 +8754,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 14
       },
       {
@@ -8376,7 +8765,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 15
       },
       {
@@ -8387,7 +8776,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 16
       },
       {
@@ -8398,7 +8787,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 17
       },
       {
@@ -8409,7 +8798,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 18
       },
       {
@@ -8420,8 +8809,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 19
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 20
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -8432,7 +8832,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 20
+        "verification_index": 21
       },
       {
         "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
@@ -8443,7 +8843,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -9263,14 +9663,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 46,
+      "claimed": 51,
       "executed": 0,
-      "linked": 315
+      "linked": 331
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 9,
-    "spec_count": 32
+    "spec_count": 33
   }
 }

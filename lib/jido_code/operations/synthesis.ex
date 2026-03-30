@@ -9,7 +9,7 @@ defmodule JidoCode.Operations.Synthesis do
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation}
+  alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation, WorkSynthesis}
 
   @synthesis_actor Actor.factory_system_actor(%{
                      "id" => "system:ingress-synthesis",
@@ -17,7 +17,14 @@ defmodule JidoCode.Operations.Synthesis do
                    })
 
   @spec from_observation(Observation.t(), keyword()) ::
-          {:ok, %{event: Event.t(), assessment: Assessment.t()}} | {:error, term()}
+          {:ok,
+           %{
+             event: Event.t(),
+             assessment: Assessment.t(),
+             work_item: JidoCode.Operations.WorkItem.t() | nil,
+             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
+           }}
+          | {:error, term()}
   def from_observation(%Observation{} = observation, opts \\ []) do
     external_object = Keyword.get(opts, :external_object)
     event_attrs = event_attrs_from_observation(observation, external_object)
@@ -27,19 +34,36 @@ defmodule JidoCode.Operations.Synthesis do
            Assessment.create(
              assessment_attrs_from_observation(observation, event, external_object),
              actor: @synthesis_actor
+           ),
+         {:ok, %{work_item: work_item, action: work_action}} <-
+           WorkSynthesis.from_assessment(
+             assessment,
+             event: event,
+             observation: observation,
+             external_object: external_object
            ) do
-      {:ok, %{event: event, assessment: assessment}}
+      {:ok, %{event: event, assessment: assessment, work_item: work_item, work_action: work_action}}
     end
   end
 
-  @spec from_intake(Intake.t()) :: {:ok, %{event: Event.t(), assessment: Assessment.t()}} | {:error, term()}
+  @spec from_intake(Intake.t()) ::
+          {:ok,
+           %{
+             event: Event.t(),
+             assessment: Assessment.t(),
+             work_item: JidoCode.Operations.WorkItem.t() | nil,
+             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
+           }}
+          | {:error, term()}
   def from_intake(%Intake{} = intake) do
     event_attrs = event_attrs_from_intake(intake)
 
     with {:ok, event} <- Event.create(event_attrs, actor: @synthesis_actor),
          {:ok, assessment} <-
-           Assessment.create(assessment_attrs_from_intake(intake, event), actor: @synthesis_actor) do
-      {:ok, %{event: event, assessment: assessment}}
+           Assessment.create(assessment_attrs_from_intake(intake, event), actor: @synthesis_actor),
+         {:ok, %{work_item: work_item, action: work_action}} <-
+           WorkSynthesis.from_assessment(assessment, event: event, intake: intake) do
+      {:ok, %{event: event, assessment: assessment, work_item: work_item, work_action: work_action}}
     end
   end
 

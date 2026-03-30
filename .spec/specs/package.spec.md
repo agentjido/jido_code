@@ -102,6 +102,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/specs/work_synthesis.spec.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: mix.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces

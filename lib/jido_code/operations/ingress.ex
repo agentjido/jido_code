@@ -24,7 +24,9 @@ defmodule JidoCode.Operations.Ingress do
              external_object: ExternalObject.t() | nil,
              observation: Observation.t(),
              event: JidoCode.Operations.Event.t(),
-             assessment: JidoCode.Operations.Assessment.t()
+             assessment: JidoCode.Operations.Assessment.t(),
+             work_item: JidoCode.Operations.WorkItem.t() | nil,
+             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
            }}
           | {:error, term()}
   def record_github_webhook_delivery(%{} = delivery) do
@@ -52,14 +54,16 @@ defmodule JidoCode.Operations.Ingress do
              },
              actor: actor
            ),
-         {:ok, %{event: event, assessment: assessment}} <-
+         {:ok, %{event: event, assessment: assessment, work_item: work_item, work_action: work_action}} <-
            Synthesis.from_observation(observation, external_object: external_object) do
       {:ok,
        %{
          external_object: external_object,
          observation: observation,
          event: event,
-         assessment: assessment
+         assessment: assessment,
+         work_item: work_item,
+         work_action: work_action
        }}
     end
   end
@@ -71,7 +75,9 @@ defmodule JidoCode.Operations.Ingress do
            %{
              intake: Intake.t(),
              event: JidoCode.Operations.Event.t(),
-             assessment: JidoCode.Operations.Assessment.t()
+             assessment: JidoCode.Operations.Assessment.t(),
+             work_item: JidoCode.Operations.WorkItem.t() | nil,
+             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
            }}
           | {:error, term()}
   def record_operator_intake(%{} = attrs) do
@@ -97,8 +103,16 @@ defmodule JidoCode.Operations.Ingress do
              },
              actor: actor
            ),
-         {:ok, %{event: event, assessment: assessment}} <- Synthesis.from_intake(intake) do
-      {:ok, %{intake: intake, event: event, assessment: assessment}}
+         {:ok, %{event: event, assessment: assessment, work_item: work_item, work_action: work_action}} <-
+           Synthesis.from_intake(intake) do
+      {:ok,
+       %{
+         intake: intake,
+         event: event,
+         assessment: assessment,
+         work_item: work_item,
+         work_action: work_action
+       }}
     end
   end
 

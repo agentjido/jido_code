@@ -48,6 +48,20 @@
       {
         "affects": [
           "package.jido_code",
+          "architecture.factory_control_plane",
+          "architecture.policy_layers",
+          "architecture.conversation_driver",
+          "docs.product_foundation"
+        ],
+        "date": "2026-03-30",
+        "file": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "id": "jido_code.factory_control_plane_and_runtime_overlay",
+        "status": "accepted",
+        "title": "Factory Control Plane And Runtime Overlay"
+      },
+      {
+        "affects": [
+          "package.jido_code",
           "architecture.jido_os_session_turn_runtime",
           "architecture.conversation_driver",
           "coding_assistance.boundary",
@@ -148,6 +162,14 @@
       },
       {
         "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Operator and repository conversations shall enter the same managed-repository control loop through `jido_os` sessions and turns as ingress and steering surfaces rather than acting as a parallel product control plane.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
         "id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
         "priority": "must",
         "stability": "evolving",
@@ -217,6 +239,46 @@
         "stability": "evolving",
         "statement": "Sprite session resources shall own sandbox provisioning, generic bootstrap, checkpointing, and resume lifecycle.",
         "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The product architecture shall normalize repository sync, policy loading, observation, intake, assessment, work creation, execution, evidence, and decision-making through one durable managed-repository control loop.",
+        "subject_id": "architecture.factory_control_plane"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.lightweight_hosted_multi_user_posture",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The architecture shall remain single-user-first while supporting lightweight hosted multi-user supervision with at least admin and standard operator distinction.",
+        "subject_id": "architecture.factory_control_plane"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.product_is_governed_software_factory",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall treat the product as a governed software factory for Git-backed repositories rather than as a chat-first assistant or passive dashboard.",
+        "subject_id": "architecture.factory_control_plane"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Repo-native state layers such as `.spec/` and optional Git-native planning state shall inform posture, planning, review, and work selection without replacing the Ash-backed product control plane.",
+        "subject_id": "architecture.factory_control_plane"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The preferred control-plane repository model shall distinguish `SourceRepo` as the external Git identity and `ManagedRepo` as the durable internal managed wrapper, with current `Project` naming treated as transitional implementation vocabulary.",
+        "subject_id": "architecture.factory_control_plane"
       },
       {
         "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
@@ -297,6 +359,46 @@
         "stability": "evolving",
         "statement": "Tool requests, tool results, assistant outputs, and produced artifacts shall be represented as first-class turn records or projections rather than remaining implicit private runtime side effects.",
         "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Ash policy shall be treated as a first-class control-plane membrane for who can read or mutate product resources rather than as a thin authentication wrapper.",
+        "subject_id": "architecture.policy_layers"
+      },
+      {
+        "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers.explicit_human_and_machine_actor_classes",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The architecture shall model explicit human and machine actor classes for data-plane authorization, including at least admin, operator, factory-system, managed-repo-orchestrator, run-worker, and external-ingress actors.",
+        "subject_id": "architecture.policy_layers"
+      },
+      {
+        "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Repository governance policy, Ash data-plane policy, and `jido_os` runtime policy shall interlock but remain distinct instead of collapsing into one merged policy system.",
+        "subject_id": "architecture.policy_layers"
+      },
+      {
+        "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Repository behavior, approval thresholds, autonomy limits, and review expectations shall be governed through repo-level governance objects such as `PolicySet` and adjacent posture or review rules.",
+        "subject_id": "architecture.policy_layers"
+      },
+      {
+        "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers.runtime_policy_governs_session_and_turn_capability",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "`jido_os` runtime policy shall govern what sessions, turns, and runtime execution paths are admitted or denied at the interaction layer.",
+        "subject_id": "architecture.policy_layers"
       },
       {
         "file": ".spec/specs/vsm_recursion.spec.md",
@@ -1108,6 +1210,14 @@
       },
       {
         "file": ".spec/specs/spec_system.spec.md",
+        "id": "spec.workspace.planning_docs_supported",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The workspace may keep phased implementation and migration plans under .spec/planning/, while current-truth rules remain in .spec/specs and .spec/decisions.",
+        "subject_id": "spec.system"
+      },
+      {
+        "file": ".spec/specs/spec_system.spec.md",
         "id": "spec.workspace.readme_present",
         "priority": "must",
         "stability": "stable",
@@ -1196,6 +1306,24 @@
       }
     ],
     "scenarios": [
+      {
+        "covers": [
+          "architecture.conversation_driver.code_server_routes_through_boundary",
+          "architecture.conversation_driver.conversation_is_ingress_and_steering_surface"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "given": [
+          "An operator or repo-facing conversation is active for a managed repository."
+        ],
+        "id": "architecture.conversation_driver.scenario_conversation_enters_factory_loop",
+        "subject_id": "architecture.conversation_driver",
+        "then": [
+          "The turn is treated as ingress and steering input to the same managed-repository control loop rather than as a second product truth lane outside factory governance."
+        ],
+        "when": [
+          "A coding-oriented turn is admitted through the conversation path."
+        ]
+      },
       {
         "covers": [
           "architecture.conversation_driver.subscriber_event_contract_preserved",
@@ -1291,6 +1419,59 @@
       },
       {
         "covers": [
+          "architecture.factory_control_plane.lightweight_hosted_multi_user_posture"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "given": [
+          "The product is deployed in a hosted multi-user mode."
+        ],
+        "id": "architecture.factory_control_plane.scenario_hosted_mode_stays_lightweight",
+        "subject_id": "architecture.factory_control_plane",
+        "then": [
+          "The system retains a lightweight admin-versus-operator distinction without requiring a heavyweight enterprise permission model in the first version."
+        ],
+        "when": [
+          "Multiple humans supervise the same factory instance."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.product_is_governed_software_factory",
+          "architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects",
+          "architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "given": [
+          "A Git-backed repository is under product supervision."
+        ],
+        "id": "architecture.factory_control_plane.scenario_repo_demand_becomes_governed_work",
+        "subject_id": "architecture.factory_control_plane",
+        "then": [
+          "The repository is treated as a managed control-plane object, and the demand is expected to flow through the durable work loop instead of being handled as an isolated chat or UI event."
+        ],
+        "when": [
+          "New demand arrives from repo sync, operator input, or an external integration."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "given": [
+          "A managed repository contains `.spec/` state and may also contain Git-native planning state."
+        ],
+        "id": "architecture.factory_control_plane.scenario_repo_native_state_guides_factory_decisions",
+        "subject_id": "architecture.factory_control_plane",
+        "then": [
+          "Repo-native state may inform control decisions while the product retains its own durable control-plane records and governance boundaries."
+        ],
+        "when": [
+          "The factory evaluates planning, review, or execution readiness."
+        ]
+      },
+      {
+        "covers": [
           "architecture.jido_os_session_turn_runtime.session_owns_ordered_turns",
           "architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface",
           "architecture.jido_os_session_turn_runtime.public_turn_event_surface",
@@ -1345,6 +1526,27 @@
         ],
         "when": [
           "A new turn is created with actor-bound runtime context."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+          "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+          "architecture.policy_layers.runtime_policy_governs_session_and_turn_capability",
+          "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+          "architecture.policy_layers.explicit_human_and_machine_actor_classes"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "given": [
+          "A managed repository request arrives through a product-facing or runtime-facing path."
+        ],
+        "id": "architecture.policy_layers.scenario_repo_action_crosses_policy_layers",
+        "subject_id": "architecture.policy_layers",
+        "then": [
+          "Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set."
+        ],
+        "when": [
+          "The system decides whether work may be created, executed, or exposed."
         ]
       },
       {
@@ -2205,7 +2407,8 @@
         "meta": {
           "decisions": [
             "jido_code.coding_assistance_conversation_driver",
-            "jido_code.jido_os_session_turn_runtime"
+            "jido_code.jido_os_session_turn_runtime",
+            "jido_code.factory_control_plane_and_runtime_overlay"
           ],
           "id": "architecture.conversation_driver",
           "kind": "policy",
@@ -2214,6 +2417,7 @@
           "surface": [
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+            ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
             "lib/jido_code/code_server.ex",
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code_web/live/project_detail_live.ex"
@@ -2265,6 +2469,29 @@
           "verification_minimum_strength": null
         },
         "title": "Execution Pipeline"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane",
+        "meta": {
+          "decisions": [
+            "jido_code.namespace_and_control_naming",
+            "jido_code.factory_control_plane_and_runtime_overlay"
+          ],
+          "id": "architecture.factory_control_plane",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, and whose repo-native state layers inform but do not replace Ash-backed product truth.",
+          "surface": [
+            ".spec/decisions/jido_code.namespace_and_control_naming.md",
+            ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+            "lib/jido_code/projects/project.ex",
+            "lib/jido_code/orchestration/workflow_run.ex",
+            "lib/jido_code/code_server.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Factory Control Plane"
       },
       {
         "file": ".spec/specs/github_identity_and_integration.spec.md",
@@ -2453,6 +2680,27 @@
         "title": "Package Quality Standards"
       },
       {
+        "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers",
+        "meta": {
+          "decisions": [
+            "jido_code.factory_control_plane_and_runtime_overlay"
+          ],
+          "id": "architecture.policy_layers",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission.",
+          "surface": [
+            ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+            "lib/jido_code/accounts/user.ex",
+            "lib/jido_code/projects/project.ex",
+            "lib/jido_code/jido_os_runtime.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Policy Layers"
+      },
+      {
         "file": ".spec/specs/product_foundation_docs.spec.md",
         "id": "docs.product_foundation",
         "meta": {
@@ -2470,6 +2718,7 @@
             "CONTRIBUTING.md",
             ".spec/README.md",
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+            ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             ".spec/decisions/jido_code.runic_execution_model.md",
             ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
@@ -2640,11 +2889,13 @@
           "id": "spec.system",
           "kind": "policy",
           "status": "active",
-          "summary": "Canonical workspace contract for authored specs and generated Spec Led state.",
+          "summary": "Canonical workspace contract for current-truth specs, durable ADRs, optional planning docs, and generated Spec Led state.",
           "surface": [
             ".spec/README.md",
             ".spec/AGENTS.md",
             ".spec/decisions/README.md",
+            ".spec/planning/README.md",
+            ".spec/planning/*.md",
             ".spec/specs/*.spec.md",
             ".spec/decisions/*.md"
           ],
@@ -2735,6 +2986,15 @@
       },
       {
         "covers": [
+          "architecture.conversation_driver.conversation_is_ingress_and_steering_surface"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
           "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
           "architecture.execution_pipeline.runic_is_underlying_dag_engine",
           "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -2747,6 +3007,19 @@
         "kind": "source_file",
         "subject_id": "architecture.execution_pipeline",
         "target": ".spec/decisions/jido_code.runic_execution_model.md"
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.product_is_governed_software_factory",
+          "architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects",
+          "architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work",
+          "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
+          "architecture.factory_control_plane.lightweight_hosted_multi_user_posture"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
       },
       {
         "covers": [
@@ -2765,6 +3038,19 @@
         "kind": "source_file",
         "subject_id": "architecture.jido_os_session_turn_runtime",
         "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+          "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+          "architecture.policy_layers.runtime_policy_governs_session_and_turn_capability",
+          "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+          "architecture.policy_layers.explicit_human_and_machine_actor_classes"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
       },
       {
         "covers": [
@@ -3587,6 +3873,15 @@
         "file": ".spec/specs/product_foundation_docs.spec.md",
         "kind": "source_file",
         "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.durable_architecture_record_in_spec_workspace"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md"
       },
       {
@@ -3974,6 +4269,15 @@
       },
       {
         "covers": [
+          "spec.workspace.planning_docs_supported"
+        ],
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "source_file",
+        "subject_id": "spec.system",
+        "target": ".spec/README.md"
+      },
+      {
+        "covers": [
           "spec.workspace.state_generated"
         ],
         "file": ".spec/specs/spec_system.spec.md",
@@ -4085,13 +4389,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 8,
+    "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 135,
-    "scenarios": 51,
-    "subjects": 27,
-    "verifications": 138
+    "requirements": 147,
+    "scenarios": 56,
+    "subjects": 29,
+    "verifications": 143
   },
   "verification": {
     "claims": [
@@ -4160,6 +4464,17 @@
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
         "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -4236,6 +4551,61 @@
         "strength": "linked",
         "subject_id": "architecture.execution_pipeline",
         "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.lightweight_hosted_multi_user_posture",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.product_is_governed_software_factory",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
         "verification_index": 0
       },
       {
@@ -4346,6 +4716,61 @@
         "strength": "linked",
         "subject_id": "architecture.jido_os_session_turn_runtime",
         "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.policy_layers.explicit_human_and_machine_actor_classes",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.policy_layers.runtime_policy_governs_session_and_turn_capability",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
         "verification_index": 0
       },
       {
@@ -6182,7 +6607,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
         "verification_index": 4
       },
       {
@@ -6193,8 +6618,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
         "verification_index": 5
+      },
+      {
+        "cover_id": "docs.product_foundation.durable_architecture_record_in_spec_workspace",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 6
       },
       {
         "cover_id": "jido_os.runtime.compatibility.local_override_present",
@@ -6791,14 +7227,14 @@
         "verification_index": 2
       },
       {
-        "cover_id": "spec.workspace.state_generated",
+        "cover_id": "spec.workspace.planning_docs_supported",
         "file": ".spec/specs/spec_system.spec.md",
-        "kind": "command",
+        "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "spec.system",
-        "target": "mix spec.index",
+        "target": ".spec/README.md",
         "verification_index": 3
       },
       {
@@ -6809,8 +7245,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "spec.system",
-        "target": "mix spec.validate",
+        "target": "mix spec.index",
         "verification_index": 4
+      },
+      {
+        "cover_id": "spec.workspace.state_generated",
+        "file": ".spec/specs/spec_system.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "spec.system",
+        "target": "mix spec.validate",
+        "verification_index": 5
       },
       {
         "cover_id": "users.admin_system.bootstrap_admin",
@@ -7016,12 +7463,12 @@
     "strength_summary": {
       "claimed": 35,
       "executed": 0,
-      "linked": 230
+      "linked": 243
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 8,
-    "spec_count": 27
+    "decision_count": 9,
+    "spec_count": 29
   }
 }

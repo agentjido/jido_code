@@ -7,6 +7,7 @@ The authored specs and generated state in this folder are maintained through the
 <!-- spec.workspace.readme_present -->
 <!-- covers: package.jido_code.spec_led_workspace -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
+<!-- covers: spec.workspace.planning_docs_supported -->
 
 ## Canonical Layout
 
@@ -14,6 +15,8 @@ The authored specs and generated state in this folder are maintained through the
 - `AGENTS.md` (authored, local operating guidance for agents working in this folder)
 - `decisions/README.md` (authored ADR guidance for this workspace)
 - `decisions/*.md` (authored durable cross-cutting ADRs)
+- `planning/README.md` (authored index for phased migration and rollout plans kept beside the current-truth workspace)
+- `planning/*.md` (authored phased implementation or migration plans that complement, but do not replace, current-truth specs and ADRs)
 - `specs/spec_system.spec.md` (authored, meta-spec for this folder)
 - `specs/package.spec.md` (authored, package-level intent)
 - `specs/collaboration.spec.md` (authored, workflow and collaboration contract)
@@ -32,6 +35,7 @@ The authored specs and generated state in this folder are maintained through the
 
 ## Notes
 
-- Keep `.spec` current-state only.
+- Keep `.spec/specs` and `.spec/decisions` current-state only.
+- Use `.spec/planning/` for phased implementation and migration plans instead of embedding time-phased rollout detail into current-truth subjects or ADRs.
 - Use GitHub issues and pull requests for shared collaboration history.
 - Use Beadwork for local durable agent work state, not as a replacement for repo-level review and discussion.

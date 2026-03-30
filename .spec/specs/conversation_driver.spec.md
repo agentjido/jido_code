@@ -11,9 +11,11 @@ summary: Coding conversations center on `JidoCode.CodingAssistance` as the first
 decisions:
   - jido_code.coding_assistance_conversation_driver
   - jido_code.jido_os_session_turn_runtime
+  - jido_code.factory_control_plane_and_runtime_overlay
 surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
+  - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex
@@ -51,6 +53,11 @@ surface:
   statement: The coding-assistance conversation driver shall consume public `jido_os` session-turn lifecycle, event, and artifact surfaces and translate them into the existing conversation event model instead of coupling subscribers to `jido_os`-native payloads.
   priority: must
   stability: evolving
+
+- id: architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+  statement: Operator and repository conversations shall enter the same managed-repository control loop through `jido_os` sessions and turns as ingress and steering surfaces rather than acting as a parallel product control plane.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -79,6 +86,17 @@ surface:
     - The coding-assistance driver becomes the primary engine for coding turns.
   then:
     - Subscribers continue to receive the existing conversation event model instead of a second UI-specific protocol.
+
+- id: architecture.conversation_driver.scenario_conversation_enters_factory_loop
+  covers:
+    - architecture.conversation_driver.code_server_routes_through_boundary
+    - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+  given:
+    - An operator or repo-facing conversation is active for a managed repository.
+  when:
+    - A coding-oriented turn is admitted through the conversation path.
+  then:
+    - The turn is treated as ingress and steering input to the same managed-repository control loop rather than as a second product truth lane outside factory governance.
 ```
 
 ## Verification
@@ -97,4 +115,9 @@ surface:
   target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   covers:
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
+
+- kind: source_file
+  target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  covers:
+    - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
 ```

@@ -1,6 +1,6 @@
 # `.spec` Agent Guide
 
-Use this folder to maintain authored Spec Led Development subjects and generated state for `jido_code`.
+Use this folder to maintain authored current-truth Spec Led Development subjects, durable ADRs, optional phased planning docs, and generated state for `jido_code`.
 
 <!-- covers: spec.workspace.agents_present -->
 
@@ -18,6 +18,7 @@ Use this folder to maintain authored Spec Led Development subjects and generated
 - Add `spec-scenarios` only when `given` / `when` / `then` improves clarity.
 - Add `spec-meta.decisions` only when a subject depends on a durable cross-cutting ADR.
 - Keep ADRs in `.spec/decisions/*.md` for cross-cutting policy only.
+- Use `.spec/planning/*.md` for phased migration or rollout plans when the work needs an explicit implementation plan, and keep those plans complementary to current-truth specs rather than replacing them.
 - Prefer targeted command verifications for behavioral proof.
 - Use file-backed verifications only when the target can carry stable `covers:` markers for every covered id.
 - Keep verification targets repository-root-relative.

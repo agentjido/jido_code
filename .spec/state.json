@@ -389,7 +389,7 @@
         "id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Repository behavior, approval thresholds, autonomy limits, and review expectations shall be governed through repo-level governance objects such as `PolicySet` and adjacent posture or review rules.",
+        "statement": "Repository behavior, approval thresholds, autonomy limits, review expectations, and per-project source identity shall be governed through repo-level governance objects such as `PolicySet` and adjacent posture or review rules instead of being inferred from the global deployment mode.",
         "subject_id": "architecture.policy_layers"
       },
       {
@@ -525,7 +525,7 @@
         "id": "auth.operator_settings.hidden_during_bootstrap_entry",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The operator auth-settings console shall remain secondary to first-run bootstrap and continue-setup states, only appearing once the signed-in landing page is allowed to render its ready-state operator surfaces.",
+        "statement": "The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the landing page is allowed to render its ready-state operator surfaces.",
         "subject_id": "auth.operator_settings"
       },
       {
@@ -693,7 +693,7 @@
         "id": "auth.provider_login_flow.entrypoint_visible",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete.",
+        "statement": "The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete, while keeping provider entry out of the bootstrap-required and continue-setup start states.",
         "subject_id": "auth.provider_login_flow"
       },
       {
@@ -781,7 +781,7 @@
         "id": "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login",
         "priority": "must",
         "stability": "evolving",
-        "statement": "A self-hosted deployment shall keep local first-admin bootstrap primary and refuse provider login until bootstrap produces a valid local admin state.",
+        "statement": "A self-hosted deployment shall keep local first-admin bootstrap primary and refuse provider login until bootstrap produces a valid local admin state, with the signed-in start surface remaining lighter than a provider-first setup gauntlet.",
         "subject_id": "auth.self_hosted_provider_integration"
       },
       {
@@ -1109,7 +1109,7 @@
         "id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
         "priority": "must",
         "stability": "evolving",
-        "statement": "First-run bootstrap, signed-in start surfaces, and their auth-boundary behavior shall be specified and implemented inside jido_code rather than split into external installers or repo-local-only conventions.",
+        "statement": "First-run bootstrap, signed-in start surfaces, auto-detected deployment-mode hints, and per-project repository source identity shall be specified and implemented inside jido_code rather than split into external installers or repo-local-only conventions.",
         "subject_id": "package.jido_code"
       },
       {
@@ -1349,7 +1349,7 @@
         "id": "users.admin_system.bootstrap_admin",
         "priority": "must",
         "stability": "stable",
-        "statement": "Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, mark it as an administrator, and treat that signed-in bootstrap outcome as the only hard first-run account gate before optional product setup is deferred.",
+        "statement": "Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, mark it as an administrator, and treat that signed-in bootstrap outcome as the only hard first-run account gate before optional product setup is deferred into a signed-in start surface.",
         "subject_id": "users.admin_system"
       },
       {
@@ -1639,7 +1639,8 @@
         "id": "architecture.policy_layers.scenario_repo_action_crosses_policy_layers",
         "subject_id": "architecture.policy_layers",
         "then": [
-          "Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set."
+          "Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.",
+          "Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor."
         ],
         "when": [
           "The system decides whether work may be created, executed, or exposed."
@@ -1869,7 +1870,8 @@
         "id": "auth.operator_settings.scenario.operator_views_console",
         "subject_id": "auth.operator_settings",
         "then": [
-          "The page shows separate Provider Login and Git Provider Integrations sections and keeps future provider integrations explicit."
+          "The page shows separate Provider Login and Git Provider Integrations sections and keeps future provider integrations explicit.",
+          "The operator console does not displace the simpler signed-in start path used immediately after bootstrap."
         ],
         "when": [
           "The operator opens the landing page."
@@ -2051,7 +2053,8 @@
         "id": "auth.provider_login_flow.scenario.github_entrypoint",
         "subject_id": "auth.provider_login_flow",
         "then": [
-          "The page shows local sign-in and the GitHub sign-in entrypoint without reopening public account creation."
+          "The page shows local sign-in and the GitHub sign-in entrypoint without reopening public account creation.",
+          "The provider entry does not replace the simpler bootstrap or signed-in start surfaces."
         ],
         "when": [
           "An anonymous visitor opens the landing page."
@@ -2159,7 +2162,8 @@
         "id": "auth.self_hosted_provider_integration.scenario.bootstrap_required",
         "subject_id": "auth.self_hosted_provider_integration",
         "then": [
-          "The provider path stays unavailable and the local bootstrap path remains the required public entry route."
+          "The provider path stays unavailable and the local bootstrap path remains the required public entry route.",
+          "Signed-in follow-up setup remains optional rather than turning provider login into the next hard gate."
         ],
         "when": [
           "An operator tries to start provider login from the public entry surface."
@@ -2502,7 +2506,8 @@
         "id": "users.admin_system.scenario.bootstrap_admin",
         "subject_id": "users.admin_system",
         "then": [
-          "The system establishes one bootstrap administrator who becomes the first accountable local user and signs that administrator into the product, while optional repo and integration setup continues as signed-in follow-up work."
+          "The system establishes one bootstrap administrator who becomes the first accountable local user and signs that administrator into the product, while optional repo and integration setup continues as signed-in follow-up work.",
+          "The signed-in admin is not blocked on provider, GitHub, or project setup before entering the product."
         ],
         "when": [
           "The operator completes first-run bootstrap from `/welcome`."
@@ -2811,7 +2816,7 @@
           "id": "auth.operator_settings",
           "kind": "feature",
           "status": "active",
-          "summary": "authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete.",
+          "summary": "authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access.",
           "surface": [
             "lib/jido_code_web/live/home_live.ex",
             "test/jido_code_web/live/home_live_operator_settings_test.exs"
@@ -2850,7 +2855,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps repo-local compatibility packages version-controlled when product features would otherwise depend on sibling workspace checkouts or private transitive repos.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -2913,7 +2918,7 @@
           "id": "architecture.policy_layers",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission.",
+          "summary": "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-project source identity feeding repo governance independently from the global deployment-mode hint.",
           "surface": [
             ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
             "lib/jido_code/accounts/user.ex",
@@ -3038,7 +3043,7 @@
           "id": "auth.provider_login_flow",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.",
+          "summary": "jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in start paths until the ready-state landing view is appropriate, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in.",
           "surface": [
             "lib/jido_code/auth_providers/provider_login.ex",
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
@@ -3080,7 +3085,7 @@
           "id": "auth.self_hosted_provider_integration",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login after local bootstrap, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection against the `/welcome` landing flow.",
+          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login only after local bootstrap and the signed-in start flow no longer needs to lead, while keeping deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection explicit against the `/welcome` landing flow.",
           "surface": [
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
             "lib/jido_code_web/live/home_live.ex",
@@ -3178,7 +3183,7 @@
           "id": "users.admin_system",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then grows into an admin-managed multi-user account system with guarded registration.",
+          "summary": "jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then hands the signed-in admin to a lightweight start surface before growing into an admin-managed multi-user account system with guarded registration.",
           "surface": [
             "lib/jido_code/setup/bootstrap_status.ex",
             "lib/jido_code/setup/owner_bootstrap.ex",

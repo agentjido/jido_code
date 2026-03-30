@@ -8,7 +8,7 @@ This subject defines the authenticated landing-page operator console used to con
 id: auth.operator_settings
 kind: feature
 status: active
-summary: authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete.
+summary: authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access.
 surface:
   - lib/jido_code_web/live/home_live.ex
   - test/jido_code_web/live/home_live_operator_settings_test.exs
@@ -38,7 +38,7 @@ surface:
   stability: evolving
 
 - id: auth.operator_settings.hidden_during_bootstrap_entry
-  statement: The operator auth-settings console shall remain secondary to first-run bootstrap and continue-setup states, only appearing once the signed-in landing page is allowed to render its ready-state operator surfaces.
+  statement: The operator auth-settings console shall remain secondary to first-run bootstrap and the lightweight signed-in start surface, only appearing once the landing page is allowed to render its ready-state operator surfaces.
   priority: must
   stability: evolving
 ```
@@ -57,6 +57,7 @@ surface:
     - The operator opens the landing page.
   then:
     - The page shows separate Provider Login and Git Provider Integrations sections and keeps future provider integrations explicit.
+    - The operator console does not displace the simpler signed-in start path used immediately after bootstrap.
 
 - id: auth.operator_settings.scenario.operator_saves_broker_trust
   covers:

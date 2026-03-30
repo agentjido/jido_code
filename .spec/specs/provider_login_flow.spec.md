@@ -6,7 +6,7 @@ This subject defines the first broker-backed provider login path that is live in
 id: auth.provider_login_flow
 kind: feature
 status: active
-summary: jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.
+summary: jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, keeps that provider entry out of the admin-bootstrap and signed-in start paths until the ready-state landing view is appropriate, consumes broker-validated provider claims, and issues the same revocable local session tokens used by email sign-in.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -22,7 +22,7 @@ surface:
 
 ```spec-requirements
 - id: auth.provider_login_flow.entrypoint_visible
-  statement: The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete.
+  statement: The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete, while keeping provider entry out of the bootstrap-required and continue-setup start states.
   priority: must
   stability: evolving
 
@@ -71,6 +71,7 @@ surface:
     - An anonymous visitor opens the landing page.
   then:
     - The page shows local sign-in and the GitHub sign-in entrypoint without reopening public account creation.
+    - The provider entry does not replace the simpler bootstrap or signed-in start surfaces.
 
 - id: auth.provider_login_flow.scenario.github_sign_in
   covers:

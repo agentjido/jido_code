@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps repo-local compatibility packages version-controlled when product features would otherwise depend on sibling workspace checkouts or private transitive repos.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
@@ -63,7 +63,7 @@ surface:
   stability: evolving
 
 - id: package.jido_code.bootstrap_and_start_surfaces_in_repo
-  statement: First-run bootstrap, signed-in start surfaces, and their auth-boundary behavior shall be specified and implemented inside jido_code rather than split into external installers or repo-local-only conventions.
+  statement: First-run bootstrap, signed-in start surfaces, auto-detected deployment-mode hints, and per-project repository source identity shall be specified and implemented inside jido_code rather than split into external installers or repo-local-only conventions.
   priority: must
   stability: evolving
 ```

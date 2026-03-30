@@ -6,6 +6,8 @@ defmodule JidoCode.Operations do
   end
 
   resources do
+    resource JidoCode.Operations.Event
+    resource JidoCode.Operations.Assessment
     resource JidoCode.Operations.ExternalObject
     resource JidoCode.Operations.Observation
     resource JidoCode.Operations.Intake

@@ -50,6 +50,7 @@
           "package.jido_code",
           "architecture.factory_control_plane",
           "architecture.demand_ingress",
+          "architecture.event_assessment_synthesis",
           "architecture.policy_layers",
           "architecture.conversation_driver",
           "docs.product_foundation"
@@ -216,6 +217,46 @@
         "stability": "evolving",
         "statement": "Jido.Code shall capture verified external or system-derived facts as durable `Observation` records tied to managed-repository context before downstream planning or execution logic interprets them.",
         "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Each synthesized `Assessment` shall capture priority, urgency, and recommended next action so downstream work creation can use explicit interpretation rather than implicit feature heuristics.",
+        "subject_id": "architecture.event_assessment_synthesis"
+      },
+      {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall persist durable `Assessment` records above `Event` so the factory can record what an actionable occurrence means before work is created.",
+        "subject_id": "architecture.event_assessment_synthesis"
+      },
+      {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "`Assessment` synthesis shall preserve structured space for future posture, policy, and repo-native state inputs to influence interpretation outcomes without changing the durable object model.",
+        "subject_id": "architecture.event_assessment_synthesis"
+      },
+      {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Derived `Event` records shall preserve typed event categories, managed-repository correlation, and source-record linkage for later work synthesis and deduplication.",
+        "subject_id": "architecture.event_assessment_synthesis"
+      },
+      {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall derive durable `Event` records from normalized `Observation` and `Intake` ingress records so actionable occurrences are stored as control-plane state instead of remaining feature-local interpretation.",
+        "subject_id": "architecture.event_assessment_synthesis"
       },
       {
         "file": ".spec/specs/execution_pipeline.spec.md",
@@ -1538,6 +1579,47 @@
       },
       {
         "covers": [
+          "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+          "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+          "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+          "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+          "architecture.event_assessment_synthesis.assessment_space_for_future_inputs"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "given": [
+          "An operator request has already been normalized into a durable intake record."
+        ],
+        "id": "architecture.event_assessment_synthesis.scenario_operator_request_becomes_actionable_interpretation",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "then": [
+          "A durable `Event` and `Assessment` are recorded with typed category, repo correlation, explicit priority and urgency, recommended next action, and preserved assessment inputs for future policy or posture signals."
+        ],
+        "when": [
+          "The control plane synthesizes the request into actionable meaning."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+          "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+          "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+          "architecture.event_assessment_synthesis.assessment_priority_and_next_action"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "given": [
+          "A verified GitHub issue webhook has already been normalized into external-object and observation records."
+        ],
+        "id": "architecture.event_assessment_synthesis.scenario_verified_issue_signal_becomes_event_and_assessment",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "then": [
+          "A durable `Event` and `Assessment` are created with repo correlation, source linkage, and next-action guidance such as issue triage."
+        ],
+        "when": [
+          "The control plane synthesizes actionable meaning from that ingress."
+        ]
+      },
+      {
+        "covers": [
           "architecture.execution_pipeline.sprite_session_owns_sandbox_lifecycle",
           "architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep"
         ],
@@ -2778,6 +2860,30 @@
         "title": "Developer Workflow"
       },
       {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis",
+        "meta": {
+          "decisions": [
+            "jido_code.namespace_and_control_naming",
+            "jido_code.factory_control_plane_and_runtime_overlay"
+          ],
+          "id": "architecture.event_assessment_synthesis",
+          "kind": "feature",
+          "status": "active",
+          "summary": "Jido.Code derives durable `Event` and `Assessment` records from normalized ingress so verified external demand and trusted operator requests gain typed actionable meaning, repo correlation, and next-action guidance before work-item synthesis begins.",
+          "surface": [
+            "lib/jido_code/operations/event.ex",
+            "lib/jido_code/operations/assessment.ex",
+            "lib/jido_code/operations/synthesis.ex",
+            "lib/jido_code/operations/ingress.ex",
+            "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
+            "test/jido_code/operations/event_assessment_synthesis_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Event And Assessment Synthesis"
+      },
+      {
         "file": ".spec/specs/execution_pipeline.spec.md",
         "id": "architecture.execution_pipeline",
         "meta": {
@@ -2818,16 +2924,20 @@
             "lib/jido_code/governance/policy_set.ex",
             "lib/jido_code/governance/policy_bridge.ex",
             "lib/jido_code/operations.ex",
+            "lib/jido_code/operations/event.ex",
+            "lib/jido_code/operations/assessment.ex",
             "lib/jido_code/operations/external_object.ex",
             "lib/jido_code/operations/observation.ex",
             "lib/jido_code/operations/intake.ex",
             "lib/jido_code/operations/ingress.ex",
+            "lib/jido_code/operations/synthesis.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/orchestration/workflow_run.ex",
             "lib/jido_code/code_server.ex",
             "priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs",
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
-            "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs"
+            "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
+            "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3045,14 +3155,18 @@
             "lib/jido_code/governance/review_policy.ex",
             "lib/jido_code/governance/policy_set.ex",
             "lib/jido_code/governance/policy_bridge.ex",
+            "lib/jido_code/operations/event.ex",
+            "lib/jido_code/operations/assessment.ex",
             "lib/jido_code/operations/external_object.ex",
             "lib/jido_code/operations/observation.ex",
             "lib/jido_code/operations/intake.ex",
             "lib/jido_code/operations/ingress.ex",
+            "lib/jido_code/operations/synthesis.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/jido_os_runtime.ex",
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
-            "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs"
+            "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
+            "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3451,6 +3565,66 @@
         "kind": "command",
         "subject_id": "architecture.demand_ingress",
         "target": "mix test test/jido_code/operations/demand_ingress_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+          "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/event.ex"
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+          "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+          "architecture.event_assessment_synthesis.assessment_space_for_future_inputs"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/assessment.ex"
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+          "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+          "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+          "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+          "architecture.event_assessment_synthesis.assessment_space_for_future_inputs"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/synthesis.ex"
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+          "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+          "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+          "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+          "architecture.event_assessment_synthesis.assessment_space_for_future_inputs"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "test/jido_code/operations/event_assessment_synthesis_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+          "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+          "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+          "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+          "architecture.event_assessment_synthesis.assessment_space_for_future_inputs"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "command",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs"
       },
       {
         "covers": [
@@ -4505,6 +4679,15 @@
       },
       {
         "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/event_assessment_synthesis.spec.md"
+      },
+      {
+        "covers": [
           "package.jido_code.version_controlled_quality_surfaces"
         ],
         "file": ".spec/specs/package.spec.md",
@@ -5098,10 +5281,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 164,
-    "scenarios": 64,
-    "subjects": 31,
-    "verifications": 174
+    "requirements": 169,
+    "scenarios": 66,
+    "subjects": 32,
+    "verifications": 180
   },
   "verification": {
     "claims": [
@@ -5346,6 +5529,226 @@
         "subject_id": "architecture.demand_ingress",
         "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
         "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/event.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/event.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/assessment.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/assessment.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/assessment.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/synthesis.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/synthesis.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/synthesis.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/synthesis.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/synthesis.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -7845,6 +8248,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "package.jido_code.spec_led_workspace",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/event_assessment_synthesis.spec.md",
+        "verification_index": 4
+      },
+      {
         "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
@@ -7853,7 +8267,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": "mix.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -7864,17 +8278,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 6
       },
       {
@@ -7885,7 +8288,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 7
       },
       {
@@ -7896,18 +8299,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 8
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 9
       },
       {
@@ -7918,7 +8321,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 10
       },
       {
@@ -7929,7 +8332,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 11
       },
       {
@@ -7940,7 +8343,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 12
       },
       {
@@ -7951,7 +8354,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 13
       },
       {
@@ -7962,7 +8365,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 14
       },
       {
@@ -7973,7 +8376,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 15
       },
       {
@@ -7984,7 +8387,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 16
       },
       {
@@ -7995,7 +8398,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 17
       },
       {
@@ -8006,8 +8409,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 18
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 19
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -8018,7 +8432,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 19
+        "verification_index": 20
       },
       {
         "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
@@ -8029,7 +8443,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
-        "verification_index": 20
+        "verification_index": 21
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -8849,14 +9263,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 41,
+      "claimed": 46,
       "executed": 0,
-      "linked": 299
+      "linked": 315
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 9,
-    "spec_count": 31
+    "spec_count": 32
   }
 }

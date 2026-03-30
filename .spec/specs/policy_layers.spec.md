@@ -20,14 +20,18 @@ surface:
   - lib/jido_code/governance/review_policy.ex
   - lib/jido_code/governance/policy_set.ex
   - lib/jido_code/governance/policy_bridge.ex
+  - lib/jido_code/operations/event.ex
+  - lib/jido_code/operations/assessment.ex
   - lib/jido_code/operations/external_object.ex
   - lib/jido_code/operations/observation.ex
   - lib/jido_code/operations/intake.ex
   - lib/jido_code/operations/ingress.ex
+  - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/projects/project.ex
   - lib/jido_code/jido_os_runtime.ex
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
+  - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
 ```
 
 ## Requirements

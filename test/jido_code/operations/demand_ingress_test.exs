@@ -75,7 +75,13 @@ defmodule JidoCode.Operations.DemandIngressTest do
       }
     }
 
-    assert {:ok, %{external_object: external_object, observation: observation}} =
+    assert {:ok,
+            %{
+              external_object: external_object,
+              observation: observation,
+              event: _event,
+              assessment: _assessment
+            }} =
              Ingress.record_github_webhook_delivery(delivery)
 
     assert external_object.managed_repo_id == managed_repo.id
@@ -126,7 +132,7 @@ defmodule JidoCode.Operations.DemandIngressTest do
     {:ok, managed_repo} =
       ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
-    assert {:ok, intake} =
+    assert {:ok, %{intake: intake, event: _event, assessment: _assessment}} =
              Ingress.record_operator_intake(%{
                channel: "workbench",
                intent: "fix_workflow_kickoff",

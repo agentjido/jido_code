@@ -8,7 +8,7 @@ defmodule JidoCode.Operations.Ingress do
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
-  alias JidoCode.Operations.{ExternalObject, Intake, Observation}
+  alias JidoCode.Operations.{ExternalObject, Intake, Observation, Synthesis}
   alias JidoCode.Projects.Project
 
   @github_provider :github
@@ -19,7 +19,13 @@ defmodule JidoCode.Operations.Ingress do
   @external_event_category "external_event"
 
   @spec record_github_webhook_delivery(map()) ::
-          {:ok, %{external_object: ExternalObject.t() | nil, observation: Observation.t()}}
+          {:ok,
+           %{
+             external_object: ExternalObject.t() | nil,
+             observation: Observation.t(),
+             event: JidoCode.Operations.Event.t(),
+             assessment: JidoCode.Operations.Assessment.t()
+           }}
           | {:error, term()}
   def record_github_webhook_delivery(%{} = delivery) do
     payload =
@@ -45,36 +51,54 @@ defmodule JidoCode.Operations.Ingress do
                captured_by: actor
              },
              actor: actor
-           ) do
-      {:ok, %{external_object: external_object, observation: observation}}
+           ),
+         {:ok, %{event: event, assessment: assessment}} <-
+           Synthesis.from_observation(observation, external_object: external_object) do
+      {:ok,
+       %{
+         external_object: external_object,
+         observation: observation,
+         event: event,
+         assessment: assessment
+       }}
     end
   end
 
   def record_github_webhook_delivery(_delivery), do: {:error, :invalid_delivery}
 
-  @spec record_operator_intake(map()) :: {:ok, Intake.t()} | {:error, term()}
+  @spec record_operator_intake(map()) ::
+          {:ok,
+           %{
+             intake: Intake.t(),
+             event: JidoCode.Operations.Event.t(),
+             assessment: JidoCode.Operations.Assessment.t()
+           }}
+          | {:error, term()}
   def record_operator_intake(%{} = attrs) do
     with {:ok, channel} <- fetch_required_string(attrs, :channel),
          {:ok, intent} <- fetch_required_string(attrs, :intent),
          actor <- normalize_operator_actor(Map.get(attrs, :actor) || Map.get(attrs, "actor")),
          payload <- normalize_map(Map.get(attrs, :payload) || Map.get(attrs, "payload", %{})),
          source_metadata <-
-           normalize_map(Map.get(attrs, :source_metadata) || Map.get(attrs, "source_metadata", %{})) do
-      Intake.create(
-        %{
-          managed_repo_id:
-            resolve_managed_repo_id(
-              Map.get(attrs, :managed_repo_id) || Map.get(attrs, "managed_repo_id"),
-              Map.get(attrs, :project_id) || Map.get(attrs, "project_id")
-            ),
-          channel: channel,
-          intent: intent,
-          payload: payload,
-          source_metadata: source_metadata,
-          requested_by: actor
-        },
-        actor: actor
-      )
+           normalize_map(Map.get(attrs, :source_metadata) || Map.get(attrs, "source_metadata", %{})),
+         {:ok, intake} <-
+           Intake.create(
+             %{
+               managed_repo_id:
+                 resolve_managed_repo_id(
+                   Map.get(attrs, :managed_repo_id) || Map.get(attrs, "managed_repo_id"),
+                   Map.get(attrs, :project_id) || Map.get(attrs, "project_id")
+                 ),
+               channel: channel,
+               intent: intent,
+               payload: payload,
+               source_metadata: source_metadata,
+               requested_by: actor
+             },
+             actor: actor
+           ),
+         {:ok, %{event: event, assessment: assessment}} <- Synthesis.from_intake(intake) do
+      {:ok, %{intake: intake, event: event, assessment: assessment}}
     end
   end
 

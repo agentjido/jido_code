@@ -6,6 +6,7 @@ affects:
   - package.jido_code
   - architecture.factory_control_plane
   - architecture.demand_ingress
+  - architecture.event_assessment_synthesis
   - architecture.policy_layers
   - architecture.conversation_driver
   - docs.product_foundation
@@ -20,6 +21,11 @@ affects:
 <!-- covers: architecture.demand_ingress.observation_captures_repo_and_system_facts -->
 <!-- covers: architecture.demand_ingress.intake_captures_operator_and_trusted_requests -->
 <!-- covers: architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation -->
+<!-- covers: architecture.event_assessment_synthesis.event_records_derived_from_ingress -->
+<!-- covers: architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved -->
+<!-- covers: architecture.event_assessment_synthesis.assessment_records_interpret_events -->
+<!-- covers: architecture.event_assessment_synthesis.assessment_priority_and_next_action -->
+<!-- covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs -->
 <!-- covers: architecture.policy_layers.repository_governance_policy_is_repo_control_layer -->
 <!-- covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane -->
 <!-- covers: architecture.policy_layers.runtime_policy_governs_session_and_turn_capability -->
@@ -89,6 +95,12 @@ signals should normalize into `ExternalObject` and `Observation`, while setup an
 workbench-originated operator requests should normalize into `Intake`, preserving
 actor attribution, source metadata, and managed-repository correlation before `Event`
 or `Assessment` synthesis begins.
+
+After ingress capture, interpretation becomes a system-owned control-plane step.
+`Event` and `Assessment` records should be synthesized under product authority,
+not written directly by external ingress actors, so typed actionable meaning,
+priority, urgency, and recommended next action remain part of the governed
+factory loop instead of becoming ad hoc feature-local side effects.
 
 Repo-native state layers are first-class inputs to the factory, but not replacements
 for the product control plane. Authored `.spec/` state and optional Git-native

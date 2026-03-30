@@ -629,7 +629,7 @@
         "id": "auth.provider_foundation.local_user_identity_mapping",
         "priority": "must",
         "stability": "stable",
-        "statement": "External provider identities shall resolve through a local identity record that uniquely maps provider plus host plus provider subject to one local user.",
+        "statement": "External provider identities shall resolve through a local identity record that uniquely maps provider plus host plus provider subject to one local user, regardless of whether that local user originated from bootstrap, later admin provisioning, or provider-auth provisioning.",
         "subject_id": "auth.provider_foundation"
       },
       {
@@ -749,7 +749,7 @@
         "id": "auth.provider_login_policy.blocked_before_linking",
         "priority": "must",
         "stability": "stable",
-        "statement": "Provider identities that fail login policy shall be rejected before the system creates or links a local user.",
+        "statement": "Provider identities that fail login policy shall be rejected before the system creates or links a local user, including any internal provisioning path used by provider auth.",
         "subject_id": "auth.provider_login_policy"
       },
       {
@@ -1947,7 +1947,7 @@
         ],
         "file": ".spec/specs/provider_auth_foundation.spec.md",
         "given": [
-          "A local user already exists."
+          "A local user already exists, whether it originated from bootstrap or provider-auth provisioning."
         ],
         "id": "auth.provider_foundation.scenario.identity_lookup",
         "subject_id": "auth.provider_foundation",
@@ -2080,7 +2080,8 @@
         "id": "auth.provider_login_policy.scenario.allowlist_block",
         "subject_id": "auth.provider_login_policy",
         "then": [
-          "The identity is rejected before a local user is created or linked."
+          "The identity is rejected before a local user is created or linked.",
+          "The rejection does not fall through to public registration or any later provider-provisioning step."
         ],
         "when": [
           "Login is attempted."
@@ -2942,7 +2943,7 @@
           "id": "auth.provider_foundation",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code persists provider-backed user identities and provider login configuration without replacing the local user system.",
+          "summary": "jido_code persists provider-backed user identities and provider login configuration without replacing the local user system, including when local users are provisioned through bootstrap or provider-auth flows instead of public registration.",
           "surface": [
             "lib/jido_code/accounts/user_identity.ex",
             "lib/jido_code/auth_providers.ex",
@@ -3032,7 +3033,7 @@
           "id": "auth.provider_login_policy",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code evaluates provider login enablement and provider-neutral allowlists before allowing provider identities to resolve into local users.",
+          "summary": "jido_code evaluates provider login enablement and provider-neutral allowlists before allowing provider identities to resolve into local users, and blocked identities never fall through to any public registration path.",
           "surface": [
             "lib/jido_code/auth_providers/login_policy.ex",
             "lib/jido_code/accounts/provider_identity_linker.ex",

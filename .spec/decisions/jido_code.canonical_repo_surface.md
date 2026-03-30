@@ -24,6 +24,7 @@ The repository should prefer a canonical Phoenix/Elixir root surface:
 
 - contributor workflows should use Mix commands directly, including the `spec_led_ex` Mix task surface for `.spec`
 - repo-owned operator/runtime CLIs should prefer direct Mix tasks, such as `mix command`, over repo-root shell wrapper scripts
+- dependency and lockfile refreshes should land as explicit version-controlled Mix configuration changes in the repo instead of lingering as a pile of uncurated bot branches
 - redundant shell wrappers and one-off helper scripts should be removed when an equivalent Mix task or documented workflow already exists
 - product-specific surfaces that are part of the actual repo contract, including `.spec`, `AGENTS.md`, and `tauri/`, should remain first-class
 - top-level repo-facing documentation should stay concise in `README.md`, while durable architecture and policy records live under `.spec/`
@@ -36,3 +37,4 @@ The repository should prefer a canonical Phoenix/Elixir root surface:
 - Removing the separate root `docs/` tree means any durable in-repo product or architecture guidance must move into `README.md` or `.spec/` rather than silently disappearing.
 - Any removal of root helper files requires updating both specs and deploy references so the simplified layout remains current truth.
 - Keeping worktree-based branch flow healthy is part of this policy, so contributor tooling such as git hook installation must work without assuming a literal `.git/` directory.
+- Consolidated dependency refreshes still have to preserve repo-local compatibility overrides such as `compat/jido_os` and `compat/jido_workflow` while keeping repo-owned demo surfaces on the current supported public APIs.

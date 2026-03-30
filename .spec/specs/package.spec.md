@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
@@ -65,6 +65,11 @@ surface:
 - id: package.jido_code.bootstrap_and_start_surfaces_in_repo
   statement: First-run bootstrap, signed-in start surfaces, auto-detected deployment-mode hints, and per-project repository source identity shall be specified and implemented inside jido_code rather than split into external installers or repo-local-only conventions.
   priority: must
+  stability: evolving
+
+- id: package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api
+  statement: Repo-owned AI demo and folio agent surfaces shall stay version-controlled inside jido_code and track the current supported Jido.AI agent macro surface instead of depending on removed compatibility aliases.
+  priority: should
   stability: evolving
 ```
 
@@ -165,4 +170,9 @@ surface:
   target: .spec/specs/setup_onboarding.spec.md
   covers:
     - package.jido_code.bootstrap_and_start_surfaces_in_repo
+
+- kind: command
+  target: "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex"
+  covers:
+    - package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api
 ```

@@ -52,9 +52,7 @@ defmodule JidoCode.Setup.ProjectImportPhaseOneIntegrationTest do
     refute ProjectImport.blocked?(report)
 
     {:ok, source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one",
-        actor: Actor.operator_actor()
-      )
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
 
     {:ok, managed_repo} =
       ManagedRepo.get_by_legacy_project_id(report.project_record.id, actor: Actor.operator_actor())
@@ -122,9 +120,7 @@ defmodule JidoCode.Setup.ProjectImportPhaseOneIntegrationTest do
     refute ProjectImport.blocked?(first_report)
 
     {:ok, first_source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one",
-        actor: Actor.operator_actor()
-      )
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
 
     {:ok, first_managed_repo} =
       ManagedRepo.get_by_legacy_project_id(first_report.project_record.id, actor: Actor.operator_actor())
@@ -137,9 +133,7 @@ defmodule JidoCode.Setup.ProjectImportPhaseOneIntegrationTest do
     assert second_report.project_record.import_mode == :existing
 
     {:ok, second_source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one",
-        actor: Actor.operator_actor()
-      )
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
 
     {:ok, second_managed_repo} =
       ManagedRepo.get_by_legacy_project_id(second_report.project_record.id,
@@ -147,9 +141,7 @@ defmodule JidoCode.Setup.ProjectImportPhaseOneIntegrationTest do
       )
 
     {:ok, second_policy_set} =
-      PolicySet.get_by_managed_repo_name(second_managed_repo.id, "default",
-        actor: Actor.operator_actor()
-      )
+      PolicySet.get_by_managed_repo_name(second_managed_repo.id, "default", actor: Actor.operator_actor())
 
     assert second_source_repo.id == first_source_repo.id
     assert second_source_repo.default_branch == "release"

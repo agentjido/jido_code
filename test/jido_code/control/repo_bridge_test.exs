@@ -22,9 +22,7 @@ defmodule JidoCode.Control.RepoBridgeTest do
       })
 
     {:ok, source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one",
-        actor: Actor.operator_actor()
-      )
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
 
     {:ok, managed_repo} =
       ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
@@ -69,9 +67,7 @@ defmodule JidoCode.Control.RepoBridgeTest do
       })
 
     {:ok, source_repo} =
-      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one",
-        actor: Actor.operator_actor()
-      )
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
 
     {:ok, updated_managed_repo} =
       ManagedRepo.get_by_legacy_project_id(updated_project.id, actor: Actor.operator_actor())
@@ -107,6 +103,7 @@ defmodule JidoCode.Control.RepoBridgeTest do
 
     {:ok, managed_repo} =
       ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
     {:ok, detail} = ProjectDetail.load(project.id)
 
     assert detail.managed_repo_id == managed_repo.id

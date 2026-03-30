@@ -15,7 +15,7 @@ Back to index: [README](./README.md)
 - `ManagedRepo` becomes the preferred control-plane object, but compatibility with existing project IDs and workbench routes must be preserved initially.
 - Governance records should start narrow and additive rather than forcing an all-at-once domain rewrite.
 
-[ ] 1 Phase 1 - Managed Repo Control-Plane Foundation
+[x] 1 Phase 1 - Managed Repo Control-Plane Foundation
   Establish the control-plane foundation for the software-factory direction by introducing the transitional managed-repo model, control-plane domain layout, and minimal governance scaffolding without breaking current project import and project-detail flows.
 
   [x] 1.1 Section - Repo Ontology and Transitional Resource Bridge
@@ -52,19 +52,19 @@ Back to index: [README](./README.md)
       [x] 1.2.2.2 Subtask - Apply initial Ash policy scaffolding to new control-plane resources using those actor classes.
       [x] 1.2.2.3 Subtask - Preserve current auth and hosted-user flows while narrowing future control-plane mutation paths.
 
-  [ ] 1.3 Section - Phase 1 Integration Tests
+  [x] 1.3 Section - Phase 1 Integration Tests
     Validate the new managed-repo bridge, governance baseline, and actor model without regressing current project import and detail behavior.
 
-    [ ] 1.3.1 Task - Managed-repo bridge scenarios
+    [x] 1.3.1 Task - Managed-repo bridge scenarios
       Verify existing project-oriented flows remain usable while the preferred repo ontology is introduced.
 
-      [ ] 1.3.1.1 Subtask - Add coverage for project import and lookup paths that now back or mirror `ManagedRepo`.
-      [ ] 1.3.1.2 Subtask - Add coverage for project detail compatibility during mixed `Project` and `ManagedRepo` operation.
-      [ ] 1.3.1.3 Subtask - Add coverage for identity and default-branch continuity across transitional reads and writes.
+      [x] 1.3.1.1 Subtask - Add coverage for project import and lookup paths that now back or mirror `ManagedRepo`.
+      [x] 1.3.1.2 Subtask - Add coverage for project detail compatibility during mixed `Project` and `ManagedRepo` operation.
+      [x] 1.3.1.3 Subtask - Add coverage for identity and default-branch continuity across transitional reads and writes.
 
-    [ ] 1.3.2 Task - Governance baseline scenarios
+    [x] 1.3.2 Task - Governance baseline scenarios
       Verify the first governance surfaces and actor classes are present, bounded, and compatible with existing setup flows.
 
-      [ ] 1.3.2.1 Subtask - Add coverage for `PolicySet` creation and repo association.
-      [ ] 1.3.2.2 Subtask - Add coverage for actor-aware authorization on new control-plane resources.
-      [ ] 1.3.2.3 Subtask - Verify setup and import workflows still complete under the transitional governance model.
+      [x] 1.3.2.1 Subtask - Add coverage for `PolicySet` creation and repo association.
+      [x] 1.3.2.2 Subtask - Add coverage for actor-aware authorization on new control-plane resources.
+      [x] 1.3.2.3 Subtask - Verify setup and import workflows still complete under the transitional governance model.

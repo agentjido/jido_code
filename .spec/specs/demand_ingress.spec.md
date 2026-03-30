@@ -27,6 +27,7 @@ surface:
   - lib/jido_code/workbench/project_detail_workflow_kickoff.ex
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - test/jido_code/operations/demand_ingress_test.exs
+  - test/jido_code/operations/phase_two_integration_test.exs
 ```
 
 ## Requirements
@@ -108,6 +109,14 @@ surface:
 
 - kind: source_file
   target: test/jido_code/operations/demand_ingress_test.exs
+  covers:
+    - architecture.demand_ingress.external_object_tracks_repo_external_entities
+    - architecture.demand_ingress.observation_captures_repo_and_system_facts
+    - architecture.demand_ingress.intake_captures_operator_and_trusted_requests
+    - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+
+- kind: source_file
+  target: test/jido_code/operations/phase_two_integration_test.exs
   covers:
     - architecture.demand_ingress.external_object_tracks_repo_external_entities
     - architecture.demand_ingress.observation_captures_repo_and_system_facts

@@ -20,6 +20,7 @@ surface:
   - lib/jido_code/operations/ingress.ex
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
   - test/jido_code/operations/work_synthesis_test.exs
+  - test/jido_code/operations/phase_two_integration_test.exs
 ```
 
 ## Requirements
@@ -101,6 +102,15 @@ surface:
 
 - kind: source_file
   target: test/jido_code/operations/work_synthesis_test.exs
+  covers:
+    - architecture.work_synthesis.work_item_is_canonical_operational_record
+    - architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
+    - architecture.work_synthesis.work_item_creation_can_stop_before_execution
+    - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
+    - architecture.work_synthesis.work_item_auditability_preserved
+
+- kind: source_file
+  target: test/jido_code/operations/phase_two_integration_test.exs
   covers:
     - architecture.work_synthesis.work_item_is_canonical_operational_record
     - architecture.work_synthesis.work_item_metadata_and_origin_links_preserved

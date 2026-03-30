@@ -20,6 +20,7 @@ surface:
   - lib/jido_code/operations/ingress.ex
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
   - test/jido_code/operations/event_assessment_synthesis_test.exs
+  - test/jido_code/operations/phase_two_integration_test.exs
 ```
 
 ## Requirements
@@ -115,6 +116,14 @@ surface:
     - architecture.event_assessment_synthesis.assessment_records_interpret_events
     - architecture.event_assessment_synthesis.assessment_priority_and_next_action
     - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+
+- kind: source_file
+  target: test/jido_code/operations/phase_two_integration_test.exs
+  covers:
+    - architecture.event_assessment_synthesis.event_records_derived_from_ingress
+    - architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved
+    - architecture.event_assessment_synthesis.assessment_records_interpret_events
+    - architecture.event_assessment_synthesis.assessment_priority_and_next_action
 
 - kind: command
   target: mix test test/jido_code/operations/event_assessment_synthesis_test.exs

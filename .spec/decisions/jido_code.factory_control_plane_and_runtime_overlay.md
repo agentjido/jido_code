@@ -148,6 +148,9 @@ permission lattice in the first version.
 - Existing webhook, setup, and workbench entrypoints should be adapted to durable
   ingress normalization rather than continuing to jump directly into feature-local
   launch paths.
+- Verification should favor surface-level paths such as webhook routing, setup
+  import, and workbench kickoff when proving that ingress, interpretation, and
+  work synthesis all flow through the same durable control-plane chain.
 - Conversation and coding-assistance flows need to feed the same durable repo control
   loop instead of remaining a separate orchestration lane.
 - Existing auth, setup, workflow, and coding-assistance work remains valuable because

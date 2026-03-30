@@ -21,6 +21,8 @@ surface:
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code/projects/project.ex
+  - priv/repo/migrations/20260326122740_add_project_source_identity.exs
+  - priv/resource_snapshots/repo/projects/20260326122740.json
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code/setup/project_import_test.exs
   - test/jido_code/projects/project_test.exs

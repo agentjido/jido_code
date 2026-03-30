@@ -277,7 +277,7 @@
         "id": "architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The preferred control-plane repository model shall distinguish `SourceRepo` as the external Git identity and `ManagedRepo` as the durable internal managed wrapper, with current `Project` naming treated as transitional implementation vocabulary.",
+        "statement": "The preferred control-plane repository model shall distinguish `SourceRepo` as the external Git identity and `ManagedRepo` as the durable internal managed wrapper, with current `Project` naming treated as transitional implementation vocabulary and carrying enough source identity to represent either hosted or local repositories during the transition.",
         "subject_id": "architecture.factory_control_plane"
       },
       {
@@ -1229,7 +1229,7 @@
         "id": "setup.onboarding.repo_source_per_project",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Repository source selection shall remain a per-project concern so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.",
+        "statement": "Repository source selection shall remain a per-project concern, with each project carrying its own source kind and source identity so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.",
         "subject_id": "setup.onboarding"
       },
       {
@@ -1238,6 +1238,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "Runtime and system health checks shall stay mostly transparent and appear only when they block bootstrap or make the install unsafe to continue.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.start_path_preference_persisted",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The signed-in start surface shall let the administrator save a preferred first path such as local repo, GitHub, or later without reintroducing blocking step-gated verification.",
         "subject_id": "setup.onboarding"
       },
       {
@@ -1723,7 +1731,7 @@
           "The system reports GitHub App mode as ready for the current administrator context."
         ],
         "when": [
-          "Setup validates GitHub integration."
+          "A signed-in follow-up surface validates GitHub integration."
         ]
       },
       {
@@ -1758,7 +1766,7 @@
           "The system reports PAT fallback readiness without blocking local user authentication flows."
         ],
         "when": [
-          "Setup validates GitHub integration."
+          "A signed-in follow-up surface validates GitHub integration."
         ]
       },
       {
@@ -2366,10 +2374,27 @@
         "id": "setup.onboarding.scenario.desktop_start",
         "subject_id": "setup.onboarding",
         "then": [
-          "The app enters a lightweight start flow that can emphasize attaching a local repository without requiring the admin to finish every optional integration first."
+          "The app enters a lightweight start flow that can emphasize attaching a local repository and persist that preference without requiring the admin to finish every optional integration first."
         ],
         "when": [
           "The administrator reaches the signed-in start surface."
+        ]
+      },
+      {
+        "covers": [
+          "setup.onboarding.repo_source_per_project"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A desktop deployment needs to register a local repository as a project."
+        ],
+        "id": "setup.onboarding.scenario.local_project_record",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "The record stores its local source kind and source identity on the project itself instead of inferring repository behavior from a global mode."
+        ],
+        "when": [
+          "The project record is created for that local repository."
         ]
       },
       {
@@ -2403,7 +2428,7 @@
         "id": "setup.onboarding.scenario_cloud_start",
         "subject_id": "setup.onboarding",
         "then": [
-          "The app may emphasize hosted source-control follow-up work such as GitHub connection, but the administrator can still enter the product without completing those integrations immediately."
+          "The app may emphasize hosted source-control follow-up work such as GitHub connection, persist that preference, and still defer those integrations out of the blocking onboarding path."
         ],
         "when": [
           "The administrator reaches the signed-in start surface."
@@ -2537,10 +2562,12 @@
           "surface": [
             "lib/jido_code_web/router.ex",
             "lib/jido_code_web/live/home_live.ex",
+            "lib/jido_code_web/live/setup_live.ex",
             "lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex",
             "lib/jido_code_web/components/layouts.ex",
             "test/jido_code_web/controllers/page_controller_test.exs",
             "test/jido_code_web/live/home_live_test.exs",
+            "test/jido_code_web/live/setup_live_test.exs",
             "test/jido_code_web/live/welcome_live_test.exs"
           ],
           "verification_minimum_strength": null
@@ -2700,9 +2727,10 @@
           "surface": [
             "lib/jido_code/setup/github_credential_checks.ex",
             "lib/jido_code/setup/github_installation_sync.ex",
-            "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
             "lib/jido_code/accounts/user.ex",
-            "lib/jido_code/accounts/user_identity.ex"
+            "lib/jido_code/accounts/user_identity.ex",
+            "test/jido_code/setup/github_credential_checks_test.exs",
+            "test/jido_code_web/live/setup_live_github_auth_mode_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3078,11 +3106,18 @@
             ".spec/specs/baseline_surface.spec.md",
             ".spec/specs/user_administration.spec.md",
             ".spec/specs/github_identity_and_integration.spec.md",
+            "lib/jido_code/setup/deployment_mode.ex",
+            "lib/jido_code/setup/project_import.ex",
             "lib/jido_code_web/live/home_live.ex",
             "lib/jido_code_web/live/setup_live.ex",
             "lib/jido_code_web/live/dashboard_live.ex",
-            "lib/jido_code/setup/runtime_mode.ex",
-            "lib/jido_code/projects/project.ex"
+            "lib/jido_code/projects/project.ex",
+            "priv/repo/migrations/20260326122740_add_project_source_identity.exs",
+            "priv/resource_snapshots/repo/projects/20260326122740.json",
+            "test/jido_code_web/live/setup_live_test.exs",
+            "test/jido_code/setup/project_import_test.exs",
+            "test/jido_code/projects/project_test.exs",
+            "test/jido_code/setup/deployment_mode_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3324,16 +3359,6 @@
       },
       {
         "covers": [
-          "auth.github_integration.readiness_feedback",
-          "auth.github_integration.non_blocking_local_auth"
-        ],
-        "file": ".spec/specs/github_identity_and_integration.spec.md",
-        "kind": "source_file",
-        "subject_id": "auth.github_integration",
-        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs"
-      },
-      {
-        "covers": [
           "auth.github_integration.local_user_mapping"
         ],
         "file": ".spec/specs/github_identity_and_integration.spec.md",
@@ -3349,6 +3374,25 @@
         "kind": "source_file",
         "subject_id": "auth.github_integration",
         "target": "lib/jido_code/accounts/user_identity.ex"
+      },
+      {
+        "covers": [
+          "auth.github_integration.readiness_feedback",
+          "auth.github_integration.non_blocking_local_auth"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code/setup/github_credential_checks_test.exs"
+      },
+      {
+        "covers": [
+          "auth.github_integration.non_blocking_local_auth"
+        ],
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs"
       },
       {
         "covers": [
@@ -3819,6 +3863,15 @@
       },
       {
         "covers": [
+          "baseline.surface.public_entry_routes"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/live/setup_live.ex"
+      },
+      {
+        "covers": [
           "baseline.surface.public_entry_routes",
           "baseline.surface.auth_entrypoints_visible"
         ],
@@ -3845,6 +3898,15 @@
         "kind": "source_file",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/home_live_test.exs"
+      },
+      {
+        "covers": [
+          "baseline.surface.public_entry_routes"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/setup_live_test.exs"
       },
       {
         "covers": [
@@ -4473,13 +4535,90 @@
       },
       {
         "covers": [
+          "setup.onboarding.deployment_mode_auto_detected"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/deployment_mode.ex"
+      },
+      {
+        "covers": [
+          "setup.onboarding.post_bootstrap_start_surface",
           "setup.onboarding.deployment_mode_auto_detected",
+          "setup.onboarding.deferred_integrations",
+          "setup.onboarding.start_path_preference_persisted"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex"
+      },
+      {
+        "covers": [
           "setup.onboarding.repo_source_per_project"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
         "kind": "source_file",
         "subject_id": "setup.onboarding",
         "target": ".spec/specs/setup_onboarding.spec.md"
+      },
+      {
+        "covers": [
+          "setup.onboarding.repo_source_per_project"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/projects/project.ex"
+      },
+      {
+        "covers": [
+          "setup.onboarding.repo_source_per_project"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/project_import.ex"
+      },
+      {
+        "covers": [
+          "setup.onboarding.repo_source_per_project"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/projects/project_test.exs"
+      },
+      {
+        "covers": [
+          "setup.onboarding.repo_source_per_project"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/setup/project_import_test.exs"
+      },
+      {
+        "covers": [
+          "setup.onboarding.deployment_mode_auto_detected"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/setup/deployment_mode_test.exs"
+      },
+      {
+        "covers": [
+          "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.deployment_mode_auto_detected",
+          "setup.onboarding.deferred_integrations",
+          "setup.onboarding.start_path_preference_persisted"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs"
       },
       {
         "covers": [
@@ -4752,10 +4891,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 158,
-    "scenarios": 61,
+    "requirements": 159,
+    "scenarios": 62,
     "subjects": 30,
-    "verifications": 155
+    "verifications": 166
   },
   "verification": {
     "claims": [
@@ -5244,28 +5383,6 @@
         "verification_index": 1
       },
       {
-        "cover_id": "auth.github_integration.non_blocking_local_auth",
-        "file": ".spec/specs/github_identity_and_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "auth.github_integration",
-        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "auth.github_integration.readiness_feedback",
-        "file": ".spec/specs/github_identity_and_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "auth.github_integration",
-        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
-        "verification_index": 2
-      },
-      {
         "cover_id": "auth.github_integration.local_user_mapping",
         "file": ".spec/specs/github_identity_and_integration.spec.md",
         "kind": "source_file",
@@ -5274,7 +5391,7 @@
         "strength": "linked",
         "subject_id": "auth.github_integration",
         "target": "lib/jido_code/accounts/user.ex",
-        "verification_index": 3
+        "verification_index": 2
       },
       {
         "cover_id": "auth.github_integration.local_user_mapping",
@@ -5285,7 +5402,40 @@
         "strength": "linked",
         "subject_id": "auth.github_integration",
         "target": "lib/jido_code/accounts/user_identity.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.github_integration.non_blocking_local_auth",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code/setup/github_credential_checks_test.exs",
         "verification_index": 4
+      },
+      {
+        "cover_id": "auth.github_integration.readiness_feedback",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code/setup/github_credential_checks_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "auth.github_integration.non_blocking_local_auth",
+        "file": ".spec/specs/github_identity_and_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.github_integration",
+        "target": "test/jido_code_web/live/setup_live_github_auth_mode_test.exs",
+        "verification_index": 5
       },
       {
         "cover_id": "auth.github_service_credentials.login_service_split",
@@ -6553,6 +6703,17 @@
         "verification_index": 1
       },
       {
+        "cover_id": "baseline.surface.public_entry_routes",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 2
+      },
+      {
         "cover_id": "baseline.surface.auth_entrypoints_visible",
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
@@ -6561,7 +6722,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "baseline.surface.public_entry_routes",
@@ -6572,7 +6733,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "baseline.surface.root_redirects_to_welcome",
@@ -6583,7 +6744,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/controllers/page_controller_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "baseline.surface.auth_entrypoints_visible",
@@ -6594,7 +6755,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/home_live_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "baseline.surface.welcome_landing_copy",
@@ -6605,7 +6766,18 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/home_live_test.exs",
-        "verification_index": 4
+        "verification_index": 5
+      },
+      {
+        "cover_id": "baseline.surface.public_entry_routes",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 6
       },
       {
         "cover_id": "baseline.surface.welcome_landing_copy",
@@ -6616,7 +6788,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/welcome_live_test.exs",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "baseline.surface.welcome_surface_consolidated",
@@ -6627,7 +6799,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "test ! -e lib/jido_code_web/live/welcome_live.ex",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "baseline.surface.product_routes_declared",
@@ -6638,7 +6810,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "mix compile",
-        "verification_index": 7
+        "verification_index": 9
       },
       {
         "cover_id": "baseline.surface.public_entry_routes",
@@ -6649,7 +6821,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "mix compile",
-        "verification_index": 7
+        "verification_index": 9
       },
       {
         "cover_id": "coding_assistance.boundary.product_local_driver_api",
@@ -7594,8 +7766,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "setup.onboarding",
-        "target": ".spec/specs/setup_onboarding.spec.md",
+        "target": "lib/jido_code/setup/deployment_mode.ex",
         "verification_index": 3
+      },
+      {
+        "cover_id": "setup.onboarding.deferred_integrations",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "setup.onboarding.deployment_mode_auto_detected",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_start_surface",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "setup.onboarding.start_path_preference_persisted",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code_web/live/setup_live.ex",
+        "verification_index": 4
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -7606,7 +7822,106 @@
         "strength": "linked",
         "subject_id": "setup.onboarding",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 3
+        "verification_index": 5
+      },
+      {
+        "cover_id": "setup.onboarding.repo_source_per_project",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/projects/project.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "setup.onboarding.repo_source_per_project",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/project_import.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "setup.onboarding.repo_source_per_project",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/projects/project_test.exs",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "setup.onboarding.repo_source_per_project",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/setup/project_import_test.exs",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "setup.onboarding.deployment_mode_auto_detected",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code/setup/deployment_mode_test.exs",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "setup.onboarding.deferred_integrations",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "setup.onboarding.deployment_mode_auto_detected",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_start_surface",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "setup.onboarding.start_path_preference_persisted",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 11
       },
       {
         "cover_id": "source.provider_adapter.placeholder_adapters",
@@ -8131,7 +8446,7 @@
     "strength_summary": {
       "claimed": 36,
       "executed": 0,
-      "linked": 270
+      "linked": 286
     },
     "threshold_failures": 0
   },

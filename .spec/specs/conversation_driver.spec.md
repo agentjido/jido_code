@@ -10,8 +10,10 @@ status: active
 summary: Coding conversations center on `JidoCode.CodingAssistance` as the first-class driver boundary while `CodeServer`, UI subscribers, and jido_os session state stay aligned through a stable conversation event contract.
 decisions:
   - jido_code.coding_assistance_conversation_driver
+  - jido_code.jido_os_session_turn_runtime
 surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
+  - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex
@@ -44,6 +46,11 @@ surface:
   statement: The coding-assistance conversation driver shall translate service responses back into the existing conversation event model so subscriber-facing UI integrations remain stable while the driver changes.
   priority: must
   stability: evolving
+
+- id: architecture.conversation_driver.public_jido_os_turn_event_bridge
+  statement: The coding-assistance conversation driver shall consume public `jido_os` session-turn lifecycle, event, and artifact surfaces and translate them into the existing conversation event model instead of coupling subscribers to `jido_os`-native payloads.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -65,6 +72,7 @@ surface:
 - id: architecture.conversation_driver.scenario_existing_ui_event_contract_survives_driver_swap
   covers:
     - architecture.conversation_driver.subscriber_event_contract_preserved
+    - architecture.conversation_driver.public_jido_os_turn_event_bridge
   given:
     - Conversation subscribers already render assistant stream, final assistant messages, and failure states from the existing event bus.
   when:
@@ -84,4 +92,9 @@ surface:
     - architecture.conversation_driver.conversation_identity_maps_to_session
     - architecture.conversation_driver.actor_context_propagated
     - architecture.conversation_driver.subscriber_event_contract_preserved
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
+  covers:
+    - architecture.conversation_driver.public_jido_os_turn_event_bridge
 ```

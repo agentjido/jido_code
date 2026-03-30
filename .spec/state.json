@@ -47,6 +47,21 @@
       },
       {
         "affects": [
+          "package.jido_code",
+          "architecture.jido_os_session_turn_runtime",
+          "architecture.conversation_driver",
+          "coding_assistance.boundary",
+          "jido_os.runtime.compatibility",
+          "docs.product_foundation"
+        ],
+        "date": "2026-03-30",
+        "file": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "id": "jido_code.jido_os_session_turn_runtime",
+        "status": "accepted",
+        "title": "Jido OS Session-Owned Turn Runtime"
+      },
+      {
+        "affects": [
           "developer.workflow",
           "docs.product_foundation",
           "package.jido_code",
@@ -133,6 +148,14 @@
       },
       {
         "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The coding-assistance conversation driver shall consume public `jido_os` session-turn lifecycle, event, and artifact surfaces and translate them into the existing conversation event model instead of coupling subscribers to `jido_os`-native payloads.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
         "id": "architecture.conversation_driver.subscriber_event_contract_preserved",
         "priority": "must",
         "stability": "evolving",
@@ -194,6 +217,86 @@
         "stability": "evolving",
         "statement": "Sprite session resources shall own sandbox provisioning, generic bootstrap, checkpointing, and resume lifecycle.",
         "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.actor_bound_context_required",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Public turn operations shall require actor-bound runtime context, including actor, request, correlation, session, and relevant project or workspace identifiers, so security, tracing, and policy remain enforceable.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.authority_boundaries_preserved",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Session authority, directory authority, policy authority, and coding-assistance execution shall remain distinct public boundaries, with product code calling those public authorities instead of mutating session or turn state directly.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Missing session scope, missing required actor context, missing project binding for repo-scoped work, or policy denial shall fail closed instead of falling back to implicit execution.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.policy_gated_turn_actions",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Turn lifecycle, event access, artifact access, and cancellation actions shall remain subject to named `jido_os` policy checks rather than bypassing the current allow-policy model.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.prior_turn_context_assembly",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "New coding-assistance turns shall be able to assemble prompt and execution context from the prior turns owned by the same session.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.project_binding_scopes_repo_turns",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "When a coding-assistance turn requires repository scope, the session's project binding shall remain the authoritative scope boundary for that turn.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.public_turn_event_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "`jido_os` shall expose a public event surface for live turn progress and replayable turn history so product code can subscribe to or query emitted turn events through stable public APIs.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "`jido_os` shall expose a public turn lifecycle surface with operations equivalent to starting, loading, listing, and cancelling turns without requiring product code to call private agent internals.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.session_owns_ordered_turns",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "A `jido_os` coding-assistance session shall own the ordered turn history for that coding conversation instead of reducing the session to metadata only.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.turn_outputs_are_first_class_records",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Tool requests, tool results, assistant outputs, and produced artifacts shall be represented as first-class turn records or projections rather than remaining implicit private runtime side effects.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
       },
       {
         "file": ".spec/specs/vsm_recursion.spec.md",
@@ -669,6 +772,14 @@
       },
       {
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.policy_context_propagation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The coding-assistance boundary shall propagate actor, session, project, request, correlation, and workspace context into public `jido_os` operations so downstream policy and authority checks remain enforceable.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "id": "coding_assistance.boundary.product_local_driver_api",
         "priority": "must",
         "stability": "evolving",
@@ -681,6 +792,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "jido_code shall route coding-assistance requests through public `Jido.Os.CodingAssist.Service` and session/runtime agent APIs instead of reaching into private coding agent internals.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.public_turn_runtime_boundary",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "As `jido_os` grows a session-owned turn runtime, the coding-assistance boundary shall use public `jido_os` turn lifecycle, event, query, and cancellation APIs instead of persisting turn state itself or reading private coding agent internals.",
         "subject_id": "coding_assistance.boundary"
       },
       {
@@ -1079,7 +1198,8 @@
     "scenarios": [
       {
         "covers": [
-          "architecture.conversation_driver.subscriber_event_contract_preserved"
+          "architecture.conversation_driver.subscriber_event_contract_preserved",
+          "architecture.conversation_driver.public_jido_os_turn_event_bridge"
         ],
         "file": ".spec/specs/conversation_driver.spec.md",
         "given": [
@@ -1167,6 +1287,64 @@
         ],
         "when": [
           "Lint, tests, and spec checks can execute independently."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.jido_os_session_turn_runtime.session_owns_ordered_turns",
+          "architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface",
+          "architecture.jido_os_session_turn_runtime.public_turn_event_surface",
+          "architecture.jido_os_session_turn_runtime.turn_outputs_are_first_class_records",
+          "architecture.jido_os_session_turn_runtime.project_binding_scopes_repo_turns"
+        ],
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "given": [
+          "A coding-assistance session is already bound to a project."
+        ],
+        "id": "architecture.jido_os_session_turn_runtime.scenario_bound_session_starts_turn",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "then": [
+          "The turn is recorded under the session, turn events can be observed through a public event surface, and resulting tool activity and artifacts are available as first-class turn outputs."
+        ],
+        "when": [
+          "A new coding turn is started for that session."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.jido_os_session_turn_runtime.authority_boundaries_preserved",
+          "architecture.jido_os_session_turn_runtime.policy_gated_turn_actions",
+          "architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation"
+        ],
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "given": [
+          "A caller lacks required policy permission or repository scope for a coding turn."
+        ],
+        "id": "architecture.jido_os_session_turn_runtime.scenario_policy_or_scope_denial_blocks_execution",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "then": [
+          "The public authority boundary denies the operation without executing the turn through an implicit private backdoor."
+        ],
+        "when": [
+          "The caller attempts to start, inspect, subscribe to, or cancel that turn."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.jido_os_session_turn_runtime.prior_turn_context_assembly",
+          "architecture.jido_os_session_turn_runtime.actor_bound_context_required"
+        ],
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "given": [
+          "A coding-assistance session already contains prior turns."
+        ],
+        "id": "architecture.jido_os_session_turn_runtime.scenario_prior_turns_shape_next_request",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "then": [
+          "The new turn can assemble execution context from prior turns while preserving actor, request, and correlation metadata."
+        ],
+        "when": [
+          "A new turn is created with actor-bound runtime context."
         ]
       },
       {
@@ -1988,7 +2166,8 @@
         "id": "coding_assistance.boundary",
         "meta": {
           "decisions": [
-            "jido_code.coding_assistance_conversation_driver"
+            "jido_code.coding_assistance_conversation_driver",
+            "jido_code.jido_os_session_turn_runtime"
           ],
           "id": "coding_assistance.boundary",
           "kind": "feature",
@@ -1997,6 +2176,7 @@
           "surface": [
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code/jido_os_runtime.ex",
+            ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             "test/jido_code/coding_assistance_test.exs"
           ],
           "verification_minimum_strength": null
@@ -2024,7 +2204,8 @@
         "id": "architecture.conversation_driver",
         "meta": {
           "decisions": [
-            "jido_code.coding_assistance_conversation_driver"
+            "jido_code.coding_assistance_conversation_driver",
+            "jido_code.jido_os_session_turn_runtime"
           ],
           "id": "architecture.conversation_driver",
           "kind": "policy",
@@ -2032,6 +2213,7 @@
           "summary": "Coding conversations center on `JidoCode.CodingAssistance` as the first-class driver boundary while `CodeServer`, UI subscribers, and jido_os session state stay aligned through a stable conversation event contract.",
           "surface": [
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+            ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             "lib/jido_code/code_server.ex",
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code_web/live/project_detail_live.ex"
@@ -2131,7 +2313,9 @@
         "file": ".spec/specs/jido_os_runtime_compatibility.spec.md",
         "id": "jido_os.runtime.compatibility",
         "meta": {
-          "decisions": null,
+          "decisions": [
+            "jido_code.jido_os_session_turn_runtime"
+          ],
           "id": "jido_os.runtime.compatibility",
           "kind": "feature",
           "status": "active",
@@ -2145,6 +2329,31 @@
           "verification_minimum_strength": null
         },
         "title": "Jido OS Runtime Compatibility"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime",
+        "meta": {
+          "decisions": [
+            "jido_code.jido_os_session_turn_runtime"
+          ],
+          "id": "architecture.jido_os_session_turn_runtime",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code expects `jido_os` coding-assistance sessions to own ordered turns through public turn lifecycle, event, query, cancellation, and artifact surfaces while preserving actor-bound context, named policy checks, project scoping, and authority boundaries.",
+          "surface": [
+            ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+            "compat/jido_os/lib/jido/os/coding_assist/service.ex",
+            "compat/jido_os/lib/jido/os/session/runtime_agent.ex",
+            "compat/jido_os/lib/jido/os/session/directory_agent.ex",
+            "compat/jido_os/lib/jido/os/policy/runtime.ex",
+            "compat/jido_os/lib/jido/os/state.ex",
+            "lib/jido_code/coding_assistance.ex",
+            "lib/jido_code/jido_os_runtime.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Jido OS Session Turn Runtime"
       },
       {
         "file": ".spec/specs/operator_auth_settings.spec.md",
@@ -2261,6 +2470,7 @@
             "CONTRIBUTING.md",
             ".spec/README.md",
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+            ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             ".spec/decisions/jido_code.runic_execution_model.md",
             ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
             "tauri/README.md"
@@ -2516,6 +2726,15 @@
       },
       {
         "covers": [
+          "architecture.conversation_driver.public_jido_os_turn_event_bridge"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md"
+      },
+      {
+        "covers": [
           "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
           "architecture.execution_pipeline.runic_is_underlying_dag_engine",
           "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -2528,6 +2747,24 @@
         "kind": "source_file",
         "subject_id": "architecture.execution_pipeline",
         "target": ".spec/decisions/jido_code.runic_execution_model.md"
+      },
+      {
+        "covers": [
+          "architecture.jido_os_session_turn_runtime.session_owns_ordered_turns",
+          "architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface",
+          "architecture.jido_os_session_turn_runtime.public_turn_event_surface",
+          "architecture.jido_os_session_turn_runtime.turn_outputs_are_first_class_records",
+          "architecture.jido_os_session_turn_runtime.prior_turn_context_assembly",
+          "architecture.jido_os_session_turn_runtime.actor_bound_context_required",
+          "architecture.jido_os_session_turn_runtime.authority_boundaries_preserved",
+          "architecture.jido_os_session_turn_runtime.policy_gated_turn_actions",
+          "architecture.jido_os_session_turn_runtime.project_binding_scopes_repo_turns",
+          "architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation"
+        ],
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md"
       },
       {
         "covers": [
@@ -3111,6 +3348,16 @@
       },
       {
         "covers": [
+          "coding_assistance.boundary.policy_context_propagation",
+          "coding_assistance.boundary.public_turn_runtime_boundary"
+        ],
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "subject_id": "coding_assistance.boundary",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md"
+      },
+      {
+        "covers": [
           "coding_assistance.boundary.session_prepared_before_assist",
           "coding_assistance.boundary.session_authority_delegation"
         ],
@@ -3332,6 +3579,15 @@
         "kind": "source_file",
         "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.durable_architecture_record_in_spec_workspace"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md"
       },
       {
         "covers": [
@@ -3829,13 +4085,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 7,
+    "decisions": 8,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 122,
-    "scenarios": 48,
-    "subjects": 26,
-    "verifications": 134
+    "requirements": 135,
+    "scenarios": 51,
+    "subjects": 27,
+    "verifications": 138
   },
   "verification": {
     "claims": [
@@ -3893,6 +4149,17 @@
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
         "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 1
       },
       {
         "cover_id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -3969,6 +4236,116 @@
         "strength": "linked",
         "subject_id": "architecture.execution_pipeline",
         "target": ".spec/decisions/jido_code.runic_execution_model.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.actor_bound_context_required",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.authority_boundaries_preserved",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.policy_gated_turn_actions",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.prior_turn_context_assembly",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.project_binding_scopes_repo_turns",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.public_turn_event_surface",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.session_owns_ordered_turns",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.turn_outputs_are_first_class_records",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
         "verification_index": 0
       },
       {
@@ -5424,6 +5801,28 @@
         "verification_index": 1
       },
       {
+        "cover_id": "coding_assistance.boundary.policy_context_propagation",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "coding_assistance.boundary.public_turn_runtime_boundary",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "verification_index": 2
+      },
+      {
         "cover_id": "coding_assistance.boundary.session_authority_delegation",
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "kind": "source_file",
@@ -5432,7 +5831,7 @@
         "strength": "linked",
         "subject_id": "coding_assistance.boundary",
         "target": "test/jido_code/coding_assistance_test.exs",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
@@ -5443,7 +5842,7 @@
         "strength": "linked",
         "subject_id": "coding_assistance.boundary",
         "target": "test/jido_code/coding_assistance_test.exs",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "coding_assistance.boundary.public_jido_os_service_boundary",
@@ -5454,7 +5853,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "coding_assistance.boundary.runtime_bootstrap_defaults",
@@ -5465,7 +5864,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "coding_assistance.boundary.session_authority_delegation",
@@ -5476,7 +5875,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
@@ -5487,7 +5886,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "collaboration.workflow.beadwork_enabled",
@@ -5783,8 +6182,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
         "verification_index": 4
+      },
+      {
+        "cover_id": "docs.product_foundation.durable_architecture_record_in_spec_workspace",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 5
       },
       {
         "cover_id": "jido_os.runtime.compatibility.local_override_present",
@@ -6606,12 +7016,12 @@
     "strength_summary": {
       "claimed": 35,
       "executed": 0,
-      "linked": 216
+      "linked": 230
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 7,
-    "spec_count": 26
+    "decision_count": 8,
+    "spec_count": 27
   }
 }

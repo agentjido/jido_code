@@ -8,6 +8,8 @@ id: jido_os.runtime.compatibility
 kind: feature
 status: active
 summary: jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, and coding-assistance APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI.
+decisions:
+  - jido_code.jido_os_session_turn_runtime
 surface:
   - mix.exs
   - compat/jido_os/mix.exs

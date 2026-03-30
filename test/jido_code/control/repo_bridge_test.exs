@@ -1,7 +1,7 @@
 defmodule JidoCode.Control.RepoBridgeTest do
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Control.{ManagedRepo, SourceRepo}
+  alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
   alias JidoCode.Workbench.ProjectDetail
@@ -21,8 +21,13 @@ defmodule JidoCode.Control.RepoBridgeTest do
         }
       })
 
-    {:ok, source_repo} = SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one")
-    {:ok, managed_repo} = ManagedRepo.get_by_legacy_project_id(project.id)
+    {:ok, source_repo} =
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one",
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     assert source_repo.owner == "owner"
     assert source_repo.name == "repo-one"
@@ -50,7 +55,8 @@ defmodule JidoCode.Control.RepoBridgeTest do
         settings: %{"workspace" => %{"clone_status" => "pending"}}
       })
 
-    {:ok, original_managed_repo} = ManagedRepo.get_by_legacy_project_id(project.id)
+    {:ok, original_managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     {:ok, updated_project} =
       Project.update(project, %{
@@ -62,9 +68,16 @@ defmodule JidoCode.Control.RepoBridgeTest do
         }
       })
 
-    {:ok, source_repo} = SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one")
-    {:ok, updated_managed_repo} = ManagedRepo.get_by_legacy_project_id(updated_project.id)
-    {:ok, source_repos} = SourceRepo.read(query: [filter: [full_name: "owner/repo-one"]])
+    {:ok, source_repo} =
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one",
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, updated_managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(updated_project.id, actor: Actor.operator_actor())
+
+    {:ok, source_repos} =
+      SourceRepo.read(query: [filter: [full_name: "owner/repo-one"]], actor: Actor.operator_actor())
 
     assert length(source_repos) == 1
     assert source_repo.default_branch == "release"
@@ -92,7 +105,8 @@ defmodule JidoCode.Control.RepoBridgeTest do
         }
       })
 
-    {:ok, managed_repo} = ManagedRepo.get_by_legacy_project_id(project.id)
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
     {:ok, detail} = ProjectDetail.load(project.id)
 
     assert detail.managed_repo_id == managed_repo.id
@@ -109,7 +123,8 @@ defmodule JidoCode.Control.RepoBridgeTest do
         settings: %{}
       })
 
-    {:ok, managed_repo} = ManagedRepo.get_by_legacy_project_id(project.id)
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     {:ok, run} =
       WorkflowRun.create(%{

@@ -18,10 +18,14 @@ surface:
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/control/repo_bridge.ex
+  - lib/jido_code/governance.ex
+  - lib/jido_code/governance/policy_set.ex
+  - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/projects/project.ex
   - lib/jido_code/orchestration/workflow_run.ex
   - lib/jido_code/code_server.ex
   - priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs
+  - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
 ```
 
 ## Requirements

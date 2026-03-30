@@ -5,6 +5,8 @@ defmodule JidoCode.Control.SourceRepo do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias JidoCode.Control.Checks.ActorClassIn
+
   @providers [:github, :gitlab, :bitbucket]
 
   postgres do
@@ -57,15 +59,23 @@ defmodule JidoCode.Control.SourceRepo do
 
   policies do
     policy action_type(:read) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :managed_repo_orchestrator,
+                      :run_worker,
+                      :external_ingress
+                    ]}
     end
 
     policy action_type(:create) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :operator, :factory_system, :managed_repo_orchestrator]}
     end
 
     policy action_type(:destroy) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :factory_system, :managed_repo_orchestrator]}
     end
   end
 

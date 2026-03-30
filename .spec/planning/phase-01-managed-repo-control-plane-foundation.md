@@ -35,22 +35,22 @@ Back to index: [README](./README.md)
       [x] 1.1.2.2 Subtask - Preserve current setup and import defaults while creating clear extension points for future policy and posture records.
       [x] 1.1.2.3 Subtask - Prepare foreign-key relationships from later work, run, evidence, and decision records back to `ManagedRepo`.
 
-  [ ] 1.2 Section - Governance Domain Baseline and Actor Model
+  [x] 1.2 Section - Governance Domain Baseline and Actor Model
     Add the first durable governance surfaces so later work-loop and approval behavior have a real home in the control plane.
 
-    [ ] 1.2.1 Task - Add `PolicySet` and embedded review-governance baseline
+    [x] 1.2.1 Task - Add `PolicySet` and embedded review-governance baseline
       Introduce the repo-governance object that will eventually own repo behavior, approval thresholds, and autonomy limits.
 
-      [ ] 1.2.1.1 Subtask - Add a minimal `PolicySet` resource associated with `ManagedRepo`.
-      [ ] 1.2.1.2 Subtask - Embed the initial `ReviewPolicy` shape inside `PolicySet` rather than scattering approval semantics across feature-specific settings.
-      [ ] 1.2.1.3 Subtask - Preserve compatibility with existing approval-oriented settings while establishing `PolicySet` as the preferred authority.
+      [x] 1.2.1.1 Subtask - Add a minimal `PolicySet` resource associated with `ManagedRepo`.
+      [x] 1.2.1.2 Subtask - Embed the initial `ReviewPolicy` shape inside `PolicySet` rather than scattering approval semantics across feature-specific settings.
+      [x] 1.2.1.3 Subtask - Preserve compatibility with existing approval-oriented settings while establishing `PolicySet` as the preferred authority.
 
-    [ ] 1.2.2 Task - Establish explicit data-plane actor classes for factory resources
+    [x] 1.2.2 Task - Establish explicit data-plane actor classes for factory resources
       Replace permissive placeholder policy posture with a credible actor model that can grow with the control plane.
 
-      [ ] 1.2.2.1 Subtask - Define explicit actor classes for `admin`, `operator`, `factory_system`, `managed_repo_orchestrator`, `run_worker`, and `external_ingress`.
-      [ ] 1.2.2.2 Subtask - Apply initial Ash policy scaffolding to new control-plane resources using those actor classes.
-      [ ] 1.2.2.3 Subtask - Preserve current auth and hosted-user flows while narrowing future control-plane mutation paths.
+      [x] 1.2.2.1 Subtask - Define explicit actor classes for `admin`, `operator`, `factory_system`, `managed_repo_orchestrator`, `run_worker`, and `external_ingress`.
+      [x] 1.2.2.2 Subtask - Apply initial Ash policy scaffolding to new control-plane resources using those actor classes.
+      [x] 1.2.2.3 Subtask - Preserve current auth and hosted-user flows while narrowing future control-plane mutation paths.
 
   [ ] 1.3 Section - Phase 1 Integration Tests
     Validate the new managed-repo bridge, governance baseline, and actor model without regressing current project import and detail behavior.

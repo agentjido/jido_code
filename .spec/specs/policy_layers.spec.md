@@ -12,8 +12,17 @@ decisions:
 surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - lib/jido_code/accounts/user.ex
+  - lib/jido_code/control/actor.ex
+  - lib/jido_code/control/checks/actor_class_in.ex
+  - lib/jido_code/control/source_repo.ex
+  - lib/jido_code/control/managed_repo.ex
+  - lib/jido_code/governance.ex
+  - lib/jido_code/governance/review_policy.ex
+  - lib/jido_code/governance/policy_set.ex
+  - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/projects/project.ex
   - lib/jido_code/jido_os_runtime.ex
+  - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
 ```
 
 ## Requirements

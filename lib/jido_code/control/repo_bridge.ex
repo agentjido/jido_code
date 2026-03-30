@@ -3,19 +3,21 @@ defmodule JidoCode.Control.RepoBridge do
   Keeps the transitional `Project` resource mirrored into control-plane repo resources.
   """
 
-  alias JidoCode.Control.{ManagedRepo, SourceRepo}
+  alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
+  alias JidoCode.Governance.PolicyBridge
 
   @execution_setting_keys ["execution", "workflow"]
 
   @spec sync_project(struct() | map()) :: {:ok, ManagedRepo.t()} | {:error, term()}
   def sync_project(%{} = project) do
     with {:ok, source_repo_attrs} <- source_repo_attrs(project),
-         {:ok, source_repo} <- SourceRepo.upsert_identity(source_repo_attrs, authorize?: false),
+         {:ok, source_repo} <- SourceRepo.upsert_identity(source_repo_attrs, actor: Actor.factory_system_actor()),
          {:ok, managed_repo} <-
            ManagedRepo.upsert_projection(
              managed_repo_attrs(project, source_repo),
-             authorize?: false
-           ) do
+             actor: Actor.factory_system_actor()
+           ),
+         {:ok, _policy_set} <- PolicyBridge.sync_managed_repo(managed_repo) do
       {:ok, managed_repo}
     end
   end
@@ -24,7 +26,7 @@ defmodule JidoCode.Control.RepoBridge do
 
   @spec managed_repo_for_project(term()) :: {:ok, ManagedRepo.t()} | {:error, term()}
   def managed_repo_for_project(project_id) when is_binary(project_id) do
-    ManagedRepo.get_by_legacy_project_id(project_id, authorize?: false)
+    ManagedRepo.get_by_legacy_project_id(project_id, actor: Actor.factory_system_actor())
   end
 
   def managed_repo_for_project(_project_id), do: {:error, :invalid_project_id}

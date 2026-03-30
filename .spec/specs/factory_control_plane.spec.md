@@ -14,9 +14,14 @@ decisions:
 surface:
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - lib/jido_code/control.ex
+  - lib/jido_code/control/source_repo.ex
+  - lib/jido_code/control/managed_repo.ex
+  - lib/jido_code/control/repo_bridge.ex
   - lib/jido_code/projects/project.ex
   - lib/jido_code/orchestration/workflow_run.ex
   - lib/jido_code/code_server.ex
+  - priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs
 ```
 
 ## Requirements

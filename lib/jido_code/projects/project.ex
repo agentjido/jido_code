@@ -6,6 +6,8 @@ defmodule JidoCode.Projects.Project do
     authorizers: [Ash.Policy.Authorizer],
     extensions: [AshTypescript.Resource]
 
+  alias JidoCode.Control.RepoBridge
+
   postgres do
     table "projects"
     repo JidoCode.Repo
@@ -28,6 +30,13 @@ defmodule JidoCode.Projects.Project do
     create :create do
       primary? true
       accept [:name, :github_full_name, :default_branch, :settings]
+
+      change after_action(fn _changeset, project, _context ->
+               case RepoBridge.sync_project(project) do
+                 {:ok, _managed_repo} -> {:ok, project}
+                 {:error, reason} -> {:error, reason}
+               end
+             end)
     end
 
     read :read do
@@ -38,6 +47,13 @@ defmodule JidoCode.Projects.Project do
       primary? true
       require_atomic? false
       accept [:name, :default_branch, :settings]
+
+      change after_action(fn _changeset, project, _context ->
+               case RepoBridge.sync_project(project) do
+                 {:ok, _managed_repo} -> {:ok, project}
+                 {:error, reason} -> {:error, reason}
+               end
+             end)
     end
   end
 

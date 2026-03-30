@@ -18,22 +18,22 @@ Back to index: [README](./README.md)
 [ ] 1 Phase 1 - Managed Repo Control-Plane Foundation
   Establish the control-plane foundation for the software-factory direction by introducing the transitional managed-repo model, control-plane domain layout, and minimal governance scaffolding without breaking current project import and project-detail flows.
 
-  [ ] 1.1 Section - Repo Ontology and Transitional Resource Bridge
+  [x] 1.1 Section - Repo Ontology and Transitional Resource Bridge
     Introduce the preferred repository control-plane model while preserving compatibility with the current `Project`-centric implementation.
 
-    [ ] 1.1.1 Task - Introduce `SourceRepo` and `ManagedRepo` as additive control-plane resources
+    [x] 1.1.1 Task - Introduce `SourceRepo` and `ManagedRepo` as additive control-plane resources
       Add the preferred repo ontology beside the current `Project` shape so the architecture has a durable target model before deeper migration begins.
 
-      [ ] 1.1.1.1 Subtask - Add Ash resources and domains for `SourceRepo` and `ManagedRepo` with stable identifiers and repo ownership relationships.
-      [ ] 1.1.1.2 Subtask - Map current `Project` identity, GitHub full-name, and default-branch data into transitional `ManagedRepo` compatibility reads or backfills.
-      [ ] 1.1.1.3 Subtask - Preserve existing project import and project detail entrypoints while the preferred ontology shifts underneath them.
+      [x] 1.1.1.1 Subtask - Add Ash resources and domains for `SourceRepo` and `ManagedRepo` with stable identifiers and repo ownership relationships.
+      [x] 1.1.1.2 Subtask - Map current `Project` identity, GitHub full-name, and default-branch data into transitional `ManagedRepo` compatibility reads or backfills.
+      [x] 1.1.1.3 Subtask - Preserve existing project import and project detail entrypoints while the preferred ontology shifts underneath them.
 
-    [ ] 1.1.2 Task - Establish control-plane-friendly repo configuration boundaries
+    [x] 1.1.2 Task - Establish control-plane-friendly repo configuration boundaries
       Move repo-scoped configuration away from an undifferentiated `settings` bag and toward governed control-plane ownership.
 
-      [ ] 1.1.2.1 Subtask - Separate repo identity from governance, execution, and integration settings in the new resource model.
-      [ ] 1.1.2.2 Subtask - Preserve current setup and import defaults while creating clear extension points for future policy and posture records.
-      [ ] 1.1.2.3 Subtask - Prepare foreign-key relationships from later work, run, evidence, and decision records back to `ManagedRepo`.
+      [x] 1.1.2.1 Subtask - Separate repo identity from governance, execution, and integration settings in the new resource model.
+      [x] 1.1.2.2 Subtask - Preserve current setup and import defaults while creating clear extension points for future policy and posture records.
+      [x] 1.1.2.3 Subtask - Prepare foreign-key relationships from later work, run, evidence, and decision records back to `ManagedRepo`.
 
   [ ] 1.2 Section - Governance Domain Baseline and Actor Model
     Add the first durable governance surfaces so later work-loop and approval behavior have a real home in the control plane.

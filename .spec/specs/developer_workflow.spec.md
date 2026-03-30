@@ -6,7 +6,7 @@ This subject defines the normal local development contract for contributors work
 id: developer.workflow
 kind: policy
 status: active
-summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, and isolates desktop runtime configuration behind desktop-specific entrypoints.
+summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface, and isolates desktop runtime configuration behind desktop-specific entrypoints.
 decisions:
   - jido_code.local_developer_workflow
 surface:
@@ -35,7 +35,7 @@ surface:
   stability: evolving
 
 - id: developer.workflow.phoenix_mix_surface
-  statement: The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup` and `mix test` provisions the test database with Ecto tasks instead of making `ash.setup` the public entrypoint.
+  statement: The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.
   priority: must
   stability: evolving
 

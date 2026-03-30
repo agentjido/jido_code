@@ -142,7 +142,7 @@ defmodule JidoCode.MixProject do
       {:ash_archival, "~> 2.0"},
       {:ash_paper_trail, "~> 0.5"},
       {:ash_cloak, "~> 0.2"},
-      {:ash_typescript, "~> 0.12"},
+      {:ash_typescript, "~> 0.17"},
       {:ash_jido, github: "agentjido/ash_jido", branch: "main"},
 
       # Database
@@ -194,7 +194,7 @@ defmodule JidoCode.MixProject do
       {:live_toast, "~> 0.8"},
       {:jason, "~> 1.2"},
       {:picosat_elixir, "~> 0.2"},
-      {:mdex, "~> 0.11"},
+      {:mdex, "~> 0.12"},
       {:zoi, "~> 0.17"},
 
       # Development & testing

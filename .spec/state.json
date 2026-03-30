@@ -1005,7 +1005,7 @@
         "id": "developer.workflow.phoenix_mix_surface",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup` and `mix test` provisions the test database with Ecto tasks instead of making `ash.setup` the public entrypoint.",
+        "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.",
         "subject_id": "developer.workflow"
       },
       {
@@ -1077,7 +1077,7 @@
         "id": "jido_os.runtime.compatibility.local_override_present",
         "priority": "must",
         "stability": "evolving",
-        "statement": "jido_code shall satisfy its `:jido_os` dependency from a version-controlled repo-local compatibility package so CI and contributors do not need a separate sibling checkout just to compile the coding-assistance boundary.",
+        "statement": "jido_code shall satisfy its `:jido_os` dependency from a version-controlled repo-local compatibility package so CI and contributors do not need a separate sibling checkout just to compile the coding-assistance boundary, even as the root dependency graph is refreshed to current supported versions.",
         "subject_id": "jido_os.runtime.compatibility"
       },
       {
@@ -1126,6 +1126,14 @@
         "priority": "must",
         "stability": "stable",
         "statement": "The jido_code repository shall serve as the primary product and implementation repo for active work in this workspace.",
+        "subject_id": "package.jido_code"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Repo-owned AI demo and folio agent surfaces shall stay version-controlled inside jido_code and track the current supported Jido.AI agent macro surface instead of depending on removed compatibility aliases.",
         "subject_id": "package.jido_code"
       },
       {
@@ -1181,7 +1189,7 @@
         "id": "package.jido_code.package_quality_mix_surface_aligned",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for documentation coverage and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
+        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for documentation coverage and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -1397,7 +1405,7 @@
         "id": "workflow.runtime.compatibility.local_override_present",
         "priority": "must",
         "stability": "evolving",
-        "statement": "jido_code shall override the transitive `:jido_workflow` dependency with a version-controlled local compatibility package so repository CI does not depend on private external Git credentials just to resolve dependencies.",
+        "statement": "jido_code shall override the transitive `:jido_workflow` dependency with a version-controlled local compatibility package so repository CI does not depend on private external Git credentials just to resolve dependencies, even when the root Mix dependency graph is updated to current supported versions.",
         "subject_id": "workflow.runtime.compatibility"
       }
     ],
@@ -2652,7 +2660,7 @@
           "id": "developer.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
+          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
           "surface": [
             ".tool-versions",
             "mix.exs",
@@ -2772,7 +2780,7 @@
           "id": "jido_os.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, and coding-assistance APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI.",
+          "summary": "jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, and coding-assistance APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI, and the root dependency graph may refresh without dropping that local override.",
           "surface": [
             "mix.exs",
             "compat/jido_os/mix.exs",
@@ -2855,7 +2863,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -2889,7 +2897,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
           "surface": [
             ".doctor.exs",
             "mix.exs",
@@ -3225,7 +3233,7 @@
           "id": "workflow.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override.",
+          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes.",
           "surface": [
             "mix.exs",
             "compat/jido_workflow/mix.exs",
@@ -4457,6 +4465,15 @@
       },
       {
         "covers": [
+          "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code",
+        "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex"
+      },
+      {
+        "covers": [
           "package.jido_code.package_quality_alignment_doc_present",
           "package.jido_code.package_quality_exceptions_documented"
         ],
@@ -4896,10 +4913,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 159,
+    "requirements": 160,
     "scenarios": 62,
     "subjects": 30,
-    "verifications": 166
+    "verifications": 167
   },
   "verification": {
     "claims": [
@@ -7643,6 +7660,17 @@
         "verification_index": 18
       },
       {
+        "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code",
+        "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
+        "verification_index": 19
+      },
+      {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "source_file",
@@ -8449,7 +8477,7 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 36,
+      "claimed": 37,
       "executed": 0,
       "linked": 286
     },

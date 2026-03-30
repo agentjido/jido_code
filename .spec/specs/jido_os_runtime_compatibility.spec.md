@@ -7,7 +7,7 @@ the coding-assistance wrapper self-contained in `jido_code`.
 id: jido_os.runtime.compatibility
 kind: feature
 status: active
-summary: jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, and coding-assistance APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI.
+summary: jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, and coding-assistance APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI, and the root dependency graph may refresh without dropping that local override.
 decisions:
   - jido_code.jido_os_session_turn_runtime
 surface:
@@ -21,7 +21,7 @@ surface:
 
 ```spec-requirements
 - id: jido_os.runtime.compatibility.local_override_present
-  statement: jido_code shall satisfy its `:jido_os` dependency from a version-controlled repo-local compatibility package so CI and contributors do not need a separate sibling checkout just to compile the coding-assistance boundary.
+  statement: jido_code shall satisfy its `:jido_os` dependency from a version-controlled repo-local compatibility package so CI and contributors do not need a separate sibling checkout just to compile the coding-assistance boundary, even as the root dependency graph is refreshed to current supported versions.
   priority: must
   stability: evolving
 

@@ -1,12 +1,12 @@
 defmodule JidoCode.Folio.FolioAgent do
   @moduledoc """
-  GTD (Getting Things Done) task manager agent using ReActAgent.
+  GTD (Getting Things Done) task manager agent using Jido.AI.Agent.
 
   Captures thoughts to inbox, clarifies them into actions or projects,
   and helps manage next actions and waiting-for lists.
   """
 
-  use Jido.AI.ReActAgent,
+  use Jido.AI.Agent,
     name: "folio_agent",
     description: "GTD task manager - capture, clarify, organize, engage",
     tools: [

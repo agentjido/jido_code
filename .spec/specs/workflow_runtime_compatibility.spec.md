@@ -8,7 +8,7 @@ This subject defines the local compatibility surface that keeps
 id: workflow.runtime.compatibility
 kind: feature
 status: active
-summary: jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override.
+summary: jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes.
 surface:
   - mix.exs
   - compat/jido_workflow/mix.exs
@@ -20,7 +20,7 @@ surface:
 
 ```spec-requirements
 - id: workflow.runtime.compatibility.local_override_present
-  statement: jido_code shall override the transitive `:jido_workflow` dependency with a version-controlled local compatibility package so repository CI does not depend on private external Git credentials just to resolve dependencies.
+  statement: jido_code shall override the transitive `:jido_workflow` dependency with a version-controlled local compatibility package so repository CI does not depend on private external Git credentials just to resolve dependencies, even when the root Mix dependency graph is updated to current supported versions.
   priority: must
   stability: evolving
 

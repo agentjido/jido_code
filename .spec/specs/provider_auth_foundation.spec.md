@@ -6,7 +6,7 @@ This subject defines the provider-neutral identity and configuration primitives 
 id: auth.provider_foundation
 kind: feature
 status: active
-summary: jido_code persists provider-backed user identities and provider login configuration without replacing the local user system.
+summary: jido_code persists provider-backed user identities and provider login configuration without replacing the local user system, including when local users are provisioned through bootstrap or provider-auth flows instead of public registration.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -21,7 +21,7 @@ surface:
 
 ```spec-requirements
 - id: auth.provider_foundation.local_user_identity_mapping
-  statement: External provider identities shall resolve through a local identity record that uniquely maps provider plus host plus provider subject to one local user.
+  statement: External provider identities shall resolve through a local identity record that uniquely maps provider plus host plus provider subject to one local user, regardless of whether that local user originated from bootstrap, later admin provisioning, or provider-auth provisioning.
   priority: must
   stability: stable
 
@@ -49,7 +49,7 @@ surface:
     - auth.provider_foundation.local_user_identity_mapping
     - auth.provider_foundation.identity_auth_metadata
   given:
-    - A local user already exists.
+    - A local user already exists, whether it originated from bootstrap or provider-auth provisioning.
   when:
     - The system records a provider identity for that user.
   then:

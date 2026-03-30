@@ -9,15 +9,25 @@ defmodule JidoCodeWeb.HomeLiveTest do
 
   alias JidoCode.AuthProviders.ProviderConfig
 
-  test "landing page keeps local auth visible when GitHub provider login is not configured", %{conn: conn} do
+  test "landing page opens first-run bootstrap when no users exist", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/welcome")
 
-    assert html =~ "Sign In"
-    assert html =~ "Create Account"
+    assert html =~ "Create your admin account"
+    assert html =~ "Checking your system"
     refute html =~ "Sign In with GitHub"
   end
 
-  test "landing page exposes the GitHub provider entrypoint when provider login is enabled", %{conn: conn} do
+  test "landing page hides provider login during bootstrap even when GitHub login is configured", %{conn: conn} do
+    enable_provider_login!(:github, "github.com")
+
+    {:ok, _view, html} = live(conn, ~p"/welcome")
+
+    refute html =~ "Sign In with GitHub"
+    refute html =~ "Create Account"
+  end
+
+  test "landing page exposes sign-in and GitHub login once a local user already exists", %{conn: conn} do
+    register_owner("owner@example.com", "owner-password-123")
     enable_provider_login!(:github, "github.com")
 
     {:ok, view, _html} = live(conn, ~p"/welcome")
@@ -29,7 +39,25 @@ defmodule JidoCodeWeb.HomeLiveTest do
            )
 
     assert has_element?(view, "a", "Sign In")
-    assert has_element?(view, "a", "Create Account")
+    refute has_element?(view, "a", "Create Account")
+  end
+
+  defp register_owner(email, password) do
+    strategy = AshAuthentication.Info.strategy!(JidoCode.Accounts.User, :password)
+
+    {:ok, _owner} =
+      AshAuthentication.Strategy.action(
+        strategy,
+        :register,
+        %{
+          "email" => email,
+          "password" => password,
+          "password_confirmation" => password
+        },
+        context: %{token_type: :sign_in}
+      )
+
+    :ok
   end
 
   defp enable_provider_login!(provider, provider_host) do

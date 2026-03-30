@@ -6,7 +6,7 @@ This subject defines the first broker-backed provider login path that is live in
 id: auth.provider_login_flow
 kind: feature
 status: active
-summary: jido_code exposes a GitHub provider sign-in entrypoint, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.
+summary: jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -22,12 +22,12 @@ surface:
 
 ```spec-requirements
 - id: auth.provider_login_flow.entrypoint_visible
-  statement: The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled.
+  statement: The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete.
   priority: must
   stability: evolving
 
 - id: auth.provider_login_flow.local_auth_fallback_visible
-  statement: Local email sign-in and account-creation entrypoints shall remain visible even when provider login is unavailable or disabled.
+  statement: Local email sign-in shall remain visible even when provider login is unavailable or disabled, while public account creation appears only during first-run bootstrap.
   priority: must
   stability: stable
 
@@ -66,10 +66,11 @@ surface:
     - auth.provider_login_flow.local_auth_fallback_visible
   given:
     - GitHub.com provider login has been enabled for the deployment.
+    - A local bootstrap administrator already exists.
   when:
     - An anonymous visitor opens the landing page.
   then:
-    - The page shows both local auth entrypoints and the GitHub sign-in entrypoint.
+    - The page shows local sign-in and the GitHub sign-in entrypoint without reopening public account creation.
 
 - id: auth.provider_login_flow.scenario.github_sign_in
   covers:

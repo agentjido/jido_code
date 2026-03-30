@@ -2,8 +2,6 @@ defmodule JidoCode.Accounts.UserIdentityTest do
   # covers: auth.provider_foundation.local_user_identity_mapping
   use JidoCode.DataCase, async: true
 
-  alias AshAuthentication.Info
-  alias AshAuthentication.Strategy
   alias JidoCode.Accounts
   alias JidoCode.Accounts.User
   alias JidoCode.Accounts.UserIdentity
@@ -72,19 +70,14 @@ defmodule JidoCode.Accounts.UserIdentityTest do
   defp register_user!(email_prefix) do
     unique_suffix = System.unique_integer([:positive])
     email = "#{email_prefix}-#{unique_suffix}@example.com"
-    password = "provider-password-123"
-    strategy = Info.strategy!(User, :password)
 
     {:ok, user} =
-      Strategy.action(
-        strategy,
-        :register,
+      User.provision_from_provider_identity(
         %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
+          email: email,
+          confirmed_at: DateTime.utc_now() |> DateTime.truncate(:second)
         },
-        context: %{token_type: :sign_in}
+        authorize?: false
       )
 
     user

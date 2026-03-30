@@ -1,4 +1,7 @@
 defmodule JidoCodeWeb.SetupLiveTest do
+  # covers: users.admin_system.bootstrap_admin
+  # covers: users.admin_system.admin_role_assignment
+  # covers: users.admin_system.registration_guardrails
   use JidoCodeWeb.ConnCase, async: false
 
   alias AshAuthentication.{Info, Strategy}
@@ -101,90 +104,19 @@ defmodule JidoCodeWeb.SetupLiveTest do
     :ok
   end
 
-  test "step 1 shows timestamped prerequisite checks and persists progression on success", %{
+  test "zero-user bootstrap on /welcome persists prerequisite and admin state, then enters setup", %{
     conn: conn
   } do
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    assert {:error, {:live_redirect, %{to: "/welcome"}}} =
+             live(conn, ~p"/setup", on_error: :warn)
 
-    assert has_element?(view, "#setup-prerequisite-status")
-    assert has_element?(view, "#setup-prerequisite-checked-at", "2026-02-13T12:34:56Z")
-    assert has_element?(view, "#setup-prerequisite-database_connectivity-status", "Pass")
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
-    view
-    |> form("#onboarding-step-form", %{
-      "step" => %{"validated_note" => "Prerequisite checks passed"}
-    })
-    |> render_submit()
-
-    assert has_element?(view, "#resolved-onboarding-step", "Step 2")
-
-    assert %{
-             onboarding_step: 2,
-             onboarding_state: %{
-               "1" => %{
-                 "validated_note" => "Prerequisite checks passed",
-                 "prerequisite_checks" => %{"status" => "pass"}
-               }
-             }
-           } = Application.get_env(:jido_code, :system_config)
-
-    {:ok, resumed_view, _html} = live(build_conn(), ~p"/setup", on_error: :warn)
-
-    assert has_element?(resumed_view, "#resolved-onboarding-step", "Step 2")
-    assert has_element?(resumed_view, "#validated-state-step-1", "Prerequisite checks passed")
-    assert has_element?(resumed_view, "#setup-owner-bootstrap-form")
-  end
-
-  test "step 1 validation failure shows remediation and blocks persistence", %{conn: conn} do
-    test_pid = self()
-
-    Application.put_env(:jido_code, :setup_prerequisite_checker, fn _timeout_ms ->
-      failing_prerequisite_report()
-    end)
-
-    Application.put_env(:jido_code, :system_config_saver, fn _config ->
-      send(test_pid, :unexpected_save)
-      {:ok, %{onboarding_completed: false, onboarding_step: 2, onboarding_state: %{}}}
-    end)
-
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
-
-    assert has_element?(
-             view,
-             "#setup-prerequisite-remediation-runtime_token_signing_secret",
-             "TOKEN_SIGNING_SECRET"
-           )
+    assert render(view) =~ "System ready"
+    assert has_element?(view, "#welcome-owner-form")
 
     view
-    |> form("#onboarding-step-form", %{
-      "step" => %{"validated_note" => "Attempting to bypass failing prerequisites"}
-    })
-    |> render_submit()
-
-    assert has_element?(view, "#resolved-onboarding-step", "Step 1")
-    assert has_element?(view, "#setup-save-error", "System prerequisite checks failed")
-    assert has_element?(view, "#setup-save-error", "TOKEN_SIGNING_SECRET")
-    refute_received :unexpected_save
-
-    persisted_config = Application.get_env(:jido_code, :system_config)
-    assert Map.fetch!(persisted_config, :onboarding_step) == 1
-    assert Map.fetch!(persisted_config, :onboarding_state) == %{}
-  end
-
-  test "step 2 creates owner when none exists and grants immediate protected-route session access",
-       %{conn: conn} do
-    Application.put_env(:jido_code, :system_config, %{
-      onboarding_completed: false,
-      onboarding_step: 2,
-      onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
-    })
-
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
-
-    assert has_element?(view, "#setup-owner-bootstrap-mode", "No owner account exists yet")
-
-    view
-    |> form("#setup-owner-bootstrap-form", %{
+    |> form("#welcome-owner-form", %{
       "owner" => %{
         "email" => "owner@example.com",
         "password" => "owner-password-123",
@@ -202,12 +134,115 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert auth_redirect_path =~ "sign_in_with_token"
 
     authed_response = build_conn() |> get(auth_redirect_path)
-    assert redirected_to(authed_response, 302) == "/"
+    assert redirected_to(authed_response, 302) == "/setup"
 
-    {:ok, dashboard_view, _html} = live(recycle(authed_response), ~p"/dashboard", on_error: :warn)
-    assert has_element?(dashboard_view, "p", "owner@example.com")
+    {:ok, resumed_view, _html} = live(recycle(authed_response), ~p"/setup", on_error: :warn)
+
+    assert has_element?(resumed_view, "#resolved-onboarding-step", "Step 3")
+    assert has_element?(resumed_view, "#current-wizard-step", "Provider and secret setup")
+
+    assert_redirects_to_setup(live(recycle(authed_response), ~p"/dashboard", on_error: :warn))
 
     assert_owner_count(1)
+    assert_single_owner_admin!(true)
+
+    assert %{
+             onboarding_step: 3,
+             onboarding_state: %{
+               "1" => %{
+                 "validated_note" => "System prerequisites verified (welcome flow).",
+                 "prerequisite_checks" => %{"status" => "pass"}
+               },
+               "2" => %{
+                 "owner_email" => "owner@example.com",
+                 "owner_mode" => "created",
+                 "registration_actions_disabled" => true,
+                 "validated_note" => "Owner account bootstrapped."
+               }
+             }
+           } = Application.get_env(:jido_code, :system_config)
+  end
+
+  test "failing prerequisites on /welcome show remediation and block bootstrap persistence", %{
+    conn: conn
+  } do
+    test_pid = self()
+
+    Application.put_env(:jido_code, :setup_prerequisite_checker, fn _timeout_ms ->
+      failing_prerequisite_report()
+    end)
+
+    Application.put_env(:jido_code, :system_config_saver, fn _config ->
+      send(test_pid, :unexpected_save)
+      {:ok, %{onboarding_completed: false, onboarding_step: 2, onboarding_state: %{}}}
+    end)
+
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
+
+    assert render(view) =~ "TOKEN_SIGNING_SECRET"
+
+    view
+    |> render_submit("bootstrap_owner", %{
+      "owner" => %{
+        "email" => "owner@example.com",
+        "password" => "owner-password-123",
+        "password_confirmation" => "owner-password-123"
+      }
+    })
+
+    assert has_element?(view, "#welcome-save-error", "System checks must pass before creating an account.")
+    assert render(view) =~ "TOKEN_SIGNING_SECRET"
+    refute_received :unexpected_save
+
+    persisted_config = Application.get_env(:jido_code, :system_config)
+    assert Map.fetch!(persisted_config, :onboarding_step) == 1
+    assert Map.fetch!(persisted_config, :onboarding_state) == %{}
+  end
+
+  test "step 2 bootstrap on /welcome creates the first admin and sends incomplete sessions into setup",
+       %{conn: conn} do
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 2,
+      onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
+    })
+
+    assert {:error, {:live_redirect, %{to: "/welcome"}}} =
+             live(conn, ~p"/setup", on_error: :warn)
+
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
+
+    assert render(view) =~ "System ready"
+    assert has_element?(view, "#welcome-owner-form")
+
+    view
+    |> form("#welcome-owner-form", %{
+      "owner" => %{
+        "email" => "owner@example.com",
+        "password" => "owner-password-123",
+        "password_confirmation" => "owner-password-123"
+      }
+    })
+    |> render_submit()
+
+    auth_redirect_path =
+      view
+      |> assert_redirect()
+      |> redirect_path()
+
+    assert auth_redirect_path =~ "/auth/"
+    assert auth_redirect_path =~ "sign_in_with_token"
+
+    authed_response = build_conn() |> get(auth_redirect_path)
+    assert redirected_to(authed_response, 302) == "/setup"
+
+    {:ok, setup_view, _html} = live(recycle(authed_response), ~p"/setup", on_error: :warn)
+    assert has_element?(setup_view, "#resolved-onboarding-step", "Step 3")
+
+    assert_redirects_to_setup(live(recycle(authed_response), ~p"/dashboard", on_error: :warn))
+
+    assert_owner_count(1)
+    assert_single_owner_admin!(true)
 
     assert %{
              onboarding_step: 3,
@@ -215,23 +250,25 @@ defmodule JidoCodeWeb.SetupLiveTest do
                "2" => %{
                  "owner_email" => "owner@example.com",
                  "owner_mode" => "created",
+                 "registration_actions_disabled" => true,
                  "validated_note" => "Owner account bootstrapped."
                }
              }
            } = Application.get_env(:jido_code, :system_config)
   end
 
-  test "step 2 rejects malformed owner email addresses with a validation error", %{conn: conn} do
+  test "step 2 bootstrap on /welcome rejects malformed owner email addresses with a validation error",
+       %{conn: conn} do
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
       onboarding_step: 2,
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-bootstrap-form", %{
+    |> form("#welcome-owner-form", %{
       "owner" => %{
         "email" => "not-an-email",
         "password" => "owner-password-123",
@@ -241,23 +278,24 @@ defmodule JidoCodeWeb.SetupLiveTest do
     |> render_submit()
 
     html = render(view)
-    assert has_element?(view, "#setup-save-error", "valid email address")
+    assert has_element?(view, "#welcome-save-error", "valid email address")
     refute html =~ "Bread Crumbs"
     assert_owner_count(0)
     assert %{onboarding_step: 2} = Application.get_env(:jido_code, :system_config)
   end
 
-  test "step 2 rejects short owner passwords with a friendly validation message", %{conn: conn} do
+  test "step 2 bootstrap on /welcome rejects short owner passwords with a friendly validation message",
+       %{conn: conn} do
     Application.put_env(:jido_code, :system_config, %{
       onboarding_completed: false,
       onboarding_step: 2,
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-bootstrap-form", %{
+    |> form("#welcome-owner-form", %{
       "owner" => %{
         "email" => "owner@example.com",
         "password" => "short",
@@ -267,16 +305,15 @@ defmodule JidoCodeWeb.SetupLiveTest do
     |> render_submit()
 
     html = render(view)
-    assert has_element?(view, "#setup-save-error", "at least 8 characters")
+    assert has_element?(view, "#welcome-save-error", "at least 8 characters")
     refute html =~ "Bread Crumbs"
 
     assert_owner_count(0)
     assert %{onboarding_step: 2} = Application.get_env(:jido_code, :system_config)
   end
 
-  test "step 2 confirms existing owner and grants immediate protected-route session access", %{
-    conn: conn
-  } do
+  test "continue setup on /welcome confirms the existing admin and sends incomplete sessions into setup",
+       %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
@@ -285,13 +322,16 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    assert {:error, {:live_redirect, %{to: "/welcome"}}} =
+             live(conn, ~p"/setup", on_error: :warn)
 
-    assert has_element?(view, "#setup-owner-bootstrap-mode", "owner account already exists")
-    assert has_element?(view, "#setup-owner-bootstrap-owner-email", "owner@example.com")
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
+
+    assert render(view) =~ "Continue Setup"
+    assert render(view) =~ "owner@example.com"
 
     view
-    |> form("#setup-owner-bootstrap-form", %{
+    |> form("#continue-setup-owner-form", %{
       "owner" => %{
         "email" => "owner@example.com",
         "password" => "owner-password-123"
@@ -305,12 +345,15 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> redirect_path()
 
     authed_response = build_conn() |> get(auth_redirect_path)
-    assert redirected_to(authed_response, 302) == "/"
+    assert redirected_to(authed_response, 302) == "/setup"
 
-    {:ok, dashboard_view, _html} = live(recycle(authed_response), ~p"/dashboard", on_error: :warn)
-    assert has_element?(dashboard_view, "p", "owner@example.com")
+    {:ok, setup_view, _html} = live(recycle(authed_response), ~p"/setup", on_error: :warn)
+    assert has_element?(setup_view, "#resolved-onboarding-step", "Step 3")
+
+    assert_redirects_to_setup(live(recycle(authed_response), ~p"/dashboard", on_error: :warn))
 
     assert_owner_count(1)
+    assert_single_owner_admin!(true)
 
     assert %{
              onboarding_step: 3,
@@ -318,13 +361,72 @@ defmodule JidoCodeWeb.SetupLiveTest do
                "2" => %{
                  "owner_email" => "owner@example.com",
                  "owner_mode" => "confirmed",
+                 "registration_actions_disabled" => true,
                  "validated_note" => "Owner account confirmed."
                }
              }
            } = Application.get_env(:jido_code, :system_config)
   end
 
-  test "step 2 recovery requires explicit verification, resets credentials, and records recovery audit metadata",
+  test "continue setup sign-in from later onboarding steps does not advance onboarding progress", %{
+    conn: conn
+  } do
+    register_owner("owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :system_config, %{
+      onboarding_completed: false,
+      onboarding_step: 3,
+      onboarding_state: %{
+        "1" => %{
+          "validated_note" => "System prerequisites verified (welcome flow).",
+          "prerequisite_checks" => %{"status" => "pass"}
+        },
+        "2" => %{
+          "owner_email" => "owner@example.com",
+          "owner_mode" => "created",
+          "registration_actions_disabled" => true,
+          "validated_note" => "Owner account bootstrapped."
+        }
+      }
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
+
+    assert render(view) =~ "Continue Setup"
+    assert render(view) =~ "owner@example.com"
+
+    view
+    |> form("#continue-setup-owner-form", %{
+      "owner" => %{
+        "email" => "owner@example.com",
+        "password" => "owner-password-123"
+      }
+    })
+    |> render_submit()
+
+    auth_redirect_path =
+      view
+      |> assert_redirect()
+      |> redirect_path()
+
+    authed_response = build_conn() |> get(auth_redirect_path)
+    assert redirected_to(authed_response, 302) == "/setup"
+
+    {:ok, setup_view, _html} = live(recycle(authed_response), ~p"/setup", on_error: :warn)
+    assert has_element?(setup_view, "#resolved-onboarding-step", "Step 3")
+
+    assert %{
+             onboarding_step: 3,
+             onboarding_state: %{
+               "1" => %{"validated_note" => "System prerequisites verified (welcome flow)."},
+               "2" => %{"validated_note" => "Owner account bootstrapped."}
+             }
+           } = Application.get_env(:jido_code, :system_config)
+
+    refute Map.has_key?(Application.get_env(:jido_code, :system_config).onboarding_state, "3")
+  end
+
+  test "continue setup recovery on /welcome requires explicit verification, resets credentials, and records recovery audit metadata",
        %{conn: conn} do
     attach_owner_recovery_audit_handler()
     register_owner("owner@example.com", "owner-password-123")
@@ -335,18 +437,13 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
-    assert has_element?(view, "#setup-owner-recovery-form")
-
-    assert has_element?(
-             view,
-             "#setup-owner-recovery-verification-target",
-             "RECOVER OWNER ACCESS"
-           )
+    assert has_element?(view, "#continue-setup-recovery-form")
+    assert render(view) =~ "RECOVER OWNER ACCESS"
 
     view
-    |> form("#setup-owner-recovery-form", %{
+    |> form("#continue-setup-recovery-form", %{
       "owner_recovery" => %{
         "email" => "owner@example.com",
         "password" => "owner-recovered-password-789",
@@ -363,10 +460,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> redirect_path()
 
     authed_response = build_conn() |> get(auth_redirect_path)
-    assert redirected_to(authed_response, 302) == "/"
+    assert redirected_to(authed_response, 302) == "/setup"
 
-    {:ok, dashboard_view, _html} = live(recycle(authed_response), ~p"/dashboard", on_error: :warn)
-    assert has_element?(dashboard_view, "p", "owner@example.com")
+    {:ok, setup_view, _html} = live(recycle(authed_response), ~p"/setup", on_error: :warn)
+    assert has_element?(setup_view, "#resolved-onboarding-step", "Step 3")
 
     strategy = Info.strategy!(User, :password)
 
@@ -390,7 +487,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert event_name == @owner_recovery_audit_event
     assert measurements.count == 1
     assert is_integer(measurements.recovery_timestamp)
-    assert metadata.route == "/setup"
+    assert metadata.route == "/welcome"
     assert metadata.owner_email == "owner@example.com"
     assert metadata.recovery_mode == "bootstrap"
 
@@ -402,6 +499,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
 
     assert is_binary(metadata.verified_at)
     assert_owner_count(1)
+    assert_single_owner_admin!(true)
 
     assert %{
              onboarding_step: 3,
@@ -409,9 +507,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
                "2" => %{
                  "owner_email" => "owner@example.com",
                  "owner_mode" => "recovered",
+                 "registration_actions_disabled" => true,
                  "validated_note" => "Owner account recovered.",
                  "owner_recovery_audit" => %{
-                   "route" => "/setup",
+                   "route" => "/welcome",
                    "owner_email" => "owner@example.com",
                    "recovery_mode" => "bootstrap",
                    "verification_steps" => [
@@ -434,7 +533,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert is_binary(verified_at)
   end
 
-  test "step 2 recovery denies credential reset when verification fails and leaves owner state unchanged",
+  test "continue setup recovery on /welcome denies credential reset when verification fails and leaves owner state unchanged",
        %{conn: conn} do
     attach_owner_recovery_audit_handler()
     register_owner("owner@example.com", "owner-password-123")
@@ -445,10 +544,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-recovery-form", %{
+    |> form("#continue-setup-recovery-form", %{
       "owner_recovery" => %{
         "email" => "owner@example.com",
         "password" => "owner-recovered-password-789",
@@ -459,9 +558,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#resolved-onboarding-step", "Step 2")
-    assert has_element?(view, "#setup-save-error", "verification failed")
-    assert has_element?(view, "#setup-save-error", "state is unchanged")
+    assert has_element?(view, "#welcome-save-error", "verification failed")
+    assert has_element?(view, "#welcome-save-error", "state is unchanged")
 
     strategy = Info.strategy!(User, :password)
 
@@ -489,7 +587,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
     refute Map.has_key?(Map.fetch!(persisted_config, :onboarding_state), "2")
   end
 
-  test "step 2 recovery rejects short passwords with a friendly validation message", %{conn: conn} do
+  test "continue setup recovery on /welcome rejects short passwords with a friendly validation message",
+       %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
@@ -498,10 +597,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-recovery-form", %{
+    |> form("#continue-setup-recovery-form", %{
       "owner_recovery" => %{
         "email" => "owner@example.com",
         "password" => "short",
@@ -513,14 +612,15 @@ defmodule JidoCodeWeb.SetupLiveTest do
     |> render_submit()
 
     html = render(view)
-    assert has_element?(view, "#setup-save-error", "at least 8 characters")
+    assert has_element?(view, "#welcome-save-error", "at least 8 characters")
     refute html =~ "Bread Crumbs"
 
     assert_owner_count(1)
     assert %{onboarding_step: 2} = Application.get_env(:jido_code, :system_config)
   end
 
-  test "step 2 recovery requires a verification phrase before credential reset", %{conn: conn} do
+  test "continue setup recovery on /welcome requires a verification phrase before credential reset",
+       %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
@@ -529,10 +629,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-recovery-form", %{
+    |> form("#continue-setup-recovery-form", %{
       "owner_recovery" => %{
         "email" => "owner@example.com",
         "password" => "owner-recovered-password-789",
@@ -544,14 +644,15 @@ defmodule JidoCodeWeb.SetupLiveTest do
     |> render_submit()
 
     html = render(view)
-    assert has_element?(view, "#setup-save-error", "verification phrase")
+    assert has_element?(view, "#welcome-save-error", "verification phrase")
     refute html =~ "Bread Crumbs"
 
     assert_owner_count(1)
     assert %{onboarding_step: 2} = Application.get_env(:jido_code, :system_config)
   end
 
-  test "step 2 recovery requires explicit acknowledgement before credential reset", %{conn: conn} do
+  test "continue setup recovery on /welcome requires explicit acknowledgement before credential reset",
+       %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
@@ -560,10 +661,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-recovery-form", %{
+    |> form("#continue-setup-recovery-form", %{
       "owner_recovery" => %{
         "email" => "owner@example.com",
         "password" => "owner-recovered-password-789",
@@ -575,7 +676,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     |> render_submit()
 
     html = render(view)
-    assert has_element?(view, "#setup-save-error", "explicit recovery acknowledgement")
+    assert has_element?(view, "#welcome-save-error", "explicit recovery acknowledgement")
     refute html =~ "Bread Crumbs"
 
     assert_owner_count(1)
@@ -627,9 +728,8 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert_owner_count(1)
   end
 
-  test "step 2 blocks additional owner creation attempts with a single-user policy error", %{
-    conn: conn
-  } do
+  test "continue setup on /welcome blocks additional owner creation attempts with a single-user policy error",
+       %{conn: conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     Application.put_env(:jido_code, :system_config, %{
@@ -638,10 +738,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-bootstrap-form", %{
+    |> form("#continue-setup-owner-form", %{
       "owner" => %{
         "email" => "second-owner@example.com",
         "password" => "another-password-123"
@@ -649,8 +749,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     })
     |> render_submit()
 
-    assert has_element?(view, "#resolved-onboarding-step", "Step 2")
-    assert has_element?(view, "#setup-save-error", "Single-user policy error")
+    assert has_element?(view, "#welcome-save-error", "Single-user policy error")
 
     assert_owner_count(1)
 
@@ -658,7 +757,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert Map.fetch!(persisted_config, :onboarding_step) == 2
   end
 
-  test "production step 2 marks registration actions disabled and keeps owner login available while blocking registration",
+  test "production bootstrap on /welcome closes registration and keeps owner login available",
        %{conn: conn} do
     Application.put_env(:jido_code, :runtime_mode, :prod)
 
@@ -668,10 +767,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
       onboarding_state: %{"1" => %{"validated_note" => "Prerequisite checks passed"}}
     })
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
 
     view
-    |> form("#setup-owner-bootstrap-form", %{
+    |> form("#welcome-owner-form", %{
       "owner" => %{
         "email" => "owner@example.com",
         "password" => "owner-password-123",
@@ -686,7 +785,7 @@ defmodule JidoCodeWeb.SetupLiveTest do
       |> redirect_path()
 
     authed_response = build_conn() |> get(auth_redirect_path)
-    assert redirected_to(authed_response, 302) == "/"
+    assert redirected_to(authed_response, 302) == "/setup"
 
     strategy = Info.strategy!(User, :password)
 
@@ -747,9 +846,10 @@ defmodule JidoCodeWeb.SetupLiveTest do
     assert Enum.any?(error.errors, &match?(%Ash.Error.Forbidden.Policy{}, &1))
   end
 
-  test "step 1 timeout keeps onboarding blocked and does not persist downstream data", %{
-    conn: conn
-  } do
+  test "timeouting prerequisites on /welcome keep bootstrap blocked and do not persist downstream data",
+       %{
+         conn: conn
+       } do
     test_pid = self()
 
     Application.put_env(:jido_code, :setup_prerequisite_checker, fn _timeout_ms ->
@@ -761,18 +861,20 @@ defmodule JidoCodeWeb.SetupLiveTest do
       {:ok, %{onboarding_completed: false, onboarding_step: 2, onboarding_state: %{}}}
     end)
 
-    {:ok, view, _html} = live(conn, ~p"/setup", on_error: :warn)
-    assert has_element?(view, "#setup-prerequisite-runtime_phx_host-status", "Timeout")
+    {:ok, view, _html} = live(conn, ~p"/welcome", on_error: :warn)
+    assert render(view) =~ "timed out"
 
     view
-    |> form("#onboarding-step-form", %{
-      "step" => %{"validated_note" => "Attempting to continue after timeout"}
+    |> render_submit("bootstrap_owner", %{
+      "owner" => %{
+        "email" => "owner@example.com",
+        "password" => "owner-password-123",
+        "password_confirmation" => "owner-password-123"
+      }
     })
-    |> render_submit()
 
-    assert has_element?(view, "#resolved-onboarding-step", "Step 1")
-    assert has_element?(view, "#setup-save-error", "timed out")
-    assert has_element?(view, "#setup-save-error", "no setup progress was saved")
+    assert has_element?(view, "#welcome-save-error", "System checks must pass before creating an account.")
+    assert render(view) =~ "timed out"
     refute_received :unexpected_save
 
     persisted_config = Application.get_env(:jido_code, :system_config)
@@ -1957,6 +2059,19 @@ defmodule JidoCodeWeb.SetupLiveTest do
   defp assert_owner_count(expected_count) do
     {:ok, owners} = Ash.read(User, domain: Accounts, authorize?: false)
     assert length(owners) == expected_count
+  end
+
+  defp assert_single_owner_admin!(expected_admin?) do
+    {:ok, [owner]} = Ash.read(User, domain: Accounts, authorize?: false)
+    assert owner.is_admin == expected_admin?
+    owner
+  end
+
+  defp assert_redirects_to_setup({:error, {:live_redirect, %{to: "/setup"}}}), do: :ok
+  defp assert_redirects_to_setup({:error, {:redirect, %{to: "/setup"}}}), do: :ok
+
+  defp assert_redirects_to_setup(other) do
+    flunk("expected redirect to /setup, got: #{inspect(other)}")
   end
 
   defp onboarding_state_through_step_6 do

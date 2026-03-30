@@ -3,6 +3,7 @@ defmodule JidoCodeWeb.HomeLiveOperatorSettingsTest do
   # covers: auth.operator_settings.broker_trust_configuration_ui
   # covers: auth.operator_settings.github_service_validation_feedback
   # covers: auth.operator_settings.integration_boundary_visible
+  # covers: auth.operator_settings.hidden_during_bootstrap_entry
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

@@ -49,7 +49,7 @@ surface:
   stability: evolving
 
 - id: architecture.policy_layers.explicit_human_and_machine_actor_classes
-  statement: The architecture shall model explicit human and machine actor classes for data-plane authorization, including at least admin, operator, factory-system, managed-repo-orchestrator, run-worker, and external-ingress actors.
+  statement: The architecture shall model explicit human and machine actor classes for data-plane authorization, including at least admin, operator, factory-system, managed-repo-orchestrator, run-worker, and external-ingress actors, with bootstrap administrators and later member accounts remaining explicit local-user actor roles instead of implicit side effects of authentication.
   priority: must
   stability: evolving
 ```

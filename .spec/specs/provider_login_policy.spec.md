@@ -6,7 +6,7 @@ This subject defines how provider login enablement and allowlists are evaluated 
 id: auth.provider_login_policy
 kind: feature
 status: active
-summary: jido_code evaluates provider login enablement and provider-neutral allowlists before allowing provider identities to resolve into local users.
+summary: jido_code evaluates provider login enablement and provider-neutral allowlists before allowing provider identities to resolve into local users, and blocked identities never fall through to any public registration path.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -35,7 +35,7 @@ surface:
   stability: stable
 
 - id: auth.provider_login_policy.blocked_before_linking
-  statement: Provider identities that fail login policy shall be rejected before the system creates or links a local user.
+  statement: Provider identities that fail login policy shall be rejected before the system creates or links a local user, including any internal provisioning path used by provider auth.
   priority: must
   stability: stable
 ```
@@ -73,6 +73,7 @@ surface:
     - Login is attempted.
   then:
     - The identity is rejected before a local user is created or linked.
+    - The rejection does not fall through to public registration or any later provider-provisioning step.
 ```
 
 ## Verification

@@ -59,7 +59,7 @@ defmodule JidoCode.Accounts.User do
 
       magic_link do
         identity_field :email
-        registration_enabled? true
+        registration_enabled? false
         require_interaction? true
 
         sender JidoCode.Accounts.User.Senders.SendMagicLinkEmail
@@ -78,8 +78,10 @@ defmodule JidoCode.Accounts.User do
   end
 
   code_interface do
+    define :bootstrap_admin, action: :bootstrap_admin
     define :get_by_email, action: :get_by_email
     define :provision_from_provider_identity, action: :provision_from_provider_identity
+    define :promote_to_admin, action: :promote_to_admin
   end
 
   actions do
@@ -204,6 +206,48 @@ defmodule JidoCode.Accounts.User do
       end
     end
 
+    create :bootstrap_admin do
+      description "Create the first local administrator for a brand-new install."
+
+      argument :email, :ci_string do
+        allow_nil? false
+      end
+
+      argument :password, :string do
+        description "The proposed password for the bootstrap administrator."
+        allow_nil? false
+        constraints min_length: 8
+        sensitive? true
+      end
+
+      argument :password_confirmation, :string do
+        description "The proposed password for the bootstrap administrator (again)."
+        allow_nil? false
+        sensitive? true
+      end
+
+      change set_attribute(:email, arg(:email))
+      change set_attribute(:is_admin, true)
+
+      change fn changeset, _context ->
+        Ash.Changeset.force_change_attribute(
+          changeset,
+          :confirmed_at,
+          DateTime.utc_now() |> DateTime.truncate(:second)
+        )
+      end
+
+      change {AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password}
+      change {AshAuthentication.GenerateTokenChange, strategy_name: :password}
+
+      validate {AshAuthentication.Strategy.Password.PasswordConfirmationValidation, strategy_name: :password}
+
+      metadata :token, :string do
+        description "A JWT that can be used to authenticate the user."
+        allow_nil? false
+      end
+    end
+
     action :request_password_reset_token do
       description "Send password reset instructions to a user if they exist."
 
@@ -258,8 +302,8 @@ defmodule JidoCode.Accounts.User do
       change AshAuthentication.GenerateTokenChange
     end
 
-    create :sign_in_with_magic_link do
-      description "Sign in or register a user with magic link."
+    read :sign_in_with_magic_link do
+      description "Sign in an existing user with magic link."
 
       argument :token, :string do
         description "The token from the magic link that was sent to the user"
@@ -271,14 +315,8 @@ defmodule JidoCode.Accounts.User do
         allow_nil? true
       end
 
-      upsert? true
-      upsert_identity :unique_email
-      upsert_fields [:email]
-
-      # Uses the information from the token to create or sign in the user
-      change AshAuthentication.Strategy.MagicLink.SignInChange
-
-      change {AshAuthentication.Strategy.RememberMe.MaybeGenerateTokenChange, strategy_name: :remember_me}
+      # Uses the information from the token to sign in the user
+      prepare AshAuthentication.Strategy.MagicLink.SignInPreparation
 
       metadata :token, :string do
         allow_nil? false
@@ -296,6 +334,26 @@ defmodule JidoCode.Accounts.User do
     read :sign_in_with_api_key do
       argument :api_key, :string, allow_nil?: false
       prepare AshAuthentication.Strategy.ApiKey.SignInPreparation
+    end
+
+    update :promote_to_admin do
+      description "Promote a bootstrap-compatible user record into the first admin role."
+      require_atomic? false
+      accept []
+
+      change set_attribute(:is_admin, true)
+
+      change fn changeset, _context ->
+        if Ash.Changeset.get_attribute(changeset, :confirmed_at) do
+          changeset
+        else
+          Ash.Changeset.force_change_attribute(
+            changeset,
+            :confirmed_at,
+            DateTime.utc_now() |> DateTime.truncate(:second)
+          )
+        end
+      end
     end
   end
 
@@ -318,6 +376,12 @@ defmodule JidoCode.Accounts.User do
     end
 
     attribute :confirmed_at, :utc_datetime_usec
+
+    attribute :is_admin, :boolean do
+      allow_nil? false
+      default false
+      public? true
+    end
   end
 
   relationships do

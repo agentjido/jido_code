@@ -4,9 +4,9 @@ defmodule JidoCodeWeb.WelcomeLiveTest do
 
   import Phoenix.LiveViewTest
 
-  test "/welcome renders the operator landing page", %{conn: conn} do
+  test "/welcome renders the first-run bootstrap landing when no users exist", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/welcome")
 
-    assert html =~ "Welcome to Jido Code"
+    assert html =~ "Create your admin account"
   end
 end

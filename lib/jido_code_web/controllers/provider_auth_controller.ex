@@ -5,23 +5,27 @@ defmodule JidoCodeWeb.ProviderAuthController do
 
   # covers: auth.provider_broker_handoff.start_endpoint_contract
   # covers: auth.provider_broker_handoff.complete_endpoint_contract
+  # covers: auth.provider_broker_handoff.bootstrap_gate_before_handoff
   # covers: auth.provider_login_flow.broker_handoff_consumption
   # covers: auth.provider_login_flow.local_session_issuance
   # covers: auth.provider_login_flow.redirect_path_completion
   # covers: auth.self_hosted_provider_integration.login_and_service_ready
   # covers: auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure
   # covers: auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression
+  # covers: auth.self_hosted_provider_integration.bootstrap_precedes_provider_login
 
   use JidoCodeWeb, :controller
 
   alias AshAuthentication.Plug.Helpers
   alias JidoCode.AuthProviders.{BrokerHandoff, BrokerState, ProviderConfig, ProviderLogin}
+  alias JidoCode.Setup.BootstrapStatus
 
   def start(conn, %{"provider" => provider} = params) do
     provider_host = Map.get(params, "provider_host", default_provider_host(provider))
     redirect_path = normalize_redirect_path(Map.get(params, "redirect_path", "/"))
 
-    with {:ok, provider_config} <- fetch_provider_config(provider, provider_host),
+    with :ok <- ensure_provider_login_available(),
+         {:ok, provider_config} <- fetch_provider_config(provider, provider_host),
          :ok <- ensure_login_enabled(provider_config),
          {:ok, issued_state} <-
            BrokerState.issue(%{
@@ -43,6 +47,16 @@ defmodule JidoCodeWeb.ProviderAuthController do
         |> put_status(:forbidden)
         |> json(%{error: error})
 
+      {:error, %{error_type: "provider_login_bootstrap_required"} = error} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: error})
+
+      {:error, %{error_type: "provider_login_invalid_bootstrap_state"} = error} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: error})
+
       {:error, %{error_type: "broker_base_url_invalid"} = error} ->
         conn
         |> put_status(:service_unavailable)
@@ -56,7 +70,8 @@ defmodule JidoCodeWeb.ProviderAuthController do
   end
 
   def complete(conn, %{"provider" => provider, "state" => state_token, "handoff_token" => handoff_token}) do
-    with {:ok, state_claims} <- BrokerState.verify(state_token),
+    with :ok <- ensure_provider_login_available(),
+         {:ok, state_claims} <- BrokerState.verify(state_token),
          true <- state_claims.provider == provider,
          {:ok, provider_config} <- fetch_provider_config(provider, state_claims.provider_host),
          :ok <- ensure_login_enabled(provider_config),
@@ -88,6 +103,16 @@ defmodule JidoCodeWeb.ProviderAuthController do
       {:error, %{error_type: "provider_login_disabled"} = error} ->
         conn
         |> put_status(:forbidden)
+        |> json(%{error: error})
+
+      {:error, %{error_type: "provider_login_bootstrap_required"} = error} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: error})
+
+      {:error, %{error_type: "provider_login_invalid_bootstrap_state"} = error} ->
+        conn
+        |> put_status(:conflict)
         |> json(%{error: error})
 
       {:error, %{error_type: error_type} = error}
@@ -135,6 +160,29 @@ defmodule JidoCodeWeb.ProviderAuthController do
         recovery_instruction: "Restart provider sign-in and retry the handoff."
       }
     })
+  end
+
+  defp ensure_provider_login_available do
+    case BootstrapStatus.current() do
+      %{state: :bootstrap_required} ->
+        {:error,
+         %{
+           error_type: "provider_login_bootstrap_required",
+           message: "Create the first local admin account before using provider login.",
+           recovery_instruction: "Open /welcome and complete first-run bootstrap."
+         }}
+
+      %{state: :invalid_state, diagnostic: diagnostic} ->
+        {:error,
+         %{
+           error_type: "provider_login_invalid_bootstrap_state",
+           message: diagnostic || "Provider login is unavailable until bootstrap state is repaired.",
+           recovery_instruction: "Repair the local bootstrap state before retrying provider login."
+         }}
+
+      _other ->
+        :ok
+    end
   end
 
   defp fetch_provider_config(provider, provider_host) do

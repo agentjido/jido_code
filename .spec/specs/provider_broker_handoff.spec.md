@@ -61,6 +61,11 @@ surface:
   statement: The deployment complete endpoint shall validate signed state and broker handoff JWT before provider-specific identity linking and local session issuance are allowed to proceed.
   priority: must
   stability: evolving
+
+- id: auth.provider_broker_handoff.bootstrap_gate_before_handoff
+  statement: The deployment start and complete endpoints shall refuse provider login while first-run bootstrap still requires a local admin or the bootstrap state is invalid.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -100,6 +105,16 @@ surface:
     - The deployment start and complete endpoints are invoked.
   then:
     - Start redirects to the broker contract URL, and complete validates the broker contract before any local provider sign-in work runs.
+
+- id: auth.provider_broker_handoff.scenario.bootstrap_gate
+  covers:
+    - auth.provider_broker_handoff.bootstrap_gate_before_handoff
+  given:
+    - First-run bootstrap has not yet produced a usable local admin, or bootstrap state is invalid.
+  when:
+    - A provider login start or completion endpoint is invoked.
+  then:
+    - The deployment rejects provider login until the bootstrap state is repaired or completed.
 ```
 
 ## Verification
@@ -130,6 +145,7 @@ surface:
   covers:
     - auth.provider_broker_handoff.start_endpoint_contract
     - auth.provider_broker_handoff.complete_endpoint_contract
+    - auth.provider_broker_handoff.bootstrap_gate_before_handoff
 
 - kind: source_file
   target: test/jido_code/auth_providers/broker_state_test.exs
@@ -150,4 +166,5 @@ surface:
   covers:
     - auth.provider_broker_handoff.start_endpoint_contract
     - auth.provider_broker_handoff.complete_endpoint_contract
+    - auth.provider_broker_handoff.bootstrap_gate_before_handoff
 ```

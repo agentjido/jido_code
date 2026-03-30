@@ -25,7 +25,7 @@ defmodule JidoCodeWeb.AuthSignOutLiveTest do
       |> html_response(200)
 
     assert welcome_html =~ "Sign In"
-    assert welcome_html =~ "Create Account"
+    refute welcome_html =~ "Create Account"
     refute welcome_html =~ "owner@example.com"
   end
 

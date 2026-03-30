@@ -373,7 +373,7 @@
         "id": "architecture.policy_layers.explicit_human_and_machine_actor_classes",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The architecture shall model explicit human and machine actor classes for data-plane authorization, including at least admin, operator, factory-system, managed-repo-orchestrator, run-worker, and external-ingress actors.",
+        "statement": "The architecture shall model explicit human and machine actor classes for data-plane authorization, including at least admin, operator, factory-system, managed-repo-orchestrator, run-worker, and external-ingress actors, with bootstrap administrators and later member accounts remaining explicit local-user actor roles instead of implicit side effects of authentication.",
         "subject_id": "architecture.policy_layers"
       },
       {
@@ -469,7 +469,7 @@
         "id": "auth.github_integration.non_blocking_local_auth",
         "priority": "must",
         "stability": "stable",
-        "statement": "Email/password and magic-link authentication shall remain available even when GitHub App configuration is absent or invalid.",
+        "statement": "Email/password and magic-link authentication shall remain available even when GitHub App configuration is absent or invalid, and missing GitHub setup shall not block the initial signed-in product entry path.",
         "subject_id": "auth.github_integration"
       },
       {
@@ -477,7 +477,7 @@
         "id": "auth.github_integration.readiness_feedback",
         "priority": "must",
         "stability": "stable",
-        "statement": "Setup shall report whether GitHub App mode or PAT fallback is configured and whether repository access is confirmed for the current administrator context.",
+        "statement": "Signed-in GitHub setup and follow-up product surfaces shall report whether GitHub App mode or PAT fallback is configured and whether repository access is confirmed for the current administrator context.",
         "subject_id": "auth.github_integration"
       },
       {
@@ -522,6 +522,14 @@
       },
       {
         "file": ".spec/specs/operator_auth_settings.spec.md",
+        "id": "auth.operator_settings.hidden_during_bootstrap_entry",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The operator auth-settings console shall remain secondary to first-run bootstrap and continue-setup states, only appearing once the signed-in landing page is allowed to render its ready-state operator surfaces.",
+        "subject_id": "auth.operator_settings"
+      },
+      {
+        "file": ".spec/specs/operator_auth_settings.spec.md",
         "id": "auth.operator_settings.integration_boundary_visible",
         "priority": "should",
         "stability": "evolving",
@@ -535,6 +543,14 @@
         "stability": "stable",
         "statement": "The authenticated landing page shall present separate Provider Login and Git Provider Integrations sections.",
         "subject_id": "auth.operator_settings"
+      },
+      {
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "id": "auth.provider_broker_handoff.bootstrap_gate_before_handoff",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The deployment start and complete endpoints shall refuse provider login while first-run bootstrap still requires a local admin or the bootstrap state is invalid.",
+        "subject_id": "auth.provider_broker_handoff"
       },
       {
         "file": ".spec/specs/provider_broker_handoff.spec.md",
@@ -645,7 +661,7 @@
         "id": "auth.provider_identity_linking.auto_create_local_user",
         "priority": "must",
         "stability": "stable",
-        "statement": "When no linked identity exists and no existing local user matches by verified provider email, the system shall provision a local user record from provider identity data.",
+        "statement": "Once provider login is allowed after local bootstrap, when no linked identity exists and no existing local user matches by verified provider email, the system shall provision a local user record from provider identity data.",
         "subject_id": "auth.provider_identity_linking"
       },
       {
@@ -677,7 +693,7 @@
         "id": "auth.provider_login_flow.entrypoint_visible",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled.",
+        "statement": "The landing page shall expose a GitHub provider sign-in entrypoint when GitHub.com provider login is enabled and first-run bootstrap is already complete.",
         "subject_id": "auth.provider_login_flow"
       },
       {
@@ -685,7 +701,7 @@
         "id": "auth.provider_login_flow.local_auth_fallback_visible",
         "priority": "must",
         "stability": "stable",
-        "statement": "Local email sign-in and account-creation entrypoints shall remain visible even when provider login is unavailable or disabled.",
+        "statement": "Local email sign-in shall remain visible even when provider login is unavailable or disabled, while public account creation appears only during first-run bootstrap.",
         "subject_id": "auth.provider_login_flow"
       },
       {
@@ -762,6 +778,14 @@
       },
       {
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "id": "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "A self-hosted deployment shall keep local first-admin bootstrap primary and refuse provider login until bootstrap produces a valid local admin state.",
+        "subject_id": "auth.self_hosted_provider_integration"
+      },
+      {
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
         "id": "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
         "priority": "must",
         "stability": "stable",
@@ -805,7 +829,7 @@
         "id": "auth.system.magic_link",
         "priority": "must",
         "stability": "stable",
-        "statement": "Local authentication shall support email magic-link sign-in and registration.",
+        "statement": "Local authentication shall support email magic-link sign-in for existing local users.",
         "subject_id": "auth.system"
       },
       {
@@ -813,7 +837,7 @@
         "id": "auth.system.password_registration_and_sign_in",
         "priority": "must",
         "stability": "stable",
-        "statement": "Local authentication shall support email-and-password registration and sign-in with password confirmation and minimum-length validation.",
+        "statement": "Local authentication shall support first-run bootstrap-admin creation and later email-and-password sign-in with password confirmation and minimum-length validation.",
         "subject_id": "auth.system"
       },
       {
@@ -837,7 +861,7 @@
         "id": "baseline.surface.auth_entrypoints_visible",
         "priority": "must",
         "stability": "stable",
-        "statement": "The landing page shall present local authentication entrypoints for anonymous users, an enabled provider-login entrypoint when configured, and a sign-out control for authenticated users.",
+        "statement": "The landing page shall present the first-admin bootstrap form for zero-user installs, sign-in-only local auth for completed installs, a provider-login entrypoint only after bootstrap is complete and configured, and a sign-out control for authenticated users.",
         "subject_id": "baseline.surface"
       },
       {
@@ -853,7 +877,7 @@
         "id": "baseline.surface.public_entry_routes",
         "priority": "must",
         "stability": "stable",
-        "statement": "The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available as the public operator entry surface.",
+        "statement": "The browser route surface shall keep `/`, `/welcome`, `/setup`, and authentication entrypoints available, with `/welcome` owning first-run admin bootstrap and `/setup` acting as the signed-in post-bootstrap start surface.",
         "subject_id": "baseline.surface"
       },
       {
@@ -869,7 +893,15 @@
         "id": "baseline.surface.welcome_landing_copy",
         "priority": "must",
         "stability": "stable",
-        "statement": "The welcome landing page shall present the copy \"Welcome to Jido Code\" and act as the operator-facing starting point for sign-in and setup.",
+        "statement": "The `/welcome` landing page shall act as the operator-facing starting point, keep runtime health checks mostly transparent unless they block bootstrap, and switch between first-run bootstrap copy for zero-user installs and ready-state sign-in copy once bootstrap is complete.",
+        "subject_id": "baseline.surface"
+      },
+      {
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "id": "baseline.surface.welcome_surface_consolidated",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The canonical `/welcome` route shall be implemented by the state-aware home live view rather than a separate legacy welcome live implementation.",
         "subject_id": "baseline.surface"
       },
       {
@@ -1074,6 +1106,14 @@
       },
       {
         "file": ".spec/specs/package.spec.md",
+        "id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "First-run bootstrap, signed-in start surfaces, and their auth-boundary behavior shall be specified and implemented inside jido_code rather than split into external installers or repo-local-only conventions.",
+        "subject_id": "package.jido_code"
+      },
+      {
+        "file": ".spec/specs/package.spec.md",
         "id": "package.jido_code.mix_first_cli_surface",
         "priority": "should",
         "stability": "evolving",
@@ -1151,6 +1191,54 @@
         "stability": "stable",
         "statement": "The repository shall include the contributor-facing root files required by the package quality standards for this product repo: README, CHANGELOG, CONTRIBUTING, AGENTS, and LICENSE.",
         "subject_id": "package.jido_code.package_quality_standards"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.admin_bootstrap_completion_gate",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "First-run onboarding shall require only successful bootstrap administrator creation and authenticated product entry; additional product setup shall be optional follow-up work.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.deferred_integrations",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Provider credentials, GitHub integration, webhook readiness, and first-project import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.deployment_mode_auto_detected",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Deployment mode shall be a global, auto-detected product hint used for copy and default start-path emphasis rather than an operator-defined setup choice.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.post_bootstrap_start_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "After bootstrap, `/setup` shall serve as a lightweight signed-in start surface rather than a blocking multi-step verification wizard.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.repo_source_per_project",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Repository source selection shall remain a per-project concern so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.",
+        "subject_id": "setup.onboarding"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding.runtime_health_transparent_unless_blocking",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Runtime and system health checks shall stay mostly transparent and appear only when they block bootstrap or make the install unsafe to continue.",
+        "subject_id": "setup.onboarding"
       },
       {
         "file": ".spec/specs/source_provider_adapter.spec.md",
@@ -1253,7 +1341,7 @@
         "id": "users.admin_system.bootstrap_admin",
         "priority": "must",
         "stability": "stable",
-        "statement": "Initial setup shall create or confirm exactly one bootstrap administrator before admin-managed account features are used.",
+        "statement": "Initial setup shall use the `/welcome` first-run flow to create or confirm exactly one bootstrap administrator, auto-confirm that account, mark it as an administrator, and treat that signed-in bootstrap outcome as the only hard first-run account gate before optional product setup is deferred.",
         "subject_id": "users.admin_system"
       },
       {
@@ -1269,7 +1357,7 @@
         "id": "users.admin_system.registration_guardrails",
         "priority": "must",
         "stability": "stable",
-        "statement": "Once the bootstrap administrator exists in production, open self-registration shall remain gated unless an administrator explicitly provisions or invites the account.",
+        "statement": "Once the bootstrap administrator exists, open self-registration shall remain gated unless an administrator explicitly provisions or invites the account.",
         "subject_id": "users.admin_system"
       },
       {
@@ -1763,7 +1851,8 @@
       {
         "covers": [
           "auth.operator_settings.sections_separated",
-          "auth.operator_settings.integration_boundary_visible"
+          "auth.operator_settings.integration_boundary_visible",
+          "auth.operator_settings.hidden_during_bootstrap_entry"
         ],
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "given": [
@@ -1776,6 +1865,23 @@
         ],
         "when": [
           "The operator opens the landing page."
+        ]
+      },
+      {
+        "covers": [
+          "auth.provider_broker_handoff.bootstrap_gate_before_handoff"
+        ],
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "given": [
+          "First-run bootstrap has not yet produced a usable local admin, or bootstrap state is invalid."
+        ],
+        "id": "auth.provider_broker_handoff.scenario.bootstrap_gate",
+        "subject_id": "auth.provider_broker_handoff",
+        "then": [
+          "The deployment rejects provider login until the bootstrap state is repaired or completed."
+        ],
+        "when": [
+          "A provider login start or completion endpoint is invoked."
         ]
       },
       {
@@ -1877,6 +1983,7 @@
         ],
         "file": ".spec/specs/provider_identity_linking.spec.md",
         "given": [
+          "Local bootstrap is complete.",
           "No linked provider identity exists and the verified provider email is not yet present in the local directory."
         ],
         "id": "auth.provider_identity_linking.scenario.auto_create",
@@ -1930,12 +2037,13 @@
         ],
         "file": ".spec/specs/provider_login_flow.spec.md",
         "given": [
-          "GitHub.com provider login has been enabled for the deployment."
+          "GitHub.com provider login has been enabled for the deployment.",
+          "A local bootstrap administrator already exists."
         ],
         "id": "auth.provider_login_flow.scenario.github_entrypoint",
         "subject_id": "auth.provider_login_flow",
         "then": [
-          "The page shows both local auth entrypoints and the GitHub sign-in entrypoint."
+          "The page shows local sign-in and the GitHub sign-in entrypoint without reopening public account creation."
         ],
         "when": [
           "An anonymous visitor opens the landing page."
@@ -2033,6 +2141,23 @@
       },
       {
         "covers": [
+          "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login"
+        ],
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "given": [
+          "A brand-new self-hosted install has not yet completed local bootstrap."
+        ],
+        "id": "auth.self_hosted_provider_integration.scenario.bootstrap_required",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "then": [
+          "The provider path stays unavailable and the local bootstrap path remains the required public entry route."
+        ],
+        "when": [
+          "An operator tries to start provider login from the public entry surface."
+        ]
+      },
+      {
+        "covers": [
           "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure"
         ],
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
@@ -2097,7 +2222,7 @@
         "id": "auth.system.scenario.magic_link",
         "subject_id": "auth.system",
         "then": [
-          "The system signs in the existing user or creates the local user identity allowed by policy."
+          "The system signs in the existing local user without reopening public self-registration."
         ],
         "when": [
           "The user requests and consumes a valid magic link."
@@ -2228,6 +2353,63 @@
       },
       {
         "covers": [
+          "setup.onboarding.admin_bootstrap_completion_gate",
+          "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.deployment_mode_auto_detected",
+          "setup.onboarding.repo_source_per_project"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A desktop deployment has completed bootstrap-admin creation."
+        ],
+        "id": "setup.onboarding.scenario.desktop_start",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "The app enters a lightweight start flow that can emphasize attaching a local repository without requiring the admin to finish every optional integration first."
+        ],
+        "when": [
+          "The administrator reaches the signed-in start surface."
+        ]
+      },
+      {
+        "covers": [
+          "setup.onboarding.runtime_health_transparent_unless_blocking"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A first-run install encounters a runtime failure that prevents safe bootstrap."
+        ],
+        "id": "setup.onboarding.scenario_blocking_runtime_fault",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "The product surfaces the blocking diagnostic instead of burying the failure in optional setup chrome."
+        ],
+        "when": [
+          "The operator opens the public bootstrap entry."
+        ]
+      },
+      {
+        "covers": [
+          "setup.onboarding.admin_bootstrap_completion_gate",
+          "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.deployment_mode_auto_detected",
+          "setup.onboarding.deferred_integrations"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "given": [
+          "A cloud deployment has completed bootstrap-admin creation."
+        ],
+        "id": "setup.onboarding.scenario_cloud_start",
+        "subject_id": "setup.onboarding",
+        "then": [
+          "The app may emphasize hosted source-control follow-up work such as GitHub connection, but the administrator can still enter the product without completing those integrations immediately."
+        ],
+        "when": [
+          "The administrator reaches the signed-in start surface."
+        ]
+      },
+      {
+        "covers": [
           "source.provider_adapter.behavior_contract",
           "source.provider_adapter.github_adapter",
           "source.provider_adapter.github_app_preferred"
@@ -2294,10 +2476,10 @@
         "id": "users.admin_system.scenario.bootstrap_admin",
         "subject_id": "users.admin_system",
         "then": [
-          "The system establishes one bootstrap administrator who becomes the first accountable local user."
+          "The system establishes one bootstrap administrator who becomes the first accountable local user and signs that administrator into the product, while optional repo and integration setup continues as signed-in follow-up work."
         ],
         "when": [
-          "Initial setup is completed."
+          "The operator completes first-run bootstrap from `/welcome`."
         ]
       },
       {
@@ -2329,7 +2511,7 @@
           "id": "auth.system",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code authenticates local users with email-backed identities, password and magic-link flows, confirmation, and revocable session credentials backed by persisted security-token surfaces.",
+          "summary": "jido_code authenticates local users with email-backed identities, first-run password bootstrap, password and magic-link sign-in, confirmation tracking, and revocable session credentials backed by persisted security-token surfaces.",
           "surface": [
             "lib/jido_code/accounts/user.ex",
             "lib/jido_code/accounts/token.ex",
@@ -2350,10 +2532,11 @@
           "id": "baseline.surface",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a welcome landing page and auth entrypoints at the public edge while keeping authenticated product, RPC, API, and dev surfaces declared in the router.",
+          "summary": "jido_code exposes a state-aware `/welcome` landing page and public auth entrypoints while keeping authenticated product, RPC, API, and dev surfaces declared in the router.",
           "surface": [
             "lib/jido_code_web/router.ex",
             "lib/jido_code_web/live/home_live.ex",
+            "lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex",
             "lib/jido_code_web/components/layouts.ex",
             "test/jido_code_web/controllers/page_controller_test.exs",
             "test/jido_code_web/live/home_live_test.exs",
@@ -2599,7 +2782,7 @@
           "id": "auth.operator_settings",
           "kind": "feature",
           "status": "active",
-          "summary": "authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, and keep Git service secrets distinct from provider-login configuration.",
+          "summary": "authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete.",
           "surface": [
             "lib/jido_code_web/live/home_live.ex",
             "test/jido_code_web/live/home_live_operator_settings_test.exs"
@@ -2805,7 +2988,7 @@
           "id": "auth.provider_identity_linking",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code resolves provider identities to local users by reusing an existing identity, linking verified email addresses, or provisioning a new local user when needed.",
+          "summary": "jido_code resolves provider identities to local users by reusing an existing identity, linking verified email addresses, or provisioning a new local user when needed once provider login is allowed after local bootstrap.",
           "surface": [
             "lib/jido_code/accounts/provider_identity_linker.ex",
             "lib/jido_code/accounts/user.ex",
@@ -2826,7 +3009,7 @@
           "id": "auth.provider_login_flow",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a GitHub provider sign-in entrypoint, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.",
+          "summary": "jido_code exposes a GitHub provider sign-in entrypoint after local bootstrap is complete, consumes broker-validated provider claims, links them to the local user system, and issues the same revocable local session tokens used by email sign-in before redirecting back to the signed landing path.",
           "surface": [
             "lib/jido_code/auth_providers/provider_login.ex",
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
@@ -2868,7 +3051,7 @@
           "id": "auth.self_hosted_provider_integration",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection against the `/welcome` landing flow.",
+          "summary": "jido_code makes self-hosted provider login behavior explicit by testing broker-backed GitHub login after local bootstrap, deployment-local GitHub automation readiness, disabled-login separation, broker failure fallback, and allowlist rejection against the `/welcome` landing flow.",
           "surface": [
             "lib/jido_code_web/controllers/provider_auth_controller.ex",
             "lib/jido_code_web/live/home_live.ex",
@@ -2878,6 +3061,31 @@
           "verification_minimum_strength": null
         },
         "title": "Self-Hosted Provider Auth Integration"
+      },
+      {
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "id": "setup.onboarding",
+        "meta": {
+          "decisions": [
+            "jido_code.auth_user_system"
+          ],
+          "id": "setup.onboarding",
+          "kind": "feature",
+          "status": "active",
+          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work.",
+          "surface": [
+            ".spec/specs/baseline_surface.spec.md",
+            ".spec/specs/user_administration.spec.md",
+            ".spec/specs/github_identity_and_integration.spec.md",
+            "lib/jido_code_web/live/home_live.ex",
+            "lib/jido_code_web/live/setup_live.ex",
+            "lib/jido_code_web/live/dashboard_live.ex",
+            "lib/jido_code/setup/runtime_mode.ex",
+            "lib/jido_code/projects/project.ex"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Setup Onboarding"
       },
       {
         "file": ".spec/specs/source_provider_adapter.spec.md",
@@ -2934,11 +3142,17 @@
           "id": "users.admin_system",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code boots with an initial administrator through the welcome/setup path and grows into an admin-managed multi-user account system with guarded registration.",
+          "summary": "jido_code boots through a `/welcome` first-run gate that creates or confirms one bootstrap administrator, then grows into an admin-managed multi-user account system with guarded registration.",
           "surface": [
+            "lib/jido_code/setup/bootstrap_status.ex",
             "lib/jido_code/setup/owner_bootstrap.ex",
+            "lib/jido_code/setup/owner_recovery.ex",
             "lib/jido_code/accounts/user.ex",
-            "lib/jido_code/accounts/checks/registration_allowed.ex"
+            "lib/jido_code/accounts/checks/registration_allowed.ex",
+            "lib/jido_code_web/live/home_live.ex",
+            "priv/repo/migrations/20260325220016_migrate_resources1_dev.exs",
+            "priv/resource_snapshots/repo/users/20260325220016_dev.json",
+            "test/jido_code_web/live/setup_live_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3180,7 +3394,8 @@
           "auth.operator_settings.sections_separated",
           "auth.operator_settings.broker_trust_configuration_ui",
           "auth.operator_settings.github_service_validation_feedback",
-          "auth.operator_settings.integration_boundary_visible"
+          "auth.operator_settings.integration_boundary_visible",
+          "auth.operator_settings.hidden_during_bootstrap_entry"
         ],
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "kind": "source_file",
@@ -3192,7 +3407,8 @@
           "auth.operator_settings.sections_separated",
           "auth.operator_settings.broker_trust_configuration_ui",
           "auth.operator_settings.github_service_validation_feedback",
-          "auth.operator_settings.integration_boundary_visible"
+          "auth.operator_settings.integration_boundary_visible",
+          "auth.operator_settings.hidden_during_bootstrap_entry"
         ],
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "kind": "source_file",
@@ -3234,7 +3450,8 @@
       {
         "covers": [
           "auth.provider_broker_handoff.start_endpoint_contract",
-          "auth.provider_broker_handoff.complete_endpoint_contract"
+          "auth.provider_broker_handoff.complete_endpoint_contract",
+          "auth.provider_broker_handoff.bootstrap_gate_before_handoff"
         ],
         "file": ".spec/specs/provider_broker_handoff.spec.md",
         "kind": "source_file",
@@ -3266,7 +3483,8 @@
       {
         "covers": [
           "auth.provider_broker_handoff.start_endpoint_contract",
-          "auth.provider_broker_handoff.complete_endpoint_contract"
+          "auth.provider_broker_handoff.complete_endpoint_contract",
+          "auth.provider_broker_handoff.bootstrap_gate_before_handoff"
         ],
         "file": ".spec/specs/provider_broker_handoff.spec.md",
         "kind": "source_file",
@@ -3472,7 +3690,8 @@
         "covers": [
           "auth.self_hosted_provider_integration.login_and_service_ready",
           "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
-          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+          "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login"
         ],
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
         "kind": "source_file",
@@ -3484,7 +3703,8 @@
           "auth.self_hosted_provider_integration.login_and_service_ready",
           "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
           "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
-          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+          "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login"
         ],
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
         "kind": "source_file",
@@ -3507,7 +3727,8 @@
           "auth.self_hosted_provider_integration.login_and_service_ready",
           "auth.self_hosted_provider_integration.service_independent_of_login_toggle",
           "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
-          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression"
+          "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+          "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login"
         ],
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
         "kind": "source_file",
@@ -3587,12 +3808,23 @@
       {
         "covers": [
           "baseline.surface.welcome_landing_copy",
-          "baseline.surface.auth_entrypoints_visible"
+          "baseline.surface.auth_entrypoints_visible",
+          "baseline.surface.welcome_surface_consolidated"
         ],
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
         "subject_id": "baseline.surface",
         "target": "lib/jido_code_web/live/home_live.ex"
+      },
+      {
+        "covers": [
+          "baseline.surface.public_entry_routes",
+          "baseline.surface.auth_entrypoints_visible"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex"
       },
       {
         "covers": [
@@ -3621,6 +3853,15 @@
         "kind": "source_file",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/welcome_live_test.exs"
+      },
+      {
+        "covers": [
+          "baseline.surface.welcome_surface_consolidated"
+        ],
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "command",
+        "subject_id": "baseline.surface",
+        "target": "test ! -e lib/jido_code_web/live/welcome_live.ex"
       },
       {
         "covers": [
@@ -4139,6 +4380,15 @@
       },
       {
         "covers": [
+          "package.jido_code.bootstrap_and_start_surfaces_in_repo"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/setup_onboarding.spec.md"
+      },
+      {
+        "covers": [
           "package.jido_code.package_quality_alignment_doc_present",
           "package.jido_code.package_quality_exceptions_documented"
         ],
@@ -4191,6 +4441,44 @@
         "kind": "command",
         "subject_id": "package.jido_code.package_quality_standards",
         "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml"
+      },
+      {
+        "covers": [
+          "setup.onboarding.admin_bootstrap_completion_gate"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/user_administration.spec.md"
+      },
+      {
+        "covers": [
+          "setup.onboarding.post_bootstrap_start_surface",
+          "setup.onboarding.runtime_health_transparent_unless_blocking"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/baseline_surface.spec.md"
+      },
+      {
+        "covers": [
+          "setup.onboarding.deferred_integrations"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/github_identity_and_integration.spec.md"
+      },
+      {
+        "covers": [
+          "setup.onboarding.deployment_mode_auto_detected",
+          "setup.onboarding.repo_source_per_project"
+        ],
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/setup_onboarding.spec.md"
       },
       {
         "covers": [
@@ -4326,12 +4614,32 @@
       },
       {
         "covers": [
+          "users.admin_system.bootstrap_admin",
+          "users.admin_system.registration_guardrails"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/setup/bootstrap_status.ex"
+      },
+      {
+        "covers": [
           "users.admin_system.bootstrap_admin"
         ],
         "file": ".spec/specs/user_administration.spec.md",
         "kind": "source_file",
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/setup/owner_bootstrap.ex"
+      },
+      {
+        "covers": [
+          "users.admin_system.bootstrap_admin",
+          "users.admin_system.admin_role_assignment"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/setup/owner_recovery.ex"
       },
       {
         "covers": [
@@ -4354,6 +4662,27 @@
         "kind": "source_file",
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/checks/registration_allowed.ex"
+      },
+      {
+        "covers": [
+          "users.admin_system.bootstrap_admin",
+          "users.admin_system.registration_guardrails"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code_web/live/home_live.ex"
+      },
+      {
+        "covers": [
+          "users.admin_system.bootstrap_admin",
+          "users.admin_system.admin_role_assignment",
+          "users.admin_system.registration_guardrails"
+        ],
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "subject_id": "users.admin_system",
+        "target": "test/jido_code_web/live/setup_live_test.exs"
       },
       {
         "covers": [
@@ -4422,10 +4751,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 147,
-    "scenarios": 56,
-    "subjects": 29,
-    "verifications": 144
+    "requirements": 158,
+    "scenarios": 61,
+    "subjects": 30,
+    "verifications": 155
   },
   "verification": {
     "claims": [
@@ -5068,6 +5397,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "auth.operator_settings.hidden_during_bootstrap_entry",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 0
+      },
+      {
         "cover_id": "auth.operator_settings.integration_boundary_visible",
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "kind": "source_file",
@@ -5102,6 +5442,17 @@
       },
       {
         "cover_id": "auth.operator_settings.github_service_validation_feedback",
+        "file": ".spec/specs/operator_auth_settings.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.operator_settings",
+        "target": "test/jido_code_web/live/home_live_operator_settings_test.exs",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.operator_settings.hidden_during_bootstrap_entry",
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -5222,6 +5573,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "auth.provider_broker_handoff.bootstrap_gate_before_handoff",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex",
+        "verification_index": 3
+      },
+      {
         "cover_id": "auth.provider_broker_handoff.complete_endpoint_contract",
         "file": ".spec/specs/provider_broker_handoff.spec.md",
         "kind": "source_file",
@@ -5308,6 +5670,17 @@
         "subject_id": "auth.provider_broker_handoff",
         "target": "test/jido_code/auth_providers/broker_handoff_test.exs",
         "verification_index": 5
+      },
+      {
+        "cover_id": "auth.provider_broker_handoff.bootstrap_gate_before_handoff",
+        "file": ".spec/specs/provider_broker_handoff.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.provider_broker_handoff",
+        "target": "test/jido_code_web/controllers/provider_auth_controller_test.exs",
+        "verification_index": 6
       },
       {
         "cover_id": "auth.provider_broker_handoff.complete_endpoint_contract",
@@ -5816,6 +6189,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/controllers/provider_auth_controller.ex",
+        "verification_index": 0
+      },
+      {
         "cover_id": "auth.self_hosted_provider_integration.local_auth_fallback_on_broker_failure",
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
         "kind": "source_file",
@@ -5839,6 +6223,17 @@
       },
       {
         "cover_id": "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login",
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -5916,6 +6311,17 @@
       },
       {
         "cover_id": "auth.self_hosted_provider_integration.allowlist_rejection_without_service_regression",
+        "file": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "auth.self_hosted_provider_integration",
+        "target": "test/jido_code_web/integration/self_hosted_provider_auth_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "auth.self_hosted_provider_integration.bootstrap_precedes_provider_login",
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -6135,6 +6541,39 @@
         "verification_index": 1
       },
       {
+        "cover_id": "baseline.surface.welcome_surface_consolidated",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "baseline.surface.auth_entrypoints_visible",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "baseline.surface.public_entry_routes",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "baseline.surface",
+        "target": "lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex",
+        "verification_index": 2
+      },
+      {
         "cover_id": "baseline.surface.root_redirects_to_welcome",
         "file": ".spec/specs/baseline_surface.spec.md",
         "kind": "source_file",
@@ -6143,7 +6582,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/controllers/page_controller_test.exs",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "baseline.surface.auth_entrypoints_visible",
@@ -6154,7 +6593,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/home_live_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "baseline.surface.welcome_landing_copy",
@@ -6165,7 +6604,7 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/home_live_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "baseline.surface.welcome_landing_copy",
@@ -6176,7 +6615,18 @@
         "strength": "linked",
         "subject_id": "baseline.surface",
         "target": "test/jido_code_web/live/welcome_live_test.exs",
-        "verification_index": 4
+        "verification_index": 5
+      },
+      {
+        "cover_id": "baseline.surface.welcome_surface_consolidated",
+        "file": ".spec/specs/baseline_surface.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "baseline.surface",
+        "target": "test ! -e lib/jido_code_web/live/welcome_live.ex",
+        "verification_index": 6
       },
       {
         "cover_id": "baseline.surface.product_routes_declared",
@@ -6187,7 +6637,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "mix compile",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "baseline.surface.public_entry_routes",
@@ -6198,7 +6648,7 @@
         "strength": "claimed",
         "subject_id": "baseline.surface",
         "target": "mix compile",
-        "verification_index": 5
+        "verification_index": 7
       },
       {
         "cover_id": "coding_assistance.boundary.product_local_driver_api",
@@ -7004,6 +7454,17 @@
         "verification_index": 17
       },
       {
+        "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/setup_onboarding.spec.md",
+        "verification_index": 18
+      },
+      {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "source_file",
@@ -7079,6 +7540,72 @@
         "subject_id": "package.jido_code.package_quality_standards",
         "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml",
         "verification_index": 5
+      },
+      {
+        "cover_id": "setup.onboarding.admin_bootstrap_completion_gate",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/user_administration.spec.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "setup.onboarding.post_bootstrap_start_surface",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/baseline_surface.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "setup.onboarding.runtime_health_transparent_unless_blocking",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/baseline_surface.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "setup.onboarding.deferred_integrations",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/github_identity_and_integration.spec.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "setup.onboarding.deployment_mode_auto_detected",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/setup_onboarding.spec.md",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "setup.onboarding.repo_source_per_project",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": ".spec/specs/setup_onboarding.spec.md",
+        "verification_index": 3
       },
       {
         "cover_id": "source.provider_adapter.placeholder_adapters",
@@ -7308,18 +7835,29 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "users.admin_system",
-        "target": "lib/jido_code/setup/owner_bootstrap.ex",
+        "target": "lib/jido_code/setup/bootstrap_status.ex",
         "verification_index": 0
       },
       {
-        "cover_id": "users.admin_system.admin_managed_provisioning",
+        "cover_id": "users.admin_system.registration_guardrails",
         "file": ".spec/specs/user_administration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "users.admin_system",
-        "target": "lib/jido_code/accounts/user.ex",
+        "target": "lib/jido_code/setup/bootstrap_status.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "users.admin_system.bootstrap_admin",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/setup/owner_bootstrap.ex",
         "verification_index": 1
       },
       {
@@ -7330,8 +7868,41 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "users.admin_system",
+        "target": "lib/jido_code/setup/owner_recovery.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "users.admin_system.bootstrap_admin",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/setup/owner_recovery.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "users.admin_system.admin_managed_provisioning",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/user.ex",
-        "verification_index": 1
+        "verification_index": 3
+      },
+      {
+        "cover_id": "users.admin_system.admin_role_assignment",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code/accounts/user.ex",
+        "verification_index": 3
       },
       {
         "cover_id": "users.admin_system.local_user_directory",
@@ -7342,7 +7913,7 @@
         "strength": "linked",
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/user.ex",
-        "verification_index": 1
+        "verification_index": 3
       },
       {
         "cover_id": "users.admin_system.self_service_auth_lifecycle",
@@ -7353,7 +7924,7 @@
         "strength": "linked",
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/user.ex",
-        "verification_index": 1
+        "verification_index": 3
       },
       {
         "cover_id": "users.admin_system.admin_managed_provisioning",
@@ -7364,7 +7935,7 @@
         "strength": "linked",
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/checks/registration_allowed.ex",
-        "verification_index": 2
+        "verification_index": 4
       },
       {
         "cover_id": "users.admin_system.registration_guardrails",
@@ -7375,7 +7946,62 @@
         "strength": "linked",
         "subject_id": "users.admin_system",
         "target": "lib/jido_code/accounts/checks/registration_allowed.ex",
-        "verification_index": 2
+        "verification_index": 4
+      },
+      {
+        "cover_id": "users.admin_system.bootstrap_admin",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "users.admin_system.registration_guardrails",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "lib/jido_code_web/live/home_live.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "users.admin_system.admin_role_assignment",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "users.admin_system.bootstrap_admin",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "users.admin_system.registration_guardrails",
+        "file": ".spec/specs/user_administration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "users.admin_system",
+        "target": "test/jido_code_web/live/setup_live_test.exs",
+        "verification_index": 6
       },
       {
         "cover_id": "workflow.runtime.compatibility.local_override_present",
@@ -7502,14 +8128,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 35,
+      "claimed": 36,
       "executed": 0,
-      "linked": 244
+      "linked": 270
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 9,
-    "spec_count": 29
+    "spec_count": 30
   }
 }

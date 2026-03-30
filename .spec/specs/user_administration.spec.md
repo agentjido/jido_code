@@ -18,6 +18,8 @@ surface:
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/accounts/checks/registration_allowed.ex
   - lib/jido_code_web/live/home_live.ex
+  - priv/repo/migrations/20260325220016_migrate_resources1_dev.exs
+  - priv/resource_snapshots/repo/users/20260325220016_dev.json
   - test/jido_code_web/live/setup_live_test.exs
 ```
 

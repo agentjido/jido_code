@@ -49,6 +49,7 @@
         "affects": [
           "package.jido_code",
           "architecture.factory_control_plane",
+          "architecture.demand_ingress",
           "architecture.policy_layers",
           "architecture.conversation_driver",
           "docs.product_foundation"
@@ -183,6 +184,38 @@
         "stability": "evolving",
         "statement": "The coding-assistance conversation driver shall translate service responses back into the existing conversation event model so subscriber-facing UI integrations remain stable while the driver changes.",
         "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall persist durable `ExternalObject` records for tracked GitHub repository entities such as issues, pull requests, and repository references so later control-plane layers can reason about stable external identities instead of transient webhook payloads.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall normalize operator-originated and trusted-ingress requests into durable `Intake` records instead of letting setup or workbench actions bypass the factory control loop.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Normalized ingress records shall preserve source metadata, actor attribution, and managed-repository or project correlation continuity across webhook, setup, and workbench entrypoints.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall capture verified external or system-derived facts as durable `Observation` records tied to managed-repository context before downstream planning or execution logic interprets them.",
+        "subject_id": "architecture.demand_ingress"
       },
       {
         "file": ".spec/specs/execution_pipeline.spec.md",
@@ -1213,7 +1246,7 @@
         "id": "setup.onboarding.deferred_integrations",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Provider credentials, GitHub integration, webhook readiness, and first-project import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry.",
+        "statement": "Provider credentials, GitHub integration, webhook readiness, and first-project import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry, and signed-in project import may normalize durable intake records without turning setup back into a blocking multi-step wizard.",
         "subject_id": "setup.onboarding"
       },
       {
@@ -1464,6 +1497,43 @@
         ],
         "when": [
           "A user sends a coding-oriented conversation turn."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+          "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "given": [
+          "A verified GitHub webhook delivery references a tracked repository and issue."
+        ],
+        "id": "architecture.demand_ingress.scenario_github_issue_webhook_becomes_external_object_and_observation",
+        "subject_id": "architecture.demand_ingress",
+        "then": [
+          "A durable `ExternalObject` and `Observation` are recorded with managed-repository correlation and ingress attribution before downstream workflow dispatch continues."
+        ],
+        "when": [
+          "The webhook pipeline normalizes the delivery into the control plane."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "given": [
+          "An operator triggers project import or a workbench workflow kickoff for a tracked repository."
+        ],
+        "id": "architecture.demand_ingress.scenario_operator_setup_or_workbench_action_becomes_intake",
+        "subject_id": "architecture.demand_ingress",
+        "then": [
+          "The request is recorded as a durable `Intake` linked to the managed repository before execution-specific launcher behavior continues."
+        ],
+        "when": [
+          "The request enters the factory through the product surface."
         ]
       },
       {
@@ -2440,7 +2510,8 @@
         "id": "setup.onboarding.scenario_cloud_start",
         "subject_id": "setup.onboarding",
         "then": [
-          "The app may emphasize hosted source-control follow-up work such as GitHub connection, persist that preference, and still defer those integrations out of the blocking onboarding path."
+          "The app may emphasize hosted source-control follow-up work such as GitHub connection, persist that preference, and still defer those integrations out of the blocking onboarding path.",
+          "Signed-in follow-up repo import may capture durable intake records while remaining a non-blocking onboarding continuation."
         ],
         "when": [
           "The administrator reaches the signed-in start surface."
@@ -2651,6 +2722,36 @@
         "title": "Conversation Driver Architecture"
       },
       {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress",
+        "meta": {
+          "decisions": [
+            "jido_code.namespace_and_control_naming",
+            "jido_code.factory_control_plane_and_runtime_overlay"
+          ],
+          "id": "architecture.demand_ingress",
+          "kind": "feature",
+          "status": "active",
+          "summary": "Jido.Code normalizes verified GitHub demand and operator-triggered requests into durable `ExternalObject`, `Observation`, and `Intake` records that preserve repo correlation, actor attribution, and source metadata before downstream work synthesis begins.",
+          "surface": [
+            "lib/jido_code/operations.ex",
+            "lib/jido_code/operations/external_object.ex",
+            "lib/jido_code/operations/observation.ex",
+            "lib/jido_code/operations/intake.ex",
+            "lib/jido_code/operations/ingress.ex",
+            "lib/jido_code/github/webhook_pipeline.ex",
+            "lib/jido_code/setup/project_import.ex",
+            "lib/jido_code/workbench/fix_workflow_kickoff.ex",
+            "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
+            "lib/jido_code/workbench/project_detail_workflow_kickoff.ex",
+            "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
+            "test/jido_code/operations/demand_ingress_test.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Demand Ingress"
+      },
+      {
         "file": ".spec/specs/developer_workflow.spec.md",
         "id": "developer.workflow",
         "meta": {
@@ -2716,11 +2817,17 @@
             "lib/jido_code/governance.ex",
             "lib/jido_code/governance/policy_set.ex",
             "lib/jido_code/governance/policy_bridge.ex",
+            "lib/jido_code/operations.ex",
+            "lib/jido_code/operations/external_object.ex",
+            "lib/jido_code/operations/observation.ex",
+            "lib/jido_code/operations/intake.ex",
+            "lib/jido_code/operations/ingress.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/orchestration/workflow_run.ex",
             "lib/jido_code/code_server.ex",
             "priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs",
-            "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs"
+            "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
+            "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -2863,7 +2970,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality and development-command surfaces version-controlled, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -2938,9 +3045,14 @@
             "lib/jido_code/governance/review_policy.ex",
             "lib/jido_code/governance/policy_set.ex",
             "lib/jido_code/governance/policy_bridge.ex",
+            "lib/jido_code/operations/external_object.ex",
+            "lib/jido_code/operations/observation.ex",
+            "lib/jido_code/operations/intake.ex",
+            "lib/jido_code/operations/ingress.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/jido_os_runtime.ex",
-            "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs"
+            "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
+            "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3114,7 +3226,7 @@
           "id": "setup.onboarding",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work.",
+          "summary": "jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work where first-project import may normalize durable intake without reintroducing a blocking wizard.",
           "surface": [
             ".spec/specs/baseline_surface.spec.md",
             ".spec/specs/user_administration.spec.md",
@@ -3276,6 +3388,69 @@
         "kind": "source_file",
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.external_object_tracks_repo_external_entities"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/external_object.ex"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.observation_captures_repo_and_system_facts"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/observation.ex"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.intake_captures_operator_and_trusted_requests"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/intake.ex"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+          "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+          "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/ingress.ex"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+          "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+          "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/demand_ingress_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+          "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+          "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "command",
+        "subject_id": "architecture.demand_ingress",
+        "target": "mix test test/jido_code/operations/demand_ingress_test.exs"
       },
       {
         "covers": [
@@ -4321,6 +4496,15 @@
       },
       {
         "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/demand_ingress.spec.md"
+      },
+      {
+        "covers": [
           "package.jido_code.version_controlled_quality_surfaces"
         ],
         "file": ".spec/specs/package.spec.md",
@@ -4596,6 +4780,7 @@
       },
       {
         "covers": [
+          "setup.onboarding.deferred_integrations",
           "setup.onboarding.repo_source_per_project"
         ],
         "file": ".spec/specs/setup_onboarding.spec.md",
@@ -4913,10 +5098,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 160,
-    "scenarios": 62,
-    "subjects": 30,
-    "verifications": 167
+    "requirements": 164,
+    "scenarios": 64,
+    "subjects": 31,
+    "verifications": 174
   },
   "verification": {
     "claims": [
@@ -4996,6 +5181,171 @@
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
         "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/external_object.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/observation.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/intake.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/ingress.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/ingress.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/ingress.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/ingress.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.demand_ingress",
+        "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.demand_ingress",
+        "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.demand_ingress",
+        "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.demand_ingress",
+        "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -7484,6 +7834,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "package.jido_code.spec_led_workspace",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/demand_ingress.spec.md",
+        "verification_index": 3
+      },
+      {
         "cover_id": "package.jido_code.version_controlled_quality_surfaces",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
@@ -7492,7 +7853,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": "mix.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -7503,17 +7864,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 4
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 5
       },
       {
@@ -7524,7 +7874,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 6
       },
       {
@@ -7535,18 +7885,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 7
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 8
       },
       {
@@ -7557,7 +7907,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 9
       },
       {
@@ -7568,7 +7918,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 10
       },
       {
@@ -7579,7 +7929,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 11
       },
       {
@@ -7590,7 +7940,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 12
       },
       {
@@ -7601,7 +7951,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 13
       },
       {
@@ -7612,7 +7962,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 14
       },
       {
@@ -7623,7 +7973,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 15
       },
       {
@@ -7634,7 +7984,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 16
       },
       {
@@ -7645,8 +7995,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 17
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 18
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -7657,7 +8018,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
@@ -7668,7 +8029,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
-        "verification_index": 19
+        "verification_index": 20
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -7867,6 +8228,17 @@
         "subject_id": "setup.onboarding",
         "target": "lib/jido_code/projects/project.ex",
         "verification_index": 6
+      },
+      {
+        "cover_id": "setup.onboarding.deferred_integrations",
+        "file": ".spec/specs/setup_onboarding.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "setup.onboarding",
+        "target": "lib/jido_code/setup/project_import.ex",
+        "verification_index": 7
       },
       {
         "cover_id": "setup.onboarding.repo_source_per_project",
@@ -8477,14 +8849,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 37,
+      "claimed": 41,
       "executed": 0,
-      "linked": 286
+      "linked": 299
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 9,
-    "spec_count": 30
+    "spec_count": 31
   }
 }

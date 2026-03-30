@@ -5,6 +5,7 @@ date: 2026-03-30
 affects:
   - package.jido_code
   - architecture.factory_control_plane
+  - architecture.demand_ingress
   - architecture.policy_layers
   - architecture.conversation_driver
   - docs.product_foundation
@@ -15,6 +16,10 @@ affects:
 <!-- covers: architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work -->
 <!-- covers: architecture.factory_control_plane.repo_native_state_layers_inform_control_plane -->
 <!-- covers: architecture.factory_control_plane.lightweight_hosted_multi_user_posture -->
+<!-- covers: architecture.demand_ingress.external_object_tracks_repo_external_entities -->
+<!-- covers: architecture.demand_ingress.observation_captures_repo_and_system_facts -->
+<!-- covers: architecture.demand_ingress.intake_captures_operator_and_trusted_requests -->
+<!-- covers: architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation -->
 <!-- covers: architecture.policy_layers.repository_governance_policy_is_repo_control_layer -->
 <!-- covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane -->
 <!-- covers: architecture.policy_layers.runtime_policy_governs_session_and_turn_capability -->
@@ -78,6 +83,13 @@ that loop is:
 11. persist `Decision` when governance requires it
 12. update posture and trust-related operating confidence
 
+Verified external demand and signed-in operator demand must enter that loop through
+durable ingress records first. GitHub webhook deliveries and other trusted external
+signals should normalize into `ExternalObject` and `Observation`, while setup and
+workbench-originated operator requests should normalize into `Intake`, preserving
+actor attribution, source metadata, and managed-repository correlation before `Event`
+or `Assessment` synthesis begins.
+
 Repo-native state layers are first-class inputs to the factory, but not replacements
 for the product control plane. Authored `.spec/` state and optional Git-native
 planning layers such as Beadwork should inform posture, review, planning, and work
@@ -109,6 +121,9 @@ permission lattice in the first version.
 - The control plane needs additional Ash resources such as `ManagedRepo`, `PolicySet`,
   `Observation`, `Intake`, `ExternalObject`, `Event`, `Assessment`, `WorkItem`,
   `Evidence`, `ChangeRequest`, `Decision`, and posture-oriented records.
+- Existing webhook, setup, and workbench entrypoints should be adapted to durable
+  ingress normalization rather than continuing to jump directly into feature-local
+  launch paths.
 - Conversation and coding-assistance flows need to feed the same durable repo control
   loop instead of remaining a separate orchestration lane.
 - Existing auth, setup, workflow, and coding-assistance work remains valuable because

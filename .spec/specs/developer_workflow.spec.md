@@ -10,6 +10,7 @@ summary: jido_code keeps normal repository development on a host Postgres-backed
 decisions:
   - jido_code.local_developer_workflow
 surface:
+  - .tool-versions
   - mix.exs
   - config/dev.exs
   - config/test.exs
@@ -40,6 +41,11 @@ surface:
 
 - id: developer.workflow.docs_split
   statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow and direct Mix task entrypoints instead of repo shell wrappers.
+  priority: must
+  stability: evolving
+
+- id: developer.workflow.repo_toolchain_asdf
+  statement: The repository shall pin contributor tool versions in a root `.tool-versions` file and contributor setup docs shall use `asdf install` for the normal local development path.
   priority: must
   stability: evolving
 ```
@@ -78,14 +84,29 @@ surface:
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
   covers:
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.verify --debug|mix spec.check|mix spec.diffcheck|tauri/README.md' CONTRIBUTING.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
   covers:
     - developer.workflow.docs_split
+
+- kind: command
+  target: "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions"
+  covers:
+    - developer.workflow.repo_toolchain_asdf
+
+- kind: command
+  target: "rg -n 'asdf install|\\.tool-versions' README.md"
+  covers:
+    - developer.workflow.repo_toolchain_asdf
+
+- kind: command
+  target: "rg -n 'asdf install' CONTRIBUTING.md"
+  covers:
+    - developer.workflow.repo_toolchain_asdf
 
 - kind: command
   target: "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example"

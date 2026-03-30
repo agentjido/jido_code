@@ -16,6 +16,8 @@ surface:
   - .spec/specs/self_hosted_provider_integration.spec.md
 ```
 
+The repo-facing README may index local contributor and architecture guides, but it shall not imply that a detailed in-repo operator provider-auth setup guide exists.
+
 ## Requirements
 
 ```spec-requirements

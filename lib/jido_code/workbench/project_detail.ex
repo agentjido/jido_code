@@ -4,6 +4,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
   """
 
   alias JidoCode.Projects.Project
+  alias JidoCode.Control.RepoBridge
 
   @project_not_found_error_type "project_detail_not_found"
   @project_load_failed_error_type "project_detail_load_failed"
@@ -31,6 +32,8 @@ defmodule JidoCode.Workbench.ProjectDetail do
           github_full_name: String.t(),
           default_branch: String.t(),
           settings: map(),
+          managed_repo_id: String.t() | nil,
+          source_repo_id: String.t() | nil,
           execution_readiness: execution_readiness()
         }
 
@@ -127,15 +130,38 @@ defmodule JidoCode.Workbench.ProjectDetail do
       |> map_get(:default_branch, "default_branch")
       |> normalize_optional_string() || "main"
 
+    {managed_repo_id, source_repo_id} =
+      project_id
+      |> managed_repo_identity()
+
     %{
       id: project_id || "unknown-project",
       name: name || github_full_name || project_id || "unknown-project",
       github_full_name: github_full_name || name || project_id || "unknown-project",
       default_branch: default_branch,
       settings: settings,
+      managed_repo_id: managed_repo_id,
+      source_repo_id: source_repo_id,
       execution_readiness: execution_readiness_state(workspace_settings)
     }
   end
+
+  defp managed_repo_identity(nil), do: {nil, nil}
+
+  defp managed_repo_identity(project_id) when is_binary(project_id) do
+    case RepoBridge.managed_repo_for_project(project_id) do
+      {:ok, managed_repo} ->
+        {
+          managed_repo |> map_get(:id, "id") |> normalize_optional_string(),
+          managed_repo |> map_get(:source_repo_id, "source_repo_id") |> normalize_optional_string()
+        }
+
+      _other ->
+        {nil, nil}
+    end
+  end
+
+  defp managed_repo_identity(_project_id), do: {nil, nil}
 
   defp execution_readiness_state(workspace_settings) when is_map(workspace_settings) do
     clone_status =

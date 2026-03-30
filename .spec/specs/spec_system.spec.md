@@ -6,11 +6,13 @@ This subject defines the contract for the `.spec` workspace itself.
 id: spec.system
 kind: policy
 status: active
-summary: Canonical workspace contract for authored specs and generated Spec Led state.
+summary: Canonical workspace contract for current-truth specs, durable ADRs, optional planning docs, and generated Spec Led state.
 surface:
   - .spec/README.md
   - .spec/AGENTS.md
   - .spec/decisions/README.md
+  - .spec/planning/README.md
+  - .spec/planning/*.md
   - .spec/specs/*.spec.md
   - .spec/decisions/*.md
 ```
@@ -33,8 +35,13 @@ surface:
   priority: must
   stability: stable
 
+- id: spec.workspace.planning_docs_supported
+  statement: The workspace may keep phased implementation and migration plans under .spec/planning/, while current-truth rules remain in .spec/specs and .spec/decisions.
+  priority: must
+  stability: evolving
+
 - id: spec.workspace.state_generated
-  statement: When planning and verification run, the workspace shall generate .spec/state.json containing indexed subjects, indexed decisions, and verification state.
+  statement: When Spec Led indexing and validation run, the workspace shall generate .spec/state.json containing indexed subjects, indexed decisions, and verification state.
   priority: must
   stability: stable
 ```
@@ -57,13 +64,18 @@ surface:
   covers:
     - spec.workspace.decisions_readme_present
 
+- kind: source_file
+  target: .spec/README.md
+  covers:
+    - spec.workspace.planning_docs_supported
+
 - kind: command
-  target: mix spec.plan
+  target: mix spec.index
   covers:
     - spec.workspace.state_generated
 
 - kind: command
-  target: mix spec.verify
+  target: mix spec.validate
   covers:
     - spec.workspace.state_generated
 ```

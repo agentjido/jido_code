@@ -6,11 +6,12 @@ This subject defines how `jido_code` aligns with the canonical Jido package qual
 id: package.jido_code.package_quality_standards
 kind: policy
 status: active
-summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring when CI needs self-contained dependency resolution, while documenting explicit product-repo exceptions.
+summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.canonical_repo_surface
 surface:
+  - .doctor.exs
   - mix.exs
   - README.md
   - CONTRIBUTING.md
@@ -38,7 +39,7 @@ surface:
   stability: stable
 
 - id: package.jido_code.package_quality_mix_surface_aligned
-  statement: "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, coverage metadata, a `mix q` shortcut, and quality checks that include format, compile warnings, Credo, Dialyzer, and Doctor."
+  statement: "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for documentation coverage and broader static analysis while the repo carries existing Doctor and Dialyzer debt."
   priority: must
   stability: evolving
 

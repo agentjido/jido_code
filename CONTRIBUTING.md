@@ -12,7 +12,7 @@ Thank you for your interest in contributing to JidoCode! This document provides 
 
 2. Install the repo toolchain:
    ```bash
-   mise install
+   asdf install
    ```
 
 3. Start PostgreSQL locally.
@@ -37,7 +37,7 @@ For day-to-day development:
 
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
-- `mix spec.verify --debug`, `mix spec.check`, and `mix spec.diffcheck` are the repo-local `spec_led_ex` checks for `.spec/`
+- `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
 
 ## Code Quality
@@ -49,11 +49,21 @@ mix q
 ```
 
 This runs:
+- `mix deps.unlock --check-unused` - Dependency hygiene check
 - `mix format --check-formatted` - Code formatting check
+- `mix deps.compile` - Dependency compilation sanity check
 - `mix compile --warnings-as-errors` - Compilation with strict warnings
 - `mix credo --min-priority higher` - Standards-aligned static code analysis
-- `mix dialyzer` - Static type analysis
+
+For broader local quality review while the repo carries existing Dialyzer and Doctor debt:
+
+```bash
+mix quality
+```
+
+This extends `mix q` with:
 - `mix doctor --raise` - Documentation coverage check
+- `mix dialyzer` - Broader static type analysis
 
 For running tests with coverage:
 
@@ -103,14 +113,14 @@ git commit -m "docs: update installation instructions"
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
 3. Make your changes
-4. Run quality checks: `mix quality`
+4. Run merge-safe quality checks: `mix q`
 5. Run tests: `mix coveralls`
 6. Commit using conventional commits
 7. Push and open a Pull Request
 
 ## Release Workflow
 
-Release automation is kept in `.github/workflows/release.yml` and should remain the source of truth for maintainers. Prepare releases from repository state by updating `CHANGELOG.md`, verifying `mix q`, `mix coveralls`, and the relevant spec checks, then running the version-controlled GitHub workflow instead of relying on undocumented local release steps.
+Release automation is kept in `.github/workflows/release.yml` and should remain the source of truth for maintainers. Prepare releases from repository state by updating `CHANGELOG.md`, verifying `mix q`, `mix coveralls`, and the relevant spec checks, then running the version-controlled GitHub workflow instead of relying on undocumented local release steps. Use `mix quality` as the broader local debt-surfacing pass when working through Dialyzer- or Doctor-sensitive changes.
 
 ## Reporting Issues
 

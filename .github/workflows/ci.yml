@@ -45,7 +45,7 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Run standards-aligned quality gate
+      - name: Run fast merge quality gate
         run: mix q
 
   coverage:
@@ -104,6 +104,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -124,8 +126,5 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Verify specs
-        run: mix spec.check
-
-      - name: Check for spec drift
-        run: mix spec.diffcheck
+      - name: Run Spec Led gate
+        run: mix spec.check --base origin/main

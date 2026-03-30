@@ -6,6 +6,7 @@ defmodule JidoCode.Orchestration.WorkflowRun do
     authorizers: [Ash.Policy.Authorizer]
 
   alias JidoCode.GitHub.IssueCommentClient
+  alias JidoCode.Control.ManagedRepo
   alias JidoCode.Orchestration.RunPubSub
 
   @statuses [:pending, :running, :awaiting_approval, :completed, :failed, :cancelled]
@@ -71,6 +72,7 @@ defmodule JidoCode.Orchestration.WorkflowRun do
       accept [
         :run_id,
         :project_id,
+        :managed_repo_id,
         :workflow_name,
         :workflow_version,
         :trigger,
@@ -102,6 +104,7 @@ defmodule JidoCode.Orchestration.WorkflowRun do
         changeset
         |> Ash.Changeset.force_change_attribute(:started_at, started_at)
         |> Ash.Changeset.force_change_attribute(:current_step, current_step)
+        |> maybe_assign_managed_repo_id()
         |> Ash.Changeset.force_change_attribute(
           :status_transitions,
           [transition_entry(nil, :pending, current_step, started_at)]
@@ -288,6 +291,12 @@ defmodule JidoCode.Orchestration.WorkflowRun do
   relationships do
     belongs_to :project, JidoCode.Projects.Project do
       allow_nil? false
+      public? true
+      attribute_type :uuid
+    end
+
+    belongs_to :managed_repo, JidoCode.Control.ManagedRepo do
+      allow_nil? true
       public? true
       attribute_type :uuid
     end
@@ -1777,6 +1786,27 @@ defmodule JidoCode.Orchestration.WorkflowRun do
   end
 
   defp retry_initiating_actor(_run, actor), do: actor
+
+  defp maybe_assign_managed_repo_id(changeset) do
+    managed_repo_id =
+      Ash.Changeset.get_attribute(changeset, :managed_repo_id) ||
+        managed_repo_id_for_project(Ash.Changeset.get_attribute(changeset, :project_id))
+
+    if is_binary(managed_repo_id) do
+      Ash.Changeset.force_change_attribute(changeset, :managed_repo_id, managed_repo_id)
+    else
+      changeset
+    end
+  end
+
+  defp managed_repo_id_for_project(project_id) when is_binary(project_id) do
+    case ManagedRepo.get_by_legacy_project_id(project_id, authorize?: false) do
+      {:ok, managed_repo} -> Map.get(managed_repo, :id)
+      _other -> nil
+    end
+  end
+
+  defp managed_repo_id_for_project(_project_id), do: nil
 
   defp retry_context_step_results(run, retry_attempt) do
     %{

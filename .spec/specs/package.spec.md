@@ -14,8 +14,10 @@ surface:
   - AGENTS.md
   - mix.exs
   - .spec/README.md
+  - .spec/AGENTS.md
   - .spec/specs/*.spec.md
   - .spec/decisions/*.md
+  - .spec/planning/*.md
   - .github/
   - compat/
   - config/
@@ -36,7 +38,7 @@ surface:
   stability: stable
 
 - id: package.jido_code.spec_led_workspace
-  statement: The repository shall maintain a package-local .spec workspace for current-truth subject specs, durable ADRs, and generated spec state.
+  statement: The repository shall maintain a package-local .spec workspace for current-truth subject specs, durable ADRs, implementation planning, and generated spec state.
   priority: must
   stability: stable
 
@@ -71,6 +73,11 @@ surface:
 
 - kind: source_file
   target: .spec/README.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: .spec/planning/README.md
   covers:
     - package.jido_code.spec_led_workspace
 

@@ -7,7 +7,7 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
 
   alias JidoCode.Control.Actor
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
-  alias JidoCode.Orchestration.{Run, WorkflowRun}
+  alias JidoCode.Orchestration.{Run, RunBridge, WorkflowRun}
 
   @default_limit 8
   @default_fetch_error_type "dashboard_run_summary_feed_fetch_failed"
@@ -79,10 +79,19 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
            query: [sort: [started_at: :desc], limit: @default_limit],
            actor: Actor.operator_actor()
          ) do
-      {:ok, runs} -> {:ok, Enum.map(runs, &to_run_summary/1), nil}
+      {:ok, runs} -> {:ok, Enum.map(runs, &projected_run_summary/1), nil}
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp projected_run_summary(%WorkflowRun{} = workflow_run) do
+    case RunBridge.projected_run_for_workflow_run(workflow_run) do
+      {:ok, %Run{} = run} -> to_run_summary(run)
+      _other -> to_run_summary(workflow_run)
+    end
+  end
+
+  defp projected_run_summary(run), do: to_run_summary(run)
 
   defp safe_invoke_loader(loader) do
     try do

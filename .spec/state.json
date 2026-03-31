@@ -363,6 +363,14 @@
       },
       {
         "file": ".spec/specs/execution_pipeline.spec.md",
+        "id": "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Historical workflow-run state shall remain projectable forward into the durable Run model without re-executing the underlying workflow so mixed-mode rollout can restore control-plane continuity safely.",
+        "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/execution_pipeline.spec.md",
         "id": "architecture.execution_pipeline.repo_prep_and_validation_are_explicit_steps",
         "priority": "must",
         "stability": "evolving",
@@ -400,6 +408,22 @@
         "stability": "evolving",
         "statement": "Sprite session resources shall own sandbox provisioning, generic bootstrap, checkpointing, and resume lifecycle.",
         "subject_id": "architecture.execution_pipeline"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Before compatibility shims are retired, Jido.Code shall backfill surviving legacy `Project` records into `ManagedRepo` projections and keep operator-facing repo scope resolution capable of repairing those projections on demand instead of assuming all historical data was created after the control-plane migration.",
+        "subject_id": "architecture.factory_control_plane"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "The control plane shall expose operator-facing rollout evidence showing which surfaces still depend on `Project` or `WorkflowRun` compatibility paths, the criteria for removing each shim, and typed rollback procedures for mixed-mode recovery.",
+        "subject_id": "architecture.factory_control_plane"
       },
       {
         "file": ".spec/specs/factory_control_plane.spec.md",
@@ -679,6 +703,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "Execution profile resolution shall preserve compatibility with repo-level execution defaults and workflow-specific execution overrides during the migration from project and workflow-local settings.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Historical `WorkflowRun` records shall remain backfillable into governed `Run` projections and related review artifacts on demand or in batch so dashboard, workbench, and run-detail surfaces preserve execution continuity during mixed-mode rollout.",
         "subject_id": "architecture.run_governance"
       },
       {
@@ -2046,6 +2078,24 @@
       },
       {
         "covers": [
+          "architecture.execution_pipeline.run_is_projection_of_workflow_state",
+          "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "given": [
+          "A workflow run exists from before governed run projections were fully backfilled."
+        ],
+        "id": "architecture.execution_pipeline.scenario_legacy_workflow_state_recovers_forward",
+        "subject_id": "architecture.execution_pipeline",
+        "then": [
+          "The workflow state is projected into Run records without introducing a second execution engine or replaying the workflow from scratch."
+        ],
+        "when": [
+          "The control plane repairs historical execution continuity during compatibility rollout."
+        ]
+      },
+      {
+        "covers": [
           "architecture.execution_pipeline.jido_runic_is_canonical_execution_layer",
           "architecture.execution_pipeline.runic_is_underlying_dag_engine",
           "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -2149,6 +2199,24 @@
         ],
         "when": [
           "The factory evaluates planning, review, or execution readiness."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+          "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "given": [
+          "Historical project and workflow records still exist from before the managed-repo and governed-run migration was complete."
+        ],
+        "id": "architecture.factory_control_plane.scenario_rollout_backfill_and_operator_evidence_remain_explicit",
+        "subject_id": "architecture.factory_control_plane",
+        "then": [
+          "Legacy repo state may be backfilled into the preferred control-plane model, and the product exposes the remaining compatibility dependencies, removal criteria, and rollback steps instead of hiding the mixed-mode state."
+        ],
+        "when": [
+          "An operator checks rollout health or opens a compatibility-sensitive surface."
         ]
       },
       {
@@ -2321,6 +2389,23 @@
         ],
         "when": [
           "A governed run projection resolves its execution environment."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "given": [
+          "A workflow run exists from before governed run projections were fully backfilled."
+        ],
+        "id": "architecture.run_governance.scenario_legacy_history_recovers_forward_into_governed_runs",
+        "subject_id": "architecture.run_governance",
+        "then": [
+          "The workflow history can be projected forward into governed `Run` state so mixed-mode operator views do not lose execution continuity while the compatibility seam is still present."
+        ],
+        "when": [
+          "An operator opens a run-sensitive surface or an explicit rollout backfill is triggered."
         ]
       },
       {
@@ -3560,6 +3645,7 @@
           "summary": "Jido.Code centers execution on Jido.Runic, which drives Runic workflows through the Jido runtime while sprite sessions provide sandbox lifecycle and Ash resources provide durable governance projections.",
           "surface": [
             ".spec/decisions/jido_code.runic_execution_model.md",
+            "lib/jido_code/control/compatibility_rollout.ex",
             "lib/jido_code/orchestration/execution_profile.ex",
             "lib/jido_code/orchestration/run.ex",
             "lib/jido_code/orchestration/run_bridge.ex",
@@ -3587,6 +3673,7 @@
             ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
             ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
             "lib/jido_code/control.ex",
+            "lib/jido_code/control/compatibility_rollout.ex",
             "lib/jido_code/control/source_repo.ex",
             "lib/jido_code/control/managed_repo.ex",
             "lib/jido_code/control/repo_bridge.ex",
@@ -4087,6 +4174,7 @@
             "lib/jido_code/governance/evidence.ex",
             "lib/jido_code/governance/policy_bridge.ex",
             "lib/jido_code/governance/run_governance_bridge.ex",
+            "lib/jido_code/control/compatibility_rollout.ex",
             "lib/jido_code/orchestration.ex",
             "lib/jido_code/orchestration/execution_profile.ex",
             "lib/jido_code/orchestration/run.ex",
@@ -4668,6 +4756,34 @@
       },
       {
         "covers": [
+          "architecture.execution_pipeline.run_is_projection_of_workflow_state",
+          "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.execution_pipeline",
+        "target": "lib/jido_code/orchestration/run_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.execution_pipeline",
+        "target": "lib/jido_code/control/compatibility_rollout.ex"
+      },
+      {
+        "covers": [
+          "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution"
+        ],
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.execution_pipeline",
+        "target": "test/jido_code/control/compatibility_rollout_test.exs"
+      },
+      {
+        "covers": [
           "architecture.factory_control_plane.product_is_governed_software_factory",
           "architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects",
           "architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work",
@@ -4717,12 +4833,23 @@
       },
       {
         "covers": [
-          "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records"
+          "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+          "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records"
         ],
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/repo_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+          "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code/control/compatibility_rollout.ex"
       },
       {
         "covers": [
@@ -4750,6 +4877,25 @@
         "kind": "source_file",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code_web/live/run_detail_live.ex"
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code_web/live/dashboard_live.ex"
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+          "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/control/compatibility_rollout_test.exs"
       },
       {
         "covers": [
@@ -5112,6 +5258,33 @@
         "kind": "source_file",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/orchestration/workflow_run_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/control/compatibility_rollout.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code/control/compatibility_rollout_test.exs"
       },
       {
         "covers": [
@@ -6981,10 +7154,10 @@
     "decisions": 10,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 206,
-    "scenarios": 84,
+    "requirements": 210,
+    "scenarios": 87,
     "subjects": 35,
-    "verifications": 270
+    "verifications": 279
   },
   "verification": {
     "claims": [
@@ -8045,6 +8218,50 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": "lib/jido_code/orchestration/run_bridge.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.run_is_projection_of_workflow_state",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": "lib/jido_code/orchestration/run_bridge.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": "lib/jido_code/control/compatibility_rollout.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution",
+        "file": ".spec/specs/execution_pipeline.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.execution_pipeline",
+        "target": "test/jido_code/control/compatibility_rollout_test.exs",
+        "verification_index": 3
+      },
+      {
         "cover_id": "architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work",
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
@@ -8144,7 +8361,7 @@
         "verification_index": 4
       },
       {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -8162,7 +8379,29 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/workbench/project_detail.ex",
+        "target": "lib/jido_code/control/repo_bridge.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code/control/compatibility_rollout.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code/control/compatibility_rollout.ex",
         "verification_index": 6
       },
       {
@@ -8173,7 +8412,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
+        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 7
       },
       {
@@ -8184,8 +8423,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
         "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/control/compatibility_rollout_test.exs",
+        "verification_index": 11
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/control/compatibility_rollout_test.exs",
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.jido_os_session_turn_runtime.actor_bound_context_required",
@@ -9000,6 +9283,39 @@
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/orchestration/workflow_run_test.exs",
         "verification_index": 11
+      },
+      {
+        "cover_id": "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run_bridge.ex",
+        "verification_index": 12
+      },
+      {
+        "cover_id": "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/control/compatibility_rollout.ex",
+        "verification_index": 13
+      },
+      {
+        "cover_id": "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code/control/compatibility_rollout_test.exs",
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -12747,7 +13063,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 472
+      "linked": 485
     },
     "threshold_failures": 0
   },

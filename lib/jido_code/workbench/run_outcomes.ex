@@ -4,7 +4,7 @@ defmodule JidoCode.Workbench.RunOutcomes do
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Orchestration.{Run, WorkflowRun}
+  alias JidoCode.Orchestration.{Run, RunBridge, WorkflowRun}
 
   @fallback_row_id_prefix "workbench-row-"
   @query_timeout_ms 5_000
@@ -189,9 +189,20 @@ defmodule JidoCode.Workbench.RunOutcomes do
                query: [filter: [project_id: normalized_project_id], sort: [started_at: :desc], limit: 1],
                actor: Actor.operator_actor()
              ) do
-          {:ok, [run | _]} -> {:ok, run_outcome_from_run(normalized_project_id, run)}
-          {:ok, []} -> {:ok, nil}
-          {:error, reason} -> {:error, reason}
+          {:ok, [run | _]} ->
+            case RunBridge.projected_run_for_workflow_run(run) do
+              {:ok, %Run{} = governed_run} ->
+                {:ok, run_outcome_from_run(normalized_project_id, governed_run)}
+
+              _other ->
+                {:ok, run_outcome_from_run(normalized_project_id, run)}
+            end
+
+          {:ok, []} ->
+            {:ok, nil}
+
+          {:error, reason} ->
+            {:error, reason}
         end
     end
   end

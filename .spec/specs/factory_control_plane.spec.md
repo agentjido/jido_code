@@ -17,6 +17,7 @@ surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/control.ex
+  - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/control/repo_bridge.ex
@@ -103,6 +104,16 @@ surface:
   statement: Operator-facing workbench, repo-detail, dashboard, and run-detail surfaces shall prefer `ManagedRepo` and governed `Run` records while preserving compatibility identifiers and route shapes during the migration away from `Project` and `WorkflowRun`.
   priority: must
   stability: evolving
+
+- id: architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+  statement: Before compatibility shims are retired, Jido.Code shall backfill surviving legacy `Project` records into `ManagedRepo` projections and keep operator-facing repo scope resolution capable of repairing those projections on demand instead of assuming all historical data was created after the control-plane migration.
+  priority: must
+  stability: evolving
+
+- id: architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+  statement: The control plane shall expose operator-facing rollout evidence showing which surfaces still depend on `Project` or `WorkflowRun` compatibility paths, the criteria for removing each shim, and typed rollback procedures for mixed-mode recovery.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -149,6 +160,17 @@ surface:
     - An operator opens workbench, repo detail, dashboard, or run detail through existing route shapes.
   then:
     - The product resolves and presents control-plane records first while keeping the route and identifier contracts stable enough for mixed-mode rollout.
+
+- id: architecture.factory_control_plane.scenario_rollout_backfill_and_operator_evidence_remain_explicit
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+  given:
+    - Historical project and workflow records still exist from before the managed-repo and governed-run migration was complete.
+  when:
+    - An operator checks rollout health or opens a compatibility-sensitive surface.
+  then:
+    - Legacy repo state may be backfilled into the preferred control-plane model, and the product exposes the remaining compatibility dependencies, removal criteria, and rollback steps instead of hiding the mixed-mode state.
 ```
 
 ## Verification
@@ -187,6 +209,13 @@ surface:
   target: lib/jido_code/control/repo_bridge.ex
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+
+- kind: source_file
+  target: lib/jido_code/control/compatibility_rollout.ex
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
 
 - kind: source_file
   target: lib/jido_code/workbench/project_detail.ex
@@ -202,4 +231,15 @@ surface:
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+
+- kind: source_file
+  target: test/jido_code/control/compatibility_rollout_test.exs
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
 ```

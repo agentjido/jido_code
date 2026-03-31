@@ -20,6 +20,7 @@ surface:
   - lib/jido_code/governance/evidence.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/governance/run_governance_bridge.ex
+  - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/orchestration.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
@@ -87,6 +88,11 @@ surface:
   statement: The legacy `WorkflowRun` seam and its governed projections shall preserve explicit actor class attribution across approval, retry, and machine-driven issue-triage transitions so compatibility views and governance records can distinguish operator, orchestrator, run-worker, and external-ingress actions.
   priority: must
   stability: evolving
+
+- id: architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+  statement: Historical `WorkflowRun` records shall remain backfillable into governed `Run` projections and related review artifacts on demand or in batch so dashboard, workbench, and run-detail surfaces preserve execution continuity during mixed-mode rollout.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -138,6 +144,16 @@ surface:
     - A run is launched or projected into approval handling.
   then:
     - Review behavior follows the repo policy, blocked review states keep typed remediation, and the run projection continues to expose explicit repo-prep, validation, approval, and cleanup stage plans.
+
+- id: architecture.run_governance.scenario_legacy_history_recovers_forward_into_governed_runs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+  given:
+    - A workflow run exists from before governed run projections were fully backfilled.
+  when:
+    - An operator opens a run-sensitive surface or an explicit rollout backfill is triggered.
+  then:
+    - The workflow history can be projected forward into governed `Run` state so mixed-mode operator views do not lose execution continuity while the compatibility seam is still present.
 ```
 
 ## Verification
@@ -208,4 +224,19 @@ surface:
   target: test/jido_code/orchestration/workflow_run_test.exs
   covers:
     - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_bridge.ex
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: lib/jido_code/control/compatibility_rollout.ex
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: test/jido_code/control/compatibility_rollout_test.exs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
 ```

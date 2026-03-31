@@ -1,5 +1,6 @@
 defmodule JidoCode.Control.RepoBridge do
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
   @moduledoc """
   Keeps the transitional `Project` resource mirrored into control-plane repo resources.
   """
@@ -32,7 +33,26 @@ defmodule JidoCode.Control.RepoBridge do
 
   @spec managed_repo_for_project(term()) :: {:ok, ManagedRepo.t()} | {:error, term()}
   def managed_repo_for_project(project_id) when is_binary(project_id) do
-    ManagedRepo.get_by_legacy_project_id(project_id, actor: Actor.factory_system_actor())
+    case ManagedRepo.get_by_legacy_project_id(project_id, actor: Actor.factory_system_actor()) do
+      {:ok, %ManagedRepo{} = managed_repo} ->
+        {:ok, managed_repo}
+
+      {:ok, nil} ->
+        with {:ok, %Project{} = project} <- fetch_project_by_id(project_id),
+             {:ok, %ManagedRepo{} = managed_repo} <- sync_project(project) do
+          {:ok, managed_repo}
+        else
+          {:error, reason} -> {:error, reason}
+        end
+
+      {:error, _reason} ->
+        with {:ok, %Project{} = project} <- fetch_project_by_id(project_id),
+             {:ok, %ManagedRepo{} = managed_repo} <- sync_project(project) do
+          {:ok, managed_repo}
+        else
+          {:error, reason} -> {:error, reason}
+        end
+    end
   end
 
   def managed_repo_for_project(_project_id), do: {:error, :invalid_project_id}

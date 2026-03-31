@@ -5,7 +5,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
-  alias JidoCode.Orchestration.{Run, RunPubSub, WorkflowRun}
+  alias JidoCode.Orchestration.{Run, RunBridge, RunPubSub, WorkflowRun}
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -847,14 +847,27 @@ defmodule JidoCodeWeb.RunDetailLive do
            actor: Actor.operator_actor()
          ) do
       {:ok, %WorkflowRun{} = workflow_run} ->
-        {:ok,
-         %{
-           run: workflow_run,
-           workflow_run: workflow_run,
-           evidence_records: [],
-           change_request: nil,
-           decisions: []
-         }}
+        case RunBridge.projected_run_for_workflow_run(workflow_run) do
+          {:ok, %Run{} = run} ->
+            {:ok,
+             %{
+               run: run,
+               workflow_run: workflow_run,
+               evidence_records: load_evidence_records(run),
+               change_request: load_change_request(run),
+               decisions: load_decisions(run)
+             }}
+
+          _other ->
+            {:ok,
+             %{
+               run: workflow_run,
+               workflow_run: workflow_run,
+               evidence_records: [],
+               change_request: nil,
+               decisions: []
+             }}
+        end
 
       {:ok, nil} ->
         {:error, :not_found}

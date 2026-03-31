@@ -26,6 +26,9 @@ surface:
   - lib/jido_code/governance/review_policy.ex
   - lib/jido_code/governance/policy_set.ex
   - lib/jido_code/governance/policy_bridge.ex
+  - lib/jido_code/governance/repo_posture.ex
+  - lib/jido_code/governance/posture_check.ex
+  - lib/jido_code/governance/posture_bridge.ex
   - lib/jido_code/github/webhook_pipeline.ex
   - lib/jido_code/operations/event.ex
   - lib/jido_code/operations/assessment.ex
@@ -46,6 +49,7 @@ surface:
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
+  - priv/repo/migrations/20260331143000_add_repo_posture_records.exs
 ```
 
 ## Requirements

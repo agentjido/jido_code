@@ -10,7 +10,7 @@ execution begins.
 id: architecture.demand_ingress
 kind: feature
 status: active
-summary: Jido.Code normalizes verified GitHub demand and operator-triggered requests into durable `ExternalObject`, `Observation`, and `Intake` records that preserve repo correlation, actor attribution, and source metadata before downstream work synthesis begins.
+summary: Jido.Code normalizes verified GitHub demand and operator-triggered requests into durable `ExternalObject`, `Observation`, and `Intake` records that preserve repo correlation, actor attribution, and source metadata before downstream work synthesis begins, while letting downstream posture refresh remain tied to that same durable ingress path.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
@@ -102,6 +102,7 @@ surface:
     - The request enters the factory through the product surface.
   then:
     - The request is recorded as a durable `Intake` linked to the managed repository before execution-specific launcher behavior continues.
+    - Any downstream posture refresh remains coupled to the managed-repository ingress path rather than running as a separate out-of-band feature hook.
 
 - id: architecture.demand_ingress.scenario_repo_governance_policy_flows_through_launch_entrypoints
   covers:

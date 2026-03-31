@@ -10,5 +10,7 @@ defmodule JidoCode.Governance do
     resource JidoCode.Governance.Decision
     resource JidoCode.Governance.Evidence
     resource JidoCode.Governance.PolicySet
+    resource JidoCode.Governance.PostureCheck
+    resource JidoCode.Governance.RepoPosture
   end
 end

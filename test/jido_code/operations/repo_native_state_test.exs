@@ -3,6 +3,7 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
   # covers: architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
   # covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs
   # covers: architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
+  # covers: architecture.repo_posture.repo_native_observations_capture_current_truth_signals
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}

@@ -124,6 +124,10 @@ defmodule JidoCode.Control.ManagedRepo do
     has_one :policy_set, JidoCode.Governance.PolicySet do
       destination_attribute :managed_repo_id
     end
+
+    has_one :repo_posture, JidoCode.Governance.RepoPosture do
+      destination_attribute :managed_repo_id
+    end
   end
 
   identities do

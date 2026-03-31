@@ -31,6 +31,9 @@ surface:
   - lib/jido_code/operations/external_object.ex
   - lib/jido_code/operations/observation.ex
   - lib/jido_code/operations/repo_native_state.ex
+  - lib/jido_code/governance/repo_posture.ex
+  - lib/jido_code/governance/posture_check.ex
+  - lib/jido_code/governance/posture_bridge.ex
   - lib/jido_code/operations/intake.ex
   - lib/jido_code/operations/ingress.ex
   - lib/jido_code/conversations/ingress.ex
@@ -54,6 +57,8 @@ surface:
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
   - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
+  - priv/repo/migrations/20260331143000_add_repo_posture_records.exs
+  - test/jido_code/governance/posture_bridge_test.exs
 ```
 
 ## Requirements
@@ -140,6 +145,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code/operations/repo_native_state_test.exs
+  covers:
+    - architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
+
+- kind: source_file
+  target: lib/jido_code/governance/posture_bridge.ex
   covers:
     - architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
 ```

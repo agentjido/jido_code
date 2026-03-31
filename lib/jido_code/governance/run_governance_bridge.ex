@@ -9,7 +9,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, PolicyBridge}
+  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, PolicyBridge, PostureBridge}
   alias JidoCode.Orchestration.{Run, WorkflowRun}
 
   @projection_actor Actor.factory_system_actor()
@@ -18,7 +18,8 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   def sync_run(%Run{} = run, %WorkflowRun{} = workflow_run) do
     with {:ok, evidence_records} <- sync_evidence(run, workflow_run),
          {:ok, change_request} <- sync_change_request(run, workflow_run, evidence_records),
-         {:ok, decision} <- sync_decision(run, workflow_run, change_request, evidence_records) do
+         {:ok, decision} <- sync_decision(run, workflow_run, change_request, evidence_records),
+         :ok <- sync_repo_posture(run.managed_repo_id) do
       {:ok,
        %{
          evidence: evidence_records,
@@ -390,6 +391,15 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   end
 
   defp parse_iso8601(_value), do: nil
+
+  defp sync_repo_posture(managed_repo_id) when is_binary(managed_repo_id) do
+    case PostureBridge.sync_managed_repo_id(managed_repo_id) do
+      {:ok, _result} -> :ok
+      {:error, _reason} -> :ok
+    end
+  end
+
+  defp sync_repo_posture(_managed_repo_id), do: :ok
 
   defp review_policy_for_run(run) do
     case PolicyBridge.review_policy_for_managed_repo(run.managed_repo_id) do

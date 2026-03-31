@@ -1,6 +1,7 @@
 defmodule JidoCode.Operations.RepoNativeState do
   # covers: architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
   # covers: architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
+  # covers: architecture.repo_posture.repo_native_observations_capture_current_truth_signals
   @moduledoc """
   Observes repo-native state layers such as `.spec/` and optional Beadwork files
   as durable control-plane observations without replacing product truth.

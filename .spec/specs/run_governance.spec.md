@@ -8,7 +8,7 @@ This subject defines the governed run projection model for `Jido.Code`.
 id: architecture.run_governance
 kind: policy
 status: active
-summary: Jido.Code evolves execution from standalone workflow-run records into governed Run projections linked to WorkItem and ExecutionProfile while preserving WorkflowRun as the migration seam beneath the preferred control-plane model.
+summary: Jido.Code evolves execution from standalone workflow-run records into governed Run projections linked to WorkItem and ExecutionProfile while preserving WorkflowRun as the migration seam beneath the preferred control-plane model, and lets governed run evidence feed explainable repo posture updates without replacing the run-governance records themselves.
 decisions:
   - jido_code.runic_execution_model
   - jido_code.factory_control_plane_and_runtime_overlay

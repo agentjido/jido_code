@@ -230,12 +230,12 @@ defmodule JidoCode.Governance.PostureBridge do
         summary:
           "Recovery resilience is #{Map.fetch!(dimensions, "recovery_resilience")} based on recent governed run evidence.",
         details:
-          latest_failure_evidence &&
-            %{
-              "evidence_type" => latest_failure_evidence.evidence_type,
-              "summary" => latest_failure_evidence.summary,
-              "details" => latest_failure_evidence.evidence_details
-            } || %{},
+          (latest_failure_evidence &&
+             %{
+               "evidence_type" => latest_failure_evidence.evidence_type,
+               "summary" => latest_failure_evidence.summary,
+               "details" => latest_failure_evidence.evidence_details
+             }) || %{},
         source: "governance.evidence"
       },
       %{
@@ -394,8 +394,8 @@ defmodule JidoCode.Governance.PostureBridge do
         }
 
       dimensions["review_burden"] == "low" and dimensions["execution_readiness"] == "high" and
-          dimensions["validation_reliability"] == "high" and dimensions["drift_rate"] == "low" and
-          dimensions["recovery_resilience"] == "high" and dimensions["requirements_confidence"] == "high" ->
+        dimensions["validation_reliability"] == "high" and dimensions["drift_rate"] == "low" and
+        dimensions["recovery_resilience"] == "high" and dimensions["requirements_confidence"] == "high" ->
         %{
           mode: "autonomous",
           escalation_status: "normal",

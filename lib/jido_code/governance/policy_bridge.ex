@@ -272,8 +272,8 @@ defmodule JidoCode.Governance.PolicyBridge do
   defp effective_review_policy(managed_repo_id, configured_review_policy) do
     normalized_review_policy = normalize_review_policy(configured_review_policy)
     repo_posture = repo_posture(managed_repo_id)
-    supervision_mode = repo_posture && repo_posture.supervision_mode || @supervision_mode_guided
-    escalation_status = repo_posture && repo_posture.escalation_status || @escalation_status_normal
+    supervision_mode = (repo_posture && repo_posture.supervision_mode) || @supervision_mode_guided
+    escalation_status = (repo_posture && repo_posture.escalation_status) || @escalation_status_normal
 
     base_policy =
       normalized_review_policy

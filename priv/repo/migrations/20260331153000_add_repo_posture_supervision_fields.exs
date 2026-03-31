@@ -17,11 +17,15 @@ defmodule JidoCode.Repo.Migrations.AddRepoPostureSupervisionFields do
       add :escalation_mode, :text, null: false, default: "none"
     end
 
-    create index(:repo_postures, [:algedonic_check_id], name: "repo_postures_algedonic_check_id_index")
+    create index(:repo_postures, [:algedonic_check_id],
+             name: "repo_postures_algedonic_check_id_index"
+           )
   end
 
   def down do
-    drop_if_exists index(:repo_postures, [:algedonic_check_id], name: "repo_postures_algedonic_check_id_index")
+    drop_if_exists index(:repo_postures, [:algedonic_check_id],
+                     name: "repo_postures_algedonic_check_id_index"
+                   )
 
     alter table(:posture_checks) do
       remove :escalation_mode

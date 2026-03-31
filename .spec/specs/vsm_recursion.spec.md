@@ -117,4 +117,9 @@ surface:
   target: test/jido_code/governance/policy_bridge_test.exs
   covers:
     - architecture.vsm_recursion.algedonic_escalation
+
+- kind: source_file
+  target: test/jido_code/governance/phase_five_integration_test.exs
+  covers:
+    - architecture.vsm_recursion.algedonic_escalation
 ```

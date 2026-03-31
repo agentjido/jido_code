@@ -26,6 +26,7 @@ surface:
   - test/jido_code/operations/repo_native_state_test.exs
   - test/jido_code/governance/posture_bridge_test.exs
   - test/jido_code/governance/policy_bridge_test.exs
+  - test/jido_code/governance/phase_five_integration_test.exs
 ```
 
 ## Requirements
@@ -139,6 +140,15 @@ surface:
 - kind: source_file
   target: test/jido_code/governance/policy_bridge_test.exs
   covers:
+    - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
+    - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
+
+- kind: source_file
+  target: test/jido_code/governance/phase_five_integration_test.exs
+  covers:
+    - architecture.repo_posture.repo_native_observations_capture_current_truth_signals
+    - architecture.repo_posture.repo_posture_summarizes_trust_dimensions
+    - architecture.repo_posture.posture_checks_preserve_explainable_links
     - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
     - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
 ```

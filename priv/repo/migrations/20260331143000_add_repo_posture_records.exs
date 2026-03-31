@@ -22,7 +22,9 @@ defmodule JidoCode.Repo.Migrations.AddRepoPostureRecords do
       timestamps(type: :utc_datetime_usec)
     end
 
-    create unique_index(:repo_postures, [:managed_repo_id], name: "repo_postures_managed_repo_id_index")
+    create unique_index(:repo_postures, [:managed_repo_id],
+             name: "repo_postures_managed_repo_id_index"
+           )
 
     create table(:posture_checks, primary_key: false) do
       add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
@@ -44,17 +46,31 @@ defmodule JidoCode.Repo.Migrations.AddRepoPostureRecords do
              name: "posture_checks_managed_repo_dimension_index"
            )
 
-    create index(:posture_checks, [:repo_posture_id], name: "posture_checks_repo_posture_id_index")
+    create index(:posture_checks, [:repo_posture_id],
+             name: "posture_checks_repo_posture_id_index"
+           )
+
     create index(:posture_checks, [:observation_id], name: "posture_checks_observation_id_index")
     create index(:posture_checks, [:assessment_id], name: "posture_checks_assessment_id_index")
     create index(:posture_checks, [:evidence_id], name: "posture_checks_evidence_id_index")
   end
 
   def down do
-    drop_if_exists index(:posture_checks, [:evidence_id], name: "posture_checks_evidence_id_index")
-    drop_if_exists index(:posture_checks, [:assessment_id], name: "posture_checks_assessment_id_index")
-    drop_if_exists index(:posture_checks, [:observation_id], name: "posture_checks_observation_id_index")
-    drop_if_exists index(:posture_checks, [:repo_posture_id], name: "posture_checks_repo_posture_id_index")
+    drop_if_exists index(:posture_checks, [:evidence_id],
+                     name: "posture_checks_evidence_id_index"
+                   )
+
+    drop_if_exists index(:posture_checks, [:assessment_id],
+                     name: "posture_checks_assessment_id_index"
+                   )
+
+    drop_if_exists index(:posture_checks, [:observation_id],
+                     name: "posture_checks_observation_id_index"
+                   )
+
+    drop_if_exists index(:posture_checks, [:repo_posture_id],
+                     name: "posture_checks_repo_posture_id_index"
+                   )
 
     drop_if_exists unique_index(:posture_checks, [:managed_repo_id, :dimension],
                      name: "posture_checks_managed_repo_dimension_index"

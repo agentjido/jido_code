@@ -98,8 +98,7 @@ defmodule JidoCode.Governance.PostureCheck do
     end
 
     policy action_type(:create) do
-      authorize_if {ActorClassIn,
-                    classes: [:admin, :operator, :factory_system, :managed_repo_orchestrator]}
+      authorize_if {ActorClassIn, classes: [:admin, :operator, :factory_system, :managed_repo_orchestrator]}
     end
 
     policy action_type(:destroy) do

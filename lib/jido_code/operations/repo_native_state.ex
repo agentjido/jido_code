@@ -129,8 +129,8 @@ defmodule JidoCode.Operations.RepoNativeState do
 
   defp signal_snapshot_from_observations(spec_signal, beadwork_signal, _observations) do
     %{
-      "spec_led" => spec_signal && spec_signal.payload || absent_spec_signal(),
-      "beadwork" => beadwork_signal && beadwork_signal.payload || absent_beadwork_signal()
+      "spec_led" => (spec_signal && spec_signal.payload) || absent_spec_signal(),
+      "beadwork" => (beadwork_signal && beadwork_signal.payload) || absent_beadwork_signal()
     }
   end
 
@@ -162,17 +162,22 @@ defmodule JidoCode.Operations.RepoNativeState do
             "state_path" => ".spec/state.json",
             "spec_count" =>
               normalize_non_negative_integer(Map.get(summary, "subjects")) ||
-                normalize_non_negative_integer(Map.get(state |> normalize_map() |> Map.get("workspace", %{}), "spec_count")) ||
+                normalize_non_negative_integer(
+                  Map.get(state |> normalize_map() |> Map.get("workspace", %{}), "spec_count")
+                ) ||
                 spec_count,
             "decision_count" =>
               normalize_non_negative_integer(Map.get(summary, "decisions")) ||
-                normalize_non_negative_integer(Map.get(state |> normalize_map() |> Map.get("workspace", %{}), "decision_count")) ||
+                normalize_non_negative_integer(
+                  Map.get(state |> normalize_map() |> Map.get("workspace", %{}), "decision_count")
+                ) ||
                 decision_count,
             "requirements_count" => normalize_non_negative_integer(Map.get(summary, "requirements")) || 0,
             "scenario_count" => normalize_non_negative_integer(Map.get(summary, "scenarios")) || 0,
             "findings_count" => findings_count,
             "threshold_failures" => threshold_failures,
-            "verification_claims_count" => state |> normalize_map() |> get_in(["verification", "claims"]) |> normalize_list_length(),
+            "verification_claims_count" =>
+              state |> normalize_map() |> get_in(["verification", "claims"]) |> normalize_list_length(),
             "strength_summary" =>
               verification
               |> Map.get("strength_summary", %{})
@@ -228,7 +233,7 @@ defmodule JidoCode.Operations.RepoNativeState do
 
   defp read_beadwork_signal(workspace_path, managed_repo_id)
        when is_binary(workspace_path) and is_binary(managed_repo_id) do
-      candidate_paths = beadwork_paths(workspace_path)
+    candidate_paths = beadwork_paths(workspace_path)
 
     if candidate_paths == [] do
       nil
@@ -241,8 +246,7 @@ defmodule JidoCode.Operations.RepoNativeState do
       payload = %{
         "signal_type" => "beadwork",
         "present" => true,
-        "status" =>
-          beadwork_status(referenced_work_item_ids, aligned_work_item_ids, unaligned_work_item_ids),
+        "status" => beadwork_status(referenced_work_item_ids, aligned_work_item_ids, unaligned_work_item_ids),
         "tracked_file_count" => length(candidate_paths),
         "tracked_paths" => candidate_paths |> Enum.take(@max_listed_paths),
         "referenced_work_item_ids" => referenced_work_item_ids,

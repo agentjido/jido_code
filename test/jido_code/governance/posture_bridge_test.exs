@@ -98,6 +98,7 @@ defmodule JidoCode.Governance.PostureBridgeTest do
     assert refreshed_posture.validation_reliability == "high"
     assert refreshed_posture.recovery_resilience == "low"
     assert refreshed_posture.requirements_confidence == "high"
+
     assert refreshed_posture.contributing_check_ids |> Enum.sort() ==
              posture_checks |> Enum.map(& &1.id) |> Enum.sort()
 

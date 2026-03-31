@@ -4,7 +4,8 @@ defmodule JidoCode.Control.RepoBridge do
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
-  alias JidoCode.Governance.PolicyBridge
+  alias JidoCode.Governance.{PolicyBridge, PostureBridge}
+  alias JidoCode.Operations.RepoNativeState
 
   @execution_setting_keys ["execution", "workflow"]
 
@@ -17,7 +18,9 @@ defmodule JidoCode.Control.RepoBridge do
              managed_repo_attrs(project, source_repo),
              actor: Actor.factory_system_actor()
            ),
-         {:ok, _policy_set} <- PolicyBridge.sync_managed_repo(managed_repo) do
+         {:ok, _policy_set} <- PolicyBridge.sync_managed_repo(managed_repo),
+         {:ok, _repo_native_state} <- RepoNativeState.sync_managed_repo(managed_repo),
+         {:ok, _repo_posture} <- PostureBridge.sync_managed_repo(managed_repo) do
       {:ok, managed_repo}
     end
   end

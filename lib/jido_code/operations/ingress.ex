@@ -8,6 +8,7 @@ defmodule JidoCode.Operations.Ingress do
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.Governance.PostureBridge
   alias JidoCode.Operations.{ExternalObject, Intake, Observation, Synthesis}
   alias JidoCode.Projects.Project
 
@@ -55,7 +56,8 @@ defmodule JidoCode.Operations.Ingress do
              actor: actor
            ),
          {:ok, %{event: event, assessment: assessment, work_item: work_item, work_action: work_action}} <-
-           Synthesis.from_observation(observation, external_object: external_object) do
+           Synthesis.from_observation(observation, external_object: external_object),
+         :ok <- sync_repo_posture(repo_context.managed_repo_id) do
       {:ok,
        %{
          external_object: external_object,
@@ -104,7 +106,8 @@ defmodule JidoCode.Operations.Ingress do
              actor: actor
            ),
          {:ok, %{event: event, assessment: assessment, work_item: work_item, work_action: work_action}} <-
-           Synthesis.from_intake(intake) do
+           Synthesis.from_intake(intake),
+         :ok <- sync_repo_posture(intake.managed_repo_id) do
       {:ok,
        %{
          intake: intake,
@@ -380,6 +383,17 @@ defmodule JidoCode.Operations.Ingress do
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
+
+  defp sync_repo_posture(nil), do: :ok
+
+  defp sync_repo_posture(managed_repo_id) when is_binary(managed_repo_id) do
+    case PostureBridge.sync_managed_repo_id(managed_repo_id) do
+      {:ok, _result} -> :ok
+      {:error, _reason} -> :ok
+    end
+  end
+
+  defp sync_repo_posture(_managed_repo_id), do: :ok
 
   defp normalize_optional_string(nil), do: nil
   defp normalize_optional_string(value) when is_boolean(value), do: nil

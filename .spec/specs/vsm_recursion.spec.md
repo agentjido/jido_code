@@ -107,4 +107,19 @@ surface:
     - architecture.vsm_recursion.work_items_not_default_vsm
     - architecture.vsm_recursion.promotion_rule_defined
     - architecture.vsm_recursion.algedonic_escalation
+
+- kind: source_file
+  target: lib/jido_code/governance/posture_bridge.ex
+  covers:
+    - architecture.vsm_recursion.algedonic_escalation
+
+- kind: source_file
+  target: test/jido_code/governance/policy_bridge_test.exs
+  covers:
+    - architecture.vsm_recursion.algedonic_escalation
+
+- kind: source_file
+  target: test/jido_code/governance/phase_five_integration_test.exs
+  covers:
+    - architecture.vsm_recursion.algedonic_escalation
 ```

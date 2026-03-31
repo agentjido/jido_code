@@ -117,12 +117,32 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/specs/repo_posture.spec.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: test/jido_code/operations/phase_two_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
   target: test/jido_code/conversations/phase_four_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/operations/repo_native_state_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/governance/policy_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/governance/phase_five_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

@@ -141,7 +141,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
         socket
       ) do
     project_row = find_project_row(socket.assigns.inventory_rows_all, project_id)
-    kickoff_result = FixWorkflowKickoff.kickoff(project_row, context_item_type)
+    kickoff_result = FixWorkflowKickoff.kickoff(project_row, context_item_type, initiating_actor(socket))
 
     state_project_id =
       case project_row do

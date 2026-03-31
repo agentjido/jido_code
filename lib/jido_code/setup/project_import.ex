@@ -1,10 +1,12 @@
 defmodule JidoCode.Setup.ProjectImport do
   # covers: setup.onboarding.repo_source_per_project
+  # covers: setup.onboarding.deferred_integrations
   @moduledoc """
   Imports the selected repository during setup step 7 and initializes baseline project metadata.
   """
 
   alias JidoCode.Projects.Project
+  alias JidoCode.Operations.Ingress
 
   @default_selection_remediation "Select one of the repositories validated in step 4 and retry import."
   @default_importer_remediation "Verify project import configuration and retry step 7."
@@ -258,6 +260,13 @@ defmodule JidoCode.Setup.ProjectImport do
         with {:ok, _owner, name} <- split_repository(selected_repository),
              {:ok, project, import_mode} <-
                ensure_project_record(name, selected_repository, default_branch),
+             :ok <-
+               record_project_import_intake(
+                 project,
+                 selected_repository,
+                 default_branch,
+                 available_repositories
+               ),
              {:ok, synced_project, baseline_metadata} <-
                provision_clone_and_sync(
                  project,
@@ -307,6 +316,35 @@ defmodule JidoCode.Setup.ProjectImport do
       "Project importer context is invalid.",
       @default_importer_remediation
     )
+  end
+
+  defp record_project_import_intake(project, selected_repository, default_branch, available_repositories)
+       when is_map(project) and is_binary(selected_repository) and is_list(available_repositories) do
+    case Ingress.record_operator_intake(%{
+           channel: "setup",
+           intent: "project_import",
+           project_id: map_get(project, :id, "id"),
+           payload: %{
+             "selected_repository" => selected_repository,
+             "project_name" => map_get(project, :name, "name"),
+             "default_branch" => default_branch
+           },
+           source_metadata: %{
+             "available_repositories" => available_repositories,
+             "source_step" => "setup.project_import"
+           }
+         }) do
+      {:ok, _intake} ->
+        :ok
+
+      {:error, reason} ->
+        {:error,
+         {"project_import_intake_record_failed", "Project import intake could not be recorded (#{inspect(reason)})."}}
+    end
+  end
+
+  defp record_project_import_intake(_project, _selected_repository, _default_branch, _available_repositories) do
+    {:error, {"project_import_intake_record_failed", "Project import intake context is invalid."}}
   end
 
   defp provision_clone_and_sync(

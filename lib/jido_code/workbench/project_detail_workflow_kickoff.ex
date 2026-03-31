@@ -3,6 +3,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
   Validates and launches workflow runs from project detail route controls.
   """
 
+  alias JidoCode.Operations.Ingress
   alias JidoCode.Workbench.ProjectDetail
 
   @default_error_type "project_detail_workflow_kickoff_failed"
@@ -70,6 +71,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
          {:ok, workflow_definition} <- workflow_definition(workflow_name),
          kickoff_request <-
            build_kickoff_request(project_scope, workflow_definition, initiating_actor),
+         :ok <- record_project_detail_intake(kickoff_request),
          {:ok, kickoff_run} <- invoke_launcher(workflow_definition, kickoff_request) do
       {:ok, kickoff_run}
     else
@@ -205,6 +207,27 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
         github_url: context_item_github_url(github_full_name)
       }
     }
+  end
+
+  defp record_project_detail_intake(kickoff_request) do
+    case Ingress.record_operator_intake(%{
+           channel: "project_detail",
+           intent: "project_detail_workflow_kickoff",
+           project_id: Map.fetch!(kickoff_request, :project_id),
+           actor: Map.fetch!(kickoff_request, :initiating_actor),
+           payload: %{
+             "workflow_name" => Map.fetch!(kickoff_request, :workflow_name),
+             "project_name" => Map.fetch!(kickoff_request, :project_name),
+             "project_defaults" => Map.fetch!(kickoff_request, :project_defaults),
+             "context_item" => Map.fetch!(kickoff_request, :context_item)
+           },
+           source_metadata: %{
+             "trigger" => Map.fetch!(kickoff_request, :trigger)
+           }
+         }) do
+      {:ok, _intake} -> :ok
+      {:error, reason} -> {:error, intake_error(reason)}
+    end
   end
 
   defp project_detail_trigger("issue_triage", project_id) do
@@ -378,6 +401,14 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
       map_get(error, :error_type, "error_type", @default_error_type),
       map_get(error, :detail, "detail", "Project detail workflow kickoff failed."),
       map_get(error, :remediation, "remediation", @launcher_remediation)
+    )
+  end
+
+  defp intake_error(reason) do
+    kickoff_error(
+      "project_detail_workflow_intake_record_failed",
+      "Project detail workflow kickoff could not be normalized into a durable intake (#{inspect(reason)}).",
+      @launcher_remediation
     )
   end
 

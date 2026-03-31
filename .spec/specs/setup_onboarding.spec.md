@@ -8,7 +8,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work where first-project import may normalize durable intake without reintroducing a blocking wizard.
 decisions:
   - jido_code.auth_user_system
 surface:
@@ -53,7 +53,7 @@ surface:
   stability: evolving
 
 - id: setup.onboarding.deferred_integrations
-  statement: Provider credentials, GitHub integration, webhook readiness, and first-project import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry.
+  statement: Provider credentials, GitHub integration, webhook readiness, and first-project import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry, and signed-in project import may normalize durable intake records without turning setup back into a blocking multi-step wizard.
   priority: must
   stability: evolving
 
@@ -106,6 +106,7 @@ surface:
     - The administrator reaches the signed-in start surface.
   then:
     - The app may emphasize hosted source-control follow-up work such as GitHub connection, persist that preference, and still defer those integrations out of the blocking onboarding path.
+    - Signed-in follow-up repo import may capture durable intake records while remaining a non-blocking onboarding continuation.
 
 - id: setup.onboarding.scenario_blocking_runtime_fault
   covers:
@@ -163,6 +164,7 @@ surface:
 - kind: source_file
   target: lib/jido_code/setup/project_import.ex
   covers:
+    - setup.onboarding.deferred_integrations
     - setup.onboarding.repo_source_per_project
 
 - kind: source_file

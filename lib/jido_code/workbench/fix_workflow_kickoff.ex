@@ -3,6 +3,8 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
   Validates and launches fix-oriented workflow runs from workbench issue/PR quick actions.
   """
 
+  alias JidoCode.Operations.Ingress
+
   @fallback_row_id_prefix "workbench-row-"
   @workflow_name "fix_failing_tests"
 
@@ -37,11 +39,13 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
           started_at: DateTime.t()
         }
 
-  @spec kickoff(map() | nil, term()) :: {:ok, kickoff_run()} | {:error, kickoff_error()}
-  def kickoff(project_row, context_item_type) do
+  @spec kickoff(map() | nil, term(), map() | nil) :: {:ok, kickoff_run()} | {:error, kickoff_error()}
+  def kickoff(project_row, context_item_type, initiating_actor \\ nil) do
     with {:ok, project_scope} <- normalize_project_scope(project_row),
          {:ok, normalized_context_item_type} <- normalize_context_item_type(context_item_type),
-         kickoff_request <- build_kickoff_request(project_scope, normalized_context_item_type),
+         kickoff_request <-
+           build_kickoff_request(project_scope, normalized_context_item_type, initiating_actor),
+         :ok <- record_workbench_intake(kickoff_request),
          {:ok, kickoff_run} <- invoke_launcher(kickoff_request) do
       {:ok, kickoff_run}
     else
@@ -170,7 +174,7 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
 
   defp extract_run_id(_run_result), do: nil
 
-  defp build_kickoff_request(project_scope, context_item_type) do
+  defp build_kickoff_request(project_scope, context_item_type, initiating_actor) do
     %{
       workflow_name: @workflow_name,
       project_id: Map.fetch!(project_scope, :project_id),
@@ -179,6 +183,7 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
         source: "workbench",
         mode: "manual"
       },
+      initiating_actor: normalize_initiating_actor(initiating_actor),
       context_item: %{
         type: context_item_type,
         label: context_item_label(context_item_type),
@@ -189,6 +194,26 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
           )
       }
     }
+  end
+
+  defp record_workbench_intake(kickoff_request) do
+    case Ingress.record_operator_intake(%{
+           channel: "workbench",
+           intent: "fix_workflow_kickoff",
+           project_id: Map.fetch!(kickoff_request, :project_id),
+           actor: Map.fetch!(kickoff_request, :initiating_actor),
+           payload: %{
+             "workflow_name" => Map.fetch!(kickoff_request, :workflow_name),
+             "project_name" => Map.fetch!(kickoff_request, :project_name),
+             "context_item" => Map.fetch!(kickoff_request, :context_item)
+           },
+           source_metadata: %{
+             "trigger" => Map.fetch!(kickoff_request, :trigger)
+           }
+         }) do
+      {:ok, _intake} -> :ok
+      {:error, reason} -> {:error, intake_error(reason)}
+    end
   end
 
   defp context_item_label(:issue), do: "Issue row"
@@ -254,8 +279,31 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
     {:error, validation_error("Workbench kickoff context #{inspect(other)} is invalid. Use issue or pull_request.")}
   end
 
+  defp normalize_initiating_actor(%{} = initiating_actor) do
+    %{
+      id:
+        initiating_actor
+        |> map_get(:id, "id")
+        |> normalize_optional_string() || "unknown",
+      email:
+        initiating_actor
+        |> map_get(:email, "email")
+        |> normalize_optional_string()
+    }
+  end
+
+  defp normalize_initiating_actor(_initiating_actor), do: %{id: "unknown", email: nil}
+
   defp validation_error(detail) do
     kickoff_error(@validation_error_type, detail, @validation_remediation)
+  end
+
+  defp intake_error(reason) do
+    kickoff_error(
+      "workbench_fix_workflow_intake_record_failed",
+      "Fix workflow kickoff could not be normalized into a durable intake (#{inspect(reason)}).",
+      @launcher_remediation
+    )
   end
 
   defp normalize_error(error) do

@@ -3,6 +3,8 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
   Validates policy and launches issue triage workflow runs from workbench issue quick actions.
   """
 
+  alias JidoCode.Operations.Ingress
+
   @fallback_row_id_prefix "workbench-row-"
   @workflow_name "issue_triage"
 
@@ -73,6 +75,7 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
              normalized_actor,
              triage_policy_state
            ),
+         :ok <- record_workbench_intake(kickoff_request),
          {:ok, kickoff_run} <- invoke_launcher(kickoff_request) do
       {:ok, kickoff_run}
     else
@@ -257,6 +260,26 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
           )
       }
     }
+  end
+
+  defp record_workbench_intake(kickoff_request) do
+    case Ingress.record_operator_intake(%{
+           channel: "workbench",
+           intent: "issue_triage_workflow_kickoff",
+           project_id: Map.fetch!(kickoff_request, :project_id),
+           actor: Map.fetch!(kickoff_request, :initiating_actor),
+           payload: %{
+             "workflow_name" => Map.fetch!(kickoff_request, :workflow_name),
+             "project_name" => Map.fetch!(kickoff_request, :project_name),
+             "context_item" => Map.fetch!(kickoff_request, :context_item)
+           },
+           source_metadata: %{
+             "trigger" => Map.fetch!(kickoff_request, :trigger)
+           }
+         }) do
+      {:ok, _intake} -> :ok
+      {:error, reason} -> {:error, intake_error(reason)}
+    end
   end
 
   defp context_item_label(:issue), do: "Issue row"
@@ -607,6 +630,14 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
       map_get(error, :remediation, "remediation", @launcher_remediation),
       map_get(error, :run_creation_state, "run_creation_state"),
       map_get(error, :run_id, "run_id")
+    )
+  end
+
+  defp intake_error(reason) do
+    kickoff_error(
+      "workbench_issue_triage_intake_record_failed",
+      "Issue triage kickoff could not be normalized into a durable intake (#{inspect(reason)}).",
+      @launcher_remediation
     )
   end
 

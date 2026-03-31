@@ -8,6 +8,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   alias JidoCode.Agents.SupportAgentConfigs
   alias JidoCode.GitHub.Repo
   alias JidoCode.GitHub.WebhookDelivery
+  alias JidoCode.Operations.Ingress
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
   alias JidoCode.Setup.GitHubInstallationSync
@@ -49,8 +50,10 @@ defmodule JidoCode.GitHub.WebhookPipeline do
     with {:ok, dispatch_decision} <- persist_delivery_for_idempotency(delivery) do
       case dispatch_decision do
         :dispatch ->
-          maybe_sync_installation_metadata(delivery)
-          maybe_dispatch_configured_issue_bot_delivery(delivery)
+          with :ok <- record_control_plane_ingress(delivery) do
+            maybe_sync_installation_metadata(delivery)
+            maybe_dispatch_configured_issue_bot_delivery(delivery)
+          end
 
         :duplicate ->
           :ok
@@ -59,6 +62,20 @@ defmodule JidoCode.GitHub.WebhookPipeline do
       {:error, reason} ->
         Logger.error(
           "github_webhook_delivery_persist_failed reason=#{inspect(reason)} delivery_id=#{log_value(Map.get(delivery, :delivery_id))} event=#{log_value(Map.get(delivery, :event))}"
+        )
+
+        {:error, :verified_dispatch_failed}
+    end
+  end
+
+  defp record_control_plane_ingress(delivery) do
+    case Ingress.record_github_webhook_delivery(delivery) do
+      {:ok, _recorded} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error(
+          "github_webhook_ingress_record_failed reason=#{inspect(reason)} delivery_id=#{log_value(Map.get(delivery, :delivery_id))} event=#{log_value(Map.get(delivery, :event))}"
         )
 
         {:error, :verified_dispatch_failed}

@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace, keeps contributor-facing quality and development-command surfaces version-controlled, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality and development-command surfaces version-controlled, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity stays per project.
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
@@ -90,6 +90,26 @@ surface:
   target: .spec/planning/README.md
   covers:
     - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: .spec/specs/demand_ingress.spec.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: .spec/specs/event_assessment_synthesis.spec.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: .spec/specs/work_synthesis.spec.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: test/jido_code/operations/phase_two_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
   target: mix.exs

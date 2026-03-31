@@ -79,6 +79,11 @@ surface:
   statement: The architecture shall model explicit human and machine actor classes for data-plane authorization, including at least admin, operator, factory-system, managed-repo-orchestrator, run-worker, and external-ingress actors, with bootstrap administrators and later member accounts remaining explicit local-user actor roles instead of implicit side effects of authentication.
   priority: must
   stability: evolving
+
+- id: architecture.policy_layers.repo_posture_can_shape_effective_review_policy
+  statement: Repo-governance posture may narrow or relax the effective review policy used by product entrypoints, while the configured repo policy remains separately visible as source state instead of being overwritten.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -99,6 +104,7 @@ surface:
     - Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.
     - Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.
     - Repo-native `.spec/` and optional Git-native planning observations may inform repo-governance choices without bypassing Ash-backed durable records or runtime capability admission.
+    - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
     - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
 ```
 
@@ -122,8 +128,21 @@ surface:
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
 
 - kind: source_file
+  target: lib/jido_code/governance/policy_bridge.ex
+  covers:
+    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
+    - architecture.policy_layers.policy_layers_interlock_without_collapsing
+    - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
+
+- kind: source_file
   target: test/jido_code/conversations/phase_four_integration_test.exs
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
+
+- kind: source_file
+  target: test/jido_code/governance/policy_bridge_test.exs
+  covers:
+    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
+    - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
 ```

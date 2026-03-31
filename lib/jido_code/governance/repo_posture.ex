@@ -9,6 +9,8 @@ defmodule JidoCode.Governance.RepoPosture do
   alias JidoCode.Control.Checks.ActorClassIn
 
   @level_pattern ~r/^(low|medium|high)$/
+  @supervision_mode_pattern ~r/^(directed|guided|delegated|autonomous)$/
+  @escalation_status_pattern ~r/^(normal|review|algedonic)$/
 
   postgres do
     table "repo_postures"
@@ -38,6 +40,9 @@ defmodule JidoCode.Governance.RepoPosture do
         :drift_rate,
         :recovery_resilience,
         :requirements_confidence,
+        :supervision_mode,
+        :escalation_status,
+        :algedonic_check_id,
         :contributing_check_ids,
         :posture_metadata
       ]
@@ -54,6 +59,9 @@ defmodule JidoCode.Governance.RepoPosture do
         :drift_rate,
         :recovery_resilience,
         :requirements_confidence,
+        :supervision_mode,
+        :escalation_status,
+        :algedonic_check_id,
         :contributing_check_ids,
         :posture_metadata
       ]
@@ -70,6 +78,9 @@ defmodule JidoCode.Governance.RepoPosture do
         :drift_rate,
         :recovery_resilience,
         :requirements_confidence,
+        :supervision_mode,
+        :escalation_status,
+        :algedonic_check_id,
         :contributing_check_ids,
         :posture_metadata
       ]
@@ -147,6 +158,25 @@ defmodule JidoCode.Governance.RepoPosture do
       public? true
     end
 
+    attribute :supervision_mode, :string do
+      allow_nil? false
+      default "guided"
+      constraints match: @supervision_mode_pattern
+      public? true
+    end
+
+    attribute :escalation_status, :string do
+      allow_nil? false
+      default "normal"
+      constraints match: @escalation_status_pattern
+      public? true
+    end
+
+    attribute :algedonic_check_id, :uuid do
+      allow_nil? true
+      public? true
+    end
+
     attribute :contributing_check_ids, {:array, :uuid} do
       allow_nil? false
       default []
@@ -168,6 +198,13 @@ defmodule JidoCode.Governance.RepoPosture do
       allow_nil? false
       public? true
       attribute_type :uuid
+    end
+
+    belongs_to :algedonic_check, JidoCode.Governance.PostureCheck do
+      allow_nil? true
+      public? true
+      attribute_type :uuid
+      source_attribute :algedonic_check_id
     end
   end
 

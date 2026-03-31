@@ -509,6 +509,14 @@
       },
       {
         "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers.repo_posture_can_shape_effective_review_policy",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Repo-governance posture may narrow or relax the effective review policy used by product entrypoints, while the configured repo policy remains separately visible as source state instead of being overwritten.",
+        "subject_id": "architecture.policy_layers"
+      },
+      {
+        "file": ".spec/specs/policy_layers.spec.md",
         "id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
         "priority": "must",
         "stability": "evolving",
@@ -522,6 +530,14 @@
         "stability": "evolving",
         "statement": "`jido_os` runtime policy shall govern what sessions, turns, and runtime execution paths are admitted or denied at the interaction layer.",
         "subject_id": "architecture.policy_layers"
+      },
+      {
+        "file": ".spec/specs/repo_posture.spec.md",
+        "id": "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Viability-threatening posture conditions shall create typed escalation state and explainable posture checks that show why normal flow was bypassed, rather than relying on implicit or ad hoc escalation rules.",
+        "subject_id": "architecture.repo_posture"
       },
       {
         "file": ".spec/specs/repo_posture.spec.md",
@@ -545,6 +561,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "Jido.Code shall project a durable `RepoPosture` record per managed repository that summarizes trust and readiness dimensions including execution readiness, validation reliability, review burden, drift rate, recovery resilience, and requirements confidence.",
+        "subject_id": "architecture.repo_posture"
+      },
+      {
+        "file": ".spec/specs/repo_posture.spec.md",
+        "id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall translate posture into explicit managed-repository supervision modes of `directed`, `guided`, `delegated`, and `autonomous`, with downgrade behavior remaining explicit when confidence drops.",
         "subject_id": "architecture.repo_posture"
       },
       {
@@ -2081,6 +2105,7 @@
           "Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.",
           "Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.",
           "Repo-native `.spec/` and optional Git-native planning observations may inform repo-governance choices without bypassing Ash-backed durable records or runtime capability admission.",
+          "Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.",
           "Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat."
         ],
         "when": [
@@ -2120,6 +2145,24 @@
         ],
         "when": [
           "The control plane synchronizes repo-native state."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+          "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich"
+        ],
+        "file": ".spec/specs/repo_posture.spec.md",
+        "given": [
+          "Repo posture has enough signal to classify the managed repository as either stable or viability-threatening."
+        ],
+        "id": "architecture.repo_posture.scenario_supervision_progression_and_escalation",
+        "subject_id": "architecture.repo_posture",
+        "then": [
+          "Stable repositories may progress to delegated or autonomous supervision while viability threats downgrade to directed supervision with typed algedonic escalation evidence."
+        ],
+        "when": [
+          "Effective repo governance policy is derived from posture."
         ]
       },
       {
@@ -3832,12 +3875,15 @@
             "lib/jido_code/governance/repo_posture.ex",
             "lib/jido_code/governance/posture_check.ex",
             "lib/jido_code/governance/posture_bridge.ex",
+            "lib/jido_code/governance/policy_bridge.ex",
             "lib/jido_code/control/repo_bridge.ex",
             "lib/jido_code/operations/ingress.ex",
             "lib/jido_code/governance/run_governance_bridge.ex",
             "priv/repo/migrations/20260331143000_add_repo_posture_records.exs",
+            "priv/repo/migrations/20260331153000_add_repo_posture_supervision_fields.exs",
             "test/jido_code/operations/repo_native_state_test.exs",
-            "test/jido_code/governance/posture_bridge_test.exs"
+            "test/jido_code/governance/posture_bridge_test.exs",
+            "test/jido_code/governance/policy_bridge_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -4460,12 +4506,33 @@
       {
         "covers": [
           "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+          "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+          "architecture.policy_layers.repo_posture_can_shape_effective_review_policy"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/governance/policy_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
           "architecture.policy_layers.policy_layers_interlock_without_collapsing"
         ],
         "file": ".spec/specs/policy_layers.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+          "architecture.policy_layers.repo_posture_can_shape_effective_review_policy"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/governance/policy_bridge_test.exs"
       },
       {
         "covers": [
@@ -4497,12 +4564,24 @@
       {
         "covers": [
           "architecture.repo_posture.repo_posture_summarizes_trust_dimensions",
-          "architecture.repo_posture.posture_checks_preserve_explainable_links"
+          "architecture.repo_posture.posture_checks_preserve_explainable_links",
+          "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+          "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich"
         ],
         "file": ".spec/specs/repo_posture.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.repo_posture",
         "target": "lib/jido_code/governance/posture_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+          "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich"
+        ],
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/policy_bridge.ex"
       },
       {
         "covers": [
@@ -4522,6 +4601,16 @@
         "kind": "source_file",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/posture_bridge_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+          "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich"
+        ],
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.repo_posture",
+        "target": "test/jido_code/governance/policy_bridge_test.exs"
       },
       {
         "covers": [
@@ -4632,6 +4721,24 @@
         "kind": "source_file",
         "subject_id": "architecture.vsm_recursion",
         "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md"
+      },
+      {
+        "covers": [
+          "architecture.vsm_recursion.algedonic_escalation"
+        ],
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.vsm_recursion",
+        "target": "lib/jido_code/governance/posture_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.vsm_recursion.algedonic_escalation"
+        ],
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.vsm_recursion",
+        "target": "test/jido_code/governance/policy_bridge_test.exs"
       },
       {
         "covers": [
@@ -5773,6 +5880,15 @@
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "subject_id": "package.jido_code",
+        "target": "test/jido_code/governance/policy_bridge_test.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.version_controlled_quality_surfaces"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
         "target": "mix.exs"
       },
       {
@@ -6361,10 +6477,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 194,
-    "scenarios": 79,
+    "requirements": 197,
+    "scenarios": 80,
     "subjects": 35,
-    "verifications": 228
+    "verifications": 235
   },
   "verification": {
     "claims": [
@@ -7619,7 +7735,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
-        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "target": "lib/jido_code/governance/policy_bridge.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.policy_layers.repo_posture_can_shape_effective_review_policy",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/governance/policy_bridge.ex",
         "verification_index": 2
       },
       {
@@ -7630,8 +7757,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
-        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "target": "lib/jido_code/governance/policy_bridge.ex",
         "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.policy_layers.repo_posture_can_shape_effective_review_policy",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/governance/policy_bridge_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/governance/policy_bridge_test.exs",
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.repo_posture.repo_native_observations_capture_current_truth_signals",
@@ -7667,6 +7838,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "verification_index": 3
+      },
+      {
         "cover_id": "architecture.repo_posture.posture_checks_preserve_explainable_links",
         "file": ".spec/specs/repo_posture.spec.md",
         "kind": "source_file",
@@ -7687,6 +7869,39 @@
         "subject_id": "architecture.repo_posture",
         "target": "lib/jido_code/governance/posture_bridge.ex",
         "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/policy_bridge.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/policy_bridge.ex",
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.repo_posture.repo_native_observations_capture_current_truth_signals",
@@ -7697,7 +7912,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/operations/repo_native_state_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.repo_posture.posture_checks_preserve_explainable_links",
@@ -7708,7 +7923,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/posture_bridge_test.exs",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.repo_posture.repo_posture_summarizes_trust_dimensions",
@@ -7719,7 +7934,29 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/posture_bridge_test.exs",
-        "verification_index": 5
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "test/jido_code/governance/policy_bridge_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "test/jido_code/governance/policy_bridge_test.exs",
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.run_governance.run_is_preferred_execution_record",
@@ -7962,6 +8199,28 @@
         "subject_id": "architecture.vsm_recursion",
         "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
         "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.algedonic_escalation",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.vsm_recursion.algedonic_escalation",
+        "file": ".spec/specs/vsm_recursion.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.vsm_recursion",
+        "target": "test/jido_code/governance/policy_bridge_test.exs",
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
@@ -10490,8 +10749,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "mix.exs",
+        "target": "test/jido_code/governance/policy_bridge_test.exs",
         "verification_index": 12
+      },
+      {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "mix.exs",
+        "verification_index": 13
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -10502,17 +10772,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 13
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 14
       },
       {
@@ -10523,7 +10782,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 15
       },
       {
@@ -10534,18 +10793,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 16
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 17
       },
       {
@@ -10556,7 +10815,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 18
       },
       {
@@ -10567,7 +10826,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 19
       },
       {
@@ -10578,7 +10837,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 20
       },
       {
@@ -10589,7 +10848,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 21
       },
       {
@@ -10600,7 +10859,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 22
       },
       {
@@ -10611,7 +10870,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 23
       },
       {
@@ -10622,7 +10881,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 24
       },
       {
@@ -10633,7 +10892,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 25
       },
       {
@@ -10644,8 +10903,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 26
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 27
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -10656,7 +10926,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
@@ -10667,7 +10937,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -11489,7 +11759,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 414
+      "linked": 428
     },
     "threshold_failures": 0
   },

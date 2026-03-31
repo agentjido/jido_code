@@ -120,7 +120,7 @@ defmodule JidoCode.Governance.PostureBridgeTest do
                actor: Actor.operator_actor()
              )
 
-    assert length(persisted_checks) == 6
+    assert length(persisted_checks) == 7
   end
 
   defp posture_check(posture_checks, dimension) do

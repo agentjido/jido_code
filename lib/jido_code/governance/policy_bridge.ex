@@ -1,11 +1,16 @@
 defmodule JidoCode.Governance.PolicyBridge do
   # covers: architecture.run_governance.review_policy_controls_change_request_creation
+  # covers: architecture.policy_layers.repository_governance_policy_is_repo_control_layer
+  # covers: architecture.policy_layers.policy_layers_interlock_without_collapsing
+  # covers: architecture.policy_layers.repo_posture_can_shape_effective_review_policy
+  # covers: architecture.repo_posture.supervision_modes_are_explicit_and_reversible
+  # covers: architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
   @moduledoc """
   Derives the default governance policy set from transitional managed-repo state.
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.PolicySet
+  alias JidoCode.Governance.{PolicySet, RepoPosture}
 
   @approval_mode_auto_post "auto_post"
   @approval_mode_approval_required "approval_required"
@@ -14,6 +19,10 @@ defmodule JidoCode.Governance.PolicyBridge do
   @required_stage_approval "approval"
   @legacy_approval_mode_source "support_agent_config.github_issue_bot.approval_mode"
   @default_policy_source "policy_set.review_policy.default"
+  @supervision_mode_guided "guided"
+  @supervision_mode_directed "directed"
+  @supervision_mode_autonomous "autonomous"
+  @escalation_status_normal "normal"
 
   @spec sync_managed_repo(struct() | map()) :: {:ok, PolicySet.t()} | {:error, term()}
   def sync_managed_repo(%{} = managed_repo) do
@@ -34,6 +43,15 @@ defmodule JidoCode.Governance.PolicyBridge do
 
   @spec review_policy_for_managed_repo(term()) :: {:ok, map()}
   def review_policy_for_managed_repo(managed_repo_id) when is_binary(managed_repo_id) do
+    with {:ok, configured_review_policy} <- configured_review_policy_for_managed_repo(managed_repo_id) do
+      {:ok, effective_review_policy(managed_repo_id, configured_review_policy)}
+    end
+  end
+
+  def review_policy_for_managed_repo(_managed_repo_id), do: {:ok, default_review_policy()}
+
+  @spec configured_review_policy_for_managed_repo(term()) :: {:ok, map()}
+  def configured_review_policy_for_managed_repo(managed_repo_id) when is_binary(managed_repo_id) do
     case PolicySet.get_by_managed_repo_name(managed_repo_id, "default", actor: Actor.factory_system_actor()) do
       {:ok, policy_set} ->
         {:ok, normalize_review_policy(policy_set.review_policy)}
@@ -43,7 +61,7 @@ defmodule JidoCode.Governance.PolicyBridge do
     end
   end
 
-  def review_policy_for_managed_repo(_managed_repo_id), do: {:ok, default_review_policy()}
+  def configured_review_policy_for_managed_repo(_managed_repo_id), do: {:ok, default_review_policy()}
 
   @spec review_policy_for_project(term()) :: {:ok, map()}
   def review_policy_for_project(project_id) when is_binary(project_id) do
@@ -84,7 +102,10 @@ defmodule JidoCode.Governance.PolicyBridge do
         "change_request_required" => false,
         "review_threshold" => @review_threshold_auto_post,
         "required_stage" => @required_stage_approval,
-        "source" => Map.get(normalized_review_policy, "source", @default_policy_source)
+        "source" => Map.get(normalized_review_policy, "source", @default_policy_source),
+        "supervision_mode" => Map.get(normalized_review_policy, "supervision_mode", @supervision_mode_guided),
+        "escalation_status" => Map.get(normalized_review_policy, "escalation_status", @escalation_status_normal),
+        "posture_override" => Map.get(normalized_review_policy, "posture_override", false)
       }
     else
       %{
@@ -95,7 +116,10 @@ defmodule JidoCode.Governance.PolicyBridge do
         "change_request_required" => Map.get(normalized_review_policy, "change_request_required", true),
         "review_threshold" => Map.get(normalized_review_policy, "review_threshold", @review_threshold_human_approval),
         "required_stage" => Map.get(normalized_review_policy, "required_stage", @required_stage_approval),
-        "source" => Map.get(normalized_review_policy, "source", @default_policy_source)
+        "source" => Map.get(normalized_review_policy, "source", @default_policy_source),
+        "supervision_mode" => Map.get(normalized_review_policy, "supervision_mode", @supervision_mode_guided),
+        "escalation_status" => Map.get(normalized_review_policy, "escalation_status", @escalation_status_normal),
+        "posture_override" => Map.get(normalized_review_policy, "posture_override", false)
       }
     end
   end
@@ -244,4 +268,50 @@ defmodule JidoCode.Governance.PolicyBridge do
   end
 
   defp normalize_review_policy(_review_policy), do: default_review_policy()
+
+  defp effective_review_policy(managed_repo_id, configured_review_policy) do
+    normalized_review_policy = normalize_review_policy(configured_review_policy)
+    repo_posture = repo_posture(managed_repo_id)
+    supervision_mode = repo_posture && repo_posture.supervision_mode || @supervision_mode_guided
+    escalation_status = repo_posture && repo_posture.escalation_status || @escalation_status_normal
+
+    base_policy =
+      normalized_review_policy
+      |> Map.put("configured_source", Map.get(normalized_review_policy, "source", @default_policy_source))
+      |> Map.put("supervision_mode", supervision_mode)
+      |> Map.put("escalation_status", escalation_status)
+      |> Map.put("posture_override", false)
+
+    case supervision_mode do
+      mode when mode in [@supervision_mode_directed, @supervision_mode_guided] ->
+        base_policy
+        |> Map.put("mode", @approval_mode_approval_required)
+        |> Map.put("requires_human_approval", true)
+        |> Map.put("change_request_required", true)
+        |> Map.put("review_threshold", @review_threshold_human_approval)
+        |> Map.put("required_stage", @required_stage_approval)
+        |> Map.put("source", "repo_posture.#{mode}")
+        |> Map.put("posture_override", true)
+
+      @supervision_mode_autonomous when escalation_status == @escalation_status_normal ->
+        base_policy
+        |> Map.put("mode", @approval_mode_auto_post)
+        |> Map.put("requires_human_approval", false)
+        |> Map.put("change_request_required", false)
+        |> Map.put("review_threshold", @review_threshold_auto_post)
+        |> Map.put("required_stage", @required_stage_approval)
+        |> Map.put("source", "repo_posture.autonomous")
+        |> Map.put("posture_override", true)
+
+      _other ->
+        base_policy
+    end
+  end
+
+  defp repo_posture(managed_repo_id) do
+    case RepoPosture.get_by_managed_repo_id(managed_repo_id, actor: Actor.factory_system_actor()) do
+      {:ok, repo_posture} -> repo_posture
+      _other -> nil
+    end
+  end
 end

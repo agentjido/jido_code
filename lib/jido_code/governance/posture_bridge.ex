@@ -2,6 +2,9 @@ defmodule JidoCode.Governance.PostureBridge do
   # covers: architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
   # covers: architecture.repo_posture.repo_posture_summarizes_trust_dimensions
   # covers: architecture.repo_posture.posture_checks_preserve_explainable_links
+  # covers: architecture.repo_posture.supervision_modes_are_explicit_and_reversible
+  # covers: architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
+  # covers: architecture.vsm_recursion.algedonic_escalation
   @moduledoc """
   Projects explainable repo posture records from repo-native state, assessments,
   evidence, and repo governance policy.
@@ -20,6 +23,7 @@ defmodule JidoCode.Governance.PostureBridge do
     "recovery_resilience",
     "requirements_confidence"
   ]
+  @algedonic_dimension "algedonic_escalation"
 
   @type sync_result :: {:ok, %{repo_posture: RepoPosture.t(), posture_checks: [PostureCheck.t()]}} | {:error, term()}
 
@@ -29,7 +33,7 @@ defmodule JidoCode.Governance.PostureBridge do
 
     with true <- is_binary(managed_repo_id) or {:error, :missing_managed_repo_id},
          {:ok, repo_native_state} <- RepoNativeState.latest_signal_snapshot(managed_repo_id),
-         {:ok, review_policy} <- PolicyBridge.review_policy_for_managed_repo(managed_repo_id),
+         {:ok, review_policy} <- PolicyBridge.configured_review_policy_for_managed_repo(managed_repo_id),
          context <- posture_context(managed_repo, repo_native_state, review_policy),
          {:ok, repo_posture} <- upsert_repo_posture(context, []),
          {:ok, posture_checks} <- sync_posture_checks(repo_posture, context),
@@ -74,6 +78,9 @@ defmodule JidoCode.Governance.PostureBridge do
   end
 
   defp upsert_repo_posture(context, posture_checks) do
+    algedonic_check =
+      Enum.find(posture_checks, &(&1.dimension == @algedonic_dimension))
+
     RepoPosture.upsert_for_managed_repo(
       %{
         managed_repo_id: context.managed_repo_id,
@@ -85,10 +92,14 @@ defmodule JidoCode.Governance.PostureBridge do
         drift_rate: Map.fetch!(context.dimensions, "drift_rate"),
         recovery_resilience: Map.fetch!(context.dimensions, "recovery_resilience"),
         requirements_confidence: Map.fetch!(context.dimensions, "requirements_confidence"),
+        supervision_mode: context.supervision_state.mode,
+        escalation_status: context.supervision_state.escalation_status,
+        algedonic_check_id: algedonic_check && algedonic_check.id,
         contributing_check_ids: Enum.map(posture_checks, & &1.id),
         posture_metadata: %{
           "repo_native_state" => context.repo_native_state,
           "review_policy" => context.review_policy,
+          "supervision_state" => context.supervision_state,
           "latest_observation_ids" => %{
             "spec_led" => context.spec_observation && context.spec_observation.id,
             "beadwork" => context.beadwork_observation && context.beadwork_observation.id
@@ -117,6 +128,9 @@ defmodule JidoCode.Governance.PostureBridge do
       "requirements_confidence" => requirements_confidence(repo_native_state, latest_assessment)
     }
 
+    supervision_state =
+      supervision_state(dimensions, review_policy, repo_native_state, latest_assessment, latest_failure_evidence)
+
     %{
       managed_repo_id: managed_repo_id,
       managed_repo: managed_repo,
@@ -127,6 +141,7 @@ defmodule JidoCode.Governance.PostureBridge do
       latest_assessment: latest_assessment,
       latest_failure_evidence: latest_failure_evidence,
       dimensions: dimensions,
+      supervision_state: supervision_state,
       dimension_checks:
         build_dimension_checks(
           managed_repo_id,
@@ -137,7 +152,8 @@ defmodule JidoCode.Governance.PostureBridge do
           beadwork_observation,
           latest_assessment,
           latest_failure_evidence,
-          dimensions
+          dimensions,
+          supervision_state
         )
     }
   end
@@ -151,7 +167,8 @@ defmodule JidoCode.Governance.PostureBridge do
          beadwork_observation,
          latest_assessment,
          latest_failure_evidence,
-         dimensions
+         dimensions,
+         supervision_state
        ) do
     workspace_settings =
       managed_repo
@@ -234,6 +251,19 @@ defmodule JidoCode.Governance.PostureBridge do
           "latest_assessment_id" => latest_assessment && latest_assessment.id
         },
         source: "repo_native.requirements"
+      },
+      %{
+        managed_repo_id: managed_repo_id,
+        observation_id: (spec_observation && spec_observation.id) || (beadwork_observation && beadwork_observation.id),
+        assessment_id: latest_assessment && latest_assessment.id,
+        evidence_id: latest_failure_evidence && latest_failure_evidence.id,
+        dimension: @algedonic_dimension,
+        value: supervision_value(supervision_state),
+        summary: supervision_state.summary,
+        details: supervision_state.details,
+        source: "posture.supervision",
+        threat_level: supervision_state.threat_level,
+        escalation_mode: check_escalation_mode(supervision_state.escalation_status)
       }
     ]
   end
@@ -260,8 +290,9 @@ defmodule JidoCode.Governance.PostureBridge do
     case get_in(repo_native_state, ["spec_led", "status"]) do
       "verified" -> "high"
       "drift" -> "medium"
-      "present" -> "medium"
-      _other -> "low"
+      "blocked" -> "low"
+      "state_missing" -> "low"
+      _other -> "medium"
     end
   end
 
@@ -295,6 +326,7 @@ defmodule JidoCode.Governance.PostureBridge do
     cond do
       spec_status == "verified" and not is_nil(latest_assessment) -> "high"
       spec_status in ["verified", "drift"] -> "medium"
+      is_nil(spec_status) or spec_status == "absent" -> "medium"
       true -> "low"
     end
   end
@@ -326,6 +358,95 @@ defmodule JidoCode.Governance.PostureBridge do
 
     "Repo posture is #{overall_trust(dimensions)} trust with #{Map.fetch!(dimensions, "execution_readiness")} execution readiness, #{Map.fetch!(dimensions, "validation_reliability")} validation reliability, and repo-native signals at spec=#{spec_status} beadwork=#{beadwork_status}."
   end
+
+  defp supervision_state(dimensions, review_policy, repo_native_state, latest_assessment, latest_failure_evidence) do
+    spec_status = get_in(repo_native_state, ["spec_led", "status"]) || "absent"
+
+    cond do
+      dimensions["validation_reliability"] == "low" ->
+        %{
+          mode: "directed",
+          escalation_status: "algedonic",
+          threat_level: "viability",
+          reason_code: "repo_viability_threat",
+          summary: "Viability-threatening posture triggered directed supervision and algedonic escalation.",
+          details: %{
+            "spec_status" => spec_status,
+            "dimensions" => dimensions,
+            "latest_assessment_id" => latest_assessment && latest_assessment.id,
+            "latest_failure_evidence_id" => latest_failure_evidence && latest_failure_evidence.id
+          }
+        }
+
+      dimensions["recovery_resilience"] == "low" or dimensions["requirements_confidence"] == "low" or
+          dimensions["drift_rate"] == "high" ->
+        %{
+          mode: "guided",
+          escalation_status: "review",
+          threat_level: "watch",
+          reason_code: "confidence_drop_requires_review",
+          summary: "Confidence dropped enough to require guided supervision and operator review.",
+          details: %{
+            "spec_status" => spec_status,
+            "dimensions" => dimensions,
+            "review_policy" => normalize_map(review_policy)
+          }
+        }
+
+      dimensions["review_burden"] == "low" and dimensions["execution_readiness"] == "high" and
+          dimensions["validation_reliability"] == "high" and dimensions["drift_rate"] == "low" and
+          dimensions["recovery_resilience"] == "high" and dimensions["requirements_confidence"] == "high" ->
+        %{
+          mode: "autonomous",
+          escalation_status: "normal",
+          threat_level: "none",
+          reason_code: "high_confidence_autonomy",
+          summary: "Strong posture signals allow autonomous supervision without added review burden.",
+          details: %{
+            "spec_status" => spec_status,
+            "dimensions" => dimensions,
+            "review_policy" => normalize_map(review_policy)
+          }
+        }
+
+      dimensions["execution_readiness"] == "high" and dimensions["validation_reliability"] == "high" and
+          dimensions["requirements_confidence"] in ["medium", "high"] ->
+        %{
+          mode: "delegated",
+          escalation_status: "normal",
+          threat_level: "none",
+          reason_code: "stable_delegation",
+          summary: "Stable posture signals allow delegated supervision while preserving explicit review policy.",
+          details: %{
+            "spec_status" => spec_status,
+            "dimensions" => dimensions,
+            "review_policy" => normalize_map(review_policy)
+          }
+        }
+
+      true ->
+        %{
+          mode: "delegated",
+          escalation_status: "normal",
+          threat_level: "none",
+          reason_code: "delegated_by_default",
+          summary: "The repository remains in delegated supervision while posture signals stay stable.",
+          details: %{
+            "spec_status" => spec_status,
+            "dimensions" => dimensions,
+            "review_policy" => normalize_map(review_policy)
+          }
+        }
+    end
+  end
+
+  defp supervision_value(%{escalation_status: "algedonic"}), do: "high"
+  defp supervision_value(%{escalation_status: "review"}), do: "medium"
+  defp supervision_value(_supervision_state), do: "low"
+
+  defp check_escalation_mode("algedonic"), do: "algedonic"
+  defp check_escalation_mode("review"), do: "review"
+  defp check_escalation_mode(_status), do: "none"
 
   defp latest_repo_native_observation(managed_repo_id, category) do
     case Observation.read(

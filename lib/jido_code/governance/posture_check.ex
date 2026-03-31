@@ -9,7 +9,9 @@ defmodule JidoCode.Governance.PostureCheck do
   alias JidoCode.Control.Checks.ActorClassIn
 
   @level_pattern ~r/^(low|medium|high)$/
-  @dimension_pattern ~r/^(execution_readiness|validation_reliability|review_burden|drift_rate|recovery_resilience|requirements_confidence)$/
+  @dimension_pattern ~r/^(execution_readiness|validation_reliability|review_burden|drift_rate|recovery_resilience|requirements_confidence|algedonic_escalation)$/
+  @threat_level_pattern ~r/^(none|watch|viability)$/
+  @escalation_mode_pattern ~r/^(none|review|algedonic)$/
 
   postgres do
     table "posture_checks"
@@ -39,6 +41,8 @@ defmodule JidoCode.Governance.PostureCheck do
         :summary,
         :details,
         :source,
+        :threat_level,
+        :escalation_mode,
         :checked_at
       ]
 
@@ -57,6 +61,8 @@ defmodule JidoCode.Governance.PostureCheck do
         :summary,
         :details,
         :source,
+        :threat_level,
+        :escalation_mode,
         :checked_at
       ]
 
@@ -72,6 +78,8 @@ defmodule JidoCode.Governance.PostureCheck do
         :summary,
         :details,
         :source,
+        :threat_level,
+        :escalation_mode,
         :checked_at
       ]
 
@@ -130,6 +138,20 @@ defmodule JidoCode.Governance.PostureCheck do
       allow_nil? false
       default "posture_bridge"
       constraints min_length: 1, max_length: 255, trim?: true
+      public? true
+    end
+
+    attribute :threat_level, :string do
+      allow_nil? false
+      default "none"
+      constraints match: @threat_level_pattern
+      public? true
+    end
+
+    attribute :escalation_mode, :string do
+      allow_nil? false
+      default "none"
+      constraints match: @escalation_mode_pattern
       public? true
     end
 

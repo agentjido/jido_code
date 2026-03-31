@@ -39,6 +39,7 @@ surface:
   - lib/jido_code/projects/project.ex
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
+  - test/jido_code/conversations/phase_four_integration_test.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
@@ -112,5 +113,11 @@ surface:
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
+    - architecture.policy_layers.policy_layers_interlock_without_collapsing
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_four_integration_test.exs
+  covers:
+    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
 ```

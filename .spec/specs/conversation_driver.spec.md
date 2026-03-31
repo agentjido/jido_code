@@ -26,6 +26,7 @@ surface:
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - test/jido_code/conversations/driver_test.exs
+  - test/jido_code/conversations/phase_four_integration_test.exs
 ```
 
 ## Requirements
@@ -154,4 +155,14 @@ surface:
     - architecture.conversation_driver.actor_context_propagated
     - architecture.conversation_driver.subscriber_event_contract_preserved
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_four_integration_test.exs
+  covers:
+    - architecture.conversation_driver.code_server_routes_through_boundary
+    - architecture.conversation_driver.conversation_identity_maps_to_session
+    - architecture.conversation_driver.actor_context_propagated
+    - architecture.conversation_driver.subscriber_event_contract_preserved
+    - architecture.conversation_driver.public_jido_os_turn_event_bridge
+    - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
 ```

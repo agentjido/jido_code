@@ -4,6 +4,7 @@ defmodule JidoCode.Governance.PolicySetTest do
   alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
   alias JidoCode.Governance.PolicySet
   alias JidoCode.Projects.Project
+  alias JidoCode.Workbench.IssueTriageWorkflowKickoff
 
   test "project create seeds the default policy set from transitional approval configuration" do
     {:ok, project} =
@@ -85,5 +86,50 @@ defmodule JidoCode.Governance.PolicySetTest do
 
     assert policy_set.review_policy.mode == "auto_post"
     assert policy_set.review_policy.source == "manual_override"
+  end
+
+  test "issue triage policy state prefers managed repo policy over stale project settings" do
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-policy-override",
+        github_full_name: "owner/repo-policy-override",
+        default_branch: "main",
+        settings: %{
+          "support_agent_config" => %{
+            "github_issue_bot" => %{"approval_mode" => "approval_required"}
+          }
+        }
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, _policy_set} =
+      PolicySet.upsert_default_for_managed_repo(
+        %{
+          managed_repo_id: managed_repo.id,
+          review_policy: %{
+            mode: "auto_post",
+            requires_human_approval: false,
+            change_request_required: false,
+            review_threshold: "auto_post",
+            required_stage: "approval",
+            source: "admin_override"
+          }
+        },
+        actor: Actor.admin_actor()
+      )
+
+    policy_state =
+      IssueTriageWorkflowKickoff.policy_state(%{
+        id: project.id,
+        managed_repo_id: managed_repo.id,
+        settings: project.settings
+      })
+
+    assert policy_state.enabled == true
+    assert policy_state.approval_policy.mode == "auto_post"
+    assert policy_state.approval_policy.change_request_required == false
+    assert policy_state.approval_policy.source == "admin_override"
   end
 end

@@ -1,13 +1,17 @@
 defmodule JidoCode.Governance.PolicyBridge do
+  # covers: architecture.run_governance.review_policy_controls_change_request_creation
   @moduledoc """
   Derives the default governance policy set from transitional managed-repo state.
   """
 
-  alias JidoCode.Control.Actor
+  alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Governance.PolicySet
 
   @approval_mode_auto_post "auto_post"
   @approval_mode_approval_required "approval_required"
+  @review_threshold_auto_post "auto_post"
+  @review_threshold_human_approval "human_approval"
+  @required_stage_approval "approval"
   @legacy_approval_mode_source "support_agent_config.github_issue_bot.approval_mode"
   @default_policy_source "policy_set.review_policy.default"
 
@@ -28,6 +32,89 @@ defmodule JidoCode.Governance.PolicyBridge do
 
   def sync_managed_repo(_managed_repo), do: {:error, :invalid_managed_repo}
 
+  @spec review_policy_for_managed_repo(term()) :: {:ok, map()}
+  def review_policy_for_managed_repo(managed_repo_id) when is_binary(managed_repo_id) do
+    case PolicySet.get_by_managed_repo_name(managed_repo_id, "default", actor: Actor.factory_system_actor()) do
+      {:ok, policy_set} ->
+        {:ok, normalize_review_policy(policy_set.review_policy)}
+
+      {:error, _reason} ->
+        {:ok, default_review_policy()}
+    end
+  end
+
+  def review_policy_for_managed_repo(_managed_repo_id), do: {:ok, default_review_policy()}
+
+  @spec review_policy_for_project(term()) :: {:ok, map()}
+  def review_policy_for_project(project_id) when is_binary(project_id) do
+    with {:ok, managed_repo} <- ManagedRepo.get_by_legacy_project_id(project_id, actor: Actor.factory_system_actor()) do
+      review_policy_for_managed_repo(managed_repo.id)
+    else
+      _other -> {:ok, default_review_policy()}
+    end
+  end
+
+  def review_policy_for_project(_project_id), do: {:ok, default_review_policy()}
+
+  @spec approval_policy_for_managed_repo(term()) :: {:ok, map()}
+  def approval_policy_for_managed_repo(managed_repo_id) do
+    with {:ok, review_policy} <- review_policy_for_managed_repo(managed_repo_id) do
+      {:ok, approval_policy_from_review_policy(review_policy)}
+    end
+  end
+
+  @spec approval_policy_for_project(term()) :: {:ok, map()}
+  def approval_policy_for_project(project_id) do
+    with {:ok, review_policy} <- review_policy_for_project(project_id) do
+      {:ok, approval_policy_from_review_policy(review_policy)}
+    end
+  end
+
+  @spec approval_policy_from_review_policy(map()) :: map()
+  def approval_policy_from_review_policy(review_policy) when is_map(review_policy) do
+    normalized_review_policy = normalize_review_policy(review_policy)
+    mode = Map.get(normalized_review_policy, "mode", @approval_mode_approval_required)
+
+    if mode == @approval_mode_auto_post do
+      %{
+        "mode" => @approval_mode_auto_post,
+        "post_behavior" => @approval_mode_auto_post,
+        "auto_post" => true,
+        "requires_approval" => false,
+        "change_request_required" => false,
+        "review_threshold" => @review_threshold_auto_post,
+        "required_stage" => @required_stage_approval,
+        "source" => Map.get(normalized_review_policy, "source", @default_policy_source)
+      }
+    else
+      %{
+        "mode" => @approval_mode_approval_required,
+        "post_behavior" => @approval_mode_approval_required,
+        "auto_post" => false,
+        "requires_approval" => true,
+        "change_request_required" => Map.get(normalized_review_policy, "change_request_required", true),
+        "review_threshold" => Map.get(normalized_review_policy, "review_threshold", @review_threshold_human_approval),
+        "required_stage" => Map.get(normalized_review_policy, "required_stage", @required_stage_approval),
+        "source" => Map.get(normalized_review_policy, "source", @default_policy_source)
+      }
+    end
+  end
+
+  def approval_policy_from_review_policy(_review_policy),
+    do: approval_policy_from_review_policy(default_review_policy())
+
+  @spec default_review_policy() :: map()
+  def default_review_policy do
+    %{
+      "mode" => @approval_mode_approval_required,
+      "requires_human_approval" => true,
+      "change_request_required" => true,
+      "review_threshold" => @review_threshold_human_approval,
+      "required_stage" => @required_stage_approval,
+      "source" => @default_policy_source
+    }
+  end
+
   defp review_policy_from_repo(managed_repo) do
     integration_settings =
       managed_repo
@@ -47,12 +134,18 @@ defmodule JidoCode.Governance.PolicyBridge do
       %{
         mode: @approval_mode_auto_post,
         requires_human_approval: false,
+        change_request_required: false,
+        review_threshold: @review_threshold_auto_post,
+        required_stage: @required_stage_approval,
         source: @legacy_approval_mode_source
       }
     else
       %{
         mode: @approval_mode_approval_required,
         requires_human_approval: true,
+        change_request_required: true,
+        review_threshold: @review_threshold_human_approval,
+        required_stage: @required_stage_approval,
         source:
           if(approval_mode == @approval_mode_approval_required,
             do: @legacy_approval_mode_source,
@@ -93,6 +186,13 @@ defmodule JidoCode.Governance.PolicyBridge do
 
   defp map_get(_map, _atom_key, _string_key, default), do: default
 
+  defp normalize_map(%_{} = value) do
+    value
+    |> Map.from_struct()
+    |> Map.delete(:__meta__)
+    |> normalize_map()
+  end
+
   defp normalize_map(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       normalized_key =
@@ -108,7 +208,40 @@ defmodule JidoCode.Governance.PolicyBridge do
 
   defp normalize_map(_value), do: %{}
 
+  defp normalize_nested_value(%_{} = value) do
+    value
+    |> Map.from_struct()
+    |> Map.delete(:__meta__)
+    |> normalize_map()
+  end
+
   defp normalize_nested_value(value) when is_map(value), do: normalize_map(value)
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
+
+  defp normalize_review_policy(review_policy) when is_map(review_policy) do
+    normalized_review_policy = normalize_map(review_policy)
+
+    normalized_review_policy
+    |> Map.put_new(
+      "change_request_required",
+      map_get(review_policy, :change_request_required, "change_request_required", true)
+    )
+    |> Map.put_new(
+      "review_threshold",
+      map_get(review_policy, :review_threshold, "review_threshold", @review_threshold_human_approval)
+    )
+    |> Map.put_new(
+      "required_stage",
+      map_get(review_policy, :required_stage, "required_stage", @required_stage_approval)
+    )
+    |> Map.put_new("mode", map_get(review_policy, :mode, "mode", @approval_mode_approval_required))
+    |> Map.put_new(
+      "requires_human_approval",
+      map_get(review_policy, :requires_human_approval, "requires_human_approval", true)
+    )
+    |> Map.put_new("source", map_get(review_policy, :source, "source", @default_policy_source))
+  end
+
+  defp normalize_review_policy(_review_policy), do: default_review_policy()
 end

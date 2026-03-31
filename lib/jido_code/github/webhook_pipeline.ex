@@ -1,4 +1,5 @@
 defmodule JidoCode.GitHub.WebhookPipeline do
+  # covers: architecture.demand_ingress.entrypoint_policy_metadata_preserved
   @moduledoc """
   Routes verified webhook deliveries into downstream pipeline stages.
   """
@@ -8,6 +9,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   alias JidoCode.Agents.SupportAgentConfigs
   alias JidoCode.GitHub.Repo
   alias JidoCode.GitHub.WebhookDelivery
+  alias JidoCode.Governance.PolicyBridge
   alias JidoCode.Operations.Ingress
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
@@ -715,10 +717,16 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   defp issue_bot_settings(_project), do: %{}
 
   defp project_issue_bot_approval_policy(%Project{} = project) do
-    project
-    |> issue_bot_settings()
-    |> map_get(:approval_mode, "approval_mode")
-    |> issue_bot_approval_policy()
+    case PolicyBridge.approval_policy_for_project(Map.get(project, :id)) do
+      {:ok, approval_policy} ->
+        approval_policy
+
+      _other ->
+        project
+        |> issue_bot_settings()
+        |> map_get(:approval_mode, "approval_mode")
+        |> issue_bot_approval_policy()
+    end
   end
 
   defp project_issue_bot_approval_policy(_project),

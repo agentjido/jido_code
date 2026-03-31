@@ -12,6 +12,10 @@ decisions:
   - jido_code.runic_execution_model
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
+  - lib/jido_code/orchestration/execution_profile.ex
+  - lib/jido_code/orchestration/run.ex
+  - lib/jido_code/orchestration/run_bridge.ex
+  - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
 ```
 
 ## Requirements

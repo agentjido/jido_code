@@ -7,7 +7,7 @@ defmodule JidoCode.Orchestration.WorkflowRun do
 
   alias JidoCode.GitHub.IssueCommentClient
   alias JidoCode.Control.ManagedRepo
-  alias JidoCode.Orchestration.RunPubSub
+  alias JidoCode.Orchestration.{RunBridge, RunPubSub}
 
   @statuses [:pending, :running, :awaiting_approval, :completed, :failed, :cancelled]
   @terminal_statuses [:completed, :failed, :cancelled]
@@ -111,6 +111,13 @@ defmodule JidoCode.Orchestration.WorkflowRun do
         )
         |> publish_run_started_event(started_at, current_step)
       end
+
+      change after_action(fn _changeset, workflow_run, _context ->
+               case RunBridge.sync_workflow_run(workflow_run) do
+                 {:ok, _run} -> {:ok, workflow_run}
+                 {:error, reason} -> {:error, reason}
+               end
+             end)
     end
 
     read :read do
@@ -159,6 +166,13 @@ defmodule JidoCode.Orchestration.WorkflowRun do
           )
         end
       end
+
+      change after_action(fn _changeset, workflow_run, _context ->
+               case RunBridge.sync_workflow_run(workflow_run) do
+                 {:ok, _run} -> {:ok, workflow_run}
+                 {:error, reason} -> {:error, reason}
+               end
+             end)
     end
   end
 

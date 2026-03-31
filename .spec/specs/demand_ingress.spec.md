@@ -52,6 +52,11 @@ surface:
   statement: Normalized ingress records shall preserve source metadata, actor attribution, and managed-repository or project correlation continuity across webhook, setup, and workbench entrypoints.
   priority: must
   stability: evolving
+
+- id: architecture.demand_ingress.entrypoint_policy_metadata_preserved
+  statement: Ingress entrypoints that can launch governed runs shall preserve repo-governance approval or review-policy metadata in their normalized source metadata so downstream execution and review behavior remains correlated with the originating intake or webhook.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -73,12 +78,24 @@ surface:
   covers:
     - architecture.demand_ingress.intake_captures_operator_and_trusted_requests
     - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+    - architecture.demand_ingress.entrypoint_policy_metadata_preserved
   given:
     - An operator triggers project import or a workbench workflow kickoff for a tracked repository.
   when:
     - The request enters the factory through the product surface.
   then:
     - The request is recorded as a durable `Intake` linked to the managed repository before execution-specific launcher behavior continues.
+
+- id: architecture.demand_ingress.scenario_repo_governance_policy_flows_through_launch_entrypoints
+  covers:
+    - architecture.demand_ingress.entrypoint_policy_metadata_preserved
+    - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+  given:
+    - A managed repository has repo-governance review policy that affects issue-triage approval behavior.
+  when:
+    - A webhook or workbench entrypoint prepares downstream workflow launch metadata.
+  then:
+    - The normalized launch metadata preserves the effective approval or review policy alongside the ingress correlation context.
 ```
 
 ## Verification
@@ -130,4 +147,14 @@ surface:
     - architecture.demand_ingress.observation_captures_repo_and_system_facts
     - architecture.demand_ingress.intake_captures_operator_and_trusted_requests
     - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+
+- kind: source_file
+  target: lib/jido_code/github/webhook_pipeline.ex
+  covers:
+    - architecture.demand_ingress.entrypoint_policy_metadata_preserved
+
+- kind: source_file
+  target: lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
+  covers:
+    - architecture.demand_ingress.entrypoint_policy_metadata_preserved
 ```

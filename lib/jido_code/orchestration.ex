@@ -6,6 +6,8 @@ defmodule JidoCode.Orchestration do
   end
 
   resources do
+    resource JidoCode.Orchestration.ExecutionProfile
+    resource JidoCode.Orchestration.Run
     resource JidoCode.Orchestration.WorkflowRun
   end
 end

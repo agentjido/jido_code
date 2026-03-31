@@ -1,4 +1,5 @@
 defmodule JidoCode.Orchestration.WorkflowRun do
+  # covers: architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
   use Ash.Resource,
     otp_app: :jido_code,
     domain: JidoCode.Orchestration,
@@ -6,6 +7,7 @@ defmodule JidoCode.Orchestration.WorkflowRun do
     authorizers: [Ash.Policy.Authorizer]
 
   alias JidoCode.GitHub.IssueCommentClient
+  alias JidoCode.Control.{Actor, Checks.ActorClassIn}
   alias JidoCode.Control.ManagedRepo
   alias JidoCode.Orchestration.{RunBridge, RunPubSub}
 
@@ -42,6 +44,10 @@ defmodule JidoCode.Orchestration.WorkflowRun do
   @issue_triage_auto_post_mode "auto_post"
   @issue_triage_approval_required_mode "approval_required"
   @issue_triage_auto_approver_id "issue_bot_auto_approver"
+  @managed_repo_lookup_actor Actor.factory_system_actor(%{
+                               "id" => "system:workflow-run-managed-repo-lookup",
+                               "email" => "workflow-run-managed-repo-lookup@system.local"
+                             })
   @allowed_transitions %{
     pending: MapSet.new([:running, :cancelled]),
     running: MapSet.new([:awaiting_approval, :completed, :failed, :cancelled]),
@@ -178,19 +184,43 @@ defmodule JidoCode.Orchestration.WorkflowRun do
 
   policies do
     policy action_type(:read) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :managed_repo_orchestrator,
+                      :run_worker,
+                      :external_ingress
+                    ]}
     end
 
     policy action_type(:create) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :managed_repo_orchestrator,
+                      :run_worker,
+                      :external_ingress
+                    ]}
     end
 
     policy action_type(:update) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :managed_repo_orchestrator,
+                      :run_worker,
+                      :external_ingress
+                    ]}
     end
 
     policy action_type(:destroy) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :factory_system, :managed_repo_orchestrator]}
     end
   end
 
@@ -331,23 +361,25 @@ defmodule JidoCode.Orchestration.WorkflowRun do
     current_step = approval_resume_step(params, persisted_run)
     approval_decision = approval_decision(actor, approved_at)
 
-    with :ok <- validate_approval_preconditions(persisted_run),
-         {:ok, approved_run} <-
-           approve_transition(persisted_run, approval_decision, approved_at, current_step) do
-      {:ok, approved_run}
-    else
-      {:error, typed_failure} when is_map(typed_failure) ->
-        {:error, typed_failure}
+    Actor.with_policy_actor(actor, fn ->
+      with :ok <- validate_approval_preconditions(persisted_run),
+           {:ok, approved_run} <-
+             approve_transition(persisted_run, approval_decision, approved_at, current_step) do
+        {:ok, approved_run}
+      else
+        {:error, typed_failure} when is_map(typed_failure) ->
+          {:error, typed_failure}
 
-      {:error, reason} ->
-        {:error,
-         approval_action_failure(
-           "status_transition_failed",
-           "Approve action could not be applied while run remained blocked.",
-           "Retry approval from run detail after resolving the blocking condition.",
-           reason
-         )}
-    end
+        {:error, reason} ->
+          {:error,
+           approval_action_failure(
+             "status_transition_failed",
+             "Approve action could not be applied while run remained blocked.",
+             "Retry approval from run detail after resolving the blocking condition.",
+             reason
+           )}
+      end
+    end)
   end
 
   def approve(_run, _params) do
@@ -369,32 +401,34 @@ defmodule JidoCode.Orchestration.WorkflowRun do
     actor = params |> map_get(:actor, "actor", %{}) |> normalize_actor()
     rationale = params |> map_get(:rationale, "rationale") |> normalize_optional_string()
 
-    with :ok <- validate_rejection_preconditions(persisted_run),
-         {:ok, transition_target} <- rejection_transition_target(persisted_run),
-         transition_metadata <- %{
-           "approval_decision" => rejection_decision(actor, rejected_at, rationale, transition_target)
-         },
-         {:ok, rejected_run} <-
-           transition_status(persisted_run, %{
-             to_status: transition_target.to_status,
-             current_step: transition_target.current_step,
-             transitioned_at: rejected_at,
-             transition_metadata: transition_metadata
-           }) do
-      {:ok, rejected_run}
-    else
-      {:error, typed_failure} when is_map(typed_failure) ->
-        {:error, typed_failure}
+    Actor.with_policy_actor(actor, fn ->
+      with :ok <- validate_rejection_preconditions(persisted_run),
+           {:ok, transition_target} <- rejection_transition_target(persisted_run),
+           transition_metadata <- %{
+             "approval_decision" => rejection_decision(actor, rejected_at, rationale, transition_target)
+           },
+           {:ok, rejected_run} <-
+             transition_status(persisted_run, %{
+               to_status: transition_target.to_status,
+               current_step: transition_target.current_step,
+               transitioned_at: rejected_at,
+               transition_metadata: transition_metadata
+             }) do
+        {:ok, rejected_run}
+      else
+        {:error, typed_failure} when is_map(typed_failure) ->
+          {:error, typed_failure}
 
-      {:error, reason} ->
-        {:error,
-         rejection_action_failure(
-           "status_transition_failed",
-           "Reject action could not be applied while run remained blocked.",
-           "Retry rejection from run detail after resolving the blocking condition.",
-           reason
-         )}
-    end
+        {:error, reason} ->
+          {:error,
+           rejection_action_failure(
+             "status_transition_failed",
+             "Reject action could not be applied while run remained blocked.",
+             "Retry rejection from run detail after resolving the blocking condition.",
+             reason
+           )}
+      end
+    end)
   end
 
   def reject(_run, _params) do
@@ -415,50 +449,52 @@ defmodule JidoCode.Orchestration.WorkflowRun do
     retry_started_at = params |> map_get(:retry_started_at, "retry_started_at") |> normalize_datetime()
     actor = params |> map_get(:actor, "actor", %{}) |> normalize_actor()
 
-    with :ok <- validate_retry_preconditions(persisted_run),
-         {:ok, retry_policy} <- validate_full_run_retry_policy(persisted_run),
-         next_retry_attempt <- next_retry_attempt(persisted_run),
-         next_retry_run_id <- next_retry_run_id(persisted_run, next_retry_attempt),
-         retry_lineage <- build_retry_lineage(persisted_run, actor, retry_started_at),
-         retry_trigger <-
-           build_retry_trigger(
-             persisted_run,
-             retry_policy,
-             actor,
-             retry_started_at,
-             next_retry_attempt
-           ),
-         {:ok, retried_run} <-
-           create(%{
-             run_id: next_retry_run_id,
-             project_id: Map.get(persisted_run, :project_id),
-             workflow_name: Map.get(persisted_run, :workflow_name),
-             workflow_version: Map.get(persisted_run, :workflow_version),
-             trigger: retry_trigger,
-             inputs: persisted_run |> Map.get(:inputs, %{}) |> normalize_map(),
-             input_metadata: persisted_run |> Map.get(:input_metadata, %{}) |> normalize_map(),
-             initiating_actor: retry_initiating_actor(persisted_run, actor),
-             current_step: retry_initial_step(),
-             step_results: retry_context_step_results(persisted_run, next_retry_attempt),
-             started_at: retry_started_at,
-             retry_of_run_id: Map.get(persisted_run, :run_id),
-             retry_attempt: next_retry_attempt,
-             retry_lineage: retry_lineage
-           }) do
-      {:ok, retried_run}
-    else
-      {:error, typed_failure} when is_map(typed_failure) ->
-        {:error, typed_failure}
+    Actor.with_policy_actor(actor, fn ->
+      with :ok <- validate_retry_preconditions(persisted_run),
+           {:ok, retry_policy} <- validate_full_run_retry_policy(persisted_run),
+           next_retry_attempt <- next_retry_attempt(persisted_run),
+           next_retry_run_id <- next_retry_run_id(persisted_run, next_retry_attempt),
+           retry_lineage <- build_retry_lineage(persisted_run, actor, retry_started_at),
+           retry_trigger <-
+             build_retry_trigger(
+               persisted_run,
+               retry_policy,
+               actor,
+               retry_started_at,
+               next_retry_attempt
+             ),
+           {:ok, retried_run} <-
+             create(%{
+               run_id: next_retry_run_id,
+               project_id: Map.get(persisted_run, :project_id),
+               workflow_name: Map.get(persisted_run, :workflow_name),
+               workflow_version: Map.get(persisted_run, :workflow_version),
+               trigger: retry_trigger,
+               inputs: persisted_run |> Map.get(:inputs, %{}) |> normalize_map(),
+               input_metadata: persisted_run |> Map.get(:input_metadata, %{}) |> normalize_map(),
+               initiating_actor: retry_initiating_actor(persisted_run, actor),
+               current_step: retry_initial_step(),
+               step_results: retry_context_step_results(persisted_run, next_retry_attempt),
+               started_at: retry_started_at,
+               retry_of_run_id: Map.get(persisted_run, :run_id),
+               retry_attempt: next_retry_attempt,
+               retry_lineage: retry_lineage
+             }) do
+        {:ok, retried_run}
+      else
+        {:error, typed_failure} when is_map(typed_failure) ->
+          {:error, typed_failure}
 
-      {:error, reason} ->
-        {:error,
-         retry_action_failure(
-           "run_creation_failed",
-           "Full-run retry could not start a new run attempt.",
-           "Retry from run detail after resolving run creation preconditions.",
-           reason
-         )}
-    end
+        {:error, reason} ->
+          {:error,
+           retry_action_failure(
+             "run_creation_failed",
+             "Full-run retry could not start a new run attempt.",
+             "Retry from run detail after resolving run creation preconditions.",
+             reason
+           )}
+      end
+    end)
   end
 
   def retry(_run, _params) do
@@ -497,55 +533,57 @@ defmodule JidoCode.Orchestration.WorkflowRun do
     retry_started_at = params |> map_get(:retry_started_at, "retry_started_at") |> normalize_datetime()
     actor = params |> map_get(:actor, "actor", %{}) |> normalize_actor()
 
-    with :ok <- validate_retry_preconditions(persisted_run),
-         {:ok, step_retry_contract} <- validate_step_retry_policy(persisted_run, params),
-         next_retry_attempt <- next_retry_attempt(persisted_run),
-         next_retry_run_id <- next_retry_run_id(persisted_run, next_retry_attempt),
-         retry_lineage <- build_retry_lineage(persisted_run, actor, retry_started_at),
-         retry_trigger <-
-           build_step_retry_trigger(
-             persisted_run,
-             step_retry_contract,
-             actor,
-             retry_started_at,
-             next_retry_attempt
-           ),
-         {:ok, retried_run} <-
-           create(%{
-             run_id: next_retry_run_id,
-             project_id: Map.get(persisted_run, :project_id),
-             workflow_name: Map.get(persisted_run, :workflow_name),
-             workflow_version: Map.get(persisted_run, :workflow_version),
-             trigger: retry_trigger,
-             inputs: persisted_run |> Map.get(:inputs, %{}) |> normalize_map(),
-             input_metadata: persisted_run |> Map.get(:input_metadata, %{}) |> normalize_map(),
-             initiating_actor: retry_initiating_actor(persisted_run, actor),
-             current_step: Map.fetch!(step_retry_contract, :retry_step),
-             step_results:
-               step_retry_context_step_results(
-                 persisted_run,
-                 next_retry_attempt,
-                 Map.fetch!(step_retry_contract, :retry_step)
-               ),
-             started_at: retry_started_at,
-             retry_of_run_id: Map.get(persisted_run, :run_id),
-             retry_attempt: next_retry_attempt,
-             retry_lineage: retry_lineage
-           }) do
-      {:ok, retried_run}
-    else
-      {:error, typed_failure} when is_map(typed_failure) ->
-        {:error, typed_failure}
+    Actor.with_policy_actor(actor, fn ->
+      with :ok <- validate_retry_preconditions(persisted_run),
+           {:ok, step_retry_contract} <- validate_step_retry_policy(persisted_run, params),
+           next_retry_attempt <- next_retry_attempt(persisted_run),
+           next_retry_run_id <- next_retry_run_id(persisted_run, next_retry_attempt),
+           retry_lineage <- build_retry_lineage(persisted_run, actor, retry_started_at),
+           retry_trigger <-
+             build_step_retry_trigger(
+               persisted_run,
+               step_retry_contract,
+               actor,
+               retry_started_at,
+               next_retry_attempt
+             ),
+           {:ok, retried_run} <-
+             create(%{
+               run_id: next_retry_run_id,
+               project_id: Map.get(persisted_run, :project_id),
+               workflow_name: Map.get(persisted_run, :workflow_name),
+               workflow_version: Map.get(persisted_run, :workflow_version),
+               trigger: retry_trigger,
+               inputs: persisted_run |> Map.get(:inputs, %{}) |> normalize_map(),
+               input_metadata: persisted_run |> Map.get(:input_metadata, %{}) |> normalize_map(),
+               initiating_actor: retry_initiating_actor(persisted_run, actor),
+               current_step: Map.fetch!(step_retry_contract, :retry_step),
+               step_results:
+                 step_retry_context_step_results(
+                   persisted_run,
+                   next_retry_attempt,
+                   Map.fetch!(step_retry_contract, :retry_step)
+                 ),
+               started_at: retry_started_at,
+               retry_of_run_id: Map.get(persisted_run, :run_id),
+               retry_attempt: next_retry_attempt,
+               retry_lineage: retry_lineage
+             }) do
+        {:ok, retried_run}
+      else
+        {:error, typed_failure} when is_map(typed_failure) ->
+          {:error, typed_failure}
 
-      {:error, reason} ->
-        {:error,
-         step_retry_action_failure(
-           "run_creation_failed",
-           "Step-level retry could not start a new run attempt.",
-           "Retry from run detail after resolving step-level retry preconditions.",
-           reason
-         )}
-    end
+        {:error, reason} ->
+          {:error,
+           step_retry_action_failure(
+             "run_creation_failed",
+             "Step-level retry could not start a new run attempt.",
+             "Retry from run detail after resolving step-level retry preconditions.",
+             reason
+           )}
+      end
+    end)
   end
 
   def retry_step(_run, _params) do
@@ -563,20 +601,27 @@ defmodule JidoCode.Orchestration.WorkflowRun do
   def advance_issue_triage_run(run) when is_struct(run, __MODULE__) do
     persisted_run = reload_run(run)
 
-    if issue_triage_workflow?(persisted_run) do
-      case issue_triage_post_mode(persisted_run) do
-        :auto_post ->
-          approved_at = DateTime.utc_now() |> DateTime.truncate(:second)
-          actor = %{"id" => @issue_triage_auto_approver_id, "email" => nil}
-          decision = auto_approval_decision(actor, approved_at)
-          finalize_issue_triage_posting(persisted_run, decision, approved_at)
+    workflow_actor =
+      Actor.run_worker_actor(%{
+        "id" => @issue_triage_auto_approver_id,
+        "email" => nil
+      })
 
-        :approval_required ->
-          route_issue_triage_to_approval_gate(persisted_run)
+    Actor.with_policy_actor(workflow_actor, fn ->
+      if issue_triage_workflow?(persisted_run) do
+        case issue_triage_post_mode(persisted_run) do
+          :auto_post ->
+            approved_at = DateTime.utc_now() |> DateTime.truncate(:second)
+            decision = auto_approval_decision(workflow_actor, approved_at)
+            finalize_issue_triage_posting(persisted_run, decision, approved_at)
+
+          :approval_required ->
+            route_issue_triage_to_approval_gate(persisted_run)
+        end
+      else
+        {:ok, persisted_run}
       end
-    else
-      {:ok, persisted_run}
-    end
+    end)
   end
 
   def advance_issue_triage_run(_run) do
@@ -1814,7 +1859,7 @@ defmodule JidoCode.Orchestration.WorkflowRun do
   end
 
   defp managed_repo_id_for_project(project_id) when is_binary(project_id) do
-    case ManagedRepo.get_by_legacy_project_id(project_id, authorize?: false) do
+    case ManagedRepo.get_by_legacy_project_id(project_id, actor: @managed_repo_lookup_actor) do
       {:ok, managed_repo} -> Map.get(managed_repo, :id)
       _other -> nil
     end
@@ -2944,10 +2989,19 @@ defmodule JidoCode.Orchestration.WorkflowRun do
   end
 
   defp normalize_actor(actor) when is_map(actor) do
+    actor_class =
+      actor
+      |> Actor.class()
+      |> case do
+        nil -> nil
+        class -> Atom.to_string(class)
+      end
+
     %{
       "id" => actor |> map_get(:id, "id") |> normalize_optional_string() || "unknown",
       "email" => actor |> map_get(:email, "email") |> normalize_optional_string()
     }
+    |> maybe_put_optional_string("actor_class", actor_class)
   end
 
   defp normalize_actor(_actor), do: %{"id" => "unknown", "email" => nil}

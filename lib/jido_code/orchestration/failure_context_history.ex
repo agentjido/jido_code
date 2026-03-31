@@ -3,6 +3,7 @@ defmodule JidoCode.Orchestration.FailureContextHistory do
   Queries failed run context history for dashboard trend review.
   """
 
+  alias JidoCode.Control.Actor
   alias JidoCode.Orchestration.WorkflowRun
 
   @default_window_days 30
@@ -65,7 +66,10 @@ defmodule JidoCode.Orchestration.FailureContextHistory do
   @spec default_loader(query_params()) ::
           {:ok, [failure_history_entry()]} | {:error, typed_error()}
   def default_loader(query_params) when is_map(query_params) do
-    case WorkflowRun.read(query: [filter: [status: :failed], sort: [completed_at: :desc]]) do
+    case WorkflowRun.read(
+           query: [filter: [status: :failed], sort: [completed_at: :desc]],
+           actor: Actor.operator_actor()
+         ) do
       {:ok, runs} ->
         failure_history =
           runs

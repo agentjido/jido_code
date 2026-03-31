@@ -82,6 +82,11 @@ surface:
   statement: The governed run projection shall preserve explicit repo-prep, validation, approval, and cleanup stage plans from the effective execution profile so the control plane does not collapse execution into one opaque status.
   priority: must
   stability: evolving
+
+- id: architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+  statement: The legacy `WorkflowRun` seam and its governed projections shall preserve explicit actor class attribution across approval, retry, and machine-driven issue-triage transitions so compatibility views and governance records can distinguish operator, orchestrator, run-worker, and external-ingress actions.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -113,12 +118,14 @@ surface:
     - architecture.run_governance.evidence_records_capture_run_outputs
     - architecture.run_governance.change_request_records_reviewable_run_state
     - architecture.run_governance.decision_records_capture_governance_outcomes
+    - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
   given:
     - A governed run accumulates validation summaries and then reaches review or approval handling.
   when:
     - The workflow run projection is synchronized into control-plane governance records.
   then:
     - Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references.
+    - Retry, approval, and webhook-driven compatibility records keep explicit actor class attribution instead of collapsing machine and human actions into undifferentiated metadata.
 
 - id: architecture.run_governance.scenario_policy_governs_review_artifacts_and_launches
   covers:
@@ -191,4 +198,14 @@ surface:
   target: lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   covers:
     - architecture.run_governance.review_policy_controls_change_request_creation
+
+- kind: source_file
+  target: lib/jido_code/orchestration/workflow_run.ex
+  covers:
+    - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+
+- kind: source_file
+  target: test/jido_code/orchestration/workflow_run_test.exs
+  covers:
+    - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
 ```

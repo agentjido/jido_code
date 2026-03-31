@@ -1,7 +1,9 @@
 defmodule JidoCode.Projects.ProjectTest do
   # covers: setup.onboarding.repo_source_per_project
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
   use JidoCode.DataCase, async: false
 
+  alias JidoCode.Control.Actor
   alias JidoCode.Projects.Project
 
   test "github projects backfill source identity from github_full_name" do
@@ -31,5 +33,28 @@ defmodule JidoCode.Projects.ProjectTest do
     assert project.source_identifier == "/Users/example/workspaces/repo-local"
     assert project.local_path == "/Users/example/workspaces/repo-local"
     assert project.github_full_name == nil
+  end
+
+  test "requires an explicit actor when no compatibility policy actor is present" do
+    Actor.clear_policy_actor()
+
+    assert {:error, %Ash.Error.Forbidden{}} =
+             Project.create(%{
+               name: "repo-policy",
+               github_full_name: "owner/repo-policy",
+               default_branch: "main"
+             })
+
+    assert {:ok, %Project{} = project} =
+             Project.create(
+               %{
+                 name: "repo-policy-explicit",
+                 github_full_name: "owner/repo-policy-explicit",
+                 default_branch: "main"
+               },
+               actor: Actor.operator_actor(%{"id" => "operator-1", "email" => "operator-1@example.com"})
+             )
+
+    assert project.github_full_name == "owner/repo-policy-explicit"
   end
 end

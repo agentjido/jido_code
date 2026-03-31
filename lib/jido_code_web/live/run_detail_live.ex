@@ -828,7 +828,10 @@ defmodule JidoCodeWeb.RunDetailLive do
     if is_nil(workflow_run_id) do
       {:error, :workflow_run_not_found}
     else
-      case WorkflowRun.read(query: [filter: [id: workflow_run_id], limit: 1]) do
+      case WorkflowRun.read(
+             query: [filter: [id: workflow_run_id], limit: 1],
+             actor: Actor.operator_actor()
+           ) do
         {:ok, [%WorkflowRun{} = workflow_run | _rest]} -> {:ok, workflow_run}
         {:ok, []} -> {:error, :workflow_run_not_found}
         {:error, reason} -> {:error, reason}
@@ -839,7 +842,10 @@ defmodule JidoCodeWeb.RunDetailLive do
   defp load_workflow_run(_run, _project_scope, _run_id), do: {:error, :workflow_run_not_found}
 
   defp load_legacy_run_state(project_id, run_id) do
-    case WorkflowRun.get_by_project_and_run_id(%{project_id: project_id, run_id: run_id}) do
+    case WorkflowRun.get_by_project_and_run_id(
+           %{project_id: project_id, run_id: run_id},
+           actor: Actor.operator_actor()
+         ) do
       {:ok, %WorkflowRun{} = workflow_run} ->
         {:ok,
          %{
@@ -1785,13 +1791,13 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> Map.get(:current_user)
     |> case do
       %{} = user ->
-        %{
-          id: user |> Map.get(:id) |> normalize_optional_string() || "unknown",
-          email: user |> Map.get(:email) |> normalize_optional_string()
-        }
+        Actor.operator_actor(%{
+          "id" => user |> Map.get(:id) |> normalize_optional_string() || "unknown",
+          "email" => user |> Map.get(:email) |> normalize_optional_string()
+        })
 
       _other ->
-        %{id: "unknown", email: nil}
+        Actor.operator_actor(%{"id" => "unknown", "email" => nil})
     end
   end
 

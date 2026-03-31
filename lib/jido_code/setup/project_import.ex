@@ -1,10 +1,12 @@
 defmodule JidoCode.Setup.ProjectImport do
   # covers: setup.onboarding.repo_source_per_project
   # covers: setup.onboarding.deferred_integrations
+  # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
   @moduledoc """
   Imports the selected repository during setup step 7 and initializes baseline project metadata.
   """
 
+  alias JidoCode.Control.Actor
   alias JidoCode.Projects.Project
   alias JidoCode.Operations.Ingress
 
@@ -13,6 +15,10 @@ defmodule JidoCode.Setup.ProjectImport do
   @default_clone_retry_remediation "Retry step 7 after confirming workspace provisioning and repository access."
   @default_sync_retry_remediation "Retry step 7 after confirming baseline sync can target the configured default branch."
   @default_branch "main"
+  @project_actor Actor.operator_actor(%{
+                   "id" => "system:project-import",
+                   "email" => "project-import@system.local"
+                 })
   @clone_stage_error_type "project_clone_failed"
   @baseline_sync_stage_error_type "project_baseline_sync_failed"
   @clone_status_update_error_type "project_clone_status_update_failed"
@@ -787,14 +793,17 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp ensure_project_record(name, selected_repository, default_branch) do
-    case Project.read(query: [filter: [source_kind: :github, source_identifier: selected_repository], limit: 1]) do
+    case Project.read(
+           query: [filter: [source_kind: :github, source_identifier: selected_repository], limit: 1],
+           actor: @project_actor
+         ) do
       {:ok, [existing_project | _]} ->
         update_attributes = %{
           name: name,
           default_branch: default_branch
         }
 
-        case Project.update(existing_project, update_attributes) do
+        case Project.update(existing_project, update_attributes, actor: @project_actor) do
           {:ok, updated_project} ->
             {:ok, updated_project, :existing}
 
@@ -811,7 +820,7 @@ defmodule JidoCode.Setup.ProjectImport do
           default_branch: default_branch
         }
 
-        case Project.create(create_attributes) do
+        case Project.create(create_attributes, actor: @project_actor) do
           {:ok, project} ->
             {:ok, project, :created}
 
@@ -963,7 +972,7 @@ defmodule JidoCode.Setup.ProjectImport do
       |> normalize_keyed_map()
       |> Map.put("workspace", workspace_settings)
 
-    case Project.update(project, %{settings: updated_settings}) do
+    case Project.update(project, %{settings: updated_settings}, actor: @project_actor) do
       {:ok, updated_project} ->
         {:ok, updated_project}
 

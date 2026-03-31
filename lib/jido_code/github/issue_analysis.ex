@@ -5,6 +5,8 @@ defmodule JidoCode.GitHub.IssueAnalysis do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias JidoCode.Control.Checks.ActorClassIn
+
   postgres do
     table "github_issue_analyses"
     repo JidoCode.Repo
@@ -86,19 +88,40 @@ defmodule JidoCode.GitHub.IssueAnalysis do
 
   policies do
     policy action_type(:read) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :external_ingress,
+                      :run_worker
+                    ]}
     end
 
     policy action_type(:create) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :external_ingress,
+                      :run_worker
+                    ]}
     end
 
     policy action_type(:update) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :external_ingress,
+                      :run_worker
+                    ]}
     end
 
     policy action_type(:destroy) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :operator, :factory_system]}
     end
   end
 
@@ -187,6 +210,7 @@ defmodule JidoCode.GitHub.IssueAnalysis do
     attribute :raw_llm_response, :map do
       allow_nil? true
       public? true
+      sensitive? true
       description "Raw response from LLM for debugging"
     end
 

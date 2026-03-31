@@ -3,6 +3,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   Validates and launches manual workflow runs from `/workflows`.
   """
 
+  alias JidoCode.Control.Actor
   alias JidoCode.Projects.Project
 
   @default_error_type "workflow_manual_run_creation_failed"
@@ -23,6 +24,10 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   @project_lookup_remediation """
   Ensure the project is imported and available, then retry kickoff from `/workflows`.
   """
+  @project_loader_actor Actor.operator_actor(%{
+                          "id" => "system:manual-run-kickoff",
+                          "email" => "manual-run-kickoff@system.local"
+                        })
 
   @workflow_definition_remediation """
   Verify workflow definition metadata and retry kickoff from `/workflows`.
@@ -174,7 +179,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
   @doc false
   @spec default_project_loader() :: {:ok, [map()]} | {:error, kickoff_error()}
   def default_project_loader do
-    case Project.read(query: [sort: [github_full_name: :asc]]) do
+    case Project.read(query: [sort: [github_full_name: :asc]], actor: @project_loader_actor) do
       {:ok, projects} ->
         {:ok,
          projects

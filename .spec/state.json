@@ -274,6 +274,22 @@
         "subject_id": "architecture.demand_ingress"
       },
       {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "GitHub webhook, setup import, and other trusted ingress paths shall preserve their normalized correlation through explicit operator or external-ingress actor classes instead of anonymous trusted persistence shortcuts.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis.assessment_preserves_ingress_actor_class_context",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Event and assessment synthesis inputs shall preserve normalized ingress actor class attribution so downstream governance can explain whether demand originated from operator or machine entrypoints without re-reading raw ingress payloads.",
+        "subject_id": "architecture.event_assessment_synthesis"
+      },
+      {
         "file": ".spec/specs/event_assessment_synthesis.spec.md",
         "id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
         "priority": "must",
@@ -531,6 +547,14 @@
       },
       {
         "file": ".spec/specs/policy_layers.spec.md",
+        "id": "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Transitional repo, workflow, and GitHub-ingress surfaces shall fail closed without explicit human or machine actor context in product code paths, and trusted machine entrypoints shall use named actor classes instead of anonymous authorization bypass mutations.",
+        "subject_id": "architecture.policy_layers"
+      },
+      {
+        "file": ".spec/specs/policy_layers.spec.md",
         "id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
         "priority": "must",
         "stability": "evolving",
@@ -690,6 +714,14 @@
         "subject_id": "architecture.run_governance"
       },
       {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The legacy `WorkflowRun` seam and its governed projections shall preserve explicit actor class attribution across approval, retry, and machine-driven issue-triage transitions so compatibility views and governance records can distinguish operator, orchestrator, run-worker, and external-ingress actions.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
         "file": ".spec/specs/vsm_recursion.spec.md",
         "id": "architecture.vsm_recursion.algedonic_escalation",
         "priority": "must",
@@ -743,6 +775,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "When a normalized conversation turn explicitly targets an existing work item, work synthesis shall steer that durable record instead of forcing a new duplicate work item, while preserving conversation context in work metadata and audit history.",
+        "subject_id": "architecture.work_synthesis"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Work synthesis shall preserve ingress actor class attribution in initiating-actor metadata and audit context so durable work remains explainable across operator and machine entrypoints.",
         "subject_id": "architecture.work_synthesis"
       },
       {
@@ -1870,7 +1910,8 @@
         "covers": [
           "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
           "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
-          "architecture.demand_ingress.entrypoint_policy_metadata_preserved"
+          "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
+          "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes"
         ],
         "file": ".spec/specs/demand_ingress.spec.md",
         "given": [
@@ -1880,7 +1921,8 @@
         "subject_id": "architecture.demand_ingress",
         "then": [
           "The request is recorded as a durable `Intake` linked to the managed repository before execution-specific launcher behavior continues.",
-          "Any downstream posture refresh remains coupled to the managed-repository ingress path rather than running as a separate out-of-band feature hook."
+          "Any downstream posture refresh remains coupled to the managed-repository ingress path rather than running as a separate out-of-band feature hook.",
+          "The persisted ingress path keeps explicit operator or machine actor attribution instead of relying on anonymous trusted writes."
         ],
         "when": [
           "The request enters the factory through the product surface."
@@ -2186,7 +2228,8 @@
           "Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.",
           "Repo-native `.spec/` and optional Git-native planning observations may inform repo-governance choices without bypassing Ash-backed durable records or runtime capability admission.",
           "Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.",
-          "Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat."
+          "Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.",
+          "Legacy project, workflow-run, and GitHub-ingress compatibility paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses."
         ],
         "when": [
           "The system decides whether work may be created, executed, or exposed."
@@ -2303,7 +2346,8 @@
         "covers": [
           "architecture.run_governance.evidence_records_capture_run_outputs",
           "architecture.run_governance.change_request_records_reviewable_run_state",
-          "architecture.run_governance.decision_records_capture_governance_outcomes"
+          "architecture.run_governance.decision_records_capture_governance_outcomes",
+          "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution"
         ],
         "file": ".spec/specs/run_governance.spec.md",
         "given": [
@@ -2312,7 +2356,8 @@
         "id": "architecture.run_governance.scenario_review_state_creates_governance_records",
         "subject_id": "architecture.run_governance",
         "then": [
-          "Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references."
+          "Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references.",
+          "Retry, approval, and webhook-driven compatibility records keep explicit actor class attribution instead of collapsing machine and human actions into undifferentiated metadata."
         ],
         "when": [
           "The workflow run projection is synchronized into control-plane governance records."
@@ -4401,7 +4446,8 @@
           "architecture.demand_ingress.external_object_tracks_repo_external_entities",
           "architecture.demand_ingress.observation_captures_repo_and_system_facts",
           "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
-          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+          "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes"
         ],
         "file": ".spec/specs/demand_ingress.spec.md",
         "kind": "source_file",
@@ -4468,12 +4514,22 @@
       },
       {
         "covers": [
-          "architecture.demand_ingress.entrypoint_policy_metadata_preserved"
+          "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
+          "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes"
         ],
         "file": ".spec/specs/demand_ingress.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.demand_ingress",
         "target": "lib/jido_code/github/webhook_pipeline.ex"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/setup/project_import.ex"
       },
       {
         "covers": [
@@ -4483,6 +4539,15 @@
         "kind": "source_file",
         "subject_id": "architecture.demand_ingress",
         "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code_web/controllers/github_webhook_controller_test.exs"
       },
       {
         "covers": [
@@ -4528,6 +4593,15 @@
         "kind": "source_file",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "lib/jido_code/operations/repo_native_state.ex"
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.assessment_preserves_ingress_actor_class_context"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/ingress.ex"
       },
       {
         "covers": [
@@ -4732,6 +4806,45 @@
       },
       {
         "covers": [
+          "architecture.policy_layers.explicit_human_and_machine_actor_classes",
+          "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/control/actor.ex"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+          "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/control/checks/actor_class_in.ex"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+          "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/projects/project.ex"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/github/webhook_pipeline.ex"
+      },
+      {
+        "covers": [
           "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
           "architecture.policy_layers.policy_layers_interlock_without_collapsing"
         ],
@@ -4749,6 +4862,15 @@
         "kind": "source_file",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/governance/policy_bridge_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/projects/project_test.exs"
       },
       {
         "covers": [
@@ -4975,6 +5097,24 @@
       },
       {
         "covers": [
+          "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/workflow_run.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code/orchestration/workflow_run_test.exs"
+      },
+      {
+        "covers": [
           "architecture.vsm_recursion.factory_is_viable_system",
           "architecture.vsm_recursion.managed_repo_is_viable_system",
           "architecture.vsm_recursion.repo_system1_scope",
@@ -5040,6 +5180,15 @@
         "kind": "source_file",
         "subject_id": "architecture.work_synthesis",
         "target": "lib/jido_code/operations/work_synthesis.ex"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/ingress.ex"
       },
       {
         "covers": [
@@ -6832,10 +6981,10 @@
     "decisions": 10,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 201,
+    "requirements": 206,
     "scenarios": 84,
     "subjects": 35,
-    "verifications": 259
+    "verifications": 270
   },
   "verification": {
     "claims": [
@@ -7225,6 +7374,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/operations/ingress.ex",
+        "verification_index": 3
+      },
+      {
         "cover_id": "architecture.demand_ingress.conversation_turns_become_durable_intake",
         "file": ".spec/specs/demand_ingress.spec.md",
         "kind": "source_file",
@@ -7434,6 +7594,28 @@
         "verification_index": 9
       },
       {
+        "cover_id": "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/github/webhook_pipeline.ex",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/setup/project_import.ex",
+        "verification_index": 10
+      },
+      {
         "cover_id": "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
         "file": ".spec/specs/demand_ingress.spec.md",
         "kind": "source_file",
@@ -7442,7 +7624,18 @@
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
         "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
-        "verification_index": 10
+        "verification_index": 11
+      },
+      {
+        "cover_id": "architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code_web/controllers/github_webhook_controller_test.exs",
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
@@ -7588,6 +7781,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "architecture.event_assessment_synthesis.assessment_preserves_ingress_actor_class_context",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/ingress.ex",
+        "verification_index": 4
+      },
+      {
         "cover_id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
         "file": ".spec/specs/event_assessment_synthesis.spec.md",
         "kind": "source_file",
@@ -7596,7 +7800,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
@@ -7607,7 +7811,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
@@ -7618,7 +7822,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
@@ -7629,7 +7833,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
@@ -7640,7 +7844,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
@@ -7651,7 +7855,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/repo_native_state_test.exs",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs",
@@ -7662,7 +7866,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/repo_native_state_test.exs",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
@@ -7673,7 +7877,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
@@ -7684,7 +7888,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
@@ -7695,7 +7899,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
@@ -7706,7 +7910,7 @@
         "strength": "linked",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "test/jido_code/operations/phase_two_integration_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
@@ -7717,7 +7921,7 @@
         "strength": "claimed",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_records_interpret_events",
@@ -7728,7 +7932,7 @@
         "strength": "claimed",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
@@ -7739,7 +7943,7 @@
         "strength": "claimed",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
@@ -7750,7 +7954,7 @@
         "strength": "claimed",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
@@ -7761,7 +7965,7 @@
         "strength": "claimed",
         "subject_id": "architecture.event_assessment_synthesis",
         "target": "mix test test/jido_code/operations/event_assessment_synthesis_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.execution_pipeline.jido_runic_bridges_runtime",
@@ -8215,6 +8419,83 @@
         "verification_index": 2
       },
       {
+        "cover_id": "architecture.policy_layers.explicit_human_and_machine_actor_classes",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/control/actor.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/control/actor.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/control/checks/actor_class_in.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/control/checks/actor_class_in.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/projects/project.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/projects/project.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/github/webhook_pipeline.ex",
+        "verification_index": 6
+      },
+      {
         "cover_id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
         "file": ".spec/specs/policy_layers.spec.md",
         "kind": "source_file",
@@ -8223,7 +8504,7 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 3
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
@@ -8234,7 +8515,7 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 3
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.policy_layers.repo_posture_can_shape_effective_review_policy",
@@ -8245,7 +8526,7 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/governance/policy_bridge_test.exs",
-        "verification_index": 4
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
@@ -8256,7 +8537,18 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/governance/policy_bridge_test.exs",
-        "verification_index": 4
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/projects/project_test.exs",
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.repo_posture.repo_native_observations_capture_current_truth_signals",
@@ -8688,6 +8980,28 @@
         "verification_index": 9
       },
       {
+        "cover_id": "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/workflow_run.ex",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code/orchestration/workflow_run_test.exs",
+        "verification_index": 11
+      },
+      {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
         "file": ".spec/specs/vsm_recursion.spec.md",
         "kind": "source_file",
@@ -8908,58 +9222,14 @@
         "verification_index": 1
       },
       {
-        "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
+        "cover_id": "architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class",
         "file": ".spec/specs/work_synthesis.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
-        "file": ".spec/specs/work_synthesis.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
-        "file": ".spec/specs/work_synthesis.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
-        "file": ".spec/specs/work_synthesis.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
-        "file": ".spec/specs/work_synthesis.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/work_synthesis_test.exs",
+        "target": "lib/jido_code/operations/ingress.ex",
         "verification_index": 2
       },
       {
@@ -8970,7 +9240,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
         "verification_index": 3
       },
       {
@@ -8981,7 +9251,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
         "verification_index": 3
       },
       {
@@ -8992,7 +9262,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
         "verification_index": 3
       },
       {
@@ -9003,7 +9273,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
         "verification_index": 3
       },
       {
@@ -9014,8 +9284,63 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/work_synthesis_test.exs",
         "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
@@ -9026,7 +9351,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
@@ -9037,7 +9362,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_is_canonical_operational_record",
@@ -9048,7 +9373,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
@@ -9059,7 +9384,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
@@ -9070,7 +9395,7 @@
         "strength": "claimed",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.work_synthesis.conversation_turns_can_steer_existing_work",
@@ -9081,7 +9406,7 @@
         "strength": "linked",
         "subject_id": "architecture.work_synthesis",
         "target": "test/jido_code/conversations/ingress_test.exs",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "auth.github_integration.github_app_preferred",
@@ -12422,7 +12747,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 456
+      "linked": 472
     },
     "threshold_failures": 0
   },

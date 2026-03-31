@@ -33,6 +33,7 @@ defmodule JidoCodeWeb.ConnCase do
 
   setup tags do
     JidoCode.DataCase.setup_sandbox(tags)
+    JidoCode.DataCase.setup_policy_actor()
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

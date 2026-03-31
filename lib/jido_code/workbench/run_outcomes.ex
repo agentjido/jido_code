@@ -185,7 +185,10 @@ defmodule JidoCode.Workbench.RunOutcomes do
         {:ok, nil}
 
       normalized_project_id ->
-        case WorkflowRun.read(query: [filter: [project_id: normalized_project_id], sort: [started_at: :desc], limit: 1]) do
+        case WorkflowRun.read(
+               query: [filter: [project_id: normalized_project_id], sort: [started_at: :desc], limit: 1],
+               actor: Actor.operator_actor()
+             ) do
           {:ok, [run | _]} -> {:ok, run_outcome_from_run(normalized_project_id, run)}
           {:ok, []} -> {:ok, nil}
           {:error, reason} -> {:error, reason}

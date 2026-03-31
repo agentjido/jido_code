@@ -5,6 +5,8 @@ defmodule JidoCode.GitHub.WebhookDelivery do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias JidoCode.Control.Checks.ActorClassIn
+
   postgres do
     table "github_webhook_deliveries"
     repo JidoCode.Repo
@@ -54,19 +56,25 @@ defmodule JidoCode.GitHub.WebhookDelivery do
 
   policies do
     policy action_type(:read) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :external_ingress
+                    ]}
     end
 
     policy action_type(:create) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :operator, :factory_system, :external_ingress]}
     end
 
     policy action_type(:update) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :operator, :factory_system, :external_ingress]}
     end
 
     policy action_type(:destroy) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :operator, :factory_system]}
     end
   end
 
@@ -94,6 +102,7 @@ defmodule JidoCode.GitHub.WebhookDelivery do
     attribute :payload, :map do
       allow_nil? false
       public? true
+      sensitive? true
       description "Full webhook payload (JSON)"
     end
 

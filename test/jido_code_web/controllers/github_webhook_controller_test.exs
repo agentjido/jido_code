@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.GitHubWebhookControllerTest do
+  # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
   use JidoCodeWeb.ConnCase, async: false
 
   import ExUnit.CaptureLog
@@ -320,6 +321,8 @@ defmodule JidoCodeWeb.GitHubWebhookControllerTest do
 
     assert {:ok, [%WorkflowRun{} = run]} = workflow_runs_for_project(project.id)
     assert run.workflow_name == "issue_triage"
+    assert map_get(run.initiating_actor, :actor_class, "actor_class") == "external_ingress"
+    assert map_get(run.initiating_actor, :id, "id") == "system:github-webhook"
 
     source_row = map_get(run.trigger, :source_row, "source_row", %{})
     webhook_context = map_get(run.trigger, :webhook, "webhook", %{})

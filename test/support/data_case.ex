@@ -29,6 +29,7 @@ defmodule JidoCode.DataCase do
 
   setup tags do
     JidoCode.DataCase.setup_sandbox(tags)
+    JidoCode.DataCase.setup_policy_actor()
     :ok
   end
 
@@ -38,6 +39,22 @@ defmodule JidoCode.DataCase do
   def setup_sandbox(tags) do
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(JidoCode.Repo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+  end
+
+  @doc """
+  Seeds a default operator-class actor for direct resource calls in tests.
+  """
+  def setup_policy_actor do
+    alias JidoCode.Control.Actor
+
+    Actor.put_policy_actor(
+      Actor.operator_actor(%{
+        "id" => "test:operator",
+        "email" => "test-operator@example.com"
+      })
+    )
+
+    on_exit(fn -> Actor.clear_policy_actor() end)
   end
 
   @doc """

@@ -75,7 +75,10 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
   end
 
   defp fallback_legacy_loader do
-    case WorkflowRun.read(query: [sort: [started_at: :desc], limit: @default_limit]) do
+    case WorkflowRun.read(
+           query: [sort: [started_at: :desc], limit: @default_limit],
+           actor: Actor.operator_actor()
+         ) do
       {:ok, runs} -> {:ok, Enum.map(runs, &to_run_summary/1), nil}
       {:error, reason} -> {:error, reason}
     end

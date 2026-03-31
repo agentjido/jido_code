@@ -1,6 +1,8 @@
 defmodule JidoCode.Orchestration.WorkflowRunTest do
+  # covers: architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
   use JidoCode.DataCase, async: false
 
+  alias JidoCode.Control.Actor
   alias JidoCode.Orchestration.{RunPubSub, WorkflowRun}
   alias JidoCode.Projects.Project
 
@@ -123,6 +125,97 @@ defmodule JidoCode.Orchestration.WorkflowRunTest do
                "transitioned_at" => "2026-02-14T20:04:00Z"
              }
            ] = persisted_run.status_transitions
+  end
+
+  test "requires an explicit actor for workflow run creation when the compatibility policy actor is absent" do
+    {:ok, project} = create_project("owner/repo-run-policy")
+    Actor.clear_policy_actor()
+
+    assert {:error, %Ash.Error.Forbidden{}} =
+             WorkflowRun.create(%{
+               project_id: project.id,
+               run_id: "run-policy-denied",
+               workflow_name: "implement_task",
+               workflow_version: 1,
+               trigger: %{source: "workflows", mode: "manual"},
+               inputs: %{"task_summary" => "Denied without actor"},
+               input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+               initiating_actor: %{id: "owner-1", email: "owner@example.com"},
+               current_step: "queued",
+               started_at: ~U[2026-02-14 20:10:00Z]
+             })
+
+    assert {:ok, %WorkflowRun{} = run} =
+             WorkflowRun.create(
+               %{
+                 project_id: project.id,
+                 run_id: "run-policy-allowed",
+                 workflow_name: "implement_task",
+                 workflow_version: 1,
+                 trigger: %{source: "workflows", mode: "manual"},
+                 inputs: %{"task_summary" => "Allowed with actor"},
+                 input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+                 initiating_actor: %{
+                   id: "orchestrator-1",
+                   email: "orchestrator-1@example.com",
+                   actor_class: "managed_repo_orchestrator"
+                 },
+                 current_step: "queued",
+                 started_at: ~U[2026-02-14 20:11:00Z]
+               },
+               actor:
+                 Actor.managed_repo_orchestrator_actor(%{
+                   "id" => "orchestrator-1",
+                   "email" => "orchestrator-1@example.com"
+                 })
+             )
+
+    assert run.run_id == "run-policy-allowed"
+    assert get_in(run.initiating_actor, ["actor_class"]) == "managed_repo_orchestrator"
+  end
+
+  test "preserves actor class in retry lineage and retried run attribution" do
+    {:ok, project} = create_project("owner/repo-retry-actor-class")
+
+    {:ok, run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: "run-retry-actor-class-#{System.unique_integer([:positive])}",
+        workflow_name: "implement_task",
+        workflow_version: 1,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Preserve retry actor class"},
+        input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+        initiating_actor: %{id: "owner-1", email: "owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-02-20 01:10:00Z]
+      })
+
+    {:ok, run} =
+      WorkflowRun.transition_status(run, %{
+        to_status: :running,
+        current_step: "run_tests",
+        transitioned_at: ~U[2026-02-20 01:11:00Z]
+      })
+
+    {:ok, run} =
+      WorkflowRun.transition_status(run, %{
+        to_status: :failed,
+        current_step: "run_tests",
+        transitioned_at: ~U[2026-02-20 01:12:00Z]
+      })
+
+    retry_actor = Actor.operator_actor(%{"id" => "reviewer-1", "email" => "reviewer@example.com"})
+
+    assert {:ok, %WorkflowRun{} = retried_run} =
+             WorkflowRun.retry(run, %{
+               actor: retry_actor,
+               retry_started_at: ~U[2026-02-20 01:13:00Z]
+             })
+
+    assert get_in(retried_run.initiating_actor, ["actor_class"]) == "operator"
+    assert get_in(List.last(retried_run.retry_lineage), ["retry_actor", "actor_class"]) == "operator"
+    assert get_in(List.last(retried_run.retry_lineage), ["retry_actor", "id"]) == "reviewer-1"
   end
 
   test "persists typed failure context and exposes remediation metadata for postmortem queries" do

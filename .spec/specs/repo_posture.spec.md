@@ -12,8 +12,10 @@ status: active
 summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, and evidence instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/operations/repo_native_state.ex
   - lib/jido_code/governance/repo_posture.ex
@@ -66,6 +68,11 @@ surface:
   statement: Operator-facing dashboard and run-detail surfaces shall expose governed evidence, review, and decision state in a way that keeps repo posture and escalation drivers explainable outside internal bridge modules.
   priority: should
   stability: evolving
+
+- id: architecture.repo_posture.governed_turn_evidence_can_inform_posture
+  statement: When coding conversations emit public-turn summaries, artifacts, or review bundles that matter to trust or review burden, Jido.Code shall let repo posture consume the governed `Run` and `Evidence` projections derived from those outputs instead of reading runtime replay or review state directly from `jido_os`.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -112,6 +119,17 @@ surface:
     - An operator opens dashboard or run detail.
   then:
     - The product surfaces enough governed review state to explain why posture or escalation-relevant review burden exists.
+
+- id: architecture.repo_posture.scenario_coding_turn_evidence_feeds_explainable_posture
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
+  given:
+    - A coding conversation turn has been projected into governed run and evidence records.
+  when:
+    - Repo posture or operator-facing review surfaces evaluate trust and review burden.
+  then:
+    - The posture flow can use the governed evidence derived from the turn while keeping operator-facing explanations anchored in product-owned records.
 ```
 
 ## Verification
@@ -178,6 +196,11 @@ surface:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 
 - kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
+
+- kind: source_file
   target: lib/jido_code/orchestration/run_summary_feed.ex
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
@@ -191,4 +214,9 @@ surface:
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
+  target: lib/jido_code/governance/run_governance_bridge.ex
+  covers:
+    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
 ```

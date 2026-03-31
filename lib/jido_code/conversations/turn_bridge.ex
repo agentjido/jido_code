@@ -121,7 +121,7 @@ defmodule JidoCode.Conversations.TurnBridge do
   end
 
   defp materialize_terminal_turn(attrs, turn, events) do
-    work_item_id = get_in(attrs, [:ingress, :work_item, :id])
+    work_item_id = nested_get(attrs, [:ingress, :work_item, :id])
 
     if is_binary(work_item_id) do
       review =
@@ -227,6 +227,21 @@ defmodule JidoCode.Conversations.TurnBridge do
     Enum.reduce(map, %{}, fn
       {_key, nil}, acc -> acc
       {key, value}, acc -> Map.put(acc, key, value)
+    end)
+  end
+
+  defp nested_get(value, keys) when is_list(keys) do
+    Enum.reduce_while(keys, value, fn key, acc ->
+      cond do
+        is_map(acc) and Map.has_key?(acc, key) ->
+          {:cont, Map.get(acc, key)}
+
+        is_map(acc) and is_atom(key) and Map.has_key?(acc, Atom.to_string(key)) ->
+          {:cont, Map.get(acc, Atom.to_string(key))}
+
+        true ->
+          {:halt, nil}
+      end
     end)
   end
 end

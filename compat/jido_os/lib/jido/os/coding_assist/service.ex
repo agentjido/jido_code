@@ -1,6 +1,8 @@
 defmodule Jido.Os.CodingAssist.Service do
   # covers: jido_os.runtime.compatibility.public_runtime_surface
   # covers: jido_os.runtime.compatibility.session_and_envelope_behaviour
+  # covers: jido_os.runtime.compatibility.public_turn_runtime_surface
+  # covers: jido_os.runtime.compatibility.compatibility_assist_uses_same_turn_model
   @moduledoc false
 
   alias Jido.Os.Session.RuntimeAgent

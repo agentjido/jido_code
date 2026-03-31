@@ -9,8 +9,10 @@ status: active
 summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-project source identity and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/control/actor.ex
   - lib/jido_code/control/checks/actor_class_in.ex
@@ -89,6 +91,11 @@ surface:
   statement: Transitional repo, workflow, and GitHub-ingress surfaces shall fail closed without explicit human or machine actor context in product code paths, and trusted machine entrypoints shall use named actor classes instead of anonymous authorization bypass mutations.
   priority: must
   stability: evolving
+
+- id: architecture.policy_layers.public_turn_materialization_preserves_layered_policy
+  statement: When `jido_code` adopts public `jido_os` turn replay, review, and terminal materialization, product-side ingress and Ash authorization shall remain explicit before runtime turn start, and bounded runtime outputs shall only re-enter governed product records through actor-aware product bridges instead of bypassing repo governance or data-plane policy.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -112,6 +119,18 @@ surface:
     - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
     - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
     - Legacy project, workflow-run, and GitHub-ingress compatibility paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
+
+- id: architecture.policy_layers.scenario_public_turn_replay_and_governance_stay_policy_bound
+  covers:
+    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
+  given:
+    - A coding turn is started through the product boundary and runtime turn capability is admitted by `jido_os`.
+  when:
+    - The product replays turn progress and projects terminal outputs into governed records.
+  then:
+    - Runtime capability policy remains the authority for turn execution, while actor-aware product bridges preserve repo governance and Ash data-plane policy when those bounded outputs become product truth.
 ```
 
 ## Verification
@@ -125,6 +144,11 @@ surface:
     - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
     - architecture.policy_layers.explicit_human_and_machine_actor_classes
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
 
 - kind: source_file
   target: lib/jido_code/conversations/policy.ex
@@ -184,4 +208,9 @@ surface:
   target: test/jido_code/control/phase_six_integration_test.exs
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_seven_integration_test.exs
+  covers:
+    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
 ```

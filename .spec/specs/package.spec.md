@@ -10,6 +10,7 @@ summary: jido_code is the primary implementation repo, maintains a package-local
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
+  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - AGENTS.md
@@ -93,6 +94,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/planning/phase-07-public-turn-runtime-bridge-and-governed-projection-adoption.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: .spec/specs/demand_ingress.spec.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -153,7 +159,17 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: test/jido_code/control/repo_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_seven_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

@@ -4,6 +4,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   # covers: architecture.run_governance.decision_records_capture_governance_outcomes
   # covers: architecture.run_governance.review_policy_controls_change_request_creation
   # covers: architecture.run_governance.blocked_review_context_preserves_typed_remediation
+  # covers: architecture.repo_posture.governed_turn_evidence_can_inform_posture
   @moduledoc """
   Projects governed run review artifacts from workflow-run audit data.
   """

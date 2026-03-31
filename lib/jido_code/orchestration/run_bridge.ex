@@ -2,6 +2,7 @@ defmodule JidoCode.Orchestration.RunBridge do
   # covers: architecture.run_governance.run_launch_resolves_effective_execution_profile
   # covers: architecture.execution_pipeline.run_is_projection_of_workflow_state
   # covers: architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+  # covers: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
   # covers: architecture.run_governance.run_projection_preserves_explicit_stage_catalog
   # covers: architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
   @moduledoc """
@@ -348,7 +349,7 @@ defmodule JidoCode.Orchestration.RunBridge do
           current_step: terminal_step,
           transitioned_at: terminal_at,
           transition_metadata: %{"source" => "public_turn_runtime"}
-        })
+        }, actor: @launch_actor)
 
       workflow_run.status == :pending ->
         with {:ok, running_workflow_run} <-
@@ -357,7 +358,7 @@ defmodule JidoCode.Orchestration.RunBridge do
                  current_step: "public_turn_in_progress",
                  transitioned_at: turn_started_at(normalize_map(Map.get(attrs, :turn))),
                  transition_metadata: %{"source" => "public_turn_runtime"}
-               }) do
+               }, actor: @launch_actor) do
           ensure_turn_terminal_status(running_workflow_run, attrs)
         end
 
@@ -367,7 +368,7 @@ defmodule JidoCode.Orchestration.RunBridge do
           current_step: terminal_step,
           transitioned_at: terminal_at,
           transition_metadata: %{"source" => "public_turn_runtime"}
-        })
+        }, actor: @launch_actor)
 
       true ->
         {:ok, workflow_run}

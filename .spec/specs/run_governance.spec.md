@@ -12,9 +12,11 @@ summary: Jido.Code evolves execution from standalone workflow-run records into g
 decisions:
   - jido_code.runic_execution_model
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - lib/jido_code/governance/change_request.ex
   - lib/jido_code/governance/decision.ex
   - lib/jido_code/governance/evidence.ex
@@ -93,6 +95,11 @@ surface:
   statement: Historical `WorkflowRun` records shall remain backfillable into governed `Run` projections and related review artifacts on demand or in batch so dashboard, workbench, and run-detail surfaces preserve execution continuity during mixed-mode rollout.
   priority: should
   stability: evolving
+
+- id: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
+  statement: When coding conversations produce workflow-relevant terminal outputs, replay summaries, artifacts, or operator-review bundles through public `jido_os` turn surfaces, Jido.Code shall materialize the bounded results it needs into governed `Run` and `Evidence` records instead of treating runtime replay as the product's durable audit store.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -154,6 +161,17 @@ surface:
     - An operator opens a run-sensitive surface or an explicit rollout backfill is triggered.
   then:
     - The workflow history can be projected forward into governed `Run` state so mixed-mode operator views do not lose execution continuity while the compatibility seam is still present.
+
+- id: architecture.run_governance.scenario_coding_turn_terminal_outputs_feed_governed_evidence
+  covers:
+    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
+    - architecture.run_governance.evidence_records_capture_run_outputs
+  given:
+    - A coding conversation turn produces a terminal public turn projection with replayable events, artifacts, or operator-review output.
+  when:
+    - The product needs governed review, posture, or audit context from that runtime turn.
+  then:
+    - The bounded runtime outputs are expected to be projected into governed `Run` and `Evidence` records rather than left only in replay-oriented runtime storage.
 ```
 
 ## Verification
@@ -180,6 +198,11 @@ surface:
   target: lib/jido_code/governance/evidence.ex
   covers:
     - architecture.run_governance.evidence_records_capture_run_outputs
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
 
 - kind: source_file
   target: lib/jido_code/governance/change_request.ex

@@ -152,7 +152,7 @@ defmodule JidoCode.Conversations.TurnBridgeTest do
              {"project-bridge", "conversation-bridge-1", %{"type" => "assistant.delta"}},
              {"project-bridge", "conversation-bridge-1", %{"type" => "assistant.message"}}
            ] =
-             Enum.map(TurnBridgeRuntimeFake.calls(), fn {project_id, conversation_id, event} ->
+             Enum.map(TurnBridgeRuntimeFake.calls(:send_event), fn {project_id, conversation_id, event} ->
                {project_id, conversation_id, %{"type" => event["type"]}}
              end)
   end

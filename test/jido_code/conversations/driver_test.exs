@@ -64,10 +64,12 @@ defmodule JidoCode.Conversations.DriverTest do
     assert result.context.session_id == "conversation-driver-1"
     assert result.ingress.turn_mode == :new_demand
     assert result.ingress.work_item.managed_repo_id == managed_repo.id
-    assert result.envelope.context.session_id == "conversation-driver-1"
-    assert result.envelope.context.project_id == managed_repo.id
+    assert result.turn.session_id == "conversation-driver-1"
+    assert result.turn.conversation_id == "conversation-driver-1"
+    assert result.turn.turn_id
     assert Enum.map(result.events, & &1["type"]) == ["assistant.delta", "assistant.message"]
-    assert get_in(List.last(result.events), ["data", "content"]) =~ result.ingress.work_item.id
+    assert get_in(List.last(result.events), ["data", "content"]) =~ "Plan"
+    assert get_in(List.last(result.events), ["meta", "turn_id"]) == result.turn.turn_id
     assert get_in(List.last(result.events), ["meta", "conversation_id"]) == "conversation-driver-1"
   end
 

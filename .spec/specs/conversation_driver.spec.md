@@ -21,6 +21,7 @@ surface:
   - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/event_bridge.ex
+  - lib/jido_code/conversations/policy.ex
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex

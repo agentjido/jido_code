@@ -370,7 +370,14 @@ defmodule JidoCode.Operations.WorkSynthesis do
         "request_id" => source_metadata["request_id"],
         "correlation_id" => source_metadata["correlation_id"],
         "workspace_id" => source_metadata["workspace_id"],
-        "turn_mode" => source_metadata["turn_mode"]
+        "turn_mode" => source_metadata["turn_mode"],
+        "policy_action" => source_metadata["policy_action"],
+        "policy_reason_code" => source_metadata["policy_reason_code"],
+        "review_policy_mode" =>
+          source_metadata
+          |> Map.get("review_policy", %{})
+          |> normalize_map()
+          |> Map.get("mode")
       }
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
       |> Map.new()

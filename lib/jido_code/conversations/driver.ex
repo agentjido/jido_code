@@ -14,7 +14,7 @@ defmodule JidoCode.Conversations.Driver do
 
   alias JidoCode.CodingAssistance
   alias JidoCode.Control.RepoBridge
-  alias JidoCode.Conversations.{EventBridge, Ingress}
+  alias JidoCode.Conversations.{EventBridge, Ingress, Policy}
 
   @default_operation "plan"
 
@@ -52,7 +52,9 @@ defmodule JidoCode.Conversations.Driver do
   def handle_turn(%{} = attrs) do
     with {:ok, context} <- prepare_conversation(attrs),
          actor_id when is_binary(actor_id) <- normalize_optional_string(context.actor_id) || :missing_actor_id,
-         {:ok, ingress_result} <- conversation_ingress_module().record_turn(conversation_turn_attrs(attrs, context)),
+         {:ok, policy_decision} <- resolve_policy_decision(attrs, context),
+         {:ok, ingress_result} <-
+           conversation_ingress_module().record_turn(conversation_turn_attrs(attrs, context, policy_decision)),
          {:ok, envelope} <- coding_assistance_module().assist(actor_id, assist_params(attrs, context, ingress_result)) do
       {:ok,
        %{
@@ -65,6 +67,12 @@ defmodule JidoCode.Conversations.Driver do
       :missing_actor_id ->
         context = conversation_context(attrs)
         {:error, :missing_actor_id, context, event_bridge_module().failure_event(:missing_actor_id, context, attrs)}
+
+      {:error, reason, policy_decision} ->
+        context = conversation_context(attrs)
+
+        {:error, reason, context,
+         event_bridge_module().failure_event({:conversation_policy_halt, policy_decision.reason_code}, context, attrs)}
 
       {:error, reason} ->
         context = conversation_context(attrs)
@@ -101,7 +109,14 @@ defmodule JidoCode.Conversations.Driver do
         managed_repo_id: context.managed_repo_id,
         legacy_project_id: context.project_id,
         work_item_id: ingress_result |> nested_get([:work_item, :id]) |> normalize_optional_string(),
-        turn_mode: ingress_result |> Map.get(:turn_mode) |> normalize_optional_string()
+        turn_mode: ingress_result |> Map.get(:turn_mode) |> normalize_optional_string(),
+        policy_action:
+          ingress_result
+          |> nested_get([:intake, :source_metadata, "policy_action"])
+          |> normalize_optional_string(),
+        review_policy:
+          ingress_result
+          |> nested_get([:intake, :source_metadata, "review_policy"])
       },
       tool_intent: %{
         action_ids: [],
@@ -112,7 +127,7 @@ defmodule JidoCode.Conversations.Driver do
     |> compact_nil_values()
   end
 
-  defp conversation_turn_attrs(attrs, context) do
+  defp conversation_turn_attrs(attrs, context, policy_decision) do
     %{
       actor_id: context.actor_id,
       actor_email: context.actor_email,
@@ -121,7 +136,10 @@ defmodule JidoCode.Conversations.Driver do
       conversation_id: context.session_id,
       content: Map.get(attrs, :content) || Map.get(attrs, "content"),
       operation: Map.get(attrs, :operation) || Map.get(attrs, "operation"),
-      work_item_id: Map.get(attrs, :work_item_id) || Map.get(attrs, "work_item_id"),
+      work_item_id: policy_decision.work_item_id || Map.get(attrs, :work_item_id) || Map.get(attrs, "work_item_id"),
+      policy_action: policy_decision.action,
+      policy_reason_code: policy_decision.reason_code,
+      review_policy: policy_decision.review_policy,
       request_id: context.request_id,
       correlation_id: context.correlation_id,
       workspace_id: context.workspace_id
@@ -227,6 +245,20 @@ defmodule JidoCode.Conversations.Driver do
     "#{prefix}-#{System.unique_integer([:positive, :monotonic])}"
   end
 
+  defp resolve_policy_decision(attrs, context) do
+    case policy_module().decide(%{
+           project_id: context.project_id,
+           managed_repo_id: context.managed_repo_id,
+           work_item_id: Map.get(attrs, :work_item_id) || Map.get(attrs, "work_item_id")
+         }) do
+      {:ok, decision} ->
+        {:ok, decision}
+
+      {:error, reason, decision} ->
+        {:error, reason, decision}
+    end
+  end
+
   defp coding_assistance_module do
     Application.get_env(:jido_code, :conversation_driver_coding_assistance_module, CodingAssistance)
   end
@@ -241,5 +273,9 @@ defmodule JidoCode.Conversations.Driver do
 
   defp repo_bridge_module do
     Application.get_env(:jido_code, :conversation_driver_repo_bridge_module, RepoBridge)
+  end
+
+  defp policy_module do
+    Application.get_env(:jido_code, :conversation_driver_policy_module, Policy)
   end
 end

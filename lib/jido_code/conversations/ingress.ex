@@ -111,7 +111,9 @@ defmodule JidoCode.Conversations.Ingress do
       "message_content" => message_content,
       "managed_repo_id" => resolve_managed_repo_id(attrs),
       "operation" => get_string(attrs, :operation),
-      "work_item_id" => get_string(attrs, :work_item_id)
+      "work_item_id" => get_string(attrs, :work_item_id),
+      "policy_action" => get_string(attrs, :policy_action),
+      "policy_reason_code" => get_string(attrs, :policy_reason_code)
     }
     |> compact_nil_values()
   end
@@ -128,7 +130,10 @@ defmodule JidoCode.Conversations.Ingress do
       "request_id" => get_string(attrs, :request_id),
       "correlation_id" => get_string(attrs, :correlation_id),
       "workspace_id" => get_string(attrs, :workspace_id),
-      "work_item_id" => get_string(attrs, :work_item_id)
+      "work_item_id" => get_string(attrs, :work_item_id),
+      "policy_action" => get_string(attrs, :policy_action),
+      "policy_reason_code" => get_string(attrs, :policy_reason_code),
+      "review_policy" => get_map(attrs, :review_policy)
     }
     |> compact_nil_values()
   end
@@ -164,6 +169,16 @@ defmodule JidoCode.Conversations.Ingress do
   end
 
   defp get_string(_attrs, _key), do: nil
+
+  defp get_map(attrs, key) when is_map(attrs) do
+    value =
+      Map.get(attrs, key) ||
+        Map.get(attrs, Atom.to_string(key))
+
+    if is_map(value), do: value, else: nil
+  end
+
+  defp get_map(_attrs, _key), do: nil
 
   defp normalize_optional_string(nil), do: nil
 

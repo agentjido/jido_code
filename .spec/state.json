@@ -3158,6 +3158,7 @@
             "lib/jido_code/conversations/ingress.ex",
             "lib/jido_code/conversations/driver.ex",
             "lib/jido_code/conversations/event_bridge.ex",
+            "lib/jido_code/conversations/policy.ex",
             "lib/jido_code/code_server.ex",
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code_web/live/project_detail_live.ex",
@@ -3310,6 +3311,7 @@
             "lib/jido_code/conversations/ingress.ex",
             "lib/jido_code/conversations/driver.ex",
             "lib/jido_code/conversations/event_bridge.ex",
+            "lib/jido_code/conversations/policy.ex",
             "lib/jido_code/operations/synthesis.ex",
             "lib/jido_code/operations/work_item.ex",
             "lib/jido_code/operations/work_synthesis.ex",
@@ -3538,6 +3540,7 @@
             "lib/jido_code/control/actor.ex",
             "lib/jido_code/control/checks/actor_class_in.ex",
             "lib/jido_code/conversations/ingress.ex",
+            "lib/jido_code/conversations/policy.ex",
             "lib/jido_code/control/source_repo.ex",
             "lib/jido_code/control/managed_repo.ex",
             "lib/jido_code/governance.ex",
@@ -4251,6 +4254,17 @@
         "kind": "source_file",
         "subject_id": "architecture.policy_layers",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+          "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+          "architecture.policy_layers.policy_layers_interlock_without_collapsing"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex"
       },
       {
         "covers": [
@@ -6066,7 +6080,7 @@
     "requirements": 190,
     "scenarios": 76,
     "subjects": 34,
-    "verifications": 211
+    "verifications": 212
   },
   "verification": {
     "claims": [
@@ -7136,6 +7150,39 @@
         "subject_id": "architecture.policy_layers",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
         "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex",
+        "verification_index": 1
       },
       {
         "cover_id": "architecture.run_governance.run_is_preferred_execution_record",
@@ -10872,7 +10919,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 385
+      "linked": 388
     },
     "threshold_failures": 0
   },

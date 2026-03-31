@@ -90,6 +90,9 @@ defmodule JidoCode.Conversations.EventBridge do
       :missing_actor_id ->
         "Conversation driver requires actor context before coding assistance can run."
 
+      {:conversation_policy_halt, reason_code} ->
+        "Conversation policy halted the turn (#{reason_code})."
+
       other ->
         format_reason(other)
     end

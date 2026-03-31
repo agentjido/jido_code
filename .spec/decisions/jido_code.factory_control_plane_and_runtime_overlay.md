@@ -109,6 +109,12 @@ request, correlation, and managed-repository context preserved through durable
 targets an existing work item, the control plane should steer that record rather
 than force a duplicate work object.
 
+That decision still happens in layers. Product-side conversation policy decides
+whether the turn should create new work, steer an existing work item, or halt
+before runtime execution begins. Ash remains the authorization membrane around
+the durable records that capture that choice, and `jido_os` runtime policy
+remains the final admission boundary for the session and turn that follow.
+
 After ingress capture, interpretation becomes a system-owned control-plane step.
 `Event` and `Assessment` records should be synthesized under product authority,
 not written directly by external ingress actors, so typed actionable meaning,

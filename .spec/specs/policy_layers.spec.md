@@ -15,6 +15,7 @@ surface:
   - lib/jido_code/control/actor.ex
   - lib/jido_code/control/checks/actor_class_in.ex
   - lib/jido_code/conversations/ingress.ex
+  - lib/jido_code/conversations/policy.ex
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/governance.ex
@@ -105,4 +106,11 @@ surface:
     - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
     - architecture.policy_layers.explicit_human_and_machine_actor_classes
+
+- kind: source_file
+  target: lib/jido_code/conversations/policy.ex
+  covers:
+    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
+    - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
+    - architecture.policy_layers.policy_layers_interlock_without_collapsing
 ```

@@ -71,6 +71,24 @@ defmodule JidoCode.Conversations.DriverTest do
     assert get_in(List.last(result.events), ["meta", "conversation_id"]) == "conversation-driver-1"
   end
 
+  test "handle_turn returns a failure event when conversation policy halts the turn" do
+    {:ok, project} = create_project("repo-conversation-driver-halt")
+
+    assert {:error, :target_work_item_not_found, context, failure_event} =
+             Driver.handle_turn(%{
+               project_id: project.id,
+               conversation_id: "conversation-driver-halt-1",
+               actor_id: "operator-driver",
+               actor_email: "driver@example.com",
+               content: "Continue the missing work item.",
+               work_item_id: Ecto.UUID.generate()
+             })
+
+    assert context.session_id == "conversation-driver-halt-1"
+    assert failure_event["type"] == "llm.failed"
+    assert get_in(failure_event, ["data", "detail"]) =~ "target_work_item_not_found"
+  end
+
   defp create_project(name) do
     Project.create(%{
       name: name,

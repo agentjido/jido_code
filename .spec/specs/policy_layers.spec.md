@@ -179,4 +179,9 @@ surface:
   target: test/jido_code/projects/project_test.exs
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
+  target: test/jido_code/control/phase_six_integration_test.exs
+  covers:
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
 ```

@@ -242,4 +242,11 @@ surface:
   covers:
     - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
     - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_six_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
 ```

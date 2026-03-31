@@ -239,4 +239,14 @@ surface:
   target: test/jido_code/control/compatibility_rollout_test.exs
   covers:
     - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: test/jido_code/control/phase_six_integration_test.exs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_six_integration_test.exs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
 ```

@@ -4899,6 +4899,17 @@
       },
       {
         "covers": [
+          "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+          "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+          "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code_web/live/phase_six_integration_test.exs"
+      },
+      {
+        "covers": [
           "architecture.jido_os_session_turn_runtime.session_owns_ordered_turns",
           "architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface",
           "architecture.jido_os_session_turn_runtime.public_turn_event_surface",
@@ -5017,6 +5028,15 @@
         "kind": "source_file",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/projects/project_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/control/phase_six_integration_test.exs"
       },
       {
         "covers": [
@@ -5285,6 +5305,24 @@
         "kind": "source_file",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/control/compatibility_rollout_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code/control/phase_six_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code_web/live/phase_six_integration_test.exs"
       },
       {
         "covers": [
@@ -7157,7 +7195,7 @@
     "requirements": 210,
     "scenarios": 87,
     "subjects": 35,
-    "verifications": 279
+    "verifications": 283
   },
   "verification": {
     "claims": [
@@ -8471,6 +8509,39 @@
         "verification_index": 11
       },
       {
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code_web/live/phase_six_integration_test.exs",
+        "verification_index": 12
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code_web/live/phase_six_integration_test.exs",
+        "verification_index": 12
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code_web/live/phase_six_integration_test.exs",
+        "verification_index": 12
+      },
+      {
         "cover_id": "architecture.jido_os_session_turn_runtime.actor_bound_context_required",
         "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
         "kind": "source_file",
@@ -8832,6 +8903,17 @@
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/projects/project_test.exs",
         "verification_index": 9
+      },
+      {
+        "cover_id": "architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/control/phase_six_integration_test.exs",
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.repo_posture.repo_native_observations_capture_current_truth_signals",
@@ -9316,6 +9398,28 @@
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/control/compatibility_rollout_test.exs",
         "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code/control/phase_six_integration_test.exs",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code_web/live/phase_six_integration_test.exs",
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -13063,7 +13167,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 485
+      "linked": 491
     },
     "threshold_failures": 0
   },

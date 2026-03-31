@@ -19,47 +19,87 @@ defmodule JidoCode.CodingAssistance do
   @default_origin %{source_kind: "ui_channel", source_id: "jido_code"}
 
   def assist(actor_id, params) when is_binary(actor_id) and is_map(params) do
-    session_id = fetch_required!(params, :session_id)
-    objective = fetch_required!(params, :objective)
-    operation = get_string(params, :operation) || @default_operation
-    project_id = get_string(params, :project_id)
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      objective = fetch_required!(params, :objective)
 
-    runtime_attrs = %{
-      session_id: session_id,
-      project_id: project_id,
-      request_id: get_string(params, :request_id),
-      correlation_id: get_string(params, :correlation_id),
-      workspace_id: get_string(params, :workspace_id)
-    }
+      CodingAssistService.assist(
+        JidoOsRuntime.instance_id(),
+        coding_request_payload(actor_id, params, objective, runtime_attrs),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
+  end
 
-    with :ok <- JidoOsRuntime.ensure_instance(),
-         {:ok, _session} <- ensure_session(session_id, actor_id, runtime_attrs),
-         {:ok, envelope} <-
-           CodingAssistService.assist(
-             JidoOsRuntime.instance_id(),
-             %{
-               operation: operation,
-               objective: objective,
-               origin: get_map(params, :origin) || @default_origin,
-               collaboration: collaboration_payload(actor_id, params),
-               requested_capabilities: requested_capabilities(operation, params),
-               prompt_ref: get_map(params, :prompt_ref),
-               prompt_variables: get_map(params, :prompt_variables) || %{objective: objective},
-               model_profile_override: get_string(params, :model_profile_override),
-               operation_profile: get_map(params, :operation_profile),
-               tool_intent: get_map(params, :tool_intent) || %{action_ids: [], skill_ids: []},
-               context: %{
-                 session_id: session_id,
-                 project_id: project_id,
-                 actor_id: actor_id,
-                 workspace_id: get_string(runtime_attrs, :workspace_id)
-               }
-             }
-             |> compact_nil_values(),
-             JidoOsRuntime.context_for(actor_id, runtime_attrs)
-           ) do
-      {:ok, envelope}
-    end
+  def start_turn(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      objective = fetch_required!(params, :objective)
+
+      CodingAssistService.start_turn(
+        JidoOsRuntime.instance_id(),
+        coding_request_payload(actor_id, params, objective, runtime_attrs),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
+  end
+
+  def get_turn(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.get_turn(
+        JidoOsRuntime.instance_id(),
+        public_turn_payload(params, [:session_id, :turn_id]),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
+  end
+
+  def list_turns(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.list_turns(
+        JidoOsRuntime.instance_id(),
+        public_turn_payload(params, [:session_id]),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
+  end
+
+  def list_turn_events(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.list_turn_events(
+        JidoOsRuntime.instance_id(),
+        public_turn_payload(params, [:session_id, :turn_id, :after_event_id]),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
+  end
+
+  def list_turn_artifacts(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.list_turn_artifacts(
+        JidoOsRuntime.instance_id(),
+        public_turn_payload(params, [:session_id, :turn_id]),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
+  end
+
+  def cancel_turn(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.cancel_turn(
+        JidoOsRuntime.instance_id(),
+        public_turn_payload(params, [:session_id, :turn_id]),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
+  end
+
+  def review_turn(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.review_turn(
+        JidoOsRuntime.instance_id(),
+        public_turn_payload(params, [:session_id, :turn_id]),
+        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+      )
+    end)
   end
 
   def ensure_session(session_id, actor_id, attrs \\ %{}) do
@@ -129,6 +169,62 @@ defmodule JidoCode.CodingAssistance do
       context = JidoOsRuntime.context_for(actor_id, attrs)
       RuntimeAgent.get_session_ai_preferences(context.instance_id, session_id, context)
     end
+  end
+
+  defp with_runtime_session(actor_id, params, fun) when is_binary(actor_id) and is_map(params) do
+    session_id = fetch_required!(params, :session_id)
+    runtime_attrs = runtime_attrs(params)
+
+    with :ok <- JidoOsRuntime.ensure_instance(),
+         {:ok, _session} <- ensure_session(session_id, actor_id, runtime_attrs),
+         {:ok, envelope} <- fun.(runtime_attrs) do
+      {:ok, envelope}
+    end
+  end
+
+  defp coding_request_payload(actor_id, params, objective, runtime_attrs) do
+    operation = get_string(params, :operation) || @default_operation
+    project_id = get_string(params, :project_id)
+
+    %{
+      session_id: runtime_attrs.session_id,
+      operation: operation,
+      objective: objective,
+      origin: get_map(params, :origin) || @default_origin,
+      collaboration: collaboration_payload(actor_id, params),
+      requested_capabilities: requested_capabilities(operation, params),
+      prompt_ref: get_map(params, :prompt_ref),
+      prompt_variables: get_map(params, :prompt_variables) || %{objective: objective},
+      model_profile_override: get_string(params, :model_profile_override),
+      operation_profile: get_map(params, :operation_profile),
+      tool_intent: get_map(params, :tool_intent) || %{action_ids: [], skill_ids: []},
+      context: %{
+        session_id: runtime_attrs.session_id,
+        project_id: project_id,
+        actor_id: actor_id,
+        workspace_id: get_string(runtime_attrs, :workspace_id)
+      }
+    }
+    |> compact_nil_values()
+  end
+
+  defp public_turn_payload(params, keys) do
+    Enum.reduce(keys, %{}, fn key, acc ->
+      case get_string(params, key) do
+        nil -> acc
+        value -> Map.put(acc, key, value)
+      end
+    end)
+  end
+
+  defp runtime_attrs(params) do
+    %{
+      session_id: fetch_required!(params, :session_id),
+      project_id: get_string(params, :project_id),
+      request_id: get_string(params, :request_id),
+      correlation_id: get_string(params, :correlation_id),
+      workspace_id: get_string(params, :workspace_id)
+    }
   end
 
   defp collaboration_payload(actor_id, params) do

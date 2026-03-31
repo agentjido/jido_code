@@ -48,6 +48,87 @@ defmodule Jido.Os.Session.RuntimeAgent do
     end
   end
 
+  def store_turn(instance_id, session_id, turn, events, review, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_map(turn) and is_list(events) and
+             is_map(review) do
+    with {:ok, _session} <- load_session(instance_id, session_id, context),
+         turn_id when is_binary(turn_id) <- Map.get(turn, :turn_id) do
+      State.put_turn(instance_id, session_id, turn_id, turn)
+      State.put_turn_events(instance_id, session_id, turn_id, events)
+      State.put_turn_review(instance_id, session_id, turn_id, review)
+      {:ok, turn}
+    else
+      nil -> {:error, :missing_turn_id}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  def get_turn(instance_id, session_id, turn_id, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) do
+    with {:ok, _session} <- load_session(instance_id, session_id, context) do
+      case State.get_turn(instance_id, session_id, turn_id) do
+        nil -> {:error, :turn_not_found}
+        turn -> {:ok, turn}
+      end
+    end
+  end
+
+  def list_turns(instance_id, session_id, context)
+      when is_binary(instance_id) and is_binary(session_id) do
+    with {:ok, _session} <- load_session(instance_id, session_id, context) do
+      {:ok, State.list_turns(instance_id, session_id)}
+    end
+  end
+
+  def list_turn_events(instance_id, session_id, turn_id, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) do
+    with {:ok, _turn} <- get_turn(instance_id, session_id, turn_id, context) do
+      {:ok, State.list_turn_events(instance_id, session_id, turn_id)}
+    end
+  end
+
+  def list_turn_artifacts(instance_id, session_id, turn_id, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) do
+    with {:ok, turn} <- get_turn(instance_id, session_id, turn_id, context) do
+      artifacts =
+        turn
+        |> Map.get(:outputs, %{})
+        |> Map.get(:artifacts, [])
+
+      {:ok, artifacts}
+    end
+  end
+
+  def get_turn_review(instance_id, session_id, turn_id, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) do
+    with {:ok, _turn} <- get_turn(instance_id, session_id, turn_id, context) do
+      case State.get_turn_review(instance_id, session_id, turn_id) do
+        nil -> {:error, :turn_review_not_found}
+        review -> {:ok, review}
+      end
+    end
+  end
+
+  def cancel_turn(instance_id, session_id, turn_id, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) do
+    with {:ok, _session} <- load_session(instance_id, session_id, context) do
+      State.update_turn(instance_id, session_id, turn_id, fn turn ->
+        case Map.get(turn, :state) do
+          state when state in ["completed", "failed", "interrupted", "cancelled"] ->
+            turn
+
+          _other ->
+            now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+            turn
+            |> Map.put(:state, "cancelled")
+            |> Map.put(:phase, "cancelled")
+            |> Map.put(:terminal_at, now)
+        end
+      end)
+    end
+  end
+
   defp compact_nil_values(map) do
     Enum.reduce(map, %{}, fn
       {_key, nil}, acc -> acc

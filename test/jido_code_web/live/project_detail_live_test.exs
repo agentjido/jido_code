@@ -6,6 +6,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
   alias JidoCode.Projects.Project
+  alias JidoCode.TestSupport.CodeServer.DriverFake
   alias JidoCode.TestSupport.CodeServer.EngineFake
   alias JidoCode.TestSupport.CodeServer.RuntimeFake
 
@@ -22,6 +23,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     original_code_server_engine_module =
       Application.get_env(:jido_code, :code_server_engine_module, :__missing__)
 
+    original_code_server_driver_module =
+      Application.get_env(:jido_code, :code_server_conversation_driver_module, :__missing__)
+
     on_exit(fn ->
       restore_env(:workbench_fix_workflow_launcher, original_fix_workflow_launcher)
 
@@ -32,6 +36,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
       restore_env(:code_server_runtime_module, original_code_server_runtime_module)
       restore_env(:code_server_engine_module, original_code_server_engine_module)
+      restore_env(:code_server_conversation_driver_module, original_code_server_driver_module)
     end)
 
     :ok
@@ -278,6 +283,8 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
   test "supports conversation start send and stop lifecycle in project detail", %{conn: _conn} do
     Application.put_env(:jido_code, :code_server_runtime_module, RuntimeFake)
     Application.put_env(:jido_code, :code_server_engine_module, EngineFake)
+    Application.put_env(:jido_code, :code_server_conversation_driver_module, DriverFake)
+    DriverFake.clear()
 
     register_owner("owner@example.com", "owner-password-123")
 

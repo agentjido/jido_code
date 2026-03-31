@@ -94,17 +94,41 @@ defmodule JidoCode.CodeServer do
   def start_conversation(project_id, opts \\ [])
 
   def start_conversation(project_id, opts) when is_list(opts) do
-    requested_conversation_id = normalize_optional_string(Keyword.get(opts, :conversation_id))
+    requested_conversation_id =
+      normalize_optional_string(Keyword.get(opts, :conversation_id)) || generated_conversation_id()
+
+    normalized_opts = Keyword.put(opts, :conversation_id, requested_conversation_id)
 
     with {:ok, runtime} <- ensure_project_runtime(project_id) do
-      case runtime_module().start_conversation(runtime.project_id, opts) do
+      case runtime_module().start_conversation(runtime.project_id, normalized_opts) do
         {:ok, conversation_id} ->
-          log_info("code_server.conversation.start.success",
-            project_id: runtime.project_id,
-            conversation_id: normalize_optional_string(conversation_id) || requested_conversation_id
-          )
+          case conversation_driver_module().prepare_conversation(
+                 conversation_driver_attrs(runtime, conversation_id, nil, opts)
+               ) do
+            {:ok, _context} ->
+              log_info("code_server.conversation.start.success",
+                project_id: runtime.project_id,
+                conversation_id: normalize_optional_string(conversation_id) || requested_conversation_id
+              )
 
-          {:ok, conversation_id}
+              {:ok, conversation_id}
+
+            {:error, reason} ->
+              _ = runtime_module().stop_conversation(runtime.project_id, conversation_id)
+
+              typed_error =
+                Error.build(
+                  "code_server_conversation_start_failed",
+                  "Conversation startup failed (#{format_reason(reason)}).",
+                  @conversation_start_remediation,
+                  project_id: runtime.project_id,
+                  conversation_id: requested_conversation_id
+                )
+
+              log_typed_error("code_server.conversation.start.failure", typed_error)
+
+              {:error, typed_error}
+          end
 
         {:error, reason} ->
           typed_error =
@@ -151,9 +175,31 @@ defmodule JidoCode.CodeServer do
            ),
          {:ok, normalized_content} <-
            normalize_message_content(content, runtime.project_id, normalized_conversation_id),
-         {:ok, event} <- build_user_message_event(normalized_content, opts),
-         :ok <- dispatch_user_message(runtime.project_id, normalized_conversation_id, event) do
-      :ok
+         driver_attrs <- conversation_driver_attrs(runtime, normalized_conversation_id, normalized_content, opts),
+         {:ok, user_event} <-
+           build_user_message_event(normalized_content, conversation_message_opts(opts, driver_attrs)) do
+      case conversation_driver_module().handle_turn(driver_attrs) do
+        {:ok, %{events: driver_events}} ->
+          dispatch_conversation_events(runtime.project_id, normalized_conversation_id, [user_event | driver_events])
+
+        {:error, reason, driver_context, failure_event} ->
+          _ =
+            dispatch_conversation_events(runtime.project_id, normalized_conversation_id, [
+              user_event,
+              failure_event
+            ])
+
+          {:error,
+           Error.build(
+             "code_server_message_send_failed",
+             "Conversation driver failed (#{format_reason(reason)}).",
+             @message_send_remediation,
+             project_id: runtime.project_id,
+             conversation_id: normalized_conversation_id,
+             request_id: map_get(driver_context, :request_id, "request_id", nil),
+             correlation_id: map_get(driver_context, :correlation_id, "correlation_id", nil)
+           )}
+      end
     end
   end
 
@@ -290,7 +336,7 @@ defmodule JidoCode.CodeServer do
     end
   end
 
-  defp dispatch_user_message(project_id, conversation_id, event) do
+  defp dispatch_conversation_event(project_id, conversation_id, event) do
     case runtime_module().send_event(project_id, conversation_id, event) do
       :ok ->
         :ok
@@ -309,6 +355,15 @@ defmodule JidoCode.CodeServer do
 
         {:error, typed_error}
     end
+  end
+
+  defp dispatch_conversation_events(project_id, conversation_id, events) when is_list(events) do
+    Enum.reduce_while(events, :ok, fn event, :ok ->
+      case dispatch_conversation_event(project_id, conversation_id, event) do
+        :ok -> {:cont, :ok}
+        {:error, typed_error} -> {:halt, {:error, typed_error}}
+      end
+    end)
   end
 
   defp do_subscribe(project_id, conversation_id, pid) do
@@ -392,7 +447,7 @@ defmodule JidoCode.CodeServer do
     base_opts = [
       project_id: project_id,
       data_dir: map_get(config, :data_dir, "data_dir", ".jido"),
-      conversation_orchestration: map_get(config, :conversation_orchestration, "conversation_orchestration", true)
+      conversation_orchestration: map_get(config, :conversation_orchestration, "conversation_orchestration", false)
     ]
 
     Enum.reduce(@runtime_optional_config_keys, base_opts, fn key, acc ->
@@ -423,6 +478,90 @@ defmodule JidoCode.CodeServer do
 
   defp maybe_put_meta(event, metadata) when map_size(metadata) == 0, do: event
   defp maybe_put_meta(event, metadata), do: Map.put(event, "meta", metadata)
+
+  defp conversation_message_opts(opts, driver_attrs) do
+    metadata =
+      opts
+      |> Keyword.get(:meta, %{})
+      |> normalize_map()
+      |> Map.merge(
+        %{
+          "actor_id" => map_get(driver_attrs, :actor_id, "actor_id", nil),
+          "managed_repo_id" => map_get(driver_attrs, :managed_repo_id, "managed_repo_id", nil),
+          "request_id" => map_get(driver_attrs, :request_id, "request_id", nil),
+          "correlation_id" => map_get(driver_attrs, :correlation_id, "correlation_id", nil)
+        }
+        |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+        |> Map.new()
+      )
+
+    Keyword.put(opts, :meta, metadata)
+  end
+
+  defp conversation_driver_attrs(runtime, conversation_id, content, opts) when is_map(runtime) and is_list(opts) do
+    actor =
+      opts
+      |> Keyword.get(:actor, %{})
+      |> normalize_map()
+
+    %{
+      project_id: runtime.project_id,
+      managed_repo_id: resolve_managed_repo_id(runtime.project_id),
+      conversation_id: conversation_id,
+      session_id: conversation_id,
+      content: content,
+      actor_id:
+        actor
+        |> map_get(:id, "id", nil)
+        |> normalize_optional_string(),
+      actor_email:
+        actor
+        |> map_get(:email, "email", nil)
+        |> normalize_optional_string(),
+      work_item_id:
+        opts
+        |> Keyword.get(:work_item_id)
+        |> normalize_optional_string(),
+      operation:
+        opts
+        |> Keyword.get(:operation)
+        |> normalize_optional_string(),
+      request_id:
+        opts
+        |> Keyword.get(:request_id)
+        |> normalize_optional_string() || generated_request_id("req"),
+      correlation_id:
+        opts
+        |> Keyword.get(:correlation_id)
+        |> normalize_optional_string() || generated_request_id("corr"),
+      workspace_id: runtime.root_path
+    }
+  end
+
+  defp conversation_driver_attrs(runtime, conversation_id, content, _opts)
+       when is_map(runtime) and is_binary(conversation_id) do
+    conversation_driver_attrs(runtime, conversation_id, content, [])
+  end
+
+  defp resolve_managed_repo_id(project_id) do
+    case repo_bridge_module().managed_repo_for_project(project_id) do
+      {:ok, managed_repo} ->
+        managed_repo
+        |> map_get(:id, "id", nil)
+        |> normalize_optional_string()
+
+      _other ->
+        nil
+    end
+  end
+
+  defp generated_conversation_id do
+    "conversation-" <> generated_request_id("session")
+  end
+
+  defp generated_request_id(prefix) do
+    "#{prefix}-#{System.unique_integer([:positive, :monotonic])}"
+  end
 
   defp normalize_conversation_id(conversation_id, project_id, error_type, remediation) do
     case normalize_optional_string(conversation_id) do
@@ -474,6 +613,14 @@ defmodule JidoCode.CodeServer do
 
   defp engine_module do
     Application.get_env(:jido_code, :code_server_engine_module, Engine)
+  end
+
+  defp conversation_driver_module do
+    Application.get_env(:jido_code, :code_server_conversation_driver_module, JidoCode.Conversations.Driver)
+  end
+
+  defp repo_bridge_module do
+    Application.get_env(:jido_code, :code_server_repo_bridge_module, JidoCode.Control.RepoBridge)
   end
 
   defp runtime_handle(scope, runtime_status, runtime_pid) do

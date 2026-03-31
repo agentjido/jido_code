@@ -33,9 +33,11 @@ defmodule JidoCode.Conversations.TurnBridge do
           {:ok, turn} ->
             cond do
               terminal_event_seen? ->
+                materialize_terminal_turn(attrs, turn, events)
                 :ok
 
               terminal_turn?(turn) and events == [] ->
+                materialize_terminal_turn(attrs, turn, events)
                 :ok
 
               true ->
@@ -64,6 +66,14 @@ defmodule JidoCode.Conversations.TurnBridge do
 
   defp get_turn(attrs) do
     coding_assistance_module().get_turn(attrs.actor_id, turn_request(attrs, nil))
+  end
+
+  defp review_turn(attrs) do
+    coding_assistance_module().review_turn(attrs.actor_id, turn_request(attrs, nil))
+  end
+
+  defp list_turn_artifacts(attrs) do
+    coding_assistance_module().list_turn_artifacts(attrs.actor_id, turn_request(attrs, nil))
   end
 
   defp turn_request(attrs, after_event_id) do
@@ -110,6 +120,52 @@ defmodule JidoCode.Conversations.TurnBridge do
     :ok
   end
 
+  defp materialize_terminal_turn(attrs, turn, events) do
+    work_item_id = get_in(attrs, [:ingress, :work_item, :id])
+
+    if is_binary(work_item_id) do
+      review =
+        case review_turn(attrs) do
+          {:ok, review_projection} -> review_projection
+          {:error, _reason} -> %{}
+        end
+
+      artifacts =
+        case list_turn_artifacts(attrs) do
+          {:ok, artifact_projections} -> artifact_projections
+          {:error, _reason} -> []
+        end
+
+      materialization_attrs = %{
+        project_id: get_in(attrs, [:context, :project_id]),
+        managed_repo_id: get_in(attrs, [:context, :managed_repo_id]),
+        work_item_id: work_item_id,
+        actor_id: attrs.actor_id,
+        actor_email: get_in(attrs, [:context, :actor_email]),
+        conversation_id: attrs.conversation_id,
+        turn: turn,
+        review: review,
+        artifacts: artifacts,
+        events: events
+      }
+
+      case run_bridge_module().materialize_turn(materialization_attrs) do
+        {:ok, _materialization} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning(
+            "conversation turn bridge failed to materialize governed turn projection: #{inspect(reason)} " <>
+              "project_id=#{inspect(attrs.project_id)} conversation_id=#{inspect(attrs.conversation_id)}"
+          )
+
+          :ok
+      end
+    else
+      :ok
+    end
+  end
+
   defp terminal_turn?(%{} = turn) do
     state =
       Map.get(turn, :state) || Map.get(turn, "state")
@@ -153,6 +209,10 @@ defmodule JidoCode.Conversations.TurnBridge do
 
   defp runtime_module do
     Application.get_env(:jido_code, :code_server_runtime_module, Jido.Code.Server)
+  end
+
+  defp run_bridge_module do
+    Application.get_env(:jido_code, :conversation_turn_bridge_run_bridge_module, JidoCode.Orchestration.RunBridge)
   end
 
   defp poll_interval_ms do

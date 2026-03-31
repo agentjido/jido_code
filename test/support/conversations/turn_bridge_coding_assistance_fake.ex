@@ -5,13 +5,18 @@ defmodule JidoCode.TestSupport.Conversations.TurnBridgeCodingAssistanceFake do
 
   def clear do
     ensure_started()
-    Agent.update(@state, fn _state -> %{turn: nil, events: []} end)
+    Agent.update(@state, fn _state -> %{turn: nil, events: [], review: %{}, artifacts: []} end)
     :ok
   end
 
-  def configure(turn, events) when is_map(turn) and is_list(events) do
+  def configure(turn, events, review \\ %{}, artifacts \\ [])
+      when is_map(turn) and is_list(events) and is_map(review) and is_list(artifacts) do
     ensure_started()
-    Agent.update(@state, fn _state -> %{turn: turn, events: events} end)
+
+    Agent.update(@state, fn _state ->
+      %{turn: turn, events: events, review: review, artifacts: artifacts}
+    end)
+
     :ok
   end
 
@@ -36,6 +41,16 @@ defmodule JidoCode.TestSupport.Conversations.TurnBridgeCodingAssistanceFake do
     {:ok, events}
   end
 
+  def review_turn(_actor_id, _payload) do
+    ensure_started()
+    {:ok, Agent.get(@state, & &1.review)}
+  end
+
+  def list_turn_artifacts(_actor_id, _payload) do
+    ensure_started()
+    {:ok, Agent.get(@state, & &1.artifacts)}
+  end
+
   defp filter_events_after(events, nil), do: events
 
   defp filter_events_after(events, after_event_id) do
@@ -51,7 +66,9 @@ defmodule JidoCode.TestSupport.Conversations.TurnBridgeCodingAssistanceFake do
   defp ensure_started do
     case Process.whereis(@state) do
       nil ->
-        {:ok, _pid} = Agent.start_link(fn -> %{turn: nil, events: []} end, name: @state)
+        {:ok, _pid} =
+          Agent.start_link(fn -> %{turn: nil, events: [], review: %{}, artifacts: []} end, name: @state)
+
         :ok
 
       _pid ->

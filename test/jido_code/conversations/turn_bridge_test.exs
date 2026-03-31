@@ -3,6 +3,7 @@ defmodule JidoCode.Conversations.TurnBridgeTest do
 
   alias JidoCode.Conversations.TurnBridge
   alias JidoCode.TestSupport.Conversations.TurnBridgeCodingAssistanceFake
+  alias JidoCode.TestSupport.Conversations.TurnBridgeRunBridgeFake
   alias JidoCode.TestSupport.Conversations.TurnBridgeRuntimeFake
 
   setup do
@@ -17,6 +18,9 @@ defmodule JidoCode.Conversations.TurnBridgeTest do
     original_max_idle_polls = Application.get_env(:jido_code, :conversation_turn_bridge_max_idle_polls, :__missing__)
     original_supervisor = Application.get_env(:jido_code, :conversation_turn_bridge_supervisor, :__missing__)
 
+    original_run_bridge_module =
+      Application.get_env(:jido_code, :conversation_turn_bridge_run_bridge_module, :__missing__)
+
     supervisor_name = :"turn-bridge-supervisor-#{System.unique_integer([:positive, :monotonic])}"
     start_supervised!({Task.Supervisor, name: supervisor_name})
 
@@ -30,8 +34,10 @@ defmodule JidoCode.Conversations.TurnBridgeTest do
     Application.put_env(:jido_code, :conversation_turn_bridge_poll_interval_ms, 1)
     Application.put_env(:jido_code, :conversation_turn_bridge_max_idle_polls, 2)
     Application.put_env(:jido_code, :conversation_turn_bridge_supervisor, supervisor_name)
+    Application.put_env(:jido_code, :conversation_turn_bridge_run_bridge_module, TurnBridgeRunBridgeFake)
 
     TurnBridgeCodingAssistanceFake.clear()
+    TurnBridgeRunBridgeFake.clear()
     TurnBridgeRuntimeFake.clear()
     TurnBridgeRuntimeFake.set_owner(self())
 
@@ -41,7 +47,9 @@ defmodule JidoCode.Conversations.TurnBridgeTest do
       restore_env(:conversation_turn_bridge_poll_interval_ms, original_poll_interval_ms)
       restore_env(:conversation_turn_bridge_max_idle_polls, original_max_idle_polls)
       restore_env(:conversation_turn_bridge_supervisor, original_supervisor)
+      restore_env(:conversation_turn_bridge_run_bridge_module, original_run_bridge_module)
       TurnBridgeCodingAssistanceFake.clear()
+      TurnBridgeRunBridgeFake.clear()
       TurnBridgeRuntimeFake.clear()
     end)
 
@@ -76,6 +84,18 @@ defmodule JidoCode.Conversations.TurnBridgeTest do
           session_id: "conversation-bridge-1",
           family: "completed",
           content: "Replay bridge ready."
+        }
+      ],
+      %{
+        turn_id: "turn-1",
+        assistant_output: %{message: "Replay bridge ready."}
+      },
+      [
+        %{
+          artifact_id: "artifact-1",
+          kind: "patch",
+          title: "Patch summary",
+          summary: "Replay bridge patch summary"
         }
       ]
     )
@@ -117,6 +137,15 @@ defmodule JidoCode.Conversations.TurnBridgeTest do
     assert get_in(final_event, ["meta", "turn_event_family"]) == "completed"
 
     assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+
+    assert [%{turn: %{turn_id: "turn-1"}, review: %{turn_id: "turn-1"}, artifacts: [%{artifact_id: "artifact-1"}]}] =
+             Enum.map(TurnBridgeRunBridgeFake.calls(), fn attrs ->
+               %{
+                 turn: Map.take(attrs.turn, [:turn_id]),
+                 review: Map.take(attrs.review, [:turn_id]),
+                 artifacts: Enum.map(attrs.artifacts, &Map.take(&1, [:artifact_id]))
+               }
+             end)
 
     assert [
              {"project-bridge", "conversation-bridge-1", %{"type" => "assistant.delta"}},

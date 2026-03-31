@@ -4,6 +4,7 @@ defmodule JidoCode.Operations.Synthesis do
   # covers: architecture.event_assessment_synthesis.assessment_records_interpret_events
   # covers: architecture.event_assessment_synthesis.assessment_priority_and_next_action
   # covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+  # covers: architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
   @moduledoc """
   Derives durable control-plane events and assessments from normalized ingress records.
   """
@@ -22,7 +23,7 @@ defmodule JidoCode.Operations.Synthesis do
              event: Event.t(),
              assessment: Assessment.t(),
              work_item: JidoCode.Operations.WorkItem.t() | nil,
-             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
+             work_action: :created | :reprioritized | :suppressed_duplicate | :steered | :unscoped
            }}
           | {:error, term()}
   def from_observation(%Observation{} = observation, opts \\ []) do
@@ -52,7 +53,7 @@ defmodule JidoCode.Operations.Synthesis do
              event: Event.t(),
              assessment: Assessment.t(),
              work_item: JidoCode.Operations.WorkItem.t() | nil,
-             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
+             work_action: :created | :reprioritized | :suppressed_duplicate | :steered | :unscoped
            }}
           | {:error, term()}
   def from_intake(%Intake{} = intake) do
@@ -213,12 +214,25 @@ defmodule JidoCode.Operations.Synthesis do
   end
 
   defp intake_correlation_key(intake, category) do
-    [
-      intake.managed_repo_id || "unscoped",
-      category,
-      normalize_optional_string(intake.requested_by["id"]) || "anonymous"
-    ]
-    |> Enum.join(":")
+    conversation_reference =
+      intake.source_metadata
+      |> normalize_map()
+      |> Map.get("conversation_id")
+      |> normalize_optional_string()
+
+    case conversation_reference do
+      nil ->
+        [
+          intake.managed_repo_id || "unscoped",
+          category,
+          normalize_optional_string(intake.requested_by["id"]) || "anonymous"
+        ]
+        |> Enum.join(":")
+
+      conversation_id ->
+        [intake.managed_repo_id || "unscoped", category, conversation_id]
+        |> Enum.join(":")
+    end
   end
 
   defp intake_event_category(intake) do
@@ -258,6 +272,14 @@ defmodule JidoCode.Operations.Synthesis do
       {"project_detail", "project_detail_workflow_kickoff", _workflow_name} ->
         {"operator_work_request", :medium, :medium, "review_operator_request",
          "Project detail requested managed-repository work that should be reviewed before execution."}
+
+      {"conversation", "coding_turn_request", _workflow_name} ->
+        {"conversation_work_request", :high, :high, "review_operator_request",
+         "Conversation demand entered the managed-repository control loop as new work."}
+
+      {"conversation", "work_item_steering", _workflow_name} ->
+        {"conversation_work_steering", :high, :high, "steer_existing_work_item",
+         "Conversation demand steers an existing managed-repository work item."}
 
       _other ->
         {"operator_request", :medium, :medium, "review_operator_request",

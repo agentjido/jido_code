@@ -26,7 +26,7 @@ defmodule JidoCode.Operations.Ingress do
              event: JidoCode.Operations.Event.t(),
              assessment: JidoCode.Operations.Assessment.t(),
              work_item: JidoCode.Operations.WorkItem.t() | nil,
-             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
+             work_action: :created | :reprioritized | :suppressed_duplicate | :steered | :unscoped
            }}
           | {:error, term()}
   def record_github_webhook_delivery(%{} = delivery) do
@@ -77,7 +77,7 @@ defmodule JidoCode.Operations.Ingress do
              event: JidoCode.Operations.Event.t(),
              assessment: JidoCode.Operations.Assessment.t(),
              work_item: JidoCode.Operations.WorkItem.t() | nil,
-             work_action: :created | :reprioritized | :suppressed_duplicate | :unscoped
+             work_action: :created | :reprioritized | :suppressed_duplicate | :steered | :unscoped
            }}
           | {:error, term()}
   def record_operator_intake(%{} = attrs) do

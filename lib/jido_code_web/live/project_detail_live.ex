@@ -77,7 +77,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       nil ->
         case current_project_id(socket) do
           {:ok, project_id} ->
-            case CodeServer.start_conversation(project_id) do
+            case CodeServer.start_conversation(project_id, actor: initiating_actor(socket)) do
               {:ok, conversation_id} ->
                 case CodeServer.subscribe(project_id, conversation_id, self()) do
                   :ok ->
@@ -131,7 +131,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       content ->
         with {:ok, project_id} <- current_project_id(socket),
              {:ok, conversation_id} <- current_conversation_id(socket, project_id),
-             :ok <- CodeServer.send_user_message(project_id, conversation_id, content) do
+             :ok <-
+               CodeServer.send_user_message(project_id, conversation_id, content, actor: initiating_actor(socket)) do
           {:noreply,
            socket
            |> assign(:conversation_input, "")

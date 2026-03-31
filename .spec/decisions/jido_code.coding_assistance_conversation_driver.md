@@ -65,6 +65,13 @@ existing conversation event model used by subscribers and UI code. Changing the
 driver must not require a second UI-specific protocol when the existing
 `assistant.delta`, `assistant.message`, and failure events are sufficient.
 
+The concrete product seam for that work is a product-local conversation driver
+and event bridge. `CodeServer` remains the project-scoped runtime facade, but it
+delegates coding-oriented turn handling through a driver that prepares actor and
+session context, enters the managed-repository ingress loop, calls
+`JidoCode.CodingAssistance`, and then translates the public service outcome back
+into the stable subscriber event contract.
+
 ## Consequences
 
 - `CodeServer` and UI entrypoints need actor-aware conversation APIs instead of

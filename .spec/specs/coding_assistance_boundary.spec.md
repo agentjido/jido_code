@@ -15,6 +15,7 @@ decisions:
   - jido_code.jido_os_session_turn_runtime
 surface:
   - lib/jido_code/coding_assistance.ex
+  - lib/jido_code/conversations/driver.ex
   - lib/jido_code/jido_os_runtime.ex
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - test/jido_code/coding_assistance_test.exs
@@ -78,8 +79,12 @@ surface:
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   covers:
-    - coding_assistance.boundary.policy_context_propagation
     - coding_assistance.boundary.public_turn_runtime_boundary
+
+- kind: source_file
+  target: lib/jido_code/conversations/driver.ex
+  covers:
+    - coding_assistance.boundary.policy_context_propagation
 
 - kind: source_file
   target: test/jido_code/coding_assistance_test.exs

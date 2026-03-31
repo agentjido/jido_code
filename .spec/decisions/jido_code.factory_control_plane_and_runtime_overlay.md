@@ -102,6 +102,19 @@ workbench-originated operator requests should normalize into `Intake`, preservin
 actor attribution, source metadata, and managed-repository correlation before `Event`
 or `Assessment` synthesis begins.
 
+Coding conversations follow the same rule. A coding turn is not a second
+control-plane lane; it is normalized operator demand with conversation or session,
+request, correlation, and managed-repository context preserved through durable
+`Intake`, `Event`, `Assessment`, and `WorkItem` records. When a turn explicitly
+targets an existing work item, the control plane should steer that record rather
+than force a duplicate work object.
+
+That decision still happens in layers. Product-side conversation policy decides
+whether the turn should create new work, steer an existing work item, or halt
+before runtime execution begins. Ash remains the authorization membrane around
+the durable records that capture that choice, and `jido_os` runtime policy
+remains the final admission boundary for the session and turn that follow.
+
 After ingress capture, interpretation becomes a system-owned control-plane step.
 `Event` and `Assessment` records should be synthesized under product authority,
 not written directly by external ingress actors, so typed actionable meaning,

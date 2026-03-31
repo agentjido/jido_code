@@ -14,6 +14,8 @@ surface:
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/control/actor.ex
   - lib/jido_code/control/checks/actor_class_in.ex
+  - lib/jido_code/conversations/ingress.ex
+  - lib/jido_code/conversations/policy.ex
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/governance.ex
@@ -37,6 +39,7 @@ surface:
   - lib/jido_code/projects/project.ex
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
+  - test/jido_code/conversations/phase_four_integration_test.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
@@ -90,6 +93,7 @@ surface:
   then:
     - Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.
     - Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.
+    - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
 ```
 
 ## Verification
@@ -103,4 +107,17 @@ surface:
     - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
     - architecture.policy_layers.explicit_human_and_machine_actor_classes
+
+- kind: source_file
+  target: lib/jido_code/conversations/policy.ex
+  covers:
+    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
+    - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
+    - architecture.policy_layers.policy_layers_interlock_without_collapsing
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_four_integration_test.exs
+  covers:
+    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
+    - architecture.policy_layers.policy_layers_interlock_without_collapsing
 ```

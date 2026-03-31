@@ -3,6 +3,8 @@
 This subject defines the first-class conversation driver architecture for coding
 conversations in `Jido.Code`.
 
+<!-- covers: package.jido_code.spec_led_workspace -->
+
 ```spec-meta
 id: architecture.conversation_driver
 kind: policy
@@ -16,9 +18,15 @@ surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - lib/jido_code/conversations/ingress.ex
+  - lib/jido_code/conversations/driver.ex
+  - lib/jido_code/conversations/event_bridge.ex
+  - lib/jido_code/conversations/policy.ex
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex
+  - test/jido_code/conversations/driver_test.exs
+  - test/jido_code/conversations/phase_four_integration_test.exs
 ```
 
 ## Requirements
@@ -112,6 +120,19 @@ surface:
     - architecture.conversation_driver.subscriber_event_contract_preserved
 
 - kind: source_file
+  target: lib/jido_code/conversations/driver.ex
+  covers:
+    - architecture.conversation_driver.code_server_routes_through_boundary
+    - architecture.conversation_driver.conversation_identity_maps_to_session
+    - architecture.conversation_driver.actor_context_propagated
+
+- kind: source_file
+  target: lib/jido_code/conversations/event_bridge.ex
+  covers:
+    - architecture.conversation_driver.subscriber_event_contract_preserved
+    - architecture.conversation_driver.public_jido_os_turn_event_bridge
+
+- kind: source_file
   target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   covers:
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
@@ -119,5 +140,29 @@ surface:
 - kind: source_file
   target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   covers:
+    - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+
+- kind: source_file
+  target: lib/jido_code/conversations/ingress.ex
+  covers:
+    - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+
+- kind: source_file
+  target: test/jido_code/conversations/driver_test.exs
+  covers:
+    - architecture.conversation_driver.code_server_routes_through_boundary
+    - architecture.conversation_driver.conversation_identity_maps_to_session
+    - architecture.conversation_driver.actor_context_propagated
+    - architecture.conversation_driver.subscriber_event_contract_preserved
+    - architecture.conversation_driver.public_jido_os_turn_event_bridge
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_four_integration_test.exs
+  covers:
+    - architecture.conversation_driver.code_server_routes_through_boundary
+    - architecture.conversation_driver.conversation_identity_maps_to_session
+    - architecture.conversation_driver.actor_context_propagated
+    - architecture.conversation_driver.subscriber_event_contract_preserved
+    - architecture.conversation_driver.public_jido_os_turn_event_bridge
     - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
 ```

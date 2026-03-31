@@ -189,6 +189,30 @@
       },
       {
         "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.conversation_turns_become_durable_intake",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Coding conversation turns shall enter the same managed-repository control loop by normalizing into durable `Intake`, `Event`, `Assessment`, and `WorkItem` records instead of bypassing the ingress layer as transient chat state.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Conversation ingress shall distinguish brand-new work demand from explicit steering of an existing work item so the control loop can update an existing record when the turn targets one.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Conversation ingress shall preserve actor, conversation or session identity, request, correlation, workspace, and repository context across normalized intake and downstream work records.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
         "id": "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
         "priority": "should",
         "stability": "evolving",
@@ -249,6 +273,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "`Assessment` synthesis shall preserve structured space for future posture, policy, and repo-native state inputs to influence interpretation outcomes without changing the durable object model.",
+        "subject_id": "architecture.event_assessment_synthesis"
+      },
+      {
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "id": "architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "When normalized ingress originates from a coding conversation turn, synthesized event and assessment records shall preserve session or conversation identity and distinguish new demand from explicit steering so downstream work synthesis can remain conversation-aware without becoming chat-local state.",
         "subject_id": "architecture.event_assessment_synthesis"
       },
       {
@@ -610,6 +642,14 @@
         "stability": "stable",
         "statement": "WorkItem and Run shall be treated as operational records rather than full viable systems unless they are explicitly promoted through a lower-level viability rule.",
         "subject_id": "architecture.vsm_recursion"
+      },
+      {
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "id": "architecture.work_synthesis.conversation_turns_can_steer_existing_work",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "When a normalized conversation turn explicitly targets an existing work item, work synthesis shall steer that durable record instead of forcing a new duplicate work item, while preserving conversation context in work metadata and audit history.",
+        "subject_id": "architecture.work_synthesis"
       },
       {
         "file": ".spec/specs/work_synthesis.spec.md",
@@ -1671,6 +1711,25 @@
       },
       {
         "covers": [
+          "architecture.demand_ingress.conversation_turns_become_durable_intake",
+          "architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context",
+          "architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "given": [
+          "A managed-repository conversation is active for a coding-oriented operator turn."
+        ],
+        "id": "architecture.demand_ingress.scenario_conversation_turn_becomes_durable_work_input",
+        "subject_id": "architecture.demand_ingress",
+        "then": [
+          "The turn becomes durable intake, preserves conversation and tracing context, and either creates new work or steers the targeted work item instead of remaining isolated chat-only state."
+        ],
+        "when": [
+          "The product normalizes that turn into ingress records."
+        ]
+      },
+      {
+        "covers": [
           "architecture.demand_ingress.external_object_tracks_repo_external_entities",
           "architecture.demand_ingress.observation_captures_repo_and_system_facts",
           "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
@@ -1723,6 +1782,27 @@
         ],
         "when": [
           "A webhook or workbench entrypoint prepares downstream workflow launch metadata."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
+          "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
+          "architecture.event_assessment_synthesis.assessment_records_interpret_events",
+          "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
+          "architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment"
+        ],
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "given": [
+          "A coding-oriented conversation turn has already been normalized into intake."
+        ],
+        "id": "architecture.event_assessment_synthesis.scenario_conversation_turn_becomes_actionable_interpretation",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "then": [
+          "The resulting records preserve conversation identity, managed-repository correlation, and whether the turn created new work demand or steers an existing work item."
+        ],
+        "when": [
+          "The control plane synthesizes that turn into event and assessment meaning."
         ]
       },
       {
@@ -1948,7 +2028,8 @@
         "subject_id": "architecture.policy_layers",
         "then": [
           "Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.",
-          "Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor."
+          "Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.",
+          "Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat."
         ],
         "when": [
           "The system decides whether work may be created, executed, or exposed."
@@ -2115,6 +2196,26 @@
         ],
         "when": [
           "The control plane synthesizes operational work."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
+          "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
+          "architecture.work_synthesis.work_item_auditability_preserved",
+          "architecture.work_synthesis.conversation_turns_can_steer_existing_work"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "given": [
+          "An open managed-repository work item already exists."
+        ],
+        "id": "architecture.work_synthesis.scenario_conversation_turn_steers_existing_work",
+        "subject_id": "architecture.work_synthesis",
+        "then": [
+          "Work synthesis updates the targeted work item, preserves conversation context in durable metadata, and records an audit entry showing that the work was steered rather than recreated."
+        ],
+        "when": [
+          "A normalized coding conversation turn explicitly targets that work item."
         ]
       },
       {
@@ -3012,6 +3113,7 @@
           "summary": "jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through the public coding-assistance service, delegates session/project/AI-preference state to the canonical jido_os runtime agents, and keeps higher-level conversation drivers out of jido_os internals.",
           "surface": [
             "lib/jido_code/coding_assistance.ex",
+            "lib/jido_code/conversations/driver.ex",
             "lib/jido_code/jido_os_runtime.ex",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             "test/jido_code/coding_assistance_test.exs"
@@ -3053,9 +3155,15 @@
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+            "lib/jido_code/conversations/ingress.ex",
+            "lib/jido_code/conversations/driver.ex",
+            "lib/jido_code/conversations/event_bridge.ex",
+            "lib/jido_code/conversations/policy.ex",
             "lib/jido_code/code_server.ex",
             "lib/jido_code/coding_assistance.ex",
-            "lib/jido_code_web/live/project_detail_live.ex"
+            "lib/jido_code_web/live/project_detail_live.ex",
+            "test/jido_code/conversations/driver_test.exs",
+            "test/jido_code/conversations/phase_four_integration_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3079,12 +3187,14 @@
             "lib/jido_code/operations/observation.ex",
             "lib/jido_code/operations/intake.ex",
             "lib/jido_code/operations/ingress.ex",
+            "lib/jido_code/conversations/ingress.ex",
             "lib/jido_code/github/webhook_pipeline.ex",
             "lib/jido_code/setup/project_import.ex",
             "lib/jido_code/workbench/fix_workflow_kickoff.ex",
             "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
             "lib/jido_code/workbench/project_detail_workflow_kickoff.ex",
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
+            "test/jido_code/conversations/ingress_test.exs",
             "test/jido_code/operations/demand_ingress_test.exs",
             "test/jido_code/operations/phase_two_integration_test.exs"
           ],
@@ -3131,6 +3241,7 @@
           "status": "active",
           "summary": "Jido.Code derives durable `Event` and `Assessment` records from normalized ingress so verified external demand and trusted operator requests gain typed actionable meaning, repo correlation, and next-action guidance before work-item synthesis begins.",
           "surface": [
+            "lib/jido_code/conversations/ingress.ex",
             "lib/jido_code/operations/event.ex",
             "lib/jido_code/operations/assessment.ex",
             "lib/jido_code/operations/synthesis.ex",
@@ -3198,6 +3309,10 @@
             "lib/jido_code/operations/observation.ex",
             "lib/jido_code/operations/intake.ex",
             "lib/jido_code/operations/ingress.ex",
+            "lib/jido_code/conversations/ingress.ex",
+            "lib/jido_code/conversations/driver.ex",
+            "lib/jido_code/conversations/event_bridge.ex",
+            "lib/jido_code/conversations/policy.ex",
             "lib/jido_code/operations/synthesis.ex",
             "lib/jido_code/operations/work_item.ex",
             "lib/jido_code/operations/work_synthesis.ex",
@@ -3425,6 +3540,8 @@
             "lib/jido_code/accounts/user.ex",
             "lib/jido_code/control/actor.ex",
             "lib/jido_code/control/checks/actor_class_in.ex",
+            "lib/jido_code/conversations/ingress.ex",
+            "lib/jido_code/conversations/policy.ex",
             "lib/jido_code/control/source_repo.ex",
             "lib/jido_code/control/managed_repo.ex",
             "lib/jido_code/governance.ex",
@@ -3448,6 +3565,7 @@
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/jido_os_runtime.ex",
             "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
+            "test/jido_code/conversations/phase_four_integration_test.exs",
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
             "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
@@ -3783,11 +3901,13 @@
           "status": "active",
           "summary": "Jido.Code turns durable assessments into canonical `WorkItem` records that preserve origin links and initiating actor context, can stop at durable work creation without immediate execution, and reconcile equivalent work candidates through deduplication and reprioritization rather than chaotic duplicate launch paths.",
           "surface": [
+            "lib/jido_code/conversations/ingress.ex",
             "lib/jido_code/operations/work_item.ex",
             "lib/jido_code/operations/work_synthesis.ex",
             "lib/jido_code/operations/synthesis.ex",
             "lib/jido_code/operations/ingress.ex",
             "priv/repo/migrations/20260330195000_add_operations_work_items.exs",
+            "test/jido_code/conversations/ingress_test.exs",
             "test/jido_code/operations/work_synthesis_test.exs",
             "test/jido_code/operations/phase_two_integration_test.exs"
           ],
@@ -3831,6 +3951,27 @@
       },
       {
         "covers": [
+          "architecture.conversation_driver.code_server_routes_through_boundary",
+          "architecture.conversation_driver.conversation_identity_maps_to_session",
+          "architecture.conversation_driver.actor_context_propagated"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/driver.ex"
+      },
+      {
+        "covers": [
+          "architecture.conversation_driver.subscriber_event_contract_preserved",
+          "architecture.conversation_driver.public_jido_os_turn_event_bridge"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/event_bridge.ex"
+      },
+      {
+        "covers": [
           "architecture.conversation_driver.public_jido_os_turn_event_bridge"
         ],
         "file": ".spec/specs/conversation_driver.spec.md",
@@ -3846,6 +3987,42 @@
         "kind": "source_file",
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
+          "architecture.conversation_driver.conversation_is_ingress_and_steering_surface"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/ingress.ex"
+      },
+      {
+        "covers": [
+          "architecture.conversation_driver.code_server_routes_through_boundary",
+          "architecture.conversation_driver.conversation_identity_maps_to_session",
+          "architecture.conversation_driver.actor_context_propagated",
+          "architecture.conversation_driver.subscriber_event_contract_preserved",
+          "architecture.conversation_driver.public_jido_os_turn_event_bridge"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/driver_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.conversation_driver.code_server_routes_through_boundary",
+          "architecture.conversation_driver.conversation_identity_maps_to_session",
+          "architecture.conversation_driver.actor_context_propagated",
+          "architecture.conversation_driver.subscriber_event_contract_preserved",
+          "architecture.conversation_driver.public_jido_os_turn_event_bridge",
+          "architecture.conversation_driver.conversation_is_ingress_and_steering_surface"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs"
       },
       {
         "covers": [
@@ -3888,6 +4065,17 @@
       },
       {
         "covers": [
+          "architecture.demand_ingress.conversation_turns_become_durable_intake",
+          "architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context",
+          "architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/conversations/ingress.ex"
+      },
+      {
+        "covers": [
           "architecture.demand_ingress.external_object_tracks_repo_external_entities",
           "architecture.demand_ingress.observation_captures_repo_and_system_facts",
           "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
@@ -3909,6 +4097,17 @@
         "kind": "source_file",
         "subject_id": "architecture.demand_ingress",
         "target": "test/jido_code/operations/phase_two_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.conversation_turns_become_durable_intake",
+          "architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context",
+          "architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/conversations/ingress_test.exs"
       },
       {
         "covers": [
@@ -3967,7 +4166,8 @@
           "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
           "architecture.event_assessment_synthesis.assessment_records_interpret_events",
           "architecture.event_assessment_synthesis.assessment_priority_and_next_action",
-          "architecture.event_assessment_synthesis.assessment_space_for_future_inputs"
+          "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
+          "architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment"
         ],
         "file": ".spec/specs/event_assessment_synthesis.spec.md",
         "kind": "source_file",
@@ -4070,6 +4270,27 @@
         "kind": "source_file",
         "subject_id": "architecture.policy_layers",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+          "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+          "architecture.policy_layers.policy_layers_interlock_without_collapsing"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+          "architecture.policy_layers.policy_layers_interlock_without_collapsing"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs"
       },
       {
         "covers": [
@@ -4200,7 +4421,8 @@
           "architecture.work_synthesis.work_item_metadata_and_origin_links_preserved",
           "architecture.work_synthesis.work_item_creation_can_stop_before_execution",
           "architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression",
-          "architecture.work_synthesis.work_item_auditability_preserved"
+          "architecture.work_synthesis.work_item_auditability_preserved",
+          "architecture.work_synthesis.conversation_turns_can_steer_existing_work"
         ],
         "file": ".spec/specs/work_synthesis.spec.md",
         "kind": "source_file",
@@ -4245,6 +4467,15 @@
         "kind": "command",
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.work_synthesis.conversation_turns_can_steer_existing_work"
+        ],
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/conversations/ingress_test.exs"
       },
       {
         "covers": [
@@ -4868,13 +5099,21 @@
       },
       {
         "covers": [
-          "coding_assistance.boundary.policy_context_propagation",
           "coding_assistance.boundary.public_turn_runtime_boundary"
         ],
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "kind": "source_file",
         "subject_id": "coding_assistance.boundary",
         "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md"
+      },
+      {
+        "covers": [
+          "coding_assistance.boundary.policy_context_propagation"
+        ],
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/conversations/driver.ex"
       },
       {
         "covers": [
@@ -5253,12 +5492,30 @@
       },
       {
         "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/conversation_driver.spec.md"
+      },
+      {
+        "covers": [
           "package.jido_code.version_controlled_quality_surfaces"
         ],
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "subject_id": "package.jido_code",
         "target": "test/jido_code/operations/phase_two_integration_test.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.version_controlled_quality_surfaces"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs"
       },
       {
         "covers": [
@@ -5855,10 +6112,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 185,
-    "scenarios": 73,
+    "requirements": 190,
+    "scenarios": 76,
     "subjects": 34,
-    "verifications": 202
+    "verifications": 215
   },
   "verification": {
     "claims": [
@@ -5918,6 +6175,61 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.conversation_driver.actor_context_propagated",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/driver.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.conversation_driver.code_server_routes_through_boundary",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/driver.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_identity_maps_to_session",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/driver.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/event_bridge.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.conversation_driver.subscriber_event_contract_preserved",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/event_bridge.ex",
+        "verification_index": 2
+      },
+      {
         "cover_id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
         "file": ".spec/specs/conversation_driver.spec.md",
         "kind": "source_file",
@@ -5926,7 +6238,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
-        "verification_index": 1
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
@@ -5937,7 +6249,139 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
-        "verification_index": 2
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/ingress.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.conversation_driver.actor_context_propagated",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/driver_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.conversation_driver.code_server_routes_through_boundary",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/driver_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_identity_maps_to_session",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/driver_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/driver_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.conversation_driver.subscriber_event_contract_preserved",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/driver_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.conversation_driver.actor_context_propagated",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.conversation_driver.code_server_routes_through_boundary",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_identity_maps_to_session",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.conversation_driver.subscriber_event_contract_preserved",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -6017,47 +6461,36 @@
         "verification_index": 3
       },
       {
-        "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+        "cover_id": "architecture.demand_ingress.conversation_turns_become_durable_intake",
         "file": ".spec/specs/demand_ingress.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/demand_ingress_test.exs",
+        "target": "lib/jido_code/conversations/ingress.ex",
         "verification_index": 4
       },
       {
-        "cover_id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+        "cover_id": "architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering",
         "file": ".spec/specs/demand_ingress.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/demand_ingress_test.exs",
+        "target": "lib/jido_code/conversations/ingress.ex",
         "verification_index": 4
       },
       {
-        "cover_id": "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+        "cover_id": "architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context",
         "file": ".spec/specs/demand_ingress.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/demand_ingress_test.exs",
-        "verification_index": 4
-      },
-      {
-        "cover_id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
-        "file": ".spec/specs/demand_ingress.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/demand_ingress_test.exs",
+        "target": "lib/jido_code/conversations/ingress.ex",
         "verification_index": 4
       },
       {
@@ -6068,7 +6501,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
         "verification_index": 5
       },
       {
@@ -6079,7 +6512,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
         "verification_index": 5
       },
       {
@@ -6090,7 +6523,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
         "verification_index": 5
       },
       {
@@ -6101,8 +6534,85 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": "test/jido_code/operations/demand_ingress_test.exs",
         "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.demand_ingress.conversation_turns_become_durable_intake",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/conversations/ingress_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/conversations/ingress_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "test/jido_code/conversations/ingress_test.exs",
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -6113,7 +6623,7 @@
         "strength": "claimed",
         "subject_id": "architecture.demand_ingress",
         "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
@@ -6124,7 +6634,7 @@
         "strength": "claimed",
         "subject_id": "architecture.demand_ingress",
         "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
@@ -6135,7 +6645,7 @@
         "strength": "claimed",
         "subject_id": "architecture.demand_ingress",
         "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.demand_ingress.observation_captures_repo_and_system_facts",
@@ -6146,7 +6656,7 @@
         "strength": "claimed",
         "subject_id": "architecture.demand_ingress",
         "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
@@ -6157,7 +6667,7 @@
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
         "target": "lib/jido_code/github/webhook_pipeline.ex",
-        "verification_index": 7
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
@@ -6168,7 +6678,7 @@
         "strength": "linked",
         "subject_id": "architecture.demand_ingress",
         "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
-        "verification_index": 8
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
@@ -6249,6 +6759,17 @@
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.assessment_space_for_future_inputs",
+        "file": ".spec/specs/event_assessment_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.event_assessment_synthesis",
+        "target": "lib/jido_code/operations/synthesis.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment",
         "file": ".spec/specs/event_assessment_synthesis.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -6732,6 +7253,61 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/conversations/policy.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.policy_layers.policy_layers_interlock_without_collapsing",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 2
+      },
+      {
         "cover_id": "architecture.run_governance.run_is_preferred_execution_record",
         "file": ".spec/specs/run_governance.spec.md",
         "kind": "source_file",
@@ -7029,6 +7605,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.work_synthesis.conversation_turns_can_steer_existing_work",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "lib/jido_code/operations/work_synthesis.ex",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.work_synthesis.work_item_auditability_preserved",
         "file": ".spec/specs/work_synthesis.spec.md",
         "kind": "source_file",
@@ -7247,6 +7834,17 @@
         "subject_id": "architecture.work_synthesis",
         "target": "mix test test/jido_code/operations/work_synthesis_test.exs",
         "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.work_synthesis.conversation_turns_can_steer_existing_work",
+        "file": ".spec/specs/work_synthesis.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.work_synthesis",
+        "target": "test/jido_code/conversations/ingress_test.exs",
+        "verification_index": 5
       },
       {
         "cover_id": "auth.github_integration.github_app_preferred",
@@ -8789,17 +9387,6 @@
         "verification_index": 1
       },
       {
-        "cover_id": "coding_assistance.boundary.policy_context_propagation",
-        "file": ".spec/specs/coding_assistance_boundary.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "coding_assistance.boundary",
-        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
-        "verification_index": 2
-      },
-      {
         "cover_id": "coding_assistance.boundary.public_turn_runtime_boundary",
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "kind": "source_file",
@@ -8811,6 +9398,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "coding_assistance.boundary.policy_context_propagation",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": "lib/jido_code/conversations/driver.ex",
+        "verification_index": 3
+      },
+      {
         "cover_id": "coding_assistance.boundary.session_authority_delegation",
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "kind": "source_file",
@@ -8819,7 +9417,7 @@
         "strength": "linked",
         "subject_id": "coding_assistance.boundary",
         "target": "test/jido_code/coding_assistance_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
@@ -8830,7 +9428,7 @@
         "strength": "linked",
         "subject_id": "coding_assistance.boundary",
         "target": "test/jido_code/coding_assistance_test.exs",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "coding_assistance.boundary.public_jido_os_service_boundary",
@@ -8841,7 +9439,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "coding_assistance.boundary.runtime_bootstrap_defaults",
@@ -8852,7 +9450,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "coding_assistance.boundary.session_authority_delegation",
@@ -8863,7 +9461,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
@@ -8874,7 +9472,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "collaboration.workflow.beadwork_enabled",
@@ -9416,14 +10014,14 @@
         "verification_index": 6
       },
       {
-        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "cover_id": "package.jido_code.spec_led_workspace",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": ".spec/specs/conversation_driver.spec.md",
         "verification_index": 7
       },
       {
@@ -9434,8 +10032,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "mix.exs",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
         "verification_index": 8
+      },
+      {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "test/jido_code/conversations/phase_four_integration_test.exs",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "mix.exs",
+        "verification_index": 10
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -9446,28 +10066,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 9
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
-        "verification_index": 10
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 11
       },
       {
@@ -9478,29 +10076,29 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "mix help command",
         "verification_index": 12
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 13
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 14
       },
       {
@@ -9511,7 +10109,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 15
       },
       {
@@ -9522,7 +10120,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 16
       },
       {
@@ -9533,7 +10131,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 17
       },
       {
@@ -9544,7 +10142,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 18
       },
       {
@@ -9555,7 +10153,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 19
       },
       {
@@ -9566,7 +10164,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 20
       },
       {
@@ -9577,7 +10175,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 21
       },
       {
@@ -9588,8 +10186,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 22
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "verification_index": 23
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 24
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -9600,7 +10220,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
@@ -9611,7 +10231,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -10433,7 +11053,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 364
+      "linked": 397
     },
     "threshold_failures": 0
   },

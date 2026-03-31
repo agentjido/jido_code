@@ -85,37 +85,37 @@ defmodule JidoCode.TestSupport.CodeServer.RuntimeFake do
   defp resolve_result(result, _args), do: result
 
   defp emit_conversation_events(conversation_id, event) do
-    content = event |> get_in(["data", "content"]) |> normalize_content()
+    normalized_event = normalize_event(event)
 
-    if is_binary(content) do
-      send(
-        self(),
-        {:conversation_event, conversation_id, %{"type" => "user.message", "data" => %{"content" => content}}}
-      )
+    if is_binary(Map.get(normalized_event, "type")) do
+      send(self(), {:conversation_event, conversation_id, normalized_event})
 
-      send(
-        self(),
-        {:conversation_event, conversation_id, %{"type" => "assistant.delta", "data" => %{"content" => "Ack: "}}}
-      )
-
-      send(
-        self(),
-        {:conversation_event, conversation_id,
-         %{"type" => "assistant.message", "data" => %{"content" => "Ack: #{content}"}}}
-      )
+      if Map.get(normalized_event, "type") == "assistant.delta" do
+        send(self(), {:conversation_delta, conversation_id, normalized_event})
+      end
     end
 
     :ok
   end
 
-  defp normalize_content(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      content -> content
-    end
+  defp normalize_event(event) when is_map(event) do
+    Enum.reduce(event, %{}, fn {key, value}, acc ->
+      normalized_key =
+        case key do
+          atom when is_atom(atom) -> Atom.to_string(atom)
+          binary when is_binary(binary) -> binary
+          other -> to_string(other)
+        end
+
+      Map.put(acc, normalized_key, normalize_nested_value(value))
+    end)
   end
 
-  defp normalize_content(_value), do: nil
+  defp normalize_event(_value), do: %{}
+
+  defp normalize_nested_value(value) when is_map(value), do: normalize_event(value)
+  defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
+  defp normalize_nested_value(value), do: value
 
   defp normalize_project_id(value) when is_binary(value), do: value
   defp normalize_project_id(value) when is_atom(value), do: Atom.to_string(value)

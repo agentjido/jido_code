@@ -4,6 +4,7 @@ defmodule JidoCode.Operations.WorkSynthesis do
   # covers: architecture.work_synthesis.work_item_creation_can_stop_before_execution
   # covers: architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
   # covers: architecture.work_synthesis.work_item_auditability_preserved
+  # covers: architecture.work_synthesis.conversation_turns_can_steer_existing_work
   @moduledoc """
   Creates or reconciles durable work items from synthesized assessments.
   """
@@ -20,7 +21,7 @@ defmodule JidoCode.Operations.WorkSynthesis do
           {:ok,
            %{
              work_item: WorkItem.t() | nil,
-             action: :created | :reprioritized | :suppressed_duplicate | :unscoped
+             action: :created | :reprioritized | :suppressed_duplicate | :steered | :unscoped
            }}
           | {:error, term()}
   def from_assessment(%Assessment{} = assessment, opts \\ []) do
@@ -67,6 +68,7 @@ defmodule JidoCode.Operations.WorkSynthesis do
        external_object: external_object,
        observation: observation,
        intake: intake,
+       target_work_item: steering_target_work_item(intake, assessment.managed_repo_id || event.managed_repo_id),
        managed_repo_id: assessment.managed_repo_id || event.managed_repo_id,
        category: assessment.category,
        priority: assessment.priority,
@@ -79,15 +81,21 @@ defmodule JidoCode.Operations.WorkSynthesis do
   end
 
   defp reconcile_work_item(context) do
-    case find_open_work_item(context.managed_repo_id, context.dedup_key) do
-      {:ok, nil} ->
-        create_work_item(context)
+    case context.target_work_item do
+      %WorkItem{} = work_item ->
+        steer_existing_work_item(work_item, context)
 
-      {:ok, %WorkItem{} = work_item} ->
-        update_existing_work_item(work_item, context)
+      _other ->
+        case find_open_work_item(context.managed_repo_id, context.dedup_key) do
+          {:ok, nil} ->
+            create_work_item(context)
 
-      {:error, reason} ->
-        {:error, reason}
+          {:ok, %WorkItem{} = work_item} ->
+            update_existing_work_item(work_item, context)
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 
@@ -119,7 +127,14 @@ defmodule JidoCode.Operations.WorkSynthesis do
 
   defp update_existing_work_item(work_item, context) do
     next_action = existing_work_action(work_item, context)
+    do_update_work_item(work_item, context, next_action)
+  end
 
+  defp steer_existing_work_item(work_item, context) do
+    do_update_work_item(work_item, context, :steered)
+  end
+
+  defp do_update_work_item(work_item, context, next_action) do
     attrs = %{
       assessment_id: context.assessment.id,
       event_id: context.event.id,
@@ -154,6 +169,9 @@ defmodule JidoCode.Operations.WorkSynthesis do
 
   defp audit_reason(:reprioritized),
     do: "Merged equivalent work demand and raised priority from fresher assessment data."
+
+  defp audit_reason(:steered),
+    do: "Conversation steering updated an existing work item through the managed-repository control loop."
 
   defp audit_reason(:suppressed_duplicate),
     do: "Suppressed equivalent duplicate work demand and refreshed existing work context."
@@ -214,6 +232,14 @@ defmodule JidoCode.Operations.WorkSynthesis do
       {"launch_issue_triage_workflow", _external_object, _intake} ->
         "Queue issue triage demand for the managed repository."
 
+      {"steer_existing_work_item", _external_object, %Intake{} = intake} ->
+        work_item_id =
+          intake.payload
+          |> map_get("work_item_id", :work_item_id)
+          |> normalize_optional_string()
+
+        "Steer existing work item #{work_item_id || "for the managed repository"} through conversation demand."
+
       {recommended_action, _external_object, _intake} ->
         humanized_action = recommended_action |> to_string() |> String.replace("_", " ")
         "Queue #{humanized_action} work for the managed repository."
@@ -233,6 +259,7 @@ defmodule JidoCode.Operations.WorkSynthesis do
     |> maybe_put("external_reference", external_reference(external_object))
     |> maybe_put("observation_id", optional_id(observation))
     |> maybe_put("intake_id", optional_id(intake))
+    |> maybe_put("conversation_context", conversation_context(intake))
   end
 
   defp source_record_type(%Observation{}, _intake), do: "observation"
@@ -306,6 +333,59 @@ defmodule JidoCode.Operations.WorkSynthesis do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp steering_target_work_item(%Intake{} = intake, managed_repo_id) when is_binary(managed_repo_id) do
+    work_item_id =
+      intake.payload
+      |> map_get("work_item_id", :work_item_id)
+      |> normalize_optional_string()
+
+    case work_item_id do
+      nil ->
+        nil
+
+      normalized_work_item_id ->
+        case WorkItem.read(
+               query: [
+                 filter: [id: normalized_work_item_id, managed_repo_id: managed_repo_id, status: :open],
+                 limit: 1
+               ],
+               actor: @work_actor
+             ) do
+          {:ok, [%WorkItem{} = work_item | _rest]} -> work_item
+          _other -> nil
+        end
+    end
+  end
+
+  defp steering_target_work_item(_intake, _managed_repo_id), do: nil
+
+  defp conversation_context(%Intake{} = intake) do
+    source_metadata = normalize_map(intake.source_metadata)
+
+    context =
+      %{
+        "conversation_id" => source_metadata["conversation_id"],
+        "session_id" => source_metadata["session_id"],
+        "request_id" => source_metadata["request_id"],
+        "correlation_id" => source_metadata["correlation_id"],
+        "workspace_id" => source_metadata["workspace_id"],
+        "turn_mode" => source_metadata["turn_mode"],
+        "policy_action" => source_metadata["policy_action"],
+        "policy_reason_code" => source_metadata["policy_reason_code"],
+        "review_policy_mode" =>
+          source_metadata
+          |> Map.get("review_policy", %{})
+          |> normalize_map()
+          |> Map.get("mode")
+      }
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+
+    if context == %{}, do: nil, else: context
+  end
+
+  defp conversation_context(_intake), do: nil
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 

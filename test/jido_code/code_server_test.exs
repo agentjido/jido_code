@@ -6,6 +6,7 @@ defmodule JidoCode.CodeServerTest do
   require Logger
 
   alias JidoCode.CodeServer
+  alias JidoCode.TestSupport.CodeServer.DriverFake
   alias JidoCode.TestSupport.CodeServer.EngineFake
   alias JidoCode.TestSupport.CodeServer.RuntimeFake
   alias JidoCode.TestSupport.CodeServer.ScopeFake
@@ -14,23 +15,28 @@ defmodule JidoCode.CodeServerTest do
     original_scope_module = Application.get_env(:jido_code, :code_server_project_scope_module, :__missing__)
     original_runtime_module = Application.get_env(:jido_code, :code_server_runtime_module, :__missing__)
     original_engine_module = Application.get_env(:jido_code, :code_server_engine_module, :__missing__)
+    original_driver_module = Application.get_env(:jido_code, :code_server_conversation_driver_module, :__missing__)
 
     Application.put_env(:jido_code, :code_server_project_scope_module, ScopeFake)
     Application.put_env(:jido_code, :code_server_runtime_module, RuntimeFake)
     Application.put_env(:jido_code, :code_server_engine_module, EngineFake)
+    Application.put_env(:jido_code, :code_server_conversation_driver_module, DriverFake)
 
     ScopeFake.clear()
     RuntimeFake.clear()
     EngineFake.clear()
+    DriverFake.clear()
 
     on_exit(fn ->
       ScopeFake.clear()
       RuntimeFake.clear()
       EngineFake.clear()
+      DriverFake.clear()
 
       restore_env(:code_server_project_scope_module, original_scope_module)
       restore_env(:code_server_runtime_module, original_runtime_module)
       restore_env(:code_server_engine_module, original_engine_module)
+      restore_env(:code_server_conversation_driver_module, original_driver_module)
     end)
 
     :ok
@@ -57,7 +63,7 @@ defmodule JidoCode.CodeServerTest do
 
     assert [{"/tmp/project-lazy-start", opts}] = RuntimeFake.calls(:start_project)
     assert Keyword.get(opts, :project_id) == "project-lazy-start"
-    assert Keyword.get(opts, :conversation_orchestration) == true
+    assert Keyword.get(opts, :conversation_orchestration) == false
     assert EngineFake.whereis_calls() == ["project-lazy-start", "project-lazy-start"]
   end
 
@@ -116,20 +122,41 @@ defmodule JidoCode.CodeServerTest do
     EngineFake.put_default_whereis_response({:ok, self()})
     RuntimeFake.put_result(:start_conversation, {:ok, "conversation-42"})
 
-    assert {:ok, "conversation-42"} = CodeServer.start_conversation("project-chat")
+    assert {:ok, "conversation-42"} =
+             CodeServer.start_conversation("project-chat",
+               actor: %{id: "operator-7", email: "operator7@example.com"}
+             )
 
     assert :ok =
              CodeServer.send_user_message(
                "project-chat",
                "conversation-42",
                "Generate a summary",
+               actor: %{id: "operator-7", email: "operator7@example.com"},
                meta: %{"source" => "unit-test"}
              )
 
-    assert [{"project-chat", "conversation-42", event}] = RuntimeFake.calls(:send_event)
-    assert event["type"] == "user.message"
-    assert get_in(event, ["data", "content"]) == "Generate a summary"
-    assert get_in(event, ["meta", "source"]) == "unit-test"
+    assert [%{conversation_id: "conversation-42", actor_id: "operator-7"}] =
+             Enum.map(DriverFake.calls(:prepare_conversation), fn attrs ->
+               %{conversation_id: attrs.conversation_id, actor_id: attrs.actor_id}
+             end)
+
+    assert [%{conversation_id: "conversation-42", actor_id: "operator-7", content: "Generate a summary"}] =
+             Enum.map(DriverFake.calls(:handle_turn), fn attrs ->
+               %{conversation_id: attrs.conversation_id, actor_id: attrs.actor_id, content: attrs.content}
+             end)
+
+    assert [
+             {"project-chat", "conversation-42", user_event},
+             {"project-chat", "conversation-42", delta_event},
+             {"project-chat", "conversation-42", final_event}
+           ] = RuntimeFake.calls(:send_event)
+
+    assert user_event["type"] == "user.message"
+    assert get_in(user_event, ["data", "content"]) == "Generate a summary"
+    assert get_in(user_event, ["meta", "source"]) == "unit-test"
+    assert delta_event["type"] == "assistant.delta"
+    assert get_in(final_event, ["data", "content"]) == "Ack: Generate a summary"
   end
 
   test "start_conversation and stop_conversation emit observability logs" do

@@ -6,6 +6,7 @@ defmodule JidoCode.Orchestration.RunBridge do
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Governance.RunGovernanceBridge
   alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.{ExecutionProfile, Run, WorkflowRun}
 
@@ -24,7 +25,8 @@ defmodule JidoCode.Orchestration.RunBridge do
     with {:ok, managed_repo} <- managed_repo(workflow_run),
          {:ok, execution_profile} <- resolve_execution_profile(managed_repo, workflow_run),
          attrs <- projection_attrs(workflow_run, managed_repo, execution_profile),
-         {:ok, run} <- Run.upsert_projection(attrs, actor: @projection_actor) do
+         {:ok, run} <- Run.upsert_projection(attrs, actor: @projection_actor),
+         {:ok, _governance_projection} <- RunGovernanceBridge.sync_run(run, workflow_run) do
       {:ok, run}
     end
   end

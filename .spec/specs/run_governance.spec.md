@@ -15,12 +15,17 @@ decisions:
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - lib/jido_code/governance/change_request.ex
+  - lib/jido_code/governance/decision.ex
+  - lib/jido_code/governance/evidence.ex
+  - lib/jido_code/governance/run_governance_bridge.ex
   - lib/jido_code/orchestration.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
   - lib/jido_code/orchestration/workflow_run.ex
   - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
+  - priv/repo/migrations/20260331113000_add_run_governance_records.exs
 ```
 
 ## Requirements
@@ -44,6 +49,21 @@ surface:
 - id: architecture.run_governance.run_launch_resolves_effective_execution_profile
   statement: Governed run launch paths shall resolve an effective execution profile before persisting the preferred `Run` projection.
   priority: should
+  stability: evolving
+
+- id: architecture.run_governance.evidence_records_capture_run_outputs
+  statement: Jido.Code shall persist durable `Evidence` records for run outputs such as validation summaries, approval context, failure context, and runtime diagnostics instead of leaving those artifacts only inside workflow step maps.
+  priority: must
+  stability: evolving
+
+- id: architecture.run_governance.change_request_records_reviewable_run_state
+  statement: Jido.Code shall persist durable `ChangeRequest` records when a run enters reviewable approval state so human judgment has a first-class control-plane object instead of only a run-local status.
+  priority: must
+  stability: evolving
+
+- id: architecture.run_governance.decision_records_capture_governance_outcomes
+  statement: Jido.Code shall persist durable `Decision` records for approve, reject, or defer outcomes with actor attribution and evidence references instead of keeping those governance outcomes only in transient run metadata.
+  priority: must
   stability: evolving
 ```
 
@@ -70,6 +90,18 @@ surface:
     - A governed run projection resolves its execution environment.
   then:
     - The effective `ExecutionProfile` is persisted from repo defaults plus workflow overrides while keeping explicit repo prep and validation plans.
+
+- id: architecture.run_governance.scenario_review_state_creates_governance_records
+  covers:
+    - architecture.run_governance.evidence_records_capture_run_outputs
+    - architecture.run_governance.change_request_records_reviewable_run_state
+    - architecture.run_governance.decision_records_capture_governance_outcomes
+  given:
+    - A governed run accumulates validation summaries and then reaches review or approval handling.
+  when:
+    - The workflow run projection is synchronized into control-plane governance records.
+  then:
+    - Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references.
 ```
 
 ## Verification
@@ -91,4 +123,26 @@ surface:
   covers:
     - architecture.run_governance.run_launch_resolves_effective_execution_profile
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
+
+- kind: source_file
+  target: lib/jido_code/governance/evidence.ex
+  covers:
+    - architecture.run_governance.evidence_records_capture_run_outputs
+
+- kind: source_file
+  target: lib/jido_code/governance/change_request.ex
+  covers:
+    - architecture.run_governance.change_request_records_reviewable_run_state
+
+- kind: source_file
+  target: lib/jido_code/governance/decision.ex
+  covers:
+    - architecture.run_governance.decision_records_capture_governance_outcomes
+
+- kind: source_file
+  target: lib/jido_code/governance/run_governance_bridge.ex
+  covers:
+    - architecture.run_governance.evidence_records_capture_run_outputs
+    - architecture.run_governance.change_request_records_reviewable_run_state
+    - architecture.run_governance.decision_records_capture_governance_outcomes
 ```

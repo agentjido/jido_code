@@ -17,6 +17,10 @@ surface:
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/governance.ex
+  - lib/jido_code/governance/change_request.ex
+  - lib/jido_code/governance/decision.ex
+  - lib/jido_code/governance/evidence.ex
+  - lib/jido_code/governance/run_governance_bridge.ex
   - lib/jido_code/governance/review_policy.ex
   - lib/jido_code/governance/policy_set.ex
   - lib/jido_code/governance/policy_bridge.ex
@@ -35,6 +39,7 @@ surface:
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
+  - priv/repo/migrations/20260331113000_add_run_governance_records.exs
 ```
 
 ## Requirements

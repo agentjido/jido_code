@@ -477,6 +477,30 @@
       },
       {
         "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.change_request_records_reviewable_run_state",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall persist durable `ChangeRequest` records when a run enters reviewable approval state so human judgment has a first-class control-plane object instead of only a run-local status.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.decision_records_capture_governance_outcomes",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall persist durable `Decision` records for approve, reject, or defer outcomes with actor attribution and evidence references instead of keeping those governance outcomes only in transient run metadata.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.evidence_records_capture_run_outputs",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall persist durable `Evidence` records for run outputs such as validation summaries, approval context, failure context, and runtime diagnostics instead of leaving those artifacts only inside workflow step maps.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
         "id": "architecture.run_governance.execution_profile_governs_environment_defaults",
         "priority": "must",
         "stability": "evolving",
@@ -1899,6 +1923,25 @@
       },
       {
         "covers": [
+          "architecture.run_governance.evidence_records_capture_run_outputs",
+          "architecture.run_governance.change_request_records_reviewable_run_state",
+          "architecture.run_governance.decision_records_capture_governance_outcomes"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "given": [
+          "A governed run accumulates validation summaries and then reaches review or approval handling."
+        ],
+        "id": "architecture.run_governance.scenario_review_state_creates_governance_records",
+        "subject_id": "architecture.run_governance",
+        "then": [
+          "Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references."
+        ],
+        "when": [
+          "The workflow run projection is synchronized into control-plane governance records."
+        ]
+      },
+      {
+        "covers": [
           "architecture.run_governance.run_is_preferred_execution_record"
         ],
         "file": ".spec/specs/run_governance.spec.md",
@@ -3072,6 +3115,10 @@
             "lib/jido_code/control/managed_repo.ex",
             "lib/jido_code/control/repo_bridge.ex",
             "lib/jido_code/governance.ex",
+            "lib/jido_code/governance/change_request.ex",
+            "lib/jido_code/governance/decision.ex",
+            "lib/jido_code/governance/evidence.ex",
+            "lib/jido_code/governance/run_governance_bridge.ex",
             "lib/jido_code/governance/policy_set.ex",
             "lib/jido_code/governance/policy_bridge.ex",
             "lib/jido_code/operations.ex",
@@ -3095,7 +3142,8 @@
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
             "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
             "priv/repo/migrations/20260330195000_add_operations_work_items.exs",
-            "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs"
+            "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs",
+            "priv/repo/migrations/20260331113000_add_run_governance_records.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3310,6 +3358,10 @@
             "lib/jido_code/control/source_repo.ex",
             "lib/jido_code/control/managed_repo.ex",
             "lib/jido_code/governance.ex",
+            "lib/jido_code/governance/change_request.ex",
+            "lib/jido_code/governance/decision.ex",
+            "lib/jido_code/governance/evidence.ex",
+            "lib/jido_code/governance/run_governance_bridge.ex",
             "lib/jido_code/governance/review_policy.ex",
             "lib/jido_code/governance/policy_set.ex",
             "lib/jido_code/governance/policy_bridge.ex",
@@ -3327,7 +3379,8 @@
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
             "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
-            "priv/repo/migrations/20260330195000_add_operations_work_items.exs"
+            "priv/repo/migrations/20260330195000_add_operations_work_items.exs",
+            "priv/repo/migrations/20260331113000_add_run_governance_records.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3487,12 +3540,17 @@
           "surface": [
             ".spec/decisions/jido_code.runic_execution_model.md",
             ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+            "lib/jido_code/governance/change_request.ex",
+            "lib/jido_code/governance/decision.ex",
+            "lib/jido_code/governance/evidence.ex",
+            "lib/jido_code/governance/run_governance_bridge.ex",
             "lib/jido_code/orchestration.ex",
             "lib/jido_code/orchestration/execution_profile.ex",
             "lib/jido_code/orchestration/run.ex",
             "lib/jido_code/orchestration/run_bridge.ex",
             "lib/jido_code/orchestration/workflow_run.ex",
-            "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs"
+            "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs",
+            "priv/repo/migrations/20260331113000_add_run_governance_records.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3949,6 +4007,44 @@
         "kind": "source_file",
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/orchestration/run_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.evidence_records_capture_run_outputs"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/evidence.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.change_request_records_reviewable_run_state"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/change_request.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.decision_records_capture_governance_outcomes"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/decision.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.evidence_records_capture_run_outputs",
+          "architecture.run_governance.change_request_records_reviewable_run_state",
+          "architecture.run_governance.decision_records_capture_governance_outcomes"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/run_governance_bridge.ex"
       },
       {
         "covers": [
@@ -5638,10 +5734,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 178,
-    "scenarios": 70,
+    "requirements": 181,
+    "scenarios": 71,
     "subjects": 34,
-    "verifications": 193
+    "verifications": 197
   },
   "verification": {
     "claims": [
@@ -6546,6 +6642,72 @@
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/orchestration/run_bridge.ex",
         "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.run_governance.evidence_records_capture_run_outputs",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/evidence.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "architecture.run_governance.change_request_records_reviewable_run_state",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/change_request.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.run_governance.decision_records_capture_governance_outcomes",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/decision.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.run_governance.change_request_records_reviewable_run_state",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/run_governance_bridge.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.run_governance.decision_records_capture_governance_outcomes",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/run_governance_bridge.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.run_governance.evidence_records_capture_run_outputs",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/run_governance_bridge.ex",
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -10073,7 +10235,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 351
+      "linked": 357
     },
     "threshold_failures": 0
   },

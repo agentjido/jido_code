@@ -6,6 +6,9 @@ defmodule JidoCode.Governance do
   end
 
   resources do
+    resource JidoCode.Governance.ChangeRequest
+    resource JidoCode.Governance.Decision
+    resource JidoCode.Governance.Evidence
     resource JidoCode.Governance.PolicySet
   end
 end

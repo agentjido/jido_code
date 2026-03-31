@@ -27,6 +27,19 @@ defmodule JidoCode.Conversations.EventBridge do
 
   def success_events(_result, _ingress_result, _context), do: []
 
+  @spec turn_events([map()], map(), map()) :: [map()]
+  def turn_events(events, ingress_result, context)
+      when is_list(events) and is_map(ingress_result) and is_map(context) do
+    Enum.flat_map(events, fn event ->
+      case turn_event(event, ingress_result, context) do
+        nil -> []
+        translated_event -> [translated_event]
+      end
+    end)
+  end
+
+  def turn_events(_events, _ingress_result, _context), do: []
+
   @spec failure_event(term(), map(), map()) :: map()
   def failure_event(reason, context, attrs) when is_map(context) and is_map(attrs) do
     %{
@@ -109,6 +122,45 @@ defmodule JidoCode.Conversations.EventBridge do
     end
   end
 
+  defp turn_event(event, ingress_result, context) when is_map(event) do
+    family = normalize_optional_string(Map.get(event, :family) || Map.get(event, "family"))
+    content = normalize_optional_string(Map.get(event, :content) || Map.get(event, "content"))
+    meta = turn_event_meta(context, ingress_result, event)
+
+    case family do
+      "admitted" ->
+        %{
+          "type" => "assistant.delta",
+          "data" => %{"content" => content || "Coding turn admitted."},
+          "meta" => meta
+        }
+
+      "progress" ->
+        %{
+          "type" => "assistant.delta",
+          "data" => %{"content" => content || "Coding turn in progress."},
+          "meta" => meta
+        }
+
+      "completed" ->
+        %{
+          "type" => "assistant.message",
+          "data" => %{"content" => content || "Coding turn completed."},
+          "meta" => meta
+        }
+
+      family_value when family_value in ["failed", "interrupted", "cancelled"] ->
+        %{
+          "type" => "llm.failed",
+          "data" => %{"detail" => content || "Coding turn #{family_value}."},
+          "meta" => meta
+        }
+
+      _other ->
+        nil
+    end
+  end
+
   defp event_meta(context, ingress_result, result) do
     %{
       "session_id" => normalize_optional_string(Map.get(context, :session_id)),
@@ -124,6 +176,20 @@ defmodule JidoCode.Conversations.EventBridge do
     }
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Map.new()
+  end
+
+  defp turn_event_meta(context, ingress_result, event) do
+    base_meta = event_meta(context, ingress_result, %{turn_id: Map.get(event, :turn_id) || Map.get(event, "turn_id")})
+
+    Map.merge(
+      base_meta,
+      %{
+        "turn_event_id" => normalize_optional_string(Map.get(event, :event_id) || Map.get(event, "event_id")),
+        "turn_event_family" => normalize_optional_string(Map.get(event, :family) || Map.get(event, "family"))
+      }
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+    )
   end
 
   defp failure_meta(context, attrs) do

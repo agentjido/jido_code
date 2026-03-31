@@ -179,8 +179,23 @@ defmodule JidoCode.CodeServer do
          {:ok, user_event} <-
            build_user_message_event(normalized_content, conversation_message_opts(opts, driver_attrs)) do
       case conversation_driver_module().handle_turn(driver_attrs) do
+        {:ok, %{turn: _turn} = driver_result} ->
+          with :ok <-
+                 dispatch_conversation_events(runtime.project_id, normalized_conversation_id, [user_event]) do
+            maybe_start_turn_bridge(
+              runtime.project_id,
+              normalized_conversation_id,
+              driver_attrs,
+              driver_result
+            )
+          end
+
         {:ok, %{events: driver_events}} ->
-          dispatch_conversation_events(runtime.project_id, normalized_conversation_id, [user_event | driver_events])
+          dispatch_conversation_events(
+            runtime.project_id,
+            normalized_conversation_id,
+            [user_event | driver_events]
+          )
 
         {:error, reason, driver_context, failure_event} ->
           _ =
@@ -364,6 +379,34 @@ defmodule JidoCode.CodeServer do
         {:error, typed_error} -> {:halt, {:error, typed_error}}
       end
     end)
+  end
+
+  defp maybe_start_turn_bridge(project_id, conversation_id, driver_attrs, driver_result) do
+    case conversation_turn_bridge_module().start(%{
+           project_id: project_id,
+           conversation_id: conversation_id,
+           actor_id: map_get(driver_attrs, :actor_id, "actor_id", nil),
+           context: normalize_map(Map.get(driver_result, :context)),
+           ingress: normalize_map(Map.get(driver_result, :ingress)),
+           turn: normalize_map(Map.get(driver_result, :turn))
+         }) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, reason} ->
+        log_error("code_server.turn_bridge.start.failure",
+          project_id: project_id,
+          conversation_id: conversation_id,
+          reason: format_reason(reason)
+        )
+
+        fallback_events =
+          driver_result
+          |> Map.get(:events, [])
+          |> List.wrap()
+
+        dispatch_conversation_events(project_id, conversation_id, fallback_events)
+    end
   end
 
   defp do_subscribe(project_id, conversation_id, pid) do
@@ -617,6 +660,14 @@ defmodule JidoCode.CodeServer do
 
   defp conversation_driver_module do
     Application.get_env(:jido_code, :code_server_conversation_driver_module, JidoCode.Conversations.Driver)
+  end
+
+  defp conversation_turn_bridge_module do
+    Application.get_env(
+      :jido_code,
+      :code_server_conversation_turn_bridge_module,
+      JidoCode.Conversations.TurnBridge
+    )
   end
 
   defp repo_bridge_module do

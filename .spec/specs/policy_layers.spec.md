@@ -6,7 +6,7 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-project source identity feeding repo governance independently from the global deployment-mode hint."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-project source identity and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
 surface:
@@ -31,6 +31,7 @@ surface:
   - lib/jido_code/operations/assessment.ex
   - lib/jido_code/operations/external_object.ex
   - lib/jido_code/operations/observation.ex
+  - lib/jido_code/operations/repo_native_state.ex
   - lib/jido_code/operations/intake.ex
   - lib/jido_code/operations/ingress.ex
   - lib/jido_code/operations/synthesis.ex
@@ -93,6 +94,7 @@ surface:
   then:
     - Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.
     - Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.
+    - Repo-native `.spec/` and optional Git-native planning observations may inform repo-governance choices without bypassing Ash-backed durable records or runtime capability admission.
     - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
 ```
 

@@ -18,10 +18,12 @@ surface:
   - lib/jido_code/operations/event.ex
   - lib/jido_code/operations/assessment.ex
   - lib/jido_code/operations/synthesis.ex
+  - lib/jido_code/operations/repo_native_state.ex
   - lib/jido_code/operations/ingress.ex
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
   - test/jido_code/operations/event_assessment_synthesis_test.exs
   - test/jido_code/operations/phase_two_integration_test.exs
+  - test/jido_code/operations/repo_native_state_test.exs
 ```
 
 ## Requirements
@@ -54,6 +56,11 @@ surface:
 
 - id: architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
   statement: When normalized ingress originates from a coding conversation turn, synthesized event and assessment records shall preserve session or conversation identity and distinguish new demand from explicit steering so downstream work synthesis can remain conversation-aware without becoming chat-local state.
+  priority: must
+  stability: evolving
+
+- id: architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
+  statement: When repo-native `.spec/` or optional Git-native planning observations are available for a managed repository, synthesized assessment inputs shall preserve a compact signal snapshot so later posture and planning decisions can remain explainable without duplicating repo-native state into Ash-backed truth.
   priority: must
   stability: evolving
 ```
@@ -101,6 +108,17 @@ surface:
     - The control plane synthesizes that turn into event and assessment meaning.
   then:
     - The resulting records preserve conversation identity, managed-repository correlation, and whether the turn created new work demand or steers an existing work item.
+
+- id: architecture.event_assessment_synthesis.scenario_repo_native_state_enriches_assessment_inputs
+  covers:
+    - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+    - architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
+  given:
+    - A managed repository has repo-native `.spec/` state and may also have optional Beadwork files already observed by the control plane.
+  when:
+    - New operator or conversation ingress is synthesized into an assessment.
+  then:
+    - The assessment inputs preserve a compact repo-native signal snapshot for later posture, planning, and review decisions without replacing the durable repo-native files.
 ```
 
 ## Verification
@@ -128,6 +146,12 @@ surface:
     - architecture.event_assessment_synthesis.assessment_priority_and_next_action
     - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
     - architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
+    - architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
+
+- kind: source_file
+  target: lib/jido_code/operations/repo_native_state.ex
+  covers:
+    - architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
 
 - kind: source_file
   target: test/jido_code/operations/event_assessment_synthesis_test.exs
@@ -137,6 +161,12 @@ surface:
     - architecture.event_assessment_synthesis.assessment_records_interpret_events
     - architecture.event_assessment_synthesis.assessment_priority_and_next_action
     - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+
+- kind: source_file
+  target: test/jido_code/operations/repo_native_state_test.exs
+  covers:
+    - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+    - architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
 
 - kind: source_file
   target: test/jido_code/operations/phase_two_integration_test.exs

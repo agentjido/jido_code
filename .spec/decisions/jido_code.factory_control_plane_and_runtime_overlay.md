@@ -121,6 +121,13 @@ not written directly by external ingress actors, so typed actionable meaning,
 priority, urgency, and recommended next action remain part of the governed
 factory loop instead of becoming ad hoc feature-local side effects.
 
+Repo-native state should influence that interpretation through compact signal
+snapshots rather than through direct duplication of repo files into product
+records. `.spec/` verification health and optional Git-native planning layers
+such as Beadwork may be observed into durable `Observation` records and then
+fed into later assessment, posture, planning, and review decisions while the
+repo-native files themselves remain the Git-traveling source of truth.
+
 Once actionable meaning exists, the next durable step is `WorkItem`, not
 immediate execution. Equivalent work demand should reconcile through governed
 work synthesis that can create a new work record, reprioritize an existing one,

@@ -127,6 +127,11 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code/operations/repo_native_state_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: mix.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces

@@ -4,12 +4,14 @@ defmodule JidoCode.Operations.Synthesis do
   # covers: architecture.event_assessment_synthesis.assessment_records_interpret_events
   # covers: architecture.event_assessment_synthesis.assessment_priority_and_next_action
   # covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+  # covers: architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
   # covers: architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
   @moduledoc """
   Derives durable control-plane events and assessments from normalized ingress records.
   """
 
   alias JidoCode.Control.Actor
+  alias JidoCode.Operations.RepoNativeState
   alias JidoCode.Operations.{Assessment, Event, ExternalObject, Intake, Observation, WorkSynthesis}
 
   @synthesis_actor Actor.factory_system_actor(%{
@@ -126,6 +128,8 @@ defmodule JidoCode.Operations.Synthesis do
            "Normalized external demand entered the control plane through observation."}
       end
 
+    repo_native_state = repo_native_inputs(observation.managed_repo_id)
+
     %{
       managed_repo_id: observation.managed_repo_id,
       event_id: event.id,
@@ -139,7 +143,8 @@ defmodule JidoCode.Operations.Synthesis do
       inputs: %{
         "event_category" => event.category,
         "observation_id" => observation.id,
-        "observation_source" => observation.source
+        "observation_source" => observation.source,
+        "repo_native_state" => repo_native_state
       },
       assessment_metadata:
         observation.source_metadata
@@ -174,6 +179,8 @@ defmodule JidoCode.Operations.Synthesis do
     {category, priority, urgency, recommended_action, rationale} =
       intake_assessment_profile(intake)
 
+    repo_native_state = repo_native_inputs(intake.managed_repo_id)
+
     %{
       managed_repo_id: intake.managed_repo_id,
       event_id: event.id,
@@ -187,7 +194,8 @@ defmodule JidoCode.Operations.Synthesis do
         "event_category" => event.category,
         "intake_id" => intake.id,
         "channel" => intake.channel,
-        "intent" => intake.intent
+        "intent" => intake.intent,
+        "repo_native_state" => repo_native_state
       },
       assessment_metadata:
         intake.source_metadata
@@ -385,4 +393,15 @@ defmodule JidoCode.Operations.Synthesis do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp repo_native_inputs(nil), do: %{}
+
+  defp repo_native_inputs(managed_repo_id) when is_binary(managed_repo_id) do
+    case RepoNativeState.latest_signal_snapshot(managed_repo_id) do
+      {:ok, snapshot} -> snapshot
+      _other -> %{}
+    end
+  end
+
+  defp repo_native_inputs(_managed_repo_id), do: %{}
 end

@@ -14,6 +14,7 @@ surface:
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/control/actor.ex
   - lib/jido_code/control/checks/actor_class_in.ex
+  - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/governance.ex
@@ -90,6 +91,7 @@ surface:
   then:
     - Repo governance, Ash data-plane authorization, and runtime capability policy each contribute to the decision through their own boundary rather than being treated as one undifferentiated rule set.
     - Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.
+    - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
 ```
 
 ## Verification

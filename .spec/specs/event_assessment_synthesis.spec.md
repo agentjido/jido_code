@@ -14,6 +14,7 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
 surface:
+  - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/operations/event.ex
   - lib/jido_code/operations/assessment.ex
   - lib/jido_code/operations/synthesis.ex
@@ -50,6 +51,11 @@ surface:
   statement: `Assessment` synthesis shall preserve structured space for future posture, policy, and repo-native state inputs to influence interpretation outcomes without changing the durable object model.
   priority: must
   stability: evolving
+
+- id: architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
+  statement: When normalized ingress originates from a coding conversation turn, synthesized event and assessment records shall preserve session or conversation identity and distinguish new demand from explicit steering so downstream work synthesis can remain conversation-aware without becoming chat-local state.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -81,6 +87,20 @@ surface:
     - The control plane synthesizes the request into actionable meaning.
   then:
     - A durable `Event` and `Assessment` are recorded with typed category, repo correlation, explicit priority and urgency, recommended next action, and preserved assessment inputs for future policy or posture signals.
+
+- id: architecture.event_assessment_synthesis.scenario_conversation_turn_becomes_actionable_interpretation
+  covers:
+    - architecture.event_assessment_synthesis.event_records_derived_from_ingress
+    - architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved
+    - architecture.event_assessment_synthesis.assessment_records_interpret_events
+    - architecture.event_assessment_synthesis.assessment_priority_and_next_action
+    - architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
+  given:
+    - A coding-oriented conversation turn has already been normalized into intake.
+  when:
+    - The control plane synthesizes that turn into event and assessment meaning.
+  then:
+    - The resulting records preserve conversation identity, managed-repository correlation, and whether the turn created new work demand or steers an existing work item.
 ```
 
 ## Verification
@@ -107,6 +127,7 @@ surface:
     - architecture.event_assessment_synthesis.assessment_records_interpret_events
     - architecture.event_assessment_synthesis.assessment_priority_and_next_action
     - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+    - architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
 
 - kind: source_file
   target: test/jido_code/operations/event_assessment_synthesis_test.exs

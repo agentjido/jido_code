@@ -3,6 +3,8 @@
 This subject defines the first-class conversation driver architecture for coding
 conversations in `Jido.Code`.
 
+<!-- covers: package.jido_code.spec_led_workspace -->
+
 ```spec-meta
 id: architecture.conversation_driver
 kind: policy
@@ -16,6 +18,7 @@ surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex
@@ -118,6 +121,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  covers:
+    - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+
+- kind: source_file
+  target: lib/jido_code/conversations/ingress.ex
   covers:
     - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
 ```

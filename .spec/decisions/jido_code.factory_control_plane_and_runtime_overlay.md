@@ -102,6 +102,13 @@ workbench-originated operator requests should normalize into `Intake`, preservin
 actor attribution, source metadata, and managed-repository correlation before `Event`
 or `Assessment` synthesis begins.
 
+Coding conversations follow the same rule. A coding turn is not a second
+control-plane lane; it is normalized operator demand with conversation or session,
+request, correlation, and managed-repository context preserved through durable
+`Intake`, `Event`, `Assessment`, and `WorkItem` records. When a turn explicitly
+targets an existing work item, the control plane should steer that record rather
+than force a duplicate work object.
+
 After ingress capture, interpretation becomes a system-owned control-plane step.
 `Event` and `Assessment` records should be synthesized under product authority,
 not written directly by external ingress actors, so typed actionable meaning,

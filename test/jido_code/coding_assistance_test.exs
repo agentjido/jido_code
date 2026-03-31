@@ -4,6 +4,8 @@ defmodule JidoCode.CodingAssistanceTest do
   # covers: jido_os.runtime.compatibility.local_override_present
   # covers: jido_os.runtime.compatibility.public_runtime_surface
   # covers: jido_os.runtime.compatibility.session_and_envelope_behaviour
+  # covers: jido_os.runtime.compatibility.public_turn_runtime_surface
+  # covers: jido_os.runtime.compatibility.compatibility_assist_uses_same_turn_model
   use ExUnit.Case, async: false
 
   alias JidoCode.CodingAssistance
@@ -87,6 +89,79 @@ defmodule JidoCode.CodingAssistanceTest do
 
     assert {:ok, reloaded} = CodingAssistance.lookup_session(session_id, actor_id)
     refute Map.has_key?(reloaded, :project_id)
+  end
+
+  test "public turn wrappers expose the additive session-turn runtime surface" do
+    actor_id = "user-4"
+    session_id = "thread-4"
+
+    assert {:ok, turn} =
+             CodingAssistance.start_turn(actor_id, %{
+               session_id: session_id,
+               objective: "Implement the replay bridge for coding-turn events",
+               operation: "implement",
+               workspace_id: "/tmp/repo-public-turns"
+             })
+
+    assert turn.session_id == session_id
+    assert turn.conversation_id == session_id
+    assert turn.state == "completed"
+    assert is_binary(turn.turn_id)
+
+    assert {:ok, fetched_turn} =
+             CodingAssistance.get_turn(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id
+             })
+
+    assert fetched_turn.turn_id == turn.turn_id
+    assert fetched_turn.assistant_output.message =~ "Implement"
+
+    assert {:ok, turns} = CodingAssistance.list_turns(actor_id, %{session_id: session_id})
+    assert Enum.any?(turns, &(&1.turn_id == turn.turn_id))
+
+    assert {:ok, events} =
+             CodingAssistance.list_turn_events(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id
+             })
+
+    assert Enum.map(events, & &1.family) == ["admitted", "progress", "completed"]
+
+    assert {:ok, replay_events} =
+             CodingAssistance.list_turn_events(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id,
+               after_event_id: hd(events).event_id
+             })
+
+    assert Enum.map(replay_events, & &1.family) == ["progress", "completed"]
+
+    assert {:ok, artifacts} =
+             CodingAssistance.list_turn_artifacts(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id
+             })
+
+    assert artifacts == []
+
+    assert {:ok, review} =
+             CodingAssistance.review_turn(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id
+             })
+
+    assert review.turn_id == turn.turn_id
+    assert review.assistant_output.message =~ "Implement"
+
+    assert {:ok, cancelled_turn} =
+             CodingAssistance.cancel_turn(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id
+             })
+
+    assert cancelled_turn.turn_id == turn.turn_id
+    assert cancelled_turn.state == "completed"
   end
 
   defp restore_env(app, key, nil), do: Application.delete_env(app, key)

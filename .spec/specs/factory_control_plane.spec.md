@@ -11,10 +11,12 @@ summary: Jido.Code centers the product on a governed software-factory control pl
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/control.ex
   - lib/jido_code/control/compatibility_rollout.ex
@@ -114,6 +116,11 @@ surface:
   statement: The control plane shall expose operator-facing rollout evidence showing which surfaces still depend on `Project` or `WorkflowRun` compatibility paths, the criteria for removing each shim, and typed rollback procedures for mixed-mode recovery.
   priority: should
   stability: evolving
+
+- id: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+  statement: When coding conversations execute through public `jido_os` turn runtime surfaces, admitted turns and their bounded terminal outputs shall flow back into managed-repository ingress, governed run projections, and governed evidence records instead of creating a parallel product truth lane outside the control plane.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -171,6 +178,17 @@ surface:
     - An operator checks rollout health or opens a compatibility-sensitive surface.
   then:
     - Legacy repo state may be backfilled into the preferred control-plane model, and the product exposes the remaining compatibility dependencies, removal criteria, and rollback steps instead of hiding the mixed-mode state.
+
+- id: architecture.factory_control_plane.scenario_runtime_turns_rejoin_governed_control_plane
+  covers:
+    - architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+  given:
+    - A coding conversation has been admitted through product-side ingress for a managed repository.
+  when:
+    - The conversation runs asynchronously through the public `jido_os` turn runtime.
+  then:
+    - Runtime turn progress may stay in the runtime overlay, but terminal turn identity and bounded outcomes are projected back into governed work, run, and evidence records owned by the product control plane.
 ```
 
 ## Verification
@@ -184,6 +202,11 @@ surface:
     - architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work
     - architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
     - architecture.factory_control_plane.lightweight_hosted_multi_user_posture
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
@@ -249,4 +272,9 @@ surface:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
     - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
     - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_seven_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
 ```

@@ -157,4 +157,88 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
     assert execution_profile.sandbox_profile["shape"] == "large"
     assert execution_profile.validation_plan == ["tests"]
   end
+
+  test "terminal public turns materialize governed workflow, run, and work item linkage" do
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-turn-materialization",
+        github_full_name: "owner/repo-turn-materialization",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, %{work_item: work_item}} =
+      Ingress.record_operator_intake(%{
+        channel: "conversation",
+        intent: "coding_turn",
+        project_id: project.id,
+        actor: %{id: "operator-turn", email: "turn@example.com"},
+        payload: %{"objective" => "Replay bridge ready"},
+        source_metadata: %{"trigger" => %{"source" => "run_bridge_turn_test"}}
+      })
+
+    assert {:ok, %{workflow_run: workflow_run, run: run, work_item: updated_work_item}} =
+             RunBridge.materialize_turn(%{
+               project_id: project.id,
+               managed_repo_id: managed_repo.id,
+               work_item_id: work_item.id,
+               actor_id: "operator-turn",
+               actor_email: "turn@example.com",
+               conversation_id: "conversation-turn-1",
+               turn: %{
+                 turn_id: "turn-123",
+                 session_id: "conversation-turn-1",
+                 conversation_id: "conversation-turn-1",
+                 operation: "plan",
+                 objective: "Replay bridge ready",
+                 state: "completed",
+                 terminal_at: "2026-03-31T23:10:00Z",
+                 assistant_output: %{message: "Replay bridge ready."},
+                 summary_status: %{state: "completed"}
+               },
+               review: %{
+                 turn_id: "turn-123",
+                 assistant_output: %{message: "Replay bridge ready."}
+               },
+               artifacts: [
+                 %{
+                   artifact_id: "artifact-1",
+                   kind: "patch",
+                   title: "Patch summary",
+                   summary: "Replay bridge patch summary"
+                 }
+               ],
+               events: [
+                 %{event_id: "event-1", family: "completed", content: "Replay bridge ready."}
+               ]
+             })
+
+    assert workflow_run.run_id == "turn:turn-123"
+    assert workflow_run.workflow_name == "coding_turn_plan"
+    assert workflow_run.status == :completed
+    assert workflow_run.inputs["turn_id"] == "turn-123"
+    assert workflow_run.step_results["coding_turn_summary"]["turn_id"] == "turn-123"
+
+    assert updated_work_item.work_metadata["public_turn"]["turn_id"] == "turn-123"
+    assert List.last(updated_work_item.audit_log)["entry_type"] == "public_turn_materialized"
+
+    assert run.work_item_id == work_item.id
+    assert run.run_metadata["public_turn"]["turn_id"] == "turn-123"
+    assert run.run_metadata["public_turn"]["conversation_id"] == "conversation-turn-1"
+
+    {:ok, evidence_records} =
+      JidoCode.Governance.Evidence.read(
+        query: [filter: [run_id: run.id], sort: [key: :asc]],
+        actor: Actor.operator_actor()
+      )
+
+    assert Enum.map(evidence_records, & &1.key) == [
+             "coding_turn_artifacts",
+             "coding_turn_review",
+             "coding_turn_summary"
+           ]
+  end
 end

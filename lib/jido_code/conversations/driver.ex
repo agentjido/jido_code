@@ -23,7 +23,7 @@ defmodule JidoCode.Conversations.Driver do
            %{
              context: map(),
              ingress: map(),
-             envelope: map(),
+             turn: map(),
              events: [map()]
            }}
           | {:error, term(), map(), map()}
@@ -55,13 +55,13 @@ defmodule JidoCode.Conversations.Driver do
          {:ok, policy_decision} <- resolve_policy_decision(attrs, context),
          {:ok, ingress_result} <-
            conversation_ingress_module().record_turn(conversation_turn_attrs(attrs, context, policy_decision)),
-         {:ok, envelope} <- coding_assistance_module().assist(actor_id, assist_params(attrs, context, ingress_result)) do
+         {:ok, turn} <- coding_assistance_module().start_turn(actor_id, turn_params(attrs, context, ingress_result)) do
       {:ok,
        %{
          context: context,
          ingress: ingress_result,
-         envelope: envelope,
-         events: event_bridge_module().success_events(envelope, ingress_result, context)
+         turn: turn,
+         events: event_bridge_module().success_events(turn, ingress_result, context)
        }}
     else
       :missing_actor_id ->
@@ -94,7 +94,7 @@ defmodule JidoCode.Conversations.Driver do
 
   defp maybe_bind_project(_context, _actor_id, _runtime_attrs), do: {:ok, %{}}
 
-  defp assist_params(attrs, context, ingress_result) do
+  defp turn_params(attrs, context, ingress_result) do
     %{
       session_id: context.session_id,
       project_id: context.managed_repo_id || context.project_id,

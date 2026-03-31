@@ -10,6 +10,7 @@ defmodule JidoCode.CodeServerTest do
   alias JidoCode.TestSupport.CodeServer.EngineFake
   alias JidoCode.TestSupport.CodeServer.RuntimeFake
   alias JidoCode.TestSupport.CodeServer.ScopeFake
+  alias JidoCode.TestSupport.CodeServer.TurnBridgeFake
 
   setup do
     original_scope_module = Application.get_env(:jido_code, :code_server_project_scope_module, :__missing__)
@@ -17,26 +18,33 @@ defmodule JidoCode.CodeServerTest do
     original_engine_module = Application.get_env(:jido_code, :code_server_engine_module, :__missing__)
     original_driver_module = Application.get_env(:jido_code, :code_server_conversation_driver_module, :__missing__)
 
+    original_turn_bridge_module =
+      Application.get_env(:jido_code, :code_server_conversation_turn_bridge_module, :__missing__)
+
     Application.put_env(:jido_code, :code_server_project_scope_module, ScopeFake)
     Application.put_env(:jido_code, :code_server_runtime_module, RuntimeFake)
     Application.put_env(:jido_code, :code_server_engine_module, EngineFake)
     Application.put_env(:jido_code, :code_server_conversation_driver_module, DriverFake)
+    Application.put_env(:jido_code, :code_server_conversation_turn_bridge_module, TurnBridgeFake)
 
     ScopeFake.clear()
     RuntimeFake.clear()
     EngineFake.clear()
     DriverFake.clear()
+    TurnBridgeFake.clear()
 
     on_exit(fn ->
       ScopeFake.clear()
       RuntimeFake.clear()
       EngineFake.clear()
       DriverFake.clear()
+      TurnBridgeFake.clear()
 
       restore_env(:code_server_project_scope_module, original_scope_module)
       restore_env(:code_server_runtime_module, original_runtime_module)
       restore_env(:code_server_engine_module, original_engine_module)
       restore_env(:code_server_conversation_driver_module, original_driver_module)
+      restore_env(:code_server_conversation_turn_bridge_module, original_turn_bridge_module)
     end)
 
     :ok
@@ -122,6 +130,22 @@ defmodule JidoCode.CodeServerTest do
     EngineFake.put_default_whereis_response({:ok, self()})
     RuntimeFake.put_result(:start_conversation, {:ok, "conversation-42"})
 
+    DriverFake.put_result(:handle_turn, fn [attrs] ->
+      {:ok,
+       %{
+         context: attrs,
+         ingress: %{},
+         turn: %{turn_id: "turn-42", session_id: attrs.conversation_id},
+         events: [
+           %{"type" => "assistant.delta", "data" => %{"content" => "Ack: "}},
+           %{
+             "type" => "assistant.message",
+             "data" => %{"content" => "Ack: #{Map.get(attrs, :content)}"}
+           }
+         ]
+       }}
+    end)
+
     assert {:ok, "conversation-42"} =
              CodeServer.start_conversation("project-chat",
                actor: %{id: "operator-7", email: "operator7@example.com"}
@@ -146,17 +170,20 @@ defmodule JidoCode.CodeServerTest do
                %{conversation_id: attrs.conversation_id, actor_id: attrs.actor_id, content: attrs.content}
              end)
 
-    assert [
-             {"project-chat", "conversation-42", user_event},
-             {"project-chat", "conversation-42", delta_event},
-             {"project-chat", "conversation-42", final_event}
-           ] = RuntimeFake.calls(:send_event)
+    assert [%{conversation_id: "conversation-42", turn_id: "turn-42", actor_id: "operator-7"}] =
+             Enum.map(TurnBridgeFake.calls(), fn attrs ->
+               %{
+                 conversation_id: attrs.conversation_id,
+                 turn_id: get_in(attrs, [:turn, :turn_id]),
+                 actor_id: attrs.actor_id
+               }
+             end)
+
+    assert [{"project-chat", "conversation-42", user_event}] = RuntimeFake.calls(:send_event)
 
     assert user_event["type"] == "user.message"
     assert get_in(user_event, ["data", "content"]) == "Generate a summary"
     assert get_in(user_event, ["meta", "source"]) == "unit-test"
-    assert delta_event["type"] == "assistant.delta"
-    assert get_in(final_event, ["data", "content"]) == "Ack: Generate a summary"
   end
 
   test "start_conversation and stop_conversation emit observability logs" do

@@ -3,7 +3,9 @@
 <!-- covers: package.jido_code.spec_led_workspace -->
 
 This directory contains a phased migration plan for aligning `jido_code` with the
-factory-control-plane architecture recorded in the current ADR and subject specs.
+factory-control-plane architecture recorded in the current ADR and subject specs,
+plus follow-on runtime adoption phases that deepen the public `jido_os` turn
+integration after the initial control-plane migration.
 
 The plan aligns to:
 - `../specs/factory_control_plane.spec.md`
@@ -11,9 +13,12 @@ The plan aligns to:
 - `../specs/vsm_recursion.spec.md`
 - `../specs/execution_pipeline.spec.md`
 - `../specs/conversation_driver.spec.md`
+- `../specs/coding_assistance_boundary.spec.md`
+- `../specs/run_governance.spec.md`
 - `../decisions/jido_code.factory_control_plane_and_runtime_overlay.md`
 - `../decisions/jido_code.runic_execution_model.md`
 - `../decisions/jido_code.vsm_recursion_and_scope.md`
+- `../decisions/jido_code.jido_os_public_turn_runtime_adoption.md`
 
 ## Phase Files
 1. [Phase 1 - Managed Repo Control-Plane Foundation](./phase-01-managed-repo-control-plane-foundation.md): introduce the transitional repo ontology, control-plane domain layout, and initial governance scaffolding without breaking existing project flows.
@@ -22,6 +27,7 @@ The plan aligns to:
 4. [Phase 4 - Conversation Ingress and Runtime Overlay Adoption](./phase-04-conversation-ingress-and-runtime-overlay-adoption.md): move conversations onto the managed-repo control loop while preserving `jido_os` as the runtime overlay and keeping subscriber compatibility stable.
 5. [Phase 5 - Repo-Native State, Posture, and Trust Progression](./phase-05-repo-native-state-posture-and-trust-progression.md): make `.spec/` and optional Beadwork state actionable control inputs and introduce repo posture, posture checks, supervision modes, and trust progression logic.
 6. [Phase 6 - Compatibility, UI Migration, and Rollout Hardening](./phase-06-compatibility-ui-migration-and-rollout-hardening.md): migrate remaining product surfaces from `Project`/`WorkflowRun` assumptions, harden policy boundaries, and complete rollout with compatibility and backfill safeguards.
+7. [Phase 7 - Public Turn Runtime Bridge and Governed Projection Adoption](./phase-07-public-turn-runtime-bridge-and-governed-projection-adoption.md): adopt the newer public `jido_os` turn runtime in product-owned wrappers, route conversations through non-blocking turn start, bridge replay-driven subscriber updates, and materialize terminal turn outputs into governed run/evidence records.
 
 ## Shared Conventions
 - Numbering:

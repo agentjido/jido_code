@@ -16,6 +16,7 @@ defmodule JidoCode.Application do
         JidoCode.Jido,
         JidoCodeWeb.Endpoint,
         {AshAuthentication.Supervisor, [otp_app: :jido_code]},
+        {Task.Supervisor, name: JidoCode.Conversations.TurnBridgeSupervisor},
         # Forge supervision tree
         {Registry, keys: :unique, name: JidoCode.Forge.SessionRegistry},
         {DynamicSupervisor, name: JidoCode.Forge.SpriteSupervisor, strategy: :one_for_one},

@@ -2,6 +2,7 @@ defmodule JidoCode.Orchestration.RunBridge do
   # covers: architecture.run_governance.run_launch_resolves_effective_execution_profile
   # covers: architecture.execution_pipeline.run_is_projection_of_workflow_state
   # covers: architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+  # covers: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
   # covers: architecture.run_governance.run_projection_preserves_explicit_stage_catalog
   # covers: architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
   @moduledoc """
@@ -22,6 +23,9 @@ defmodule JidoCode.Orchestration.RunBridge do
   @default_checkpoint_strategy ExecutionProfile.default_checkpoint_strategy()
 
   @type launch_result :: {:ok, %{workflow_run: WorkflowRun.t(), run: Run.t()}} | {:error, term()}
+  @type turn_materialization_result ::
+          {:ok, %{workflow_run: WorkflowRun.t(), run: Run.t(), work_item: WorkItem.t() | nil}}
+          | {:error, term()}
 
   @spec projected_run_for_workflow_run(WorkflowRun.t()) :: {:ok, Run.t()} | {:error, term()}
   def projected_run_for_workflow_run(%WorkflowRun{id: workflow_run_id} = workflow_run) do
@@ -63,10 +67,33 @@ defmodule JidoCode.Orchestration.RunBridge do
 
   def launch_work_item(_work_item, _attrs), do: {:error, :invalid_work_item}
 
+  @spec materialize_turn(map()) :: turn_materialization_result()
+  def materialize_turn(%{} = attrs) do
+    with turn_id when is_binary(turn_id) <- nested_get(attrs, [:turn, :turn_id]) || :missing_turn_id,
+         project_id when is_binary(project_id) <-
+           normalize_optional_string(Map.get(attrs, :project_id)) || :missing_project_id,
+         managed_repo_id when is_binary(managed_repo_id) <-
+           normalize_optional_string(Map.get(attrs, :managed_repo_id)) || :missing_managed_repo_id,
+         {:ok, work_item} <- maybe_attach_turn_to_work_item(attrs),
+         {:ok, workflow_run} <- ensure_turn_workflow_run(attrs, turn_id, project_id, managed_repo_id),
+         {:ok, terminal_workflow_run} <- ensure_turn_terminal_status(workflow_run, attrs),
+         {:ok, run} <- Run.get_by_workflow_run_id(terminal_workflow_run.id, actor: @launch_actor) do
+      {:ok, %{workflow_run: terminal_workflow_run, run: run, work_item: work_item}}
+    else
+      :missing_turn_id -> {:error, :missing_turn_id}
+      :missing_project_id -> {:error, :missing_project_id}
+      :missing_managed_repo_id -> {:error, :missing_managed_repo_id}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  def materialize_turn(_attrs), do: {:error, :invalid_turn_materialization}
+
   defp projection_attrs(workflow_run, managed_repo, execution_profile) do
     work_item_id = referenced_work_item_id(workflow_run)
     governed_stages = effective_governed_stages(execution_profile)
     current_stage = infer_current_stage(workflow_run, governed_stages)
+    public_turn = public_turn_metadata(workflow_run)
 
     %{
       workflow_run_id: workflow_run.id,
@@ -108,6 +135,14 @@ defmodule JidoCode.Orchestration.RunBridge do
       completed_at: workflow_run.completed_at
     }
     |> maybe_put(:work_item_id, work_item_id)
+    |> update_in([:workflow_state_ref], fn workflow_state_ref ->
+      workflow_state_ref
+      |> maybe_put("turn_id", Map.get(public_turn, "turn_id"))
+      |> maybe_put("conversation_id", Map.get(public_turn, "conversation_id"))
+    end)
+    |> update_in([:run_metadata], fn run_metadata ->
+      maybe_put(run_metadata, "public_turn", if(public_turn == %{}, do: nil, else: public_turn))
+    end)
   end
 
   defp build_workflow_run_attrs(work_item, managed_repo, attrs) do
@@ -179,6 +214,248 @@ defmodule JidoCode.Orchestration.RunBridge do
 
     if workflow_settings == %{}, do: "default", else: "workflow:#{workflow_name}"
   end
+
+  defp maybe_attach_turn_to_work_item(attrs) do
+    case normalize_optional_string(Map.get(attrs, :work_item_id)) do
+      nil ->
+        {:ok, nil}
+
+      work_item_id ->
+        with {:ok, work_item} <- fetch_work_item(work_item_id),
+             updated_work_item <- update_work_item_turn_context(work_item, attrs),
+             {:ok, persisted_work_item} <- WorkItem.update(work_item, updated_work_item, actor: @projection_actor) do
+          {:ok, persisted_work_item}
+        end
+    end
+  end
+
+  defp fetch_work_item(work_item_id) when is_binary(work_item_id) do
+    case WorkItem.read(query: [filter: [id: work_item_id]], actor: @projection_actor) do
+      {:ok, [%WorkItem{} = work_item]} -> {:ok, work_item}
+      {:ok, []} -> {:error, :work_item_not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp update_work_item_turn_context(%WorkItem{} = work_item, attrs) do
+    turn_context = build_public_turn_context(attrs)
+
+    work_metadata =
+      work_item.work_metadata
+      |> normalize_map()
+      |> Map.put("public_turn", turn_context)
+
+    audit_entry =
+      %{
+        "entry_type" => "public_turn_materialized",
+        "turn_id" => Map.get(turn_context, "turn_id"),
+        "conversation_id" => Map.get(turn_context, "conversation_id"),
+        "recorded_at" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+      }
+      |> normalize_map()
+
+    %{
+      work_metadata: work_metadata,
+      audit_log: (work_item.audit_log || []) ++ [audit_entry]
+    }
+  end
+
+  defp ensure_turn_workflow_run(attrs, turn_id, project_id, managed_repo_id) do
+    run_id = turn_run_id(turn_id)
+
+    case WorkflowRun.get_by_project_and_run_id(%{project_id: project_id, run_id: run_id}, actor: @launch_actor) do
+      {:ok, %WorkflowRun{} = workflow_run} ->
+        {:ok, workflow_run}
+
+      {:ok, nil} ->
+        WorkflowRun.create(turn_workflow_run_attrs(attrs, project_id, managed_repo_id, run_id), actor: @launch_actor)
+
+      {:error, %Ash.Error.Invalid{errors: [%Ash.Error.Query.NotFound{} | _rest]}} ->
+        WorkflowRun.create(turn_workflow_run_attrs(attrs, project_id, managed_repo_id, run_id), actor: @launch_actor)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp turn_workflow_run_attrs(attrs, project_id, managed_repo_id, run_id) do
+    turn = normalize_map(Map.get(attrs, :turn))
+    work_item_id = normalize_optional_string(Map.get(attrs, :work_item_id))
+
+    conversation_id =
+      normalize_optional_string(Map.get(attrs, :conversation_id)) ||
+        normalize_optional_string(Map.get(turn, "conversation_id"))
+
+    operation = normalize_optional_string(Map.get(turn, "operation")) || "plan"
+    objective = normalize_optional_string(Map.get(turn, "objective"))
+    started_at = turn_started_at(turn)
+
+    %{
+      run_id: run_id,
+      project_id: project_id,
+      managed_repo_id: managed_repo_id,
+      workflow_name: turn_workflow_name(operation),
+      workflow_version: 1,
+      trigger:
+        %{
+          "source" => "public_turn_runtime",
+          "mode" => "conversation_runtime",
+          "conversation_id" => conversation_id,
+          "turn_id" => Map.get(turn, "turn_id")
+        }
+        |> maybe_put("work_item_id", work_item_id),
+      inputs:
+        %{
+          "turn_id" => Map.get(turn, "turn_id"),
+          "conversation_id" => conversation_id,
+          "operation" => operation
+        }
+        |> maybe_put("work_item_id", work_item_id)
+        |> maybe_put("objective", objective),
+      input_metadata:
+        %{
+          "turn_id" => %{"required" => true, "source" => "public_turn_runtime"},
+          "conversation_id" => %{"required" => true, "source" => "public_turn_runtime"},
+          "operation" => %{"required" => true, "source" => "public_turn_runtime"}
+        }
+        |> maybe_put(
+          "objective",
+          if(is_binary(objective), do: %{"required" => true, "source" => "public_turn_runtime"}, else: nil)
+        ),
+      initiating_actor:
+        %{
+          "id" => normalize_optional_string(Map.get(attrs, :actor_id)),
+          "email" => normalize_optional_string(Map.get(attrs, :actor_email))
+        }
+        |> normalize_map(),
+      current_step: "public_turn_materialized",
+      step_results: turn_step_results(attrs),
+      started_at: started_at
+    }
+  end
+
+  defp ensure_turn_terminal_status(%WorkflowRun{} = workflow_run, attrs) do
+    terminal_status = workflow_terminal_status(attrs)
+    terminal_step = workflow_terminal_step(attrs)
+    terminal_at = turn_terminal_at(normalize_map(Map.get(attrs, :turn)))
+
+    cond do
+      workflow_run.status == terminal_status ->
+        {:ok, workflow_run}
+
+      terminal_status == :cancelled and workflow_run.status == :pending ->
+        WorkflowRun.transition_status(workflow_run, %{
+          to_status: :cancelled,
+          current_step: terminal_step,
+          transitioned_at: terminal_at,
+          transition_metadata: %{"source" => "public_turn_runtime"}
+        }, actor: @launch_actor)
+
+      workflow_run.status == :pending ->
+        with {:ok, running_workflow_run} <-
+               WorkflowRun.transition_status(workflow_run, %{
+                 to_status: :running,
+                 current_step: "public_turn_in_progress",
+                 transitioned_at: turn_started_at(normalize_map(Map.get(attrs, :turn))),
+                 transition_metadata: %{"source" => "public_turn_runtime"}
+               }, actor: @launch_actor) do
+          ensure_turn_terminal_status(running_workflow_run, attrs)
+        end
+
+      workflow_run.status == :running ->
+        WorkflowRun.transition_status(workflow_run, %{
+          to_status: terminal_status,
+          current_step: terminal_step,
+          transitioned_at: terminal_at,
+          transition_metadata: %{"source" => "public_turn_runtime"}
+        }, actor: @launch_actor)
+
+      true ->
+        {:ok, workflow_run}
+    end
+  end
+
+  defp workflow_terminal_status(attrs) do
+    case attrs |> Map.get(:turn) |> normalize_map() |> Map.get("state") |> normalize_optional_string() do
+      "completed" -> :completed
+      "cancelled" -> :cancelled
+      "interrupted" -> :failed
+      "failed" -> :failed
+      _other -> :completed
+    end
+  end
+
+  defp workflow_terminal_step(attrs) do
+    case workflow_terminal_status(attrs) do
+      :completed -> "public_turn_completed"
+      :cancelled -> "public_turn_cancelled"
+      :failed -> "public_turn_failed"
+    end
+  end
+
+  defp turn_step_results(attrs) do
+    turn_context = build_public_turn_context(attrs)
+    review = normalize_map(Map.get(attrs, :review))
+    artifacts = normalize_map_list(Map.get(attrs, :artifacts))
+    events = normalize_map_list(Map.get(attrs, :events))
+
+    %{}
+    |> maybe_put("coding_turn_summary", turn_context)
+    |> maybe_put("coding_turn_review", if(review == %{}, do: nil, else: review))
+    |> maybe_put("coding_turn_artifacts", if(artifacts == [], do: nil, else: artifacts))
+    |> maybe_put("coding_turn_replay", if(events == [], do: nil, else: events))
+  end
+
+  defp build_public_turn_context(attrs) do
+    turn = normalize_map(Map.get(attrs, :turn))
+    review = normalize_map(Map.get(attrs, :review))
+
+    %{
+      "turn_id" => Map.get(turn, "turn_id"),
+      "conversation_id" =>
+        normalize_optional_string(Map.get(attrs, :conversation_id)) ||
+          normalize_optional_string(Map.get(turn, "conversation_id")) ||
+          normalize_optional_string(Map.get(turn, "session_id")),
+      "session_id" => normalize_optional_string(Map.get(turn, "session_id")),
+      "work_item_id" => normalize_optional_string(Map.get(attrs, :work_item_id)),
+      "operation" => normalize_optional_string(Map.get(turn, "operation")),
+      "objective" => normalize_optional_string(Map.get(turn, "objective")),
+      "state" => normalize_optional_string(Map.get(turn, "state")),
+      "summary_status" => normalize_map(Map.get(turn, "summary_status")),
+      "assistant_output" => normalize_map(Map.get(turn, "assistant_output")),
+      "review" => if(review == %{}, do: nil, else: review)
+    }
+    |> normalize_map()
+  end
+
+  defp public_turn_metadata(%WorkflowRun{} = workflow_run) do
+    step_results = normalize_map(workflow_run.step_results)
+    trigger = normalize_map(workflow_run.trigger)
+    inputs = normalize_map(workflow_run.inputs)
+
+    summary =
+      step_results
+      |> Map.get("coding_turn_summary", %{})
+      |> normalize_map()
+
+    %{}
+    |> maybe_put(
+      "turn_id",
+      normalize_optional_string(Map.get(summary, "turn_id")) || normalize_optional_string(Map.get(trigger, "turn_id"))
+    )
+    |> maybe_put(
+      "conversation_id",
+      normalize_optional_string(Map.get(summary, "conversation_id")) ||
+        normalize_optional_string(Map.get(trigger, "conversation_id")) ||
+        normalize_optional_string(Map.get(inputs, "conversation_id"))
+    )
+    |> maybe_put("work_item_id", normalize_optional_string(Map.get(inputs, "work_item_id")))
+    |> maybe_put("state", normalize_optional_string(Map.get(summary, "state")))
+  end
+
+  defp turn_run_id(turn_id), do: "turn:#{turn_id}"
+
+  defp turn_workflow_name(operation), do: "coding_turn_#{operation}"
 
   defp managed_repo(%WorkflowRun{managed_repo_id: managed_repo_id}) when is_binary(managed_repo_id) do
     case ManagedRepo.read(query: [filter: [id: managed_repo_id]], actor: @projection_actor) do
@@ -392,6 +669,14 @@ defmodule JidoCode.Orchestration.RunBridge do
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
 
+  defp normalize_map_list(value) when is_list(value) do
+    value
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(&normalize_map/1)
+  end
+
+  defp normalize_map_list(_value), do: []
+
   defp normalize_optional_string(nil), do: nil
 
   defp normalize_optional_string(value) when is_binary(value) do
@@ -406,6 +691,47 @@ defmodule JidoCode.Orchestration.RunBridge do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp turn_started_at(turn) when is_map(turn) do
+    turn
+    |> Map.get("started_at")
+    |> parse_datetime()
+    |> Kernel.||(DateTime.utc_now() |> DateTime.truncate(:second))
+  end
+
+  defp turn_terminal_at(turn) when is_map(turn) do
+    turn
+    |> Map.get("terminal_at")
+    |> parse_datetime()
+    |> Kernel.||(DateTime.utc_now() |> DateTime.truncate(:second))
+  end
+
+  defp parse_datetime(nil), do: nil
+  defp parse_datetime(%DateTime{} = value), do: DateTime.truncate(value, :second)
+
+  defp parse_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(String.trim(value)) do
+      {:ok, datetime, _offset} -> DateTime.truncate(datetime, :second)
+      _other -> nil
+    end
+  end
+
+  defp parse_datetime(_value), do: nil
+
+  defp nested_get(value, keys) when is_list(keys) do
+    Enum.reduce_while(keys, value, fn key, acc ->
+      cond do
+        is_map(acc) and Map.has_key?(acc, key) ->
+          {:cont, Map.get(acc, key)}
+
+        is_map(acc) and is_atom(key) and Map.has_key?(acc, Atom.to_string(key)) ->
+          {:cont, Map.get(acc, Atom.to_string(key))}
+
+        true ->
+          {:halt, nil}
+      end
+    end)
+  end
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)

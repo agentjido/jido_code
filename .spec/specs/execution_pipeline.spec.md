@@ -10,8 +10,10 @@ status: active
 summary: Jido.Code centers execution on Jido.Runic, which drives Runic workflows through the Jido runtime while sprite sessions provide sandbox lifecycle and Ash resources provide durable governance projections.
 decisions:
   - jido_code.runic_execution_model
+  - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
@@ -60,6 +62,11 @@ surface:
 - id: architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
   statement: Historical workflow-run state shall remain projectable forward into the durable Run model without re-executing the underlying workflow so mixed-mode rollout can restore control-plane continuity safely.
   priority: should
+  stability: evolving
+
+- id: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
+  statement: When public `jido_os` coding turns are materialized into governed run records, that projection shall preserve Jido.Runic as the canonical execution authority and treat public-turn records as bounded runtime evidence rather than as a second durable step engine.
+  priority: must
   stability: evolving
 ```
 
@@ -110,6 +117,17 @@ surface:
     - The control plane repairs historical execution continuity during compatibility rollout.
   then:
     - The workflow state is projected into Run records without introducing a second execution engine or replaying the workflow from scratch.
+
+- id: architecture.execution_pipeline.scenario_public_turn_terminal_projection_preserves_execution_model
+  covers:
+    - architecture.execution_pipeline.run_is_projection_of_workflow_state
+    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
+  given:
+    - A coding conversation finishes through the public `jido_os` turn runtime and the product needs governed execution evidence.
+  when:
+    - `jido_code` materializes the terminal turn into `WorkflowRun` and `Run` records.
+  then:
+    - The governed run remains a product-side projection over runtime state rather than replacing Jido.Runic with a second product-owned execution engine.
 ```
 
 ## Verification
@@ -127,6 +145,11 @@ surface:
     - architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep
 
 - kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
+
+- kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex
   covers:
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
@@ -141,4 +164,9 @@ surface:
   target: test/jido_code/control/compatibility_rollout_test.exs
   covers:
     - architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_bridge.ex
+  covers:
+    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
 ```

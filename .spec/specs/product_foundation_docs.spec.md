@@ -12,6 +12,7 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.local_developer_workflow
   - jido_code.canonical_repo_surface
+  - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - README.md
   - CONTRIBUTING.md
@@ -19,6 +20,7 @@ surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.vsm_recursion_and_scope.md
   - tauri/README.md
@@ -106,6 +108,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
+  covers:
+    - docs.product_foundation.durable_architecture_record_in_spec_workspace
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

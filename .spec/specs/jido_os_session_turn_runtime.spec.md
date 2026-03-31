@@ -8,11 +8,13 @@ product-local `CodingAssistance` boundary.
 id: architecture.jido_os_session_turn_runtime
 kind: policy
 status: active
-summary: Jido.Code expects `jido_os` coding-assistance sessions to own ordered turns through public turn lifecycle, event, query, cancellation, and artifact surfaces while preserving actor-bound context, named policy checks, project scoping, and authority boundaries.
+summary: Jido.Code depends on `jido_os` coding-assistance sessions owning ordered turns through public turn lifecycle, event, replay, review, query, cancellation, and artifact surfaces while preserving actor-bound context, named policy checks, project scoping, and authority boundaries.
 decisions:
   - jido_code.jido_os_session_turn_runtime
+  - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - compat/jido_os/lib/jido/os/coding_assist/service.ex
   - compat/jido_os/lib/jido/os/session/runtime_agent.ex
   - compat/jido_os/lib/jido/os/session/directory_agent.ex
@@ -40,6 +42,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.jido_os_session_turn_runtime.public_turn_replay_supports_incremental_bridge
+  statement: Public turn replay shall support incremental, product-bridge-friendly reads of session-owned turn events and terminal summaries so downstream products can translate progress safely without exposing raw runtime or provider-native event protocols directly to UI subscribers.
+  priority: must
+  stability: evolving
+
 - id: architecture.jido_os_session_turn_runtime.turn_outputs_are_first_class_records
   statement: Tool requests, tool results, assistant outputs, and produced artifacts shall be represented as first-class turn records or projections rather than remaining implicit private runtime side effects.
   priority: must
@@ -63,6 +70,11 @@ surface:
 - id: architecture.jido_os_session_turn_runtime.policy_gated_turn_actions
   statement: Turn lifecycle, event access, artifact access, and cancellation actions shall remain subject to named `jido_os` policy checks rather than bypassing the current allow-policy model.
   priority: must
+  stability: evolving
+
+- id: architecture.jido_os_session_turn_runtime.operator_review_is_bounded_evidence_surface
+  statement: Public operator review over one coding turn shall remain a read-only, bounded evidence surface that joins replay, artifact, release, privacy, and guardrail summaries without turning `jido_os` into a product-specific UI layer.
+  priority: should
   stability: evolving
 
 - id: architecture.jido_os_session_turn_runtime.project_binding_scopes_repo_turns
@@ -115,6 +127,17 @@ surface:
     - The caller attempts to start, inspect, subscribe to, or cancel that turn.
   then:
     - The public authority boundary denies the operation without executing the turn through an implicit private backdoor.
+
+- id: architecture.jido_os_session_turn_runtime.scenario_replay_and_review_support_downstream_bridge_and_governance
+  covers:
+    - architecture.jido_os_session_turn_runtime.public_turn_replay_supports_incremental_bridge
+    - architecture.jido_os_session_turn_runtime.operator_review_is_bounded_evidence_surface
+  given:
+    - A coding turn has already been started and has emitted public lifecycle events, artifacts, and a terminal outcome.
+  when:
+    - Product code reads public replay, artifact, and operator-review surfaces for that turn.
+  then:
+    - The product can bridge those projections into its own subscriber protocol and governance records without coupling UI code to provider-native payloads or treating `jido_os` as the product's durable truth store.
 ```
 
 ## Verification
@@ -133,4 +156,10 @@ surface:
     - architecture.jido_os_session_turn_runtime.policy_gated_turn_actions
     - architecture.jido_os_session_turn_runtime.project_binding_scopes_repo_turns
     - architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - architecture.jido_os_session_turn_runtime.public_turn_replay_supports_incremental_bridge
+    - architecture.jido_os_session_turn_runtime.operator_review_is_bounded_evidence_surface
 ```

@@ -4,6 +4,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   # covers: architecture.run_governance.decision_records_capture_governance_outcomes
   # covers: architecture.run_governance.review_policy_controls_change_request_creation
   # covers: architecture.run_governance.blocked_review_context_preserves_typed_remediation
+  # covers: architecture.repo_posture.governed_turn_evidence_can_inform_posture
   @moduledoc """
   Projects governed run review artifacts from workflow-run audit data.
   """
@@ -66,6 +67,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
         attrs =
           decision_attrs(
             run,
+            workflow_run,
             decision_payload,
             change_request,
             Enum.map(evidence_records, & &1.id)
@@ -96,6 +98,24 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
       "risk_notes",
       "risk_notes",
       Map.get(step_results, "risk_notes"),
+      "workflow_run.step_results"
+    )
+    |> maybe_add_map_entry(
+      "coding_turn_summary",
+      "coding_turn_summary",
+      Map.get(step_results, "coding_turn_summary"),
+      "workflow_run.step_results"
+    )
+    |> maybe_add_map_entry(
+      "coding_turn_review",
+      "coding_turn_review",
+      Map.get(step_results, "coding_turn_review"),
+      "workflow_run.step_results"
+    )
+    |> maybe_add_list_entry(
+      "coding_turn_artifacts",
+      "coding_turn_artifacts",
+      Map.get(step_results, "coding_turn_artifacts"),
       "workflow_run.step_results"
     )
     |> maybe_add_map_entry(
@@ -174,13 +194,15 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
         "workflow_name" => run.workflow_name,
         "current_step" => run.current_step,
         "approval_context" => workflow_run.step_results |> normalize_map() |> Map.get("approval_context", %{}),
+        "coding_turn_review" => coding_turn_review(workflow_run),
         "evidence_keys" => Enum.map(evidence_records, & &1.key)
       },
       request_metadata: %{
         "trigger" => normalize_map(run.trigger),
         "run_status" => Atom.to_string(run.status),
         "review_policy" => review_policy,
-        "review_blocked" => not is_nil(blocking_diagnostic)
+        "review_blocked" => not is_nil(blocking_diagnostic),
+        "public_turn" => public_turn_summary(workflow_run)
       },
       evidence_ids: evidence_ids,
       requested_at: requested_at,
@@ -190,7 +212,7 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
     |> put_in_review_context_if_present("blocking_diagnostic", blocking_diagnostic)
   end
 
-  defp decision_attrs(run, decision_payload, change_request, evidence_ids) do
+  defp decision_attrs(run, workflow_run, decision_payload, change_request, evidence_ids) do
     decision_timestamp = decision_timestamp(decision_payload) || run.completed_at || run.started_at
     normalized_decision = normalize_decision(decision_payload)
 
@@ -210,7 +232,10 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
         |> Map.get("rationale")
         |> normalize_optional_string(),
       evidence_ids: evidence_ids,
-      decision_metadata: normalize_map(decision_payload),
+      decision_metadata:
+        normalize_map(decision_payload)
+        |> Map.put("coding_turn_summary", public_turn_summary(workflow_run))
+        |> Map.put("coding_turn_review", coding_turn_review(workflow_run)),
       decided_at: decision_timestamp
     }
     |> maybe_put(:work_item_id, run.work_item_id)
@@ -380,6 +405,26 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp public_turn_summary(workflow_run) do
+    workflow_run
+    |> step_results_map()
+    |> Map.get("coding_turn_summary", %{})
+    |> normalize_map()
+  end
+
+  defp coding_turn_review(workflow_run) do
+    workflow_run
+    |> step_results_map()
+    |> Map.get("coding_turn_review", %{})
+    |> normalize_map()
+  end
+
+  defp step_results_map(workflow_run) do
+    workflow_run
+    |> Map.get(:step_results, %{})
+    |> normalize_map()
+  end
 
   defp parse_iso8601(nil), do: nil
 

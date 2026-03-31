@@ -13,11 +13,13 @@ summary: Coding conversations center on `JidoCode.CodingAssistance` as the first
 decisions:
   - jido_code.coding_assistance_conversation_driver
   - jido_code.jido_os_session_turn_runtime
+  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
+  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/conversations/ingress.ex
@@ -64,6 +66,21 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.conversation_driver.public_turn_start_is_primary_conversation_path
+  statement: Coding conversations shall prefer non-blocking public `jido_os` turn start as the primary runtime execution path, with compatibility-style `assist` kept only as a fallback or migration path rather than the main conversation-driver contract.
+  priority: must
+  stability: evolving
+
+- id: architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+  statement: Until a dedicated public live-subscription surface is available from `jido_os`, the coding conversation driver shall bridge incremental public turn replay and terminal turn reads back into the stable subscriber event contract instead of exposing raw runtime events directly to UI consumers.
+  priority: must
+  stability: evolving
+
+- id: architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
+  statement: Compatibility-oriented `assist` responses may remain available for narrow compatibility cases, but product conversation routing shall not depend on one-shot assist envelopes as the primary mechanism for coding turn progress and completion.
+  priority: should
+  stability: evolving
+
 - id: architecture.conversation_driver.conversation_is_ingress_and_steering_surface
   statement: Operator and repository conversations shall enter the same managed-repository control loop through `jido_os` sessions and turns as ingress and steering surfaces rather than acting as a parallel product control plane.
   priority: must
@@ -95,6 +112,7 @@ surface:
   covers:
     - architecture.conversation_driver.subscriber_event_contract_preserved
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
   given:
     - Conversation subscribers already render assistant stream, final assistant messages, and failure states from the existing event bus.
   when:
@@ -106,12 +124,25 @@ surface:
   covers:
     - architecture.conversation_driver.code_server_routes_through_boundary
     - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+    - architecture.conversation_driver.public_turn_start_is_primary_conversation_path
   given:
     - An operator or repo-facing conversation is active for a managed repository.
   when:
     - A coding-oriented turn is admitted through the conversation path.
   then:
     - The turn is treated as ingress and steering input to the same managed-repository control loop rather than as a second product truth lane outside factory governance.
+
+- id: architecture.conversation_driver.scenario_public_turn_replay_bridges_progress_until_terminal
+  covers:
+    - architecture.conversation_driver.public_turn_start_is_primary_conversation_path
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
+  given:
+    - A coding conversation has already been admitted into product-side ingress and policy layers.
+  when:
+    - The driver starts a non-blocking public `jido_os` turn for that conversation.
+  then:
+    - Progress and terminal state are expected to reach subscribers through a product-local replay bridge over public turn lifecycle and read surfaces instead of through a one-shot compatibility assist envelope.
 
 - id: architecture.conversation_driver.scenario_project_detail_route_keeps_conversation_entry_stable
   covers:
@@ -153,6 +184,13 @@ surface:
   target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   covers:
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  covers:
+    - architecture.conversation_driver.public_turn_start_is_primary_conversation_path
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
 
 - kind: source_file
   target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md

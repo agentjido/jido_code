@@ -33,12 +33,16 @@ surface:
   - lib/jido_code/operations/work_synthesis.ex
   - lib/jido_code/projects/project.ex
   - lib/jido_code/orchestration/workflow_run.ex
+  - lib/jido_code/orchestration/execution_profile.ex
+  - lib/jido_code/orchestration/run.ex
+  - lib/jido_code/orchestration/run_bridge.ex
   - lib/jido_code/code_server.ex
   - priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
+  - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
 ```
 
 ## Requirements

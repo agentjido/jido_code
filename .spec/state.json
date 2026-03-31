@@ -476,6 +476,38 @@
         "subject_id": "architecture.policy_layers"
       },
       {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.execution_profile_governs_environment_defaults",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall describe sandbox shape, repo prep, validation defaults, and checkpoint or resume expectations through governed `ExecutionProfile` records instead of only ad hoc run-local maps.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.execution_profile_preserves_repo_and_workflow_compatibility",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Execution profile resolution shall preserve compatibility with repo-level execution defaults and workflow-specific execution overrides during the migration from project and workflow-local settings.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.run_is_preferred_execution_record",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Jido.Code shall treat `Run` as the preferred control-plane execution record linked to managed repository scope and optional `WorkItem` context, while preserving `WorkflowRun` as a transitional execution seam.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.run_launch_resolves_effective_execution_profile",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Governed run launch paths shall resolve an effective execution profile before persisting the preferred `Run` projection.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
         "file": ".spec/specs/vsm_recursion.spec.md",
         "id": "architecture.vsm_recursion.algedonic_escalation",
         "priority": "must",
@@ -1849,6 +1881,41 @@
       },
       {
         "covers": [
+          "architecture.run_governance.execution_profile_governs_environment_defaults",
+          "architecture.run_governance.execution_profile_preserves_repo_and_workflow_compatibility"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "given": [
+          "A managed repository has repo-level execution defaults and optional workflow-level overrides."
+        ],
+        "id": "architecture.run_governance.scenario_execution_profile_is_resolved_from_repo_defaults",
+        "subject_id": "architecture.run_governance",
+        "then": [
+          "The effective `ExecutionProfile` is persisted from repo defaults plus workflow overrides while keeping explicit repo prep and validation plans."
+        ],
+        "when": [
+          "A governed run projection resolves its execution environment."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.run_governance.run_is_preferred_execution_record"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "given": [
+          "A workflow run is created for a managed repository."
+        ],
+        "id": "architecture.run_governance.scenario_workflow_run_projects_into_run",
+        "subject_id": "architecture.run_governance",
+        "then": [
+          "A governed `Run` projection is persisted with the same durable run identity and workflow-state reference without introducing a second step engine."
+        ],
+        "when": [
+          "The orchestration layer persists the legacy workflow-run seam."
+        ]
+      },
+      {
+        "covers": [
           "architecture.vsm_recursion.factory_is_viable_system",
           "architecture.vsm_recursion.managed_repo_is_viable_system"
         ],
@@ -2975,7 +3042,11 @@
           "status": "active",
           "summary": "Jido.Code centers execution on Jido.Runic, which drives Runic workflows through the Jido runtime while sprite sessions provide sandbox lifecycle and Ash resources provide durable governance projections.",
           "surface": [
-            ".spec/decisions/jido_code.runic_execution_model.md"
+            ".spec/decisions/jido_code.runic_execution_model.md",
+            "lib/jido_code/orchestration/execution_profile.ex",
+            "lib/jido_code/orchestration/run.ex",
+            "lib/jido_code/orchestration/run_bridge.ex",
+            "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3015,12 +3086,16 @@
             "lib/jido_code/operations/work_synthesis.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/orchestration/workflow_run.ex",
+            "lib/jido_code/orchestration/execution_profile.ex",
+            "lib/jido_code/orchestration/run.ex",
+            "lib/jido_code/orchestration/run_bridge.ex",
             "lib/jido_code/code_server.ex",
             "priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs",
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
             "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
-            "priv/repo/migrations/20260330195000_add_operations_work_items.exs"
+            "priv/repo/migrations/20260330195000_add_operations_work_items.exs",
+            "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -3396,6 +3471,32 @@
           "verification_minimum_strength": null
         },
         "title": "Provider Login Policy"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance",
+        "meta": {
+          "decisions": [
+            "jido_code.runic_execution_model",
+            "jido_code.factory_control_plane_and_runtime_overlay"
+          ],
+          "id": "architecture.run_governance",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code evolves execution from standalone workflow-run records into governed Run projections linked to WorkItem and ExecutionProfile while preserving WorkflowRun as the migration seam beneath the preferred control-plane model.",
+          "surface": [
+            ".spec/decisions/jido_code.runic_execution_model.md",
+            ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+            "lib/jido_code/orchestration.ex",
+            "lib/jido_code/orchestration/execution_profile.ex",
+            "lib/jido_code/orchestration/run.ex",
+            "lib/jido_code/orchestration/run_bridge.ex",
+            "lib/jido_code/orchestration/workflow_run.ex",
+            "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Run Governance"
       },
       {
         "file": ".spec/specs/self_hosted_provider_integration.spec.md",
@@ -3819,6 +3920,35 @@
         "kind": "source_file",
         "subject_id": "architecture.policy_layers",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.run_is_preferred_execution_record"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.execution_profile_governs_environment_defaults",
+          "architecture.run_governance.execution_profile_preserves_repo_and_workflow_compatibility"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/execution_profile.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.run_launch_resolves_effective_execution_profile",
+          "architecture.execution_pipeline.run_is_projection_of_workflow_state"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run_bridge.ex"
       },
       {
         "covers": [
@@ -4897,6 +5027,15 @@
       },
       {
         "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/run_governance.spec.md"
+      },
+      {
+        "covers": [
           "package.jido_code.version_controlled_quality_surfaces"
         ],
         "file": ".spec/specs/package.spec.md",
@@ -5499,10 +5638,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 174,
-    "scenarios": 68,
-    "subjects": 33,
-    "verifications": 189
+    "requirements": 178,
+    "scenarios": 70,
+    "subjects": 34,
+    "verifications": 193
   },
   "verification": {
     "claims": [
@@ -6352,6 +6491,61 @@
         "subject_id": "architecture.policy_layers",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
         "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.run_governance.run_is_preferred_execution_record",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run.ex",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.run_governance.execution_profile_governs_environment_defaults",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/execution_profile.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.run_governance.execution_profile_preserves_repo_and_workflow_compatibility",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/execution_profile.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.execution_pipeline.run_is_projection_of_workflow_state",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run_bridge.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.run_governance.run_launch_resolves_effective_execution_profile",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run_bridge.ex",
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -8851,14 +9045,14 @@
         "verification_index": 5
       },
       {
-        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "cover_id": "package.jido_code.spec_led_workspace",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/operations/phase_two_integration_test.exs",
+        "target": ".spec/specs/run_governance.spec.md",
         "verification_index": 6
       },
       {
@@ -8869,8 +9063,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "mix.exs",
+        "target": "test/jido_code/operations/phase_two_integration_test.exs",
         "verification_index": 7
+      },
+      {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "mix.exs",
+        "verification_index": 8
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -8881,17 +9086,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 8
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 9
       },
       {
@@ -8902,7 +9096,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 10
       },
       {
@@ -8913,18 +9107,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 11
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 12
       },
       {
@@ -8935,7 +9129,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 13
       },
       {
@@ -8946,7 +9140,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 14
       },
       {
@@ -8957,7 +9151,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 15
       },
       {
@@ -8968,7 +9162,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 16
       },
       {
@@ -8979,7 +9173,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 17
       },
       {
@@ -8990,7 +9184,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 18
       },
       {
@@ -9001,7 +9195,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 19
       },
       {
@@ -9012,7 +9206,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 20
       },
       {
@@ -9023,8 +9217,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 21
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 22
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -9035,7 +9240,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
@@ -9046,7 +9251,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -9868,12 +10073,12 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 345
+      "linked": 351
     },
     "threshold_failures": 0
   },
   "workspace": {
     "decision_count": 9,
-    "spec_count": 33
+    "spec_count": 34
   }
 }

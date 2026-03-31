@@ -50,6 +50,12 @@ status, current projected step, evidence links, session references, approval sta
 workflow state references, but the underlying workflow graph and runnable progression
 remain `Runic` concerns mediated through `Jido.Runic`.
 
+During migration, the existing `WorkflowRun` record remains the transitional seam that
+captures live workflow status, while the preferred governed `Run` projection and its
+resolved `ExecutionProfile` describe the control-plane view of execution identity,
+environment defaults, repo prep expectations, validation defaults, and checkpoint or
+resume policy.
+
 Repository-specific prep and validation work shall be modeled as explicit workflow steps.
 This includes repository attach/sync, dependency install, lint, tests, spec checks, and
 other gates that should be visible, retryable, and evidence-producing.
@@ -62,6 +68,8 @@ prepares the sandbox. Workflow prep prepares the repository inside that sandbox.
 - `Jido.Runic` becomes the authoritative execution modality for `Run` and step planning.
 - `Runic` remains essential, but as the substrate beneath the primary integration layer.
 - `Run` remains a durable Ash record without becoming a parallel workflow engine.
+- `WorkflowRun` can keep current execution behavior while `Run` and `ExecutionProfile`
+  become the preferred governed control-plane surfaces.
 - Fresh sandbox startup can be modeled cleanly through sprite session lifecycle plus
   explicit repo-prep steps.
 - Linting, tests, and other quality gates can fan out as Runic nodes and join before the

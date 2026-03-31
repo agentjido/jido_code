@@ -107,6 +107,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/specs/run_governance.spec.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: test/jido_code/operations/phase_two_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces

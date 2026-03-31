@@ -10,6 +10,7 @@ summary: jido_code is the primary implementation repo, maintains a package-local
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
+  - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - AGENTS.md
   - mix.exs
@@ -143,6 +144,26 @@ surface:
 
 - kind: source_file
   target: test/jido_code/governance/phase_five_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
+  target: test/jido_code/control/repo_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/dashboard_live_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

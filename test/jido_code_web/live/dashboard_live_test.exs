@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.DashboardLiveTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -193,6 +194,43 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     end)
 
     refute has_element?(view, "#dashboard-run-summary-warning")
+  end
+
+  test "renders governed run review metadata when the summary feed includes governance state", %{conn: _conn} do
+    register_owner("governed-dashboard-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("governed-dashboard-owner@example.com", "owner-password-123")
+
+    run_id = "dashboard-governed-run-#{System.unique_integer([:positive])}"
+    run_dom_token = run_dom_token(run_id)
+
+    Application.put_env(:jido_code, :dashboard_run_summary_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "dashboard-run-summary-#{run_id}",
+           run_id: run_id,
+           project_id: Ecto.UUID.generate(),
+           managed_repo_id: Ecto.UUID.generate(),
+           workflow_name: "fix_failing_tests",
+           status: "awaiting_approval",
+           current_stage: "approval",
+           evidence_count: 3,
+           change_request_status: "open",
+           latest_decision: nil,
+           started_at: DateTime.add(DateTime.utc_now(), -600, :second),
+           completed_at: nil
+         }
+       ], nil}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-run-status-#{run_dom_token}", "awaiting_approval")
+    assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Stage: approval")
+    assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Evidence: 3")
+    assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Review: open")
   end
 
   defp create_run(project_id, run_id, started_at) do

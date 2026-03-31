@@ -12,13 +12,18 @@ status: active
 summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, and evidence instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
+  - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/operations/repo_native_state.ex
   - lib/jido_code/governance/repo_posture.ex
   - lib/jido_code/governance/posture_check.ex
   - lib/jido_code/governance/posture_bridge.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/control/repo_bridge.ex
+  - lib/jido_code/orchestration/run_summary_feed.ex
+  - lib/jido_code_web/live/dashboard_live.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/operations/ingress.ex
   - lib/jido_code/governance/run_governance_bridge.ex
   - priv/repo/migrations/20260331143000_add_repo_posture_records.exs
@@ -56,6 +61,11 @@ surface:
   statement: Viability-threatening posture conditions shall create typed escalation state and explainable posture checks that show why normal flow was bypassed, rather than relying on implicit or ad hoc escalation rules.
   priority: must
   stability: evolving
+
+- id: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  statement: Operator-facing dashboard and run-detail surfaces shall expose governed evidence, review, and decision state in a way that keeps repo posture and escalation drivers explainable outside internal bridge modules.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -92,6 +102,16 @@ surface:
     - Effective repo governance policy is derived from posture.
   then:
     - Stable repositories may progress to delegated or autonomous supervision while viability threats downgrade to directed supervision with typed algedonic escalation evidence.
+
+- id: architecture.repo_posture.scenario_operator_views_show_governance_evidence
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  given:
+    - Governed run evidence, review requests, or decisions exist for a managed repository.
+  when:
+    - An operator opens dashboard or run detail.
+  then:
+    - The product surfaces enough governed review state to explain why posture or escalation-relevant review burden exists.
 ```
 
 ## Verification
@@ -151,4 +171,24 @@ surface:
     - architecture.repo_posture.posture_checks_preserve_explainable_links
     - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
     - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
+
+- kind: source_file
+  target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_summary_feed.ex
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
+  target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 ```

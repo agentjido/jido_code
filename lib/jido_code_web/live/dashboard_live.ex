@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.DashboardLive do
+  # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
@@ -71,7 +73,7 @@ defmodule JidoCodeWeb.DashboardLive do
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 class="text-lg font-semibold">Recent runs</h2>
+            <h2 class="text-lg font-semibold">Recent governed runs</h2>
             <p id="dashboard-run-summary-last-refreshed" class="text-xs text-base-content/70">
               Last refreshed: {summary_refreshed_label(@run_summary_last_refreshed_at)}
             </p>
@@ -134,6 +136,13 @@ defmodule JidoCodeWeb.DashboardLive do
                     <span class={run_status_badge_class(run_summary.status)}>
                       {run_summary.status}
                     </span>
+                    <p
+                      :if={run_governance_summary(run_summary)}
+                      id={"dashboard-run-governance-#{run_summary_dom_token(run_summary.run_id)}"}
+                      class="pt-1 text-xs text-base-content/70"
+                    >
+                      {run_governance_summary(run_summary)}
+                    </p>
                   </td>
                   <td id={"dashboard-run-recency-#{run_summary_dom_token(run_summary.run_id)}"} class="text-xs">
                     {run_recency_label(run_summary)}
@@ -234,6 +243,40 @@ defmodule JidoCodeWeb.DashboardLive do
     end
   end
 
+  defp run_governance_summary(run_summary) do
+    evidence_count =
+      run_summary
+      |> Map.get(:evidence_count, 0)
+      |> normalize_non_negative_integer()
+
+    current_stage =
+      run_summary
+      |> Map.get(:current_stage)
+      |> normalize_optional_string()
+
+    change_request_status =
+      run_summary
+      |> Map.get(:change_request_status)
+      |> normalize_optional_string()
+
+    latest_decision =
+      run_summary
+      |> Map.get(:latest_decision)
+      |> normalize_optional_string()
+
+    [
+      current_stage && "Stage: #{current_stage}",
+      evidence_count > 0 && "Evidence: #{evidence_count}",
+      change_request_status && "Review: #{change_request_status}",
+      latest_decision && "Decision: #{latest_decision}"
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      parts -> Enum.join(parts, " · ")
+    end
+  end
+
   defp relative_time_label(%DateTime{} = datetime) do
     seconds = DateTime.diff(DateTime.utc_now(), datetime, :second)
 
@@ -272,6 +315,17 @@ defmodule JidoCodeWeb.DashboardLive do
       ~p"/dashboard"
     end
   end
+
+  defp normalize_non_negative_integer(value) when is_integer(value) and value >= 0, do: value
+
+  defp normalize_non_negative_integer(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {count, ""} when count >= 0 -> count
+      _other -> 0
+    end
+  end
+
+  defp normalize_non_negative_integer(_value), do: 0
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 

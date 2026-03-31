@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.ProjectDetailLive do
+  # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+  # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
   alias JidoCode.CodeServer
@@ -182,9 +184,9 @@ defmodule JidoCodeWeb.ProjectDetailLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={%{}}>
       <section class="space-y-2">
-        <h1 id="project-detail-title" class="text-2xl font-bold">Project detail</h1>
+        <h1 id="project-detail-title" class="text-2xl font-bold">Managed repo detail</h1>
         <p class="text-base-content/70">
-          Launch builtin workflows with project defaults from repository context.
+          Launch builtin workflows from the managed-repository control view while preserving project compatibility routes.
         </p>
       </section>
 
@@ -194,7 +196,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         class="rounded-lg border border-warning/60 bg-warning/10 p-4 space-y-2"
       >
         <p id="project-detail-load-error-label" class="font-semibold">
-          Project detail is unavailable
+          Managed repository detail is unavailable
         </p>
         <p id="project-detail-load-error-type" class="text-sm">
           Typed error: {@project_load_error.error_type}
@@ -228,12 +230,19 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           id="project-detail-workflow-defaults"
           class="rounded-lg border border-base-300 bg-base-200/40 p-3 space-y-1"
         >
-          <p class="text-sm font-medium">Project launch defaults</p>
+          <p class="text-sm font-medium">Managed repository launch defaults</p>
           <p id="project-detail-default-branch" class="text-sm text-base-content/80">
             Default branch: {@project_detail.default_branch}
           </p>
           <p id="project-detail-default-repository" class="text-sm text-base-content/80">
             Repository: {@project_detail.github_full_name}
+          </p>
+          <p
+            :if={@project_detail.managed_repo_id}
+            id="project-detail-managed-repo-id"
+            class="text-xs text-base-content/70"
+          >
+            Managed repo: {@project_detail.managed_repo_id}
           </p>
         </section>
 

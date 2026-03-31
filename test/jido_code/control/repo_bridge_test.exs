@@ -1,4 +1,6 @@
 defmodule JidoCode.Control.RepoBridgeTest do
+  # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+  # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
@@ -108,6 +110,32 @@ defmodule JidoCode.Control.RepoBridgeTest do
 
     assert detail.managed_repo_id == managed_repo.id
     assert detail.source_repo_id == managed_repo.source_repo_id
+    assert detail.execution_readiness.status == :ready
+  end
+
+  test "project detail can resolve a managed repo identifier while preserving the legacy project compatibility id" do
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-managed-route",
+        github_full_name: "owner/repo-managed-route",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, detail} = ProjectDetail.load(managed_repo.id)
+
+    assert detail.id == project.id
+    assert detail.managed_repo_id == managed_repo.id
+    assert detail.github_full_name == "owner/repo-managed-route"
     assert detail.execution_readiness.status == :ready
   end
 

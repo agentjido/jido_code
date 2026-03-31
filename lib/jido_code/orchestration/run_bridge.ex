@@ -1,6 +1,7 @@
 defmodule JidoCode.Orchestration.RunBridge do
   # covers: architecture.run_governance.run_launch_resolves_effective_execution_profile
   # covers: architecture.execution_pipeline.run_is_projection_of_workflow_state
+  # covers: architecture.run_governance.run_projection_preserves_explicit_stage_catalog
   @moduledoc """
   Projects legacy `WorkflowRun` records into governed `Run` and `ExecutionProfile` records.
   """
@@ -82,6 +83,9 @@ defmodule JidoCode.Orchestration.RunBridge do
         "legacy_project_id" => workflow_run.project_id,
         "status_transitions" => workflow_run.status_transitions || [],
         "execution_profile_name" => execution_profile.name,
+        "repo_prep_plan" => execution_profile.repo_prep_plan,
+        "validation_plan" => execution_profile.validation_plan,
+        "governed_stages" => governed_stages,
         "projection_source" => "workflow_run"
       },
       retry_of_run_id: workflow_run.retry_of_run_id,

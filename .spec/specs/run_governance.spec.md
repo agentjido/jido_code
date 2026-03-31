@@ -18,12 +18,14 @@ surface:
   - lib/jido_code/governance/change_request.ex
   - lib/jido_code/governance/decision.ex
   - lib/jido_code/governance/evidence.ex
+  - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/governance/run_governance_bridge.ex
   - lib/jido_code/orchestration.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
   - lib/jido_code/orchestration/workflow_run.ex
+  - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
 ```
@@ -65,6 +67,21 @@ surface:
   statement: Jido.Code shall persist durable `Decision` records for approve, reject, or defer outcomes with actor attribution and evidence references instead of keeping those governance outcomes only in transient run metadata.
   priority: must
   stability: evolving
+
+- id: architecture.run_governance.review_policy_controls_change_request_creation
+  statement: Repo-governance review policy shall determine whether runs create `ChangeRequest` review artifacts and whether issue-triage launches use auto-post or human-approval behavior instead of inferring review requirements only from legacy project settings.
+  priority: must
+  stability: evolving
+
+- id: architecture.run_governance.blocked_review_context_preserves_typed_remediation
+  statement: When review policy requires human approval but the review context is incomplete, the governed run layer shall preserve typed remediation and blocking diagnostics instead of leaving reviewers with an opaque awaiting state.
+  priority: must
+  stability: evolving
+
+- id: architecture.run_governance.run_projection_preserves_explicit_stage_catalog
+  statement: The governed run projection shall preserve explicit repo-prep, validation, approval, and cleanup stage plans from the effective execution profile so the control plane does not collapse execution into one opaque status.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -102,6 +119,18 @@ surface:
     - The workflow run projection is synchronized into control-plane governance records.
   then:
     - Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references.
+
+- id: architecture.run_governance.scenario_policy_governs_review_artifacts_and_launches
+  covers:
+    - architecture.run_governance.review_policy_controls_change_request_creation
+    - architecture.run_governance.blocked_review_context_preserves_typed_remediation
+    - architecture.run_governance.run_projection_preserves_explicit_stage_catalog
+  given:
+    - A managed repository has a repo-governance review policy and an execution profile with explicit stage plans.
+  when:
+    - A run is launched or projected into approval handling.
+  then:
+    - Review behavior follows the repo policy, blocked review states keep typed remediation, and the run projection continues to expose explicit repo-prep, validation, approval, and cleanup stage plans.
 ```
 
 ## Verification
@@ -145,4 +174,21 @@ surface:
     - architecture.run_governance.evidence_records_capture_run_outputs
     - architecture.run_governance.change_request_records_reviewable_run_state
     - architecture.run_governance.decision_records_capture_governance_outcomes
+    - architecture.run_governance.review_policy_controls_change_request_creation
+    - architecture.run_governance.blocked_review_context_preserves_typed_remediation
+
+- kind: source_file
+  target: lib/jido_code/governance/policy_bridge.ex
+  covers:
+    - architecture.run_governance.review_policy_controls_change_request_creation
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_bridge.ex
+  covers:
+    - architecture.run_governance.run_projection_preserves_explicit_stage_catalog
+
+- kind: source_file
+  target: lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
+  covers:
+    - architecture.run_governance.review_policy_controls_change_request_creation
 ```

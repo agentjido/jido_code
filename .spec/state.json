@@ -189,6 +189,14 @@
       },
       {
         "file": ".spec/specs/demand_ingress.spec.md",
+        "id": "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Ingress entrypoints that can launch governed runs shall preserve repo-governance approval or review-policy metadata in their normalized source metadata so downstream execution and review behavior remains correlated with the originating intake or webhook.",
+        "subject_id": "architecture.demand_ingress"
+      },
+      {
+        "file": ".spec/specs/demand_ingress.spec.md",
         "id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
         "priority": "must",
         "stability": "evolving",
@@ -477,6 +485,14 @@
       },
       {
         "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.blocked_review_context_preserves_typed_remediation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "When review policy requires human approval but the review context is incomplete, the governed run layer shall preserve typed remediation and blocking diagnostics instead of leaving reviewers with an opaque awaiting state.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
         "id": "architecture.run_governance.change_request_records_reviewable_run_state",
         "priority": "must",
         "stability": "evolving",
@@ -517,6 +533,14 @@
       },
       {
         "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.review_policy_controls_change_request_creation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Repo-governance review policy shall determine whether runs create `ChangeRequest` review artifacts and whether issue-triage launches use auto-post or human-approval behavior instead of inferring review requirements only from legacy project settings.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
         "id": "architecture.run_governance.run_is_preferred_execution_record",
         "priority": "must",
         "stability": "evolving",
@@ -529,6 +553,14 @@
         "priority": "should",
         "stability": "evolving",
         "statement": "Governed run launch paths shall resolve an effective execution profile before persisting the preferred `Run` projection.",
+        "subject_id": "architecture.run_governance"
+      },
+      {
+        "file": ".spec/specs/run_governance.spec.md",
+        "id": "architecture.run_governance.run_projection_preserves_explicit_stage_catalog",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The governed run projection shall preserve explicit repo-prep, validation, approval, and cleanup stage plans from the effective execution profile so the control plane does not collapse execution into one opaque status.",
         "subject_id": "architecture.run_governance"
       },
       {
@@ -1659,7 +1691,8 @@
       {
         "covers": [
           "architecture.demand_ingress.intake_captures_operator_and_trusted_requests",
-          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation",
+          "architecture.demand_ingress.entrypoint_policy_metadata_preserved"
         ],
         "file": ".spec/specs/demand_ingress.spec.md",
         "given": [
@@ -1672,6 +1705,24 @@
         ],
         "when": [
           "The request enters the factory through the product surface."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
+          "architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "given": [
+          "A managed repository has repo-governance review policy that affects issue-triage approval behavior."
+        ],
+        "id": "architecture.demand_ingress.scenario_repo_governance_policy_flows_through_launch_entrypoints",
+        "subject_id": "architecture.demand_ingress",
+        "then": [
+          "The normalized launch metadata preserves the effective approval or review policy alongside the ingress correlation context."
+        ],
+        "when": [
+          "A webhook or workbench entrypoint prepares downstream workflow launch metadata."
         ]
       },
       {
@@ -1919,6 +1970,25 @@
         ],
         "when": [
           "A governed run projection resolves its execution environment."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.run_governance.review_policy_controls_change_request_creation",
+          "architecture.run_governance.blocked_review_context_preserves_typed_remediation",
+          "architecture.run_governance.run_projection_preserves_explicit_stage_catalog"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "given": [
+          "A managed repository has a repo-governance review policy and an execution profile with explicit stage plans."
+        ],
+        "id": "architecture.run_governance.scenario_policy_governs_review_artifacts_and_launches",
+        "subject_id": "architecture.run_governance",
+        "then": [
+          "Review behavior follows the repo policy, blocked review states keep typed remediation, and the run projection continues to expose explicit repo-prep, validation, approval, and cleanup stage plans."
+        ],
+        "when": [
+          "A run is launched or projected into approval handling."
         ]
       },
       {
@@ -3365,6 +3435,7 @@
             "lib/jido_code/governance/review_policy.ex",
             "lib/jido_code/governance/policy_set.ex",
             "lib/jido_code/governance/policy_bridge.ex",
+            "lib/jido_code/github/webhook_pipeline.ex",
             "lib/jido_code/operations/event.ex",
             "lib/jido_code/operations/assessment.ex",
             "lib/jido_code/operations/external_object.ex",
@@ -3376,6 +3447,7 @@
             "lib/jido_code/operations/work_synthesis.ex",
             "lib/jido_code/projects/project.ex",
             "lib/jido_code/jido_os_runtime.ex",
+            "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
             "priv/repo/migrations/20260330161500_add_governance_policy_sets.exs",
             "priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs",
             "priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs",
@@ -3543,12 +3615,14 @@
             "lib/jido_code/governance/change_request.ex",
             "lib/jido_code/governance/decision.ex",
             "lib/jido_code/governance/evidence.ex",
+            "lib/jido_code/governance/policy_bridge.ex",
             "lib/jido_code/governance/run_governance_bridge.ex",
             "lib/jido_code/orchestration.ex",
             "lib/jido_code/orchestration/execution_profile.ex",
             "lib/jido_code/orchestration/run.ex",
             "lib/jido_code/orchestration/run_bridge.ex",
             "lib/jido_code/orchestration/workflow_run.ex",
+            "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
             "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs",
             "priv/repo/migrations/20260331113000_add_run_governance_records.exs"
           ],
@@ -3850,6 +3924,24 @@
       },
       {
         "covers": [
+          "architecture.demand_ingress.entrypoint_policy_metadata_preserved"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/github/webhook_pipeline.ex"
+      },
+      {
+        "covers": [
+          "architecture.demand_ingress.entrypoint_policy_metadata_preserved"
+        ],
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex"
+      },
+      {
+        "covers": [
           "architecture.event_assessment_synthesis.event_records_derived_from_ingress",
           "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved"
         ],
@@ -4039,12 +4131,41 @@
         "covers": [
           "architecture.run_governance.evidence_records_capture_run_outputs",
           "architecture.run_governance.change_request_records_reviewable_run_state",
-          "architecture.run_governance.decision_records_capture_governance_outcomes"
+          "architecture.run_governance.decision_records_capture_governance_outcomes",
+          "architecture.run_governance.review_policy_controls_change_request_creation",
+          "architecture.run_governance.blocked_review_context_preserves_typed_remediation"
         ],
         "file": ".spec/specs/run_governance.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/governance/run_governance_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.review_policy_controls_change_request_creation"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/policy_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.run_projection_preserves_explicit_stage_catalog"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.review_policy_controls_change_request_creation"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex"
       },
       {
         "covers": [
@@ -5734,10 +5855,10 @@
     "decisions": 9,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 181,
-    "scenarios": 71,
+    "requirements": 185,
+    "scenarios": 73,
     "subjects": 34,
-    "verifications": 197
+    "verifications": 202
   },
   "verification": {
     "claims": [
@@ -6026,6 +6147,28 @@
         "subject_id": "architecture.demand_ingress",
         "target": "mix test test/jido_code/operations/demand_ingress_test.exs",
         "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/github/webhook_pipeline.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.demand_ingress.entrypoint_policy_metadata_preserved",
+        "file": ".spec/specs/demand_ingress.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.demand_ingress",
+        "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.event_assessment_synthesis.event_categories_and_repo_correlation_preserved",
@@ -6677,6 +6820,17 @@
         "verification_index": 5
       },
       {
+        "cover_id": "architecture.run_governance.blocked_review_context_preserves_typed_remediation",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/run_governance_bridge.ex",
+        "verification_index": 6
+      },
+      {
         "cover_id": "architecture.run_governance.change_request_records_reviewable_run_state",
         "file": ".spec/specs/run_governance.spec.md",
         "kind": "source_file",
@@ -6708,6 +6862,50 @@
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/governance/run_governance_bridge.ex",
         "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.run_governance.review_policy_controls_change_request_creation",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/run_governance_bridge.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.run_governance.review_policy_controls_change_request_creation",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/governance/policy_bridge.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.run_governance.run_projection_preserves_explicit_stage_catalog",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/orchestration/run_bridge.ex",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.run_governance.review_policy_controls_change_request_creation",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -10235,7 +10433,7 @@
     "strength_summary": {
       "claimed": 51,
       "executed": 0,
-      "linked": 357
+      "linked": 364
     },
     "threshold_failures": 0
   },

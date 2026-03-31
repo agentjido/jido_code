@@ -1,8 +1,11 @@
 defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
+  # covers: architecture.demand_ingress.entrypoint_policy_metadata_preserved
+  # covers: architecture.run_governance.review_policy_controls_change_request_creation
   @moduledoc """
   Validates policy and launches issue triage workflow runs from workbench issue quick actions.
   """
 
+  alias JidoCode.Governance.PolicyBridge
   alias JidoCode.Operations.Ingress
 
   @fallback_row_id_prefix "workbench-row-"
@@ -94,19 +97,74 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
 
   @spec policy_state(map() | nil) :: policy_state()
   def policy_state(project_row) when is_map(project_row) do
-    case map_get(project_row, :issue_triage_policy, "issue_triage_policy") do
-      triage_policy when is_map(triage_policy) ->
-        normalize_policy_state(triage_policy)
+    explicit_policy = map_get(project_row, :issue_triage_policy, "issue_triage_policy")
 
-      _other ->
-        project_row
-        |> map_get(:settings, "settings", %{})
-        |> normalize_map()
-        |> policy_state_from_settings()
+    cond do
+      is_map(explicit_policy) and explicit_policy_disabled?(explicit_policy) ->
+        normalize_policy_state(explicit_policy)
+
+      true ->
+        case policy_state_from_governance(project_row) do
+          {:ok, triage_policy_state} ->
+            triage_policy_state
+
+          :error ->
+            case explicit_policy do
+              triage_policy when is_map(triage_policy) ->
+                normalize_policy_state(triage_policy)
+
+              _other ->
+                project_row
+                |> map_get(:settings, "settings", %{})
+                |> normalize_map()
+                |> policy_state_from_settings()
+            end
+        end
     end
   end
 
   def policy_state(_project_row), do: enabled_policy_state()
+
+  defp policy_state_from_governance(project_row) when is_map(project_row) do
+    managed_repo_id =
+      project_row
+      |> map_get(:managed_repo_id, "managed_repo_id")
+      |> normalize_optional_string()
+
+    project_id =
+      project_row
+      |> map_get(:id, "id")
+      |> normalize_optional_string()
+
+    approval_policy_result =
+      cond do
+        is_binary(managed_repo_id) ->
+          PolicyBridge.approval_policy_for_managed_repo(managed_repo_id)
+
+        is_binary(project_id) ->
+          PolicyBridge.approval_policy_for_project(project_id)
+
+        true ->
+          :error
+      end
+
+    case approval_policy_result do
+      {:ok, approval_policy} ->
+        {:ok, enabled_policy_state(@default_policy, approval_policy)}
+
+      _other ->
+        :error
+    end
+  end
+
+  defp policy_state_from_governance(_project_row), do: :error
+
+  defp explicit_policy_disabled?(policy) when is_map(policy) do
+    normalized_policy = normalize_policy_state(policy)
+    normalized_policy.enabled == false or normalized_policy.status == :disabled
+  end
+
+  defp explicit_policy_disabled?(_policy), do: false
 
   @doc false
   @spec default_launcher(map()) :: {:ok, map()}
@@ -511,7 +569,25 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
       |> normalize_issue_bot_approval_mode() ||
         infer_issue_bot_approval_mode(approval_policy)
 
-    normalized_policy = approval_policy_from_mode(mode)
+    normalized_policy =
+      mode
+      |> approval_policy_from_mode()
+      |> maybe_put_extra_approval_policy_field(
+        :change_request_required,
+        map_get(approval_policy, :change_request_required, "change_request_required")
+      )
+      |> maybe_put_extra_approval_policy_field(
+        :review_threshold,
+        map_get(approval_policy, :review_threshold, "review_threshold")
+      )
+      |> maybe_put_extra_approval_policy_field(
+        :required_stage,
+        map_get(approval_policy, :required_stage, "required_stage")
+      )
+      |> maybe_put_extra_approval_policy_field(
+        :source,
+        map_get(approval_policy, :source, "source")
+      )
 
     on_reject = map_get(approval_policy, :on_reject, "on_reject")
 
@@ -523,6 +599,9 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
   end
 
   defp normalize_approval_policy(_approval_policy), do: default_issue_bot_approval_policy()
+
+  defp maybe_put_extra_approval_policy_field(policy, _field, nil), do: policy
+  defp maybe_put_extra_approval_policy_field(policy, field, value), do: Map.put(policy, field, value)
 
   defp infer_issue_bot_approval_mode(approval_policy) do
     cond do

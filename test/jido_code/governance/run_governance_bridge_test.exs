@@ -133,6 +133,105 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
     assert length(decision.evidence_ids) >= 3
   end
 
+  test "auto-post policy suppresses change requests for approval-stage runs" do
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-auto-post",
+        github_full_name: "owner/repo-auto-post",
+        default_branch: "main",
+        settings: %{
+          "support_agent_config" => %{
+            "github_issue_bot" => %{"approval_mode" => "auto_post"}
+          }
+        }
+      })
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: "run-auto-post-#{System.unique_integer([:positive])}",
+        workflow_name: "issue_triage",
+        workflow_version: 1,
+        trigger: %{source: "github_webhook", mode: "webhook"},
+        inputs: %{"issue_reference" => "owner/repo-auto-post#11"},
+        input_metadata: %{"issue_reference" => %{required: true, source: "test"}},
+        initiating_actor: %{id: "operator-3", email: "operator3@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-03-31 21:00:00Z],
+        step_results: %{
+          "diff_summary" => "1 file changed (+8/-0).",
+          "test_summary" => "manual triage context only.",
+          "risk_notes" => ["Auto-post policy should suppress the change request."]
+        }
+      })
+
+    {:ok, workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "plan_changes",
+        transitioned_at: ~U[2026-03-31 21:01:00Z]
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :awaiting_approval,
+        current_step: "approval_gate",
+        transitioned_at: ~U[2026-03-31 21:02:00Z]
+      })
+
+    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+
+    assert {:ok, []} =
+             ChangeRequest.read(query: [filter: [run_id: run.id]], actor: Actor.operator_actor())
+  end
+
+  test "blocked approval context preserves typed remediation on the change request" do
+    {:ok, project} = create_project("repo-blocked-review")
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: "run-blocked-#{System.unique_integer([:positive])}",
+        workflow_name: "implement_task",
+        workflow_version: 1,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Trigger blocked review context"},
+        input_metadata: %{"task_summary" => %{required: true, source: "test"}},
+        initiating_actor: %{id: "operator-4", email: "operator4@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-03-31 22:00:00Z],
+        step_results: %{
+          "approval_context_generation_error" =>
+            "Approval context generation failed because validation artifacts were incomplete."
+        }
+      })
+
+    {:ok, workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "plan_changes",
+        transitioned_at: ~U[2026-03-31 22:01:00Z]
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :awaiting_approval,
+        current_step: "approval_gate",
+        transitioned_at: ~U[2026-03-31 22:02:00Z]
+      })
+
+    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
+    {:ok, change_request} = ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
+
+    assert change_request.request_metadata["review_blocked"] == true
+
+    assert change_request.review_context["blocking_diagnostic"]["error_type"] ==
+             "approval_context_generation_failed"
+
+    assert change_request.review_context["blocking_diagnostic"]["remediation"] =~
+             "diff summary"
+  end
+
   defp create_project(name) do
     Project.create(%{
       name: name,

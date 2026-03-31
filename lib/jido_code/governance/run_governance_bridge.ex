@@ -2,12 +2,14 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   # covers: architecture.run_governance.evidence_records_capture_run_outputs
   # covers: architecture.run_governance.change_request_records_reviewable_run_state
   # covers: architecture.run_governance.decision_records_capture_governance_outcomes
+  # covers: architecture.run_governance.review_policy_controls_change_request_creation
+  # covers: architecture.run_governance.blocked_review_context_preserves_typed_remediation
   @moduledoc """
   Projects governed run review artifacts from workflow-run audit data.
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
+  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, PolicyBridge}
   alias JidoCode.Orchestration.{Run, WorkflowRun}
 
   @projection_actor Actor.factory_system_actor()
@@ -142,12 +144,17 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   end
 
   defp should_track_change_request?(run, workflow_run) do
-    run.status == :awaiting_approval or not is_nil(latest_decision_payload(workflow_run))
+    review_policy = review_policy_for_run(run)
+
+    review_policy_requires_change_request?(review_policy) and
+      (run.status == :awaiting_approval or not is_nil(latest_decision_payload(workflow_run)))
   end
 
   defp change_request_attrs(run, workflow_run, evidence_records, latest_decision) do
     evidence_ids = Enum.map(evidence_records, & &1.id)
     requested_at = awaiting_approval_timestamp(workflow_run) || run.started_at
+    review_policy = review_policy_for_run(run)
+    blocking_diagnostic = review_blocking_diagnostic(workflow_run, review_policy)
 
     {status, resolved_at} =
       case normalize_decision(latest_decision) do
@@ -170,13 +177,16 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
       },
       request_metadata: %{
         "trigger" => normalize_map(run.trigger),
-        "run_status" => Atom.to_string(run.status)
+        "run_status" => Atom.to_string(run.status),
+        "review_policy" => review_policy,
+        "review_blocked" => not is_nil(blocking_diagnostic)
       },
       evidence_ids: evidence_ids,
       requested_at: requested_at,
       resolved_at: resolved_at
     }
     |> maybe_put(:work_item_id, run.work_item_id)
+    |> put_in_review_context_if_present("blocking_diagnostic", blocking_diagnostic)
   end
 
   defp decision_attrs(run, decision_payload, change_request, evidence_ids) do
@@ -319,6 +329,17 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
+  defp put_in_review_context_if_present(attrs, _key, nil), do: attrs
+
+  defp put_in_review_context_if_present(attrs, key, value) do
+    review_context =
+      attrs
+      |> Map.get(:review_context, %{})
+      |> Map.put(key, value)
+
+    Map.put(attrs, :review_context, review_context)
+  end
+
   defp normalize_map(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       normalized_key =
@@ -369,4 +390,49 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   end
 
   defp parse_iso8601(_value), do: nil
+
+  defp review_policy_for_run(run) do
+    case PolicyBridge.review_policy_for_managed_repo(run.managed_repo_id) do
+      {:ok, review_policy} -> review_policy
+      _other -> PolicyBridge.default_review_policy()
+    end
+  end
+
+  defp review_policy_requires_change_request?(review_policy) do
+    review_policy
+    |> normalize_map()
+    |> Map.get("change_request_required", true)
+  end
+
+  defp review_blocking_diagnostic(workflow_run, review_policy) do
+    normalized_review_policy = normalize_map(review_policy)
+    step_results = normalize_map(workflow_run.step_results)
+    error = normalize_map(workflow_run.error)
+
+    cond do
+      not review_policy_requires_change_request?(normalized_review_policy) ->
+        nil
+
+      is_map(Map.get(step_results, "approval_context")) and map_size(Map.get(step_results, "approval_context")) > 0 ->
+        nil
+
+      true ->
+        error
+        |> Map.get("approval_context_diagnostics", [])
+        |> List.first()
+        |> normalize_map()
+        |> case do
+          diagnostic when map_size(diagnostic) > 0 ->
+            diagnostic
+
+          _other ->
+            %{
+              "error_type" => "approval_context_missing",
+              "detail" => "Approval context is required before human review can proceed.",
+              "remediation" => "Generate diff summary, test summary, and risk notes before awaiting approval.",
+              "required_stage" => Map.get(normalized_review_policy, "required_stage", "approval")
+            }
+        end
+    end
+  end
 end

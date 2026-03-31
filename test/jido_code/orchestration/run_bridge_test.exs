@@ -68,6 +68,8 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
     assert run.stage_statuses["validation"] == "active"
     assert run.workflow_state_ref["workflow_run_id"] == workflow_run.id
     assert run.run_metadata["execution_profile_name"] == "workflow:issue_triage"
+    assert run.run_metadata["repo_prep_plan"] == ["repo_attach", "repo_sync", "repo_prep"]
+    assert run.run_metadata["validation_plan"] == ["spec_check"]
     assert execution_profile.sandbox_profile["shape"] == "light"
     assert execution_profile.validation_plan == ["spec_check"]
     assert execution_profile.checkpoint_strategy == "resume_from_checkpoint"

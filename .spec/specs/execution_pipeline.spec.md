@@ -12,6 +12,7 @@ decisions:
   - jido_code.runic_execution_model
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
+  - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
@@ -55,6 +56,11 @@ surface:
   statement: Generic sandbox bootstrap shall remain distinct from repository-specific prep performed inside a workflow run.
   priority: must
   stability: stable
+
+- id: architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+  statement: Historical workflow-run state shall remain projectable forward into the durable Run model without re-executing the underlying workflow so mixed-mode rollout can restore control-plane continuity safely.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -93,6 +99,17 @@ surface:
     - Lint, tests, and spec checks can execute independently.
   then:
     - They may be represented as explicit workflow steps that fan out and rejoin before the next approval or landing decision.
+
+- id: architecture.execution_pipeline.scenario_legacy_workflow_state_recovers_forward
+  covers:
+    - architecture.execution_pipeline.run_is_projection_of_workflow_state
+    - architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+  given:
+    - A workflow run exists from before governed run projections were fully backfilled.
+  when:
+    - The control plane repairs historical execution continuity during compatibility rollout.
+  then:
+    - The workflow state is projected into Run records without introducing a second execution engine or replaying the workflow from scratch.
 ```
 
 ## Verification
@@ -108,4 +125,20 @@ surface:
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
     - architecture.execution_pipeline.repo_prep_and_validation_are_explicit_steps
     - architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_bridge.ex
+  covers:
+    - architecture.execution_pipeline.run_is_projection_of_workflow_state
+    - architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+
+- kind: source_file
+  target: lib/jido_code/control/compatibility_rollout.ex
+  covers:
+    - architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+
+- kind: source_file
+  target: test/jido_code/control/compatibility_rollout_test.exs
+  covers:
+    - architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
 ```

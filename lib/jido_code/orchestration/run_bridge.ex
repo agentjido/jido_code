@@ -1,7 +1,9 @@
 defmodule JidoCode.Orchestration.RunBridge do
   # covers: architecture.run_governance.run_launch_resolves_effective_execution_profile
   # covers: architecture.execution_pipeline.run_is_projection_of_workflow_state
+  # covers: architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
   # covers: architecture.run_governance.run_projection_preserves_explicit_stage_catalog
+  # covers: architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
   @moduledoc """
   Projects legacy `WorkflowRun` records into governed `Run` and `ExecutionProfile` records.
   """
@@ -20,6 +22,17 @@ defmodule JidoCode.Orchestration.RunBridge do
   @default_checkpoint_strategy ExecutionProfile.default_checkpoint_strategy()
 
   @type launch_result :: {:ok, %{workflow_run: WorkflowRun.t(), run: Run.t()}} | {:error, term()}
+
+  @spec projected_run_for_workflow_run(WorkflowRun.t()) :: {:ok, Run.t()} | {:error, term()}
+  def projected_run_for_workflow_run(%WorkflowRun{id: workflow_run_id} = workflow_run) do
+    case Run.get_by_workflow_run_id(workflow_run_id, actor: @projection_actor) do
+      {:ok, %Run{} = run} -> {:ok, run}
+      {:ok, nil} -> sync_workflow_run(workflow_run)
+      {:error, _reason} -> sync_workflow_run(workflow_run)
+    end
+  end
+
+  def projected_run_for_workflow_run(_workflow_run), do: {:error, :invalid_workflow_run}
 
   @spec sync_workflow_run(WorkflowRun.t()) :: {:ok, Run.t()} | {:error, term()}
   def sync_workflow_run(%WorkflowRun{} = workflow_run) do

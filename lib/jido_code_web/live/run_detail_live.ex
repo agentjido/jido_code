@@ -1,7 +1,11 @@
 defmodule JidoCodeWeb.RunDetailLive do
+  # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   use JidoCodeWeb, :live_view
 
-  alias JidoCode.Orchestration.{RunPubSub, WorkflowRun}
+  alias JidoCode.Control.{Actor, RepoBridge}
+  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
+  alias JidoCode.Orchestration.{Run, RunBridge, RunPubSub, WorkflowRun}
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -26,16 +30,16 @@ defmodule JidoCodeWeb.RunDetailLive do
   @impl true
   def mount(%{"id" => project_id, "run_id" => run_id}, _session, socket) do
     socket =
-      case WorkflowRun.get_by_project_and_run_id(%{project_id: project_id, run_id: run_id}) do
-        {:ok, %WorkflowRun{} = run} ->
+      case load_run_state(project_id, run_id) do
+        {:ok, run_state} ->
           socket
           |> assign(:project_id, project_id)
           |> assign(:run_id, run_id)
-          |> assign_run(run)
+          |> assign_run_state(run_state)
           |> assign(:approval_action_error, nil)
           |> assign(:retry_action_error, nil)
 
-        {:ok, nil} ->
+        {:error, :not_found} ->
           assign_missing_run(socket, project_id, run_id)
 
         {:error, _reason} ->
@@ -62,15 +66,15 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("approve_run", _params, %{assigns: %{run: %WorkflowRun{} = run}} = socket) do
+  def handle_event("approve_run", _params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
     case WorkflowRun.approve(run, %{
            actor: approving_actor(socket),
            current_step: "resume_execution"
          }) do
-      {:ok, %WorkflowRun{} = approved_run} ->
+      {:ok, %WorkflowRun{} = _approved_run} ->
         {:noreply,
          socket
-         |> assign_run(approved_run)
+         |> refresh_run_assigns()
          |> assign(:approval_action_error, nil)
          |> assign(:retry_action_error, nil)}
 
@@ -86,7 +90,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_event("approve_run", _params, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("reject_run", params, %{assigns: %{run: %WorkflowRun{} = run}} = socket) do
+  def handle_event("reject_run", params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
     rationale =
       params
       |> map_get(:rationale, "rationale")
@@ -96,10 +100,10 @@ defmodule JidoCodeWeb.RunDetailLive do
            actor: approving_actor(socket),
            rationale: rationale
          }) do
-      {:ok, %WorkflowRun{} = rejected_run} ->
+      {:ok, %WorkflowRun{} = _rejected_run} ->
         {:noreply,
          socket
-         |> assign_run(rejected_run)
+         |> refresh_run_assigns()
          |> assign(:approval_action_error, nil)
          |> assign(:retry_action_error, nil)}
 
@@ -115,7 +119,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_event("reject_run", _params, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("retry_run", _params, %{assigns: %{run: %WorkflowRun{} = run}} = socket) do
+  def handle_event("retry_run", _params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
     case WorkflowRun.retry(run, %{actor: approving_actor(socket)}) do
       {:ok, %WorkflowRun{} = retried_run} ->
         {:noreply,
@@ -137,7 +141,7 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_event("retry_run", _params, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("retry_step", _params, %{assigns: %{run: %WorkflowRun{} = run}} = socket) do
+  def handle_event("retry_step", _params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
     case WorkflowRun.retry_step(run, %{actor: approving_actor(socket)}) do
       {:ok, %WorkflowRun{} = retried_run} ->
         {:noreply,
@@ -188,6 +192,94 @@ defmodule JidoCodeWeb.RunDetailLive do
             >
               Retry parent: <span class="font-mono">{Map.get(@run, :retry_of_run_id)}</span>
             </p>
+            <p
+              :if={normalize_optional_string(Map.get(@run, :current_stage))}
+              id="run-detail-current-stage"
+              class="text-sm text-base-content/80"
+            >
+              Governed stage: {Map.get(@run, :current_stage)}
+            </p>
+            <p
+              :if={normalize_optional_string(Map.get(@run, :managed_repo_id))}
+              id="run-detail-managed-repo-id"
+              class="text-xs text-base-content/70"
+            >
+              Managed repo: {Map.get(@run, :managed_repo_id)}
+            </p>
+          </section>
+
+          <section
+            id="run-detail-governance-summary"
+            class="space-y-3 rounded border border-base-300 bg-base-100 p-4"
+          >
+            <h2 class="text-lg font-semibold">Governance</h2>
+
+            <section
+              :if={@change_request}
+              id="run-detail-change-request"
+              class="space-y-1 rounded border border-base-300/70 bg-base-200/30 p-3"
+            >
+              <p id="run-detail-change-request-status" class="text-sm">
+                Review request: {Map.get(@change_request, :status) |> status_label()}
+              </p>
+              <p id="run-detail-change-request-summary" class="text-sm text-base-content/80">
+                {Map.get(@change_request, :summary) |> normalize_optional_string()}
+              </p>
+            </section>
+
+            <section id="run-detail-evidence-records" class="space-y-2">
+              <p class="text-sm font-medium">Evidence records</p>
+
+              <%= if @evidence_records == [] do %>
+                <p id="run-detail-evidence-empty" class="text-xs text-base-content/70">
+                  No governed evidence records have been captured yet.
+                </p>
+              <% else %>
+                <ol id="run-detail-evidence-list" class="space-y-2">
+                  <li
+                    :for={{evidence, index} <- Enum.with_index(@evidence_records, 1)}
+                    id={"run-detail-evidence-entry-#{index}"}
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                  >
+                    <p id={"run-detail-evidence-key-#{index}"} class="text-sm font-medium">
+                      {Map.get(evidence, :key)}
+                    </p>
+                    <p id={"run-detail-evidence-summary-#{index}"} class="text-xs text-base-content/80">
+                      {Map.get(evidence, :summary)}
+                    </p>
+                  </li>
+                </ol>
+              <% end %>
+            </section>
+
+            <section id="run-detail-decisions" class="space-y-2">
+              <p class="text-sm font-medium">Decisions</p>
+
+              <%= if @decisions == [] do %>
+                <p id="run-detail-decisions-empty" class="text-xs text-base-content/70">
+                  No governance decisions have been recorded yet.
+                </p>
+              <% else %>
+                <ol id="run-detail-decision-list" class="space-y-2">
+                  <li
+                    :for={{decision, index} <- Enum.with_index(@decisions, 1)}
+                    id={"run-detail-decision-entry-#{index}"}
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                  >
+                    <p id={"run-detail-decision-value-#{index}"} class="text-sm font-medium">
+                      {Map.get(decision, :decision) |> status_label()}
+                    </p>
+                    <p
+                      :if={normalize_optional_string(Map.get(decision, :rationale))}
+                      id={"run-detail-decision-rationale-#{index}"}
+                      class="text-xs text-base-content/80"
+                    >
+                      {Map.get(decision, :rationale)}
+                    </p>
+                  </li>
+                </ol>
+              <% end %>
+            </section>
           </section>
 
           <%= if @issue_triage_artifacts do %>
@@ -622,6 +714,10 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:project_id, project_id)
     |> assign(:run_id, run_id)
     |> assign(:run, nil)
+    |> assign(:workflow_run, nil)
+    |> assign(:evidence_records, [])
+    |> assign(:change_request, nil)
+    |> assign(:decisions, [])
     |> assign(:timeline_entries, [])
     |> assign(:retry_lineage_entries, [])
     |> assign(:artifact_categories, default_artifact_categories())
@@ -642,25 +738,177 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp timeline_entries(_run), do: []
 
-  defp assign_run(socket, %WorkflowRun{} = run) do
+  defp assign_run_state(
+         socket,
+         %{
+           run: run,
+           workflow_run: workflow_run,
+           evidence_records: evidence_records,
+           change_request: change_request,
+           decisions: decisions
+         }
+       ) do
     socket
-    |> assign(:run, run)
-    |> assign(:timeline_entries, timeline_entries(run))
-    |> assign(:retry_lineage_entries, retry_lineage_entries(run))
-    |> assign(:artifact_categories, artifact_categories(run))
-    |> assign(:failure_context, failure_context(run))
-    |> assign(:issue_triage_artifacts, issue_triage_artifacts(run))
-    |> assign(:approval_context, approval_context(run))
-    |> assign(:approval_context_blocker, approval_context_blocker(run))
-    |> assign(:step_retry_state, step_retry_state(run))
+    |> assign(:run, run || workflow_run)
+    |> assign(:workflow_run, workflow_run)
+    |> assign(:evidence_records, evidence_records)
+    |> assign(:change_request, change_request)
+    |> assign(:decisions, decisions)
+    |> assign(:timeline_entries, timeline_entries(workflow_run))
+    |> assign(:retry_lineage_entries, retry_lineage_entries(workflow_run))
+    |> assign(:artifact_categories, artifact_categories(workflow_run))
+    |> assign(:failure_context, failure_context(workflow_run))
+    |> assign(:issue_triage_artifacts, issue_triage_artifacts(workflow_run))
+    |> assign(:approval_context, approval_context(workflow_run))
+    |> assign(:approval_context_blocker, approval_context_blocker(workflow_run))
+    |> assign(:step_retry_state, step_retry_state(workflow_run))
   end
 
   defp refresh_run_assigns(%{assigns: %{project_id: project_id, run_id: run_id}} = socket) do
-    case WorkflowRun.get_by_project_and_run_id(%{project_id: project_id, run_id: run_id}) do
-      {:ok, %WorkflowRun{} = run} -> assign_run(socket, run)
+    case load_run_state(project_id, run_id) do
+      {:ok, run_state} -> assign_run_state(socket, run_state)
       _other -> assign_missing_run(socket, project_id, run_id)
     end
   end
+
+  defp load_run_state(project_id, run_id) do
+    with {:ok, project_scope} <- RepoBridge.repo_scope(project_id),
+         {:ok, run} <- load_governed_run(project_scope, run_id),
+         {:ok, workflow_run} <- load_workflow_run(run, project_scope, run_id) do
+      {:ok,
+       %{
+         run: run,
+         workflow_run: workflow_run,
+         evidence_records: load_evidence_records(run),
+         change_request: load_change_request(run),
+         decisions: load_decisions(run)
+       }}
+    else
+      {:error, :governed_run_not_found} ->
+        load_legacy_run_state(project_id, run_id)
+
+      {:error, :repo_scope_not_found} ->
+        load_legacy_run_state(project_id, run_id)
+
+      {:error, :workflow_run_not_found} ->
+        load_legacy_run_state(project_id, run_id)
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp load_governed_run(project_scope, run_id) do
+    managed_repo_id =
+      project_scope
+      |> map_get(:managed_repo_id, "managed_repo_id")
+      |> normalize_optional_string()
+
+    normalized_run_id = normalize_optional_string(run_id)
+
+    cond do
+      is_nil(managed_repo_id) or is_nil(normalized_run_id) ->
+        {:error, :governed_run_not_found}
+
+      true ->
+        case Run.get_by_managed_repo_and_run_id(managed_repo_id, normalized_run_id, actor: Actor.operator_actor()) do
+          {:ok, %Run{} = run} -> {:ok, run}
+          {:ok, nil} -> {:error, :governed_run_not_found}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp load_workflow_run(%Run{} = run, _project_scope, _run_id) do
+    workflow_run_id =
+      run
+      |> map_get(:workflow_run_id, "workflow_run_id")
+      |> normalize_optional_string()
+
+    if is_nil(workflow_run_id) do
+      {:error, :workflow_run_not_found}
+    else
+      case WorkflowRun.read(
+             query: [filter: [id: workflow_run_id], limit: 1],
+             actor: Actor.operator_actor()
+           ) do
+        {:ok, [%WorkflowRun{} = workflow_run | _rest]} -> {:ok, workflow_run}
+        {:ok, []} -> {:error, :workflow_run_not_found}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  defp load_workflow_run(_run, _project_scope, _run_id), do: {:error, :workflow_run_not_found}
+
+  defp load_legacy_run_state(project_id, run_id) do
+    case WorkflowRun.get_by_project_and_run_id(
+           %{project_id: project_id, run_id: run_id},
+           actor: Actor.operator_actor()
+         ) do
+      {:ok, %WorkflowRun{} = workflow_run} ->
+        case RunBridge.projected_run_for_workflow_run(workflow_run) do
+          {:ok, %Run{} = run} ->
+            {:ok,
+             %{
+               run: run,
+               workflow_run: workflow_run,
+               evidence_records: load_evidence_records(run),
+               change_request: load_change_request(run),
+               decisions: load_decisions(run)
+             }}
+
+          _other ->
+            {:ok,
+             %{
+               run: workflow_run,
+               workflow_run: workflow_run,
+               evidence_records: [],
+               change_request: nil,
+               decisions: []
+             }}
+        end
+
+      {:ok, nil} ->
+        {:error, :not_found}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp load_evidence_records(%Run{} = run) do
+    case Evidence.read(
+           query: [filter: [run_id: run.id], sort: [recorded_at: :asc]],
+           actor: Actor.operator_actor()
+         ) do
+      {:ok, evidence_records} -> evidence_records
+      _other -> []
+    end
+  end
+
+  defp load_evidence_records(_run), do: []
+
+  defp load_change_request(%Run{} = run) do
+    case ChangeRequest.read(query: [filter: [run_id: run.id], limit: 1], actor: Actor.operator_actor()) do
+      {:ok, [change_request | _rest]} -> change_request
+      _other -> nil
+    end
+  end
+
+  defp load_change_request(_run), do: nil
+
+  defp load_decisions(%Run{} = run) do
+    case Decision.read(
+           query: [filter: [run_id: run.id], sort: [decided_at: :desc]],
+           actor: Actor.operator_actor()
+         ) do
+      {:ok, decisions} -> decisions
+      _other -> []
+    end
+  end
+
+  defp load_decisions(_run), do: []
 
   defp maybe_subscribe_run_events(socket) do
     run_id =
@@ -1556,13 +1804,13 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> Map.get(:current_user)
     |> case do
       %{} = user ->
-        %{
-          id: user |> Map.get(:id) |> normalize_optional_string() || "unknown",
-          email: user |> Map.get(:email) |> normalize_optional_string()
-        }
+        Actor.operator_actor(%{
+          "id" => user |> Map.get(:id) |> normalize_optional_string() || "unknown",
+          "email" => user |> Map.get(:email) |> normalize_optional_string()
+        })
 
       _other ->
-        %{id: "unknown", email: nil}
+        Actor.operator_actor(%{"id" => "unknown", "email" => nil})
     end
   end
 

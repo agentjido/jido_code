@@ -84,6 +84,11 @@ surface:
   statement: Repo-governance posture may narrow or relax the effective review policy used by product entrypoints, while the configured repo policy remains separately visible as source state instead of being overwritten.
   priority: must
   stability: evolving
+
+- id: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+  statement: Transitional repo, workflow, and GitHub-ingress surfaces shall fail closed without explicit human or machine actor context in product code paths, and trusted machine entrypoints shall use named actor classes instead of anonymous authorization bypass mutations.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -106,6 +111,7 @@ surface:
     - Repo-native `.spec/` and optional Git-native planning observations may inform repo-governance choices without bypassing Ash-backed durable records or runtime capability admission.
     - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
     - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
+    - Legacy project, workflow-run, and GitHub-ingress compatibility paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
 ```
 
 ## Verification
@@ -135,6 +141,29 @@ surface:
     - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
 
 - kind: source_file
+  target: lib/jido_code/control/actor.ex
+  covers:
+    - architecture.policy_layers.explicit_human_and_machine_actor_classes
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
+  target: lib/jido_code/control/checks/actor_class_in.ex
+  covers:
+    - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
+  target: lib/jido_code/projects/project.ex
+  covers:
+    - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
+  target: lib/jido_code/github/webhook_pipeline.ex
+  covers:
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
   target: test/jido_code/conversations/phase_four_integration_test.exs
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
@@ -145,4 +174,14 @@ surface:
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
+
+- kind: source_file
+  target: test/jido_code/projects/project_test.exs
+  covers:
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
+  target: test/jido_code/control/phase_six_integration_test.exs
+  covers:
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
 ```

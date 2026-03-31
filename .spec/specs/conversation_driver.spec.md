@@ -14,10 +14,12 @@ decisions:
   - jido_code.coding_assistance_conversation_driver
   - jido_code.jido_os_session_turn_runtime
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/event_bridge.ex
@@ -66,6 +68,11 @@ surface:
   statement: Operator and repository conversations shall enter the same managed-repository control loop through `jido_os` sessions and turns as ingress and steering surfaces rather than acting as a parallel product control plane.
   priority: must
   stability: evolving
+
+- id: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+  statement: Project-detail conversation entry surfaces shall present managed-repository control context while preserving compatibility route shapes and downstream identifiers needed by current `CodeServer` entrypoints during the migration.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -105,6 +112,16 @@ surface:
     - A coding-oriented turn is admitted through the conversation path.
   then:
     - The turn is treated as ingress and steering input to the same managed-repository control loop rather than as a second product truth lane outside factory governance.
+
+- id: architecture.conversation_driver.scenario_project_detail_route_keeps_conversation_entry_stable
+  covers:
+    - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+  given:
+    - Repo detail can be resolved through either a legacy project identifier or a managed-repo identifier during migration.
+  when:
+    - An operator opens repo detail and starts a conversation from the existing route surface.
+  then:
+    - The page presents managed-repository context while preserving the compatibility identifier contract needed by current conversation entrypoints.
 ```
 
 ## Verification
@@ -165,4 +182,24 @@ surface:
     - architecture.conversation_driver.subscriber_event_contract_preserved
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
     - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+
+- kind: source_file
+  target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
+  covers:
+    - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+
+- kind: source_file
+  target: lib/jido_code/workbench/project_detail.ex
+  covers:
+    - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+
+- kind: source_file
+  target: lib/jido_code_web/live/project_detail_live.ex
+  covers:
+    - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+
+- kind: source_file
+  target: test/jido_code/control/repo_bridge_test.exs
+  covers:
+    - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
 ```

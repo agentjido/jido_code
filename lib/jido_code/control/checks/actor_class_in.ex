@@ -1,4 +1,6 @@
 defmodule JidoCode.Control.Checks.ActorClassIn do
+  # covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
   @moduledoc false
 
   use Ash.Policy.SimpleCheck
@@ -7,7 +9,7 @@ defmodule JidoCode.Control.Checks.ActorClassIn do
 
   @impl true
   def match?(actor, _context, opts) do
-    {:ok, Actor.allowed?(actor, Keyword.get(opts, :classes, []))}
+    {:ok, Actor.allowed?(Actor.effective_actor(actor), Keyword.get(opts, :classes, []))}
   end
 
   @impl true

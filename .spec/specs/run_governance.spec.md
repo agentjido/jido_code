@@ -20,6 +20,7 @@ surface:
   - lib/jido_code/governance/evidence.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/governance/run_governance_bridge.ex
+  - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/orchestration.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
@@ -82,6 +83,16 @@ surface:
   statement: The governed run projection shall preserve explicit repo-prep, validation, approval, and cleanup stage plans from the effective execution profile so the control plane does not collapse execution into one opaque status.
   priority: must
   stability: evolving
+
+- id: architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+  statement: The legacy `WorkflowRun` seam and its governed projections shall preserve explicit actor class attribution across approval, retry, and machine-driven issue-triage transitions so compatibility views and governance records can distinguish operator, orchestrator, run-worker, and external-ingress actions.
+  priority: must
+  stability: evolving
+
+- id: architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+  statement: Historical `WorkflowRun` records shall remain backfillable into governed `Run` projections and related review artifacts on demand or in batch so dashboard, workbench, and run-detail surfaces preserve execution continuity during mixed-mode rollout.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -113,12 +124,14 @@ surface:
     - architecture.run_governance.evidence_records_capture_run_outputs
     - architecture.run_governance.change_request_records_reviewable_run_state
     - architecture.run_governance.decision_records_capture_governance_outcomes
+    - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
   given:
     - A governed run accumulates validation summaries and then reaches review or approval handling.
   when:
     - The workflow run projection is synchronized into control-plane governance records.
   then:
     - Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references.
+    - Retry, approval, and webhook-driven compatibility records keep explicit actor class attribution instead of collapsing machine and human actions into undifferentiated metadata.
 
 - id: architecture.run_governance.scenario_policy_governs_review_artifacts_and_launches
   covers:
@@ -131,6 +144,16 @@ surface:
     - A run is launched or projected into approval handling.
   then:
     - Review behavior follows the repo policy, blocked review states keep typed remediation, and the run projection continues to expose explicit repo-prep, validation, approval, and cleanup stage plans.
+
+- id: architecture.run_governance.scenario_legacy_history_recovers_forward_into_governed_runs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+  given:
+    - A workflow run exists from before governed run projections were fully backfilled.
+  when:
+    - An operator opens a run-sensitive surface or an explicit rollout backfill is triggered.
+  then:
+    - The workflow history can be projected forward into governed `Run` state so mixed-mode operator views do not lose execution continuity while the compatibility seam is still present.
 ```
 
 ## Verification
@@ -191,4 +214,39 @@ surface:
   target: lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   covers:
     - architecture.run_governance.review_policy_controls_change_request_creation
+
+- kind: source_file
+  target: lib/jido_code/orchestration/workflow_run.ex
+  covers:
+    - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+
+- kind: source_file
+  target: test/jido_code/orchestration/workflow_run_test.exs
+  covers:
+    - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_bridge.ex
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: lib/jido_code/control/compatibility_rollout.ex
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: test/jido_code/control/compatibility_rollout_test.exs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: test/jido_code/control/phase_six_integration_test.exs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_six_integration_test.exs
+  covers:
+    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
 ```

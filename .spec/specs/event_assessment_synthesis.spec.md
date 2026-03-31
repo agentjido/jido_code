@@ -63,6 +63,11 @@ surface:
   statement: When repo-native `.spec/` or optional Git-native planning observations are available for a managed repository, synthesized assessment inputs shall preserve a compact signal snapshot so later posture and planning decisions can remain explainable without duplicating repo-native state into Ash-backed truth.
   priority: must
   stability: evolving
+
+- id: architecture.event_assessment_synthesis.assessment_preserves_ingress_actor_class_context
+  statement: Event and assessment synthesis inputs shall preserve normalized ingress actor class attribution so downstream governance can explain whether demand originated from operator or machine entrypoints without re-reading raw ingress payloads.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -152,6 +157,11 @@ surface:
   target: lib/jido_code/operations/repo_native_state.ex
   covers:
     - architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
+
+- kind: source_file
+  target: lib/jido_code/operations/ingress.ex
+  covers:
+    - architecture.event_assessment_synthesis.assessment_preserves_ingress_actor_class_context
 
 - kind: source_file
   target: test/jido_code/operations/event_assessment_synthesis_test.exs

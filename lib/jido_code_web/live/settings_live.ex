@@ -2,6 +2,7 @@ defmodule JidoCodeWeb.SettingsLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Accounts.SecurityTokens
+  alias JidoCode.Control.Actor
   alias JidoCode.GitHub.Repo
   alias JidoCode.Security.SecretRefs
   alias JidoCodeWeb.Security.UiRedaction
@@ -14,7 +15,7 @@ defmodule JidoCodeWeb.SettingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    repos = Repo.read!()
+    repos = Repo.read!(actor: settings_actor(socket))
 
     socket =
       socket
@@ -772,13 +773,14 @@ defmodule JidoCodeWeb.SettingsLive do
 
   @impl true
   def handle_event("toggle_repo", %{"id" => id}, socket) do
-    repo = Repo.get_by_id!(id)
+    actor = settings_actor(socket)
+    repo = Repo.get_by_id!(id, actor: actor)
 
     result =
       if repo.enabled do
-        Repo.disable(repo)
+        Repo.disable(repo, actor: actor)
       else
-        Repo.enable(repo)
+        Repo.enable(repo, actor: actor)
       end
 
     case result do
@@ -791,9 +793,10 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   def handle_event("delete_repo", %{"id" => id}, socket) do
-    repo = Repo.get_by_id!(id)
+    actor = settings_actor(socket)
+    repo = Repo.get_by_id!(id, actor: actor)
 
-    case Ash.destroy(repo) do
+    case Ash.destroy(repo, actor: actor) do
       :ok ->
         {:noreply, stream_delete(socket, :repos, repo)}
 
@@ -1129,4 +1132,22 @@ defmodule JidoCodeWeb.SettingsLive do
 
   defp provider_rotation_alarm_label(true), do: "Raised"
   defp provider_rotation_alarm_label(false), do: "None"
+
+  defp settings_actor(socket) do
+    socket.assigns
+    |> Map.get(:current_user)
+    |> case do
+      %{} = user ->
+        Actor.operator_actor(%{
+          "id" => Map.get(user, :id) || Map.get(user, "id"),
+          "email" => Map.get(user, :email) || Map.get(user, "email")
+        })
+
+      _other ->
+        Actor.operator_actor(%{
+          "id" => "system:settings-live",
+          "email" => "settings-live@system.local"
+        })
+    end
+  end
 end

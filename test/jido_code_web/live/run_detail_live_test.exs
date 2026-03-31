@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.RunDetailLiveTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -141,6 +142,72 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
         has_element?(view, "#run-detail-timeline-duration-2", "1m 0s") and
         has_element?(view, "#run-detail-timeline-duration-3", "unknown")
     end)
+  end
+
+  test "renders governed evidence and review state alongside workflow-run compatibility details", %{
+    conn: _conn
+  } do
+    register_owner("governed-run-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("governed-run-owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-governed-run-detail",
+        github_full_name: "owner/repo-governed-run-detail",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    run_id = "run-governed-detail-#{System.unique_integer([:positive])}"
+
+    {:ok, run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 1,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Render governance panels"},
+        input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+        initiating_actor: %{id: "owner-1", email: "governed-run-owner@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-03-31 21:00:00Z],
+        step_results: %{
+          "diff_summary" => "2 files changed (+14/-2).",
+          "test_summary" => "mix test: 12 passed, 0 failed.",
+          "risk_notes" => ["Touches governed run presentation paths."],
+          "approval_context" => %{
+            "diff_summary" => "2 files changed (+14/-2).",
+            "test_summary" => "mix test: 12 passed, 0 failed.",
+            "risk_notes" => ["Touches governed run presentation paths."]
+          }
+        }
+      })
+
+    {:ok, run} =
+      WorkflowRun.transition_status(run, %{
+        to_status: :running,
+        current_step: "plan_changes",
+        transitioned_at: ~U[2026-03-31 21:01:00Z]
+      })
+
+    {:ok, _run} =
+      WorkflowRun.transition_status(run, %{
+        to_status: :awaiting_approval,
+        current_step: "approval_gate",
+        transitioned_at: ~U[2026-03-31 21:02:00Z]
+      })
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-current-stage", "approval")
+    assert has_element?(view, "#run-detail-evidence-list")
+    assert has_element?(view, "#run-detail-evidence-key-1")
+    assert has_element?(view, "#run-detail-change-request-status", "open")
+    assert has_element?(view, "#run-detail-decisions-empty")
   end
 
   test "renders run artifact browser categories with stable view identifiers", %{conn: _conn} do

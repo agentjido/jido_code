@@ -1,9 +1,10 @@
 defmodule JidoCode.Workbench.RunOutcomes do
   @moduledoc """
-  Resolves recent workflow run outcomes for workbench project rows.
+  Resolves recent governed run outcomes for workbench repository rows.
   """
 
-  alias JidoCode.Orchestration.WorkflowRun
+  alias JidoCode.Control.Actor
+  alias JidoCode.Orchestration.{Run, RunBridge, WorkflowRun}
 
   @fallback_row_id_prefix "workbench-row-"
   @query_timeout_ms 5_000
@@ -55,15 +56,15 @@ defmodule JidoCode.Workbench.RunOutcomes do
   @doc false
   @spec default_loader([map()]) :: %{optional(String.t()) => run_outcome()}
   def default_loader(rows) when is_list(rows) do
-    project_ids = project_ids(rows)
+    row_scopes = row_scopes(rows)
 
-    project_ids
+    row_scopes
     |> Task.async_stream(
       &load_project_outcome/1,
       ordered: true,
       timeout: @query_timeout_ms
     )
-    |> Enum.zip(project_ids)
+    |> Enum.zip(Enum.map(row_scopes, & &1.id))
     |> Enum.reduce(%{}, fn
       {{:ok, {:ok, nil}}, _project_id}, outcomes ->
         outcomes
@@ -139,7 +140,7 @@ defmodule JidoCode.Workbench.RunOutcomes do
     end
   end
 
-  defp load_project_outcome(project_id) do
+  defp load_project_outcome(%{id: project_id} = scope) do
     if fallback_row_id?(project_id) do
       {:ok,
        unknown_outcome(
@@ -149,16 +150,60 @@ defmodule JidoCode.Workbench.RunOutcomes do
          @status_unresolved_error_type
        )}
     else
-      case WorkflowRun.read(query: [filter: [project_id: project_id], sort: [started_at: :desc], limit: 1]) do
-        {:ok, [run | _]} ->
-          {:ok, run_outcome_from_run(project_id, run)}
+      case load_governed_run_outcome(scope) do
+        {:ok, nil} ->
+          load_legacy_run_outcome(scope)
 
-        {:ok, []} ->
-          {:ok, nil}
-
-        {:error, reason} ->
-          {:error, reason}
+        other ->
+          other
       end
+    end
+  end
+
+  defp load_project_outcome(_scope), do: {:ok, nil}
+
+  defp load_governed_run_outcome(%{managed_repo_id: managed_repo_id, project_id: project_id}) do
+    case normalize_optional_string(managed_repo_id) do
+      nil ->
+        {:ok, nil}
+
+      normalized_managed_repo_id ->
+        case Run.read(
+               query: [filter: [managed_repo_id: normalized_managed_repo_id], sort: [started_at: :desc], limit: 1],
+               actor: Actor.operator_actor()
+             ) do
+          {:ok, [run | _]} -> {:ok, run_outcome_from_run(project_id, run)}
+          {:ok, []} -> {:ok, nil}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp load_legacy_run_outcome(%{project_id: project_id}) do
+    case normalize_optional_string(project_id) do
+      nil ->
+        {:ok, nil}
+
+      normalized_project_id ->
+        case WorkflowRun.read(
+               query: [filter: [project_id: normalized_project_id], sort: [started_at: :desc], limit: 1],
+               actor: Actor.operator_actor()
+             ) do
+          {:ok, [run | _]} ->
+            case RunBridge.projected_run_for_workflow_run(run) do
+              {:ok, %Run{} = governed_run} ->
+                {:ok, run_outcome_from_run(normalized_project_id, governed_run)}
+
+              _other ->
+                {:ok, run_outcome_from_run(normalized_project_id, run)}
+            end
+
+          {:ok, []} ->
+            {:ok, nil}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 
@@ -362,6 +407,32 @@ defmodule JidoCode.Workbench.RunOutcomes do
   end
 
   defp project_ids(_rows), do: []
+
+  defp row_scopes(rows) when is_list(rows) do
+    rows
+    |> Enum.map(fn row ->
+      %{
+        id:
+          row
+          |> map_get(:id, "id")
+          |> normalize_optional_string(),
+        project_id:
+          row
+          |> map_get(:legacy_project_id, "legacy_project_id")
+          |> normalize_optional_string() ||
+            row
+            |> map_get(:id, "id")
+            |> normalize_optional_string(),
+        managed_repo_id:
+          row
+          |> map_get(:managed_repo_id, "managed_repo_id")
+          |> normalize_optional_string()
+      }
+    end)
+    |> Enum.reject(&is_nil(&1.id))
+  end
+
+  defp row_scopes(_rows), do: []
 
   defp fallback_row_id?(project_id) do
     case normalize_optional_string(project_id) do

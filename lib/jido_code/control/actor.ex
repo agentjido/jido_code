@@ -1,4 +1,6 @@
 defmodule JidoCode.Control.Actor do
+  # covers: architecture.policy_layers.explicit_human_and_machine_actor_classes
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
   @moduledoc """
   Normalizes human and machine actor classes for control-plane authorization.
   """
@@ -22,8 +24,14 @@ defmodule JidoCode.Control.Actor do
           | :run_worker
           | :external_ingress
 
+  @policy_actor_process_key {__MODULE__, :policy_actor}
+
   @spec classes() :: [actor_class()]
   def classes, do: @actor_classes
+
+  @spec effective_actor(term()) :: term()
+  def effective_actor(nil), do: current_policy_actor()
+  def effective_actor(actor), do: actor
 
   @spec class(term()) :: actor_class() | nil
   def class(%User{} = actor), do: human_default(actor)
@@ -37,7 +45,37 @@ defmodule JidoCode.Control.Actor do
   def class(_actor), do: nil
 
   @spec allowed?(term(), [actor_class()]) :: boolean()
-  def allowed?(actor, classes) when is_list(classes), do: class(actor) in classes
+  def allowed?(actor, classes) when is_list(classes), do: class(effective_actor(actor)) in classes
+
+  @spec put_policy_actor(term()) :: :ok
+  def put_policy_actor(actor) do
+    Process.put(@policy_actor_process_key, actor)
+    :ok
+  end
+
+  @spec current_policy_actor() :: term()
+  def current_policy_actor, do: Process.get(@policy_actor_process_key)
+
+  @spec clear_policy_actor() :: :ok
+  def clear_policy_actor do
+    Process.delete(@policy_actor_process_key)
+    :ok
+  end
+
+  @spec with_policy_actor(term(), (-> result)) :: result when result: var
+  def with_policy_actor(actor, fun) when is_function(fun, 0) do
+    previous_actor = current_policy_actor()
+    put_policy_actor(actor)
+
+    try do
+      fun.()
+    after
+      case previous_actor do
+        nil -> clear_policy_actor()
+        _other -> put_policy_actor(previous_actor)
+      end
+    end
+  end
 
   @spec admin_actor(map()) :: map()
   def admin_actor(attrs \\ %{}), do: build_actor(:admin, "admin", attrs)

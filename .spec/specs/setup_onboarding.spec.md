@@ -11,7 +11,9 @@ status: active
 summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, and defers repo/provider/integration setup into signed-in follow-up work where first-project import may normalize durable intake without reintroducing a blocking wizard.
 decisions:
   - jido_code.auth_user_system
+  - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
+  - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - .spec/specs/baseline_surface.spec.md
   - .spec/specs/user_administration.spec.md
   - .spec/specs/github_identity_and_integration.spec.md
@@ -66,6 +68,11 @@ surface:
   statement: Repository source selection shall remain a per-project concern, with each project carrying its own source kind and source identity so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.
   priority: must
   stability: evolving
+
+- id: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
+  statement: Signed-in post-bootstrap operator surfaces may preserve compatibility routes, but they shall progressively present managed-repository and governed-run control-plane language once onboarding has created those records.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -117,6 +124,16 @@ surface:
     - The operator opens the public bootstrap entry.
   then:
     - The product surfaces the blocking diagnostic instead of burying the failure in optional setup chrome.
+
+- id: setup.onboarding.scenario_signed_in_surfaces_shift_without_restart
+  covers:
+    - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
+  given:
+    - Bootstrap is complete and a signed-in operator has imported a repository into the control plane.
+  when:
+    - The operator opens dashboard, workbench, or repo detail through the existing post-bootstrap routes.
+  then:
+    - Those post-bootstrap surfaces may keep compatibility paths while presenting managed-repository and governed-run concepts as the preferred operator language.
 ```
 
 ## Verification
@@ -189,4 +206,24 @@ surface:
     - setup.onboarding.deployment_mode_auto_detected
     - setup.onboarding.deferred_integrations
     - setup.onboarding.start_path_preference_persisted
+
+- kind: source_file
+  target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
+  covers:
+    - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
+
+- kind: source_file
+  target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
+
+- kind: source_file
+  target: lib/jido_code_web/live/workbench_live.ex
+  covers:
+    - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
+
+- kind: source_file
+  target: lib/jido_code_web/live/project_detail_live.ex
+  covers:
+    - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
 ```

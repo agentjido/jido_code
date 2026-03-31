@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.WorkbenchLive do
+  # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Orchestration.RunPubSub
@@ -219,7 +220,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
       <section class="space-y-2">
         <h1 class="text-2xl font-bold">Workbench</h1>
         <p class="text-base-content/70">
-          Unified cross-project inventory for issue and pull request triage.
+          Unified managed-repository inventory for issue and pull request triage.
         </p>
       </section>
 
@@ -303,7 +304,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
             id="workbench-filter-project"
             field={@filter_form[:project_id]}
             type="select"
-            label="Project"
+            label="Managed repo"
             options={@project_filter_options}
           />
           <.input
@@ -334,7 +335,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
         <div id="workbench-filter-chips" class="flex flex-wrap gap-2 pt-2">
           <span id="workbench-filter-chip-project" class="badge badge-outline">
-            Project: {@filter_chips.project}
+            Managed repo: {@filter_chips.project}
           </span>
           <span id="workbench-filter-chip-work-state" class="badge badge-outline">
             State: {@filter_chips.work_state}
@@ -348,7 +349,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
         </div>
 
         <p id="workbench-filter-results-count" class="pt-2 text-xs text-base-content/70">
-          Showing {@inventory_count} of {@inventory_total_count} projects.
+          Showing {@inventory_count} of {@inventory_total_count} managed repositories.
         </p>
       </section>
 
@@ -356,7 +357,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
         <table id="workbench-project-table" class="table table-zebra w-full">
           <thead>
             <tr>
-              <th>Project</th>
+              <th>Managed repo</th>
               <th>Open issues</th>
               <th>Open PRs</th>
               <th>Recent activity</th>

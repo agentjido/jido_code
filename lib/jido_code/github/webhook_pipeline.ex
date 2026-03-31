@@ -1,5 +1,7 @@
 defmodule JidoCode.GitHub.WebhookPipeline do
   # covers: architecture.demand_ingress.entrypoint_policy_metadata_preserved
+  # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
   @moduledoc """
   Routes verified webhook deliveries into downstream pipeline stages.
   """
@@ -7,6 +9,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   require Logger
 
   alias JidoCode.Agents.SupportAgentConfigs
+  alias JidoCode.Control.Actor
   alias JidoCode.GitHub.Repo
   alias JidoCode.GitHub.WebhookDelivery
   alias JidoCode.Governance.PolicyBridge
@@ -37,6 +40,10 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   @issue_triage_artifact_persistence_remediation """
   Restore Issue Bot artifact persistence health, then retry issue triage so run detail can capture full triage and response artifacts.
   """
+  @webhook_actor Actor.external_ingress_actor(%{
+                   "id" => "system:github-webhook",
+                   "email" => "github-webhook@system.local"
+                 })
 
   @type verified_delivery :: %{
           delivery_id: String.t() | nil,
@@ -137,7 +144,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
              payload: payload,
              repo_id: repo_id
            },
-           authorize?: false
+           actor: @webhook_actor
          ) do
       {:ok, %WebhookDelivery{}} ->
         Logger.info(
@@ -169,7 +176,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   @spec get_delivery_by_id(String.t()) :: {:ok, WebhookDelivery.t() | nil} | {:error, term()}
   defp get_delivery_by_id(delivery_id) when is_binary(delivery_id) do
-    case WebhookDelivery.get_by_github_delivery_id(delivery_id, authorize?: false) do
+    case WebhookDelivery.get_by_github_delivery_id(delivery_id, actor: @webhook_actor) do
       {:ok, %WebhookDelivery{} = delivery} ->
         {:ok, delivery}
 
@@ -241,7 +248,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
                  sort: [inserted_at: :asc],
                  limit: 1
                ],
-               authorize?: false
+               actor: @webhook_actor
              ) do
           {:ok, [%Repo{} = repo | _rest]} ->
             {:ok, repo}
@@ -286,7 +293,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
       }
       |> maybe_put_installation_id(installation_id)
 
-    case Repo.create(attributes, authorize?: false) do
+    case Repo.create(attributes, actor: @webhook_actor) do
       {:ok, %Repo{} = repo} ->
         Logger.info(
           "github_webhook_repo_anchor_created repo_full_name=#{repo_full_name} installation_id=#{log_integer_value(installation_id)}"
@@ -310,7 +317,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
     if current_installation_id == installation_id do
       {:ok, repo}
     else
-      case Repo.update(repo, %{github_app_installation_id: installation_id}, authorize?: false) do
+      case Repo.update(repo, %{github_app_installation_id: installation_id}, actor: @webhook_actor) do
         {:ok, %Repo{} = updated_repo} ->
           {:ok, updated_repo}
 
@@ -471,7 +478,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   @spec get_repo_by_full_name(String.t()) :: {:ok, Repo.t()} | {:error, term()}
   defp get_repo_by_full_name(repo_full_name) when is_binary(repo_full_name) do
-    case Repo.get_by_full_name(repo_full_name, authorize?: false) do
+    case Repo.get_by_full_name(repo_full_name, actor: @webhook_actor) do
       {:ok, %Repo{} = repo} ->
         {:ok, repo}
 
@@ -672,7 +679,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
          {:ok, projects} <-
            Project.read(
              query: [filter: [github_full_name: repo_full_name], limit: 1],
-             authorize?: false
+             actor: @webhook_actor
            ),
          [%Project{} = project | _rest] <- projects do
       {:ok, project}
@@ -743,7 +750,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
          run_attributes <- Map.fetch!(issue_triage_run_plan, :run_attributes),
          artifact_persistence_failure <- Map.get(issue_triage_run_plan, :artifact_persistence_failure),
          {:ok, %WorkflowRun{} = workflow_run} <-
-           WorkflowRun.create(run_attributes, authorize?: false),
+           WorkflowRun.create(run_attributes, actor: @webhook_actor),
          :ok <- maybe_mark_issue_triage_run_failed(workflow_run, artifact_persistence_failure),
          {:ok, %WorkflowRun{} = finalized_run} <-
            maybe_advance_issue_triage_run(workflow_run, artifact_persistence_failure) do
@@ -868,7 +875,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
                trigger: trigger,
                inputs: %{@issue_reference_input_name => issue_reference},
                input_metadata: input_metadata,
-               initiating_actor: %{"id" => "github_webhook", "email" => nil},
+               initiating_actor: @webhook_actor,
                current_step: "queued",
                started_at: started_at,
                step_results:
@@ -908,7 +915,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
                trigger: trigger,
                inputs: %{@issue_reference_input_name => issue_reference},
                input_metadata: input_metadata,
-               initiating_actor: %{"id" => "github_webhook", "email" => nil},
+               initiating_actor: @webhook_actor,
                current_step: "queued",
                started_at: started_at,
                step_results:
@@ -935,21 +942,29 @@ defmodule JidoCode.GitHub.WebhookPipeline do
     failed_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
     with {:ok, %WorkflowRun{} = running_run} <-
-           WorkflowRun.transition_status(workflow_run, %{
-             to_status: :running,
-             current_step: @issue_triage_artifact_persistence_failed_step,
-             transitioned_at: failed_at
-           }),
+           WorkflowRun.transition_status(
+             workflow_run,
+             %{
+               to_status: :running,
+               current_step: @issue_triage_artifact_persistence_failed_step,
+               transitioned_at: failed_at
+             },
+             actor: @webhook_actor
+           ),
          {:ok, %WorkflowRun{}} <-
-           WorkflowRun.transition_status(running_run, %{
-             to_status: :failed,
-             current_step: @issue_triage_artifact_persistence_failed_step,
-             transitioned_at: failed_at,
-             transition_metadata: %{
-               "typed_failure" => artifact_persistence_failure,
-               "failure_context" => artifact_persistence_failure
-             }
-           }) do
+           WorkflowRun.transition_status(
+             running_run,
+             %{
+               to_status: :failed,
+               current_step: @issue_triage_artifact_persistence_failed_step,
+               transitioned_at: failed_at,
+               transition_metadata: %{
+                 "typed_failure" => artifact_persistence_failure,
+                 "failure_context" => artifact_persistence_failure
+               }
+             },
+             actor: @webhook_actor
+           ) do
       :ok
     else
       {:error, reason} ->
@@ -1590,7 +1605,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
                sort: [inserted_at: :desc],
                limit: @retriage_prior_issue_analysis_limit
              ],
-             authorize?: false
+             actor: @webhook_actor
            ) do
         {:ok, prior_runs} when is_list(prior_runs) ->
           prior_runs

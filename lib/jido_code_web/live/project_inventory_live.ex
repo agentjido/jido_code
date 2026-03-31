@@ -1,6 +1,7 @@
 defmodule JidoCodeWeb.ProjectInventoryLive do
   use JidoCodeWeb, :live_view
 
+  alias JidoCode.Control.Actor
   alias JidoCode.Projects.Project
 
   @default_branch_filter_value "all"
@@ -144,7 +145,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
   end
 
   defp load_projects do
-    case Project.read(query: [sort: [github_full_name: :asc]]) do
+    case Project.read(query: [sort: [github_full_name: :asc]], actor: Actor.operator_actor()) do
       {:ok, projects} -> Enum.map(projects, &to_project_row/1)
       {:error, _reason} -> []
     end

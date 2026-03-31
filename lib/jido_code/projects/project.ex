@@ -1,5 +1,7 @@
 defmodule JidoCode.Projects.Project do
   # covers: setup.onboarding.repo_source_per_project
+  # covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
   use Ash.Resource,
     otp_app: :jido_code,
     domain: JidoCode.Projects,
@@ -7,6 +9,7 @@ defmodule JidoCode.Projects.Project do
     authorizers: [Ash.Policy.Authorizer],
     extensions: [AshTypescript.Resource]
 
+  alias JidoCode.Control.Checks.ActorClassIn
   alias JidoCode.Control.RepoBridge
   @source_kinds [:github, :local]
 
@@ -66,19 +69,37 @@ defmodule JidoCode.Projects.Project do
 
   policies do
     policy action_type(:read) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :managed_repo_orchestrator,
+                      :run_worker,
+                      :external_ingress
+                    ]}
     end
 
     policy action_type(:create) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system
+                    ]}
     end
 
     policy action_type(:update) do
-      authorize_if always()
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system
+                    ]}
     end
 
     policy action_type(:destroy) do
-      authorize_if always()
+      authorize_if {ActorClassIn, classes: [:admin, :factory_system]}
     end
   end
 

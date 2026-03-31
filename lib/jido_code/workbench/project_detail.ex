@@ -1,9 +1,10 @@
 defmodule JidoCode.Workbench.ProjectDetail do
+  # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
   @moduledoc """
-  Loads project detail state and execution readiness metadata for `/projects/:id`.
+  Loads managed-repo-first detail state and execution readiness metadata for `/projects/:id`.
   """
 
-  alias JidoCode.Projects.Project
   alias JidoCode.Control.RepoBridge
 
   @project_not_found_error_type "project_detail_not_found"
@@ -44,10 +45,10 @@ defmodule JidoCode.Workbench.ProjectDetail do
         }
 
   @spec load(term()) :: {:ok, project_detail()} | {:error, load_error()}
-  def load(project_id) do
-    with {:ok, normalized_project_id} <- normalize_project_id(project_id),
-         {:ok, project} <- fetch_project(normalized_project_id) do
-      {:ok, to_project_detail(project)}
+  def load(identifier) do
+    with {:ok, normalized_identifier} <- normalize_project_id(identifier),
+         {:ok, scope} <- fetch_scope(normalized_identifier) do
+      {:ok, to_project_detail(scope)}
     end
   end
 
@@ -76,16 +77,16 @@ defmodule JidoCode.Workbench.ProjectDetail do
     end
   end
 
-  defp fetch_project(project_id) do
-    case Project.read(query: [filter: [id: project_id], limit: 1]) do
-      {:ok, [project | _rest]} ->
-        {:ok, project}
+  defp fetch_scope(identifier) do
+    case RepoBridge.repo_scope(identifier) do
+      {:ok, scope} ->
+        {:ok, scope}
 
-      {:ok, []} ->
+      {:error, :repo_scope_not_found} ->
         {:error,
          load_error(
            @project_not_found_error_type,
-           "Project #{project_id} was not found.",
+           "Project or managed repository #{identifier} was not found.",
            @project_not_found_remediation
          )}
 
@@ -99,69 +100,97 @@ defmodule JidoCode.Workbench.ProjectDetail do
     end
   end
 
-  defp to_project_detail(project) when is_map(project) do
+  defp to_project_detail(scope) when is_map(scope) do
+    project = map_get(scope, :project, "project", %{})
+    managed_repo = map_get(scope, :managed_repo, "managed_repo", %{})
+    source_repo = map_get(scope, :source_repo, "source_repo", %{})
+
     settings =
       project
       |> map_get(:settings, "settings", %{})
       |> normalize_map()
 
     workspace_settings =
-      settings
-      |> map_get(:workspace, "workspace", %{})
+      managed_repo
+      |> map_get(:workspace_settings, "workspace_settings", %{})
+      |> normalize_map()
+      |> Map.merge(
+        settings
+        |> map_get(:workspace, "workspace", %{})
+        |> normalize_map()
+      )
+
+    execution_settings =
+      managed_repo
+      |> map_get(:execution_settings, "execution_settings", %{})
       |> normalize_map()
 
-    project_id =
-      project
-      |> map_get(:id, "id")
-      |> normalize_optional_string()
+    integration_settings =
+      managed_repo
+      |> map_get(:integration_settings, "integration_settings", %{})
+      |> normalize_map()
+
+    workspace_settings =
+      workspace_settings
+      |> normalize_map()
 
     github_full_name =
-      project
-      |> map_get(:github_full_name, "github_full_name")
-      |> normalize_optional_string()
+      source_repo
+      |> map_get(:full_name, "full_name")
+      |> normalize_optional_string() ||
+        project
+        |> map_get(:github_full_name, "github_full_name")
+        |> normalize_optional_string()
 
     name =
-      project
-      |> map_get(:name, "name")
-      |> normalize_optional_string()
+      managed_repo
+      |> map_get(:display_name, "display_name")
+      |> normalize_optional_string() ||
+        project
+        |> map_get(:name, "name")
+        |> normalize_optional_string() ||
+        source_repo
+        |> map_get(:name, "name")
+        |> normalize_optional_string()
 
     default_branch =
-      project
+      source_repo
       |> map_get(:default_branch, "default_branch")
-      |> normalize_optional_string() || "main"
+      |> normalize_optional_string() ||
+        project
+        |> map_get(:default_branch, "default_branch")
+        |> normalize_optional_string() || "main"
 
-    {managed_repo_id, source_repo_id} =
-      project_id
-      |> managed_repo_identity()
+    project_id =
+      scope
+      |> map_get(:project_id, "project_id")
+      |> normalize_optional_string()
+
+    managed_repo_id =
+      scope
+      |> map_get(:managed_repo_id, "managed_repo_id")
+      |> normalize_optional_string()
+
+    source_repo_id =
+      scope
+      |> map_get(:source_repo_id, "source_repo_id")
+      |> normalize_optional_string()
 
     %{
-      id: project_id || "unknown-project",
+      id: project_id || managed_repo_id || source_repo_id || "unknown-project",
       name: name || github_full_name || project_id || "unknown-project",
       github_full_name: github_full_name || name || project_id || "unknown-project",
       default_branch: default_branch,
-      settings: settings,
+      settings:
+        settings
+        |> Map.put("workspace", workspace_settings)
+        |> Map.put("execution", execution_settings)
+        |> Map.merge(integration_settings),
       managed_repo_id: managed_repo_id,
       source_repo_id: source_repo_id,
       execution_readiness: execution_readiness_state(workspace_settings)
     }
   end
-
-  defp managed_repo_identity(nil), do: {nil, nil}
-
-  defp managed_repo_identity(project_id) when is_binary(project_id) do
-    case RepoBridge.managed_repo_for_project(project_id) do
-      {:ok, managed_repo} ->
-        {
-          managed_repo |> map_get(:id, "id") |> normalize_optional_string(),
-          managed_repo |> map_get(:source_repo_id, "source_repo_id") |> normalize_optional_string()
-        }
-
-      _other ->
-        {nil, nil}
-    end
-  end
-
-  defp managed_repo_identity(_project_id), do: {nil, nil}
 
   defp execution_readiness_state(workspace_settings) when is_map(workspace_settings) do
     clone_status =

@@ -3,6 +3,7 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   Reads and updates per-project Issue Bot configuration.
   """
 
+  alias JidoCode.Control.Actor
   alias JidoCode.Projects.Project
 
   @load_error_type "support_agent_config_load_failed"
@@ -44,6 +45,10 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   @approval_mode_approval_required "approval_required"
   @default_issue_bot_approval_mode @approval_mode_approval_required
   @approval_mode_source "support_agent_config.github_issue_bot.approval_mode"
+  @project_actor Actor.operator_actor(%{
+                   "id" => "system:support-agent-configs",
+                   "email" => "support-agent-configs@system.local"
+                 })
 
   @supported_issue_bot_approval_modes [
     @approval_mode_auto_post,
@@ -182,7 +187,7 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   @doc false
   @spec default_loader() :: {:ok, [Project.t()]} | {:error, typed_error()}
   def default_loader do
-    case Project.read(query: [sort: [github_full_name: :asc]]) do
+    case Project.read(query: [sort: [github_full_name: :asc]], actor: @project_actor) do
       {:ok, projects} when is_list(projects) ->
         {:ok, projects}
 
@@ -288,7 +293,7 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   end
 
   defp fetch_project(project_id) do
-    case Project.read(query: [filter: [id: project_id], limit: 1]) do
+    case Project.read(query: [filter: [id: project_id], limit: 1], actor: @project_actor) do
       {:ok, [project | _rest]} ->
         {:ok, project}
 
@@ -333,7 +338,7 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   @doc false
   @spec default_updater(Project.t(), map()) :: {:ok, Project.t()} | {:error, term()}
   def default_updater(project, update_attributes) do
-    Project.update(project, update_attributes)
+    Project.update(project, update_attributes, actor: @project_actor)
   end
 
   defp safe_invoke_updater(updater, project, update_attributes) do

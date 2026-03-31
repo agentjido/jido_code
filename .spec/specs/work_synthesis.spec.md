@@ -57,6 +57,11 @@ surface:
   statement: When a normalized conversation turn explicitly targets an existing work item, work synthesis shall steer that durable record instead of forcing a new duplicate work item, while preserving conversation context in work metadata and audit history.
   priority: must
   stability: evolving
+
+- id: architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class
+  statement: Work synthesis shall preserve ingress actor class attribution in initiating-actor metadata and audit context so durable work remains explainable across operator and machine entrypoints.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -120,6 +125,11 @@ surface:
     - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
     - architecture.work_synthesis.work_item_auditability_preserved
     - architecture.work_synthesis.conversation_turns_can_steer_existing_work
+
+- kind: source_file
+  target: lib/jido_code/operations/ingress.ex
+  covers:
+    - architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class
 
 - kind: source_file
   target: test/jido_code/operations/work_synthesis_test.exs

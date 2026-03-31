@@ -3,6 +3,9 @@ defmodule JidoCode.Operations.Ingress do
   # covers: architecture.demand_ingress.observation_captures_repo_and_system_facts
   # covers: architecture.demand_ingress.intake_captures_operator_and_trusted_requests
   # covers: architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+  # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
+  # covers: architecture.event_assessment_synthesis.assessment_preserves_ingress_actor_class_context
+  # covers: architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class
   @moduledoc """
   Normalizes inbound external and operator demand into durable control-plane ingress records.
   """
@@ -250,7 +253,11 @@ defmodule JidoCode.Operations.Ingress do
   defp repo_context_for_repo_full_name(repo_full_name) when is_binary(repo_full_name) do
     case Project.read(
            query: [filter: [github_full_name: repo_full_name], limit: 1],
-           authorize?: false
+           actor:
+             Actor.external_ingress_actor(%{
+               "id" => "system:github-webhook",
+               "email" => "github-webhook@system.local"
+             })
          ) do
       {:ok, [%Project{} = project | _rest]} ->
         project_id = normalize_optional_string(project.id)

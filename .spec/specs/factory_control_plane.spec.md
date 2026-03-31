@@ -11,13 +11,19 @@ summary: Jido.Code centers the product on a governed software-factory control pl
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/control.ex
+  - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/control/repo_bridge.ex
+  - lib/jido_code/workbench/inventory.ex
+  - lib/jido_code/workbench/project_detail.ex
+  - lib/jido_code/workbench/run_outcomes.ex
   - lib/jido_code/governance.ex
   - lib/jido_code/governance/change_request.ex
   - lib/jido_code/governance/decision.ex
@@ -49,7 +55,12 @@ surface:
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
+  - lib/jido_code/orchestration/run_summary_feed.ex
   - lib/jido_code/code_server.ex
+  - lib/jido_code_web/live/workbench_live.ex
+  - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code_web/live/dashboard_live.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
@@ -88,6 +99,21 @@ surface:
   statement: The architecture shall remain single-user-first while supporting lightweight hosted multi-user supervision with at least admin and standard operator distinction.
   priority: must
   stability: evolving
+
+- id: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  statement: Operator-facing workbench, repo-detail, dashboard, and run-detail surfaces shall prefer `ManagedRepo` and governed `Run` records while preserving compatibility identifiers and route shapes during the migration away from `Project` and `WorkflowRun`.
+  priority: must
+  stability: evolving
+
+- id: architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+  statement: Before compatibility shims are retired, Jido.Code shall backfill surviving legacy `Project` records into `ManagedRepo` projections and keep operator-facing repo scope resolution capable of repairing those projections on demand instead of assuming all historical data was created after the control-plane migration.
+  priority: must
+  stability: evolving
+
+- id: architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+  statement: The control plane shall expose operator-facing rollout evidence showing which surfaces still depend on `Project` or `WorkflowRun` compatibility paths, the criteria for removing each shim, and typed rollback procedures for mixed-mode recovery.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -124,6 +150,27 @@ surface:
     - Multiple humans supervise the same factory instance.
   then:
     - The system retains a lightweight admin-versus-operator distinction without requiring a heavyweight enterprise permission model in the first version.
+
+- id: architecture.factory_control_plane.scenario_operator_surfaces_shift_without_route_breakage
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  given:
+    - Managed repositories and governed runs already exist behind compatibility-oriented product routes.
+  when:
+    - An operator opens workbench, repo detail, dashboard, or run detail through existing route shapes.
+  then:
+    - The product resolves and presents control-plane records first while keeping the route and identifier contracts stable enough for mixed-mode rollout.
+
+- id: architecture.factory_control_plane.scenario_rollout_backfill_and_operator_evidence_remain_explicit
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+  given:
+    - Historical project and workflow records still exist from before the managed-repo and governed-run migration was complete.
+  when:
+    - An operator checks rollout health or opens a compatibility-sensitive surface.
+  then:
+    - Legacy repo state may be backfilled into the preferred control-plane model, and the product exposes the remaining compatibility dependencies, removal criteria, and rollback steps instead of hiding the mixed-mode state.
 ```
 
 ## Verification
@@ -139,6 +186,11 @@ surface:
     - architecture.factory_control_plane.lightweight_hosted_multi_user_posture
 
 - kind: source_file
+  target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
   target: lib/jido_code/operations/repo_native_state.ex
   covers:
     - architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
@@ -152,4 +204,49 @@ surface:
   target: lib/jido_code/governance/posture_bridge.ex
   covers:
     - architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
+
+- kind: source_file
+  target: lib/jido_code/control/repo_bridge.ex
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+
+- kind: source_file
+  target: lib/jido_code/control/compatibility_rollout.ex
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+
+- kind: source_file
+  target: lib/jido_code/workbench/project_detail.ex
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_summary_feed.ex
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+
+- kind: source_file
+  target: test/jido_code/control/compatibility_rollout_test.exs
+  covers:
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_six_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
+    - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
 ```

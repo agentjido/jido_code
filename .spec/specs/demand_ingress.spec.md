@@ -74,6 +74,11 @@ surface:
   statement: Conversation ingress shall distinguish brand-new work demand from explicit steering of an existing work item so the control loop can update an existing record when the turn targets one.
   priority: must
   stability: evolving
+
+- id: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
+  statement: GitHub webhook, setup import, and other trusted ingress paths shall preserve their normalized correlation through explicit operator or external-ingress actor classes instead of anonymous trusted persistence shortcuts.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -96,6 +101,7 @@ surface:
     - architecture.demand_ingress.intake_captures_operator_and_trusted_requests
     - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
     - architecture.demand_ingress.entrypoint_policy_metadata_preserved
+    - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
   given:
     - An operator triggers project import or a workbench workflow kickoff for a tracked repository.
   when:
@@ -103,6 +109,7 @@ surface:
   then:
     - The request is recorded as a durable `Intake` linked to the managed repository before execution-specific launcher behavior continues.
     - Any downstream posture refresh remains coupled to the managed-repository ingress path rather than running as a separate out-of-band feature hook.
+    - The persisted ingress path keeps explicit operator or machine actor attribution instead of relying on anonymous trusted writes.
 
 - id: architecture.demand_ingress.scenario_repo_governance_policy_flows_through_launch_entrypoints
   covers:
@@ -153,6 +160,7 @@ surface:
     - architecture.demand_ingress.observation_captures_repo_and_system_facts
     - architecture.demand_ingress.intake_captures_operator_and_trusted_requests
     - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+    - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
 
 - kind: source_file
   target: lib/jido_code/conversations/ingress.ex
@@ -196,9 +204,20 @@ surface:
   target: lib/jido_code/github/webhook_pipeline.ex
   covers:
     - architecture.demand_ingress.entrypoint_policy_metadata_preserved
+    - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
+
+- kind: source_file
+  target: lib/jido_code/setup/project_import.ex
+  covers:
+    - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
 
 - kind: source_file
   target: lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   covers:
     - architecture.demand_ingress.entrypoint_policy_metadata_preserved
+
+- kind: source_file
+  target: test/jido_code_web/controllers/github_webhook_controller_test.exs
+  covers:
+    - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
 ```

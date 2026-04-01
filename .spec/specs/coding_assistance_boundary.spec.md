@@ -12,12 +12,14 @@ status: active
 summary: jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through the public coding-assistance service, delegates session/project/AI-preference state to the canonical jido_os runtime agents, and keeps higher-level conversation drivers out of jido_os internals while exposing the public turn runtime through product-owned wrappers.
 decisions:
   - jido_code.coding_assistance_conversation_driver
+  - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_session_turn_runtime
   - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/jido_os_runtime.ex
+  - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - test/jido_code/coding_assistance_test.exs
@@ -62,7 +64,17 @@ surface:
   stability: evolving
 
 - id: coding_assistance.boundary.public_turn_wrapper_api
-  statement: The coding-assistance boundary shall expose product-local wrappers for public turn start, turn read, turn list, turn replay, artifact read, cancellation, and operator review so product callers do not construct raw runtime requests or consume provider-neutral runtime payloads directly.
+  statement: The coding-assistance boundary shall expose product-local wrappers for public turn start, turn read, turn list, live subscribe, live unsubscribe, turn replay, artifact read, cancellation, and operator review so product callers do not construct raw runtime requests or consume provider-neutral runtime payloads directly.
+  priority: must
+  stability: evolving
+
+- id: coding_assistance.boundary.live_delivery_ack_and_resume_boundary
+  statement: Product-local live subscribe wrappers shall propagate actor, session, project, request, correlation, workspace, and optional resume-cursor context into public `jido_os` live-delivery operations while returning only product-owned acknowledgement data needed by conversation bridges instead of exposing transport-local subscriber details directly.
+  priority: must
+  stability: evolving
+
+- id: coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
+  statement: Even after live delivery is adopted as the preferred incremental update path, the coding-assistance boundary shall keep public replay, turn read, artifact read, and operator-review wrappers available for reconnect recovery, gap repair, rollout-withheld live behavior, and terminal verification.
   priority: must
   stability: evolving
 
@@ -98,6 +110,13 @@ surface:
   covers:
     - coding_assistance.boundary.public_turn_wrapper_api
     - coding_assistance.boundary.compatibility_assist_wraps_public_turn_runtime
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
+  covers:
+    - coding_assistance.boundary.public_turn_wrapper_api
+    - coding_assistance.boundary.live_delivery_ack_and_resume_boundary
+    - coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
 
 - kind: source_file
   target: lib/jido_code/conversations/driver.ex

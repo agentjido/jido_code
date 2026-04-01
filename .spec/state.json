@@ -66,6 +66,20 @@
         "affects": [
           "package.jido_code",
           "architecture.conversation_driver",
+          "coding_assistance.boundary",
+          "architecture.jido_os_session_turn_runtime",
+          "docs.product_foundation"
+        ],
+        "date": "2026-04-01",
+        "file": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "id": "jido_code.jido_os_public_turn_live_delivery_adoption",
+        "status": "accepted",
+        "title": "Jido OS Public Turn Live Delivery Adoption"
+      },
+      {
+        "affects": [
+          "package.jido_code",
+          "architecture.conversation_driver",
           "architecture.factory_control_plane",
           "architecture.execution_pipeline",
           "coding_assistance.boundary",
@@ -215,6 +229,14 @@
       },
       {
         "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "The coding conversation driver shall use explicit public terminal handoff and terminal turn lookup to translate completion and failure into stable subscriber events instead of inferring terminal state from polling silence, detach timing, or transport-local heuristics.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
         "id": "architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context",
         "priority": "should",
         "stability": "evolving",
@@ -231,6 +253,14 @@
       },
       {
         "file": ".spec/specs/conversation_driver.spec.md",
+        "id": "architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "When public `jido_os` live turn delivery is admitted for a coding conversation, the conversation driver shall prefer `subscribe_turn_events` and provider-neutral live envelopes as the incremental update path while preserving the existing subscriber event contract.",
+        "subject_id": "architecture.conversation_driver"
+      },
+      {
+        "file": ".spec/specs/conversation_driver.spec.md",
         "id": "architecture.conversation_driver.public_turn_start_is_primary_conversation_path",
         "priority": "must",
         "stability": "evolving",
@@ -242,7 +272,7 @@
         "id": "architecture.conversation_driver.replay_bridge_drives_subscriber_updates",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Until a dedicated public live-subscription surface is available from `jido_os`, the coding conversation driver shall bridge incremental public turn replay and terminal turn reads back into the stable subscriber event contract instead of exposing raw runtime events directly to UI consumers.",
+        "statement": "Once a caller-safe public live-subscription surface is available from `jido_os`, replay shall remain the canonical resume, recovery, gap-repair, and terminal-verification path for the coding conversation driver rather than the preferred steady-state transport for incremental subscriber updates.",
         "subject_id": "architecture.conversation_driver"
       },
       {
@@ -559,6 +589,22 @@
       },
       {
         "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.live_and_replay_release_parity",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Live delivery and replay shall preserve equivalent provider-neutral projection, rollout, privacy, and guardrail release behavior for the same coding turn so downstream recovery paths do not observe a different caller-visible truth than steady-state live delivery.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Public live delivery shall provide stable resumable cursors aligned to replay ordering, explicit replay-join metadata, and explicit terminal-handoff semantics so downstream products can reconnect and complete deterministically without silence-based inference.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
         "id": "architecture.jido_os_session_turn_runtime.operator_review_is_bounded_evidence_surface",
         "priority": "should",
         "stability": "evolving",
@@ -603,6 +649,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "`jido_os` shall expose a public turn lifecycle surface with operations equivalent to starting, loading, listing, and cancelling turns without requiring product code to call private agent internals.",
+        "subject_id": "architecture.jido_os_session_turn_runtime"
+      },
+      {
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "id": "architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "`jido_os` shall expose public live subscription and unsubscription surfaces for one coding turn through additive provider-neutral acknowledgements rather than requiring downstream products to infer transport topics, authorization, or release state from private runtime internals.",
         "subject_id": "architecture.jido_os_session_turn_runtime"
       },
       {
@@ -1423,6 +1477,14 @@
       },
       {
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.live_delivery_ack_and_resume_boundary",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Product-local live subscribe wrappers shall propagate actor, session, project, request, correlation, workspace, and optional resume-cursor context into public `jido_os` live-delivery operations while returning only product-owned acknowledgement data needed by conversation bridges instead of exposing transport-local subscriber details directly.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "id": "coding_assistance.boundary.policy_context_propagation",
         "priority": "must",
         "stability": "evolving",
@@ -1458,7 +1520,15 @@
         "id": "coding_assistance.boundary.public_turn_wrapper_api",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The coding-assistance boundary shall expose product-local wrappers for public turn start, turn read, turn list, turn replay, artifact read, cancellation, and operator review so product callers do not construct raw runtime requests or consume provider-neutral runtime payloads directly.",
+        "statement": "The coding-assistance boundary shall expose product-local wrappers for public turn start, turn read, turn list, live subscribe, live unsubscribe, turn replay, artifact read, cancellation, and operator review so product callers do not construct raw runtime requests or consume provider-neutral runtime payloads directly.",
+        "subject_id": "coding_assistance.boundary"
+      },
+      {
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "id": "coding_assistance.boundary.replay_and_recovery_wrappers_remain_available",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Even after live delivery is adopted as the preferred incremental update path, the coding-assistance boundary shall keep public replay, turn read, artifact read, and operator-review wrappers available for reconnect recovery, gap repair, rollout-withheld live behavior, and terminal verification.",
         "subject_id": "coding_assistance.boundary"
       },
       {
@@ -1982,7 +2052,7 @@
         "covers": [
           "architecture.conversation_driver.subscriber_event_contract_preserved",
           "architecture.conversation_driver.public_jido_os_turn_event_bridge",
-          "architecture.conversation_driver.replay_bridge_drives_subscriber_updates"
+          "architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path"
         ],
         "file": ".spec/specs/conversation_driver.spec.md",
         "given": [
@@ -2017,20 +2087,22 @@
       {
         "covers": [
           "architecture.conversation_driver.public_turn_start_is_primary_conversation_path",
+          "architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path",
           "architecture.conversation_driver.replay_bridge_drives_subscriber_updates",
+          "architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation",
           "architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path"
         ],
         "file": ".spec/specs/conversation_driver.spec.md",
         "given": [
           "A coding conversation has already been admitted into product-side ingress and policy layers."
         ],
-        "id": "architecture.conversation_driver.scenario_public_turn_replay_bridges_progress_until_terminal",
+        "id": "architecture.conversation_driver.scenario_public_turn_live_delivery_bridges_progress_until_terminal",
         "subject_id": "architecture.conversation_driver",
         "then": [
-          "Progress and terminal state are expected to reach subscribers through a product-local replay bridge over public turn lifecycle and read surfaces instead of through a one-shot compatibility assist envelope."
+          "Incremental progress is expected to reach subscribers through a product-local live bridge over public turn delivery, while replay remains available for resume or recovery and explicit terminal handoff drives stable completion translation instead of a one-shot compatibility assist envelope."
         ],
         "when": [
-          "The driver starts a non-blocking public `jido_os` turn for that conversation."
+          "The driver starts a non-blocking public `jido_os` turn for that conversation and subscribes to the admitted live-delivery surface."
         ]
       },
       {
@@ -2427,6 +2499,25 @@
         ],
         "when": [
           "A new coding turn is started for that session."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface",
+          "architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff",
+          "architecture.jido_os_session_turn_runtime.live_and_replay_release_parity"
+        ],
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "given": [
+          "A coding turn already has replayable public history and is eligible for caller-visible live delivery."
+        ],
+        "id": "architecture.jido_os_session_turn_runtime.scenario_live_subscription_resumes_and_hands_off_terminal_state",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "then": [
+          "The live subscription is admitted through a provider-neutral acknowledgement, reconnect can use stable resumable cursor semantics, and terminal completion is surfaced through explicit terminal handoff while replay remains a parity-preserving recovery path."
+        ],
+        "when": [
+          "Product code subscribes to live turn events, optionally resumes from a supplied cursor, and later observes terminal completion."
         ]
       },
       {
@@ -3741,6 +3832,7 @@
         "meta": {
           "decisions": [
             "jido_code.coding_assistance_conversation_driver",
+            "jido_code.jido_os_public_turn_live_delivery_adoption",
             "jido_code.jido_os_session_turn_runtime",
             "jido_code.jido_os_public_turn_runtime_adoption"
           ],
@@ -3752,6 +3844,7 @@
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code/conversations/driver.ex",
             "lib/jido_code/jido_os_runtime.ex",
+            ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
             "test/jido_code/coding_assistance_test.exs"
@@ -3782,6 +3875,7 @@
         "meta": {
           "decisions": [
             "jido_code.coding_assistance_conversation_driver",
+            "jido_code.jido_os_public_turn_live_delivery_adoption",
             "jido_code.jido_os_session_turn_runtime",
             "jido_code.jido_os_public_turn_runtime_adoption",
             "jido_code.factory_control_plane_and_runtime_overlay",
@@ -3793,6 +3887,7 @@
           "summary": "Coding conversations center on `JidoCode.CodingAssistance` as the first-class driver boundary while `CodeServer`, UI subscribers, and jido_os session state stay aligned through a stable conversation event contract.",
           "surface": [
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
+            ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
             ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
@@ -4073,6 +4168,7 @@
         "id": "architecture.jido_os_session_turn_runtime",
         "meta": {
           "decisions": [
+            "jido_code.jido_os_public_turn_live_delivery_adoption",
             "jido_code.jido_os_session_turn_runtime",
             "jido_code.jido_os_public_turn_runtime_adoption"
           ],
@@ -4081,6 +4177,7 @@
           "status": "active",
           "summary": "Jido.Code depends on `jido_os` coding-assistance sessions owning ordered turns through public turn lifecycle, event, replay, review, query, cancellation, and artifact surfaces while preserving actor-bound context, named policy checks, project scoping, and authority boundaries.",
           "surface": [
+            ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
             "compat/jido_os/lib/jido/os/coding_assist/service.ex",
@@ -4138,6 +4235,7 @@
           "decisions": [
             "jido_code.auth_user_system",
             "jido_code.canonical_repo_surface",
+            "jido_code.jido_os_public_turn_live_delivery_adoption",
             "jido_code.jido_os_public_turn_runtime_adoption",
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption"
           ],
@@ -4264,6 +4362,7 @@
             "jido_code.namespace_and_control_naming",
             "jido_code.local_developer_workflow",
             "jido_code.canonical_repo_surface",
+            "jido_code.jido_os_public_turn_live_delivery_adoption",
             "jido_code.jido_os_public_turn_runtime_adoption"
           ],
           "id": "docs.product_foundation",
@@ -4276,6 +4375,7 @@
             ".spec/README.md",
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
             ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+            ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
             ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
             ".spec/decisions/jido_code.runic_execution_model.md",
@@ -4707,13 +4807,23 @@
       {
         "covers": [
           "architecture.conversation_driver.public_turn_start_is_primary_conversation_path",
-          "architecture.conversation_driver.replay_bridge_drives_subscriber_updates",
           "architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path"
         ],
         "file": ".spec/specs/conversation_driver.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.conversation_driver",
         "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path",
+          "architecture.conversation_driver.replay_bridge_drives_subscriber_updates",
+          "architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation"
+        ],
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md"
       },
       {
         "covers": [
@@ -5265,6 +5375,17 @@
         "kind": "source_file",
         "subject_id": "architecture.jido_os_session_turn_runtime",
         "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface",
+          "architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff",
+          "architecture.jido_os_session_turn_runtime.live_and_replay_release_parity"
+        ],
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md"
       },
       {
         "covers": [
@@ -6475,6 +6596,17 @@
       },
       {
         "covers": [
+          "coding_assistance.boundary.public_turn_wrapper_api",
+          "coding_assistance.boundary.live_delivery_ack_and_resume_boundary",
+          "coding_assistance.boundary.replay_and_recovery_wrappers_remain_available"
+        ],
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "subject_id": "coding_assistance.boundary",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md"
+      },
+      {
+        "covers": [
           "coding_assistance.boundary.policy_context_propagation"
         ],
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
@@ -6731,6 +6863,15 @@
         "file": ".spec/specs/product_foundation_docs.spec.md",
         "kind": "source_file",
         "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.durable_architecture_record_in_spec_workspace"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md"
       },
       {
@@ -6971,6 +7112,15 @@
         "kind": "source_file",
         "subject_id": "package.jido_code",
         "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md"
+      },
+      {
+        "covers": [
+          "package.jido_code.spec_led_workspace"
+        ],
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "subject_id": "package.jido_code",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md"
       },
       {
         "covers": [
@@ -7636,13 +7786,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 11,
+    "decisions": 12,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 224,
-    "scenarios": 94,
+    "requirements": 231,
+    "scenarios": 95,
     "subjects": 35,
-    "verifications": 300
+    "verifications": 305
   },
   "verification": {
     "claims": [
@@ -7790,6 +7940,28 @@
         "verification_index": 4
       },
       {
+        "cover_id": "architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 5
+      },
+      {
         "cover_id": "architecture.conversation_driver.replay_bridge_drives_subscriber_updates",
         "file": ".spec/specs/conversation_driver.spec.md",
         "kind": "source_file",
@@ -7797,18 +7969,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
-        "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
-        "verification_index": 4
-      },
-      {
-        "cover_id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
-        "file": ".spec/specs/conversation_driver.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_driver",
-        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
         "verification_index": 5
       },
       {
@@ -7819,8 +7980,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
-        "target": "lib/jido_code/conversations/ingress.ex",
+        "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
         "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "lib/jido_code/conversations/ingress.ex",
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.conversation_driver.actor_context_propagated",
@@ -7831,7 +8003,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/driver_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_driver.code_server_routes_through_boundary",
@@ -7842,7 +8014,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/driver_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_driver.conversation_identity_maps_to_session",
@@ -7853,7 +8025,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/driver_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
@@ -7864,7 +8036,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/driver_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_driver.subscriber_event_contract_preserved",
@@ -7875,7 +8047,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/driver_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.conversation_driver.actor_context_propagated",
@@ -7886,7 +8058,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_driver.code_server_routes_through_boundary",
@@ -7897,7 +8069,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_driver.conversation_identity_maps_to_session",
@@ -7908,7 +8080,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_driver.conversation_is_ingress_and_steering_surface",
@@ -7919,7 +8091,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_driver.public_jido_os_turn_event_bridge",
@@ -7930,7 +8102,7 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.conversation_driver.subscriber_event_contract_preserved",
@@ -7941,17 +8113,6 @@
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
         "target": "test/jido_code/conversations/phase_four_integration_test.exs",
-        "verification_index": 8
-      },
-      {
-        "cover_id": "architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context",
-        "file": ".spec/specs/conversation_driver.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.conversation_driver",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 9
       },
       {
@@ -7962,7 +8123,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
-        "target": "lib/jido_code/workbench/project_detail.ex",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 10
       },
       {
@@ -7973,7 +8134,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
-        "target": "lib/jido_code_web/live/project_detail_live.ex",
+        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 11
       },
       {
@@ -7984,8 +8145,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.conversation_driver",
-        "target": "test/jido_code/control/repo_bridge_test.exs",
+        "target": "lib/jido_code_web/live/project_detail_live.ex",
         "verification_index": 12
+      },
+      {
+        "cover_id": "architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context",
+        "file": ".spec/specs/conversation_driver.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.conversation_driver",
+        "target": "test/jido_code/control/repo_bridge_test.exs",
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -9196,6 +9368,39 @@
         "subject_id": "architecture.jido_os_session_turn_runtime",
         "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
         "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.live_and_replay_release_parity",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface",
+        "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.jido_os_session_turn_runtime",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
@@ -12003,6 +12208,39 @@
         "verification_index": 3
       },
       {
+        "cover_id": "coding_assistance.boundary.live_delivery_ack_and_resume_boundary",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "coding_assistance.boundary.public_turn_wrapper_api",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "coding_assistance.boundary.replay_and_recovery_wrappers_remain_available",
+        "file": ".spec/specs/coding_assistance_boundary.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "coding_assistance.boundary",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "verification_index": 4
+      },
+      {
         "cover_id": "coding_assistance.boundary.policy_context_propagation",
         "file": ".spec/specs/coding_assistance_boundary.spec.md",
         "kind": "source_file",
@@ -12011,7 +12249,7 @@
         "strength": "linked",
         "subject_id": "coding_assistance.boundary",
         "target": "lib/jido_code/conversations/driver.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "coding_assistance.boundary.session_authority_delegation",
@@ -12022,7 +12260,7 @@
         "strength": "linked",
         "subject_id": "coding_assistance.boundary",
         "target": "test/jido_code/coding_assistance_test.exs",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
@@ -12033,7 +12271,7 @@
         "strength": "linked",
         "subject_id": "coding_assistance.boundary",
         "target": "test/jido_code/coding_assistance_test.exs",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "coding_assistance.boundary.public_jido_os_service_boundary",
@@ -12044,7 +12282,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "coding_assistance.boundary.runtime_bootstrap_defaults",
@@ -12055,7 +12293,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "coding_assistance.boundary.session_authority_delegation",
@@ -12066,7 +12304,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "coding_assistance.boundary.session_prepared_before_assist",
@@ -12077,7 +12315,7 @@
         "strength": "claimed",
         "subject_id": "coding_assistance.boundary",
         "target": "mix test test/jido_code/coding_assistance_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "collaboration.workflow.beadwork_enabled",
@@ -12395,7 +12633,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
         "verification_index": 6
       },
       {
@@ -12406,8 +12644,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
         "verification_index": 7
+      },
+      {
+        "cover_id": "docs.product_foundation.durable_architecture_record_in_spec_workspace",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 8
       },
       {
         "cover_id": "jido_os.runtime.compatibility.local_override_present",
@@ -12828,14 +13077,14 @@
         "verification_index": 16
       },
       {
-        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "cover_id": "package.jido_code.spec_led_workspace",
         "file": ".spec/specs/package.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/control/repo_bridge_test.exs",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
         "verification_index": 17
       },
       {
@@ -12846,7 +13095,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code/conversations/phase_seven_integration_test.exs",
+        "target": "test/jido_code/control/repo_bridge_test.exs",
         "verification_index": 18
       },
       {
@@ -12857,7 +13106,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "test/jido_code/conversations/phase_seven_integration_test.exs",
         "verification_index": 19
       },
       {
@@ -12868,7 +13117,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 20
       },
       {
@@ -12879,8 +13128,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": "mix.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 21
+      },
+      {
+        "cover_id": "package.jido_code.version_controlled_quality_surfaces",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": "mix.exs",
+        "verification_index": 22
       },
       {
         "cover_id": "package.jido_code.version_controlled_deploy_surfaces",
@@ -12891,17 +13151,6 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "test -f Dockerfile -a -f fly.toml -a -f deploy/Procfile -a -f deploy/entrypoint.sh -a -f deploy/docker-compose.dev.yml",
-        "verification_index": 22
-      },
-      {
-        "cover_id": "package.jido_code.mix_first_cli_surface",
-        "file": ".spec/specs/package.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code",
-        "target": "mix help command",
         "verification_index": 23
       },
       {
@@ -12912,7 +13161,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
+        "target": "mix help command",
         "verification_index": 24
       },
       {
@@ -12923,18 +13172,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
+        "target": "test ! -e jido -a ! -e jidocode -a ! -e bin/jido -a ! -e bin/jidocode",
         "verification_index": 25
       },
       {
-        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "cover_id": "package.jido_code.mix_first_cli_surface",
         "file": ".spec/specs/package.spec.md",
-        "kind": "source_file",
+        "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "linked",
+        "strength": "claimed",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_auth_foundation.spec.md",
+        "target": "test ! -e lib/mix/tasks/jido.ex -a ! -e lib/mix/tasks/jidocode.ex",
         "verification_index": 26
       },
       {
@@ -12945,7 +13194,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_identity_linking.spec.md",
+        "target": ".spec/specs/provider_auth_foundation.spec.md",
         "verification_index": 27
       },
       {
@@ -12956,7 +13205,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_policy.spec.md",
+        "target": ".spec/specs/provider_identity_linking.spec.md",
         "verification_index": 28
       },
       {
@@ -12967,7 +13216,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/github_service_credentials.spec.md",
+        "target": ".spec/specs/provider_login_policy.spec.md",
         "verification_index": 29
       },
       {
@@ -12978,7 +13227,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_broker_handoff.spec.md",
+        "target": ".spec/specs/github_service_credentials.spec.md",
         "verification_index": 30
       },
       {
@@ -12989,7 +13238,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/provider_login_flow.spec.md",
+        "target": ".spec/specs/provider_broker_handoff.spec.md",
         "verification_index": 31
       },
       {
@@ -13000,7 +13249,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/source_provider_adapter.spec.md",
+        "target": ".spec/specs/provider_login_flow.spec.md",
         "verification_index": 32
       },
       {
@@ -13011,7 +13260,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_auth_settings.spec.md",
+        "target": ".spec/specs/source_provider_adapter.spec.md",
         "verification_index": 33
       },
       {
@@ -13022,7 +13271,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
+        "target": ".spec/specs/operator_auth_settings.spec.md",
         "verification_index": 34
       },
       {
@@ -13033,8 +13282,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "package.jido_code",
-        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "target": ".spec/specs/self_hosted_provider_integration.spec.md",
         "verification_index": 35
+      },
+      {
+        "cover_id": "package.jido_code.auth_provider_foundation_in_repo",
+        "file": ".spec/specs/package.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "package.jido_code",
+        "target": ".spec/specs/operator_provider_auth_guide.spec.md",
+        "verification_index": 36
       },
       {
         "cover_id": "package.jido_code.bootstrap_and_start_surfaces_in_repo",
@@ -13045,7 +13305,7 @@
         "strength": "linked",
         "subject_id": "package.jido_code",
         "target": ".spec/specs/setup_onboarding.spec.md",
-        "verification_index": 36
+        "verification_index": 37
       },
       {
         "cover_id": "package.jido_code.repo_owned_ai_agent_surfaces_track_supported_api",
@@ -13056,7 +13316,7 @@
         "strength": "claimed",
         "subject_id": "package.jido_code",
         "target": "rg -n 'use Jido\\.AI\\.Agent|Jido\\.AI\\.Agent with' lib/jido_code/demos/chat_agent.ex lib/jido_code/folio/folio_agent.ex lib/jido_code_web/live/demos/chat_live.ex",
-        "verification_index": 37
+        "verification_index": 38
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -13922,12 +14182,12 @@
     "strength_summary": {
       "claimed": 53,
       "executed": 0,
-      "linked": 517
+      "linked": 527
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 11,
+    "decision_count": 12,
     "spec_count": 35
   }
 }

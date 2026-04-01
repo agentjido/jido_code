@@ -12,12 +12,14 @@ status: active
 summary: Coding conversations center on `JidoCode.CodingAssistance` as the first-class driver boundary while `CodeServer`, UI subscribers, and jido_os session state stay aligned through a stable conversation event contract.
 decisions:
   - jido_code.coding_assistance_conversation_driver
+  - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_session_turn_runtime
   - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
+  - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
@@ -72,7 +74,17 @@ surface:
   stability: evolving
 
 - id: architecture.conversation_driver.replay_bridge_drives_subscriber_updates
-  statement: Until a dedicated public live-subscription surface is available from `jido_os`, the coding conversation driver shall bridge incremental public turn replay and terminal turn reads back into the stable subscriber event contract instead of exposing raw runtime events directly to UI consumers.
+  statement: Once a caller-safe public live-subscription surface is available from `jido_os`, replay shall remain the canonical resume, recovery, gap-repair, and terminal-verification path for the coding conversation driver rather than the preferred steady-state transport for incremental subscriber updates.
+  priority: must
+  stability: evolving
+
+- id: architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+  statement: When public `jido_os` live turn delivery is admitted for a coding conversation, the conversation driver shall prefer `subscribe_turn_events` and provider-neutral live envelopes as the incremental update path while preserving the existing subscriber event contract.
+  priority: must
+  stability: evolving
+
+- id: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
+  statement: The coding conversation driver shall use explicit public terminal handoff and terminal turn lookup to translate completion and failure into stable subscriber events instead of inferring terminal state from polling silence, detach timing, or transport-local heuristics.
   priority: must
   stability: evolving
 
@@ -112,7 +124,7 @@ surface:
   covers:
     - architecture.conversation_driver.subscriber_event_contract_preserved
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
-    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
   given:
     - Conversation subscribers already render assistant stream, final assistant messages, and failure states from the existing event bus.
   when:
@@ -132,17 +144,19 @@ surface:
   then:
     - The turn is treated as ingress and steering input to the same managed-repository control loop rather than as a second product truth lane outside factory governance.
 
-- id: architecture.conversation_driver.scenario_public_turn_replay_bridges_progress_until_terminal
+- id: architecture.conversation_driver.scenario_public_turn_live_delivery_bridges_progress_until_terminal
   covers:
     - architecture.conversation_driver.public_turn_start_is_primary_conversation_path
+    - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
     - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
     - architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
   given:
     - A coding conversation has already been admitted into product-side ingress and policy layers.
   when:
-    - The driver starts a non-blocking public `jido_os` turn for that conversation.
+    - The driver starts a non-blocking public `jido_os` turn for that conversation and subscribes to the admitted live-delivery surface.
   then:
-    - Progress and terminal state are expected to reach subscribers through a product-local replay bridge over public turn lifecycle and read surfaces instead of through a one-shot compatibility assist envelope.
+    - Incremental progress is expected to reach subscribers through a product-local live bridge over public turn delivery, while replay remains available for resume or recovery and explicit terminal handoff drives stable completion translation instead of a one-shot compatibility assist envelope.
 
 - id: architecture.conversation_driver.scenario_project_detail_route_keeps_conversation_entry_stable
   covers:
@@ -189,8 +203,14 @@ surface:
   target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   covers:
     - architecture.conversation_driver.public_turn_start_is_primary_conversation_path
-    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
     - architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
+  covers:
+    - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
 
 - kind: source_file
   target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md

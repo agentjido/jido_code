@@ -109,10 +109,18 @@ defmodule JidoCode.Repo.Migrations.AddOperationsWorkItems do
     drop_if_exists index(:work_items, [:status], name: "work_items_status_index")
     drop_if_exists index(:work_items, [:intake_id], name: "work_items_intake_id_index")
     drop_if_exists index(:work_items, [:observation_id], name: "work_items_observation_id_index")
-    drop_if_exists index(:work_items, [:external_object_id], name: "work_items_external_object_id_index")
+
+    drop_if_exists index(:work_items, [:external_object_id],
+                     name: "work_items_external_object_id_index"
+                   )
+
     drop_if_exists index(:work_items, [:event_id], name: "work_items_event_id_index")
     drop_if_exists index(:work_items, [:assessment_id], name: "work_items_assessment_id_index")
-    drop_if_exists index(:work_items, [:managed_repo_id], name: "work_items_managed_repo_id_index")
+
+    drop_if_exists index(:work_items, [:managed_repo_id],
+                     name: "work_items_managed_repo_id_index"
+                   )
+
     drop table(:work_items)
   end
 end

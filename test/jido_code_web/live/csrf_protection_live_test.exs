@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.CsrfProtectionLiveTest do
+  # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

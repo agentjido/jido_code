@@ -1,9 +1,11 @@
 defmodule JidoCode.CodeServer.ProjectScope do
+  # covers: architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
   @moduledoc """
   Resolves project scope required by the `JidoCode.CodeServer` facade.
   """
 
   alias JidoCode.CodeServer.Error
+  alias JidoCode.Control.Actor
   alias JidoCode.Projects.Project
 
   @project_not_found_remediation """
@@ -49,7 +51,10 @@ defmodule JidoCode.CodeServer.ProjectScope do
   end
 
   defp fetch_project(project_id) do
-    case project_reader_module().read(query: [filter: [id: project_id], limit: 1]) do
+    case project_reader_module().read(
+           query: [filter: [id: project_id], limit: 1],
+           actor: Actor.factory_system_actor()
+         ) do
       {:ok, [project | _rest]} ->
         {:ok, project}
 

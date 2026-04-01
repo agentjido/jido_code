@@ -1,4 +1,6 @@
 defmodule JidoCode.Conversations.TurnBridge do
+  # covers: architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
+  # covers: architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
   @moduledoc """
   Polling bridge that replays public coding-turn events into the existing
   conversation subscriber event contract.

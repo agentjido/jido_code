@@ -3,9 +3,12 @@ defmodule JidoCode.Operations.Ingress do
   # covers: architecture.demand_ingress.observation_captures_repo_and_system_facts
   # covers: architecture.demand_ingress.intake_captures_operator_and_trusted_requests
   # covers: architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+  # covers: architecture.demand_ingress.normalized_ingress_persists_requested_by_actor_identity
   # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
   # covers: architecture.event_assessment_synthesis.assessment_preserves_ingress_actor_class_context
   # covers: architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class
+  # covers: architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity
+  # covers: architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
   @moduledoc """
   Normalizes inbound external and operator demand into durable control-plane ingress records.
   """
@@ -91,7 +94,12 @@ defmodule JidoCode.Operations.Ingress do
          actor <- normalize_operator_actor(Map.get(attrs, :actor) || Map.get(attrs, "actor")),
          payload <- normalize_map(Map.get(attrs, :payload) || Map.get(attrs, "payload", %{})),
          source_metadata <-
-           normalize_map(Map.get(attrs, :source_metadata) || Map.get(attrs, "source_metadata", %{})),
+           attrs
+           |> Map.get(:source_metadata)
+           |> Kernel.||(Map.get(attrs, "source_metadata", %{}))
+           |> normalize_map()
+           |> maybe_put("requested_by_actor_id", map_get(actor, :id, "id"))
+           |> maybe_put("requested_by_actor_email", map_get(actor, :email, "email")),
          {:ok, intake} <-
            Intake.create(
              %{
@@ -371,6 +379,9 @@ defmodule JidoCode.Operations.Ingress do
   end
 
   defp map_get(_map, _atom_key, _string_key, default), do: default
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp normalize_map(value) when is_map(value) do
     Enum.reduce(value, %{}, fn {key, nested_value}, acc ->

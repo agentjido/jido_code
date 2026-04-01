@@ -68,6 +68,11 @@ surface:
   statement: Event and assessment synthesis inputs shall preserve normalized ingress actor class attribution so downstream governance can explain whether demand originated from operator or machine entrypoints without re-reading raw ingress payloads.
   priority: should
   stability: evolving
+
+- id: architecture.event_assessment_synthesis.correlation_prefers_persisted_requested_by_actor_identity
+  statement: Event correlation and assessment metadata shall fall back to requested-by actor identity persisted in normalized intake source metadata when the direct requested-by envelope does not retain the original actor identifier.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -152,6 +157,7 @@ surface:
     - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
     - architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
     - architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
+    - architecture.event_assessment_synthesis.correlation_prefers_persisted_requested_by_actor_identity
 
 - kind: source_file
   target: lib/jido_code/operations/repo_native_state.ex
@@ -171,6 +177,7 @@ surface:
     - architecture.event_assessment_synthesis.assessment_records_interpret_events
     - architecture.event_assessment_synthesis.assessment_priority_and_next_action
     - architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+    - architecture.event_assessment_synthesis.correlation_prefers_persisted_requested_by_actor_identity
 
 - kind: source_file
   target: test/jido_code/operations/repo_native_state_test.exs

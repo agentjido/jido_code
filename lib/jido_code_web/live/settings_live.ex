@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb.SettingsLive do
+  # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Accounts.SecurityTokens
@@ -808,7 +809,7 @@ defmodule JidoCodeWeb.SettingsLive do
   def handle_event("open_add_modal", _params, socket) do
     form =
       Repo
-      |> AshPhoenix.Form.for_create(:create)
+      |> AshPhoenix.Form.for_create(:create, actor: settings_actor(socket))
       |> to_form()
 
     {:noreply, assign(socket, show_add_modal: true, form: form)}
@@ -828,7 +829,10 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   def handle_event("save_repo", %{"form" => params}, socket) do
-    case AshPhoenix.Form.submit(socket.assigns.form.source, params: params) do
+    case AshPhoenix.Form.submit(socket.assigns.form.source,
+           params: params,
+           actor: settings_actor(socket)
+         ) do
       {:ok, repo} ->
         socket =
           socket

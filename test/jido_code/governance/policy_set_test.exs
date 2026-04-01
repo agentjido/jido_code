@@ -1,4 +1,6 @@
 defmodule JidoCode.Governance.PolicySetTest do
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+  # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
@@ -35,6 +37,8 @@ defmodule JidoCode.Governance.PolicySetTest do
       full_name: "owner/repo-one",
       default_branch: "main"
     }
+
+    Actor.clear_policy_actor()
 
     assert {:error, %Ash.Error.Forbidden{}} = SourceRepo.upsert_identity(attrs)
 

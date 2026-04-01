@@ -73,6 +73,11 @@ surface:
   statement: When coding conversations emit public-turn summaries, artifacts, or review bundles that matter to trust or review burden, Jido.Code shall let repo posture consume the governed `Run` and `Evidence` projections derived from those outputs instead of reading runtime replay or review state directly from `jido_os`.
   priority: should
   stability: evolving
+
+- id: architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
+  statement: When posture-relevant operator demand enters through normalized ingress, requested-by actor identity shall remain explainable through persisted source metadata so posture and review-burden explanations do not depend on raw transient entrypoint payloads.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -139,6 +144,11 @@ surface:
   target: lib/jido_code/operations/repo_native_state.ex
   covers:
     - architecture.repo_posture.repo_native_observations_capture_current_truth_signals
+
+- kind: source_file
+  target: lib/jido_code/operations/ingress.ex
+  covers:
+    - architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
 
 - kind: source_file
   target: lib/jido_code/governance/repo_posture.ex

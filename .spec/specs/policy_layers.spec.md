@@ -96,6 +96,11 @@ surface:
   statement: When `jido_code` adopts public `jido_os` turn replay, review, and terminal materialization, product-side ingress and Ash authorization shall remain explicit before runtime turn start, and bounded runtime outputs shall only re-enter governed product records through actor-aware product bridges instead of bypassing repo governance or data-plane policy.
   priority: must
   stability: evolving
+
+- id: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
+  statement: Operator-facing settings flows and source-repo identity upserts shall propagate the current operator or system actor into Ash mutations, and external-ingress actors shall remain denied for human-only repo identity mutation paths.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -177,6 +182,17 @@ surface:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
 
 - kind: source_file
+  target: lib/jido_code/control/source_repo.ex
+  covers:
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+    - architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
+
+- kind: source_file
+  target: lib/jido_code_web/live/settings_live.ex
+  covers:
+    - architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
+
+- kind: source_file
   target: lib/jido_code/projects/project.ex
   covers:
     - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
@@ -192,6 +208,17 @@ surface:
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
+
+- kind: source_file
+  target: test/jido_code/governance/policy_set_test.exs
+  covers:
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+    - architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
+
+- kind: source_file
+  target: test/jido_code_web/live/csrf_protection_live_test.exs
+  covers:
+    - architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
 
 - kind: source_file
   target: test/jido_code/governance/policy_bridge_test.exs

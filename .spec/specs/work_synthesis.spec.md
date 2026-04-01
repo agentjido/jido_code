@@ -62,6 +62,11 @@ surface:
   statement: Work synthesis shall preserve ingress actor class attribution in initiating-actor metadata and audit context so durable work remains explainable across operator and machine entrypoints.
   priority: should
   stability: evolving
+
+- id: architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity
+  statement: Work synthesis shall remain able to explain initiating actor identity from normalized ingress source metadata when compact requested-by envelopes omit the original actor identifier.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -127,9 +132,15 @@ surface:
     - architecture.work_synthesis.conversation_turns_can_steer_existing_work
 
 - kind: source_file
+  target: lib/jido_code/operations/synthesis.ex
+  covers:
+    - architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity
+
+- kind: source_file
   target: lib/jido_code/operations/ingress.ex
   covers:
     - architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class
+    - architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity
 
 - kind: source_file
   target: test/jido_code/operations/work_synthesis_test.exs

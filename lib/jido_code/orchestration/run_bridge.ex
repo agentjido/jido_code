@@ -344,31 +344,43 @@ defmodule JidoCode.Orchestration.RunBridge do
         {:ok, workflow_run}
 
       terminal_status == :cancelled and workflow_run.status == :pending ->
-        WorkflowRun.transition_status(workflow_run, %{
-          to_status: :cancelled,
-          current_step: terminal_step,
-          transitioned_at: terminal_at,
-          transition_metadata: %{"source" => "public_turn_runtime"}
-        }, actor: @launch_actor)
+        WorkflowRun.transition_status(
+          workflow_run,
+          %{
+            to_status: :cancelled,
+            current_step: terminal_step,
+            transitioned_at: terminal_at,
+            transition_metadata: %{"source" => "public_turn_runtime"}
+          },
+          actor: @launch_actor
+        )
 
       workflow_run.status == :pending ->
         with {:ok, running_workflow_run} <-
-               WorkflowRun.transition_status(workflow_run, %{
-                 to_status: :running,
-                 current_step: "public_turn_in_progress",
-                 transitioned_at: turn_started_at(normalize_map(Map.get(attrs, :turn))),
-                 transition_metadata: %{"source" => "public_turn_runtime"}
-               }, actor: @launch_actor) do
+               WorkflowRun.transition_status(
+                 workflow_run,
+                 %{
+                   to_status: :running,
+                   current_step: "public_turn_in_progress",
+                   transitioned_at: turn_started_at(normalize_map(Map.get(attrs, :turn))),
+                   transition_metadata: %{"source" => "public_turn_runtime"}
+                 },
+                 actor: @launch_actor
+               ) do
           ensure_turn_terminal_status(running_workflow_run, attrs)
         end
 
       workflow_run.status == :running ->
-        WorkflowRun.transition_status(workflow_run, %{
-          to_status: terminal_status,
-          current_step: terminal_step,
-          transitioned_at: terminal_at,
-          transition_metadata: %{"source" => "public_turn_runtime"}
-        }, actor: @launch_actor)
+        WorkflowRun.transition_status(
+          workflow_run,
+          %{
+            to_status: terminal_status,
+            current_step: terminal_step,
+            transitioned_at: terminal_at,
+            transition_metadata: %{"source" => "public_turn_runtime"}
+          },
+          actor: @launch_actor
+        )
 
       true ->
         {:ok, workflow_run}

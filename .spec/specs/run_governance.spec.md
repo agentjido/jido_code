@@ -17,6 +17,7 @@ surface:
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/governance/change_request.ex
   - lib/jido_code/governance/decision.ex
   - lib/jido_code/governance/evidence.ex
@@ -99,6 +100,11 @@ surface:
 - id: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
   statement: When coding conversations produce workflow-relevant terminal outputs, replay summaries, artifacts, or operator-review bundles through public `jido_os` turn surfaces, Jido.Code shall materialize the bounded results it needs into governed `Run` and `Evidence` records instead of treating runtime replay as the product's durable audit store.
   priority: must
+  stability: evolving
+
+- id: architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
+  statement: If governed run or evidence projection of a terminal coding turn fails, Jido.Code shall degrade to typed warnings and preserve runtime progress or subscriber continuity instead of treating projection failure as turn execution failure.
+  priority: should
   stability: evolving
 ```
 
@@ -203,6 +209,11 @@ surface:
   target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   covers:
     - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
+
+- kind: source_file
+  target: lib/jido_code/conversations/turn_bridge.ex
+  covers:
+    - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
 
 - kind: source_file
   target: lib/jido_code/governance/change_request.ex

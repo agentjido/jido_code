@@ -14,6 +14,7 @@ decisions:
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
@@ -67,6 +68,11 @@ surface:
 - id: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
   statement: When public `jido_os` coding turns are materialized into governed run records, that projection shall preserve Jido.Runic as the canonical execution authority and treat public-turn records as bounded runtime evidence rather than as a second durable step engine.
   priority: must
+  stability: evolving
+
+- id: architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
+  statement: Governed run projection of terminal public-turn output shall be best-effort and non-blocking for conversation subscriber delivery so the runtime overlay can continue emitting bounded operator updates even when governed projection repairs fail.
+  priority: should
   stability: evolving
 ```
 
@@ -148,6 +154,11 @@ surface:
   target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   covers:
     - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
+
+- kind: source_file
+  target: lib/jido_code/conversations/turn_bridge.ex
+  covers:
+    - architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
 
 - kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex

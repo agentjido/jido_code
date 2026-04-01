@@ -121,6 +121,11 @@ surface:
   statement: When coding conversations execute through public `jido_os` turn runtime surfaces, admitted turns and their bounded terminal outputs shall flow back into managed-repository ingress, governed run projections, and governed evidence records instead of creating a parallel product truth lane outside the control plane.
   priority: must
   stability: evolving
+
+- id: architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
+  statement: Transitional project-scope resolution and source-repo identity repair shall use explicit factory-system, operator, or orchestrator actors for control-plane reads and writes instead of anonymous compatibility bypasses.
+  priority: must
+  stability: evolving
 ```
 
 ## Scenarios
@@ -239,6 +244,16 @@ surface:
   covers:
     - architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
     - architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+
+- kind: source_file
+  target: lib/jido_code/code_server/project_scope.ex
+  covers:
+    - architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
+
+- kind: source_file
+  target: lib/jido_code/control/source_repo.ex
+  covers:
+    - architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
 
 - kind: source_file
   target: lib/jido_code/workbench/project_detail.ex

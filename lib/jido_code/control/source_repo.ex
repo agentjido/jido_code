@@ -1,4 +1,7 @@
 defmodule JidoCode.Control.SourceRepo do
+  # covers: architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+  # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   use Ash.Resource,
     otp_app: :jido_code,
     domain: JidoCode.Control,
@@ -67,6 +70,16 @@ defmodule JidoCode.Control.SourceRepo do
                       :managed_repo_orchestrator,
                       :run_worker,
                       :external_ingress
+                    ]}
+    end
+
+    policy action(:upsert_identity) do
+      authorize_if {ActorClassIn,
+                    classes: [
+                      :admin,
+                      :operator,
+                      :factory_system,
+                      :managed_repo_orchestrator
                     ]}
     end
 

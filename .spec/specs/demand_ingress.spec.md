@@ -55,6 +55,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.demand_ingress.normalized_ingress_persists_requested_by_actor_identity
+  statement: Normalized intake source metadata shall persist requested-by actor identifiers and stable contact fields so downstream synthesis, posture, and audit flows can correlate the originating actor without depending on transient entrypoint structs.
+  priority: must
+  stability: evolving
+
 - id: architecture.demand_ingress.entrypoint_policy_metadata_preserved
   statement: Ingress entrypoints that can launch governed runs shall preserve repo-governance approval or review-policy metadata in their normalized source metadata so downstream execution and review behavior remains correlated with the originating intake or webhook.
   priority: should
@@ -160,6 +165,7 @@ surface:
     - architecture.demand_ingress.observation_captures_repo_and_system_facts
     - architecture.demand_ingress.intake_captures_operator_and_trusted_requests
     - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
+    - architecture.demand_ingress.normalized_ingress_persists_requested_by_actor_identity
     - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
 
 - kind: source_file

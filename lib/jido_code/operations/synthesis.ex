@@ -6,6 +6,8 @@ defmodule JidoCode.Operations.Synthesis do
   # covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs
   # covers: architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
   # covers: architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
+  # covers: architecture.event_assessment_synthesis.correlation_prefers_persisted_requested_by_actor_identity
+  # covers: architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity
   @moduledoc """
   Derives durable control-plane events and assessments from normalized ingress records.
   """
@@ -180,6 +182,7 @@ defmodule JidoCode.Operations.Synthesis do
       intake_assessment_profile(intake)
 
     repo_native_state = repo_native_inputs(intake.managed_repo_id)
+    requested_by_actor_id = requested_by_actor_id(intake)
 
     %{
       managed_repo_id: intake.managed_repo_id,
@@ -201,7 +204,7 @@ defmodule JidoCode.Operations.Synthesis do
         intake.source_metadata
         |> normalize_map()
         |> Map.put("assessment_origin", "intake")
-        |> maybe_put("requested_by_actor_id", intake.requested_by["id"])
+        |> maybe_put("requested_by_actor_id", requested_by_actor_id)
     }
   end
 
@@ -228,12 +231,14 @@ defmodule JidoCode.Operations.Synthesis do
       |> Map.get("conversation_id")
       |> normalize_optional_string()
 
+    actor_reference = requested_by_actor_id(intake) || actor_reference(intake, :email)
+
     case conversation_reference do
       nil ->
         [
           intake.managed_repo_id || "unscoped",
           category,
-          normalize_optional_string(intake.requested_by["id"]) || "anonymous"
+          actor_reference || "anonymous"
         ]
         |> Enum.join(":")
 
@@ -298,6 +303,23 @@ defmodule JidoCode.Operations.Synthesis do
   defp requested_workflow_name(intake) do
     intake.payload
     |> map_get("workflow_name", :workflow_name)
+    |> normalize_optional_string()
+  end
+
+  defp requested_by_actor_id(intake) do
+    intake
+    |> Map.get(:source_metadata, %{})
+    |> normalize_map()
+    |> Map.get("requested_by_actor_id")
+    |> normalize_optional_string()
+    |> Kernel.||(actor_reference(intake, :id))
+  end
+
+  defp actor_reference(intake, key) do
+    intake
+    |> Map.get(:requested_by, %{})
+    |> normalize_map()
+    |> Map.get(to_string(key))
     |> normalize_optional_string()
   end
 

@@ -20,8 +20,13 @@ defmodule JidoCode.Repo.Migrations.AddRunGovernanceRecords do
       timestamps(type: :utc_datetime_usec)
     end
 
-    create unique_index(:evidence_records, [:run_id, :key], name: "evidence_records_run_key_index")
-    create index(:evidence_records, [:managed_repo_id], name: "evidence_records_managed_repo_index")
+    create unique_index(:evidence_records, [:run_id, :key],
+             name: "evidence_records_run_key_index"
+           )
+
+    create index(:evidence_records, [:managed_repo_id],
+             name: "evidence_records_managed_repo_index"
+           )
 
     create table(:change_requests, primary_key: false) do
       add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
@@ -63,17 +68,29 @@ defmodule JidoCode.Repo.Migrations.AddRunGovernanceRecords do
   end
 
   def down do
-    drop_if_exists index(:decisions, [:change_request_id], name: "decisions_change_request_id_index")
+    drop_if_exists index(:decisions, [:change_request_id],
+                     name: "decisions_change_request_id_index"
+                   )
+
     drop_if_exists index(:decisions, [:run_id], name: "decisions_run_id_index")
     drop_if_exists unique_index(:decisions, [:decision_key], name: "decisions_decision_key_index")
     drop table(:decisions)
 
-    drop_if_exists index(:change_requests, [:managed_repo_id], name: "change_requests_managed_repo_index")
+    drop_if_exists index(:change_requests, [:managed_repo_id],
+                     name: "change_requests_managed_repo_index"
+                   )
+
     drop_if_exists unique_index(:change_requests, [:run_id], name: "change_requests_run_id_index")
     drop table(:change_requests)
 
-    drop_if_exists index(:evidence_records, [:managed_repo_id], name: "evidence_records_managed_repo_index")
-    drop_if_exists unique_index(:evidence_records, [:run_id, :key], name: "evidence_records_run_key_index")
+    drop_if_exists index(:evidence_records, [:managed_repo_id],
+                     name: "evidence_records_managed_repo_index"
+                   )
+
+    drop_if_exists unique_index(:evidence_records, [:run_id, :key],
+                     name: "evidence_records_run_key_index"
+                   )
+
     drop table(:evidence_records)
   end
 end

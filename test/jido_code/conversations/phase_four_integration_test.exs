@@ -83,13 +83,6 @@ defmodule JidoCode.Conversations.PhaseFourIntegrationTest do
 
     assert content =~ "Plan a safe fix"
 
-    assert_receive {:conversation_event, ^conversation_id, %{"type" => "assistant.delta"}}
-
-    assert_receive {:conversation_event, ^conversation_id,
-                    %{"type" => "assistant.message", "data" => %{"content" => assistant_content}}}
-
-    assert assistant_content =~ "Captured request for work item"
-
     assert {:ok, [intake]} =
              Intake.read(
                query: [

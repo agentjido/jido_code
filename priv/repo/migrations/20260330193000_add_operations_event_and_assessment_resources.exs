@@ -125,7 +125,11 @@ defmodule JidoCode.Repo.Migrations.AddOperationsEventAndAssessmentResources do
 
     create index(:assessments, [:managed_repo_id], name: "assessments_managed_repo_id_index")
     create index(:assessments, [:event_id], name: "assessments_event_id_index")
-    create index(:assessments, [:external_object_id], name: "assessments_external_object_id_index")
+
+    create index(:assessments, [:external_object_id],
+             name: "assessments_external_object_id_index"
+           )
+
     create index(:assessments, [:category], name: "assessments_category_index")
     create index(:assessments, [:priority], name: "assessments_priority_index")
   end
@@ -133,9 +137,17 @@ defmodule JidoCode.Repo.Migrations.AddOperationsEventAndAssessmentResources do
   def down do
     drop_if_exists index(:assessments, [:priority], name: "assessments_priority_index")
     drop_if_exists index(:assessments, [:category], name: "assessments_category_index")
-    drop_if_exists index(:assessments, [:external_object_id], name: "assessments_external_object_id_index")
+
+    drop_if_exists index(:assessments, [:external_object_id],
+                     name: "assessments_external_object_id_index"
+                   )
+
     drop_if_exists index(:assessments, [:event_id], name: "assessments_event_id_index")
-    drop_if_exists index(:assessments, [:managed_repo_id], name: "assessments_managed_repo_id_index")
+
+    drop_if_exists index(:assessments, [:managed_repo_id],
+                     name: "assessments_managed_repo_id_index"
+                   )
+
     drop table(:assessments)
 
     drop_if_exists index(:events, [:correlation_key], name: "events_correlation_key_index")

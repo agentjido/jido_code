@@ -42,7 +42,9 @@ defmodule JidoCode.Repo.Migrations.AddOperationsIngressResources do
              name: "external_objects_unique_canonical_key_index"
            )
 
-    create index(:external_objects, [:managed_repo_id], name: "external_objects_managed_repo_id_index")
+    create index(:external_objects, [:managed_repo_id],
+             name: "external_objects_managed_repo_id_index"
+           )
 
     create table(:observations, primary_key: false) do
       add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
@@ -84,7 +86,10 @@ defmodule JidoCode.Repo.Migrations.AddOperationsIngressResources do
     end
 
     create index(:observations, [:managed_repo_id], name: "observations_managed_repo_id_index")
-    create index(:observations, [:external_object_id], name: "observations_external_object_id_index")
+
+    create index(:observations, [:external_object_id],
+             name: "observations_external_object_id_index"
+           )
 
     create table(:intakes, primary_key: false) do
       add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
@@ -123,11 +128,19 @@ defmodule JidoCode.Repo.Migrations.AddOperationsIngressResources do
     drop_if_exists index(:intakes, [:managed_repo_id], name: "intakes_managed_repo_id_index")
     drop table(:intakes)
 
-    drop_if_exists index(:observations, [:external_object_id], name: "observations_external_object_id_index")
-    drop_if_exists index(:observations, [:managed_repo_id], name: "observations_managed_repo_id_index")
+    drop_if_exists index(:observations, [:external_object_id],
+                     name: "observations_external_object_id_index"
+                   )
+
+    drop_if_exists index(:observations, [:managed_repo_id],
+                     name: "observations_managed_repo_id_index"
+                   )
+
     drop table(:observations)
 
-    drop_if_exists index(:external_objects, [:managed_repo_id], name: "external_objects_managed_repo_id_index")
+    drop_if_exists index(:external_objects, [:managed_repo_id],
+                     name: "external_objects_managed_repo_id_index"
+                   )
 
     drop_if_exists unique_index(:external_objects, [:canonical_key],
                      name: "external_objects_unique_canonical_key_index"

@@ -10,9 +10,11 @@ kind: policy
 status: active
 summary: Jido.Code depends on `jido_os` coding-assistance sessions owning ordered turns through public turn lifecycle, event, replay, review, query, cancellation, and artifact surfaces while preserving actor-bound context, named policy checks, project scoping, and authority boundaries.
 decisions:
+  - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_session_turn_runtime
   - jido_code.jido_os_public_turn_runtime_adoption
 surface:
+  - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - compat/jido_os/lib/jido/os/coding_assist/service.ex
@@ -42,8 +44,23 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+  statement: `jido_os` shall expose public live subscription and unsubscription surfaces for one coding turn through additive provider-neutral acknowledgements rather than requiring downstream products to infer transport topics, authorization, or release state from private runtime internals.
+  priority: must
+  stability: evolving
+
 - id: architecture.jido_os_session_turn_runtime.public_turn_replay_supports_incremental_bridge
   statement: Public turn replay shall support incremental, product-bridge-friendly reads of session-owned turn events and terminal summaries so downstream products can translate progress safely without exposing raw runtime or provider-native event protocols directly to UI subscribers.
+  priority: must
+  stability: evolving
+
+- id: architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff
+  statement: Public live delivery shall provide stable resumable cursors aligned to replay ordering, explicit replay-join metadata, and explicit terminal-handoff semantics so downstream products can reconnect and complete deterministically without silence-based inference.
+  priority: must
+  stability: evolving
+
+- id: architecture.jido_os_session_turn_runtime.live_and_replay_release_parity
+  statement: Live delivery and replay shall preserve equivalent provider-neutral projection, rollout, privacy, and guardrail release behavior for the same coding turn so downstream recovery paths do not observe a different caller-visible truth than steady-state live delivery.
   priority: must
   stability: evolving
 
@@ -138,6 +155,18 @@ surface:
     - Product code reads public replay, artifact, and operator-review surfaces for that turn.
   then:
     - The product can bridge those projections into its own subscriber protocol and governance records without coupling UI code to provider-native payloads or treating `jido_os` as the product's durable truth store.
+
+- id: architecture.jido_os_session_turn_runtime.scenario_live_subscription_resumes_and_hands_off_terminal_state
+  covers:
+    - architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+    - architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff
+    - architecture.jido_os_session_turn_runtime.live_and_replay_release_parity
+  given:
+    - A coding turn already has replayable public history and is eligible for caller-visible live delivery.
+  when:
+    - Product code subscribes to live turn events, optionally resumes from a supplied cursor, and later observes terminal completion.
+  then:
+    - The live subscription is admitted through a provider-neutral acknowledgement, reconnect can use stable resumable cursor semantics, and terminal completion is surfaced through explicit terminal handoff while replay remains a parity-preserving recovery path.
 ```
 
 ## Verification
@@ -162,4 +191,11 @@ surface:
   covers:
     - architecture.jido_os_session_turn_runtime.public_turn_replay_supports_incremental_bridge
     - architecture.jido_os_session_turn_runtime.operator_review_is_bounded_evidence_surface
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
+  covers:
+    - architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+    - architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff
+    - architecture.jido_os_session_turn_runtime.live_and_replay_release_parity
 ```

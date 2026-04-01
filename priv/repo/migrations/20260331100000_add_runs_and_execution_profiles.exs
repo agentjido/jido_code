@@ -122,7 +122,11 @@ defmodule JidoCode.Repo.Migrations.AddRunsAndExecutionProfiles do
     end
 
     create unique_index(:runs, [:workflow_run_id], name: "runs_workflow_run_id_index")
-    create unique_index(:runs, [:managed_repo_id, :run_id], name: "runs_managed_repo_run_id_index")
+
+    create unique_index(:runs, [:managed_repo_id, :run_id],
+             name: "runs_managed_repo_run_id_index"
+           )
+
     create index(:runs, [:work_item_id], name: "runs_work_item_id_index")
     create index(:runs, [:execution_profile_id], name: "runs_execution_profile_id_index")
     create index(:runs, [:status], name: "runs_status_index")
@@ -132,11 +136,17 @@ defmodule JidoCode.Repo.Migrations.AddRunsAndExecutionProfiles do
     drop_if_exists index(:runs, [:status], name: "runs_status_index")
     drop_if_exists index(:runs, [:execution_profile_id], name: "runs_execution_profile_id_index")
     drop_if_exists index(:runs, [:work_item_id], name: "runs_work_item_id_index")
-    drop_if_exists unique_index(:runs, [:managed_repo_id, :run_id], name: "runs_managed_repo_run_id_index")
+
+    drop_if_exists unique_index(:runs, [:managed_repo_id, :run_id],
+                     name: "runs_managed_repo_run_id_index"
+                   )
+
     drop_if_exists unique_index(:runs, [:workflow_run_id], name: "runs_workflow_run_id_index")
     drop table(:runs)
 
-    drop_if_exists index(:execution_profiles, [:managed_repo_id], name: "execution_profiles_managed_repo_id_index")
+    drop_if_exists index(:execution_profiles, [:managed_repo_id],
+                     name: "execution_profiles_managed_repo_id_index"
+                   )
 
     drop_if_exists unique_index(:execution_profiles, [:managed_repo_id, :name],
                      name: "execution_profiles_managed_repo_name_index"

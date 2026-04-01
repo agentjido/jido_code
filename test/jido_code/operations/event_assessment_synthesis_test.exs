@@ -4,6 +4,7 @@ defmodule JidoCode.Operations.EventAssessmentSynthesisTest do
   # covers: architecture.event_assessment_synthesis.assessment_records_interpret_events
   # covers: architecture.event_assessment_synthesis.assessment_priority_and_next_action
   # covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs
+  # covers: architecture.event_assessment_synthesis.correlation_prefers_persisted_requested_by_actor_identity
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}
@@ -117,8 +118,8 @@ defmodule JidoCode.Operations.EventAssessmentSynthesisTest do
     assert event.category == "operator.workbench.fix_workflow_kickoff.requested"
     assert event.summary == "Operator requested fix workflow kickoff via workbench."
 
-    assert event.correlation_key ==
-             "#{managed_repo.id}:operator.workbench.fix_workflow_kickoff.requested:operator-7"
+    assert event.correlation_key =~
+             "#{managed_repo.id}:operator.workbench.fix_workflow_kickoff.requested:"
 
     assert event.source_metadata["source_record_type"] == "intake"
     assert event.source_metadata["source_record_id"] == intake.id

@@ -1838,7 +1838,7 @@
         "id": "jido_os.runtime.compatibility.public_runtime_surface",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The compatibility package shall expose the public `Jido.Os` runtime, session, directory, and coding-assistance modules that `JidoCode.JidoOsRuntime` and `JidoCode.CodingAssistance` call.",
+        "statement": "The compatibility package shall expose the public `Jido.Os` runtime, session, directory, and coding-assistance modules, including stable runtime-service identity helpers, that `JidoCode.JidoOsRuntime` and `JidoCode.CodingAssistance` call.",
         "subject_id": "jido_os.runtime.compatibility"
       },
       {
@@ -4067,6 +4067,7 @@
           "summary": "jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through public coding-assistance and authority-facade surfaces, delegates session/project/AI-preference state to canonical jido_os authorities, and keeps higher-level conversation drivers out of runtime topology details while exposing the public turn runtime through product-owned wrappers.",
           "surface": [
             "lib/jido_code/coding_assistance.ex",
+            "lib/jido_code/runtime_gateway.ex",
             "lib/jido_code/conversations/driver.ex",
             "lib/jido_code/jido_os_runtime.ex",
             ".spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md",
@@ -4380,7 +4381,7 @@
           "id": "jido_os.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, and coding-assistance APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI, and the root dependency graph may refresh without dropping that local override.",
+          "summary": "jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, coding-assistance, and runtime-service identity APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI, and the root dependency graph may refresh without dropping that local override.",
           "surface": [
             "mix.exs",
             "compat/jido_os/mix.exs",
@@ -4825,9 +4826,11 @@
             ".spec/specs/factory_control_plane.spec.md",
             ".spec/specs/coding_assistance_boundary.spec.md",
             "lib/jido_code/jido_os_runtime.ex",
+            "lib/jido_code/runtime_gateway.ex",
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code/conversations/driver.ex",
-            "lib/jido_code/conversations/turn_bridge.ex"
+            "lib/jido_code/conversations/turn_bridge.ex",
+            "test/jido_code/runtime_gateway_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -6201,6 +6204,18 @@
         "kind": "source_file",
         "subject_id": "architecture.runtime_service_overlay",
         "target": ".spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam",
+          "architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed",
+          "architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts",
+          "architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product"
+        ],
+        "file": ".spec/specs/runtime_service_overlay.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.runtime_service_overlay",
+        "target": "lib/jido_code/runtime_gateway.ex"
       },
       {
         "covers": [
@@ -8192,7 +8207,7 @@
     "requirements": 248,
     "scenarios": 99,
     "subjects": 36,
-    "verifications": 319
+    "verifications": 320
   },
   "verification": {
     "claims": [
@@ -10868,6 +10883,50 @@
         "subject_id": "architecture.runtime_service_overlay",
         "target": ".spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md",
         "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed",
+        "file": ".spec/specs/runtime_service_overlay.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.runtime_service_overlay",
+        "target": "lib/jido_code/runtime_gateway.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts",
+        "file": ".spec/specs/runtime_service_overlay.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.runtime_service_overlay",
+        "target": "lib/jido_code/runtime_gateway.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam",
+        "file": ".spec/specs/runtime_service_overlay.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.runtime_service_overlay",
+        "target": "lib/jido_code/runtime_gateway.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product",
+        "file": ".spec/specs/runtime_service_overlay.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.runtime_service_overlay",
+        "target": "lib/jido_code/runtime_gateway.ex",
+        "verification_index": 1
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -14868,7 +14927,7 @@
     "strength_summary": {
       "claimed": 53,
       "executed": 0,
-      "linked": 553
+      "linked": 557
     },
     "threshold_failures": 0
   },

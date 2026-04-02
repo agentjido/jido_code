@@ -18,6 +18,7 @@ decisions:
   - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - lib/jido_code/coding_assistance.ex
+  - lib/jido_code/runtime_gateway.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/jido_os_runtime.ex
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md

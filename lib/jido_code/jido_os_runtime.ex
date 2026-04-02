@@ -1,5 +1,6 @@
 defmodule JidoCode.JidoOsRuntime do
   # covers: coding_assistance.boundary.runtime_bootstrap_defaults
+  # covers: architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
   @moduledoc """
   Helpers for bootstrapping and accessing the embedded `jido_os` runtime.
 
@@ -8,6 +9,7 @@ defmodule JidoCode.JidoOsRuntime do
   """
 
   alias Jido.Os.AI.Runtime, as: AIRuntime
+  alias Jido.Os.CodingAssist.Service, as: CodingAssistService
   alias Jido.Os.Policy.Runtime, as: PolicyRuntime
   alias Jido.Os.Scope.Registry, as: ScopeRegistry
   alias Jido.Os.SystemInstanceSupervisor
@@ -40,6 +42,7 @@ defmodule JidoCode.JidoOsRuntime do
   @wait_attempts 100
   @wait_interval_ms 25
   @seed_defaults_enabled Application.compile_env(:jido_code, :runtime_mode, :prod) in [:dev, :test]
+  @known_runtime_services %{"coding_assistance_service" => CodingAssistService}
 
   def instance_id do
     Application.get_env(:jido_code, :jido_os_instance_id, @default_instance_id)
@@ -64,6 +67,57 @@ defmodule JidoCode.JidoOsRuntime do
       project_id: get_string(attrs, :project_id),
       workspace_id: get_string(attrs, :workspace_id)
     }
+  end
+
+  def instance_status do
+    instance_id = instance_id()
+    started? = match?({:ok, _pid}, SystemInstanceSupervisor.lookup_instance(instance_id))
+    ready? = started? and Instance.ready?(instance_id)
+
+    %{
+      instance_id: instance_id,
+      started?: started?,
+      ready?: ready?,
+      status: instance_runtime_status(started?, ready?)
+    }
+  end
+
+  def instance_ready? do
+    instance_status().ready?
+  end
+
+  def runtime_service_key(service_ref) do
+    case resolve_runtime_service_key(service_ref) do
+      {:ok, service_key} ->
+        service_key
+
+      {:error, {:runtime_service_key_unsupported, ref}} ->
+        raise ArgumentError,
+              "runtime service reference must be a service key or module exporting runtime_service_key/0, got: #{inspect(ref)}"
+
+      {:error, {:runtime_service_key_invalid, ref}} ->
+        raise ArgumentError,
+              "runtime service reference must resolve to a non-empty service key, got: #{inspect(ref)}"
+    end
+  end
+
+  def service_status(service_ref, actor_id, attrs \\ %{})
+      when is_binary(actor_id) and is_map(attrs) do
+    with {:ok, service} <- resolve_runtime_service(service_ref),
+         :ok <- ensure_instance() do
+      _context = context_for(actor_id, attrs)
+      {:ok, normalize_service_status(service, instance_status())}
+    else
+      {:error, {:runtime_service_unknown, service_key}} ->
+        {:ok, unavailable_service_status(service_key, "runtime_service_unknown")}
+    end
+  end
+
+  def service_available?(service_ref, actor_id, attrs \\ %{})
+      when is_binary(actor_id) and is_map(attrs) do
+    with {:ok, status} <- service_status(service_ref, actor_id, attrs) do
+      {:ok, status.available?}
+    end
   end
 
   defp ensure_instance_started(instance_id) do
@@ -221,6 +275,128 @@ defmodule JidoCode.JidoOsRuntime do
       correlation_id: unique_id("corr")
     }
   end
+
+  defp resolve_runtime_service_key(service_ref) when is_binary(service_ref) and service_ref != "" do
+    {:ok, service_ref}
+  end
+
+  defp resolve_runtime_service_key(service_ref) when is_atom(service_ref) do
+    if match?({:module, _module}, Code.ensure_compiled(service_ref)) and
+         function_exported?(service_ref, :runtime_service_key, 0) do
+      service_key = service_ref.runtime_service_key()
+
+      if is_binary(service_key) and service_key != "" do
+        {:ok, service_key}
+      else
+        {:error, {:runtime_service_key_invalid, service_ref}}
+      end
+    else
+      {:error, {:runtime_service_key_unsupported, service_ref}}
+    end
+  end
+
+  defp resolve_runtime_service_key(service_ref),
+    do: {:error, {:runtime_service_key_unsupported, service_ref}}
+
+  defp resolve_runtime_service(service_ref) do
+    with {:ok, service_key} <- resolve_runtime_service_key(service_ref) do
+      case resolve_runtime_service_module(service_ref, service_key) do
+        {:ok, service_module} ->
+          {:ok,
+           %{
+             service_key: service_key,
+             service_module: service_module,
+             admitted?: true
+           }}
+
+        :error ->
+          {:error, {:runtime_service_unknown, service_key}}
+      end
+    end
+  end
+
+  defp resolve_runtime_service_module(service_ref, _service_key) when is_atom(service_ref) do
+    cond do
+      match?({:module, _module}, Code.ensure_compiled(service_ref)) and
+          function_exported?(service_ref, :runtime_service_module, 0) ->
+        {:ok, service_ref.runtime_service_module()}
+
+      match?({:module, _module}, Code.ensure_compiled(service_ref)) and
+          function_exported?(service_ref, :runtime_service_key, 0) ->
+        {:ok, service_ref}
+
+      true ->
+        :error
+    end
+  end
+
+  defp resolve_runtime_service_module(_service_ref, service_key) do
+    case Map.fetch(@known_runtime_services, service_key) do
+      {:ok, service_module} -> {:ok, service_module}
+      :error -> :error
+    end
+  end
+
+  defp normalize_service_status(service, instance_status) do
+    child_spec_ready = runtime_service_module_ready?(service.service_module)
+    available? = child_spec_ready and instance_status.ready?
+    ready? = available?
+    runtime_status = runtime_service_runtime_status(instance_status, child_spec_ready)
+    dependency_status = runtime_service_dependency_status(child_spec_ready)
+    extension_admission = %{enabled: service.admitted?, reason_code: nil}
+
+    %{
+      service_key: service.service_key,
+      status: runtime_service_status(instance_status.status, available?),
+      admitted?: service.admitted?,
+      available?: available?,
+      ready?: ready?,
+      child_spec_ready: child_spec_ready,
+      runtime_status: runtime_status,
+      dependency_status: dependency_status,
+      extension_admission: extension_admission,
+      registration_epoch: nil,
+      reason_code: nil
+    }
+  end
+
+  defp unavailable_service_status(service_key, reason_code) do
+    %{
+      service_key: service_key,
+      status: "unavailable",
+      admitted?: false,
+      available?: false,
+      ready?: false,
+      child_spec_ready: false,
+      runtime_status: "missing",
+      dependency_status: "unknown",
+      extension_admission: %{enabled: false, reason_code: reason_code},
+      registration_epoch: nil,
+      reason_code: reason_code
+    }
+  end
+
+  defp runtime_service_module_ready?(service_module) do
+    match?({:module, _module}, Code.ensure_compiled(service_module)) and
+      function_exported?(service_module, :assist, 3) and
+      function_exported?(service_module, :start_turn, 3)
+  end
+
+  defp runtime_service_runtime_status(%{status: "ready"}, true), do: "running"
+  defp runtime_service_runtime_status(%{status: "starting"}, true), do: "starting"
+  defp runtime_service_runtime_status(_instance_status, true), do: "stopped"
+  defp runtime_service_runtime_status(_instance_status, false), do: "missing"
+
+  defp runtime_service_dependency_status(true), do: "satisfied"
+  defp runtime_service_dependency_status(false), do: "unknown"
+
+  defp runtime_service_status("ready", true), do: "available"
+  defp runtime_service_status("starting", false), do: "starting"
+  defp runtime_service_status(_instance_status, _available), do: "unavailable"
+
+  defp instance_runtime_status(true, true), do: "ready"
+  defp instance_runtime_status(true, false), do: "starting"
+  defp instance_runtime_status(false, _ready), do: "stopped"
 
   defp wait_until(fun, attempts_left \\ @wait_attempts)
 

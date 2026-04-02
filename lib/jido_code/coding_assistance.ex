@@ -13,19 +13,35 @@ defmodule JidoCode.CodingAssistance do
   alias Jido.Os.CodingAssist.Service, as: CodingAssistService
   alias Jido.Os.Session.DirectoryAgent
   alias Jido.Os.Session.RuntimeAgent
-  alias JidoCode.JidoOsRuntime
+  alias JidoCode.RuntimeGateway
 
   @default_operation "plan"
   @default_origin %{source_kind: "ui_channel", source_id: "jido_code"}
+  @runtime_service_module CodingAssistService
+
+  def runtime_service_module, do: @runtime_service_module
+
+  def runtime_service_key do
+    RuntimeGateway.runtime_service_key(@runtime_service_module)
+  end
+
+  def runtime_service_status(actor_id, attrs \\ %{}) when is_binary(actor_id) and is_map(attrs) do
+    RuntimeGateway.service_status(@runtime_service_module, actor_id, attrs)
+  end
+
+  def runtime_service_available?(actor_id, attrs \\ %{})
+      when is_binary(actor_id) and is_map(attrs) do
+    RuntimeGateway.service_available?(@runtime_service_module, actor_id, attrs)
+  end
 
   def assist(actor_id, params) when is_binary(actor_id) and is_map(params) do
     with_runtime_session(actor_id, params, fn runtime_attrs ->
       objective = fetch_required!(params, :objective)
 
       CodingAssistService.assist(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         coding_request_payload(actor_id, params, objective, runtime_attrs),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
@@ -35,9 +51,9 @@ defmodule JidoCode.CodingAssistance do
       objective = fetch_required!(params, :objective)
 
       CodingAssistService.start_turn(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         coding_request_payload(actor_id, params, objective, runtime_attrs),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
@@ -45,9 +61,9 @@ defmodule JidoCode.CodingAssistance do
   def get_turn(actor_id, params) when is_binary(actor_id) and is_map(params) do
     with_runtime_session(actor_id, params, fn runtime_attrs ->
       CodingAssistService.get_turn(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         public_turn_payload(params, [:session_id, :turn_id]),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
@@ -55,9 +71,9 @@ defmodule JidoCode.CodingAssistance do
   def list_turns(actor_id, params) when is_binary(actor_id) and is_map(params) do
     with_runtime_session(actor_id, params, fn runtime_attrs ->
       CodingAssistService.list_turns(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         public_turn_payload(params, [:session_id]),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
@@ -65,9 +81,9 @@ defmodule JidoCode.CodingAssistance do
   def list_turn_events(actor_id, params) when is_binary(actor_id) and is_map(params) do
     with_runtime_session(actor_id, params, fn runtime_attrs ->
       CodingAssistService.list_turn_events(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         public_turn_payload(params, [:session_id, :turn_id, :after_event_id]),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
@@ -75,9 +91,9 @@ defmodule JidoCode.CodingAssistance do
   def list_turn_artifacts(actor_id, params) when is_binary(actor_id) and is_map(params) do
     with_runtime_session(actor_id, params, fn runtime_attrs ->
       CodingAssistService.list_turn_artifacts(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         public_turn_payload(params, [:session_id, :turn_id]),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
@@ -85,9 +101,9 @@ defmodule JidoCode.CodingAssistance do
   def cancel_turn(actor_id, params) when is_binary(actor_id) and is_map(params) do
     with_runtime_session(actor_id, params, fn runtime_attrs ->
       CodingAssistService.cancel_turn(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         public_turn_payload(params, [:session_id, :turn_id]),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
@@ -95,16 +111,16 @@ defmodule JidoCode.CodingAssistance do
   def review_turn(actor_id, params) when is_binary(actor_id) and is_map(params) do
     with_runtime_session(actor_id, params, fn runtime_attrs ->
       CodingAssistService.review_turn(
-        JidoOsRuntime.instance_id(),
+        RuntimeGateway.instance_id(),
         public_turn_payload(params, [:session_id, :turn_id]),
-        JidoOsRuntime.context_for(actor_id, runtime_attrs)
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
     end)
   end
 
   def ensure_session(session_id, actor_id, attrs \\ %{}) do
-    with :ok <- JidoOsRuntime.ensure_instance() do
-      context = JidoOsRuntime.context_for(actor_id, attrs)
+    with :ok <- RuntimeGateway.ensure_instance() do
+      context = RuntimeGateway.context_for(actor_id, attrs)
 
       case RuntimeAgent.load_session(context.instance_id, session_id, context) do
         {:ok, session} -> {:ok, session}
@@ -114,46 +130,46 @@ defmodule JidoCode.CodingAssistance do
   end
 
   def lookup_session(session_id, actor_id, attrs \\ %{}) do
-    with :ok <- JidoOsRuntime.ensure_instance() do
-      context = JidoOsRuntime.context_for(actor_id, attrs)
+    with :ok <- RuntimeGateway.ensure_instance() do
+      context = RuntimeGateway.context_for(actor_id, attrs)
       RuntimeAgent.load_session(context.instance_id, session_id, context)
     end
   end
 
   def bind_project(session_id, actor_id, project_id, attrs \\ %{}) do
-    with :ok <- JidoOsRuntime.ensure_instance() do
+    with :ok <- RuntimeGateway.ensure_instance() do
       context =
         attrs
         |> get_map()
         |> Map.put(:project_id, project_id)
-        |> then(&JidoOsRuntime.context_for(actor_id, &1))
+        |> then(&RuntimeGateway.context_for(actor_id, &1))
 
       DirectoryAgent.attach_session_to_project(context.instance_id, session_id, project_id, context)
     end
   end
 
   def rebind_project(session_id, actor_id, project_id, attrs \\ %{}) do
-    with :ok <- JidoOsRuntime.ensure_instance() do
+    with :ok <- RuntimeGateway.ensure_instance() do
       context =
         attrs
         |> get_map()
         |> Map.put(:project_id, project_id)
-        |> then(&JidoOsRuntime.context_for(actor_id, &1))
+        |> then(&RuntimeGateway.context_for(actor_id, &1))
 
       DirectoryAgent.rebind_session_project(context.instance_id, session_id, project_id, context)
     end
   end
 
   def unbind_project(session_id, actor_id, attrs \\ %{}) do
-    with :ok <- JidoOsRuntime.ensure_instance() do
-      context = JidoOsRuntime.context_for(actor_id, attrs)
+    with :ok <- RuntimeGateway.ensure_instance() do
+      context = RuntimeGateway.context_for(actor_id, attrs)
       DirectoryAgent.detach_session_from_project(context.instance_id, session_id, context)
     end
   end
 
   def update_ai_selection(session_id, actor_id, selection, attrs \\ %{}) when is_map(selection) do
-    with :ok <- JidoOsRuntime.ensure_instance() do
-      context = JidoOsRuntime.context_for(actor_id, attrs)
+    with :ok <- RuntimeGateway.ensure_instance() do
+      context = RuntimeGateway.context_for(actor_id, attrs)
 
       RuntimeAgent.update_session_ai_preferences(
         context.instance_id,
@@ -165,8 +181,8 @@ defmodule JidoCode.CodingAssistance do
   end
 
   def get_ai_selection(session_id, actor_id, attrs \\ %{}) do
-    with :ok <- JidoOsRuntime.ensure_instance() do
-      context = JidoOsRuntime.context_for(actor_id, attrs)
+    with :ok <- RuntimeGateway.ensure_instance() do
+      context = RuntimeGateway.context_for(actor_id, attrs)
       RuntimeAgent.get_session_ai_preferences(context.instance_id, session_id, context)
     end
   end
@@ -175,7 +191,7 @@ defmodule JidoCode.CodingAssistance do
     session_id = fetch_required!(params, :session_id)
     runtime_attrs = runtime_attrs(params)
 
-    with :ok <- JidoOsRuntime.ensure_instance(),
+    with :ok <- RuntimeGateway.ensure_instance(),
          {:ok, _session} <- ensure_session(session_id, actor_id, runtime_attrs),
          {:ok, envelope} <- fun.(runtime_attrs) do
       {:ok, envelope}

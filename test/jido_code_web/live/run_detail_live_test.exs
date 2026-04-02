@@ -1,11 +1,17 @@
 defmodule JidoCodeWeb.RunDetailLiveTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+  # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
+  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Governance.RepoPosture
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
 
@@ -208,6 +214,145 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-evidence-key-1")
     assert has_element?(view, "#run-detail-change-request-status", "open")
     assert has_element?(view, "#run-detail-decisions-empty")
+  end
+
+  test "renders bounded runtime evidence using product-oriented posture language", %{conn: _conn} do
+    register_owner("runtime-run-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("runtime-run-owner@example.com", "owner-password-123")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-runtime-run-detail",
+        github_full_name: "owner/repo-runtime-run-detail",
+        default_branch: "main",
+        settings: %{}
+      })
+
+    run_id = "run-runtime-detail-#{System.unique_integer([:positive])}"
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "coding_turn_plan",
+        workflow_version: 1,
+        trigger: %{
+          source: "public_turn_runtime",
+          mode: "conversation_runtime",
+          turn_id: "turn-run-detail-1"
+        },
+        inputs: %{"turn_id" => "turn-run-detail-1"},
+        input_metadata: %{"turn_id" => %{required: true, source: "test"}},
+        initiating_actor: %{id: "owner-1", email: "runtime-run-owner@example.com"},
+        current_step: "public_turn_materialized",
+        started_at: ~U[2026-04-01 12:00:00Z],
+        step_results: %{
+          "coding_turn_summary" => %{
+            "turn_id" => "turn-run-detail-1",
+            "conversation_id" => "conversation-run-detail-1",
+            "state" => "completed",
+            "assistant_output" => %{"message" => "Live delivery resumed through replay."}
+          },
+          "runtime_service_delivery" => %{
+            "delivery_mode" => "replay_recovery",
+            "reason_code" => "live_delivery_detached",
+            "terminal_handoff_kind" => "replay_terminal_lookup",
+            "terminal_state" => "completed",
+            "turn_id" => "turn-run-detail-1",
+            "session_id" => "conversation-run-detail-1",
+            "conversation_id" => "conversation-run-detail-1",
+            "summary" => "Coding turn delivery repaired through replay recovery."
+          }
+        }
+      })
+
+    {:ok, workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "public_turn_in_progress",
+        transitioned_at: ~U[2026-04-01 12:01:00Z]
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :awaiting_approval,
+        current_step: "approval_gate",
+        transitioned_at: ~U[2026-04-01 12:02:00Z]
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    {:ok, _repo_posture} =
+      RepoPosture.upsert_for_managed_repo(
+        %{
+          managed_repo_id: managed_repo.id,
+          summary: "Repo posture remains governed.",
+          overall_trust: "medium",
+          execution_readiness: "medium",
+          validation_reliability: "high",
+          review_burden: "high",
+          drift_rate: "low",
+          recovery_resilience: "medium",
+          requirements_confidence: "high",
+          supervision_mode: "guided",
+          escalation_status: "review",
+          contributing_check_ids: [],
+          posture_metadata: %{
+            "runtime_service_evidence_summary" =>
+              "Runtime evidence requires operator review before execution trust can be restored.",
+            "runtime_service_evidence_state" => %{
+              "status" => "degraded",
+              "review_required" => true,
+              "runtime_delivery" => %{
+                "delivery_mode" => "replay_recovery",
+                "reason_code" => "live_delivery_detached"
+              },
+              "integration_outcomes" => %{
+                "latest_invocation" => %{
+                  "provider" => "github",
+                  "summary" => "github installation delivery recovered"
+                }
+              }
+            }
+          }
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-runtime-evidence")
+    assert has_element?(view, "#run-detail-runtime-evidence-status", "review required")
+
+    assert has_element?(
+             view,
+             "#run-detail-runtime-evidence-summary",
+             "operator review before execution trust can be restored"
+           )
+
+    assert has_element?(
+             view,
+             "#run-detail-runtime-evidence-delivery-mode",
+             "replay recovery"
+           )
+
+    assert has_element?(
+             view,
+             "#run-detail-runtime-evidence-reason",
+             "live delivery detached"
+           )
+
+    assert has_element?(
+             view,
+             "#run-detail-runtime-evidence-integration",
+             "github installation delivery recovered"
+           )
+
+    assert has_element?(view, "#run-detail-runtime-evidence-note", "Product governance stores bounded runtime evidence")
   end
 
   test "renders run artifact browser categories with stable view identifiers", %{conn: _conn} do

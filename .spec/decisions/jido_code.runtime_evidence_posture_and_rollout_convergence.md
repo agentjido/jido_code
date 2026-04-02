@@ -93,5 +93,8 @@ This means:
   runtime policy.
 - `RunGovernanceBridge` now carries runtime delivery evidence into evidence,
   review, and decision metadata so operator review stays explainable.
+- Dashboard and run-detail operator surfaces now summarize bounded runtime
+  posture in product-oriented rollout language instead of relying on runtime
+  helper terminology or transport-specific phrasing.
 - The product continues to treat `jido_os` as a runtime overlay and not as the
   durable source of product governance truth.

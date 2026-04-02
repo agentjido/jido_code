@@ -26,6 +26,7 @@ surface:
   - priv/repo/migrations/20260326122740_add_project_source_identity.exs
   - priv/resource_snapshots/repo/projects/20260326122740.json
   - test/jido_code_web/live/setup_live_test.exs
+  - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code/setup/project_import_test.exs
   - test/jido_code/projects/project_test.exs
   - test/jido_code/setup/deployment_mode_test.exs
@@ -214,6 +215,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
+
+- kind: source_file
+  target: test/jido_code_web/live/dashboard_live_test.exs
   covers:
     - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
 

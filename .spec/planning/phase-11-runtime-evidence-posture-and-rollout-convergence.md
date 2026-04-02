@@ -41,22 +41,22 @@ Back to index: [README](./README.md)
       [x] 11.1.2.2 Subtask - Preserve explicit separation between product review decisions and runtime admission or rollout authority.
       [x] 11.1.2.3 Subtask - Keep `Jido.Runic` and governed `Run` records as the execution authority even when runtime evidence becomes richer.
 
-  [ ] 11.2 Section - Operator Surface and Rollout Narrative Convergence
+  [x] 11.2 Section - Operator Surface and Rollout Narrative Convergence
     Make the newer runtime-service model understandable to operators without leaking internal runtime architecture into the product UX.
 
-    [ ] 11.2.1 Task - Surface runtime capability posture and evidence in operator-facing product views
+    [x] 11.2.1 Task - Surface runtime capability posture and evidence in operator-facing product views
       Give operators a governed, explainable view of runtime-service readiness and degraded behavior where it affects repo supervision.
 
-      [ ] 11.2.1.1 Subtask - Add dashboard or workbench summaries for admitted-service posture, rollout status, and degraded-path evidence.
-      [ ] 11.2.1.2 Subtask - Add run- or repo-detail visibility for relevant operator-review joins and runtime evidence when it affects execution trust.
-      [ ] 11.2.1.3 Subtask - Keep UI language product-oriented and policy-oriented rather than exposing substrate or authority-topology jargon.
+      [x] 11.2.1.1 Subtask - Add dashboard or workbench summaries for admitted-service posture, rollout status, and degraded-path evidence.
+      [x] 11.2.1.2 Subtask - Add run- or repo-detail visibility for relevant operator-review joins and runtime evidence when it affects execution trust.
+      [x] 11.2.1.3 Subtask - Keep UI language product-oriented and policy-oriented rather than exposing substrate or authority-topology jargon.
 
-    [ ] 11.2.2 Task - Retire stale narrow runtime-overlay assumptions from product docs and rollout narratives
+    [x] 11.2.2 Task - Retire stale narrow runtime-overlay assumptions from product docs and rollout narratives
       Finish the architectural refresh by aligning operator and contributor narratives with the newer runtime-service model.
 
-      [ ] 11.2.2.1 Subtask - Update rollout and compatibility narratives to distinguish product truth from runtime-service posture explicitly.
-      [ ] 11.2.2.2 Subtask - Remove remaining doc or UI assumptions that describe `jido_os` only as a coding-turn helper if broader runtime-service adoption is now live.
-      [ ] 11.2.2.3 Subtask - Preserve clear rollback and recovery procedures when runtime-service rollout affects ordinary operator workflows.
+      [x] 11.2.2.1 Subtask - Update rollout and compatibility narratives to distinguish product truth from runtime-service posture explicitly.
+      [x] 11.2.2.2 Subtask - Remove remaining doc or UI assumptions that describe `jido_os` only as a coding-turn helper if broader runtime-service adoption is now live.
+      [x] 11.2.2.3 Subtask - Preserve clear rollback and recovery procedures when runtime-service rollout affects ordinary operator workflows.
 
   [ ] 11.3 Section - Phase 11 Integration Tests
     Validate the final convergence of runtime evidence, posture, and operator-facing rollout behavior so the architecture refresh is complete end to end.

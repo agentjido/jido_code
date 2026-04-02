@@ -212,6 +212,21 @@ surface:
     - package.jido_code.primary_implementation_repo
 
 - kind: source_file
+  target: lib/jido_code/governance/runtime_evidence_feed.ex
+  covers:
+    - package.jido_code.primary_implementation_repo
+
+- kind: source_file
+  target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - package.jido_code.primary_implementation_repo
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - package.jido_code.primary_implementation_repo
+
+- kind: source_file
   target: test/jido_code/runtime_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
@@ -228,6 +243,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code/governance/runtime_evidence_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/governance/runtime_evidence_feed_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

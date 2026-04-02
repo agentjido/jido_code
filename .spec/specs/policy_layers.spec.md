@@ -44,9 +44,11 @@ surface:
   - lib/jido_code/operations/work_synthesis.ex
   - lib/jido_code/projects/project.ex
   - lib/jido_code/jido_os_runtime.ex
+  - lib/jido_code/runtime_integration.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - test/jido_code/conversations/phase_four_integration_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
+  - test/jido_code/runtime_integration_test.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
@@ -96,6 +98,11 @@ surface:
 - id: architecture.policy_layers.public_turn_materialization_preserves_layered_policy
   statement: When `jido_code` adopts public `jido_os` turn replay, review, and terminal materialization, product-side ingress and Ash authorization shall remain explicit before runtime turn start, and bounded runtime outputs shall only re-enter governed product records through actor-aware product bridges instead of bypassing repo governance or data-plane policy.
   priority: must
+  stability: evolving
+
+- id: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
+  statement: Product-owned runtime integration gateways shall propagate explicit actor, repo, request, correlation, and workspace context into public `jido_os` integration operations and fail closed on typed unavailable, denied, ambiguous, or missing-binding outcomes instead of bypassing layered policy through setup-local side effects.
+  priority: should
   stability: evolving
 
 - id: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
@@ -177,6 +184,12 @@ surface:
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
 
 - kind: source_file
+  target: lib/jido_code/runtime_integration.ex
+  covers:
+    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+    - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
+
+- kind: source_file
   target: lib/jido_code/control/actor.ex
   covers:
     - architecture.policy_layers.explicit_human_and_machine_actor_classes
@@ -253,4 +266,9 @@ surface:
   target: test/jido_code/conversations/phase_seven_integration_test.exs
   covers:
     - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
+
+- kind: source_file
+  target: test/jido_code/runtime_integration_test.exs
+  covers:
+    - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
 ```

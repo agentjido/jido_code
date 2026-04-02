@@ -13,7 +13,9 @@ defmodule Jido.Os.State do
           session_turns: %{},
           turn_events: %{},
           turn_reviews: %{},
-          turn_subscriptions: %{}
+          turn_subscriptions: %{},
+          integration_install_sessions: %{},
+          integration_project_bindings: %{}
         }
       end,
       name: __MODULE__
@@ -174,6 +176,64 @@ defmodule Jido.Os.State do
     Agent.get_and_update(__MODULE__, fn state ->
       key = {instance_id, session_id, turn_id, subscription_id}
       {Map.get(state.turn_subscriptions, key), update_in(state.turn_subscriptions, &Map.delete(&1, key))}
+    end)
+  end
+
+  def put_integration_install_session(instance_id, install_id, session) when is_map(session) do
+    Agent.update(__MODULE__, fn state ->
+      put_in(state, [:integration_install_sessions, {instance_id, install_id}], session)
+    end)
+  end
+
+  def get_integration_install_session(instance_id, install_id) do
+    Agent.get(__MODULE__, fn state ->
+      Map.get(state.integration_install_sessions, {instance_id, install_id})
+    end)
+  end
+
+  def put_integration_project_binding(instance_id, project_id, binding_id, binding) when is_map(binding) do
+    Agent.update(__MODULE__, fn state ->
+      put_in(state, [:integration_project_bindings, {instance_id, project_id, binding_id}], binding)
+    end)
+  end
+
+  def get_integration_project_binding(instance_id, project_id, binding_id) do
+    Agent.get(__MODULE__, fn state ->
+      Map.get(state.integration_project_bindings, {instance_id, project_id, binding_id})
+    end)
+  end
+
+  def update_integration_project_binding(instance_id, project_id, binding_id, updater)
+      when is_function(updater, 1) do
+    Agent.get_and_update(__MODULE__, fn state ->
+      key = {instance_id, project_id, binding_id}
+
+      case Map.get(state.integration_project_bindings, key) do
+        nil ->
+          {{:error, :integration_project_binding_not_found}, state}
+
+        binding ->
+          updated = updater.(binding)
+          {{:ok, updated}, put_in(state, [:integration_project_bindings, key], updated)}
+      end
+    end)
+  end
+
+  def list_integration_project_bindings(instance_id, project_id) do
+    Agent.get(__MODULE__, fn state ->
+      state.integration_project_bindings
+      |> Enum.filter(fn
+        {{^instance_id, ^project_id, _binding_id}, _binding} -> true
+        _other -> false
+      end)
+      |> Enum.map(fn {_key, binding} -> binding end)
+      |> Enum.sort_by(fn binding ->
+        {
+          Map.get(binding, :provider) || Map.get(binding, "provider"),
+          Map.get(binding, :binding_alias) || Map.get(binding, "binding_alias"),
+          Map.get(binding, :binding_id) || Map.get(binding, "binding_id")
+        }
+      end)
     end)
   end
 end

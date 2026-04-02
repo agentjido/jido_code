@@ -82,6 +82,9 @@ This means:
    coding conversations, but it is now understood as one member of a broader
    product-owned runtime gateway layer. Similar product-owned boundaries may be
    introduced for other public runtime services as `jido_code` adopts them.
+   Repo-scoped external runtime integration should therefore enter the product
+   through a dedicated `JidoCode.RuntimeIntegration` gateway over public
+   `Jido.Os.Integration.Service`, not through setup-local connector helpers.
 
 5. External SaaS runtime operations should compose through the canonical
    runtime integration boundary.
@@ -108,6 +111,9 @@ This means:
 - `JidoCode.CodingAssistance` should continue shielding the product from runtime
   topology details, and future runtime-service adoption should follow the same
   product-owned gateway pattern.
+- `JidoCode.RuntimeIntegration` is the baseline example of that broader
+  gateway model for repo-scoped external runtime behavior, while still
+  normalizing outcomes back into managed-repo product truth.
 - Runtime-service availability, rollout, and degraded-path evidence become
   first-class inputs to product governance and posture, not merely operational
   noise.

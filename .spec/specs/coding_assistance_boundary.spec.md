@@ -43,7 +43,7 @@ surface:
   stability: evolving
 
 - id: coding_assistance.boundary.runtime_bootstrap_defaults
-  statement: A product-local runtime helper shall bootstrap the embedded jido_os instance and seed development/test defaults for AI runtime descriptors, coding capabilities, and allow policies.
+  statement: A product-local runtime helper shall bootstrap the embedded jido_os instance and seed development/test defaults for AI runtime descriptors, coding capabilities, allow policies, and additive product-owned runtime gateways without exposing runtime topology details to coding callers.
   priority: must
   stability: evolving
 

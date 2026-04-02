@@ -10,6 +10,7 @@ summary: jido_code is the primary implementation repo, maintains a package-local
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
+  - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
@@ -191,6 +192,16 @@ surface:
 
 - kind: source_file
   target: test/jido_code/coding_assistance_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: lib/jido_code/runtime_integration.ex
+  covers:
+    - package.jido_code.primary_implementation_repo
+
+- kind: source_file
+  target: test/jido_code/runtime_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

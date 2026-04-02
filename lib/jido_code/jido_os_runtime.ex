@@ -2,6 +2,7 @@ defmodule JidoCode.JidoOsRuntime do
   # covers: coding_assistance.boundary.runtime_bootstrap_defaults
   # covers: architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
   # covers: architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+  # covers: architecture.jido_os_session_turn_runtime.turn_runtime_bootstrap_coexists_with_additive_runtime_services
   # covers: architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation
   # covers: architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
   # covers: architecture.policy_layers.policy_layers_interlock_without_collapsing
@@ -14,6 +15,7 @@ defmodule JidoCode.JidoOsRuntime do
 
   alias Jido.Os.AI.Runtime, as: AIRuntime
   alias Jido.Os.CodingAssist.Service, as: CodingAssistService
+  alias Jido.Os.Integration.Service, as: IntegrationService
   alias Jido.Os.Policy.Runtime, as: PolicyRuntime
   alias Jido.Os.Scope.Registry, as: ScopeRegistry
   alias Jido.Os.SystemInstanceSupervisor
@@ -46,7 +48,28 @@ defmodule JidoCode.JidoOsRuntime do
   @wait_attempts 100
   @wait_interval_ms 25
   @seed_defaults_enabled Application.compile_env(:jido_code, :runtime_mode, :prod) in [:dev, :test]
-  @known_runtime_services %{"coding_assistance_service" => CodingAssistService}
+  @known_runtime_services %{
+    "coding_assistance_service" => CodingAssistService,
+    "integration_service" => IntegrationService
+  }
+  @runtime_service_exports %{
+    "coding_assistance_service" => [
+      {:assist, 3},
+      {:start_turn, 3},
+      {:subscribe_turn_events, 3},
+      {:unsubscribe_turn_events, 3}
+    ],
+    "integration_service" => [
+      {:begin_install, 3},
+      {:complete_install, 3},
+      {:list_project_bindings, 3},
+      {:get_project_binding, 3},
+      {:set_default_project_binding, 3},
+      {:revoke_project_binding, 3},
+      {:list_provider_operations, 3},
+      {:invoke_operation, 3}
+    ]
+  }
   @service_status_override_keys %{
     "status" => :status,
     "admitted?" => :admitted?,
@@ -480,11 +503,17 @@ defmodule JidoCode.JidoOsRuntime do
   defp normalize_override_lookup_key(_key), do: nil
 
   defp runtime_service_module_ready?(service_module) do
-    match?({:module, _module}, Code.ensure_compiled(service_module)) and
-      function_exported?(service_module, :assist, 3) and
-      function_exported?(service_module, :start_turn, 3) and
-      function_exported?(service_module, :subscribe_turn_events, 3) and
-      function_exported?(service_module, :unsubscribe_turn_events, 3)
+    with true <- match?({:module, _module}, Code.ensure_compiled(service_module)),
+         true <- function_exported?(service_module, :runtime_service_key, 0),
+         service_key when is_binary(service_key) <- service_module.runtime_service_key(),
+         required_exports when is_list(required_exports) and required_exports != [] <-
+           Map.get(@runtime_service_exports, service_key) do
+      Enum.all?(required_exports, fn {name, arity} ->
+        function_exported?(service_module, name, arity)
+      end)
+    else
+      _other -> false
+    end
   end
 
   defp runtime_service_runtime_status(%{status: "ready"}, true), do: "running"

@@ -20,22 +20,22 @@ Back to index: [README](./README.md)
 [ ] 10 Phase 10 - External Runtime Integration Service Adoption
   Introduce repo-scoped external SaaS runtime behavior through a product-owned gateway over `Jido.Os.Integration.Service` and normalize those runtime outcomes back into the managed-repo factory loop instead of scattering connector-specific logic across product setup and UI seams.
 
-  [ ] 10.1 Section - Product-Owned Integration Gateway Baseline
+  [x] 10.1 Section - Product-Owned Integration Gateway Baseline
     Establish a product boundary over the canonical runtime integration service before any workflow or operator flow depends on it.
 
-    [ ] 10.1.1 Task - Add a product-owned integration gateway over public `Jido.Os.Integration.Service`
+    [x] 10.1.1 Task - Add a product-owned integration gateway over public `Jido.Os.Integration.Service`
       Make external runtime integration use the same gateway pattern as coding assistance so product code does not consume raw runtime payloads directly.
 
-      [ ] 10.1.1.1 Subtask - Introduce a `jido_code` boundary for install lifecycle, binding reads or writes, provider operation discovery, and invocation.
-      [ ] 10.1.1.2 Subtask - Preserve explicit actor, project, request, correlation, and workspace context across every runtime integration call.
-      [ ] 10.1.1.3 Subtask - Keep product callers insulated from connector-native identifiers, adapter details, and substrate-facing runtime shapes.
+      [x] 10.1.1.1 Subtask - Introduce a `jido_code` boundary for install lifecycle, binding reads or writes, provider operation discovery, and invocation.
+      [x] 10.1.1.2 Subtask - Preserve explicit actor, project, request, correlation, and workspace context across every runtime integration call.
+      [x] 10.1.1.3 Subtask - Keep product callers insulated from connector-native identifiers, adapter details, and substrate-facing runtime shapes.
 
-    [ ] 10.1.2 Task - Align runtime integration with managed-repo identity and governance
+    [x] 10.1.2 Task - Align runtime integration with managed-repo identity and governance
       Ensure runtime integration behavior is repo-scoped and governed by the same managed-repo model as the rest of the factory.
 
-      [ ] 10.1.2.1 Subtask - Resolve managed-repo and transitional project identity into the explicit project-scoped binding context required by the runtime integration boundary.
-      [ ] 10.1.2.2 Subtask - Preserve typed ambiguity, missing-binding, and unavailable-service behavior at the product boundary.
-      [ ] 10.1.2.3 Subtask - Keep runtime integration availability and binding health visible as capability posture rather than hidden setup-only state.
+      [x] 10.1.2.1 Subtask - Resolve managed-repo and transitional project identity into the explicit project-scoped binding context required by the runtime integration boundary.
+      [x] 10.1.2.2 Subtask - Preserve typed ambiguity, missing-binding, and unavailable-service behavior at the product boundary.
+      [x] 10.1.2.3 Subtask - Keep runtime integration availability and binding health visible as capability posture rather than hidden setup-only state.
 
   [ ] 10.2 Section - Control-Loop Normalization for Integration Outcomes
     Make runtime integration results rejoin the governed factory loop rather than living as detached setup or UI side effects.

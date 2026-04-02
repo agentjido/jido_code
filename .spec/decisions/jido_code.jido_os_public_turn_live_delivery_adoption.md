@@ -118,3 +118,12 @@ Phase 9.2 now lands the live-delivery-first conversation bridge:
 - Governed terminal materialization stays best-effort and non-blocking for
   subscriber progress while replay remains the canonical verification and
   terminal-lookup path.
+
+Phase 9.3 now adds end-to-end product coverage for the live bridge:
+
+- Integration coverage exercises live subscription admission, incremental event
+  delivery, explicit terminal handoff, replay cursor repair after detachment,
+  and rollout-withheld fallback through the `CodeServer -> Driver -> TurnBridge`
+  path.
+- The same integration suite verifies that governed projection failures remain
+  typed and non-blocking for subscriber-visible progress and completion.

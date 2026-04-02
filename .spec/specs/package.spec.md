@@ -185,6 +185,11 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code/conversations/phase_nine_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/jido_code/coding_assistance_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces

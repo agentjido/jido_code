@@ -315,6 +315,11 @@ surface:
     - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
 
 - kind: source_file
+  target: test/jido_code/conversations/phase_nine_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+
+- kind: source_file
   target: lib/jido_code/conversations/event_bridge.ex
   covers:
     - architecture.factory_control_plane.runtime_turns_feed_governed_control_records

@@ -36,6 +36,7 @@ surface:
   - test/jido_code/conversations/phase_four_integration_test.exs
   - test/jido_code/conversations/turn_bridge_test.exs
   - test/jido_code/conversations/phase_seven_integration_test.exs
+  - test/jido_code/conversations/phase_nine_integration_test.exs
 ```
 
 ## Requirements
@@ -268,6 +269,14 @@ surface:
   target: test/jido_code/conversations/phase_seven_integration_test.exs
   covers:
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
+    - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
+    - architecture.conversation_driver.subscriber_event_contract_preserved
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_nine_integration_test.exs
+  covers:
     - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
     - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
     - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation

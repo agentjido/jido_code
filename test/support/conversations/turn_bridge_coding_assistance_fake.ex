@@ -13,6 +13,7 @@ defmodule JidoCode.TestSupport.Conversations.TurnBridgeCodingAssistanceFake do
         review: %{},
         artifacts: [],
         calls: %{},
+        sessions: %{},
         subscribe_result: {:ok, %{delivery_status: "subscribed", subscription_id: "sub-1"}},
         unsubscribe_result: {:ok, %{delivery_status: "detached"}},
         live_envelopes: []
@@ -43,6 +44,78 @@ defmodule JidoCode.TestSupport.Conversations.TurnBridgeCodingAssistanceFake do
   def calls(operation) when is_atom(operation) do
     ensure_started()
     Agent.get(@state, fn state -> state.calls |> Map.get(operation, []) |> Enum.reverse() end)
+  end
+
+  def ensure_session(session_id, actor_id, attrs)
+      when is_binary(session_id) and is_binary(actor_id) and is_map(attrs) do
+    ensure_started()
+    record_call(:ensure_session, %{session_id: session_id, actor_id: actor_id, attrs: attrs})
+
+    session =
+      %{
+        session_id: session_id,
+        actor_id: actor_id,
+        project_id: Map.get(attrs, :project_id) || Map.get(attrs, "project_id"),
+        request_id: Map.get(attrs, :request_id) || Map.get(attrs, "request_id"),
+        correlation_id: Map.get(attrs, :correlation_id) || Map.get(attrs, "correlation_id"),
+        workspace_id: Map.get(attrs, :workspace_id) || Map.get(attrs, "workspace_id")
+      }
+
+    Agent.update(@state, fn state ->
+      %{state | sessions: Map.put(state.sessions, session_id, session)}
+    end)
+
+    {:ok, session}
+  end
+
+  def bind_project(session_id, actor_id, project_id, attrs)
+      when is_binary(session_id) and is_binary(actor_id) and is_binary(project_id) and is_map(attrs) do
+    ensure_started()
+
+    record_call(:bind_project, %{
+      session_id: session_id,
+      actor_id: actor_id,
+      project_id: project_id,
+      attrs: attrs
+    })
+
+    Agent.update(@state, fn state ->
+      updated_session =
+        state.sessions
+        |> Map.get(session_id, %{session_id: session_id, actor_id: actor_id})
+        |> Map.put(:project_id, project_id)
+        |> Map.put(:request_id, Map.get(attrs, :request_id) || Map.get(attrs, "request_id"))
+        |> Map.put(:correlation_id, Map.get(attrs, :correlation_id) || Map.get(attrs, "correlation_id"))
+        |> Map.put(:workspace_id, Map.get(attrs, :workspace_id) || Map.get(attrs, "workspace_id"))
+
+      %{state | sessions: Map.put(state.sessions, session_id, updated_session)}
+    end)
+
+    {:ok, %{session_id: session_id, actor_id: actor_id, project_id: project_id}}
+  end
+
+  def start_turn(actor_id, payload) when is_binary(actor_id) and is_map(payload) do
+    ensure_started()
+    record_call(:start_turn, Map.put(payload, :actor_id, actor_id))
+
+    case Agent.get(@state, & &1.turn) do
+      nil ->
+        {:error, :turn_not_found}
+
+      turn ->
+        started_turn =
+          turn
+          |> Map.put_new(:turn_id, Map.get(payload, :turn_id) || Map.get(payload, "turn_id") || "turn-1")
+          |> Map.put(:session_id, Map.get(payload, :session_id) || Map.get(payload, "session_id"))
+          |> Map.put_new(:project_id, Map.get(payload, :project_id) || Map.get(payload, "project_id"))
+          |> Map.put_new(:request_id, Map.get(payload, :request_id) || Map.get(payload, "request_id"))
+          |> Map.put_new(:correlation_id, Map.get(payload, :correlation_id) || Map.get(payload, "correlation_id"))
+          |> Map.put_new(:workspace_id, Map.get(payload, :workspace_id) || Map.get(payload, "workspace_id"))
+          |> Map.put_new(:actor_id, actor_id)
+
+        Agent.update(@state, fn state -> %{state | turn: started_turn} end)
+        {:ok, started_turn}
+    end
   end
 
   def get_turn(_actor_id, payload) do
@@ -150,6 +223,7 @@ defmodule JidoCode.TestSupport.Conversations.TurnBridgeCodingAssistanceFake do
                 review: %{},
                 artifacts: [],
                 calls: %{},
+                sessions: %{},
                 subscribe_result: {:ok, %{delivery_status: "subscribed", subscription_id: "sub-1"}},
                 unsubscribe_result: {:ok, %{delivery_status: "detached"}},
                 live_envelopes: []

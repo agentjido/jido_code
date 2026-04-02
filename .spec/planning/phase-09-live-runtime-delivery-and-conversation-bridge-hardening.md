@@ -21,7 +21,7 @@ Back to index: [README](./README.md)
 - Public live turn delivery is now available in `jido_os`, and replay remains the canonical recovery path.
 - Subscriber-facing UI contracts must remain stable even if transport and bridge behavior change underneath them.
 
-[ ] 9 Phase 9 - Live Runtime Delivery and Conversation Bridge Hardening
+[x] 9 Phase 9 - Live Runtime Delivery and Conversation Bridge Hardening
   Replace polling-first coding progress delivery with product-owned adoption of public live turn subscription, replay fallback, and explicit terminal handoff so the conversation bridge reflects the newer runtime-service model without destabilizing current subscribers.
 
   [x] 9.1 Section - Live Subscription Boundary Adoption
@@ -58,19 +58,19 @@ Back to index: [README](./README.md)
       [x] 9.2.2.2 Subtask - Preserve typed degraded behavior when live delivery fails after admission or detaches unexpectedly.
       [x] 9.2.2.3 Subtask - Keep governed terminal materialization tied to explicit terminal handoff plus terminal lookup rather than idle-poll assumptions.
 
-  [ ] 9.3 Section - Phase 9 Integration Tests
+  [x] 9.3 Section - Phase 9 Integration Tests
     Validate the live-delivery-first conversation bridge under normal, degraded, and recovery conditions before broader runtime-service adoption continues.
 
-    [ ] 9.3.1 Task - Live delivery and subscriber compatibility scenarios
+    [x] 9.3.1 Task - Live delivery and subscriber compatibility scenarios
       Verify the product bridge can adopt live turn delivery without changing subscriber-facing UI contracts.
 
-      [ ] 9.3.1.1 Subtask - Add coverage for live subscription admission, incremental event delivery, and stable subscriber translation.
-      [ ] 9.3.1.2 Subtask - Add coverage for explicit terminal handoff driving final assistant completion or failure events.
-      [ ] 9.3.1.3 Subtask - Add coverage showing governed turn projection failures remain non-blocking for subscriber progress.
+      [x] 9.3.1.1 Subtask - Add coverage for live subscription admission, incremental event delivery, and stable subscriber translation.
+      [x] 9.3.1.2 Subtask - Add coverage for explicit terminal handoff driving final assistant completion or failure events.
+      [x] 9.3.1.3 Subtask - Add coverage showing governed turn projection failures remain non-blocking for subscriber progress.
 
-    [ ] 9.3.2 Task - Recovery and fallback scenarios
+    [x] 9.3.2 Task - Recovery and fallback scenarios
       Verify replay remains the canonical recovery path when live delivery is unavailable or interrupted.
 
-      [ ] 9.3.2.1 Subtask - Add coverage for resume-from-cursor, replay gap repair, and terminal verification after disconnect.
-      [ ] 9.3.2.2 Subtask - Add coverage for rollout-withheld or denied live-delivery behavior with typed fallback outcomes.
-      [ ] 9.3.2.3 Subtask - Verify traceability across planning, specs, and bridge tests for the live-delivery transport refresh.
+      [x] 9.3.2.1 Subtask - Add coverage for resume-from-cursor, replay gap repair, and terminal verification after disconnect.
+      [x] 9.3.2.2 Subtask - Add coverage for rollout-withheld or denied live-delivery behavior with typed fallback outcomes.
+      [x] 9.3.2.3 Subtask - Verify traceability across planning, specs, and bridge tests for the live-delivery transport refresh.

@@ -271,6 +271,11 @@ surface:
     - architecture.run_governance.evidence_records_capture_run_outputs
 
 - kind: source_file
+  target: test/jido_code/conversations/phase_nine_integration_test.exs
+  covers:
+    - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
+
+- kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex
   covers:
     - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs

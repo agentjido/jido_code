@@ -109,6 +109,31 @@ defmodule Jido.Os.Session.RuntimeAgent do
     end
   end
 
+  def subscribe_turn_events(instance_id, session_id, turn_id, subscription_id, subscriber, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) and
+             is_binary(subscription_id) and is_pid(subscriber) do
+    with {:ok, _turn} <- get_turn(instance_id, session_id, turn_id, context) do
+      subscription = %{
+        instance_id: instance_id,
+        session_id: session_id,
+        turn_id: turn_id,
+        subscription_id: subscription_id,
+        subscriber: subscriber
+      }
+
+      State.put_turn_subscription(instance_id, session_id, turn_id, subscription_id, subscription)
+      {:ok, subscription}
+    end
+  end
+
+  def unsubscribe_turn_events(instance_id, session_id, turn_id, subscription_id, context)
+      when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) and
+             is_binary(subscription_id) do
+    with {:ok, _turn} <- get_turn(instance_id, session_id, turn_id, context) do
+      {:ok, State.delete_turn_subscription(instance_id, session_id, turn_id, subscription_id)}
+    end
+  end
+
   def cancel_turn(instance_id, session_id, turn_id, context)
       when is_binary(instance_id) and is_binary(session_id) and is_binary(turn_id) do
     with {:ok, _session} <- load_session(instance_id, session_id, context) do

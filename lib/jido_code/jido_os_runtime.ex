@@ -1,6 +1,10 @@
 defmodule JidoCode.JidoOsRuntime do
   # covers: coding_assistance.boundary.runtime_bootstrap_defaults
   # covers: architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
+  # covers: architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+  # covers: architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation
+  # covers: architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+  # covers: architecture.policy_layers.policy_layers_interlock_without_collapsing
   @moduledoc """
   Helpers for bootstrapping and accessing the embedded `jido_os` runtime.
 
@@ -478,7 +482,9 @@ defmodule JidoCode.JidoOsRuntime do
   defp runtime_service_module_ready?(service_module) do
     match?({:module, _module}, Code.ensure_compiled(service_module)) and
       function_exported?(service_module, :assist, 3) and
-      function_exported?(service_module, :start_turn, 3)
+      function_exported?(service_module, :start_turn, 3) and
+      function_exported?(service_module, :subscribe_turn_events, 3) and
+      function_exported?(service_module, :unsubscribe_turn_events, 3)
   end
 
   defp runtime_service_runtime_status(%{status: "ready"}, true), do: "running"

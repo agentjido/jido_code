@@ -12,7 +12,8 @@ defmodule Jido.Os.State do
           turns: %{},
           session_turns: %{},
           turn_events: %{},
-          turn_reviews: %{}
+          turn_reviews: %{},
+          turn_subscriptions: %{}
         }
       end,
       name: __MODULE__
@@ -149,6 +150,30 @@ defmodule Jido.Os.State do
   def get_turn_review(instance_id, session_id, turn_id) do
     Agent.get(__MODULE__, fn state ->
       Map.get(state.turn_reviews, {instance_id, session_id, turn_id})
+    end)
+  end
+
+  def put_turn_subscription(instance_id, session_id, turn_id, subscription_id, subscription)
+      when is_binary(subscription_id) and is_map(subscription) do
+    Agent.update(__MODULE__, fn state ->
+      put_in(
+        state,
+        [:turn_subscriptions, {instance_id, session_id, turn_id, subscription_id}],
+        subscription
+      )
+    end)
+  end
+
+  def get_turn_subscription(instance_id, session_id, turn_id, subscription_id) do
+    Agent.get(__MODULE__, fn state ->
+      Map.get(state.turn_subscriptions, {instance_id, session_id, turn_id, subscription_id})
+    end)
+  end
+
+  def delete_turn_subscription(instance_id, session_id, turn_id, subscription_id) do
+    Agent.get_and_update(__MODULE__, fn state ->
+      key = {instance_id, session_id, turn_id, subscription_id}
+      {Map.get(state.turn_subscriptions, key), update_in(state.turn_subscriptions, &Map.delete(&1, key))}
     end)
   end
 end

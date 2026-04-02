@@ -1,5 +1,7 @@
 # Phase 9 - Live Runtime Delivery and Conversation Bridge Hardening
 
+<!-- covers: package.jido_code.spec_led_workspace -->
+
 Back to index: [README](./README.md)
 
 ## Relevant Shared APIs / Interfaces
@@ -22,22 +24,22 @@ Back to index: [README](./README.md)
 [ ] 9 Phase 9 - Live Runtime Delivery and Conversation Bridge Hardening
   Replace polling-first coding progress delivery with product-owned adoption of public live turn subscription, replay fallback, and explicit terminal handoff so the conversation bridge reflects the newer runtime-service model without destabilizing current subscribers.
 
-  [ ] 9.1 Section - Live Subscription Boundary Adoption
+  [x] 9.1 Section - Live Subscription Boundary Adoption
     Extend the coding boundary so live turn delivery becomes a first-class product seam instead of an implementation detail hidden in the bridge.
 
-    [ ] 9.1.1 Task - Add live subscribe and unsubscribe wrappers to `JidoCode.CodingAssistance`
+    [x] 9.1.1 Task - Add live subscribe and unsubscribe wrappers to `JidoCode.CodingAssistance`
       Expose public live turn delivery through the product-owned boundary before changing the conversation bridge transport.
 
-      [ ] 9.1.1.1 Subtask - Add wrappers for public `subscribe_turn_events` and `unsubscribe_turn_events`.
-      [ ] 9.1.1.2 Subtask - Preserve actor, session, project, request, correlation, workspace, and optional resume-cursor context across every live-delivery request.
-      [ ] 9.1.1.3 Subtask - Return product-owned acknowledgement shapes needed by the bridge instead of leaking runtime-native delivery envelopes directly.
+      [x] 9.1.1.1 Subtask - Add wrappers for public `subscribe_turn_events` and `unsubscribe_turn_events`.
+      [x] 9.1.1.2 Subtask - Preserve actor, session, project, request, correlation, workspace, and optional resume-cursor context across every live-delivery request.
+      [x] 9.1.1.3 Subtask - Return product-owned acknowledgement shapes needed by the bridge instead of leaking runtime-native delivery envelopes directly.
 
-    [ ] 9.1.2 Task - Normalize live acknowledgement and resume semantics at the product boundary
+    [x] 9.1.2 Task - Normalize live acknowledgement and resume semantics at the product boundary
       Make the bridge consume stable product-owned inputs for cursor, replay join, terminal snapshot, and detachment behavior.
 
-      [ ] 9.1.2.1 Subtask - Normalize resumable cursor, replay-join, and terminal-handoff metadata into product-local bridge inputs.
-      [ ] 9.1.2.2 Subtask - Preserve typed unavailable, withheld, denied, invalid-cursor, and detached outcomes at the boundary.
-      [ ] 9.1.2.3 Subtask - Keep replay, turn read, artifact read, and operator review available as fallback or verification surfaces.
+      [x] 9.1.2.1 Subtask - Normalize resumable cursor, replay-join, and terminal-handoff metadata into product-local bridge inputs.
+      [x] 9.1.2.2 Subtask - Preserve typed unavailable, withheld, denied, invalid-cursor, and detached outcomes at the boundary.
+      [x] 9.1.2.3 Subtask - Keep replay, turn read, artifact read, and operator review available as fallback or verification surfaces.
 
   [ ] 9.2 Section - Conversation Bridge Transport Modernization
     Move the conversation bridge from polling-first replay loops to live-delivery-first behavior while keeping replay as the canonical recovery path.

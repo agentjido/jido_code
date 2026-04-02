@@ -93,3 +93,15 @@ and terminal turn lookup to drive stable assistant completion or failure events.
 - Governed product truth still lives in `Run`, `Evidence`, and adjacent product
   records; public live delivery improves transport and recovery semantics but
   does not replace product-owned durable workflow evidence.
+
+## Current Truth
+
+Phase 9.1 now lands the first product-local live-delivery boundary in this repo:
+
+- `JidoCode.CodingAssistance` exposes public live subscribe and unsubscribe
+  wrappers alongside replay, read, artifact, cancel, and review wrappers.
+- The repo-local compatibility `jido_os` package exposes additive public
+  subscribe and unsubscribe surfaces plus provider-neutral terminal handoff.
+- Product-local live acknowledgements normalize resume cursor, replay join,
+  terminal snapshot, and detach metadata before the conversation bridge adopts
+  live delivery as its preferred incremental path.

@@ -171,6 +171,12 @@ surface:
     - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
 
 - kind: source_file
+  target: lib/jido_code/jido_os_runtime.ex
+  covers:
+    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+    - architecture.policy_layers.policy_layers_interlock_without_collapsing
+
+- kind: source_file
   target: lib/jido_code/control/actor.ex
   covers:
     - architecture.policy_layers.explicit_human_and_machine_actor_classes

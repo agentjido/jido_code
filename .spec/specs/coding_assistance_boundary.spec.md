@@ -103,6 +103,9 @@ surface:
     - coding_assistance.boundary.session_prepared_before_assist
     - coding_assistance.boundary.session_authority_delegation
     - coding_assistance.boundary.product_local_driver_api
+    - coding_assistance.boundary.public_turn_wrapper_api
+    - coding_assistance.boundary.live_delivery_ack_and_resume_boundary
+    - coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
 
 - kind: source_file
   target: lib/jido_code/jido_os_runtime.ex
@@ -140,8 +143,12 @@ surface:
 - kind: source_file
   target: test/jido_code/coding_assistance_test.exs
   covers:
+    - coding_assistance.boundary.public_jido_os_service_boundary
     - coding_assistance.boundary.session_prepared_before_assist
     - coding_assistance.boundary.session_authority_delegation
+    - coding_assistance.boundary.public_turn_wrapper_api
+    - coding_assistance.boundary.live_delivery_ack_and_resume_boundary
+    - coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
 
 - kind: command
   target: mix test test/jido_code/coding_assistance_test.exs

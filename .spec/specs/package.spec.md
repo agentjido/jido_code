@@ -100,6 +100,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/planning/phase-09-live-runtime-delivery-and-conversation-bridge-hardening.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: .spec/specs/demand_ingress.spec.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -176,6 +181,11 @@ surface:
 
 - kind: source_file
   target: test/jido_code/conversations/phase_seven_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/coding_assistance_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

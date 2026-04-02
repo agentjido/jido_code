@@ -3,6 +3,16 @@ defmodule JidoCode.CodingAssistance do
   # covers: coding_assistance.boundary.session_prepared_before_assist
   # covers: coding_assistance.boundary.session_authority_delegation
   # covers: coding_assistance.boundary.product_local_driver_api
+  # covers: coding_assistance.boundary.public_turn_wrapper_api
+  # covers: coding_assistance.boundary.live_delivery_ack_and_resume_boundary
+  # covers: coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
+  # covers: architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+  # covers: architecture.jido_os_session_turn_runtime.actor_bound_context_required
+  # covers: architecture.jido_os_session_turn_runtime.authority_boundaries_preserved
+  # covers: architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface
+  # covers: architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
+  # covers: architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
+  # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   @moduledoc """
   Thin product-context boundary for provider-neutral coding-assistance requests.
 
@@ -85,6 +95,28 @@ defmodule JidoCode.CodingAssistance do
         public_turn_payload(params, [:session_id, :turn_id, :after_event_id]),
         RuntimeGateway.context_for(actor_id, runtime_attrs)
       )
+    end)
+  end
+
+  def subscribe_turn_events(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.subscribe_turn_events(
+        RuntimeGateway.instance_id(),
+        live_turn_payload(params, runtime_attrs),
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
+      )
+      |> normalize_live_ack_result()
+    end)
+  end
+
+  def unsubscribe_turn_events(actor_id, params) when is_binary(actor_id) and is_map(params) do
+    with_runtime_session(actor_id, params, fn runtime_attrs ->
+      CodingAssistService.unsubscribe_turn_events(
+        RuntimeGateway.instance_id(),
+        live_turn_payload(params, runtime_attrs),
+        RuntimeGateway.context_for(actor_id, runtime_attrs)
+      )
+      |> normalize_live_ack_result()
     end)
   end
 
@@ -233,6 +265,17 @@ defmodule JidoCode.CodingAssistance do
     end)
   end
 
+  defp live_turn_payload(params, runtime_attrs) do
+    %{
+      session_id: runtime_attrs.session_id,
+      turn_id: get_string(params, :turn_id),
+      subscription_id: get_string(params, :subscription_id),
+      after_event_id: get_string(params, :resume_after_event_id) || get_string(params, :after_event_id),
+      subscriber: get_pid(params, :subscriber)
+    }
+    |> compact_nil_values()
+  end
+
   defp runtime_attrs(params) do
     %{
       session_id: fetch_required!(params, :session_id),
@@ -307,4 +350,32 @@ defmodule JidoCode.CodingAssistance do
   end
 
   defp get_list(_map, _key), do: []
+
+  defp get_pid(map, key) when is_map(map) do
+    value = Map.get(map, key) || Map.get(map, Atom.to_string(key))
+    if is_pid(value), do: value, else: nil
+  end
+
+  defp get_pid(_map, _key), do: nil
+
+  defp normalize_live_ack_result({:ok, %{} = ack}), do: {:ok, normalize_live_ack(ack)}
+  defp normalize_live_ack_result(other), do: other
+
+  defp normalize_live_ack(ack) do
+    %{
+      delivery_status: get_string(ack, :status),
+      subscription_id: get_string(ack, :subscription_id),
+      session_id: get_string(ack, :session_id),
+      conversation_id: get_string(ack, :conversation_id),
+      turn_id: get_string(ack, :turn_id),
+      resume_after_event_id: get_string(ack, :resume_after_event_id),
+      replay_after_event_id: get_string(ack, :replay_after_event_id),
+      latest_event_id: get_string(ack, :latest_event_id),
+      terminal_state: get_string(ack, :terminal_state),
+      terminal_event_id: get_string(ack, :terminal_event_id),
+      detached_at: get_string(ack, :detached_at),
+      reason_code: get_string(ack, :reason_code)
+    }
+    |> compact_nil_values()
+  end
 end

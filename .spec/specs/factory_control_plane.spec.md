@@ -83,8 +83,10 @@ surface:
   - priv/repo/migrations/20260331143000_add_repo_posture_records.exs
   - test/jido_code/governance/posture_bridge_test.exs
   - test/jido_code/governance/runtime_evidence_feed_test.exs
+  - test/jido_code/governance/phase_eleven_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
+  - test/jido_code_web/live/phase_eleven_integration_test.exs
 ```
 
 ## Requirements
@@ -280,6 +282,16 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eleven_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_eleven_integration_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
 

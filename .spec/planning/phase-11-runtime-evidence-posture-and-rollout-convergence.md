@@ -21,7 +21,7 @@ Back to index: [README](./README.md)
 - Runtime outcomes should inform the product’s trust and governance model without making the runtime overlay itself the durable truth store.
 - Operator surfaces need explainable rollout and degraded-path evidence rather than runtime-native transport details.
 
-[ ] 11 Phase 11 - Runtime Evidence, Posture, and Rollout Convergence
+[x] 11 Phase 11 - Runtime Evidence, Posture, and Rollout Convergence
   Converge coding and integration runtime evidence into product-owned posture, evidence, and operator surfaces so runtime-service rollout, denial, degraded behavior, and operator review become governed factory inputs instead of scattered operational trivia.
 
   [x] 11.1 Section - Runtime Evidence Materialization
@@ -58,19 +58,19 @@ Back to index: [README](./README.md)
       [x] 11.2.2.2 Subtask - Remove remaining doc or UI assumptions that describe `jido_os` only as a coding-turn helper if broader runtime-service adoption is now live.
       [x] 11.2.2.3 Subtask - Preserve clear rollback and recovery procedures when runtime-service rollout affects ordinary operator workflows.
 
-  [ ] 11.3 Section - Phase 11 Integration Tests
+  [x] 11.3 Section - Phase 11 Integration Tests
     Validate the final convergence of runtime evidence, posture, and operator-facing rollout behavior so the architecture refresh is complete end to end.
 
-    [ ] 11.3.1 Task - Evidence and posture convergence scenarios
+    [x] 11.3.1 Task - Evidence and posture convergence scenarios
       Verify coding and integration runtime evidence actually rejoin governed product records and trust signals.
 
-      [ ] 11.3.1.1 Subtask - Add coverage for runtime degraded-path and rollout evidence materializing into product evidence or posture records.
-      [ ] 11.3.1.2 Subtask - Add coverage for repo-level trust or readiness changes driven by runtime capability posture.
-      [ ] 11.3.1.3 Subtask - Add coverage ensuring runtime evidence remains bounded and provider-neutral at the product surface.
+      [x] 11.3.1.1 Subtask - Add coverage for runtime degraded-path and rollout evidence materializing into product evidence or posture records.
+      [x] 11.3.1.2 Subtask - Add coverage for repo-level trust or readiness changes driven by runtime capability posture.
+      [x] 11.3.1.3 Subtask - Add coverage ensuring runtime evidence remains bounded and provider-neutral at the product surface.
 
-    [ ] 11.3.2 Task - Operator-surface and rollout scenarios
+    [x] 11.3.2 Task - Operator-surface and rollout scenarios
       Verify the newer runtime-service model is explainable and safe in operator-facing product behavior.
 
-      [ ] 11.3.2.1 Subtask - Add coverage for dashboard or repo-detail presentation of runtime capability posture and rollout evidence.
-      [ ] 11.3.2.2 Subtask - Add coverage for rollback-safe behavior when runtime-service rollout blocks or degrades expected operator workflows.
-      [ ] 11.3.2.3 Subtask - Verify planning, spec, and operator-surface traceability close cleanly for the runtime-service overlay implementation roadmap.
+      [x] 11.3.2.1 Subtask - Add coverage for dashboard or repo-detail presentation of runtime capability posture and rollout evidence.
+      [x] 11.3.2.2 Subtask - Add coverage for rollback-safe behavior when runtime-service rollout blocks or degrades expected operator workflows.
+      [x] 11.3.2.3 Subtask - Verify planning, spec, and operator-surface traceability close cleanly for the runtime-service overlay implementation roadmap.

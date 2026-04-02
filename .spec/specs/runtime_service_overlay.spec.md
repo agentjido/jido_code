@@ -40,11 +40,13 @@ surface:
   - test/jido_code/governance/runtime_integration_bridge_test.exs
   - test/jido_code/governance/runtime_evidence_bridge_test.exs
   - test/jido_code/governance/runtime_evidence_feed_test.exs
+  - test/jido_code/governance/phase_eleven_integration_test.exs
   - test/jido_code/governance/phase_ten_integration_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
+  - test/jido_code_web/live/phase_eleven_integration_test.exs
 ```
 
 ## Requirements
@@ -261,6 +263,12 @@ surface:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
 
 - kind: source_file
+  target: test/jido_code/governance/phase_eleven_integration_test.exs
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
   target: test/jido_code/governance/phase_ten_integration_test.exs
   covers:
     - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
@@ -275,6 +283,12 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_eleven_integration_test.exs
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product

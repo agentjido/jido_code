@@ -96,5 +96,8 @@ This means:
 - Dashboard and run-detail operator surfaces now summarize bounded runtime
   posture in product-oriented rollout language instead of relying on runtime
   helper terminology or transport-specific phrasing.
+- Phase-level integration coverage now verifies that blocked or degraded runtime
+  rollout still leaves dashboard and governed run detail usable for review-safe
+  operator workflows.
 - The product continues to treat `jido_os` as a runtime overlay and not as the
   durable source of product governance truth.

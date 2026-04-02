@@ -9,9 +9,10 @@ surface.
 id: coding_assistance.boundary
 kind: feature
 status: active
-summary: jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through the public coding-assistance service, delegates session/project/AI-preference state to the canonical jido_os runtime agents, and keeps higher-level conversation drivers out of jido_os internals while exposing the public turn runtime through product-owned wrappers.
+summary: jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through public coding-assistance and authority-facade surfaces, delegates session/project/AI-preference state to canonical jido_os authorities, and keeps higher-level conversation drivers out of runtime topology details while exposing the public turn runtime through product-owned wrappers.
 decisions:
   - jido_code.coding_assistance_conversation_driver
+  - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_session_turn_runtime
   - jido_code.jido_os_public_turn_runtime_adoption
@@ -19,6 +20,7 @@ surface:
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/jido_os_runtime.ex
+  - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
@@ -29,7 +31,7 @@ surface:
 
 ```spec-requirements
 - id: coding_assistance.boundary.public_jido_os_service_boundary
-  statement: jido_code shall route coding-assistance requests through public `Jido.Os.CodingAssist.Service` and session/runtime agent APIs instead of reaching into private coding agent internals.
+  statement: jido_code shall route coding-assistance requests through public `Jido.Os.CodingAssist.Service` and public jido_os authority-facade APIs instead of reaching into private coding agent internals or runtime-topology helpers.
   priority: must
   stability: evolving
 
@@ -82,6 +84,11 @@ surface:
   statement: If compatibility-oriented `assist` responses remain exposed, they shall be treated as a convenience path over the same public turn runtime rather than as a separate execution engine with different security, tracing, or policy behavior.
   priority: should
   stability: evolving
+
+- id: coding_assistance.boundary.runtime_service_topology_is_opaque_to_product
+  statement: The coding-assistance boundary shall shield higher-level product code from `jido_os` runtime-topology details such as turn-execution ownership, signal-bus transport, substrate routing metadata, or other private authority wiring, relying only on documented public facades as the product contract.
+  priority: must
+  stability: evolving
 ```
 
 ## Verification
@@ -117,6 +124,11 @@ surface:
     - coding_assistance.boundary.public_turn_wrapper_api
     - coding_assistance.boundary.live_delivery_ack_and_resume_boundary
     - coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
+  covers:
+    - coding_assistance.boundary.runtime_service_topology_is_opaque_to_product
 
 - kind: source_file
   target: lib/jido_code/conversations/driver.ex

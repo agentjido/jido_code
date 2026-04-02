@@ -29,6 +29,7 @@ surface:
   - lib/jido_code/conversations/turn_bridge.ex
   - test/jido_code/runtime_gateway_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
+  - test/jido_code/governance/phase_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -144,5 +145,13 @@ surface:
 - kind: source_file
   target: lib/jido_code/governance/runtime_capability_bridge.ex
   covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eight_integration_test.exs
+  covers:
+    - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
+    - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
+    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 ```

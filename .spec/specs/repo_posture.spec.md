@@ -36,6 +36,7 @@ surface:
   - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/policy_bridge_test.exs
   - test/jido_code/governance/phase_five_integration_test.exs
+  - test/jido_code/governance/phase_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -230,6 +231,13 @@ surface:
     - architecture.repo_posture.posture_checks_preserve_explainable_links
     - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
     - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eight_integration_test.exs
+  covers:
+    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
+    - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
+    - architecture.repo_posture.posture_checks_preserve_explainable_links
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

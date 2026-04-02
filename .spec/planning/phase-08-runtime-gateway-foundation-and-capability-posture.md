@@ -16,7 +16,7 @@ Back to index: [README](./README.md)
 - `jido_os` now exposes a broader authority-backed runtime-services model with optional admitted services beyond coding turns alone.
 - `jido_code` must preserve product-owned contracts and durable governance truth while integrating with those richer runtime services.
 
-[ ] 8 Phase 8 - Runtime Gateway Foundation and Capability Posture
+[x] 8 Phase 8 - Runtime Gateway Foundation and Capability Posture
   Reframe product integration around runtime-service gateways instead of one-off runtime seams by introducing explicit product-owned gateway conventions, runtime capability posture reads, and typed admitted-service availability that product governance can understand.
 
   [x] 8.1 Section - Runtime Gateway Layer Baseline
@@ -53,19 +53,19 @@ Back to index: [README](./README.md)
       [x] 8.2.2.2 Subtask - Preserve the distinction between product governance policy and runtime admission policy while still making their interaction legible.
       [x] 8.2.2.3 Subtask - Prepare operator-facing summaries so later dashboard and workbench work can surface admitted-service state without exposing runtime-native protocols.
 
-  [ ] 8.3 Section - Phase 8 Integration Tests
+  [x] 8.3 Section - Phase 8 Integration Tests
     Validate the runtime-gateway baseline and capability-posture adoption before later live-delivery and integration-service work layers on more runtime complexity.
 
-    [ ] 8.3.1 Task - Runtime gateway contract scenarios
+    [x] 8.3.1 Task - Runtime gateway contract scenarios
       Verify product-owned gateways remain the only caller-facing runtime seam even as runtime capability posture becomes richer.
 
-      [ ] 8.3.1.1 Subtask - Add integration coverage for runtime bootstrap, context construction, and admitted-service availability reads through product-owned helpers.
-      [ ] 8.3.1.2 Subtask - Add coverage showing coding flows still route through product gateways rather than raw runtime topology.
-      [ ] 8.3.1.3 Subtask - Add coverage for typed unavailable, withheld, denied, and degraded capability posture paths.
+      [x] 8.3.1.1 Subtask - Add integration coverage for runtime bootstrap, context construction, and admitted-service availability reads through product-owned helpers.
+      [x] 8.3.1.2 Subtask - Add coverage showing coding flows still route through product gateways rather than raw runtime topology.
+      [x] 8.3.1.3 Subtask - Add coverage for typed unavailable, withheld, denied, and degraded capability posture paths.
 
-    [ ] 8.3.2 Task - Governance integration scenarios
+    [x] 8.3.2 Task - Governance integration scenarios
       Verify runtime capability posture can inform product governance without collapsing product and runtime authority layers.
 
-      [ ] 8.3.2.1 Subtask - Add coverage for posture or observation materialization from runtime capability state.
-      [ ] 8.3.2.2 Subtask - Add coverage for actor-aware governance handling when runtime admission differs from product-side allowance.
-      [ ] 8.3.2.3 Subtask - Verify spec and planning traceability remain aligned for the new runtime-gateway baseline.
+      [x] 8.3.2.1 Subtask - Add coverage for posture or observation materialization from runtime capability state.
+      [x] 8.3.2.2 Subtask - Add coverage for actor-aware governance handling when runtime admission differs from product-side allowance.
+      [x] 8.3.2.3 Subtask - Verify spec and planning traceability remain aligned for the new runtime-gateway baseline.

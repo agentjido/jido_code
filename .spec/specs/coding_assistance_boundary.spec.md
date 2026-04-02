@@ -26,6 +26,7 @@ surface:
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - test/jido_code/coding_assistance_test.exs
+  - test/jido_code/governance/phase_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -149,4 +150,11 @@ surface:
     - coding_assistance.boundary.session_prepared_before_assist
     - coding_assistance.boundary.runtime_bootstrap_defaults
     - coding_assistance.boundary.session_authority_delegation
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eight_integration_test.exs
+  covers:
+    - coding_assistance.boundary.public_jido_os_service_boundary
+    - coding_assistance.boundary.runtime_bootstrap_defaults
+    - coding_assistance.boundary.product_local_driver_api
 ```

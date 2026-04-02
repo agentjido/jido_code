@@ -43,6 +43,19 @@ defmodule JidoCode.JidoOsRuntime do
   @wait_interval_ms 25
   @seed_defaults_enabled Application.compile_env(:jido_code, :runtime_mode, :prod) in [:dev, :test]
   @known_runtime_services %{"coding_assistance_service" => CodingAssistService}
+  @service_status_override_keys %{
+    "status" => :status,
+    "admitted?" => :admitted?,
+    "available?" => :available?,
+    "ready?" => :ready?,
+    "child_spec_ready" => :child_spec_ready,
+    "runtime_status" => :runtime_status,
+    "dependency_status" => :dependency_status,
+    "extension_admission" => :extension_admission,
+    "registration_epoch" => :registration_epoch,
+    "reason_code" => :reason_code
+  }
+  @extension_admission_override_keys %{"enabled" => :enabled, "reason_code" => :reason_code}
 
   def instance_id do
     Application.get_env(:jido_code, :jido_os_instance_id, @default_instance_id)
@@ -106,7 +119,7 @@ defmodule JidoCode.JidoOsRuntime do
     with {:ok, service} <- resolve_runtime_service(service_ref),
          :ok <- ensure_instance() do
       _context = context_for(actor_id, attrs)
-      {:ok, normalize_service_status(service, instance_status())}
+      {:ok, normalize_service_status(service, instance_status()) |> apply_test_service_status_override()}
     else
       {:error, {:runtime_service_unknown, service_key}} ->
         {:ok, unavailable_service_status(service_key, "runtime_service_unknown")}
@@ -375,6 +388,92 @@ defmodule JidoCode.JidoOsRuntime do
       reason_code: reason_code
     }
   end
+
+  defp apply_test_service_status_override(%{service_key: service_key} = status) do
+    case runtime_service_status_override(service_key) do
+      %{} = override when @seed_defaults_enabled ->
+        merge_service_status_override(status, override)
+
+      _other ->
+        status
+    end
+  end
+
+  defp merge_service_status_override(status, override) do
+    normalized_override = normalize_override_map(override)
+
+    extension_admission =
+      Map.merge(
+        status.extension_admission || %{},
+        Map.get(normalized_override, :extension_admission, %{})
+      )
+
+    status
+    |> Map.merge(Map.drop(normalized_override, [:extension_admission]))
+    |> Map.put(:extension_admission, extension_admission)
+  end
+
+  defp normalize_override_map(%{} = override) do
+    Enum.reduce(override, %{}, fn {key, value}, acc ->
+      case normalize_override_key(key, @service_status_override_keys) do
+        nil ->
+          acc
+
+        normalized_key ->
+          normalized_value =
+            cond do
+              normalized_key == :extension_admission and is_map(value) ->
+                normalize_extension_admission_override(value)
+
+              true ->
+                value
+            end
+
+          Map.put(acc, normalized_key, normalized_value)
+      end
+    end)
+  end
+
+  defp runtime_service_status_override(service_key) when is_binary(service_key) do
+    overrides =
+      Application.get_env(:jido_code, :runtime_service_status_overrides, %{})
+      |> normalize_runtime_service_status_overrides()
+
+    Map.get(overrides, service_key)
+  end
+
+  defp normalize_runtime_service_status_overrides(overrides) when is_map(overrides) do
+    Enum.reduce(overrides, %{}, fn {key, value}, acc ->
+      case normalize_override_lookup_key(key) do
+        nil -> acc
+        normalized_key -> Map.put(acc, normalized_key, value)
+      end
+    end)
+  end
+
+  defp normalize_runtime_service_status_overrides(_overrides), do: %{}
+
+  defp normalize_extension_admission_override(override) when is_map(override) do
+    Enum.reduce(override, %{}, fn {key, value}, acc ->
+      case normalize_override_key(key, @extension_admission_override_keys) do
+        nil -> acc
+        normalized_key -> Map.put(acc, normalized_key, value)
+      end
+    end)
+  end
+
+  defp normalize_override_key(key, lookup) when is_atom(key) do
+    key
+    |> Atom.to_string()
+    |> then(&Map.get(lookup, &1))
+  end
+
+  defp normalize_override_key(key, lookup) when is_binary(key), do: Map.get(lookup, key)
+  defp normalize_override_key(_key, _lookup), do: nil
+
+  defp normalize_override_lookup_key(key) when is_atom(key), do: Atom.to_string(key)
+  defp normalize_override_lookup_key(key) when is_binary(key) and key != "", do: key
+  defp normalize_override_lookup_key(_key), do: nil
 
   defp runtime_service_module_ready?(service_module) do
     match?({:module, _module}, Code.ensure_compiled(service_module)) and

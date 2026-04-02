@@ -35,6 +35,7 @@ surface:
   - lib/jido_code/governance/decision.ex
   - lib/jido_code/governance/evidence.ex
   - lib/jido_code/governance/run_governance_bridge.ex
+  - lib/jido_code/governance/runtime_integration_bridge.ex
   - lib/jido_code/governance/policy_set.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/operations.ex
@@ -226,6 +227,16 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: lib/jido_code/governance/runtime_integration_bridge.ex
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: test/jido_code/governance/phase_ten_integration_test.exs
   covers:
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
 

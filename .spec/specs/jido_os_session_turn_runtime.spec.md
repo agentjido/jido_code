@@ -80,6 +80,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.jido_os_session_turn_runtime.turn_runtime_bootstrap_coexists_with_additive_runtime_services
+  statement: Product runtime bootstrap may admit additional public runtime services such as integration, but those additive services shall not weaken the actor-bound, fail-closed coding turn contract that Jido.Code expects from the session-turn runtime.
+  priority: should
+  stability: evolving
+
 - id: architecture.jido_os_session_turn_runtime.authority_boundaries_preserved
   statement: Session authority, directory authority, policy authority, and coding-assistance execution shall remain distinct public boundaries, with product code calling those public authorities instead of mutating session or turn state directly.
   priority: must
@@ -220,4 +225,5 @@ surface:
   covers:
     - architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
     - architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation
+    - architecture.jido_os_session_turn_runtime.turn_runtime_bootstrap_coexists_with_additive_runtime_services
 ```

@@ -216,6 +216,11 @@ surface:
     - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
 
 - kind: source_file
+  target: test/jido_code/conversations/turn_bridge_test.exs
+  covers:
+    - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
+
+- kind: source_file
   target: lib/jido_code/governance/change_request.ex
   covers:
     - architecture.run_governance.change_request_records_reviewable_run_state
@@ -258,6 +263,17 @@ surface:
   target: test/jido_code/orchestration/workflow_run_test.exs
   covers:
     - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_seven_integration_test.exs
+  covers:
+    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
+    - architecture.run_governance.evidence_records_capture_run_outputs
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_nine_integration_test.exs
+  covers:
+    - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
 
 - kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex

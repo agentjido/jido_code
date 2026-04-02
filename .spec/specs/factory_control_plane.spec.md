@@ -12,12 +12,14 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_os_runtime_service_overlay_adoption
+  - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
+  - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/control.ex
@@ -49,6 +51,7 @@ surface:
   - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/event_bridge.ex
+  - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/conversations/policy.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/operations/work_item.ex
@@ -201,7 +204,7 @@ surface:
   when:
     - The conversation runs asynchronously through the public `jido_os` turn runtime.
   then:
-    - Runtime turn progress may stay in the runtime overlay, but terminal turn identity and bounded outcomes are projected back into governed work, run, and evidence records owned by the product control plane.
+    - Runtime turn progress may stay in the runtime overlay, but explicit terminal handoff plus replay verification drive projection of bounded turn identity and outcomes back into governed work, run, and evidence records owned by the product control plane.
 ```
 
 ## Verification
@@ -225,6 +228,11 @@ surface:
   target: .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   covers:
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
+  covers:
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
@@ -303,6 +311,21 @@ surface:
 
 - kind: source_file
   target: test/jido_code/conversations/phase_seven_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_nine_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+
+- kind: source_file
+  target: lib/jido_code/conversations/event_bridge.ex
+  covers:
+    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+
+- kind: source_file
+  target: lib/jido_code/conversations/turn_bridge.ex
   covers:
     - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
 ```

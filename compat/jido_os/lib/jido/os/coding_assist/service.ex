@@ -3,6 +3,10 @@ defmodule Jido.Os.CodingAssist.Service do
   # covers: jido_os.runtime.compatibility.session_and_envelope_behaviour
   # covers: jido_os.runtime.compatibility.public_turn_runtime_surface
   # covers: jido_os.runtime.compatibility.compatibility_assist_uses_same_turn_model
+  # covers: architecture.jido_os_session_turn_runtime.public_turn_event_surface
+  # covers: architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+  # covers: architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff
+  # covers: architecture.jido_os_session_turn_runtime.live_and_replay_release_parity
   @moduledoc false
   @runtime_service_key "coding_assistance_service"
 
@@ -140,6 +144,109 @@ defmodule Jido.Os.CodingAssist.Service do
         end
 
       {:ok, project_turn(updated_turn)}
+    else
+      nil -> {:error, :missing_turn_identifier}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  def subscribe_turn_events(instance_id, payload, context)
+      when is_binary(instance_id) and is_map(payload) and is_map(context) do
+    with session_id when is_binary(session_id) <- session_id_from(payload, context),
+         turn_id when is_binary(turn_id) <- get_string(payload, :turn_id),
+         subscriber when is_pid(subscriber) <- get_pid(payload, :subscriber),
+         scoped_context <- service_context(context, session_id),
+         {:ok, turn} <- RuntimeAgent.get_turn(instance_id, session_id, turn_id, scoped_context) do
+      events = State.list_turn_events(instance_id, session_id, turn_id)
+      latest_event_id = latest_event_id(events)
+
+      case validate_resume_cursor(events, get_string(payload, :after_event_id)) do
+        {:error, :invalid_after_event_id} ->
+          {:ok,
+           project_live_ack(%{
+             status: "invalid_cursor",
+             session_id: session_id,
+             conversation_id: session_id,
+             turn_id: turn_id,
+             latest_event_id: latest_event_id,
+             replay_after_event_id: nil,
+             reason_code: "invalid_after_event_id",
+             terminal_state: Map.get(turn, :state),
+             terminal_event_id: latest_event_id
+           })}
+
+        {:ok, resume_after_event_id} ->
+          subscription_id = unique_id("sub")
+
+          with {:ok, _subscription} <-
+                 RuntimeAgent.subscribe_turn_events(
+                   instance_id,
+                   session_id,
+                   turn_id,
+                   subscription_id,
+                   subscriber,
+                   scoped_context
+                 ) do
+            ack =
+              %{
+                status: "subscribed",
+                subscription_id: subscription_id,
+                session_id: session_id,
+                conversation_id: session_id,
+                turn_id: turn_id,
+                resume_after_event_id: resume_after_event_id,
+                replay_after_event_id: resume_after_event_id,
+                latest_event_id: latest_event_id,
+                terminal_state: Map.get(turn, :state),
+                terminal_event_id: latest_event_id
+              }
+              |> compact_nil_values()
+
+            deliver_live_turn_events(
+              instance_id,
+              session_id,
+              turn_id,
+              subscription_id,
+              subscriber,
+              filter_events_after(events, resume_after_event_id),
+              turn
+            )
+
+            {:ok, project_live_ack(ack)}
+          end
+      end
+    else
+      nil -> {:error, :missing_turn_identifier}
+      false -> {:error, :invalid_subscriber}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  def unsubscribe_turn_events(instance_id, payload, context)
+      when is_binary(instance_id) and is_map(payload) and is_map(context) do
+    with session_id when is_binary(session_id) <- session_id_from(payload, context),
+         turn_id when is_binary(turn_id) <- get_string(payload, :turn_id),
+         subscription_id when is_binary(subscription_id) <- get_string(payload, :subscription_id),
+         {:ok, detached} <-
+           RuntimeAgent.unsubscribe_turn_events(
+             instance_id,
+             session_id,
+             turn_id,
+             subscription_id,
+             service_context(context, session_id)
+           ) do
+      status = if is_map(detached), do: "detached", else: "already_detached"
+
+      {:ok,
+       project_live_ack(%{
+         status: status,
+         subscription_id: subscription_id,
+         session_id: session_id,
+         conversation_id: session_id,
+         turn_id: turn_id,
+         detached_at: timestamp(),
+         reason_code: if(is_map(detached), do: nil, else: "subscription_not_found")
+       })}
     else
       nil -> {:error, :missing_turn_identifier}
       {:error, _reason} = error -> error
@@ -303,6 +410,52 @@ defmodule Jido.Os.CodingAssist.Service do
     end
   end
 
+  defp deliver_live_turn_events(instance_id, session_id, turn_id, subscription_id, subscriber, events, turn) do
+    Task.start(fn ->
+      Enum.each(events, fn event ->
+        if subscription_active?(instance_id, session_id, turn_id, subscription_id) do
+          send(
+            subscriber,
+            {:jido_os_turn_delivery,
+             %{
+               kind: "turn_event",
+               subscription_id: subscription_id,
+               session_id: session_id,
+               conversation_id: session_id,
+               turn_id: turn_id,
+               event: event
+             }}
+          )
+        end
+      end)
+
+      if subscription_active?(instance_id, session_id, turn_id, subscription_id) do
+        latest_event_id = latest_event_id(State.list_turn_events(instance_id, session_id, turn_id))
+
+        send(
+          subscriber,
+          {:jido_os_turn_delivery,
+           %{
+             kind: "terminal_handoff",
+             subscription_id: subscription_id,
+             session_id: session_id,
+             conversation_id: session_id,
+             turn_id: turn_id,
+             terminal_state: Map.get(turn, :state),
+             terminal_event_id: latest_event_id,
+             latest_event_id: latest_event_id
+           }}
+        )
+      end
+
+      _ = State.delete_turn_subscription(instance_id, session_id, turn_id, subscription_id)
+    end)
+  end
+
+  defp subscription_active?(instance_id, session_id, turn_id, subscription_id) do
+    match?(%{}, State.get_turn_subscription(instance_id, session_id, turn_id, subscription_id))
+  end
+
   defp project_turn(turn) when is_map(turn) do
     artifacts = project_turn_artifacts(turn)
 
@@ -401,8 +554,50 @@ defmodule Jido.Os.CodingAssist.Service do
            event_id = Map.get(event, :event_id) || Map.get(event, "event_id")
            event_id != after_event_id
          end) do
-      {_leading, []} -> events
+      {_leading, []} -> []
       {_leading, [_matched | remaining]} -> remaining
+    end
+  end
+
+  defp validate_resume_cursor(_events, nil), do: {:ok, nil}
+
+  defp validate_resume_cursor(events, after_event_id) when is_binary(after_event_id) do
+    if Enum.any?(events, fn event ->
+         (Map.get(event, :event_id) || Map.get(event, "event_id")) == after_event_id
+       end) do
+      {:ok, after_event_id}
+    else
+      {:error, :invalid_after_event_id}
+    end
+  end
+
+  defp validate_resume_cursor(_events, _after_event_id), do: {:error, :invalid_after_event_id}
+
+  defp project_live_ack(ack) when is_map(ack) do
+    compact_nil_values(%{
+      status: Map.get(ack, :status) || Map.get(ack, "status"),
+      subscription_id: Map.get(ack, :subscription_id) || Map.get(ack, "subscription_id"),
+      session_id: Map.get(ack, :session_id) || Map.get(ack, "session_id"),
+      conversation_id: Map.get(ack, :conversation_id) || Map.get(ack, "conversation_id"),
+      turn_id: Map.get(ack, :turn_id) || Map.get(ack, "turn_id"),
+      resume_after_event_id: Map.get(ack, :resume_after_event_id) || Map.get(ack, "resume_after_event_id"),
+      replay_after_event_id: Map.get(ack, :replay_after_event_id) || Map.get(ack, "replay_after_event_id"),
+      latest_event_id: Map.get(ack, :latest_event_id) || Map.get(ack, "latest_event_id"),
+      terminal_state: Map.get(ack, :terminal_state) || Map.get(ack, "terminal_state"),
+      terminal_event_id: Map.get(ack, :terminal_event_id) || Map.get(ack, "terminal_event_id"),
+      detached_at: Map.get(ack, :detached_at) || Map.get(ack, "detached_at"),
+      reason_code: Map.get(ack, :reason_code) || Map.get(ack, "reason_code")
+    })
+  end
+
+  defp latest_event_id([]), do: nil
+
+  defp latest_event_id(events) when is_list(events) do
+    events
+    |> List.last()
+    |> case do
+      nil -> nil
+      event -> Map.get(event, :event_id) || Map.get(event, "event_id")
     end
   end
 
@@ -517,4 +712,11 @@ defmodule Jido.Os.CodingAssist.Service do
   end
 
   defp get_list(_map, _key), do: []
+
+  defp get_pid(map, key) when is_map(map) do
+    value = Map.get(map, key) || Map.get(map, Atom.to_string(key))
+    if is_pid(value), do: value, else: nil
+  end
+
+  defp get_pid(_map, _key), do: nil
 end

@@ -1,9 +1,14 @@
 defmodule JidoCode.Conversations.TurnBridge do
+  # covers: architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+  # covers: architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+  # covers: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
+  # covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
   # covers: architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
   # covers: architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
   @moduledoc """
-  Polling bridge that replays public coding-turn events into the existing
-  conversation subscriber event contract.
+  Live-delivery-first bridge that translates public coding-turn delivery into
+  the existing conversation subscriber event contract while keeping replay as
+  the canonical recovery and terminal-verification path.
   """
 
   require Logger
@@ -13,43 +18,157 @@ defmodule JidoCode.Conversations.TurnBridge do
 
   @default_poll_interval_ms 25
   @default_max_idle_polls 20
+  @default_live_receive_timeout_ms 100
   @terminal_families ["completed", "failed", "interrupted", "cancelled"]
+  @fallback_delivery_statuses ["withheld", "denied", "unavailable", "invalid_cursor", "detached", "already_detached"]
+
+  @type bridge_state :: %{
+          after_event_id: String.t() | nil,
+          live_subscription_id: String.t() | nil,
+          terminal_event_seen?: boolean()
+        }
 
   @spec start(map()) :: {:ok, pid()} | {:error, term()}
   def start(%{} = attrs) do
     Task.Supervisor.start_child(task_supervisor(), fn ->
-      run(attrs, nil, 0)
+      run(attrs, %{after_event_id: nil, live_subscription_id: nil, terminal_event_seen?: false})
     end)
   end
 
-  defp run(attrs, after_event_id, idle_polls) do
-    case list_turn_events(attrs, after_event_id) do
+  defp run(attrs, state) do
+    case subscribe_turn_events(attrs, state.after_event_id) do
+      {:ok, ack} ->
+        next_state = apply_live_ack(state, ack)
+
+        case Map.get(ack, :delivery_status) || Map.get(ack, "delivery_status") do
+          "subscribed" ->
+            receive_live_delivery(attrs, next_state)
+
+          status when status in @fallback_delivery_statuses ->
+            replay_until_terminal(attrs, fallback_state(next_state, ack), 0)
+
+          _other ->
+            replay_until_terminal(attrs, next_state, 0)
+        end
+
+      {:error, reason} ->
+        emit_failure(attrs, reason)
+    end
+  end
+
+  defp receive_live_delivery(attrs, state) do
+    receive do
+      {:jido_os_turn_delivery, envelope} ->
+        case handle_live_envelope(attrs, state, envelope) do
+          {:continue, next_state} -> receive_live_delivery(attrs, next_state)
+          {:fallback, next_state} -> replay_until_terminal(attrs, next_state, 0)
+          {:stop, _next_state} -> :ok
+        end
+    after
+      live_receive_timeout_ms() ->
+        replay_until_terminal(attrs, state, 0)
+    end
+  end
+
+  defp handle_live_envelope(attrs, state, %{} = envelope) do
+    if live_subscription_match?(state, envelope) do
+      case normalize_optional_string(Map.get(envelope, :kind) || Map.get(envelope, "kind")) do
+        "turn_event" ->
+          event = Map.get(envelope, :event) || Map.get(envelope, "event") || %{}
+          translated_events = event_bridge_module().turn_events([event], attrs.ingress, attrs.context)
+          :ok = dispatch_events(attrs, translated_events)
+
+          {:continue,
+           %{
+             state
+             | after_event_id: event_id(event) || state.after_event_id,
+               terminal_event_seen?: state.terminal_event_seen? or terminal_event?(event)
+           }}
+
+        "terminal_handoff" ->
+          finalize_terminal_handoff(attrs, state, envelope)
+
+        "detached" ->
+          {:fallback, state}
+
+        _other ->
+          {:continue, state}
+      end
+    else
+      {:continue, state}
+    end
+  end
+
+  defp finalize_terminal_handoff(attrs, state, terminal_handoff) do
+    case list_turn_events(attrs, state.after_event_id) do
+      {:ok, replay_events} ->
+        translated_events = event_bridge_module().turn_events(replay_events, attrs.ingress, attrs.context)
+        :ok = dispatch_events(attrs, translated_events)
+
+        next_state =
+          %{
+            state
+            | after_event_id: last_event_id(replay_events) || state.after_event_id,
+              terminal_event_seen?: state.terminal_event_seen? or Enum.any?(replay_events, &terminal_event?/1)
+          }
+
+        case get_turn(attrs) do
+          {:ok, turn} ->
+            dispatch_terminal_handoff_event(attrs, next_state, turn, terminal_handoff)
+            materialize_terminal_turn(attrs, turn, full_turn_events(attrs))
+            best_effort_unsubscribe(attrs, next_state)
+            {:stop, next_state}
+
+          {:error, _reason} ->
+            {:fallback, next_state}
+        end
+
+      {:error, _reason} ->
+        {:fallback, state}
+    end
+  end
+
+  defp replay_until_terminal(attrs, state, idle_polls) do
+    case list_turn_events(attrs, state.after_event_id) do
       {:ok, events} ->
         translated_events = event_bridge_module().turn_events(events, attrs.ingress, attrs.context)
         :ok = dispatch_events(attrs, translated_events)
 
-        next_after_event_id = last_event_id(events) || after_event_id
-        terminal_event_seen? = Enum.any?(events, &terminal_event?/1)
+        next_state =
+          %{
+            state
+            | after_event_id: last_event_id(events) || state.after_event_id,
+              terminal_event_seen?: state.terminal_event_seen? or Enum.any?(events, &terminal_event?/1)
+          }
 
         case get_turn(attrs) do
           {:ok, turn} ->
             cond do
-              terminal_event_seen? ->
-                materialize_terminal_turn(attrs, turn, events)
-                :ok
+              terminal_turn?(turn) ->
+                dispatch_terminal_handoff_event(
+                  attrs,
+                  next_state,
+                  turn,
+                  %{
+                    kind: "replay_terminal_lookup",
+                    terminal_state: turn_state(turn),
+                    terminal_event_id: next_state.after_event_id
+                  }
+                )
 
-              terminal_turn?(turn) and events == [] ->
-                materialize_terminal_turn(attrs, turn, events)
+                materialize_terminal_turn(attrs, turn, full_turn_events(attrs))
+                best_effort_unsubscribe(attrs, next_state)
                 :ok
 
               true ->
                 next_idle_polls = if events == [], do: idle_polls + 1, else: 0
 
                 if next_idle_polls >= max_idle_polls() do
+                  best_effort_unsubscribe(attrs, next_state)
                   :ok
                 else
                   Process.sleep(poll_interval_ms())
-                  run(attrs, next_after_event_id, next_idle_polls)
+                  replay_until_terminal(attrs, next_state, next_idle_polls)
                 end
             end
 
@@ -61,6 +180,32 @@ defmodule JidoCode.Conversations.TurnBridge do
         emit_failure(attrs, reason)
     end
   end
+
+  defp subscribe_turn_events(attrs, after_event_id) do
+    coding_assistance_module().subscribe_turn_events(
+      attrs.actor_id,
+      turn_request(attrs, after_event_id)
+      |> Map.put(:subscriber, self())
+      |> Map.put(:resume_after_event_id, after_event_id)
+    )
+  end
+
+  defp best_effort_unsubscribe(attrs, %{live_subscription_id: subscription_id}) when is_binary(subscription_id) do
+    _ =
+      coding_assistance_module().unsubscribe_turn_events(attrs.actor_id, %{
+        session_id: get_in(attrs, [:context, :session_id]),
+        turn_id: get_in(attrs, [:turn, :turn_id]),
+        project_id: get_in(attrs, [:context, :managed_repo_id]) || get_in(attrs, [:context, :project_id]),
+        request_id: get_in(attrs, [:context, :request_id]),
+        correlation_id: get_in(attrs, [:context, :correlation_id]),
+        workspace_id: get_in(attrs, [:context, :workspace_id]),
+        subscription_id: subscription_id
+      })
+
+    :ok
+  end
+
+  defp best_effort_unsubscribe(_attrs, _state), do: :ok
 
   defp list_turn_events(attrs, after_event_id) do
     coding_assistance_module().list_turn_events(attrs.actor_id, turn_request(attrs, after_event_id))
@@ -76,6 +221,13 @@ defmodule JidoCode.Conversations.TurnBridge do
 
   defp list_turn_artifacts(attrs) do
     coding_assistance_module().list_turn_artifacts(attrs.actor_id, turn_request(attrs, nil))
+  end
+
+  defp full_turn_events(attrs) do
+    case list_turn_events(attrs, nil) do
+      {:ok, events} -> events
+      {:error, _reason} -> []
+    end
   end
 
   defp turn_request(attrs, after_event_id) do
@@ -120,6 +272,17 @@ defmodule JidoCode.Conversations.TurnBridge do
 
     _ = dispatch_events(attrs, [failure_event])
     :ok
+  end
+
+  defp dispatch_terminal_handoff_event(attrs, state, turn, terminal_handoff) do
+    if state.terminal_event_seen? do
+      :ok
+    else
+      case event_bridge_module().terminal_handoff_event(turn, terminal_handoff, attrs.ingress, attrs.context) do
+        nil -> :ok
+        event -> dispatch_events(attrs, [event])
+      end
+    end
   end
 
   defp materialize_terminal_turn(attrs, turn, events) do
@@ -168,29 +331,48 @@ defmodule JidoCode.Conversations.TurnBridge do
     end
   end
 
-  defp terminal_turn?(%{} = turn) do
-    state =
-      Map.get(turn, :state) || Map.get(turn, "state")
-
-    state in @terminal_families
+  defp apply_live_ack(state, ack) when is_map(ack) do
+    %{
+      state
+      | live_subscription_id: map_get(ack, :subscription_id, "subscription_id"),
+        after_event_id: map_get(ack, :resume_after_event_id, "resume_after_event_id") || state.after_event_id
+    }
   end
+
+  defp fallback_state(state, ack) when is_map(ack) do
+    %{
+      state
+      | after_event_id: map_get(ack, :replay_after_event_id, "replay_after_event_id") || state.after_event_id
+    }
+  end
+
+  defp live_subscription_match?(%{live_subscription_id: nil}, _envelope), do: true
+
+  defp live_subscription_match?(%{live_subscription_id: subscription_id}, envelope) do
+    envelope_subscription_id = map_get(envelope, :subscription_id, "subscription_id")
+    envelope_subscription_id == subscription_id
+  end
+
+  defp terminal_turn?(%{} = turn), do: turn_state(turn) in @terminal_families
 
   defp terminal_event?(%{} = event) do
-    family =
-      Map.get(event, :family) || Map.get(event, "family")
-
+    family = Map.get(event, :family) || Map.get(event, "family")
     family in @terminal_families
   end
+
+  defp turn_state(turn) do
+    Map.get(turn, :state) || Map.get(turn, "state")
+  end
+
+  defp event_id(%{} = event), do: Map.get(event, :event_id) || Map.get(event, "event_id")
+  defp event_id(_event), do: nil
 
   defp last_event_id([]), do: nil
 
   defp last_event_id(events) when is_list(events) do
     events
     |> List.last()
-    |> case do
-      nil -> nil
-      event -> Map.get(event, :event_id) || Map.get(event, "event_id")
-    end
+    |> event_id()
   end
 
   defp task_supervisor do
@@ -225,6 +407,14 @@ defmodule JidoCode.Conversations.TurnBridge do
     Application.get_env(:jido_code, :conversation_turn_bridge_max_idle_polls, @default_max_idle_polls)
   end
 
+  defp live_receive_timeout_ms do
+    Application.get_env(
+      :jido_code,
+      :conversation_turn_bridge_live_receive_timeout_ms,
+      @default_live_receive_timeout_ms
+    )
+  end
+
   defp compact_nil_values(map) do
     Enum.reduce(map, %{}, fn
       {_key, nil}, acc -> acc
@@ -246,4 +436,28 @@ defmodule JidoCode.Conversations.TurnBridge do
       end
     end)
   end
+
+  defp map_get(map, atom_key, string_key) when is_map(map) do
+    case Map.fetch(map, atom_key) do
+      {:ok, value} -> value
+      :error -> Map.get(map, string_key)
+    end
+  end
+
+  defp map_get(_map, _atom_key, _string_key), do: nil
+
+  defp normalize_optional_string(nil), do: nil
+
+  defp normalize_optional_string(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      normalized -> normalized
+    end
+  end
+
+  defp normalize_optional_string(value) when is_atom(value),
+    do: value |> Atom.to_string() |> normalize_optional_string()
+
+  defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
+  defp normalize_optional_string(_value), do: nil
 end

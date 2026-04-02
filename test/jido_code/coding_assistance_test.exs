@@ -1,6 +1,11 @@
 defmodule JidoCode.CodingAssistanceTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: coding_assistance.boundary.session_prepared_before_assist
   # covers: coding_assistance.boundary.session_authority_delegation
+  # covers: coding_assistance.boundary.public_jido_os_service_boundary
+  # covers: coding_assistance.boundary.public_turn_wrapper_api
+  # covers: coding_assistance.boundary.live_delivery_ack_and_resume_boundary
+  # covers: coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
   # covers: jido_os.runtime.compatibility.local_override_present
   # covers: jido_os.runtime.compatibility.public_runtime_surface
   # covers: jido_os.runtime.compatibility.session_and_envelope_behaviour
@@ -181,6 +186,76 @@ defmodule JidoCode.CodingAssistanceTest do
 
     assert cancelled_turn.turn_id == turn.turn_id
     assert cancelled_turn.state == "completed"
+  end
+
+  test "live turn wrappers normalize acknowledgements while replay surfaces remain available" do
+    actor_id = "user-5"
+    session_id = "thread-5"
+
+    assert {:ok, turn} =
+             CodingAssistance.start_turn(actor_id, %{
+               session_id: session_id,
+               objective: "Stream public live turn updates through the coding boundary",
+               operation: "implement"
+             })
+
+    assert {:ok, ack} =
+             CodingAssistance.subscribe_turn_events(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id,
+               subscriber: self()
+             })
+
+    assert ack.delivery_status == "subscribed"
+    assert ack.session_id == session_id
+    assert ack.conversation_id == session_id
+    assert ack.turn_id == turn.turn_id
+    assert is_binary(ack.subscription_id)
+    assert ack.terminal_state == "completed"
+    assert ack.latest_event_id =~ turn.turn_id
+
+    assert_receive {:jido_os_turn_delivery, %{kind: "turn_event", event: admitted_event}}
+    assert admitted_event.family == "admitted"
+
+    assert_receive {:jido_os_turn_delivery, %{kind: "turn_event", event: progress_event}}
+    assert progress_event.family == "progress"
+
+    assert_receive {:jido_os_turn_delivery, %{kind: "turn_event", event: completed_event}}
+    assert completed_event.family == "completed"
+
+    assert_receive {:jido_os_turn_delivery, terminal_handoff}
+    assert terminal_handoff.kind == "terminal_handoff"
+    assert terminal_handoff.subscription_id == ack.subscription_id
+    assert terminal_handoff.terminal_state == "completed"
+
+    assert {:ok, invalid_cursor_ack} =
+             CodingAssistance.subscribe_turn_events(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id,
+               subscriber: self(),
+               resume_after_event_id: "missing-event"
+             })
+
+    assert invalid_cursor_ack.delivery_status == "invalid_cursor"
+    assert invalid_cursor_ack.reason_code == "invalid_after_event_id"
+
+    assert {:ok, detached_ack} =
+             CodingAssistance.unsubscribe_turn_events(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id,
+               subscription_id: ack.subscription_id
+             })
+
+    assert detached_ack.delivery_status in ["detached", "already_detached"]
+
+    assert {:ok, replay_events} =
+             CodingAssistance.list_turn_events(actor_id, %{
+               session_id: session_id,
+               turn_id: turn.turn_id,
+               after_event_id: admitted_event.event_id
+             })
+
+    assert Enum.map(replay_events, & &1.family) == ["progress", "completed"]
   end
 
   defp restore_env(app, key, nil), do: Application.delete_env(app, key)

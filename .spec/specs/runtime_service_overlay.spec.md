@@ -143,6 +143,18 @@ surface:
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
 
 - kind: source_file
+  target: lib/jido_code/coding_assistance.ex
+  covers:
+    - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
+    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+
+- kind: source_file
+  target: lib/jido_code/jido_os_runtime.ex
+  covers:
+    - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
+
+- kind: source_file
   target: lib/jido_code/governance/runtime_capability_bridge.ex
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance

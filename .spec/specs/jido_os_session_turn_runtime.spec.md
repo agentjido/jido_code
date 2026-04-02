@@ -24,6 +24,7 @@ surface:
   - compat/jido_os/lib/jido/os/state.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/jido_os_runtime.ex
+  - test/jido_code/coding_assistance_test.exs
 ```
 
 ## Requirements
@@ -198,4 +199,25 @@ surface:
     - architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
     - architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff
     - architecture.jido_os_session_turn_runtime.live_and_replay_release_parity
+
+- kind: source_file
+  target: compat/jido_os/lib/jido/os/coding_assist/service.ex
+  covers:
+    - architecture.jido_os_session_turn_runtime.public_turn_event_surface
+    - architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+    - architecture.jido_os_session_turn_runtime.live_delivery_resume_has_stable_cursor_and_terminal_handoff
+    - architecture.jido_os_session_turn_runtime.live_and_replay_release_parity
+
+- kind: source_file
+  target: lib/jido_code/coding_assistance.ex
+  covers:
+    - architecture.jido_os_session_turn_runtime.actor_bound_context_required
+    - architecture.jido_os_session_turn_runtime.authority_boundaries_preserved
+    - architecture.jido_os_session_turn_runtime.public_turn_lifecycle_surface
+
+- kind: source_file
+  target: lib/jido_code/jido_os_runtime.ex
+  covers:
+    - architecture.jido_os_session_turn_runtime.public_turn_live_subscription_surface
+    - architecture.jido_os_session_turn_runtime.fail_closed_on_scope_or_policy_violation
 ```

@@ -36,22 +36,22 @@ Back to index: [README](./README.md)
       [x] 8.1.2.2 Subtask - Keep development and test default seeding explicit and isolated from production runtime assumptions.
       [x] 8.1.2.3 Subtask - Preserve actor, request, correlation, session, project, and workspace context construction as product-owned behavior rather than scattering it across gateway callers.
 
-  [ ] 8.2 Section - Runtime Capability Posture and Typed Availability
+  [x] 8.2 Section - Runtime Capability Posture and Typed Availability
     Make admitted-service state visible to the product as governed input instead of hidden incidental failure.
 
-    [ ] 8.2.1 Task - Add typed runtime capability posture reads
+    [x] 8.2.1 Task - Add typed runtime capability posture reads
       Give the product a stable way to know whether runtime services are admitted, withheld, denied, unavailable, or degraded before higher-level flows guess from transport failures.
 
-      [ ] 8.2.1.1 Subtask - Define the product-local capability posture shape for runtime-service availability, rollout source, denial reason, and degraded-path evidence.
-      [ ] 8.2.1.2 Subtask - Source that posture from public runtime service outcomes or public admission surfaces rather than private runtime registries.
-      [ ] 8.2.1.3 Subtask - Ensure capability posture remains additive and typed even when a service is entirely absent for an instance.
+      [x] 8.2.1.1 Subtask - Define the product-local capability posture shape for runtime-service availability, rollout source, denial reason, and degraded-path evidence.
+      [x] 8.2.1.2 Subtask - Source that posture from public runtime service outcomes or public admission surfaces rather than private runtime registries.
+      [x] 8.2.1.3 Subtask - Ensure capability posture remains additive and typed even when a service is entirely absent for an instance.
 
-    [ ] 8.2.2 Task - Feed runtime capability posture into product governance
+    [x] 8.2.2 Task - Feed runtime capability posture into product governance
       Make runtime-service availability part of the factory’s governed understanding of repo readiness and operator trust.
 
-      [ ] 8.2.2.1 Subtask - Normalize capability posture into product observations, posture checks, or equivalent governance records where it affects repo readiness.
-      [ ] 8.2.2.2 Subtask - Preserve the distinction between product governance policy and runtime admission policy while still making their interaction legible.
-      [ ] 8.2.2.3 Subtask - Prepare operator-facing summaries so later dashboard and workbench work can surface admitted-service state without exposing runtime-native protocols.
+      [x] 8.2.2.1 Subtask - Normalize capability posture into product observations, posture checks, or equivalent governance records where it affects repo readiness.
+      [x] 8.2.2.2 Subtask - Preserve the distinction between product governance policy and runtime admission policy while still making their interaction legible.
+      [x] 8.2.2.3 Subtask - Prepare operator-facing summaries so later dashboard and workbench work can surface admitted-service state without exposing runtime-native protocols.
 
   [ ] 8.3 Section - Phase 8 Integration Tests
     Validate the runtime-gateway baseline and capability-posture adoption before later live-delivery and integration-service work layers on more runtime complexity.

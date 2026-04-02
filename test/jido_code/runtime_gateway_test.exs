@@ -85,6 +85,36 @@ defmodule JidoCode.RuntimeGatewayTest do
              RuntimeGateway.service_available?("missing_runtime_service", actor_id)
   end
 
+  test "runtime gateway builds additive capability posture snapshots for governance" do
+    actor_id = "runtime-gateway-governance"
+
+    assert {:ok, snapshot} =
+             RuntimeGateway.capability_posture_snapshot(
+               [CodingAssistance, "missing_runtime_service"],
+               actor_id
+             )
+
+    assert snapshot.status == "blocked"
+    assert snapshot.rollout_source == "repo_local_compatibility_surface"
+    assert snapshot.service_count == 2
+    assert snapshot.available_service_count == 1
+    assert snapshot.blocked_service_count == 1
+    assert snapshot.review_required_service_count == 0
+    assert snapshot.summary =~ "coding_assistance_service"
+    assert snapshot.summary =~ "missing_runtime_service"
+
+    assert [
+             %{service_key: "coding_assistance_service", governance_effect: "none", denial_reason: nil},
+             %{
+               service_key: "missing_runtime_service",
+               governance_effect: "blocked",
+               denial_reason: "runtime_service_unknown"
+             }
+           ] = snapshot.services
+
+    assert RuntimeGateway.operator_summary(snapshot) == snapshot.summary
+  end
+
   defp restore_env(app, key, nil), do: Application.delete_env(app, key)
   defp restore_env(app, key, value), do: Application.put_env(app, key, value)
 end

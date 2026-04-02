@@ -23,10 +23,12 @@ surface:
   - .spec/specs/coding_assistance_boundary.spec.md
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/runtime_gateway.ex
+  - lib/jido_code/governance/runtime_capability_bridge.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/turn_bridge.ex
   - test/jido_code/runtime_gateway_test.exs
+  - test/jido_code/governance/runtime_capability_bridge_test.exs
 ```
 
 ## Requirements
@@ -138,4 +140,9 @@ surface:
     - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
     - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+
+- kind: source_file
+  target: lib/jido_code/governance/runtime_capability_bridge.ex
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 ```

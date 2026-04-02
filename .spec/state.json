@@ -867,6 +867,14 @@
       },
       {
         "file": ".spec/specs/repo_posture.spec.md",
+        "id": "architecture.repo_posture.runtime_capability_observations_can_inform_posture",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "When product-owned runtime gateways observe capability availability, denial, withholding, or degraded-path state that changes repo readiness or review burden, Jido.Code shall materialize that state as governed observations and let posture consume those observations without collapsing product governance into runtime policy.",
+        "subject_id": "architecture.repo_posture"
+      },
+      {
+        "file": ".spec/specs/repo_posture.spec.md",
         "id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
         "priority": "must",
         "stability": "evolving",
@@ -2843,6 +2851,25 @@
       },
       {
         "covers": [
+          "architecture.repo_posture.runtime_capability_observations_can_inform_posture",
+          "architecture.repo_posture.posture_checks_preserve_explainable_links",
+          "architecture.repo_posture.supervision_modes_are_explicit_and_reversible"
+        ],
+        "file": ".spec/specs/repo_posture.spec.md",
+        "given": [
+          "Product-owned runtime gateways observe admitted-service availability or degraded-path state for a managed repository."
+        ],
+        "id": "architecture.repo_posture.scenario_runtime_capability_posture_stays_explainable",
+        "subject_id": "architecture.repo_posture",
+        "then": [
+          "The posture flow records governed runtime-capability observations, links the affected posture checks back to those observations, and keeps the resulting review or supervision change explainable as product-owned governance state."
+        ],
+        "when": [
+          "Repo posture refreshes and that runtime capability state affects execution readiness or review burden."
+        ]
+      },
+      {
+        "covers": [
           "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
           "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich"
         ],
@@ -3084,7 +3111,7 @@
         ],
         "file": ".spec/specs/vsm_recursion.spec.md",
         "given": [
-          "A viability-threatening condition appears inside a managed repository."
+          "A viability-threatening condition appears inside a managed repository, whether from repo-native posture, governed evidence, or another managed signal entering the repo's control loop."
         ],
         "id": "architecture.vsm_recursion.scenario_viability_threat_bypasses_normal_flow",
         "subject_id": "architecture.vsm_recursion",
@@ -4749,6 +4776,7 @@
             "lib/jido_code/governance/repo_posture.ex",
             "lib/jido_code/governance/posture_check.ex",
             "lib/jido_code/governance/posture_bridge.ex",
+            "lib/jido_code/governance/runtime_capability_bridge.ex",
             "lib/jido_code/governance/policy_bridge.ex",
             "lib/jido_code/control/repo_bridge.ex",
             "lib/jido_code/orchestration/run_summary_feed.ex",
@@ -4760,6 +4788,7 @@
             "priv/repo/migrations/20260331153000_add_repo_posture_supervision_fields.exs",
             "test/jido_code/operations/repo_native_state_test.exs",
             "test/jido_code/governance/posture_bridge_test.exs",
+            "test/jido_code/governance/runtime_capability_bridge_test.exs",
             "test/jido_code/governance/policy_bridge_test.exs",
             "test/jido_code/governance/phase_five_integration_test.exs"
           ],
@@ -4827,10 +4856,12 @@
             ".spec/specs/coding_assistance_boundary.spec.md",
             "lib/jido_code/jido_os_runtime.ex",
             "lib/jido_code/runtime_gateway.ex",
+            "lib/jido_code/governance/runtime_capability_bridge.ex",
             "lib/jido_code/coding_assistance.ex",
             "lib/jido_code/conversations/driver.ex",
             "lib/jido_code/conversations/turn_bridge.ex",
-            "test/jido_code/runtime_gateway_test.exs"
+            "test/jido_code/runtime_gateway_test.exs",
+            "test/jido_code/governance/runtime_capability_bridge_test.exs"
           ],
           "verification_minimum_strength": null
         },
@@ -5900,12 +5931,22 @@
           "architecture.repo_posture.repo_posture_summarizes_trust_dimensions",
           "architecture.repo_posture.posture_checks_preserve_explainable_links",
           "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
-          "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich"
+          "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
+          "architecture.repo_posture.runtime_capability_observations_can_inform_posture"
         ],
         "file": ".spec/specs/repo_posture.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.repo_posture",
         "target": "lib/jido_code/governance/posture_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.repo_posture.runtime_capability_observations_can_inform_posture"
+        ],
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/runtime_capability_bridge.ex"
       },
       {
         "covers": [
@@ -5929,12 +5970,22 @@
       {
         "covers": [
           "architecture.repo_posture.repo_posture_summarizes_trust_dimensions",
-          "architecture.repo_posture.posture_checks_preserve_explainable_links"
+          "architecture.repo_posture.posture_checks_preserve_explainable_links",
+          "architecture.repo_posture.runtime_capability_observations_can_inform_posture"
         ],
         "file": ".spec/specs/repo_posture.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/posture_bridge_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.repo_posture.runtime_capability_observations_can_inform_posture"
+        ],
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.repo_posture",
+        "target": "test/jido_code/governance/runtime_capability_bridge_test.exs"
       },
       {
         "covers": [
@@ -6216,6 +6267,15 @@
         "kind": "source_file",
         "subject_id": "architecture.runtime_service_overlay",
         "target": "lib/jido_code/runtime_gateway.ex"
+      },
+      {
+        "covers": [
+          "architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance"
+        ],
+        "file": ".spec/specs/runtime_service_overlay.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.runtime_service_overlay",
+        "target": "lib/jido_code/governance/runtime_capability_bridge.ex"
       },
       {
         "covers": [
@@ -8204,10 +8264,10 @@
     "decisions": 13,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 248,
-    "scenarios": 99,
+    "requirements": 249,
+    "scenarios": 100,
     "subjects": 36,
-    "verifications": 320
+    "verifications": 323
   },
   "verification": {
     "claims": [
@@ -10324,6 +10384,17 @@
         "verification_index": 4
       },
       {
+        "cover_id": "architecture.repo_posture.runtime_capability_observations_can_inform_posture",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "verification_index": 4
+      },
+      {
         "cover_id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
         "file": ".spec/specs/repo_posture.spec.md",
         "kind": "source_file",
@@ -10335,6 +10406,17 @@
         "verification_index": 4
       },
       {
+        "cover_id": "architecture.repo_posture.runtime_capability_observations_can_inform_posture",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code/governance/runtime_capability_bridge.ex",
+        "verification_index": 5
+      },
+      {
         "cover_id": "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
         "file": ".spec/specs/repo_posture.spec.md",
         "kind": "source_file",
@@ -10343,7 +10425,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "lib/jido_code/governance/policy_bridge.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
@@ -10354,7 +10436,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "lib/jido_code/governance/policy_bridge.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.repo_posture.repo_native_observations_capture_current_truth_signals",
@@ -10365,7 +10447,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/operations/repo_native_state_test.exs",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.repo_posture.posture_checks_preserve_explainable_links",
@@ -10376,7 +10458,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/posture_bridge_test.exs",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.repo_posture.repo_posture_summarizes_trust_dimensions",
@@ -10387,7 +10469,29 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/posture_bridge_test.exs",
-        "verification_index": 7
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.repo_posture.runtime_capability_observations_can_inform_posture",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "test/jido_code/governance/posture_bridge_test.exs",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.repo_posture.runtime_capability_observations_can_inform_posture",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "test/jido_code/governance/runtime_capability_bridge_test.exs",
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
@@ -10398,7 +10502,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/policy_bridge_test.exs",
-        "verification_index": 8
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
@@ -10409,7 +10513,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/policy_bridge_test.exs",
-        "verification_index": 8
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich",
@@ -10420,7 +10524,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/phase_five_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.repo_posture.posture_checks_preserve_explainable_links",
@@ -10431,7 +10535,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/phase_five_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.repo_posture.repo_native_observations_capture_current_truth_signals",
@@ -10442,7 +10546,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/phase_five_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.repo_posture.repo_posture_summarizes_trust_dimensions",
@@ -10453,7 +10557,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/phase_five_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.repo_posture.supervision_modes_are_explicit_and_reversible",
@@ -10464,28 +10568,6 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "test/jido_code/governance/phase_five_integration_test.exs",
-        "verification_index": 9
-      },
-      {
-        "cover_id": "architecture.repo_posture.operator_surfaces_expose_explainable_governance_state",
-        "file": ".spec/specs/repo_posture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.repo_posture",
-        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
-        "verification_index": 10
-      },
-      {
-        "cover_id": "architecture.repo_posture.governed_turn_evidence_can_inform_posture",
-        "file": ".spec/specs/repo_posture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.repo_posture",
-        "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
         "verification_index": 11
       },
       {
@@ -10496,18 +10578,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
-        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
+        "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
         "verification_index": 12
       },
       {
-        "cover_id": "architecture.repo_posture.operator_surfaces_expose_explainable_governance_state",
+        "cover_id": "architecture.repo_posture.governed_turn_evidence_can_inform_posture",
         "file": ".spec/specs/repo_posture.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
-        "target": "lib/jido_code_web/live/dashboard_live.ex",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
         "verification_index": 13
       },
       {
@@ -10518,8 +10600,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
         "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.repo_posture.operator_surfaces_expose_explainable_governance_state",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code_web/live/dashboard_live.ex",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.repo_posture.operator_surfaces_expose_explainable_governance_state",
+        "file": ".spec/specs/repo_posture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.repo_posture",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.repo_posture.governed_turn_evidence_can_inform_posture",
@@ -10530,7 +10634,7 @@
         "strength": "linked",
         "subject_id": "architecture.repo_posture",
         "target": "lib/jido_code/governance/run_governance_bridge.ex",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.run_governance.run_is_preferred_execution_record",
@@ -10927,6 +11031,17 @@
         "subject_id": "architecture.runtime_service_overlay",
         "target": "lib/jido_code/runtime_gateway.ex",
         "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance",
+        "file": ".spec/specs/runtime_service_overlay.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.runtime_service_overlay",
+        "target": "lib/jido_code/governance/runtime_capability_bridge.ex",
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -14927,7 +15042,7 @@
     "strength_summary": {
       "claimed": 53,
       "executed": 0,
-      "linked": 557
+      "linked": 562
     },
     "threshold_failures": 0
   },

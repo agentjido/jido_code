@@ -1,6 +1,7 @@
 defmodule JidoCode.Governance.PostureBridgeTest do
   # covers: architecture.repo_posture.repo_posture_summarizes_trust_dimensions
   # covers: architecture.repo_posture.posture_checks_preserve_explainable_links
+  # covers: architecture.repo_posture.runtime_capability_observations_can_inform_posture
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}
@@ -122,6 +123,55 @@ defmodule JidoCode.Governance.PostureBridgeTest do
              )
 
     assert length(persisted_checks) == 7
+  end
+
+  test "runtime capability posture can lower readiness and force review without collapsing product governance into runtime policy" do
+    workspace_path = create_workspace_path!()
+    seed_spec_state!(workspace_path)
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-posture-runtime-capability",
+        github_full_name: "owner/repo-posture-runtime-capability",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          },
+          "support_agent_config" => %{
+            "github_issue_bot" => %{"approval_mode" => "auto_post"}
+          },
+          "runtime_capabilities" => %{
+            "required_services" => ["coding_assistance_service", "missing_runtime_service"]
+          }
+        }
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    assert {:ok, %{repo_posture: repo_posture, posture_checks: posture_checks}} =
+             PostureBridge.sync_managed_repo(managed_repo)
+
+    assert repo_posture.execution_readiness == "low"
+    assert repo_posture.review_burden == "high"
+    assert repo_posture.supervision_mode == "guided"
+    assert repo_posture.escalation_status == "review"
+    assert repo_posture.posture_metadata["runtime_capability_state"]["status"] == "blocked"
+    assert repo_posture.posture_metadata["runtime_capability_summary"] =~ "missing_runtime_service"
+
+    execution_check = posture_check(posture_checks, "execution_readiness")
+    review_check = posture_check(posture_checks, "review_burden")
+
+    assert execution_check.source == "runtime_capability.execution"
+    assert review_check.source == "governance.review_policy+runtime_capability"
+    assert execution_check.observation_id == review_check.observation_id
+    assert execution_check.details["runtime_capability_state"]["status"] == "blocked"
+    assert review_check.details["runtime_capability_state"]["blocked_service_count"] == 1
   end
 
   defp posture_check(posture_checks, dimension) do

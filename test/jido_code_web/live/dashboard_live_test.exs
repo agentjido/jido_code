@@ -1,5 +1,10 @@
 defmodule JidoCodeWeb.DashboardLiveTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+  # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+  # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -12,8 +17,12 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   setup do
     original_loader = Application.get_env(:jido_code, :dashboard_run_summary_loader, :__missing__)
 
+    original_runtime_loader =
+      Application.get_env(:jido_code, :dashboard_runtime_evidence_loader, :__missing__)
+
     on_exit(fn ->
       restore_env(:dashboard_run_summary_loader, original_loader)
+      restore_env(:dashboard_runtime_evidence_loader, original_runtime_loader)
     end)
 
     :ok
@@ -231,6 +240,59 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Stage: approval")
     assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Evidence: 3")
     assert has_element?(view, "#dashboard-run-governance-#{run_dom_token}", "Review: open")
+  end
+
+  test "renders runtime posture summaries in product-oriented rollout language", %{conn: _conn} do
+    register_owner("runtime-dashboard-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("runtime-dashboard-owner@example.com", "owner-password-123")
+
+    Application.put_env(:jido_code, :dashboard_runtime_evidence_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: "runtime-posture-1",
+           managed_repo_id: Ecto.UUID.generate(),
+           repo_label: "repo-runtime-dashboard",
+           status: "degraded",
+           summary:
+             "Runtime service evidence indicates degraded execution trust. Coding turn delivery repaired through replay recovery.",
+           delivery_mode: "replay_recovery",
+           reason_code: "live_delivery_detached",
+           latest_provider: "github",
+           supervision_mode: "guided",
+           review_required: true,
+           updated_at: DateTime.utc_now()
+         }
+       ], nil}
+    end)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
+
+    assert has_element?(view, "#dashboard-runtime-evidence")
+    assert has_element?(view, "#dashboard-runtime-evidence-summary", "review-required")
+    assert has_element?(view, "#dashboard-runtime-evidence-note", "source of truth")
+    assert has_element?(view, "#dashboard-runtime-evidence-count-degraded", "1")
+    assert has_element?(view, "#dashboard-runtime-evidence-runtime-posture-1", "repo-runtime-dashboard")
+
+    assert has_element?(
+             view,
+             "#dashboard-runtime-evidence-item-summary-runtime-posture-1",
+             "degraded execution trust"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-runtime-evidence-item-details-runtime-posture-1",
+             "Delivery: replay recovery"
+           )
+
+    assert has_element?(
+             view,
+             "#dashboard-runtime-evidence-item-details-runtime-posture-1",
+             "Latest provider: github"
+           )
   end
 
   defp create_run(project_id, run_id, started_at) do

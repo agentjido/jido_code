@@ -14,6 +14,7 @@ decisions:
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.namespace_and_control_naming.md
@@ -21,6 +22,7 @@ surface:
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/control.ex
   - lib/jido_code/control/compatibility_rollout.ex
@@ -35,6 +37,8 @@ surface:
   - lib/jido_code/governance/decision.ex
   - lib/jido_code/governance/evidence.ex
   - lib/jido_code/governance/run_governance_bridge.ex
+  - lib/jido_code/governance/runtime_evidence_bridge.ex
+  - lib/jido_code/governance/runtime_evidence_feed.ex
   - lib/jido_code/governance/runtime_integration_bridge.ex
   - lib/jido_code/governance/policy_set.ex
   - lib/jido_code/governance/policy_bridge.ex
@@ -78,6 +82,11 @@ surface:
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
   - priv/repo/migrations/20260331143000_add_repo_posture_records.exs
   - test/jido_code/governance/posture_bridge_test.exs
+  - test/jido_code/governance/runtime_evidence_feed_test.exs
+  - test/jido_code/governance/phase_eleven_integration_test.exs
+  - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/run_detail_live_test.exs
+  - test/jido_code_web/live/phase_eleven_integration_test.exs
 ```
 
 ## Requirements
@@ -231,8 +240,24 @@ surface:
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
 
 - kind: source_file
+  target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
   target: lib/jido_code/governance/runtime_integration_bridge.ex
   covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: lib/jido_code/governance/runtime_evidence_bridge.ex
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: lib/jido_code/governance/runtime_evidence_feed.ex
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
 
 - kind: source_file
@@ -244,6 +269,31 @@ surface:
   target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   covers:
     - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+
+- kind: source_file
+  target: test/jido_code/governance/runtime_evidence_feed_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: test/jido_code_web/live/dashboard_live_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eleven_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_eleven_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

@@ -14,27 +14,39 @@ decisions:
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/specs/factory_control_plane.spec.md
   - .spec/specs/coding_assistance_boundary.spec.md
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/runtime_gateway.ex
   - lib/jido_code/runtime_integration.ex
   - lib/jido_code/governance/runtime_capability_bridge.ex
+  - lib/jido_code/governance/runtime_evidence_bridge.ex
+  - lib/jido_code/governance/runtime_evidence_feed.ex
   - lib/jido_code/governance/runtime_integration_bridge.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/turn_bridge.ex
+  - lib/jido_code_web/live/dashboard_live.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - test/jido_code/runtime_gateway_test.exs
   - test/jido_code/runtime_integration_test.exs
   - test/jido_code/governance/runtime_integration_bridge_test.exs
+  - test/jido_code/governance/runtime_evidence_bridge_test.exs
+  - test/jido_code/governance/runtime_evidence_feed_test.exs
+  - test/jido_code/governance/phase_eleven_integration_test.exs
   - test/jido_code/governance/phase_ten_integration_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
+  - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/run_detail_live_test.exs
+  - test/jido_code_web/live/phase_eleven_integration_test.exs
 ```
 
 ## Requirements
@@ -63,6 +75,11 @@ surface:
 - id: architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
   statement: Runtime-service rollout, denial, degraded-path, replay, and operator-review evidence that affects repository governance or operator trust shall be normalized into product observations, posture, evidence, or decision records instead of remaining UI-local transport knowledge only.
   priority: must
+  stability: evolving
+
+- id: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+  statement: Operator-facing dashboard, run-detail, and rollout surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state rather than exposing runtime topology or raw transport details.
+  priority: should
   stability: evolving
 
 - id: architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
@@ -112,6 +129,18 @@ surface:
     - That evidence changes operator trust, review posture, or execution decisions.
   then:
     - The product is expected to materialize the relevant runtime evidence into its governed control-plane records instead of treating runtime state as the durable source of truth.
+
+- id: architecture.runtime_service_overlay.scenario_operator_surfaces_explain_runtime_rollout_without_transport_leakage
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+  given:
+    - Governed runtime posture, replay recovery, or rollout evidence affects operator trust or review expectations.
+  when:
+    - An operator opens dashboard, workbench-adjacent summaries, or governed run detail.
+  then:
+    - The product presents runtime posture as bounded governance evidence using product-readable language and avoids leaking runtime-native topology or transport implementation details.
 
 - id: architecture.runtime_service_overlay.scenario_external_runtime_integration_composes_through_canonical_service
   covers:
@@ -173,6 +202,17 @@ surface:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 
 - kind: source_file
+  target: lib/jido_code/governance/runtime_evidence_bridge.ex
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+
+- kind: source_file
+  target: lib/jido_code/governance/runtime_evidence_feed.ex
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
   target: lib/jido_code/governance/runtime_integration_bridge.ex
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
@@ -200,9 +240,56 @@ surface:
     - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
 
 - kind: source_file
+  target: test/jido_code/governance/runtime_evidence_bridge_test.exs
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+
+- kind: source_file
+  target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+
+- kind: source_file
+  target: test/jido_code/governance/runtime_evidence_feed_test.exs
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eleven_integration_test.exs
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
   target: test/jido_code/governance/phase_ten_integration_test.exs
   covers:
     - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
     - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+
+- kind: source_file
+  target: test/jido_code_web/live/dashboard_live_test.exs
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_eleven_integration_test.exs
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
 ```

@@ -1,10 +1,15 @@
 defmodule JidoCodeWeb.DashboardLive do
+  # covers: package.jido_code.primary_implementation_repo
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+  # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+  # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Control.CompatibilityRollout
+  alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
 
   @onboarding_next_actions [
@@ -23,6 +28,12 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:run_summary_count, 0)
       |> assign(:run_summary_warning, nil)
       |> assign(:run_summary_last_refreshed_at, nil)
+      |> assign(:runtime_evidence_count, 0)
+      |> assign(:runtime_evidence_warning, nil)
+      |> assign(:runtime_evidence_last_refreshed_at, nil)
+      |> assign(:runtime_evidence_summary, nil)
+      |> stream_configure(:runtime_evidence_summaries, dom_id: &runtime_evidence_dom_id/1)
+      |> stream(:runtime_evidence_summaries, [], reset: true)
       |> assign(:compatibility_rollout_report, nil)
       |> assign(:compatibility_rollout_warning, nil)
       |> assign(:compatibility_rollout_backfill, nil)
@@ -30,6 +41,7 @@ defmodule JidoCodeWeb.DashboardLive do
       |> stream_configure(:run_summaries, dom_id: &run_summary_dom_id/1)
       |> stream(:run_summaries, [], reset: true)
       |> load_run_summaries()
+      |> load_runtime_evidence_summaries()
       |> load_compatibility_rollout_report()
       |> maybe_subscribe_run_events()
 
@@ -54,6 +66,11 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("refresh_runtime_evidence", _params, socket) do
+    {:noreply, load_runtime_evidence_summaries(socket)}
+  end
+
+  @impl true
   def handle_event("refresh_compatibility_rollout", _params, socket) do
     {:noreply, run_compatibility_backfill(socket)}
   end
@@ -66,7 +83,10 @@ defmodule JidoCodeWeb.DashboardLive do
       |> normalize_optional_string()
 
     if MapSet.member?(@run_events_for_refresh, event_name) do
-      {:noreply, load_run_summaries(socket)}
+      {:noreply,
+       socket
+       |> load_run_summaries()
+       |> load_runtime_evidence_summaries()}
     else
       {:noreply, socket}
     end
@@ -163,6 +183,115 @@ defmodule JidoCodeWeb.DashboardLive do
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section
+          id="dashboard-runtime-evidence"
+          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">Runtime posture</h2>
+              <p id="dashboard-runtime-evidence-summary" class="text-sm text-base-content/80">
+                {runtime_evidence_summary(@runtime_evidence_summary)}
+              </p>
+              <p id="dashboard-runtime-evidence-note" class="text-xs text-base-content/70">
+                Product records remain the source of truth; runtime posture only contributes bounded readiness and degraded-path evidence.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <p id="dashboard-runtime-evidence-last-refreshed" class="text-xs text-base-content/70">
+                Last refreshed: {summary_refreshed_label(@runtime_evidence_last_refreshed_at)}
+              </p>
+              <button
+                id="dashboard-runtime-evidence-refresh"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="refresh_runtime_evidence"
+              >
+                Refresh runtime posture
+              </button>
+            </div>
+          </div>
+
+          <section
+            :if={@runtime_evidence_warning}
+            id="dashboard-runtime-evidence-warning"
+            class="rounded-lg border border-warning/60 bg-warning/10 p-3 space-y-2"
+          >
+            <p id="dashboard-runtime-evidence-warning-label" class="font-semibold">
+              Runtime posture may be stale
+            </p>
+            <p id="dashboard-runtime-evidence-warning-type" class="text-sm">
+              Typed warning: {@runtime_evidence_warning.error_type}
+            </p>
+            <p id="dashboard-runtime-evidence-warning-detail" class="text-sm">
+              {@runtime_evidence_warning.detail}
+            </p>
+            <p id="dashboard-runtime-evidence-warning-remediation" class="text-sm">
+              {@runtime_evidence_warning.remediation}
+            </p>
+          </section>
+
+          <div :if={@runtime_evidence_summary} id="dashboard-runtime-evidence-counts" class="grid gap-3 md:grid-cols-3">
+            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
+              <p class="text-xs uppercase text-base-content/60">Blocked repos</p>
+              <p id="dashboard-runtime-evidence-count-blocked" class="mt-1 text-2xl font-semibold">
+                {Map.get(@runtime_evidence_summary, :blocked_count, 0)}
+              </p>
+            </div>
+            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
+              <p class="text-xs uppercase text-base-content/60">Review-required repos</p>
+              <p id="dashboard-runtime-evidence-count-degraded" class="mt-1 text-2xl font-semibold">
+                {Map.get(@runtime_evidence_summary, :degraded_count, 0)}
+              </p>
+            </div>
+            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
+              <p class="text-xs uppercase text-base-content/60">Stable repos</p>
+              <p id="dashboard-runtime-evidence-count-available" class="mt-1 text-2xl font-semibold">
+                {Map.get(@runtime_evidence_summary, :available_count, 0)}
+              </p>
+            </div>
+          </div>
+
+          <%= if @runtime_evidence_count == 0 do %>
+            <p id="dashboard-runtime-evidence-empty" class="text-sm text-base-content/70">
+              No runtime-service posture has been materialized yet.
+            </p>
+          <% else %>
+            <ol id="dashboard-runtime-evidence-list" class="space-y-2">
+              <li
+                :for={{dom_id, runtime_summary} <- @streams.runtime_evidence_summaries}
+                id={dom_id}
+                class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-sm font-medium">{runtime_summary.repo_label}</p>
+                  <span class={runtime_evidence_badge_class(runtime_summary.status)}>
+                    {runtime_evidence_status_label(runtime_summary.status)}
+                  </span>
+                  <span
+                    :if={runtime_summary.review_required}
+                    class="badge badge-warning badge-outline"
+                  >
+                    review required
+                  </span>
+                </div>
+                <p
+                  id={"dashboard-runtime-evidence-item-summary-#{run_summary_dom_token(runtime_summary.id)}"}
+                  class="text-xs text-base-content/80"
+                >
+                  {runtime_summary.summary}
+                </p>
+                <p
+                  id={"dashboard-runtime-evidence-item-details-#{run_summary_dom_token(runtime_summary.id)}"}
+                  class="text-xs text-base-content/70"
+                >
+                  {runtime_evidence_details(runtime_summary)}
+                </p>
+              </li>
+            </ol>
+          <% end %>
         </section>
 
         <section
@@ -407,6 +536,10 @@ defmodule JidoCodeWeb.DashboardLive do
     "dashboard-run-summary-#{run_summary_dom_token(run_summary.id)}"
   end
 
+  defp runtime_evidence_dom_id(runtime_summary) do
+    "dashboard-runtime-evidence-#{run_summary_dom_token(runtime_summary.id)}"
+  end
+
   defp run_summary_dom_token(value) do
     value
     |> normalize_optional_string()
@@ -432,6 +565,11 @@ defmodule JidoCodeWeb.DashboardLive do
   defp compatibility_status_badge_class("pending"), do: "badge badge-outline"
   defp compatibility_status_badge_class(_status), do: "badge badge-outline"
 
+  defp runtime_evidence_badge_class("blocked"), do: "badge badge-error"
+  defp runtime_evidence_badge_class("degraded"), do: "badge badge-warning"
+  defp runtime_evidence_badge_class("available"), do: "badge badge-success"
+  defp runtime_evidence_badge_class(_status), do: "badge badge-outline"
+
   defp compatibility_status_label(status) do
     case normalize_optional_string(status) do
       "ready_to_retire" -> "ready to retire"
@@ -439,6 +577,16 @@ defmodule JidoCodeWeb.DashboardLive do
       "coexistence_active" -> "coexistence active"
       "pending" -> "pending"
       "ready" -> "ready"
+      nil -> "unknown"
+      other -> other
+    end
+  end
+
+  defp runtime_evidence_status_label(status) do
+    case normalize_optional_string(status) do
+      "blocked" -> "blocked"
+      "degraded" -> "review required"
+      "available" -> "stable"
       nil -> "unknown"
       other -> other
     end
@@ -496,6 +644,67 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   defp compatibility_summary(_report), do: "Compatibility rollout status is unavailable."
+
+  defp runtime_evidence_summary(%{} = summary) do
+    "Runtime posture tracks #{Map.get(summary, :total_count, 0)} repo(s): #{Map.get(summary, :blocked_count, 0)} blocked, #{Map.get(summary, :degraded_count, 0)} review-required, #{Map.get(summary, :available_count, 0)} stable."
+  end
+
+  defp runtime_evidence_summary(_summary),
+    do: "Runtime posture status is unavailable."
+
+  defp runtime_evidence_details(runtime_summary) do
+    [
+      runtime_summary.delivery_mode && "Delivery: #{humanize_runtime_value(runtime_summary.delivery_mode)}",
+      runtime_summary.reason_code && "Reason: #{humanize_runtime_value(runtime_summary.reason_code)}",
+      runtime_summary.latest_provider && "Latest provider: #{runtime_summary.latest_provider}",
+      runtime_summary.supervision_mode && "Supervision: #{runtime_summary.supervision_mode}"
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> "No additional runtime posture details."
+      parts -> Enum.join(parts, " · ")
+    end
+  end
+
+  defp load_runtime_evidence_summaries(socket) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    case RuntimeEvidenceFeed.load() do
+      {:ok, summaries, warning} ->
+        socket
+        |> assign(:runtime_evidence_count, length(summaries))
+        |> assign(:runtime_evidence_warning, warning)
+        |> assign(:runtime_evidence_last_refreshed_at, now)
+        |> assign(:runtime_evidence_summary, summarize_runtime_evidence(summaries))
+        |> stream(:runtime_evidence_summaries, summaries, reset: true)
+
+      {:error, warning} ->
+        socket
+        |> assign(:runtime_evidence_count, 0)
+        |> assign(:runtime_evidence_warning, warning)
+        |> assign(:runtime_evidence_last_refreshed_at, now)
+        |> assign(:runtime_evidence_summary, nil)
+        |> stream(:runtime_evidence_summaries, [], reset: true)
+    end
+  end
+
+  defp summarize_runtime_evidence(summaries) when is_list(summaries) do
+    %{
+      total_count: length(summaries),
+      blocked_count: Enum.count(summaries, &(&1.status == "blocked")),
+      degraded_count: Enum.count(summaries, &(&1.status == "degraded")),
+      available_count: Enum.count(summaries, &(&1.status == "available"))
+    }
+  end
+
+  defp humanize_runtime_value(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> "unknown"
+      normalized -> normalized |> String.replace("_", " ")
+    end
+  end
 
   defp compatibility_count(report, key) when is_map(report) do
     report

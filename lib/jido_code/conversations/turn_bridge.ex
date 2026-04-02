@@ -3,6 +3,7 @@ defmodule JidoCode.Conversations.TurnBridge do
   # covers: architecture.conversation_driver.replay_bridge_drives_subscriber_updates
   # covers: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
   # covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+  # covers: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
   # covers: architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
   # covers: architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
   @moduledoc """
@@ -25,13 +26,23 @@ defmodule JidoCode.Conversations.TurnBridge do
   @type bridge_state :: %{
           after_event_id: String.t() | nil,
           live_subscription_id: String.t() | nil,
-          terminal_event_seen?: boolean()
+          terminal_event_seen?: boolean(),
+          delivery_mode: String.t() | nil,
+          live_delivery_status: String.t() | nil,
+          reason_code: String.t() | nil
         }
 
   @spec start(map()) :: {:ok, pid()} | {:error, term()}
   def start(%{} = attrs) do
     Task.Supervisor.start_child(task_supervisor(), fn ->
-      run(attrs, %{after_event_id: nil, live_subscription_id: nil, terminal_event_seen?: false})
+      run(attrs, %{
+        after_event_id: nil,
+        live_subscription_id: nil,
+        terminal_event_seen?: false,
+        delivery_mode: nil,
+        live_delivery_status: nil,
+        reason_code: nil
+      })
     end)
   end
 
@@ -66,7 +77,7 @@ defmodule JidoCode.Conversations.TurnBridge do
         end
     after
       live_receive_timeout_ms() ->
-        replay_until_terminal(attrs, state, 0)
+        replay_until_terminal(attrs, replay_recovery_state(state, "live_delivery_timeout"), 0)
     end
   end
 
@@ -89,7 +100,7 @@ defmodule JidoCode.Conversations.TurnBridge do
           finalize_terminal_handoff(attrs, state, envelope)
 
         "detached" ->
-          {:fallback, state}
+          {:fallback, replay_recovery_state(state, "live_delivery_detached")}
 
         _other ->
           {:continue, state}
@@ -115,7 +126,14 @@ defmodule JidoCode.Conversations.TurnBridge do
         case get_turn(attrs) do
           {:ok, turn} ->
             dispatch_terminal_handoff_event(attrs, next_state, turn, terminal_handoff)
-            materialize_terminal_turn(attrs, turn, full_turn_events(attrs))
+
+            materialize_terminal_turn(
+              attrs,
+              turn,
+              full_turn_events(attrs),
+              runtime_delivery(attrs, next_state, terminal_handoff)
+            )
+
             best_effort_unsubscribe(attrs, next_state)
             {:stop, next_state}
 
@@ -156,7 +174,21 @@ defmodule JidoCode.Conversations.TurnBridge do
                   }
                 )
 
-                materialize_terminal_turn(attrs, turn, full_turn_events(attrs))
+                materialize_terminal_turn(
+                  attrs,
+                  turn,
+                  full_turn_events(attrs),
+                  runtime_delivery(
+                    attrs,
+                    next_state,
+                    %{
+                      kind: "replay_terminal_lookup",
+                      terminal_state: turn_state(turn),
+                      terminal_event_id: next_state.after_event_id
+                    }
+                  )
+                )
+
                 best_effort_unsubscribe(attrs, next_state)
                 :ok
 
@@ -285,7 +317,7 @@ defmodule JidoCode.Conversations.TurnBridge do
     end
   end
 
-  defp materialize_terminal_turn(attrs, turn, events) do
+  defp materialize_terminal_turn(attrs, turn, events, runtime_delivery) do
     work_item_id = nested_get(attrs, [:ingress, :work_item, :id])
 
     if is_binary(work_item_id) do
@@ -311,7 +343,8 @@ defmodule JidoCode.Conversations.TurnBridge do
         turn: turn,
         review: review,
         artifacts: artifacts,
-        events: events
+        events: events,
+        runtime_delivery: runtime_delivery
       }
 
       case run_bridge_module().materialize_turn(materialization_attrs) do
@@ -335,14 +368,32 @@ defmodule JidoCode.Conversations.TurnBridge do
     %{
       state
       | live_subscription_id: map_get(ack, :subscription_id, "subscription_id"),
-        after_event_id: map_get(ack, :resume_after_event_id, "resume_after_event_id") || state.after_event_id
+        after_event_id: map_get(ack, :resume_after_event_id, "resume_after_event_id") || state.after_event_id,
+        live_delivery_status: map_get(ack, :delivery_status, "delivery_status"),
+        reason_code: map_get(ack, :reason_code, "reason_code"),
+        delivery_mode:
+          delivery_mode_for_ack(
+            map_get(ack, :delivery_status, "delivery_status"),
+            state.delivery_mode
+          )
     }
   end
 
   defp fallback_state(state, ack) when is_map(ack) do
     %{
       state
-      | after_event_id: map_get(ack, :replay_after_event_id, "replay_after_event_id") || state.after_event_id
+      | after_event_id: map_get(ack, :replay_after_event_id, "replay_after_event_id") || state.after_event_id,
+        delivery_mode: "replay_fallback",
+        reason_code: map_get(ack, :reason_code, "reason_code") || state.reason_code
+    }
+  end
+
+  defp replay_recovery_state(state, reason_code) do
+    %{
+      state
+      | delivery_mode:
+          if(state.delivery_mode in [nil, "live_subscription"], do: "replay_recovery", else: state.delivery_mode),
+        reason_code: state.reason_code || reason_code
     }
   end
 
@@ -359,6 +410,73 @@ defmodule JidoCode.Conversations.TurnBridge do
     family = Map.get(event, :family) || Map.get(event, "family")
     family in @terminal_families
   end
+
+  defp runtime_delivery(attrs, state, terminal_handoff) do
+    terminal_handoff_kind =
+      normalize_optional_string(Map.get(terminal_handoff, :kind) || Map.get(terminal_handoff, "kind"))
+
+    terminal_state =
+      normalize_optional_string(
+        Map.get(terminal_handoff, :terminal_state) || Map.get(terminal_handoff, "terminal_state")
+      )
+
+    delivery_mode =
+      cond do
+        is_binary(state.delivery_mode) ->
+          state.delivery_mode
+
+        terminal_handoff_kind == "replay_terminal_lookup" ->
+          "replay_recovery"
+
+        true ->
+          "live_subscription"
+      end
+
+    %{
+      "delivery_mode" => delivery_mode,
+      "live_delivery_status" => state.live_delivery_status || "subscribed",
+      "reason_code" => state.reason_code,
+      "terminal_handoff_kind" => terminal_handoff_kind,
+      "terminal_state" => terminal_state,
+      "turn_id" => nested_get(attrs, [:turn, :turn_id]),
+      "session_id" => get_in(attrs, [:context, :session_id]),
+      "conversation_id" => attrs.conversation_id,
+      "work_item_id" => nested_get(attrs, [:ingress, :work_item, :id]),
+      "request_id" => get_in(attrs, [:context, :request_id]),
+      "correlation_id" => get_in(attrs, [:context, :correlation_id]),
+      "summary" => runtime_delivery_summary(delivery_mode, state.reason_code, terminal_handoff_kind)
+    }
+    |> compact_nil_values()
+  end
+
+  defp runtime_delivery_summary("replay_fallback", "rollout_withheld", _terminal_handoff_kind) do
+    "Coding turn delivery fell back to replay because live rollout was withheld."
+  end
+
+  defp runtime_delivery_summary("replay_fallback", reason_code, _terminal_handoff_kind)
+       when is_binary(reason_code) do
+    "Coding turn delivery fell back to replay because #{reason_code}."
+  end
+
+  defp runtime_delivery_summary("replay_recovery", _reason_code, "replay_terminal_lookup") do
+    "Coding turn delivery repaired completion through replay recovery."
+  end
+
+  defp runtime_delivery_summary("replay_recovery", _reason_code, _terminal_handoff_kind) do
+    "Coding turn delivery repaired from live stream loss through replay recovery."
+  end
+
+  defp runtime_delivery_summary("live_subscription", _reason_code, _terminal_handoff_kind) do
+    "Coding turn delivery completed through live runtime delivery."
+  end
+
+  defp runtime_delivery_summary(_delivery_mode, _reason_code, _terminal_handoff_kind) do
+    "Coding turn runtime delivery was recorded."
+  end
+
+  defp delivery_mode_for_ack("subscribed", _current_mode), do: "live_subscription"
+  defp delivery_mode_for_ack(status, _current_mode) when status in @fallback_delivery_statuses, do: "replay_fallback"
+  defp delivery_mode_for_ack(_status, current_mode), do: current_mode
 
   defp turn_state(turn) do
     Map.get(turn, :state) || Map.get(turn, "state")

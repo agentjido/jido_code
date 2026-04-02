@@ -10,9 +10,11 @@ summary: "Jido.Code uses three interlocking policy layers: repository governance
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/control/actor.ex
   - lib/jido_code/control/checks/actor_class_in.ex
@@ -164,6 +166,11 @@ surface:
     - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
 
 - kind: source_file
+  target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
+  covers:
+    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
+
+- kind: source_file
   target: lib/jido_code/conversations/policy.ex
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
@@ -264,6 +271,16 @@ surface:
 
 - kind: source_file
   target: test/jido_code/conversations/phase_seven_integration_test.exs
+  covers:
+    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
+
+- kind: source_file
+  target: lib/jido_code/governance/run_governance_bridge.ex
+  covers:
+    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
+
+- kind: source_file
+  target: test/jido_code/governance/run_governance_bridge_test.exs
   covers:
     - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
 

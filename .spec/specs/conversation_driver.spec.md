@@ -15,6 +15,7 @@ decisions:
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_session_turn_runtime
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
@@ -22,6 +23,7 @@ surface:
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/conversations/ingress.ex

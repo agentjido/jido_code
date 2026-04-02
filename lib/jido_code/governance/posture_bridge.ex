@@ -5,6 +5,7 @@ defmodule JidoCode.Governance.PostureBridge do
   # covers: architecture.repo_posture.supervision_modes_are_explicit_and_reversible
   # covers: architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
   # covers: architecture.repo_posture.runtime_capability_observations_can_inform_posture
+  # covers: architecture.repo_posture.governed_turn_evidence_can_inform_posture
   # covers: architecture.vsm_recursion.algedonic_escalation
   @moduledoc """
   Projects explainable repo posture records from repo-native state, assessments,
@@ -12,7 +13,16 @@ defmodule JidoCode.Governance.PostureBridge do
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.{Evidence, PolicyBridge, PostureCheck, RepoPosture, RuntimeCapabilityBridge}
+
+  alias JidoCode.Governance.{
+    Evidence,
+    PolicyBridge,
+    PostureCheck,
+    RepoPosture,
+    RuntimeCapabilityBridge,
+    RuntimeEvidenceBridge
+  }
+
   alias JidoCode.Operations.{Assessment, Observation, RepoNativeState}
 
   @actor Actor.factory_system_actor(%{"id" => "system:repo-posture", "email" => "repo-posture@system.local"})
@@ -35,8 +45,21 @@ defmodule JidoCode.Governance.PostureBridge do
     with true <- is_binary(managed_repo_id) or {:error, :missing_managed_repo_id},
          {:ok, repo_native_state} <- RepoNativeState.latest_signal_snapshot(managed_repo_id),
          {:ok, runtime_capability_signal} <- RuntimeCapabilityBridge.sync_managed_repo(managed_repo),
+         {:ok, runtime_evidence_signal} <-
+           RuntimeEvidenceBridge.sync_managed_repo(
+             managed_repo,
+             runtime_capability_observation: runtime_capability_signal.observation,
+             runtime_capability_state: runtime_capability_signal.capability_posture
+           ),
          {:ok, review_policy} <- PolicyBridge.configured_review_policy_for_managed_repo(managed_repo_id),
-         context <- posture_context(managed_repo, repo_native_state, runtime_capability_signal, review_policy),
+         context <-
+           posture_context(
+             managed_repo,
+             repo_native_state,
+             runtime_capability_signal,
+             runtime_evidence_signal,
+             review_policy
+           ),
          {:ok, repo_posture} <- upsert_repo_posture(context, []),
          {:ok, posture_checks} <- sync_posture_checks(repo_posture, context),
          {:ok, repo_posture} <- upsert_repo_posture(context, posture_checks) do
@@ -103,26 +126,41 @@ defmodule JidoCode.Governance.PostureBridge do
           "review_policy" => context.review_policy,
           "runtime_capability_state" => context.runtime_capability_state,
           "runtime_capability_summary" => RuntimeCapabilityBridge.operator_summary(context.runtime_capability_state),
+          "runtime_service_evidence_state" => context.runtime_service_evidence_state,
+          "runtime_service_evidence_summary" =>
+            RuntimeEvidenceBridge.operator_summary(context.runtime_service_evidence_state),
           "supervision_state" => context.supervision_state,
           "latest_observation_ids" => %{
             "spec_led" => context.spec_observation && context.spec_observation.id,
             "beadwork" => context.beadwork_observation && context.beadwork_observation.id,
-            "runtime_capability" => context.runtime_capability_observation && context.runtime_capability_observation.id
+            "runtime_capability" => context.runtime_capability_observation && context.runtime_capability_observation.id,
+            "runtime_service_evidence" =>
+              context.runtime_service_evidence_observation && context.runtime_service_evidence_observation.id
           },
           "latest_assessment_id" => context.latest_assessment && context.latest_assessment.id,
-          "latest_failure_evidence_id" => context.latest_failure_evidence && context.latest_failure_evidence.id
+          "latest_failure_evidence_id" => context.latest_failure_evidence && context.latest_failure_evidence.id,
+          "latest_runtime_delivery_evidence_id" =>
+            get_in(context.runtime_service_evidence_state, ["latest_refs", "runtime_delivery_evidence_id"])
         }
       },
       actor: @actor
     )
   end
 
-  defp posture_context(managed_repo, repo_native_state, runtime_capability_signal, review_policy) do
+  defp posture_context(
+         managed_repo,
+         repo_native_state,
+         runtime_capability_signal,
+         runtime_evidence_signal,
+         review_policy
+       ) do
     managed_repo_id = map_get(managed_repo, :id, "id")
     spec_observation = latest_repo_native_observation(managed_repo_id, "spec_led_state")
     beadwork_observation = latest_repo_native_observation(managed_repo_id, "beadwork_state")
     runtime_capability_observation = runtime_capability_signal.observation
     runtime_capability_state = normalize_map(runtime_capability_signal.capability_posture)
+    runtime_service_evidence_observation = runtime_evidence_signal.observation
+    runtime_service_evidence_state = normalize_map(runtime_evidence_signal.runtime_evidence)
     latest_assessment = latest_assessment(managed_repo_id)
     latest_failure_evidence = latest_failure_evidence(managed_repo_id)
 
@@ -131,7 +169,7 @@ defmodule JidoCode.Governance.PostureBridge do
       "validation_reliability" => validation_reliability(repo_native_state),
       "review_burden" => review_burden(review_policy, runtime_capability_state),
       "drift_rate" => drift_rate(repo_native_state),
-      "recovery_resilience" => recovery_resilience(latest_failure_evidence),
+      "recovery_resilience" => recovery_resilience(latest_failure_evidence, runtime_service_evidence_state),
       "requirements_confidence" => requirements_confidence(repo_native_state, latest_assessment)
     }
 
@@ -154,6 +192,8 @@ defmodule JidoCode.Governance.PostureBridge do
       beadwork_observation: beadwork_observation,
       runtime_capability_observation: runtime_capability_observation,
       runtime_capability_state: runtime_capability_state,
+      runtime_service_evidence_observation: runtime_service_evidence_observation,
+      runtime_service_evidence_state: runtime_service_evidence_state,
       latest_assessment: latest_assessment,
       latest_failure_evidence: latest_failure_evidence,
       dimensions: dimensions,
@@ -168,6 +208,8 @@ defmodule JidoCode.Governance.PostureBridge do
           beadwork_observation,
           runtime_capability_observation,
           runtime_capability_state,
+          runtime_service_evidence_observation,
+          runtime_service_evidence_state,
           latest_assessment,
           latest_failure_evidence,
           dimensions,
@@ -185,6 +227,8 @@ defmodule JidoCode.Governance.PostureBridge do
          beadwork_observation,
          runtime_capability_observation,
          runtime_capability_state,
+         runtime_service_evidence_observation,
+         runtime_service_evidence_state,
          latest_assessment,
          latest_failure_evidence,
          dimensions,
@@ -211,7 +255,8 @@ defmodule JidoCode.Governance.PostureBridge do
         details: %{
           "workspace_settings" => workspace_settings,
           "spec_status" => get_in(repo_native_state, ["spec_led", "status"]),
-          "runtime_capability_state" => runtime_capability_state
+          "runtime_capability_state" => runtime_capability_state,
+          "runtime_service_evidence_state" => runtime_service_evidence_state
         },
         source: execution_readiness_source(runtime_capability_state)
       },
@@ -264,14 +309,27 @@ defmodule JidoCode.Governance.PostureBridge do
         value: Map.fetch!(dimensions, "recovery_resilience"),
         summary:
           "Recovery resilience is #{Map.fetch!(dimensions, "recovery_resilience")} based on recent governed run evidence.",
+        observation_id:
+          runtime_service_evidence_observation_id(
+            runtime_service_evidence_state,
+            runtime_service_evidence_observation
+          ),
         details:
-          (latest_failure_evidence &&
-             %{
-               "evidence_type" => latest_failure_evidence.evidence_type,
-               "summary" => latest_failure_evidence.summary,
-               "details" => latest_failure_evidence.evidence_details
-             }) || %{},
-        source: "governance.evidence"
+          %{}
+          |> maybe_put(
+            "failure_evidence",
+            latest_failure_evidence &&
+              %{
+                "evidence_type" => latest_failure_evidence.evidence_type,
+                "summary" => latest_failure_evidence.summary,
+                "details" => latest_failure_evidence.evidence_details
+              }
+          )
+          |> maybe_put(
+            "runtime_service_evidence",
+            if(runtime_service_evidence_state == %{}, do: nil, else: runtime_service_evidence_state)
+          ),
+        source: recovery_resilience_source(runtime_service_evidence_state, latest_failure_evidence)
       },
       %{
         managed_repo_id: managed_repo_id,
@@ -368,8 +426,18 @@ defmodule JidoCode.Governance.PostureBridge do
     end
   end
 
-  defp recovery_resilience(nil), do: "high"
-  defp recovery_resilience(_failure_evidence), do: "low"
+  defp recovery_resilience(failure_evidence, runtime_service_evidence_state) do
+    cond do
+      not is_nil(failure_evidence) ->
+        "low"
+
+      runtime_service_evidence_state_impacts_recovery?(runtime_service_evidence_state) ->
+        runtime_service_evidence_recovery_level(runtime_service_evidence_state)
+
+      true ->
+        "high"
+    end
+  end
 
   defp requirements_confidence(repo_native_state, latest_assessment) do
     spec_status = get_in(repo_native_state, ["spec_led", "status"])
@@ -553,6 +621,42 @@ defmodule JidoCode.Governance.PostureBridge do
     end
   end
 
+  defp runtime_service_evidence_observation_id(runtime_service_evidence_state, runtime_service_evidence_observation) do
+    if runtime_service_evidence_state_impacts_recovery?(runtime_service_evidence_state) do
+      runtime_service_evidence_observation && runtime_service_evidence_observation.id
+    end
+  end
+
+  defp runtime_service_evidence_state_impacts_recovery?(runtime_service_evidence_state) do
+    status = Map.get(runtime_service_evidence_state, "status")
+    delivery_mode = get_in(runtime_service_evidence_state, ["runtime_delivery", "delivery_mode"])
+    terminal_handoff_kind = get_in(runtime_service_evidence_state, ["runtime_delivery", "terminal_handoff_kind"])
+
+    status in ["blocked", "degraded"] or
+      delivery_mode in ["replay_fallback", "replay_recovery"] or
+      terminal_handoff_kind == "replay_terminal_lookup"
+  end
+
+  defp runtime_service_evidence_recovery_level(runtime_service_evidence_state) do
+    case Map.get(runtime_service_evidence_state, "status") do
+      "blocked" -> "low"
+      _other -> "medium"
+    end
+  end
+
+  defp recovery_resilience_source(runtime_service_evidence_state, failure_evidence) do
+    cond do
+      not is_nil(failure_evidence) ->
+        "governance.evidence"
+
+      runtime_service_evidence_state_impacts_recovery?(runtime_service_evidence_state) ->
+        "governance.evidence+runtime_service"
+
+      true ->
+        "governance.evidence"
+    end
+  end
+
   defp latest_repo_native_observation(managed_repo_id, category) do
     case Observation.read(
            query: [
@@ -609,6 +713,9 @@ defmodule JidoCode.Governance.PostureBridge do
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(value), do: not is_nil(value)
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 

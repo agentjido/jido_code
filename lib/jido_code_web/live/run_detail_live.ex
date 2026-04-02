@@ -1,10 +1,13 @@
 defmodule JidoCodeWeb.RunDetailLive do
+  # covers: package.jido_code.primary_implementation_repo
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+  # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Control.{Actor, RepoBridge}
-  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
+  alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
   alias JidoCode.Orchestration.{Run, RunBridge, RunPubSub, WorkflowRun}
 
   @run_events_for_refresh MapSet.new([
@@ -249,6 +252,52 @@ defmodule JidoCodeWeb.RunDetailLive do
                     </p>
                   </li>
                 </ol>
+              <% end %>
+            </section>
+
+            <section id="run-detail-runtime-evidence" class="space-y-2">
+              <p class="text-sm font-medium">Runtime evidence</p>
+
+              <%= if @runtime_evidence_summary do %>
+                <div class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1">
+                  <p id="run-detail-runtime-evidence-status" class="text-sm">
+                    Runtime posture:
+                    <span class={runtime_evidence_badge_class(@runtime_evidence_summary.status)}>
+                      {runtime_evidence_status_label(@runtime_evidence_summary.status)}
+                    </span>
+                  </p>
+                  <p id="run-detail-runtime-evidence-summary" class="text-xs text-base-content/80">
+                    {@runtime_evidence_summary.summary}
+                  </p>
+                  <p
+                    :if={@runtime_evidence_summary.delivery_mode}
+                    id="run-detail-runtime-evidence-delivery-mode"
+                    class="text-xs text-base-content/80"
+                  >
+                    Delivery path: {humanize_runtime_value(@runtime_evidence_summary.delivery_mode)}
+                  </p>
+                  <p
+                    :if={@runtime_evidence_summary.reason_code}
+                    id="run-detail-runtime-evidence-reason"
+                    class="text-xs text-base-content/80"
+                  >
+                    Runtime reason: {humanize_runtime_value(@runtime_evidence_summary.reason_code)}
+                  </p>
+                  <p
+                    :if={@runtime_evidence_summary.integration_summary}
+                    id="run-detail-runtime-evidence-integration"
+                    class="text-xs text-base-content/80"
+                  >
+                    Latest integration signal: {@runtime_evidence_summary.integration_summary}
+                  </p>
+                  <p id="run-detail-runtime-evidence-note" class="text-xs text-base-content/70">
+                    Product governance stores bounded runtime evidence here; runtime transport remains opaque.
+                  </p>
+                </div>
+              <% else %>
+                <p id="run-detail-runtime-evidence-empty" class="text-xs text-base-content/70">
+                  No bounded runtime evidence has been materialized for this run yet.
+                </p>
               <% end %>
             </section>
 
@@ -725,6 +774,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:issue_triage_artifacts, nil)
     |> assign(:approval_context, nil)
     |> assign(:approval_context_blocker, nil)
+    |> assign(:runtime_evidence_summary, nil)
     |> assign(:step_retry_state, step_retry_state(nil))
     |> assign(:approval_action_error, nil)
     |> assign(:retry_action_error, nil)
@@ -745,7 +795,8 @@ defmodule JidoCodeWeb.RunDetailLive do
            workflow_run: workflow_run,
            evidence_records: evidence_records,
            change_request: change_request,
-           decisions: decisions
+           decisions: decisions,
+           repo_posture: repo_posture
          }
        ) do
     socket
@@ -754,6 +805,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:evidence_records, evidence_records)
     |> assign(:change_request, change_request)
     |> assign(:decisions, decisions)
+    |> assign(:runtime_evidence_summary, runtime_evidence_summary(run || workflow_run, evidence_records, repo_posture))
     |> assign(:timeline_entries, timeline_entries(workflow_run))
     |> assign(:retry_lineage_entries, retry_lineage_entries(workflow_run))
     |> assign(:artifact_categories, artifact_categories(workflow_run))
@@ -781,7 +833,8 @@ defmodule JidoCodeWeb.RunDetailLive do
          workflow_run: workflow_run,
          evidence_records: load_evidence_records(run),
          change_request: load_change_request(run),
-         decisions: load_decisions(run)
+         decisions: load_decisions(run),
+         repo_posture: load_repo_posture(run)
        }}
     else
       {:error, :governed_run_not_found} ->
@@ -855,7 +908,8 @@ defmodule JidoCodeWeb.RunDetailLive do
                workflow_run: workflow_run,
                evidence_records: load_evidence_records(run),
                change_request: load_change_request(run),
-               decisions: load_decisions(run)
+               decisions: load_decisions(run),
+               repo_posture: load_repo_posture(run)
              }}
 
           _other ->
@@ -865,7 +919,8 @@ defmodule JidoCodeWeb.RunDetailLive do
                workflow_run: workflow_run,
                evidence_records: [],
                change_request: nil,
-               decisions: []
+               decisions: [],
+               repo_posture: nil
              }}
         end
 
@@ -909,6 +964,24 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_decisions(_run), do: []
+
+  defp load_repo_posture(%Run{} = run) do
+    managed_repo_id =
+      run
+      |> map_get(:managed_repo_id, "managed_repo_id")
+      |> normalize_optional_string()
+
+    if is_nil(managed_repo_id) do
+      nil
+    else
+      case RepoPosture.get_by_managed_repo_id(managed_repo_id, actor: Actor.operator_actor()) do
+        {:ok, %RepoPosture{} = repo_posture} -> repo_posture
+        _other -> nil
+      end
+    end
+  end
+
+  defp load_repo_posture(_run), do: nil
 
   defp maybe_subscribe_run_events(socket) do
     run_id =
@@ -1204,6 +1277,89 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp issue_triage_artifacts(_run), do: nil
+
+  defp runtime_evidence_summary(run, evidence_records, %RepoPosture{} = repo_posture) do
+    posture_metadata = normalize_map(repo_posture.posture_metadata)
+
+    runtime_state =
+      posture_metadata
+      |> Map.get("runtime_service_evidence_state", posture_metadata["runtime_capability_state"] || %{})
+      |> normalize_map()
+
+    runtime_delivery_evidence =
+      evidence_records
+      |> List.wrap()
+      |> Enum.find(&((Map.get(&1, :key) || Map.get(&1, "key")) == "runtime_service_delivery"))
+
+    runtime_delivery =
+      runtime_delivery_evidence
+      |> map_get(:evidence_details, "evidence_details", %{})
+      |> normalize_map()
+
+    latest_invocation =
+      runtime_state
+      |> get_in(["integration_outcomes", "latest_invocation"])
+      |> normalize_map()
+
+    summary =
+      posture_metadata["runtime_service_evidence_summary"] ||
+        posture_metadata["runtime_capability_summary"] ||
+        Map.get(runtime_delivery_evidence || %{}, :summary) ||
+        Map.get(run, :summary)
+
+    if is_binary(summary) and String.trim(summary) != "" do
+      %{
+        status:
+          Map.get(runtime_state, "status") ||
+            posture_metadata
+            |> Map.get("runtime_capability_state", %{})
+            |> normalize_map()
+            |> Map.get("status") || "absent",
+        summary: summary,
+        delivery_mode:
+          Map.get(runtime_delivery, "delivery_mode") ||
+            get_in(runtime_state, ["runtime_delivery", "delivery_mode"]),
+        reason_code:
+          Map.get(runtime_delivery, "reason_code") ||
+            get_in(runtime_state, ["runtime_delivery", "reason_code"]),
+        integration_summary:
+          Map.get(latest_invocation, "summary") ||
+            case {Map.get(latest_invocation, "provider"), Map.get(latest_invocation, "operation_id")} do
+              {provider, operation_id} when is_binary(provider) and is_binary(operation_id) ->
+                "#{provider}:#{operation_id}"
+
+              _other ->
+                nil
+            end
+      }
+    end
+  end
+
+  defp runtime_evidence_summary(_run, _evidence_records, _repo_posture), do: nil
+
+  defp runtime_evidence_badge_class("blocked"), do: "badge badge-error"
+  defp runtime_evidence_badge_class("degraded"), do: "badge badge-warning"
+  defp runtime_evidence_badge_class("available"), do: "badge badge-success"
+  defp runtime_evidence_badge_class(_status), do: "badge badge-outline"
+
+  defp runtime_evidence_status_label(status) do
+    case normalize_optional_string(status) do
+      "blocked" -> "blocked"
+      "degraded" -> "review required"
+      "available" -> "stable"
+      nil -> "unknown"
+      other -> other
+    end
+  end
+
+  defp humanize_runtime_value(value) do
+    value
+    |> normalize_optional_string()
+    |> case do
+      nil -> "unknown"
+      normalized -> normalized |> String.replace("_", " ")
+    end
+  end
 
   defp default_artifact_categories do
     Enum.map(@artifact_categories, fn category ->

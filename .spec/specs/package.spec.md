@@ -13,6 +13,7 @@ decisions:
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - AGENTS.md
@@ -106,6 +107,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/planning/phase-11-runtime-evidence-posture-and-rollout-convergence.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: .spec/specs/demand_ingress.spec.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -176,6 +182,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: test/jido_code/control/repo_bridge_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
@@ -207,6 +218,26 @@ surface:
 
 - kind: source_file
   target: test/jido_code/governance/runtime_integration_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: lib/jido_code/governance/runtime_evidence_bridge.ex
+  covers:
+    - package.jido_code.primary_implementation_repo
+
+- kind: source_file
+  target: test/jido_code/governance/runtime_evidence_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/governance/run_governance_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/governance/posture_bridge_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

@@ -1,5 +1,7 @@
 # Phase 11 - Runtime Evidence, Posture, and Rollout Convergence
 
+<!-- covers: package.jido_code.spec_led_workspace -->
+
 Back to index: [README](./README.md)
 
 ## Relevant Shared APIs / Interfaces
@@ -22,22 +24,22 @@ Back to index: [README](./README.md)
 [ ] 11 Phase 11 - Runtime Evidence, Posture, and Rollout Convergence
   Converge coding and integration runtime evidence into product-owned posture, evidence, and operator surfaces so runtime-service rollout, denial, degraded behavior, and operator review become governed factory inputs instead of scattered operational trivia.
 
-  [ ] 11.1 Section - Runtime Evidence Materialization
+  [x] 11.1 Section - Runtime Evidence Materialization
     Capture the runtime-service facts that matter to governance and make them durable product evidence rather than transient UI state.
 
-    [ ] 11.1.1 Task - Materialize runtime-service rollout and degraded-path evidence
+    [x] 11.1.1 Task - Materialize runtime-service rollout and degraded-path evidence
       Make runtime capability state legible to the factory in the same durable evidence model used for runs, review, and decisions.
 
-      [ ] 11.1.1.1 Subtask - Normalize rollout, denial, degraded-path, and detached-path runtime evidence from coding and integration gateways into product evidence or observation records.
-      [ ] 11.1.1.2 Subtask - Preserve joinable actor, repo, work-item, run, session, turn, and provider references where they affect governance review.
-      [ ] 11.1.1.3 Subtask - Keep provider-neutral runtime evidence bounded and product-readable without exposing raw runtime-native transport payloads.
+      [x] 11.1.1.1 Subtask - Normalize rollout, denial, degraded-path, and detached-path runtime evidence from coding and integration gateways into product evidence or observation records.
+      [x] 11.1.1.2 Subtask - Preserve joinable actor, repo, work-item, run, session, turn, and provider references where they affect governance review.
+      [x] 11.1.1.3 Subtask - Keep provider-neutral runtime evidence bounded and product-readable without exposing raw runtime-native transport payloads.
 
-    [ ] 11.1.2 Task - Connect runtime evidence to posture and decision-making
+    [x] 11.1.2 Task - Connect runtime evidence to posture and decision-making
       Ensure runtime-service quality and rollout state can actually influence how the factory supervises and approves work.
 
-      [ ] 11.1.2.1 Subtask - Feed runtime-service evidence into posture, trust, or approval heuristics where appropriate.
-      [ ] 11.1.2.2 Subtask - Preserve explicit separation between product review decisions and runtime admission or rollout authority.
-      [ ] 11.1.2.3 Subtask - Keep `Jido.Runic` and governed `Run` records as the execution authority even when runtime evidence becomes richer.
+      [x] 11.1.2.1 Subtask - Feed runtime-service evidence into posture, trust, or approval heuristics where appropriate.
+      [x] 11.1.2.2 Subtask - Preserve explicit separation between product review decisions and runtime admission or rollout authority.
+      [x] 11.1.2.3 Subtask - Keep `Jido.Runic` and governed `Run` records as the execution authority even when runtime evidence becomes richer.
 
   [ ] 11.2 Section - Operator Surface and Rollout Narrative Convergence
     Make the newer runtime-service model understandable to operators without leaking internal runtime architecture into the product UX.

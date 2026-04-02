@@ -6,6 +6,7 @@ defmodule JidoCode.Conversations.PhaseSevenIntegrationTest do
   # covers: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
   # covers: architecture.conversation_driver.subscriber_event_contract_preserved
   # covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+  # covers: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
   # covers: architecture.policy_layers.public_turn_materialization_preserves_layered_policy
   # covers: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
   # covers: architecture.run_governance.evidence_records_capture_run_outputs
@@ -129,7 +130,8 @@ defmodule JidoCode.Conversations.PhaseSevenIntegrationTest do
 
     assert Enum.map(evidence_records, & &1.key) == [
              "coding_turn_review",
-             "coding_turn_summary"
+             "coding_turn_summary",
+             "runtime_service_delivery"
            ]
   end
 

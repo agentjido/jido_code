@@ -13,10 +13,12 @@ decisions:
   - jido_code.runic_execution_model
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/governance/change_request.ex
   - lib/jido_code/governance/decision.ex
@@ -234,6 +236,7 @@ surface:
   target: lib/jido_code/governance/run_governance_bridge.ex
   covers:
     - architecture.run_governance.evidence_records_capture_run_outputs
+    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
     - architecture.run_governance.change_request_records_reviewable_run_state
     - architecture.run_governance.decision_records_capture_governance_outcomes
     - architecture.run_governance.review_policy_controls_change_request_creation
@@ -248,6 +251,7 @@ surface:
   target: lib/jido_code/orchestration/run_bridge.ex
   covers:
     - architecture.run_governance.run_projection_preserves_explicit_stage_catalog
+    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
 
 - kind: source_file
   target: lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
@@ -258,6 +262,14 @@ surface:
   target: lib/jido_code/orchestration/workflow_run.ex
   covers:
     - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
+
+- kind: source_file
+  target: test/jido_code/governance/run_governance_bridge_test.exs
+  covers:
+    - architecture.run_governance.evidence_records_capture_run_outputs
+    - architecture.run_governance.change_request_records_reviewable_run_state
+    - architecture.run_governance.decision_records_capture_governance_outcomes
+    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
 
 - kind: source_file
   target: test/jido_code/orchestration/workflow_run_test.exs

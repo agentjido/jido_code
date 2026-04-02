@@ -11,9 +11,11 @@ summary: Jido.Code centers execution on Jido.Runic, which drives Runic workflows
 decisions:
   - jido_code.runic_execution_model
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/orchestration/execution_profile.ex
@@ -156,8 +158,14 @@ surface:
     - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
 
 - kind: source_file
+  target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
+  covers:
+    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
+
+- kind: source_file
   target: lib/jido_code/conversations/turn_bridge.ex
   covers:
+    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
     - architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
 
 - kind: source_file
@@ -175,6 +183,7 @@ surface:
   covers:
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
     - architecture.execution_pipeline.legacy_workflow_state_projects_forward_without_reexecution
+    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
 
 - kind: source_file
   target: lib/jido_code/control/compatibility_rollout.ex
@@ -188,6 +197,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex
+  covers:
+    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_seven_integration_test.exs
   covers:
     - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
 ```

@@ -14,17 +14,20 @@ decisions:
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/specs/factory_control_plane.spec.md
   - .spec/specs/coding_assistance_boundary.spec.md
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/runtime_gateway.ex
   - lib/jido_code/runtime_integration.ex
   - lib/jido_code/governance/runtime_capability_bridge.ex
+  - lib/jido_code/governance/runtime_evidence_bridge.ex
   - lib/jido_code/governance/runtime_integration_bridge.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/conversations/driver.ex
@@ -32,6 +35,7 @@ surface:
   - test/jido_code/runtime_gateway_test.exs
   - test/jido_code/runtime_integration_test.exs
   - test/jido_code/governance/runtime_integration_bridge_test.exs
+  - test/jido_code/governance/runtime_evidence_bridge_test.exs
   - test/jido_code/governance/phase_ten_integration_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
@@ -173,6 +177,11 @@ surface:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 
 - kind: source_file
+  target: lib/jido_code/governance/runtime_evidence_bridge.ex
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+
+- kind: source_file
   target: lib/jido_code/governance/runtime_integration_bridge.ex
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
@@ -198,6 +207,11 @@ surface:
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
     - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
+
+- kind: source_file
+  target: test/jido_code/governance/runtime_evidence_bridge_test.exs
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 
 - kind: source_file
   target: test/jido_code/governance/phase_ten_integration_test.exs

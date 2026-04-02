@@ -5,6 +5,7 @@ defmodule JidoCode.Orchestration.RunBridge do
   # covers: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
   # covers: architecture.run_governance.run_projection_preserves_explicit_stage_catalog
   # covers: architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
+  # covers: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
   @moduledoc """
   Projects legacy `WorkflowRun` records into governed `Run` and `ExecutionProfile` records.
   """
@@ -416,6 +417,10 @@ defmodule JidoCode.Orchestration.RunBridge do
     |> maybe_put("coding_turn_review", if(review == %{}, do: nil, else: review))
     |> maybe_put("coding_turn_artifacts", if(artifacts == [], do: nil, else: artifacts))
     |> maybe_put("coding_turn_replay", if(events == [], do: nil, else: events))
+    |> maybe_put(
+      "runtime_service_delivery",
+      attrs |> Map.get(:runtime_delivery) |> normalize_map() |> nil_if_empty_map()
+    )
   end
 
   defp build_public_turn_context(attrs) do
@@ -703,6 +708,9 @@ defmodule JidoCode.Orchestration.RunBridge do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp nil_if_empty_map(%{} = value) when map_size(value) == 0, do: nil
+  defp nil_if_empty_map(value), do: value
 
   defp turn_started_at(turn) when is_map(turn) do
     turn

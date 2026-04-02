@@ -4,8 +4,8 @@
 
 This directory contains a phased migration plan for aligning `jido_code` with the
 factory-control-plane architecture recorded in the current ADR and subject specs,
-plus follow-on runtime adoption phases that deepen the public `jido_os` turn
-integration after the initial control-plane migration.
+plus follow-on runtime adoption phases that deepen the public `jido_os` runtime
+service integration after the initial control-plane migration.
 
 The plan aligns to:
 - `../specs/factory_control_plane.spec.md`
@@ -14,8 +14,10 @@ The plan aligns to:
 - `../specs/execution_pipeline.spec.md`
 - `../specs/conversation_driver.spec.md`
 - `../specs/coding_assistance_boundary.spec.md`
+- `../specs/runtime_service_overlay.spec.md`
 - `../specs/run_governance.spec.md`
 - `../decisions/jido_code.factory_control_plane_and_runtime_overlay.md`
+- `../decisions/jido_code.jido_os_runtime_service_overlay_adoption.md`
 - `../decisions/jido_code.runic_execution_model.md`
 - `../decisions/jido_code.vsm_recursion_and_scope.md`
 - `../decisions/jido_code.jido_os_public_turn_runtime_adoption.md`
@@ -28,6 +30,10 @@ The plan aligns to:
 5. [Phase 5 - Repo-Native State, Posture, and Trust Progression](./phase-05-repo-native-state-posture-and-trust-progression.md): make `.spec/` and optional Beadwork state actionable control inputs and introduce repo posture, posture checks, supervision modes, and trust progression logic.
 6. [Phase 6 - Compatibility, UI Migration, and Rollout Hardening](./phase-06-compatibility-ui-migration-and-rollout-hardening.md): migrate remaining product surfaces from `Project`/`WorkflowRun` assumptions, harden policy boundaries, and complete rollout with compatibility and backfill safeguards.
 7. [Phase 7 - Public Turn Runtime Bridge and Governed Projection Adoption](./phase-07-public-turn-runtime-bridge-and-governed-projection-adoption.md): adopt the newer public `jido_os` turn runtime in product-owned wrappers, route conversations through non-blocking turn start, bridge replay-driven subscriber updates, and materialize terminal turn outputs into governed run/evidence records.
+8. [Phase 8 - Runtime Gateway Foundation and Capability Posture](./phase-08-runtime-gateway-foundation-and-capability-posture.md): reframe product integration around public `jido_os` runtime-service gateways, expose typed capability posture, and keep runtime admission and degraded-path evidence legible to product governance.
+9. [Phase 9 - Live Runtime Delivery and Conversation Bridge Hardening](./phase-09-live-runtime-delivery-and-conversation-bridge-hardening.md): replace polling-first coding progress delivery with public live turn subscription plus replay fallback while preserving subscriber compatibility and governed terminal projection.
+10. [Phase 10 - External Runtime Integration Service Adoption](./phase-10-external-runtime-integration-service-adoption.md): introduce a product-owned boundary over `Jido.Os.Integration.Service` and normalize external SaaS runtime outcomes back into the managed-repo control loop.
+11. [Phase 11 - Runtime Evidence, Posture, and Rollout Convergence](./phase-11-runtime-evidence-posture-and-rollout-convergence.md): converge coding and integration runtime evidence into product posture, evidence, and operator surfaces so admitted-service rollout and degraded-path behavior become governed factory inputs.
 
 ## Shared Conventions
 - Numbering:
@@ -44,7 +50,7 @@ The plan aligns to:
 
 ## Shared Assumptions and Defaults
 - `Jido.Code` remains the product and durable factory control plane.
-- `jido_os` remains the runtime overlay for sessions, turns, steering, interruption, and runtime capability gating.
+- `jido_os` remains the authority-backed runtime-services overlay for sessions, turns, steering, interruption, runtime capability gating, and admitted optional services.
 - `Jido.Runic` remains the canonical execution integration layer.
 - Current `Project` and `WorkflowRun` surfaces are transitional implementation seams, not the preferred long-term ontology.
 - Repo-native `.spec/` state and optional Git-native planning state such as Beadwork remain additive signals that inform the factory without replacing product-owned records.

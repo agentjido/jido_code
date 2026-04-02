@@ -32,6 +32,7 @@ surface:
   - test/jido_code/runtime_gateway_test.exs
   - test/jido_code/runtime_integration_test.exs
   - test/jido_code/governance/runtime_integration_bridge_test.exs
+  - test/jido_code/governance/phase_ten_integration_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
 ```
@@ -197,4 +198,11 @@ surface:
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
     - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
+
+- kind: source_file
+  target: test/jido_code/governance/phase_ten_integration_test.exs
+  covers:
+    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
+    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 ```

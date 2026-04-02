@@ -17,7 +17,7 @@ Back to index: [README](./README.md)
 - Product control truth remains in managed-repo records, not in external connector or runtime substrate state.
 - External SaaS runtime behavior should be additive and repo-scoped rather than becoming a second product control plane.
 
-[ ] 10 Phase 10 - External Runtime Integration Service Adoption
+[x] 10 Phase 10 - External Runtime Integration Service Adoption
   Introduce repo-scoped external SaaS runtime behavior through a product-owned gateway over `Jido.Os.Integration.Service` and normalize those runtime outcomes back into the managed-repo factory loop instead of scattering connector-specific logic across product setup and UI seams.
 
   [x] 10.1 Section - Product-Owned Integration Gateway Baseline
@@ -54,19 +54,19 @@ Back to index: [README](./README.md)
       [x] 10.2.2.2 Subtask - Prepare operator-facing summaries for integration-backed repo readiness and degraded-path behavior.
       [x] 10.2.2.3 Subtask - Preserve the distinction between runtime integration admission and product-side governance policy decisions.
 
-  [ ] 10.3 Section - Phase 10 Integration Tests
+  [x] 10.3 Section - Phase 10 Integration Tests
     Validate the new integration gateway and control-loop normalization before external runtime behavior becomes part of ordinary managed-repo operations.
 
-    [ ] 10.3.1 Task - Integration gateway scenarios
+    [x] 10.3.1 Task - Integration gateway scenarios
       Verify repo-scoped external runtime behavior routes through the new product-owned boundary and preserves typed context.
 
-      [ ] 10.3.1.1 Subtask - Add coverage for install-session, binding, and invocation calls through the product-owned gateway.
-      [ ] 10.3.1.2 Subtask - Add coverage for explicit project-scoped identity, alias/default behavior, and typed ambiguity outcomes.
-      [ ] 10.3.1.3 Subtask - Add coverage ensuring connector-native identifiers do not become product contracts.
+      [x] 10.3.1.1 Subtask - Add coverage for install-session, binding, and invocation calls through the product-owned gateway.
+      [x] 10.3.1.2 Subtask - Add coverage for explicit project-scoped identity, alias/default behavior, and typed ambiguity outcomes.
+      [x] 10.3.1.3 Subtask - Add coverage ensuring connector-native identifiers do not become product contracts.
 
-    [ ] 10.3.2 Task - Control-loop and governance scenarios
+    [x] 10.3.2 Task - Control-loop and governance scenarios
       Verify runtime integration outcomes are normalized into the managed-repo factory loop and governance state cleanly.
 
-      [ ] 10.3.2.1 Subtask - Add coverage for observation or event synthesis from runtime integration outcomes.
-      [ ] 10.3.2.2 Subtask - Add coverage for integration capability posture informing repo readiness or posture.
-      [ ] 10.3.2.3 Subtask - Verify planning, spec, and integration test traceability for the new integration-service adoption path.
+      [x] 10.3.2.1 Subtask - Add coverage for observation or event synthesis from runtime integration outcomes.
+      [x] 10.3.2.2 Subtask - Add coverage for integration capability posture informing repo readiness or posture.
+      [x] 10.3.2.3 Subtask - Verify planning, spec, and integration test traceability for the new integration-service adoption path.

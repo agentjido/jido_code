@@ -271,4 +271,9 @@ surface:
   target: test/jido_code/runtime_integration_test.exs
   covers:
     - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
+
+- kind: source_file
+  target: test/jido_code/governance/phase_ten_integration_test.exs
+  covers:
+    - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
 ```

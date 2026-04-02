@@ -236,6 +236,11 @@ surface:
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
 
 - kind: source_file
+  target: test/jido_code/governance/phase_ten_integration_test.exs
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
   target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   covers:
     - architecture.factory_control_plane.runtime_turns_feed_governed_control_records

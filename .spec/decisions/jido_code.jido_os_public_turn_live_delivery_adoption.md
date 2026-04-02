@@ -14,6 +14,7 @@ affects:
 <!-- covers: architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path -->
 <!-- covers: architecture.conversation_driver.replay_bridge_drives_subscriber_updates -->
 <!-- covers: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation -->
+<!-- covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records -->
 <!-- covers: coding_assistance.boundary.public_turn_wrapper_api -->
 <!-- covers: coding_assistance.boundary.live_delivery_ack_and_resume_boundary -->
 <!-- covers: coding_assistance.boundary.replay_and_recovery_wrappers_remain_available -->
@@ -105,3 +106,15 @@ Phase 9.1 now lands the first product-local live-delivery boundary in this repo:
 - Product-local live acknowledgements normalize resume cursor, replay join,
   terminal snapshot, and detach metadata before the conversation bridge adopts
   live delivery as its preferred incremental path.
+
+Phase 9.2 now lands the live-delivery-first conversation bridge:
+
+- `JidoCode.Conversations.TurnBridge` now prefers admitted public live delivery
+  for steady-state incremental updates and falls back to replay only for
+  degraded admission, recovery, gap repair, or timeout repair.
+- `JidoCode.Conversations.EventBridge` now translates explicit terminal handoff
+  into stable final assistant or failure events instead of relying on silence
+  or idle-poll assumptions.
+- Governed terminal materialization stays best-effort and non-blocking for
+  subscriber progress while replay remains the canonical verification and
+  terminal-lookup path.

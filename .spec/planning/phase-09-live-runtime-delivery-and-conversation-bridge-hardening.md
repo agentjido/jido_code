@@ -41,22 +41,22 @@ Back to index: [README](./README.md)
       [x] 9.1.2.2 Subtask - Preserve typed unavailable, withheld, denied, invalid-cursor, and detached outcomes at the boundary.
       [x] 9.1.2.3 Subtask - Keep replay, turn read, artifact read, and operator review available as fallback or verification surfaces.
 
-  [ ] 9.2 Section - Conversation Bridge Transport Modernization
+  [x] 9.2 Section - Conversation Bridge Transport Modernization
     Move the conversation bridge from polling-first replay loops to live-delivery-first behavior while keeping replay as the canonical recovery path.
 
-    [ ] 9.2.1 Task - Prefer live delivery for steady-state subscriber updates
+    [x] 9.2.1 Task - Prefer live delivery for steady-state subscriber updates
       Let current subscribers benefit from the richer runtime-delivery path without receiving a second protocol.
 
-      [ ] 9.2.1.1 Subtask - Update `TurnBridge` to admit and consume live turn delivery before falling back to replay polling.
-      [ ] 9.2.1.2 Subtask - Preserve translation into the existing conversation event contract through `EventBridge`.
-      [ ] 9.2.1.3 Subtask - Keep best-effort governed projection non-blocking for subscriber progress delivery.
+      [x] 9.2.1.1 Subtask - Update `TurnBridge` to admit and consume live turn delivery before falling back to replay polling.
+      [x] 9.2.1.2 Subtask - Preserve translation into the existing conversation event contract through `EventBridge`.
+      [x] 9.2.1.3 Subtask - Keep best-effort governed projection non-blocking for subscriber progress delivery.
 
-    [ ] 9.2.2 Task - Harden replay fallback, resume, and terminal verification
+    [x] 9.2.2 Task - Harden replay fallback, resume, and terminal verification
       Ensure product behavior remains deterministic across disconnects, rollout-withheld live delivery, and terminalization.
 
-      [ ] 9.2.2.1 Subtask - Use replay for gap repair, reconnect recovery, and explicit terminal verification instead of transport silence heuristics.
-      [ ] 9.2.2.2 Subtask - Preserve typed degraded behavior when live delivery fails after admission or detaches unexpectedly.
-      [ ] 9.2.2.3 Subtask - Keep governed terminal materialization tied to explicit terminal handoff plus terminal lookup rather than idle-poll assumptions.
+      [x] 9.2.2.1 Subtask - Use replay for gap repair, reconnect recovery, and explicit terminal verification instead of transport silence heuristics.
+      [x] 9.2.2.2 Subtask - Preserve typed degraded behavior when live delivery fails after admission or detaches unexpectedly.
+      [x] 9.2.2.3 Subtask - Keep governed terminal materialization tied to explicit terminal handoff plus terminal lookup rather than idle-poll assumptions.
 
   [ ] 9.3 Section - Phase 9 Integration Tests
     Validate the live-delivery-first conversation bridge under normal, degraded, and recovery conditions before broader runtime-service adoption continues.

@@ -27,12 +27,15 @@ surface:
   - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/event_bridge.ex
+  - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/conversations/policy.ex
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - test/jido_code/conversations/driver_test.exs
   - test/jido_code/conversations/phase_four_integration_test.exs
+  - test/jido_code/conversations/turn_bridge_test.exs
+  - test/jido_code/conversations/phase_seven_integration_test.exs
 ```
 
 ## Requirements
@@ -193,6 +196,14 @@ surface:
   covers:
     - architecture.conversation_driver.subscriber_event_contract_preserved
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
+    - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
+
+- kind: source_file
+  target: lib/jido_code/conversations/turn_bridge.ex
+  covers:
+    - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
@@ -245,6 +256,22 @@ surface:
     - architecture.conversation_driver.subscriber_event_contract_preserved
     - architecture.conversation_driver.public_jido_os_turn_event_bridge
     - architecture.conversation_driver.conversation_is_ingress_and_steering_surface
+
+- kind: source_file
+  target: test/jido_code/conversations/turn_bridge_test.exs
+  covers:
+    - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
+
+- kind: source_file
+  target: test/jido_code/conversations/phase_seven_integration_test.exs
+  covers:
+    - architecture.conversation_driver.public_jido_os_turn_event_bridge
+    - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+    - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+    - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
+    - architecture.conversation_driver.subscriber_event_contract_preserved
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

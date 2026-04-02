@@ -1,6 +1,8 @@
 defmodule JidoCode.Conversations.EventBridge do
   # covers: architecture.conversation_driver.subscriber_event_contract_preserved
   # covers: architecture.conversation_driver.public_jido_os_turn_event_bridge
+  # covers: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
+  # covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
   @moduledoc """
   Translates product-local coding assistance outcomes into the existing
   conversation event model consumed by subscriber-facing UI surfaces.
@@ -49,6 +51,53 @@ defmodule JidoCode.Conversations.EventBridge do
       },
       "meta" => failure_meta(context, attrs)
     }
+  end
+
+  @spec terminal_handoff_event(map(), map(), map(), map()) :: map() | nil
+  def terminal_handoff_event(turn, terminal_handoff, ingress_result, context)
+      when is_map(turn) and is_map(terminal_handoff) and is_map(ingress_result) and is_map(context) do
+    state =
+      normalize_optional_string(
+        nested_get(turn, [:state]) ||
+          Map.get(terminal_handoff, :terminal_state) ||
+          Map.get(terminal_handoff, "terminal_state")
+      )
+
+    meta =
+      event_meta(context, ingress_result, %{turn_id: nested_get(turn, [:turn_id])})
+      |> Map.merge(
+        %{
+          "terminal_handoff_kind" =>
+            normalize_optional_string(Map.get(terminal_handoff, :kind) || Map.get(terminal_handoff, "kind")),
+          "terminal_event_id" =>
+            normalize_optional_string(
+              Map.get(terminal_handoff, :terminal_event_id) ||
+                Map.get(terminal_handoff, "terminal_event_id")
+            ),
+          "terminal_state" => state
+        }
+        |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+        |> Map.new()
+      )
+
+    case state do
+      "completed" ->
+        %{
+          "type" => "assistant.message",
+          "data" => %{"content" => final_message(turn, ingress_result) || "Coding turn completed."},
+          "meta" => meta
+        }
+
+      state_value when state_value in ["failed", "interrupted", "cancelled"] ->
+        %{
+          "type" => "llm.failed",
+          "data" => %{"detail" => terminal_failure_detail(turn, terminal_handoff, state_value)},
+          "meta" => meta
+        }
+
+      _other ->
+        nil
+    end
   end
 
   defp streaming_preamble(%{turn_mode: :steer_existing_work, work_item: %{id: work_item_id}}) do
@@ -120,6 +169,20 @@ defmodule JidoCode.Conversations.EventBridge do
       other ->
         format_reason(other)
     end
+  end
+
+  defp terminal_failure_detail(turn, terminal_handoff, state) do
+    explicit_detail =
+      terminal_handoff
+      |> Map.get(:detail, Map.get(terminal_handoff, "detail"))
+      |> normalize_optional_string()
+
+    assistant_message =
+      turn
+      |> nested_get([:assistant_output, :message])
+      |> normalize_optional_string()
+
+    explicit_detail || assistant_message || "Coding turn #{state}."
   end
 
   defp turn_event(event, ingress_result, context) when is_map(event) do

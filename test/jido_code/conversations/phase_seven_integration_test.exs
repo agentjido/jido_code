@@ -1,9 +1,13 @@
 defmodule JidoCode.Conversations.PhaseSevenIntegrationTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.conversation_driver.public_jido_os_turn_event_bridge
+  # covers: architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
+  # covers: architecture.conversation_driver.replay_bridge_drives_subscriber_updates
+  # covers: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
   # covers: architecture.conversation_driver.subscriber_event_contract_preserved
   # covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
   # covers: architecture.policy_layers.public_turn_materialization_preserves_layered_policy
+  # covers: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
   # covers: architecture.run_governance.evidence_records_capture_run_outputs
   # covers: architecture.run_governance.change_request_records_reviewable_run_state
   use JidoCode.DataCase, async: false
@@ -22,6 +26,7 @@ defmodule JidoCode.Conversations.PhaseSevenIntegrationTest do
     :code_server_engine_module,
     :conversation_turn_bridge_poll_interval_ms,
     :conversation_turn_bridge_max_idle_polls,
+    :conversation_turn_bridge_live_receive_timeout_ms,
     :conversation_turn_bridge_supervisor,
     :jido_os_instance_id
   ]
@@ -39,6 +44,7 @@ defmodule JidoCode.Conversations.PhaseSevenIntegrationTest do
     Application.put_env(:jido_code, :code_server_engine_module, EngineFake)
     Application.put_env(:jido_code, :conversation_turn_bridge_poll_interval_ms, 1)
     Application.put_env(:jido_code, :conversation_turn_bridge_max_idle_polls, 2)
+    Application.put_env(:jido_code, :conversation_turn_bridge_live_receive_timeout_ms, 5)
     Application.put_env(:jido_code, :conversation_turn_bridge_supervisor, supervisor_name)
 
     Application.put_env(
@@ -184,27 +190,34 @@ defmodule JidoCode.Conversations.PhaseSevenIntegrationTest do
   defp wait_for_workflow_run(project_id, run_id, fun, attempts_left \\ 20)
 
   defp wait_for_workflow_run(project_id, run_id, _fun, 0) do
-    {:ok, workflow_run} =
-      WorkflowRun.get_by_project_and_run_id(
-        %{project_id: project_id, run_id: run_id},
-        actor: Actor.operator_actor()
-      )
+    case WorkflowRun.get_by_project_and_run_id(
+           %{project_id: project_id, run_id: run_id},
+           actor: Actor.operator_actor()
+         ) do
+      {:ok, workflow_run} ->
+        workflow_run
 
-    workflow_run
+      {:error, reason} ->
+        raise "expected workflow run #{run_id} for project #{project_id}, got: #{inspect(reason)}"
+    end
   end
 
   defp wait_for_workflow_run(project_id, run_id, fun, attempts_left) do
-    {:ok, workflow_run} =
-      WorkflowRun.get_by_project_and_run_id(
-        %{project_id: project_id, run_id: run_id},
-        actor: Actor.operator_actor()
-      )
+    case WorkflowRun.get_by_project_and_run_id(
+           %{project_id: project_id, run_id: run_id},
+           actor: Actor.operator_actor()
+         ) do
+      {:ok, workflow_run} ->
+        if fun.(workflow_run) do
+          workflow_run
+        else
+          Process.sleep(25)
+          wait_for_workflow_run(project_id, run_id, fun, attempts_left - 1)
+        end
 
-    if fun.(workflow_run) do
-      workflow_run
-    else
-      Process.sleep(25)
-      wait_for_workflow_run(project_id, run_id, fun, attempts_left - 1)
+      {:error, _reason} ->
+        Process.sleep(25)
+        wait_for_workflow_run(project_id, run_id, fun, attempts_left - 1)
     end
   end
 

@@ -161,6 +161,11 @@ surface:
     - architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
 
 - kind: source_file
+  target: test/jido_code/conversations/turn_bridge_test.exs
+  covers:
+    - architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
+
+- kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex
   covers:
     - architecture.execution_pipeline.run_is_projection_of_workflow_state

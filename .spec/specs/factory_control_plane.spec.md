@@ -11,11 +11,13 @@ summary: Jido.Code centers the product on a governed software-factory control pl
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/control.ex
@@ -122,6 +124,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+  statement: Even as `jido_os` grows richer admitted runtime services and authority-backed facades, those services shall remain runtime overlays whose typed outcomes rejoin managed-repository governance rather than displacing product-owned control-plane truth.
+  priority: must
+  stability: evolving
+
 - id: architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
   statement: Transitional project-scope resolution and source-repo identity repair shall use explicit factory-system, operator, or orchestrator actors for control-plane reads and writes instead of anonymous compatibility bypasses.
   priority: must
@@ -188,6 +195,7 @@ surface:
   covers:
     - architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work
     - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
   given:
     - A coding conversation has been admitted through product-side ingress for a managed repository.
   when:
@@ -212,6 +220,11 @@ surface:
   target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   covers:
     - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
+
+- kind: source_file
+  target: .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
+  covers:
+    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

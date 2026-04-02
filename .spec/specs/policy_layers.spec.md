@@ -46,6 +46,7 @@ surface:
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - test/jido_code/conversations/phase_four_integration_test.exs
+  - test/jido_code/governance/phase_eight_integration_test.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
@@ -208,6 +209,12 @@ surface:
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eight_integration_test.exs
+  covers:
+    - architecture.policy_layers.policy_layers_interlock_without_collapsing
+    - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
 
 - kind: source_file
   target: test/jido_code/governance/policy_set_test.exs

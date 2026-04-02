@@ -25,6 +25,25 @@ defmodule JidoCode.CodingAssistanceTest do
     %{instance_id: instance_id}
   end
 
+  test "coding assistance exposes runtime service status through the product gateway" do
+    actor_id = "user-runtime-status"
+
+    assert CodingAssistance.runtime_service_module() == Jido.Os.CodingAssist.Service
+    assert CodingAssistance.runtime_service_key() == "coding_assistance_service"
+
+    assert {:ok, status} = CodingAssistance.runtime_service_status(actor_id)
+    assert status.service_key == CodingAssistance.runtime_service_key()
+    assert status.status == "available"
+    assert status.admitted? == true
+    assert status.available? == true
+    assert status.ready? == true
+    assert status.runtime_status == "running"
+    assert status.dependency_status == "satisfied"
+    assert status.extension_admission == %{enabled: true, reason_code: nil}
+
+    assert {:ok, true} = CodingAssistance.runtime_service_available?(actor_id)
+  end
+
   test "assist ensures a jido_os session and returns a typed envelope" do
     actor_id = "user-1"
     session_id = "thread-1"

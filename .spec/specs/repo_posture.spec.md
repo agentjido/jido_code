@@ -21,6 +21,7 @@ surface:
   - lib/jido_code/governance/repo_posture.ex
   - lib/jido_code/governance/posture_check.ex
   - lib/jido_code/governance/posture_bridge.ex
+  - lib/jido_code/governance/runtime_capability_bridge.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/control/repo_bridge.ex
   - lib/jido_code/orchestration/run_summary_feed.ex
@@ -32,8 +33,10 @@ surface:
   - priv/repo/migrations/20260331153000_add_repo_posture_supervision_fields.exs
   - test/jido_code/operations/repo_native_state_test.exs
   - test/jido_code/governance/posture_bridge_test.exs
+  - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/policy_bridge_test.exs
   - test/jido_code/governance/phase_five_integration_test.exs
+  - test/jido_code/governance/phase_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -76,6 +79,11 @@ surface:
 
 - id: architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
   statement: When posture-relevant operator demand enters through normalized ingress, requested-by actor identity shall remain explainable through persisted source metadata so posture and review-burden explanations do not depend on raw transient entrypoint payloads.
+  priority: should
+  stability: evolving
+
+- id: architecture.repo_posture.runtime_capability_observations_can_inform_posture
+  statement: When product-owned runtime gateways observe capability availability, denial, withholding, or degraded-path state that changes repo readiness or review burden, Jido.Code shall materialize that state as governed observations and let posture consume those observations without collapsing product governance into runtime policy.
   priority: should
   stability: evolving
 ```
@@ -135,6 +143,18 @@ surface:
     - Repo posture or operator-facing review surfaces evaluate trust and review burden.
   then:
     - The posture flow can use the governed evidence derived from the turn while keeping operator-facing explanations anchored in product-owned records.
+
+- id: architecture.repo_posture.scenario_runtime_capability_posture_stays_explainable
+  covers:
+    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
+    - architecture.repo_posture.posture_checks_preserve_explainable_links
+    - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
+  given:
+    - Product-owned runtime gateways observe admitted-service availability or degraded-path state for a managed repository.
+  when:
+    - Repo posture refreshes and that runtime capability state affects execution readiness or review burden.
+  then:
+    - The posture flow records governed runtime-capability observations, links the affected posture checks back to those observations, and keeps the resulting review or supervision change explainable as product-owned governance state.
 ```
 
 ## Verification
@@ -167,6 +187,12 @@ surface:
     - architecture.repo_posture.posture_checks_preserve_explainable_links
     - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
     - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
+    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
+
+- kind: source_file
+  target: lib/jido_code/governance/runtime_capability_bridge.ex
+  covers:
+    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
   target: lib/jido_code/governance/policy_bridge.ex
@@ -184,6 +210,12 @@ surface:
   covers:
     - architecture.repo_posture.repo_posture_summarizes_trust_dimensions
     - architecture.repo_posture.posture_checks_preserve_explainable_links
+    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
+
+- kind: source_file
+  target: test/jido_code/governance/runtime_capability_bridge_test.exs
+  covers:
+    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
   target: test/jido_code/governance/policy_bridge_test.exs
@@ -199,6 +231,13 @@ surface:
     - architecture.repo_posture.posture_checks_preserve_explainable_links
     - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
     - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
+
+- kind: source_file
+  target: test/jido_code/governance/phase_eight_integration_test.exs
+  covers:
+    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
+    - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
+    - architecture.repo_posture.posture_checks_preserve_explainable_links
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

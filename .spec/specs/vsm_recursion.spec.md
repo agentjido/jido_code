@@ -88,7 +88,7 @@ surface:
   covers:
     - architecture.vsm_recursion.algedonic_escalation
   given:
-    - A viability-threatening condition appears inside a managed repository.
+    - A viability-threatening condition appears inside a managed repository, whether from repo-native posture, governed evidence, or another managed signal entering the repo's control loop.
   when:
     - Normal queue processing would be too slow or too noisy to preserve control.
   then:

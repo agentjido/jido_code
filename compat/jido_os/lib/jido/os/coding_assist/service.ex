@@ -4,9 +4,12 @@ defmodule Jido.Os.CodingAssist.Service do
   # covers: jido_os.runtime.compatibility.public_turn_runtime_surface
   # covers: jido_os.runtime.compatibility.compatibility_assist_uses_same_turn_model
   @moduledoc false
+  @runtime_service_key "coding_assistance_service"
 
   alias Jido.Os.Session.RuntimeAgent
   alias Jido.Os.State
+
+  def runtime_service_key, do: @runtime_service_key
 
   def assist(instance_id, request, context)
       when is_binary(instance_id) and is_map(request) and is_map(context) do

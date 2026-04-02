@@ -206,6 +206,11 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code/governance/runtime_integration_bridge_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces

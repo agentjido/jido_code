@@ -37,22 +37,22 @@ Back to index: [README](./README.md)
       [x] 10.1.2.2 Subtask - Preserve typed ambiguity, missing-binding, and unavailable-service behavior at the product boundary.
       [x] 10.1.2.3 Subtask - Keep runtime integration availability and binding health visible as capability posture rather than hidden setup-only state.
 
-  [ ] 10.2 Section - Control-Loop Normalization for Integration Outcomes
+  [x] 10.2 Section - Control-Loop Normalization for Integration Outcomes
     Make runtime integration results rejoin the governed factory loop rather than living as detached setup or UI side effects.
 
-    [ ] 10.2.1 Task - Normalize integration lifecycle and invocation outcomes into managed-repo control records
+    [x] 10.2.1 Task - Normalize integration lifecycle and invocation outcomes into managed-repo control records
       Let external runtime behavior influence the factory through the same durable ingress and interpretation model as other signals.
 
-      [ ] 10.2.1.1 Subtask - Translate install, binding, and invocation outcomes into `Observation`, `Intake`, `Event`, or related control records where appropriate.
-      [ ] 10.2.1.2 Subtask - Preserve actor attribution, repo correlation, provider identity, and typed degraded or denied-path evidence across that normalization.
-      [ ] 10.2.1.3 Subtask - Avoid inventing product-local shadow connector state when runtime and external substrate already own the execution truth.
+      [x] 10.2.1.1 Subtask - Translate install, binding, and invocation outcomes into `Observation`, `Intake`, `Event`, or related control records where appropriate.
+      [x] 10.2.1.2 Subtask - Preserve actor attribution, repo correlation, provider identity, and typed degraded or denied-path evidence across that normalization.
+      [x] 10.2.1.3 Subtask - Avoid inventing product-local shadow connector state when runtime and external substrate already own the execution truth.
 
-    [ ] 10.2.2 Task - Connect integration capability posture to repo governance and operator flows
+    [x] 10.2.2 Task - Connect integration capability posture to repo governance and operator flows
       Make external runtime integration part of governed readiness, not just one-off setup success.
 
-      [ ] 10.2.2.1 Subtask - Feed integration capability posture, binding state, and denied-path evidence into repo posture or equivalent governance records.
-      [ ] 10.2.2.2 Subtask - Prepare operator-facing summaries for integration-backed repo readiness and degraded-path behavior.
-      [ ] 10.2.2.3 Subtask - Preserve the distinction between runtime integration admission and product-side governance policy decisions.
+      [x] 10.2.2.1 Subtask - Feed integration capability posture, binding state, and denied-path evidence into repo posture or equivalent governance records.
+      [x] 10.2.2.2 Subtask - Prepare operator-facing summaries for integration-backed repo readiness and degraded-path behavior.
+      [x] 10.2.2.3 Subtask - Preserve the distinction between runtime integration admission and product-side governance policy decisions.
 
   [ ] 10.3 Section - Phase 10 Integration Tests
     Validate the new integration gateway and control-loop normalization before external runtime behavior becomes part of ordinary managed-repo operations.

@@ -25,11 +25,13 @@ surface:
   - lib/jido_code/runtime_gateway.ex
   - lib/jido_code/runtime_integration.ex
   - lib/jido_code/governance/runtime_capability_bridge.ex
+  - lib/jido_code/governance/runtime_integration_bridge.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/turn_bridge.ex
   - test/jido_code/runtime_gateway_test.exs
   - test/jido_code/runtime_integration_test.exs
+  - test/jido_code/governance/runtime_integration_bridge_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
 ```
@@ -170,6 +172,12 @@ surface:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 
 - kind: source_file
+  target: lib/jido_code/governance/runtime_integration_bridge.ex
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
+
+- kind: source_file
   target: test/jido_code/governance/phase_eight_integration_test.exs
   covers:
     - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
@@ -183,4 +191,10 @@ surface:
     - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
     - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
     - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
+
+- kind: source_file
+  target: test/jido_code/governance/runtime_integration_bridge_test.exs
+  covers:
+    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
 ```

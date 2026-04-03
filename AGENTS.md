@@ -73,6 +73,14 @@ mix spec.decision.new <slug> --title "Decision title"
 - Do not use deprecated `live_redirect`/`live_patch`; use `<.link navigate={...}>`, `<.link patch={...}>`, `push_navigate`, `push_patch`.
 - Prefer LiveView streams for collection rendering and updates.
 
+### LiveVue
+
+- Keep the routed page shell in LiveView. Use Vue only for bounded richer regions.
+- Mount Vue-backed regions through `<.vue_surface ...>` instead of raw `<.vue ...>` calls.
+- Keep server-authored state bounded in `props:` or `streams:` and route Vue emits back into LiveView events.
+- If a hybrid surface degrades, keep the operator experience in product-oriented compatibility mode rather than surfacing raw Vite, SSR, or manifest failures.
+- When touching `live_vue`, Vite, SSR entrypoints, or shared browser helpers, run `mix frontend.verify`.
+
 ### JS and CSS
 
 - Tailwind v4 import style in `assets/css/app.css` must stay:

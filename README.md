@@ -49,6 +49,9 @@ The repo toolchain is pinned in `.tool-versions` for `asdf`. Normal day-to-day d
 
 ```bash
 mix setup
+mix assets.setup
+mix assets.build
+mix frontend.verify
 mix phx.server
 mix test
 mix ecto.reset
@@ -62,15 +65,28 @@ You may also need extra credentials depending on what you are exercising:
 - `SPRITES_API_TOKEN` for live Sprites-backed execution
 - mail provider settings such as `RESEND_API_KEY`
 
+<!-- covers: docs.product_foundation.readme_frontend_stack_orientation_present -->
+## Frontend Stack
+
+`jido_code` keeps LiveView as the routed product shell and uses `live_vue` only for bounded regions that genuinely need richer client-side composition.
+
+- Keep route ownership, auth/session boundaries, and straightforward forms in LiveView and HEEx.
+- Mount Vue-backed regions through `<.vue_surface ...>` rather than raw LiveVue calls so props, streams, and emits stay product-owned.
+- Treat `props:` and `streams:` as server-authored boundaries and map Vue emits back into LiveView events.
+- When changing the browser stack, run `mix frontend.verify`. Hybrid screens must degrade to product-oriented compatibility messaging instead of exposing raw Vite or SSR failures to operators.
+
 ## Day-To-Day Commands
 
 ```bash
 mix setup               # deps, ecto.setup, and asset build
+mix assets.setup        # install browser toolchain dependencies
+mix assets.build        # build the Vite + SSR browser bundle
+mix frontend.verify     # run the repo-owned browser pipeline verification
 mix phx.server          # start the local Phoenix server
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
 mix test                # create/migrate the test DB and run tests
 mix q                   # fast merge-safe quality gate
-mix quality             # fast gate plus doctor and dialyzer debt surfacing
+mix quality             # fast gate plus frontend verification, doctor, and dialyzer debt surfacing
 mix precommit           # compile, format, and test
 mix coveralls           # run tests with coverage summary
 mix coveralls.html      # generate the HTML coverage report

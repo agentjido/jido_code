@@ -237,6 +237,7 @@ defmodule JidoCode.MixProject do
         "phoenix_vite.npm vite build --manifest --emptyOutDir true",
         "phoenix_vite.npm vite build --ssrManifest --emptyOutDir false --ssr js/server.js --outDir ../priv/static"
       ],
+      "frontend.verify": ["assets.setup", "assets.build"],
       "assets.deploy": [
         "assets.build"
       ],
@@ -257,6 +258,7 @@ defmodule JidoCode.MixProject do
       ],
       quality: [
         "quality.fast",
+        "frontend.verify",
         "doctor --raise",
         "dialyzer"
       ]

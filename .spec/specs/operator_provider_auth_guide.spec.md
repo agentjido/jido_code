@@ -8,7 +8,7 @@ This subject defines the repo-local boundary around self-hosted provider login a
 id: docs.operator_provider_auth_guide
 kind: feature
 status: active
-summary: jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository.
+summary: jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack and verification path.
 surface:
   - README.md
   - .spec/specs/operator_auth_settings.spec.md

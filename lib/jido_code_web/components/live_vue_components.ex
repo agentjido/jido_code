@@ -3,6 +3,7 @@ defmodule JidoCodeWeb.LiveVueComponents do
   # covers: architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
   # covers: architecture.frontend_stack.product_owned_mounting_boundary
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
   @moduledoc """
   Product-owned helpers for mounting Vue-backed islands inside the LiveView shell.
 
@@ -17,6 +18,7 @@ defmodule JidoCodeWeb.LiveVueComponents do
 
   alias Phoenix.LiveView.JS
   alias Phoenix.LiveView.LiveStream
+  alias JidoCodeWeb.FrontendAssets
 
   @component_name_pattern ~r/^[A-Z][A-Za-z0-9]*(?:\/[A-Z][A-Za-z0-9]*)*$/
   @reserved_prop_keys ~w(
@@ -48,6 +50,8 @@ defmodule JidoCodeWeb.LiveVueComponents do
   attr :class, :any, default: nil
   attr :ssr, :boolean, default: nil
   attr :diff, :boolean, default: nil
+  attr :fallback_title, :string, default: nil
+  attr :fallback_detail, :string, default: nil
   slot :inner_block
 
   def vue_surface(assigns) do
@@ -55,25 +59,52 @@ defmodule JidoCodeWeb.LiveVueComponents do
     props = validate_props!(assigns.props)
     streams = validate_streams!(assigns.streams)
     events = normalize_events!(assigns.events)
+    delivery = FrontendAssets.vue_surface_delivery(component)
 
-    vue_assigns =
-      assigns
-      |> Map.take([:__changed__, :inner_block])
-      |> Map.put(:"v-component", component)
-      |> Map.put(:"v-socket", assigns.socket)
-      |> maybe_put(:id, assigns.id)
-      |> maybe_put(:class, assigns.class)
-      |> maybe_put(:"v-ssr", assigns.ssr)
-      |> maybe_put(:"v-diff", assigns.diff)
-      |> Map.merge(props)
-      |> Map.merge(streams)
+    if delivery.mode == :fallback do
+      assigns =
+        assigns
+        |> assign(:delivery, delivery)
+        |> assign(:fallback_title, assigns.fallback_title || delivery.title)
+        |> assign(:fallback_detail, assigns.fallback_detail || delivery.detail)
+        |> assign(:fallback_id, fallback_id(assigns.id, component))
 
-    vue_assigns =
-      Enum.reduce(events, vue_assigns, fn {emit, handler}, acc ->
-        Map.put(acc, "v-on:#{emit}", handler)
-      end)
+      ~H"""
+      <section
+        id={@fallback_id}
+        class={[
+          "rounded-lg border border-warning/50 bg-warning/10 p-4 space-y-2",
+          @class
+        ]}
+      >
+        <p class="font-semibold">{@fallback_title}</p>
+        <p class="text-sm text-base-content/80">{@fallback_detail}</p>
+        <p :if={@delivery.reason} class="text-xs text-base-content/70">
+          Compatibility mode reason: {humanize_reason(@delivery.reason)}
+        </p>
+        {render_slot(@inner_block)}
+      </section>
+      """
+    else
+      vue_assigns =
+        assigns
+        |> Map.take([:__changed__, :inner_block])
+        |> Map.put(:"v-component", component)
+        |> Map.put(:"v-socket", assigns.socket)
+        |> maybe_put(:id, assigns.id)
+        |> maybe_put(:class, assigns.class)
+        |> maybe_put(:"v-ssr", coalesce_ssr(assigns.ssr, delivery.ssr))
+        |> maybe_put(:"v-diff", assigns.diff)
+        |> Map.merge(props)
+        |> Map.merge(streams)
 
-    LiveVue.vue(vue_assigns)
+      vue_assigns =
+        Enum.reduce(events, vue_assigns, fn {emit, handler}, acc ->
+          Map.put(acc, "v-on:#{emit}", handler)
+        end)
+
+      LiveVue.vue(vue_assigns)
+    end
   end
 
   defp maybe_put(assigns, _key, nil), do: assigns
@@ -182,4 +213,19 @@ defmodule JidoCodeWeb.LiveVueComponents do
       emit
     end
   end
+
+  defp coalesce_ssr(explicit_ssr, nil), do: explicit_ssr
+  defp coalesce_ssr(_explicit_ssr, fallback_ssr), do: fallback_ssr
+
+  defp fallback_id(nil, component), do: "vue-surface-fallback-#{String.replace(component, "/", "-")}"
+  defp fallback_id(id, _component), do: "#{id}-fallback"
+
+  defp humanize_reason(reason) when is_atom(reason) do
+    reason
+    |> Atom.to_string()
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp humanize_reason(reason), do: to_string(reason)
 end

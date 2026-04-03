@@ -6,7 +6,7 @@ This subject defines the normal local development contract for contributors work
 id: developer.workflow
 kind: policy
 status: active
-summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline, and isolates desktop runtime configuration behind desktop-specific entrypoints.
+summary: jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including `mix frontend.verify` for the richer browser stack, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline, and isolates desktop runtime configuration behind desktop-specific entrypoints.
 decisions:
   - jido_code.local_developer_workflow
 surface:
@@ -35,12 +35,12 @@ surface:
   stability: evolving
 
 - id: developer.workflow.phoenix_mix_surface
-  statement: The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.
+  statement: The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh, browser verification, plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.
   priority: must
   stability: evolving
 
 - id: developer.workflow.docs_split
-  statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, and the current LiveView-plus-LiveVue frontend boundary instead of repo shell wrappers.
+  statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the `mix frontend.verify` browser verification path, and the current LiveView-plus-LiveVue frontend boundary instead of repo shell wrappers.
   priority: must
   stability: evolving
 
@@ -74,6 +74,11 @@ surface:
     - developer.workflow.phoenix_mix_surface
 
 - kind: command
+  target: "rg -n '\"frontend.verify\": \\[\"assets.setup\", \"assets.build\"\\]' mix.exs"
+  covers:
+    - developer.workflow.phoenix_mix_surface
+
+- kind: command
   target: "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs"
   covers:
     - developer.workflow.phoenix_mix_surface
@@ -84,12 +89,12 @@ surface:
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix phx.server|mix ecto.reset|mix test|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix phx.server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
   covers:
     - developer.workflow.docs_split
 
 - kind: command
-  target: "rg -n 'localhost:5432|postgres / `postgres`|mix test|mix ecto.reset|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
+  target: "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix test|mix ecto.reset|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
   covers:
     - developer.workflow.docs_split
 

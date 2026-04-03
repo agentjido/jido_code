@@ -263,6 +263,11 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: lib/jido_code_web/frontend_assets.ex
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/support/conn_case.ex
   covers:
     - package.jido_code.version_controlled_quality_surfaces
@@ -279,6 +284,16 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/components/live_vue_components_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/frontend_assets_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifteen_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

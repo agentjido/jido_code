@@ -72,6 +72,16 @@ surface:
   statement: Browser-facing verification shall keep LiveView tests as the primary routed-surface harness and should add LiveVue-aware test helpers for Vue-mounted surfaces instead of assuming a standalone SPA testing model.
   priority: should
   stability: evolving
+
+- id: architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+  statement: Hybrid operator surfaces shall fall back safely to product-owned LiveView regions when the richer Vue delivery path is unavailable, degraded, or intentionally reduced to compatibility mode.
+  priority: must
+  stability: evolving
+
+- id: architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
+  statement: Frontend rollout observability for LiveVue delivery, SSR reduction, and compatibility fallback shall remain distinguishable from runtime-service observability and describe degraded browser behavior in product-oriented terms.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -152,6 +162,18 @@ surface:
     - The repository documents or implements that richer UI path.
   then:
     - The standard stack remains LiveView plus `live_vue`, and testing/documentation do not reintroduce React or SPA assumptions as a second frontend model.
+
+- id: architecture.frontend_stack.scenario_hybrid_surface_degrades_to_liveview_compatibility
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+    - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
+  given:
+    - A routed operator page includes a Vue-backed hybrid region.
+  when:
+    - SSR or richer client delivery for that region is unavailable, degraded, or reduced to compatibility mode.
+  then:
+    - The LiveView-owned route remains legible, bounded fallback messaging stays product-oriented, and degraded frontend signals remain observable without leaking raw runtime-service or toolchain contracts as the product interface.
 ```
 
 ## Verification
@@ -187,6 +209,14 @@ surface:
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
     - architecture.frontend_stack.product_owned_mounting_boundary
     - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: source_file
+  target: lib/jido_code_web/frontend_assets.ex
+  covers:
+    - architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+    - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
 
 - kind: source_file
   target: test/support/live_vue_case.ex
@@ -270,6 +300,14 @@ surface:
   covers:
     - architecture.frontend_stack.product_owned_mounting_boundary
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+
+- kind: source_file
+  target: test/jido_code_web/frontend_assets_test.exs
+  covers:
+    - architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+    - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
 
 - kind: source_file
   target: test/jido_code_web/live/phase_thirteen_integration_test.exs
@@ -289,4 +327,11 @@ surface:
     - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.adoption_is_incremental_per_surface
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifteen_integration_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+    - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
 ```

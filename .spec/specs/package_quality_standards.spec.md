@@ -6,7 +6,7 @@ This subject defines how `jido_code` aligns with the canonical Jido package qual
 id: package.jido_code.package_quality_standards
 kind: policy
 status: active
-summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, contributor docs that describe the approved LiveView-plus-LiveVue browser boundary, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.
+summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, contributor docs that describe the approved LiveView-plus-LiveVue browser boundary, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.canonical_repo_surface
@@ -39,7 +39,7 @@ surface:
   stability: stable
 
 - id: package.jido_code.package_quality_mix_surface_aligned
-  statement: "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, Vite-backed `mix assets.setup`, `mix assets.build`, and `mix assets.deploy` aliases for the browser toolchain, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for documentation coverage and broader static analysis while the repo carries existing Doctor and Dialyzer debt."
+  statement: "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, Vite-backed `mix assets.setup`, `mix assets.build`, and `mix assets.deploy` aliases for the browser toolchain, a repo-owned `mix frontend.verify` command for deeper browser-pipeline verification, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for browser verification, documentation coverage, and broader static analysis while the repo carries existing Doctor and Dialyzer debt."
   priority: must
   stability: evolving
 
@@ -74,6 +74,17 @@ surface:
     - package.jido_code.package_quality_mix_surface_aligned
 
 - kind: command
+  target: "rg -n '\"frontend.verify\": \\[\"assets.setup\", \"assets.build\"\\]' mix.exs"
+  covers:
+    - package.jido_code.package_quality_mix_surface_aligned
+
+- kind: command
+  target: "rg -n 'mix frontend.verify|LiveView-plus-LiveVue|<\\.vue_surface' README.md CONTRIBUTING.md AGENTS.md"
+  covers:
+    - package.jido_code.package_quality_alignment_doc_present
+    - package.jido_code.package_quality_mix_surface_aligned
+
+- kind: command
   target: mix help command
   covers:
     - package.jido_code.package_quality_mix_surface_aligned
@@ -85,6 +96,11 @@ surface:
 
 - kind: command
   target: test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml
+  covers:
+    - package.jido_code.package_quality_ci_and_release_present
+
+- kind: command
+  target: "rg -n 'Verify frontend asset pipeline|mix frontend.verify|actions/setup-node@v4' .github/workflows/ci.yml"
   covers:
     - package.jido_code.package_quality_ci_and_release_present
 ```

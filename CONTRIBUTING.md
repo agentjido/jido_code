@@ -35,6 +35,9 @@ Thank you for your interest in contributing to JidoCode! This document provides 
 
 For day-to-day development:
 
+- `mix assets.setup` installs the Vite and LiveVue browser dependencies
+- `mix assets.build` builds the current browser bundle and SSR output
+- `mix frontend.verify` runs the repo-owned browser pipeline verification
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
 - `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`
@@ -62,6 +65,7 @@ mix quality
 ```
 
 This extends `mix q` with:
+- `mix frontend.verify` - LiveVue/Vite/SSR pipeline verification
 - `mix doctor --raise` - Documentation coverage check
 - `mix dialyzer` - Broader static type analysis
 
@@ -82,6 +86,8 @@ The routed browser shell stays LiveView-first. Reach for Vue only when a surface
 - Treat `props:` as server-authored data from LiveView. If a Vue surface needs LiveView streams, pass them through `streams:` so diff behavior stays intact.
 - Map Vue emits back into LiveView with `events: %{"emit-name" => "live_view_event"}` or explicit `Phoenix.LiveView.JS` values instead of letting Vue own the workflow.
 - Use the `JidoCodeWeb.LiveVueCase` helpers only on screens that actually mount Vue. Plain LiveView routes should keep using the normal `Phoenix.LiveViewTest` path.
+- Keep degraded frontend behavior product-oriented. If a Vue surface cannot load or SSR is reduced, the page should fall back to bounded LiveView compatibility messaging rather than raw Vite, SSR, or manifest errors.
+- Run `mix frontend.verify` whenever a change touches `live_vue`, shared browser helpers, Vite config, SSR entrypoints, or the root browser dependency surface.
 
 ## Commit Messages
 
@@ -123,9 +129,10 @@ git commit -m "docs: update installation instructions"
 2. Create a feature branch: `git checkout -b feat/my-feature`
 3. Make your changes
 4. Run merge-safe quality checks: `mix q`
-5. Run tests: `mix coveralls`
-6. Commit using conventional commits
-7. Push and open a Pull Request
+5. If you touched the browser stack, run `mix frontend.verify`
+6. Run tests: `mix coveralls`
+7. Commit using conventional commits
+8. Push and open a Pull Request
 
 ## Release Workflow
 

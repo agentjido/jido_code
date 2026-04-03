@@ -16,6 +16,8 @@ affects:
 <!-- covers: architecture.frontend_stack.react_is_not_parallel_product_frontend_stack -->
 <!-- covers: architecture.frontend_stack.adoption_is_incremental_per_surface -->
 <!-- covers: architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers -->
+<!-- covers: architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades -->
+<!-- covers: architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 
 # Live Vue Frontend Adoption
@@ -68,6 +70,10 @@ This means:
   once `live_vue` is adopted as the rich-component standard.
 - Adoption may be incremental by surface. Existing LiveView-only pages remain
   valid until a richer client component model is justified.
+- When richer delivery degrades, hybrid operator surfaces shall fall back to
+  bounded product-owned LiveView regions with compatibility messaging rather
+  than failing hard or exposing raw frontend toolchain details as the user
+  contract.
 - Browser-facing tests keep LiveView as the routed-surface harness while
   Vue-mounted surfaces should use LiveVue-aware verification rather than
   standalone SPA testing assumptions.
@@ -79,6 +85,7 @@ This means:
 - The product keeps its current Phoenix and LiveView control-plane ownership.
 - Richer browser UI can be added without splitting the app into a separate SPA.
 - SSR, prop diffing, uploads, and event bridging stay aligned with LiveView.
+- Hybrid routes can remain legible even when frontend delivery or SSR degrade.
 - Contributor guidance can converge on one server-hosted UI model rather than a
   mixture of HEEx, hooks, and unrelated React islands.
 
@@ -90,6 +97,9 @@ This means:
   LiveView, when to use hooks, and when to introduce Vue through `live_vue`.
 - Browser-facing verification becomes slightly broader because richer surfaces
   need both LiveView and LiveVue-aware testing patterns.
+- The shared LiveVue boundary and asset helper now need explicit rollout,
+  fallback, and telemetry rules so degraded browser delivery remains observable
+  and product-oriented.
 
 ## Implementation Status
 
@@ -97,6 +107,12 @@ Initial operator-surface adoption begins with bounded summary regions on the
 dashboard and settings routes. Those routes stay LiveView-owned for auth,
 policy, loading, and mutations while Vue-backed widgets handle client-local
 filtering, grouping, and progressive disclosure inside the routed product shell.
+
+As rollout matures, the shared browser boundary must also enforce safe fallback
+behavior. Missing asset manifests or unavailable SSR should reduce hybrid
+surfaces to server-rendered compatibility mode or client-only delivery without
+breaking the LiveView-owned route, and frontend rollout telemetry should stay
+distinguishable from runtime-service observability.
 
 ### Non-Goals
 

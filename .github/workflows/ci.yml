@@ -24,6 +24,13 @@ jobs:
           elixir-version: ${{ env.ELIXIR_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+
       - name: Restore deps cache
         uses: actions/cache@v4
         with:
@@ -44,6 +51,9 @@ jobs:
 
       - name: Install dependencies
         run: mix deps.get
+
+      - name: Verify frontend asset pipeline
+        run: mix frontend.verify
 
       - name: Run fast merge quality gate
         run: mix q

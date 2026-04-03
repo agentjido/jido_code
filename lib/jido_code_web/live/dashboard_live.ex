@@ -3,6 +3,8 @@ defmodule JidoCodeWeb.DashboardLive do
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
@@ -26,9 +28,11 @@ defmodule JidoCodeWeb.DashboardLive do
       socket
       |> assign(:onboarding_next_actions, [])
       |> assign(:run_summary_count, 0)
+      |> assign(:run_summary_widget_rows, [])
       |> assign(:run_summary_warning, nil)
       |> assign(:run_summary_last_refreshed_at, nil)
       |> assign(:runtime_evidence_count, 0)
+      |> assign(:runtime_evidence_widget_rows, [])
       |> assign(:runtime_evidence_warning, nil)
       |> assign(:runtime_evidence_last_refreshed_at, nil)
       |> assign(:runtime_evidence_summary, nil)
@@ -136,53 +140,74 @@ defmodule JidoCodeWeb.DashboardLive do
             </button>
           </section>
 
-          <div class="overflow-x-auto rounded border border-base-300">
-            <table id="dashboard-run-summaries-table" class="table w-full">
-              <thead>
-                <tr>
-                  <th>Run</th>
-                  <th>Status</th>
-                  <th>Recency</th>
-                </tr>
-              </thead>
-              <tbody :if={@run_summary_count == 0} id="dashboard-run-summaries-empty">
-                <tr id="dashboard-run-summaries-empty-state">
-                  <td colspan="3" class="py-6 text-center text-sm text-base-content/70">
-                    No recent runs available.
-                  </td>
-                </tr>
-              </tbody>
-              <tbody id="dashboard-run-summaries-rows" phx-update="stream">
-                <tr :for={{dom_id, run_summary} <- @streams.run_summaries} id={dom_id}>
-                  <td id={"dashboard-run-id-#{run_summary_dom_token(run_summary.run_id)}"} class="font-mono text-xs">
-                    <.link
-                      id={"dashboard-run-link-#{run_summary_dom_token(run_summary.run_id)}"}
-                      class="link link-primary"
-                      navigate={run_detail_path(run_summary)}
-                    >
-                      {run_summary.run_id}
-                    </.link>
-                    <p class="text-xs text-base-content/70">{run_summary.workflow_name}</p>
-                  </td>
-                  <td id={"dashboard-run-status-#{run_summary_dom_token(run_summary.run_id)}"}>
-                    <span class={run_status_badge_class(run_summary.status)}>
-                      {run_summary.status}
-                    </span>
-                    <p
-                      :if={run_governance_summary(run_summary)}
-                      id={"dashboard-run-governance-#{run_summary_dom_token(run_summary.run_id)}"}
-                      class="pt-1 text-xs text-base-content/70"
-                    >
-                      {run_governance_summary(run_summary)}
-                    </p>
-                  </td>
-                  <td id={"dashboard-run-recency-#{run_summary_dom_token(run_summary.run_id)}"} class="text-xs">
-                    {run_recency_label(run_summary)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <.vue_surface
+            id="dashboard-run-summary-widget"
+            component="DashboardRunSummaryWidget"
+            socket={@socket}
+            props={
+              %{
+                runSummaries: @run_summary_widget_rows,
+                runSummaryCount: @run_summary_count,
+                lastRefreshedLabel: summary_refreshed_label(@run_summary_last_refreshed_at)
+              }
+            }
+          />
+
+          <details
+            id="dashboard-run-summary-fallback"
+            class="rounded-lg border border-base-300/70 bg-base-200/20"
+          >
+            <summary class="cursor-pointer px-4 py-3 text-sm font-medium">
+              LiveView detail fallback
+            </summary>
+            <div class="overflow-x-auto border-t border-base-300/70">
+              <table id="dashboard-run-summaries-table" class="table w-full">
+                <thead>
+                  <tr>
+                    <th>Run</th>
+                    <th>Status</th>
+                    <th>Recency</th>
+                  </tr>
+                </thead>
+                <tbody :if={@run_summary_count == 0} id="dashboard-run-summaries-empty">
+                  <tr id="dashboard-run-summaries-empty-state">
+                    <td colspan="3" class="py-6 text-center text-sm text-base-content/70">
+                      No recent runs available.
+                    </td>
+                  </tr>
+                </tbody>
+                <tbody id="dashboard-run-summaries-rows" phx-update="stream">
+                  <tr :for={{dom_id, run_summary} <- @streams.run_summaries} id={dom_id}>
+                    <td id={"dashboard-run-id-#{run_summary_dom_token(run_summary.run_id)}"} class="font-mono text-xs">
+                      <.link
+                        id={"dashboard-run-link-#{run_summary_dom_token(run_summary.run_id)}"}
+                        class="link link-primary"
+                        navigate={run_detail_path(run_summary)}
+                      >
+                        {run_summary.run_id}
+                      </.link>
+                      <p class="text-xs text-base-content/70">{run_summary.workflow_name}</p>
+                    </td>
+                    <td id={"dashboard-run-status-#{run_summary_dom_token(run_summary.run_id)}"}>
+                      <span class={run_status_badge_class(run_summary.status)}>
+                        {run_summary.status}
+                      </span>
+                      <p
+                        :if={run_governance_summary(run_summary)}
+                        id={"dashboard-run-governance-#{run_summary_dom_token(run_summary.run_id)}"}
+                        class="pt-1 text-xs text-base-content/70"
+                      >
+                        {run_governance_summary(run_summary)}
+                      </p>
+                    </td>
+                    <td id={"dashboard-run-recency-#{run_summary_dom_token(run_summary.run_id)}"} class="text-xs">
+                      {run_recency_label(run_summary)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
         </section>
 
         <section
@@ -233,65 +258,92 @@ defmodule JidoCodeWeb.DashboardLive do
             </p>
           </section>
 
-          <div :if={@runtime_evidence_summary} id="dashboard-runtime-evidence-counts" class="grid gap-3 md:grid-cols-3">
-            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-              <p class="text-xs uppercase text-base-content/60">Blocked repos</p>
-              <p id="dashboard-runtime-evidence-count-blocked" class="mt-1 text-2xl font-semibold">
-                {Map.get(@runtime_evidence_summary, :blocked_count, 0)}
-              </p>
-            </div>
-            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-              <p class="text-xs uppercase text-base-content/60">Review-required repos</p>
-              <p id="dashboard-runtime-evidence-count-degraded" class="mt-1 text-2xl font-semibold">
-                {Map.get(@runtime_evidence_summary, :degraded_count, 0)}
-              </p>
-            </div>
-            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-              <p class="text-xs uppercase text-base-content/60">Stable repos</p>
-              <p id="dashboard-runtime-evidence-count-available" class="mt-1 text-2xl font-semibold">
-                {Map.get(@runtime_evidence_summary, :available_count, 0)}
-              </p>
-            </div>
-          </div>
+          <.vue_surface
+            id="dashboard-runtime-posture-widget"
+            component="DashboardRuntimePostureWidget"
+            socket={@socket}
+            props={
+              %{
+                counts: runtime_evidence_widget_counts(@runtime_evidence_summary),
+                runtimeEvidenceSummaries: @runtime_evidence_widget_rows
+              }
+            }
+          />
 
-          <%= if @runtime_evidence_count == 0 do %>
-            <p id="dashboard-runtime-evidence-empty" class="text-sm text-base-content/70">
-              No runtime-service posture has been materialized yet.
-            </p>
-          <% else %>
-            <ol id="dashboard-runtime-evidence-list" class="space-y-2">
-              <li
-                :for={{dom_id, runtime_summary} <- @streams.runtime_evidence_summaries}
-                id={dom_id}
-                class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+          <details
+            id="dashboard-runtime-evidence-fallback"
+            class="rounded-lg border border-base-300/70 bg-base-200/20"
+          >
+            <summary class="cursor-pointer px-4 py-3 text-sm font-medium">
+              LiveView posture details
+            </summary>
+
+            <div class="space-y-4 border-t border-base-300/70 p-4">
+              <div
+                :if={@runtime_evidence_summary}
+                id="dashboard-runtime-evidence-counts"
+                class="grid gap-3 md:grid-cols-3"
               >
-                <div class="flex flex-wrap items-center gap-2">
-                  <p class="text-sm font-medium">{runtime_summary.repo_label}</p>
-                  <span class={runtime_evidence_badge_class(runtime_summary.status)}>
-                    {runtime_evidence_status_label(runtime_summary.status)}
-                  </span>
-                  <span
-                    :if={runtime_summary.review_required}
-                    class="badge badge-warning badge-outline"
-                  >
-                    review required
-                  </span>
+                <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Blocked repos</p>
+                  <p id="dashboard-runtime-evidence-count-blocked" class="mt-1 text-2xl font-semibold">
+                    {Map.get(@runtime_evidence_summary, :blocked_count, 0)}
+                  </p>
                 </div>
-                <p
-                  id={"dashboard-runtime-evidence-item-summary-#{run_summary_dom_token(runtime_summary.id)}"}
-                  class="text-xs text-base-content/80"
-                >
-                  {runtime_summary.summary}
+                <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Review-required repos</p>
+                  <p id="dashboard-runtime-evidence-count-degraded" class="mt-1 text-2xl font-semibold">
+                    {Map.get(@runtime_evidence_summary, :degraded_count, 0)}
+                  </p>
+                </div>
+                <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
+                  <p class="text-xs uppercase text-base-content/60">Stable repos</p>
+                  <p id="dashboard-runtime-evidence-count-available" class="mt-1 text-2xl font-semibold">
+                    {Map.get(@runtime_evidence_summary, :available_count, 0)}
+                  </p>
+                </div>
+              </div>
+
+              <%= if @runtime_evidence_count == 0 do %>
+                <p id="dashboard-runtime-evidence-empty" class="text-sm text-base-content/70">
+                  No runtime-service posture has been materialized yet.
                 </p>
-                <p
-                  id={"dashboard-runtime-evidence-item-details-#{run_summary_dom_token(runtime_summary.id)}"}
-                  class="text-xs text-base-content/70"
-                >
-                  {runtime_evidence_details(runtime_summary)}
-                </p>
-              </li>
-            </ol>
-          <% end %>
+              <% else %>
+                <ol id="dashboard-runtime-evidence-list" class="space-y-2">
+                  <li
+                    :for={{dom_id, runtime_summary} <- @streams.runtime_evidence_summaries}
+                    id={dom_id}
+                    class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
+                  >
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="text-sm font-medium">{runtime_summary.repo_label}</p>
+                      <span class={runtime_evidence_badge_class(runtime_summary.status)}>
+                        {runtime_evidence_status_label(runtime_summary.status)}
+                      </span>
+                      <span
+                        :if={runtime_summary.review_required}
+                        class="badge badge-warning badge-outline"
+                      >
+                        review required
+                      </span>
+                    </div>
+                    <p
+                      id={"dashboard-runtime-evidence-item-summary-#{run_summary_dom_token(runtime_summary.id)}"}
+                      class="text-xs text-base-content/80"
+                    >
+                      {runtime_summary.summary}
+                    </p>
+                    <p
+                      id={"dashboard-runtime-evidence-item-details-#{run_summary_dom_token(runtime_summary.id)}"}
+                      class="text-xs text-base-content/70"
+                    >
+                      {runtime_evidence_details(runtime_summary)}
+                    </p>
+                  </li>
+                </ol>
+              <% end %>
+            </div>
+          </details>
         </section>
 
         <section
@@ -466,6 +518,7 @@ defmodule JidoCodeWeb.DashboardLive do
       {:ok, run_summaries, warning} ->
         socket
         |> assign(:run_summary_count, length(run_summaries))
+        |> assign(:run_summary_widget_rows, Enum.map(run_summaries, &dashboard_run_summary_widget/1))
         |> assign(:run_summary_warning, warning)
         |> assign(:run_summary_last_refreshed_at, now)
         |> stream(:run_summaries, run_summaries, reset: true)
@@ -473,6 +526,7 @@ defmodule JidoCodeWeb.DashboardLive do
       {:error, warning} ->
         socket
         |> assign(:run_summary_count, 0)
+        |> assign(:run_summary_widget_rows, [])
         |> assign(:run_summary_warning, warning)
         |> assign(:run_summary_last_refreshed_at, now)
         |> stream(:run_summaries, [], reset: true)
@@ -673,6 +727,7 @@ defmodule JidoCodeWeb.DashboardLive do
       {:ok, summaries, warning} ->
         socket
         |> assign(:runtime_evidence_count, length(summaries))
+        |> assign(:runtime_evidence_widget_rows, Enum.map(summaries, &dashboard_runtime_evidence_widget/1))
         |> assign(:runtime_evidence_warning, warning)
         |> assign(:runtime_evidence_last_refreshed_at, now)
         |> assign(:runtime_evidence_summary, summarize_runtime_evidence(summaries))
@@ -681,12 +736,79 @@ defmodule JidoCodeWeb.DashboardLive do
       {:error, warning} ->
         socket
         |> assign(:runtime_evidence_count, 0)
+        |> assign(:runtime_evidence_widget_rows, [])
         |> assign(:runtime_evidence_warning, warning)
         |> assign(:runtime_evidence_last_refreshed_at, now)
         |> assign(:runtime_evidence_summary, nil)
         |> stream(:runtime_evidence_summaries, [], reset: true)
     end
   end
+
+  defp dashboard_run_summary_widget(run_summary) do
+    status =
+      run_summary
+      |> Map.get(:status)
+      |> normalize_optional_string() || "pending"
+
+    %{
+      id:
+        run_summary
+        |> Map.get(:id)
+        |> run_summary_dom_token(),
+      runId:
+        run_summary
+        |> Map.get(:run_id)
+        |> normalize_optional_string() || "unknown",
+      workflowName:
+        run_summary
+        |> Map.get(:workflow_name)
+        |> normalize_optional_string() || "unknown_workflow",
+      status: status,
+      statusBadgeClass: run_status_badge_class(status),
+      governanceSummary: run_governance_summary(run_summary),
+      recencyLabel: run_recency_label(run_summary),
+      detailPath: run_detail_path(run_summary),
+      requiresAttention: run_requires_attention?(status),
+      terminal: run_terminal?(status)
+    }
+  end
+
+  defp dashboard_runtime_evidence_widget(runtime_summary) do
+    status =
+      runtime_summary
+      |> Map.get(:status)
+      |> normalize_optional_string() || "unknown"
+
+    %{
+      id:
+        runtime_summary
+        |> Map.get(:id)
+        |> run_summary_dom_token(),
+      repoLabel:
+        runtime_summary
+        |> Map.get(:repo_label)
+        |> normalize_optional_string() || "Unknown repo",
+      status: status,
+      statusLabel: runtime_evidence_status_label(status),
+      statusBadgeClass: runtime_evidence_badge_class(status),
+      reviewRequired: Map.get(runtime_summary, :review_required, false),
+      summary:
+        runtime_summary
+        |> Map.get(:summary)
+        |> normalize_optional_string() || "Runtime posture status is unavailable.",
+      details: runtime_evidence_details(runtime_summary)
+    }
+  end
+
+  defp runtime_evidence_widget_counts(%{} = summary) do
+    %{
+      blocked: Map.get(summary, :blocked_count, 0),
+      degraded: Map.get(summary, :degraded_count, 0),
+      available: Map.get(summary, :available_count, 0)
+    }
+  end
+
+  defp runtime_evidence_widget_counts(_summary), do: %{blocked: 0, degraded: 0, available: 0}
 
   defp summarize_runtime_evidence(summaries) when is_list(summaries) do
     %{
@@ -822,6 +944,10 @@ defmodule JidoCodeWeb.DashboardLive do
       ~p"/dashboard"
     end
   end
+
+  defp run_requires_attention?(status), do: status in ["awaiting_approval", "cancelled", "failed"]
+
+  defp run_terminal?(status), do: status in ["cancelled", "completed", "failed"]
 
   defp normalize_non_negative_integer(value) when is_integer(value) and value >= 0, do: value
 

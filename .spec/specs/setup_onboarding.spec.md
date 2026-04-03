@@ -135,6 +135,7 @@ surface:
     - The operator opens dashboard, workbench, or repo detail through the existing post-bootstrap routes.
   then:
     - Those post-bootstrap surfaces may keep compatibility paths while presenting managed-repository and governed-run concepts as the preferred operator language.
+    - They may also adopt bounded hybrid summary widgets incrementally as long as those routed surfaces keep onboarding-era auth, loading, and control-plane language in the LiveView host shell.
 ```
 
 ## Verification

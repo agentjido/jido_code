@@ -8,7 +8,7 @@ ownership across multiple unrelated frontend stacks.
 id: architecture.frontend_stack
 kind: policy
 status: active
-summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with a product-owned mounting boundary and LiveVue-aware test helpers instead of a parallel React or SPA frontend.
+summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with a product-owned mounting boundary and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.live_vue_frontend_adoption
@@ -115,6 +115,19 @@ surface:
   then:
     - The route may remain a plain LiveView or HEEx surface without being forced into Vue unnecessarily.
 
+- id: architecture.frontend_stack.scenario_operator_summary_route_adopts_bounded_vue_widget
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+  given:
+    - An operator-facing route such as dashboard or settings benefits from richer summary grouping or client-local filtering.
+  when:
+    - The route adopts a bounded Vue-backed widget for that summary region.
+  then:
+    - The route stays LiveView-owned, server-authored props remain bounded, and the Vue-backed region augments rather than replaces the routed product shell.
+
 - id: architecture.frontend_stack.scenario_frontend_stack_does_not_re_fragment
   covers:
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
@@ -166,6 +179,39 @@ surface:
   target: test/support/live_vue_case.ex
   covers:
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: lib/jido_code_web/live/DashboardRunSummaryWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
+  target: lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
+  target: lib/jido_code_web/live/SettingsOverviewWidget.vue
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
+  target: test/jido_code_web/live/dashboard_live_test.exs
+  covers:
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+
+- kind: source_file
+  target: test/jido_code_web/live/security_settings_live_test.exs
+  covers:
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.server_authored_props_streams_and_events
 
 - kind: source_file
   target: test/jido_code_web/components/live_vue_components_test.exs

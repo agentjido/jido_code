@@ -1,5 +1,7 @@
 # Phase 14 - Incremental Operator Surface Adoption
 
+<!-- covers: package.jido_code.spec_led_workspace -->
+
 Back to index: [README](./README.md)
 
 ## Relevant Shared APIs / Interfaces
@@ -23,22 +25,22 @@ Back to index: [README](./README.md)
 [ ] 14 Phase 14 - Incremental Operator Surface Adoption
   Migrate the highest-value operator-facing surfaces onto the new LiveView-plus-`live_vue` composition model in a controlled sequence that improves interactivity without destabilizing the product shell.
 
-  [ ] 14.1 Section - Dashboard and Summary Surface Adoption
+  [x] 14.1 Section - Dashboard and Summary Surface Adoption
     Start with summary-heavy operator surfaces where richer client composition can improve clarity, filtering, and progressive disclosure without owning the route lifecycle.
 
-    [ ] 14.1.1 Task - Migrate dashboard summary widgets to Live Vue-backed components
+    [x] 14.1.1 Task - Migrate dashboard summary widgets to Live Vue-backed components
       Use Vue-backed components where richer visual grouping, filtering, or incremental disclosure benefits operator understanding.
 
-      [ ] 14.1.1.1 Subtask - Identify dashboard panels or widgets that benefit most from richer client composition.
-      [ ] 14.1.1.2 Subtask - Keep the dashboard route and data ownership in LiveView while mounting bounded Vue-backed components for the richer regions.
-      [ ] 14.1.1.3 Subtask - Preserve product-oriented runtime posture and governed evidence language in the migrated widgets.
+      [x] 14.1.1.1 Subtask - Identify dashboard panels or widgets that benefit most from richer client composition.
+      [x] 14.1.1.2 Subtask - Keep the dashboard route and data ownership in LiveView while mounting bounded Vue-backed components for the richer regions.
+      [x] 14.1.1.3 Subtask - Preserve product-oriented runtime posture and governed evidence language in the migrated widgets.
 
-    [ ] 14.1.2 Task - Migrate one additional summary-oriented operator surface
+    [x] 14.1.2 Task - Migrate one additional summary-oriented operator surface
       Prove the pattern can generalize beyond the dashboard before deeper workflow screens are converted.
 
-      [ ] 14.1.2.1 Subtask - Choose a second summary-heavy route such as repo inventory, workbench summary regions, or settings overview.
-      [ ] 14.1.2.2 Subtask - Apply the same bounded mounting and event conventions introduced in Phase 13.
-      [ ] 14.1.2.3 Subtask - Keep route-level auth, policy gating, and server-authored loading logic fully in LiveView.
+      [x] 14.1.2.1 Subtask - Choose a second summary-heavy route such as repo inventory, workbench summary regions, or settings overview.
+      [x] 14.1.2.2 Subtask - Apply the same bounded mounting and event conventions introduced in Phase 13.
+      [x] 14.1.2.3 Subtask - Keep route-level auth, policy gating, and server-authored loading logic fully in LiveView.
 
   [ ] 14.2 Section - Deep Workflow Surface Adoption
     Migrate the richer workflow-heavy pages after the summary surfaces prove the hybrid pattern is operationally safe.

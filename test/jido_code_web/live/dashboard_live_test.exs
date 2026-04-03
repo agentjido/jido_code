@@ -2,6 +2,8 @@ defmodule JidoCodeWeb.DashboardLiveTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
@@ -65,10 +67,20 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
 
     assert has_element?(view, "#dashboard-run-summaries")
+    assert has_element?(view, "#dashboard-run-summary-fallback")
     assert has_element?(view, "#dashboard-run-status-dashboard-run-completed", "completed")
     assert has_element?(view, "#dashboard-run-status-dashboard-run-pending", "pending")
     assert has_element?(view, "#dashboard-run-recency-dashboard-run-completed", "Started")
     assert has_element?(view, "#dashboard-run-recency-dashboard-run-completed", "ago")
+
+    vue = assert_vue_component(view, "DashboardRunSummaryWidget", id: "dashboard-run-summary-widget")
+
+    assert vue.props["runSummaryCount"] == 2
+
+    assert Enum.any?(vue.props["runSummaries"], fn run_summary ->
+             run_summary["runId"] == "dashboard-run-completed" and
+               run_summary["terminal"] == true
+           end)
   end
 
   test "updates run summaries when runs start and complete", %{conn: _conn} do
@@ -271,10 +283,20 @@ defmodule JidoCodeWeb.DashboardLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/dashboard", on_error: :warn)
 
     assert has_element?(view, "#dashboard-runtime-evidence")
+    assert has_element?(view, "#dashboard-runtime-evidence-fallback")
     assert has_element?(view, "#dashboard-runtime-evidence-summary", "review-required")
     assert has_element?(view, "#dashboard-runtime-evidence-note", "source of truth")
     assert has_element?(view, "#dashboard-runtime-evidence-count-degraded", "1")
     assert has_element?(view, "#dashboard-runtime-evidence-runtime-posture-1", "repo-runtime-dashboard")
+
+    vue = assert_vue_component(view, "DashboardRuntimePostureWidget", id: "dashboard-runtime-posture-widget")
+
+    assert vue.props["counts"] == %{"available" => 0, "blocked" => 0, "degraded" => 1}
+
+    assert Enum.any?(vue.props["runtimeEvidenceSummaries"], fn runtime_summary ->
+             runtime_summary["repoLabel"] == "repo-runtime-dashboard" and
+               runtime_summary["status"] == "degraded"
+           end)
 
     assert has_element?(
              view,

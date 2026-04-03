@@ -74,6 +74,15 @@ mix coveralls.html
 
 The repo-local package-quality baseline is expressed through `mix.exs`, this guide, the top-level `README.md`, and the current-truth subjects under `.spec/`.
 
+## Frontend Conventions
+
+The routed browser shell stays LiveView-first. Reach for Vue only when a surface genuinely needs richer client-side composition than HEEx plus lightweight hooks can comfortably support.
+
+- Keep pages and route ownership in LiveView and mount Vue through `<.vue_surface ...>` rather than raw `<.vue ...>` calls.
+- Treat `props:` as server-authored data from LiveView. If a Vue surface needs LiveView streams, pass them through `streams:` so diff behavior stays intact.
+- Map Vue emits back into LiveView with `events: %{"emit-name" => "live_view_event"}` or explicit `Phoenix.LiveView.JS` values instead of letting Vue own the workflow.
+- Use the `JidoCodeWeb.LiveVueCase` helpers only on screens that actually mount Vue. Plain LiveView routes should keep using the normal `Phoenix.LiveViewTest` path.
+
 ## Commit Messages
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/):

@@ -94,6 +94,7 @@ defmodule JidoCodeWeb do
       # Core UI components
       import JidoCodeWeb.CoreComponents
       import JidoCodeWeb.LiveVueComponents
+      import JidoCodeWeb.OperatorStateComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

@@ -43,22 +43,22 @@ Back to index: [README](./README.md)
       [x] 16.1.2.2 Subtask - Collapse obsolete indirection where newer product-owned records, gateways, or shared frontend boundaries have already replaced it.
       [x] 16.1.2.3 Subtask - Keep compatibility only where an active user-facing or operator-facing path still depends on it.
 
-  [ ] 16.2 Section - Startup, Mix Surface, and UI State Convergence
+  [x] 16.2 Section - Startup, Mix Surface, and UI State Convergence
     Make the application start path and operator-facing UI states reflect the current architecture consistently instead of depending on scattered per-surface conventions.
 
-    [ ] 16.2.1 Task - Align application start and build entrypoints with the current frontend architecture
+    [x] 16.2.1 Task - Align application start and build entrypoints with the current frontend architecture
       Ensure the Mix and startup paths that contributors actually use consistently respect the LiveView-plus-`live_vue` browser stack and its build chain.
 
-      [ ] 16.2.1.1 Subtask - Audit `mix` aliases and app-start entrypoints that developers use to boot Phoenix or related product processes.
-      [ ] 16.2.1.2 Subtask - Make the relevant start-oriented command surface trigger or require the correct frontend build chain where appropriate.
-      [ ] 16.2.1.3 Subtask - Keep the fast local loop understandable and avoid introducing hidden startup work that makes normal Phoenix development surprising.
+      [x] 16.2.1.1 Subtask - Audit `mix` aliases and app-start entrypoints that developers use to boot Phoenix or related product processes.
+      [x] 16.2.1.2 Subtask - Make the relevant start-oriented command surface trigger or require the correct frontend build chain where appropriate.
+      [x] 16.2.1.3 Subtask - Keep the fast local loop understandable and avoid introducing hidden startup work that makes normal Phoenix development surprising.
 
-    [ ] 16.2.2 Task - Standardize operator-facing UI states across migrated surfaces
+    [x] 16.2.2 Task - Standardize operator-facing UI states across migrated surfaces
       Make hybrid and plain LiveView surfaces present loading, empty, warning, fallback, and refresh states with a more consistent product narrative.
 
-      [ ] 16.2.2.1 Subtask - Audit dashboard, workbench, project detail, run detail, settings, and related operator surfaces for repeated or inconsistent UI states.
-      [ ] 16.2.2.2 Subtask - Extract or standardize shared operator-state presentation where consistency improves comprehension and maintenance.
-      [ ] 16.2.2.3 Subtask - Preserve LiveView ownership and bounded Vue regions while avoiding a second per-page UI language for the same product concepts.
+      [x] 16.2.2.1 Subtask - Audit dashboard, workbench, project detail, run detail, settings, and related operator surfaces for repeated or inconsistent UI states.
+      [x] 16.2.2.2 Subtask - Extract or standardize shared operator-state presentation where consistency improves comprehension and maintenance.
+      [x] 16.2.2.3 Subtask - Preserve LiveView ownership and bounded Vue regions while avoiding a second per-page UI language for the same product concepts.
 
   [ ] 16.3 Section - Phase 16 Integration Tests
     Validate that the cleanup work improves maintainability and consistency without regressing startup behavior, product boundaries, or operator workflows.

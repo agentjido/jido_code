@@ -115,30 +115,24 @@ defmodule JidoCodeWeb.DashboardLive do
             </p>
           </div>
 
-          <section
+          <.operator_state_notice
             :if={@run_summary_warning}
             id="dashboard-run-summary-warning"
-            class="rounded-lg border border-warning/60 bg-warning/10 p-3 space-y-2"
+            title="Run summary feed may be stale"
+            state={@run_summary_warning}
+            compact={true}
           >
-            <p id="dashboard-run-summary-warning-label" class="font-semibold">
-              Run summary feed may be stale
-            </p>
-            <p id="dashboard-run-summary-warning-type" class="text-sm">
-              Typed warning: {@run_summary_warning.error_type}
-            </p>
-            <p id="dashboard-run-summary-warning-detail" class="text-sm">{@run_summary_warning.detail}</p>
-            <p id="dashboard-run-summary-warning-remediation" class="text-sm">
-              {@run_summary_warning.remediation}
-            </p>
-            <button
-              id="dashboard-run-summary-refresh"
-              type="button"
-              class="btn btn-sm btn-warning"
-              phx-click="refresh_run_summaries"
-            >
-              Refresh run summaries
-            </button>
-          </section>
+            <:actions>
+              <button
+                id="dashboard-run-summary-refresh"
+                type="button"
+                class="btn btn-sm btn-warning"
+                phx-click="refresh_run_summaries"
+              >
+                Refresh run summaries
+              </button>
+            </:actions>
+          </.operator_state_notice>
 
           <.vue_surface
             id="dashboard-run-summary-widget"
@@ -239,24 +233,13 @@ defmodule JidoCodeWeb.DashboardLive do
             </div>
           </div>
 
-          <section
+          <.operator_state_notice
             :if={@runtime_evidence_warning}
             id="dashboard-runtime-evidence-warning"
-            class="rounded-lg border border-warning/60 bg-warning/10 p-3 space-y-2"
-          >
-            <p id="dashboard-runtime-evidence-warning-label" class="font-semibold">
-              Runtime posture may be stale
-            </p>
-            <p id="dashboard-runtime-evidence-warning-type" class="text-sm">
-              Typed warning: {@runtime_evidence_warning.error_type}
-            </p>
-            <p id="dashboard-runtime-evidence-warning-detail" class="text-sm">
-              {@runtime_evidence_warning.detail}
-            </p>
-            <p id="dashboard-runtime-evidence-warning-remediation" class="text-sm">
-              {@runtime_evidence_warning.remediation}
-            </p>
-          </section>
+            title="Runtime posture may be stale"
+            state={@runtime_evidence_warning}
+            compact={true}
+          />
 
           <.vue_surface
             id="dashboard-runtime-posture-widget"
@@ -372,24 +355,13 @@ defmodule JidoCodeWeb.DashboardLive do
             </div>
           </div>
 
-          <section
+          <.operator_state_notice
             :if={@compatibility_rollout_warning}
             id="dashboard-compatibility-warning"
-            class="rounded-lg border border-warning/60 bg-warning/10 p-3 space-y-2"
-          >
-            <p id="dashboard-compatibility-warning-label" class="font-semibold">
-              Compatibility rollout report may be stale
-            </p>
-            <p id="dashboard-compatibility-warning-type" class="text-sm">
-              Typed warning: {@compatibility_rollout_warning.error_type}
-            </p>
-            <p id="dashboard-compatibility-warning-detail" class="text-sm">
-              {@compatibility_rollout_warning.detail}
-            </p>
-            <p id="dashboard-compatibility-warning-remediation" class="text-sm">
-              {@compatibility_rollout_warning.remediation}
-            </p>
-          </section>
+            title="Compatibility rollout report may be stale"
+            state={@compatibility_rollout_warning}
+            compact={true}
+          />
 
           <section
             :if={@compatibility_rollout_backfill}

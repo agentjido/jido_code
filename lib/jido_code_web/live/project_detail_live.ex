@@ -192,22 +192,13 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         </p>
       </section>
 
-      <section
+      <.operator_state_notice
         :if={@project_load_error}
         id="project-detail-load-error"
-        class="rounded-lg border border-warning/60 bg-warning/10 p-4 space-y-2"
-      >
-        <p id="project-detail-load-error-label" class="font-semibold">
-          Managed repository detail is unavailable
-        </p>
-        <p id="project-detail-load-error-type" class="text-sm">
-          Typed error: {@project_load_error.error_type}
-        </p>
-        <p id="project-detail-load-error-detail" class="text-sm">{@project_load_error.detail}</p>
-        <p id="project-detail-load-error-remediation" class="text-sm">
-          {@project_load_error.remediation}
-        </p>
-      </section>
+        title="Managed repository detail is unavailable"
+        state={@project_load_error}
+        kind={:error}
+      />
 
       <section
         :if={@project_detail}

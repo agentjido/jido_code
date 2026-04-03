@@ -238,18 +238,13 @@ defmodule JidoCodeWeb.WorkbenchLive do
         </p>
       </section>
 
-      <section
+      <.operator_state_notice
         :if={@stale_warning}
         id="workbench-stale-warning"
-        class="rounded-lg border border-warning/60 bg-warning/10 p-4 space-y-2"
+        title="Workbench data may be stale"
+        state={@stale_warning}
       >
-        <p id="workbench-stale-warning-label" class="font-semibold">Workbench data may be stale</p>
-        <p id="workbench-stale-warning-type" class="text-sm">
-          Typed warning: {@stale_warning.error_type}
-        </p>
-        <p id="workbench-stale-warning-detail" class="text-sm">{@stale_warning.detail}</p>
-        <p id="workbench-stale-warning-remediation" class="text-sm">{@stale_warning.remediation}</p>
-        <div class="flex flex-wrap gap-3 pt-1">
+        <:actions>
           <button
             id="workbench-retry-fetch"
             type="button"
@@ -265,46 +260,26 @@ defmodule JidoCodeWeb.WorkbenchLive do
           >
             Review setup diagnostics
           </.link>
-        </div>
-      </section>
+        </:actions>
+      </.operator_state_notice>
 
-      <section
+      <.operator_state_notice
         :if={@filter_validation_notice}
         id="workbench-filter-validation-notice"
-        class="rounded-lg border border-warning/60 bg-warning/10 p-4 space-y-2"
-      >
-        <p id="workbench-filter-validation-label" class="font-semibold">
-          Workbench filters were reset to defaults
-        </p>
-        <p id="workbench-filter-validation-type" class="text-sm">
-          Typed validation notice: {@filter_validation_notice.error_type}
-        </p>
-        <p id="workbench-filter-validation-detail" class="text-sm">
-          {@filter_validation_notice.detail}
-        </p>
-        <p id="workbench-filter-validation-remediation" class="text-sm">
-          {@filter_validation_notice.remediation}
-        </p>
-      </section>
+        dom_prefix="workbench-filter-validation"
+        title="Workbench filters were reset to defaults"
+        state={@filter_validation_notice}
+        kind={:notice}
+      />
 
-      <section
+      <.operator_state_notice
         :if={@sort_validation_notice}
         id="workbench-sort-validation-notice"
-        class="rounded-lg border border-warning/60 bg-warning/10 p-4 space-y-2"
-      >
-        <p id="workbench-sort-validation-label" class="font-semibold">
-          Workbench sort fell back to default order
-        </p>
-        <p id="workbench-sort-validation-type" class="text-sm">
-          Typed sort notice: {@sort_validation_notice.error_type}
-        </p>
-        <p id="workbench-sort-validation-detail" class="text-sm">
-          {@sort_validation_notice.detail}
-        </p>
-        <p id="workbench-sort-validation-remediation" class="text-sm">
-          {@sort_validation_notice.remediation}
-        </p>
-      </section>
+        dom_prefix="workbench-sort-validation"
+        title="Workbench sort fell back to default order"
+        state={@sort_validation_notice}
+        kind={:notice}
+      />
 
       <.vue_surface
         id="workbench-summary-widget"

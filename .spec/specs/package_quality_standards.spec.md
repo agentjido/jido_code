@@ -6,7 +6,7 @@ This subject defines how `jido_code` aligns with the canonical Jido package qual
 id: package.jido_code.package_quality_standards
 kind: policy
 status: active
-summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.
+summary: jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, contributor docs that describe the approved LiveView-plus-LiveVue browser boundary, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.canonical_repo_surface
@@ -29,7 +29,7 @@ surface:
 
 ```spec-requirements
 - id: package.jido_code.package_quality_alignment_doc_present
-  statement: "The repository shall keep its package-quality alignment and any explicit product-repo exceptions documented in version-controlled repo files or specs."
+  statement: "The repository shall keep its package-quality alignment, approved browser-composition conventions, and any explicit product-repo exceptions documented in version-controlled repo files or specs."
   priority: must
   stability: stable
 

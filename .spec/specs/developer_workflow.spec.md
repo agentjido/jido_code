@@ -40,7 +40,7 @@ surface:
   stability: evolving
 
 - id: developer.workflow.docs_split
-  statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow and direct Mix task entrypoints instead of repo shell wrappers.
+  statement: Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, and the current LiveView-plus-LiveVue frontend boundary instead of repo shell wrappers.
   priority: must
   stability: evolving
 

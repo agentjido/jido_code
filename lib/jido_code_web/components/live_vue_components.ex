@@ -1,4 +1,8 @@
 defmodule JidoCodeWeb.LiveVueComponents do
+  # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+  # covers: architecture.frontend_stack.product_owned_mounting_boundary
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   @moduledoc """
   Product-owned helpers for mounting Vue-backed islands inside the LiveView shell.
 
@@ -63,7 +67,9 @@ defmodule JidoCodeWeb.LiveVueComponents do
       |> maybe_put(:"v-diff", assigns.diff)
       |> Map.merge(props)
       |> Map.merge(streams)
-      |> Enum.reduce(events, fn {emit, handler}, acc ->
+
+    vue_assigns =
+      Enum.reduce(events, vue_assigns, fn {emit, handler}, acc ->
         Map.put(acc, "v-on:#{emit}", handler)
       end)
 

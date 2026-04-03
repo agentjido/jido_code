@@ -73,8 +73,6 @@ defmodule JidoCodeWeb.Router do
 
       live("/demos/chat", Demos.ChatLive, :index)
     end
-
-    get("/ash-typescript", PageController, :index)
   end
 
   scope "/api", JidoCodeWeb do

@@ -22,7 +22,6 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
       "*": ["../deps/*"]

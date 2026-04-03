@@ -138,7 +138,7 @@ config :esbuild,
   version: "0.25.4",
   jido_code: [
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --external:react --external:react-dom --alias:@=. --loader:.tsx=tsx),
+      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{
       "NODE_PATH" =>

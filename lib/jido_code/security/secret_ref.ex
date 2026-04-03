@@ -3,16 +3,11 @@ defmodule JidoCode.Security.SecretRef do
     otp_app: :jido_code,
     domain: JidoCode.Security,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshTypescript.Resource]
+    authorizers: [Ash.Policy.Authorizer]
 
   postgres do
     table "secret_refs"
     repo JidoCode.Repo
-  end
-
-  typescript do
-    type_name "SecretRef"
   end
 
   code_interface do

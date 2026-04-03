@@ -8,8 +8,4 @@ defmodule JidoCodeWeb.PageController do
   def register_redirect(conn, _params) do
     redirect(conn, to: ~p"/welcome")
   end
-
-  def index conn, _params do
-    render(conn, :index)
-  end
 end

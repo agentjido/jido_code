@@ -142,7 +142,6 @@ defmodule JidoCode.MixProject do
       {:ash_archival, "~> 2.0"},
       {:ash_paper_trail, "~> 0.5"},
       {:ash_cloak, "~> 0.2"},
-      {:ash_typescript, "~> 0.17"},
       {:ash_jido, github: "agentjido/ash_jido", branch: "main"},
 
       # Database

@@ -10,6 +10,8 @@ affects:
 
 <!-- covers: architecture.frontend_stack.liveview_remains_product_host_shell -->
 <!-- covers: architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge -->
+<!-- covers: architecture.frontend_stack.product_owned_mounting_boundary -->
+<!-- covers: architecture.frontend_stack.server_authored_props_streams_and_events -->
 <!-- covers: architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling -->
 <!-- covers: architecture.frontend_stack.react_is_not_parallel_product_frontend_stack -->
 <!-- covers: architecture.frontend_stack.adoption_is_incremental_per_surface -->

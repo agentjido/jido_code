@@ -8,7 +8,7 @@ ownership across multiple unrelated frontend stacks.
 id: architecture.frontend_stack
 kind: policy
 status: active
-summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model instead of a parallel React or SPA frontend.
+summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with a product-owned mounting boundary and LiveVue-aware test helpers instead of a parallel React or SPA frontend.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.live_vue_frontend_adoption
@@ -19,11 +19,15 @@ surface:
   - .spec/specs/product_foundation_docs.spec.md
   - lib/jido_code_web/router.ex
   - lib/jido_code_web.ex
+  - lib/jido_code_web/components/live_vue_components.ex
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
   - assets/
   - mix.exs
   - config/
+  - test/support/live_vue_case.ex
+  - test/jido_code_web/components/
+  - test/jido_code_web/live/
 ```
 
 ## Requirements
@@ -36,6 +40,16 @@ surface:
 
 - id: architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
   statement: Rich interactive browser components shall standardize on Vue mounted through `live_vue` so client-side components participate in LiveView props, events, uploads, and stream-driven updates instead of relying on ad hoc client islands or an unrelated React surface.
+  priority: must
+  stability: evolving
+
+- id: architecture.frontend_stack.product_owned_mounting_boundary
+  statement: Vue-backed product surfaces shall mount through a product-owned helper boundary that standardizes component naming, prop delivery, stream delivery, and emit-to-LiveView event wiring instead of scattering raw LiveVue attribute conventions across individual pages.
+  priority: must
+  stability: evolving
+
+- id: architecture.frontend_stack.server_authored_props_streams_and_events
+  statement: The LiveView shell shall remain the source of truth for server-authored browser state, with bounded props, top-level streams, uploads, and explicit event handoff rules crossing into Vue while ephemeral client-only state remains presentation-local.
   priority: must
   stability: evolving
 
@@ -67,6 +81,8 @@ surface:
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling
     - architecture.frontend_stack.adoption_is_incremental_per_surface
   given:
@@ -75,6 +91,18 @@ surface:
     - The product introduces a richer browser component layer for that page.
   then:
     - LiveView remains the page host shell and the richer client component is expected to arrive through `live_vue` and its aligned tooling rather than through a separate SPA or React island.
+
+- id: architecture.frontend_stack.scenario_hybrid_surface_uses_shared_boundary
+  covers:
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+  given:
+    - A LiveView-owned product surface needs a richer Vue-backed island.
+  when:
+    - The surface mounts that island and wires events back into LiveView.
+  then:
+    - The mount uses the shared product boundary, server-owned data stays bounded in props or streams, and test helpers can inspect the Vue contract without replacing the normal LiveView test harness.
 
 - id: architecture.frontend_stack.scenario_simple_surface_stays_plain_liveview
   covers:
@@ -108,6 +136,8 @@ surface:
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling
     - architecture.frontend_stack.react_is_not_parallel_product_frontend_stack
     - architecture.frontend_stack.adoption_is_incremental_per_surface
@@ -118,8 +148,37 @@ surface:
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling
     - architecture.frontend_stack.react_is_not_parallel_product_frontend_stack
     - architecture.frontend_stack.adoption_is_incremental_per_surface
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: lib/jido_code_web/components/live_vue_components.ex
+  covers:
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+
+- kind: source_file
+  target: test/support/live_vue_case.ex
+  covers:
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: test/jido_code_web/components/live_vue_components_test.exs
+  covers:
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_thirteen_integration_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
 ```

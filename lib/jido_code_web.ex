@@ -1,4 +1,5 @@
 defmodule JidoCodeWeb do
+  # covers: package.jido_code.primary_implementation_repo
   @moduledoc """
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.
@@ -92,6 +93,7 @@ defmodule JidoCodeWeb do
       import Phoenix.HTML
       # Core UI components
       import JidoCodeWeb.CoreComponents
+      import JidoCodeWeb.LiveVueComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

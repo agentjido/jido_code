@@ -43,6 +43,8 @@ defmodule JidoCodeWeb.FrontendAssetsTest do
     assert delivery.reason == :asset_manifest_unavailable
     assert delivery.title == "Interactive summary temporarily unavailable"
     assert delivery.detail =~ "server-rendered compatibility mode"
+    assert Map.has_key?(status.manifest, "js/app.js")
+    assert Map.has_key?(status.manifest, "css/app.css")
   end
 
   test "status supports client-only overrides for SSR recovery paths" do

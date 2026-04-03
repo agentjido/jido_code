@@ -327,4 +327,11 @@ surface:
     - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.adoption_is_incremental_per_surface
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_fifteen_integration_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
+    - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
 ```

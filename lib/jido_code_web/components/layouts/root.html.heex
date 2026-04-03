@@ -9,9 +9,12 @@
     <.live_title default="Jido Code" suffix=" · Phoenix Framework">
       {assigns[:page_title]}
     </.live_title>
-    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
-    </script>
+    <PhoenixVite.Components.assets
+      names={["js/app.js", "css/app.css"]}
+      manifest={JidoCodeWeb.FrontendAssets.vite_manifest()}
+      dev_server={PhoenixVite.Components.has_vite_watcher?(JidoCodeWeb.Endpoint)}
+      to_url={fn p -> static_url(@conn, p) end}
+    />
     <script>
       (() => {
         const root = document.documentElement;

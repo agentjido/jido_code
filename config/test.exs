@@ -1,4 +1,5 @@
 import Config
+config :live_vue, ssr: false, enable_props_diff: false
 config :jido_code, token_signing_secret: "HzvQA7aDEqgO64zKrIKG0mZWQ1bIBZLQ"
 config :jido_code, secret_ref_encryption_key: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
 config :bcrypt_elixir, log_rounds: 1

@@ -9,6 +9,7 @@ service integration after the initial control-plane migration.
 
 The plan aligns to:
 - `../specs/factory_control_plane.spec.md`
+- `../specs/frontend_architecture.spec.md`
 - `../specs/policy_layers.spec.md`
 - `../specs/vsm_recursion.spec.md`
 - `../specs/execution_pipeline.spec.md`
@@ -17,6 +18,7 @@ The plan aligns to:
 - `../specs/runtime_service_overlay.spec.md`
 - `../specs/run_governance.spec.md`
 - `../decisions/jido_code.factory_control_plane_and_runtime_overlay.md`
+- `../decisions/jido_code.live_vue_frontend_adoption.md`
 - `../decisions/jido_code.jido_os_runtime_service_overlay_adoption.md`
 - `../decisions/jido_code.runic_execution_model.md`
 - `../decisions/jido_code.vsm_recursion_and_scope.md`
@@ -34,6 +36,10 @@ The plan aligns to:
 9. [Phase 9 - Live Runtime Delivery and Conversation Bridge Hardening](./phase-09-live-runtime-delivery-and-conversation-bridge-hardening.md): replace polling-first coding progress delivery with public live turn subscription plus replay fallback while preserving subscriber compatibility and governed terminal projection.
 10. [Phase 10 - External Runtime Integration Service Adoption](./phase-10-external-runtime-integration-service-adoption.md): introduce a product-owned boundary over `Jido.Os.Integration.Service` and normalize external SaaS runtime outcomes back into the managed-repo control loop.
 11. [Phase 11 - Runtime Evidence, Posture, and Rollout Convergence](./phase-11-runtime-evidence-posture-and-rollout-convergence.md): converge coding and integration runtime evidence into product posture, evidence, and operator surfaces so admitted-service rollout and degraded-path behavior become governed factory inputs.
+12. [Phase 12 - Live Vue Toolchain and Host Shell Foundation](./phase-12-live-vue-toolchain-and-host-shell-foundation.md): add the `live_vue` dependency, Vite and SSR-capable asset baseline, and Phoenix host-shell integration while preserving LiveView as the routed product shell.
+13. [Phase 13 - Live Vue Product Boundary and Testing Conventions](./phase-13-live-vue-product-boundary-and-testing-conventions.md): standardize how `jido_code` mounts Vue through product-owned helpers, event conventions, and LiveVue-aware tests instead of ad hoc component islands.
+14. [Phase 14 - Incremental Operator Surface Adoption](./phase-14-incremental-operator-surface-adoption.md): migrate the highest-value operator surfaces to the LiveView-plus-`live_vue` composition model in an incremental, surface-by-surface rollout.
+15. [Phase 15 - Frontend Rollout Hardening and Contributor Convergence](./phase-15-frontend-rollout-hardening-and-contributor-convergence.md): harden SSR, fallback behavior, observability, and docs so the new frontend stack becomes the durable contributor and operator default without regressing simpler LiveView routes.
 
 ## Shared Conventions
 - Numbering:

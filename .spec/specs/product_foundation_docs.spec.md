@@ -12,6 +12,7 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.local_developer_workflow
   - jido_code.canonical_repo_surface
+  - jido_code.live_vue_frontend_adoption
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
@@ -21,6 +22,7 @@ surface:
   - .spec/README.md
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.live_vue_frontend_adoption.md
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
@@ -107,6 +109,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  covers:
+    - docs.product_foundation.durable_architecture_record_in_spec_workspace
+
+- kind: source_file
+  target: .spec/decisions/jido_code.live_vue_frontend_adoption.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

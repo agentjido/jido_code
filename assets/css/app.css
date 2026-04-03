@@ -1,20 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss" source(none);
 
 @source "../css";
 @source "../js";
+@source "../vue";
 @source "../../lib/jido_code_web";
 @source "../../deps/live_toast/lib";
 
 @import "./syntax.css";
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 @plugin "../vendor/heroicons";
 
-@plugin "../vendor/daisyui" {
+@plugin "daisyui" {
   themes: false;
 }
 
-@plugin "../vendor/daisyui-theme" {
+@plugin "daisyui/theme" {
   name: "dark";
   default: true;
   prefersdark: true;
@@ -49,7 +51,7 @@
   --noise: 0;
 }
 
-@plugin "../vendor/daisyui-theme" {
+@plugin "daisyui/theme" {
   name: "light";
   default: false;
   prefersdark: false;

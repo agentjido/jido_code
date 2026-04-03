@@ -127,6 +127,18 @@
       },
       {
         "affects": [
+          "package.jido_code",
+          "architecture.frontend_stack",
+          "docs.product_foundation"
+        ],
+        "date": "2026-04-03",
+        "file": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+        "id": "jido_code.live_vue_frontend_adoption",
+        "status": "accepted",
+        "title": "Live Vue Frontend Adoption"
+      },
+      {
+        "affects": [
           "developer.workflow",
           "docs.product_foundation",
           "package.jido_code",
@@ -633,6 +645,54 @@
         "stability": "evolving",
         "statement": "The preferred control-plane repository model shall distinguish `SourceRepo` as the external Git identity and `ManagedRepo` as the durable internal managed wrapper, with current `Project` naming treated as transitional implementation vocabulary and carrying enough source identity to represent either hosted or local repositories during the transition.",
         "subject_id": "architecture.factory_control_plane"
+      },
+      {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "The product may adopt `live_vue` incrementally on the surfaces that justify richer client composition while leaving simpler LiveView-only routes and forms on plain HEEx where that remains the clearer implementation.",
+        "subject_id": "architecture.frontend_stack"
+      },
+      {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Rich interactive browser components shall standardize on Vue mounted through `live_vue` so client-side components participate in LiveView props, events, uploads, and stream-driven updates instead of relying on ad hoc client islands or an unrelated React surface.",
+        "subject_id": "architecture.frontend_stack"
+      },
+      {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack.liveview_remains_product_host_shell",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Routed browser product surfaces shall keep Phoenix LiveView as the canonical host shell for router ownership, authentication and session boundaries, server-authored state, and page composition rather than being replaced by a separate SPA frontend.",
+        "subject_id": "architecture.frontend_stack"
+      },
+      {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack.react_is_not_parallel_product_frontend_stack",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "`jido_code` shall not maintain React as a parallel product frontend technology stack after `live_vue` is chosen as the standard rich-component bridge.",
+        "subject_id": "architecture.frontend_stack"
+      },
+      {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Browser-facing verification shall keep LiveView tests as the primary routed-surface harness and should add LiveVue-aware test helpers for Vue-mounted surfaces instead of assuming a standalone SPA testing model.",
+        "subject_id": "architecture.frontend_stack"
+      },
+      {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Once Vue-backed surfaces are adopted, the canonical browser asset path for those surfaces shall use the `live_vue`-aligned Vite and SSR toolchain rather than a React-specific or one-off client build path.",
+        "subject_id": "architecture.frontend_stack"
       },
       {
         "file": ".spec/specs/jido_os_session_turn_runtime.spec.md",
@@ -1807,7 +1867,7 @@
         "id": "developer.workflow.repo_toolchain_asdf",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The repository shall pin contributor tool versions in a root `.tool-versions` file and contributor setup docs shall use `asdf install` for the normal local development path.",
+        "statement": "The repository shall pin contributor tool versions in a root `.tool-versions` file, including the Node runtime required by the Vite frontend pipeline, and contributor setup docs shall use `asdf install` for the normal local development path.",
         "subject_id": "developer.workflow"
       },
       {
@@ -1999,7 +2059,7 @@
         "id": "package.jido_code.package_quality_mix_surface_aligned",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for documentation coverage and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
+        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`), direct Mix task entrypoints for repo-owned CLI flows, Vite-backed `mix assets.setup`, `mix assets.build`, and `mix assets.deploy` aliases for the browser toolchain, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for documentation coverage and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -2678,6 +2738,63 @@
         ],
         "when": [
           "The conversation runs asynchronously through the public `jido_os` turn runtime."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+          "architecture.frontend_stack.react_is_not_parallel_product_frontend_stack",
+          "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "given": [
+          "Contributors need a standard way to build and verify richer browser UI."
+        ],
+        "id": "architecture.frontend_stack.scenario_frontend_stack_does_not_re_fragment",
+        "subject_id": "architecture.frontend_stack",
+        "then": [
+          "The standard stack remains LiveView plus `live_vue`, and testing/documentation do not reintroduce React or SPA assumptions as a second frontend model."
+        ],
+        "when": [
+          "The repository documents or implements that richer UI path."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.liveview_remains_product_host_shell",
+          "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+          "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
+          "architecture.frontend_stack.adoption_is_incremental_per_surface"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "given": [
+          "A routed product page needs richer client-side component composition than plain HEEx or lightweight hooks comfortably provide."
+        ],
+        "id": "architecture.frontend_stack.scenario_rich_surface_needs_client_composability",
+        "subject_id": "architecture.frontend_stack",
+        "then": [
+          "LiveView remains the page host shell and the richer client component is expected to arrive through `live_vue` and its aligned tooling rather than through a separate SPA or React island."
+        ],
+        "when": [
+          "The product introduces a richer browser component layer for that page."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.liveview_remains_product_host_shell",
+          "architecture.frontend_stack.adoption_is_incremental_per_surface"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "given": [
+          "A product route remains mostly form-driven or server-rendered."
+        ],
+        "id": "architecture.frontend_stack.scenario_simple_surface_stays_plain_liveview",
+        "subject_id": "architecture.frontend_stack",
+        "then": [
+          "The route may remain a plain LiveView or HEEx surface without being forced into Vue unnecessarily."
+        ],
+        "when": [
+          "That route does not need richer client-side composition."
         ]
       },
       {
@@ -4121,7 +4238,7 @@
           "id": "baseline.surface",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code exposes a state-aware `/welcome` landing page and public auth entrypoints while keeping authenticated product, RPC, API, and dev surfaces declared in the router.",
+          "summary": "jido_code exposes a state-aware `/welcome` landing page and public auth entrypoints while keeping authenticated product, API, and dev surfaces declared in the router.",
           "surface": [
             "lib/jido_code_web/router.ex",
             "lib/jido_code_web/live/home_live.ex",
@@ -4270,7 +4387,7 @@
           "id": "developer.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
+          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
           "surface": [
             ".tool-versions",
             "mix.exs",
@@ -4436,6 +4553,35 @@
         "title": "Factory Control Plane"
       },
       {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack",
+        "meta": {
+          "decisions": [
+            "jido_code.factory_control_plane_and_runtime_overlay",
+            "jido_code.live_vue_frontend_adoption"
+          ],
+          "id": "architecture.frontend_stack",
+          "kind": "policy",
+          "status": "active",
+          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model instead of a parallel React or SPA frontend.",
+          "surface": [
+            ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+            ".spec/specs/frontend_architecture.spec.md",
+            ".spec/specs/package.spec.md",
+            ".spec/specs/product_foundation_docs.spec.md",
+            "lib/jido_code_web/router.ex",
+            "lib/jido_code_web.ex",
+            "lib/jido_code_web/live/",
+            "lib/jido_code_web/components/",
+            "assets/",
+            "mix.exs",
+            "config/"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Frontend Architecture"
+      },
+      {
         "file": ".spec/specs/github_identity_and_integration.spec.md",
         "id": "auth.github_integration",
         "meta": {
@@ -4490,7 +4636,7 @@
           "id": "jido_os.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, coding-assistance, runtime-service identity, and additive live turn-delivery APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI, and the root dependency graph may refresh without dropping that local override.",
+          "summary": "jido_code provides a version-controlled local jido_os compatibility package that satisfies the public runtime, session, coding-assistance, runtime-service identity, and additive live turn-delivery APIs used by the coding-assistance boundary without requiring a sibling workspace checkout in CI, and the root Mix dependency graph may refresh to accommodate broader product needs such as the frontend toolchain without dropping that local override.",
           "surface": [
             "mix.exs",
             "compat/jido_os/mix.exs",
@@ -4575,6 +4721,7 @@
           "decisions": [
             "jido_code.auth_user_system",
             "jido_code.canonical_repo_surface",
+            "jido_code.live_vue_frontend_adoption",
             "jido_code.jido_os_runtime_service_overlay_adoption",
             "jido_code.jido_os_public_turn_live_delivery_adoption",
             "jido_code.jido_os_public_turn_runtime_adoption",
@@ -4618,7 +4765,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
           "surface": [
             ".doctor.exs",
             "mix.exs",
@@ -4709,6 +4856,7 @@
             "jido_code.namespace_and_control_naming",
             "jido_code.local_developer_workflow",
             "jido_code.canonical_repo_surface",
+            "jido_code.live_vue_frontend_adoption",
             "jido_code.jido_os_runtime_service_overlay_adoption",
             "jido_code.jido_os_public_turn_live_delivery_adoption",
             "jido_code.jido_os_public_turn_runtime_adoption"
@@ -4723,6 +4871,7 @@
             ".spec/README.md",
             ".spec/decisions/jido_code.coding_assistance_conversation_driver.md",
             ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md",
+            ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
             ".spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md",
             ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
             ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
@@ -5166,7 +5315,7 @@
           "id": "workflow.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes.",
+          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes even as other repo-owned toolchain dependencies evolve.",
           "surface": [
             "mix.exs",
             "compat/jido_workflow/mix.exs",
@@ -6026,6 +6175,34 @@
         "kind": "source_file",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/conversations/turn_bridge.ex"
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.liveview_remains_product_host_shell",
+          "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+          "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
+          "architecture.frontend_stack.react_is_not_parallel_product_frontend_stack",
+          "architecture.frontend_stack.adoption_is_incremental_per_surface",
+          "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.liveview_remains_product_host_shell",
+          "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+          "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
+          "architecture.frontend_stack.react_is_not_parallel_product_frontend_stack",
+          "architecture.frontend_stack.adoption_is_incremental_per_surface",
+          "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/specs/frontend_architecture.spec.md"
       },
       {
         "covers": [
@@ -7989,7 +8166,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions"
+        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions"
       },
       {
         "covers": [
@@ -8110,6 +8287,15 @@
         "kind": "source_file",
         "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.durable_architecture_record_in_spec_workspace"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md"
       },
       {
         "covers": [
@@ -9239,13 +9425,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 14,
+    "decisions": 15,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 252,
-    "scenarios": 101,
-    "subjects": 36,
-    "verifications": 410
+    "requirements": 258,
+    "scenarios": 104,
+    "subjects": 37,
+    "verifications": 413
   },
   "verification": {
     "claims": [
@@ -11184,6 +11370,138 @@
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/conversations/turn_bridge.ex",
         "verification_index": 31
+      },
+      {
+        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.frontend_stack.react_is_not_parallel_product_frontend_stack",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/specs/frontend_architecture.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/specs/frontend_architecture.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/specs/frontend_architecture.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.frontend_stack.react_is_not_parallel_product_frontend_stack",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/specs/frontend_architecture.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/specs/frontend_architecture.spec.md",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/specs/frontend_architecture.spec.md",
+        "verification_index": 1
       },
       {
         "cover_id": "architecture.jido_os_session_turn_runtime.actor_bound_context_required",
@@ -15802,7 +16120,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
+        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
         "verification_index": 8
       },
       {
@@ -15989,7 +16307,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md",
+        "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
         "verification_index": 5
       },
       {
@@ -16000,7 +16318,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
+        "target": ".spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md",
         "verification_index": 6
       },
       {
@@ -16011,7 +16329,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
+        "target": ".spec/decisions/jido_code.jido_os_session_turn_runtime.md",
         "verification_index": 7
       },
       {
@@ -16022,7 +16340,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md",
         "verification_index": 8
       },
       {
@@ -16033,8 +16351,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "target": ".spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md",
         "verification_index": 9
+      },
+      {
+        "cover_id": "docs.product_foundation.durable_architecture_record_in_spec_workspace",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 10
       },
       {
         "cover_id": "jido_os.runtime.compatibility.local_override_present",
@@ -17780,12 +18109,12 @@
     "strength_summary": {
       "claimed": 53,
       "executed": 0,
-      "linked": 722
+      "linked": 735
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 14,
-    "spec_count": 36
+    "decision_count": 15,
+    "spec_count": 37
   }
 }

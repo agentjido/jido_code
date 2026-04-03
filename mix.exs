@@ -123,6 +123,9 @@ defmodule JidoCode.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:live_vue, "~> 1.0"},
+      {:phoenix_vite, "~> 0.4"},
+      {:nodejs, "~> 3.1"},
       # Core framework
       {:phoenix, "~> 1.8"},
       {:phoenix_ecto, "~> 4.5"},
@@ -159,10 +162,6 @@ defmodule JidoCode.MixProject do
 
       # Email
       {:swoosh, "~> 1.16"},
-
-      # Frontend assets
-      {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
       {:heroicons,
        github: "tailwindlabs/heroicons", tag: "v2.2.0", sparse: "optimized", app: false, compile: false, depth: 1},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -233,12 +232,13 @@ defmodule JidoCode.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind jido_code", "esbuild jido_code"],
+      "assets.setup": ["phoenix_vite.npm assets install"],
+      "assets.build": [
+        "phoenix_vite.npm vite build --manifest --emptyOutDir true",
+        "phoenix_vite.npm vite build --ssrManifest --emptyOutDir false --ssr js/server.js --outDir ../priv/static"
+      ],
       "assets.deploy": [
-        "tailwind jido_code --minify",
-        "esbuild jido_code --minify",
-        "phx.digest"
+        "assets.build"
       ],
       q: ["quality.fast"],
       specs: ["spec.check"],

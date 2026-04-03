@@ -11,6 +11,7 @@ status: active
 summary: Jido.Code treats jido_os as an authority-backed runtime-services overlay composed of public service facades and optional admitted capabilities, while product-owned gateways preserve stable product contracts and Ash-backed product truth remains canonical.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
@@ -33,6 +34,7 @@ surface:
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/turn_bridge.ex
+  - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
   - lib/jido_code_web/live/run_detail_live.ex
@@ -46,6 +48,7 @@ surface:
   - test/jido_code/governance/runtime_capability_bridge_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/phase_eleven_integration_test.exs
 ```

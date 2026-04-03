@@ -3,8 +3,6 @@ defmodule JidoCodeWeb.AgentsLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts.User
   alias JidoCode.Projects.Project
 
   setup do
@@ -365,47 +363,6 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     assert issue_bot_approval_mode(refreshed_project.settings) == "approval_required"
   end
 
-  defp register_owner(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, _owner} =
-      Strategy.action(
-        strategy,
-        :register,
-        %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
-        },
-        context: %{token_type: :sign_in}
-      )
-
-    :ok
-  end
-
-  defp authenticate_owner_conn(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, owner} =
-      Strategy.action(
-        strategy,
-        :sign_in,
-        %{"email" => email, "password" => password},
-        context: %{token_type: :sign_in}
-      )
-
-    token =
-      owner
-      |> Map.get(:__metadata__, %{})
-      |> Map.fetch!(:token)
-
-    auth_response = build_conn() |> get(owner_sign_in_with_token_path(strategy, token))
-    assert redirected_to(auth_response, 302) == "/"
-    session_token = get_session(auth_response, "user_token")
-    assert is_binary(session_token)
-    {recycle(auth_response), session_token}
-  end
-
   defp read_project!(project_id) do
     {:ok, [project]} = Project.read(query: [filter: [id: project_id], limit: 1])
     project
@@ -475,33 +432,6 @@ defmodule JidoCodeWeb.AgentsLiveTest do
   end
 
   defp issue_bot_approval_mode(_settings), do: "approval_required"
-
-  defp owner_sign_in_with_token_path(strategy, token) do
-    strategy_path =
-      strategy
-      |> Strategy.routes()
-      |> Enum.find_value(fn
-        {path, :sign_in_with_token} -> path
-        _other -> nil
-      end)
-
-    path =
-      Path.join(
-        "/auth",
-        String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/")
-      )
-
-    query = URI.encode_query(%{"token" => token})
-    "#{path}?#{query}"
-  end
-
-  defp restore_env(key, :__missing__) do
-    Application.delete_env(:jido_code, key)
-  end
-
-  defp restore_env(key, value) do
-    Application.put_env(:jido_code, key, value)
-  end
 
   defp normalize_map(value) when is_map(value), do: value
   defp normalize_map(_value), do: %{}

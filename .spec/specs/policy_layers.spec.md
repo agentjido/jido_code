@@ -9,6 +9,7 @@ status: active
 summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-project source identity and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
@@ -49,6 +50,7 @@ surface:
   - lib/jido_code/runtime_integration.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - lib/jido_code_web/live/settings_live.ex
+  - test/support/conn_case.ex
   - test/jido_code/conversations/phase_four_integration_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code/runtime_integration_test.exs

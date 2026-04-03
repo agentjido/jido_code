@@ -13,6 +13,7 @@ summary: Jido.Code observes repo-native `.spec/` and optional Git-native plannin
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
@@ -29,6 +30,7 @@ surface:
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/control/repo_bridge.ex
   - lib/jido_code/orchestration/run_summary_feed.ex
+  - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
   - lib/jido_code_web/live/run_detail_live.ex
@@ -46,6 +48,7 @@ surface:
   - test/jido_code/governance/phase_five_integration_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/phase_eleven_integration_test.exs
 ```

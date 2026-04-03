@@ -12,6 +12,7 @@ status: active
 summary: Coding conversations center on `JidoCode.CodingAssistance` as the first-class driver boundary while `CodeServer`, UI subscribers, and jido_os session state stay aligned through a stable conversation event contract.
 decisions:
   - jido_code.coding_assistance_conversation_driver
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_session_turn_runtime
   - jido_code.jido_os_public_turn_runtime_adoption
@@ -33,13 +34,16 @@ surface:
   - lib/jido_code/conversations/policy.ex
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
+  - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/ProjectDetailOverviewWidget.vue
+  - test/support/conn_case.ex
   - test/jido_code/conversations/driver_test.exs
   - test/jido_code/conversations/phase_four_integration_test.exs
   - test/jido_code/conversations/turn_bridge_test.exs
   - test/jido_code/conversations/phase_seven_integration_test.exs
   - test/jido_code/conversations/phase_nine_integration_test.exs
+  - test/jido_code_web/live/phase_sixteen_integration_test.exs
 ```
 
 ## Requirements

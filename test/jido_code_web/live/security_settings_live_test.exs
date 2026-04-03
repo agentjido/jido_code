@@ -23,7 +23,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, session_token, owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     %{api_key: api_key, api_key_record: api_key_record} = issue_api_key(owner)
 
@@ -73,7 +73,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     %{api_key: api_key, api_key_record: api_key_record} = issue_api_key(owner)
 
@@ -117,7 +117,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/security", on_error: :warn)
 
@@ -194,7 +194,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     provider_secret_name = SecretRefs.provider_secret_ref_name(:anthropic)
 
@@ -247,7 +247,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     provider_secret_name = SecretRefs.provider_secret_ref_name(:openai)
 
@@ -301,7 +301,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/security", on_error: :warn)
 
@@ -347,7 +347,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/security", on_error: :warn)
 
@@ -377,7 +377,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     unique = System.unique_integer([:positive])
     secret = "sk-test-0123456789abcdef"
@@ -400,7 +400,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("owner@example.com", "owner-password-123")
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     unique = System.unique_integer([:positive])
     leaked_token = "xoxb-12345678901234567890"
@@ -424,7 +424,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     register_owner("overview-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token, _owner} =
-      authenticate_owner_conn("overview-owner@example.com", "owner-password-123")
+      authenticate_owner_conn("overview-owner@example.com", "owner-password-123", return_owner: true)
 
     unique = System.unique_integer([:positive])
 
@@ -466,47 +466,6 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     assert has_element?(view, "#add-repo-modal")
   end
 
-  defp register_owner(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, _owner} =
-      Strategy.action(
-        strategy,
-        :register,
-        %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
-        },
-        context: %{token_type: :sign_in}
-      )
-
-    :ok
-  end
-
-  defp authenticate_owner_conn(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, owner} =
-      Strategy.action(
-        strategy,
-        :sign_in,
-        %{"email" => email, "password" => password},
-        context: %{token_type: :sign_in}
-      )
-
-    token =
-      owner
-      |> Map.get(:__metadata__, %{})
-      |> Map.fetch!(:token)
-
-    auth_response = build_conn() |> get(owner_sign_in_with_token_path(strategy, token))
-    assert redirected_to(auth_response, 302) == "/"
-    session_token = get_session(auth_response, "user_token")
-    assert is_binary(session_token)
-    {recycle(auth_response), session_token, owner}
-  end
-
   defp issue_api_key(owner) do
     expires_at = DateTime.add(DateTime.utc_now(), 3600, :second)
 
@@ -535,32 +494,5 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     {:ok, [api_key]} = Ash.read(query, domain: Accounts, authorize?: false)
 
     api_key
-  end
-
-  defp owner_sign_in_with_token_path(strategy, token) do
-    strategy_path =
-      strategy
-      |> Strategy.routes()
-      |> Enum.find_value(fn
-        {path, :sign_in_with_token} -> path
-        _other -> nil
-      end)
-
-    path =
-      Path.join(
-        "/auth",
-        String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/")
-      )
-
-    query = URI.encode_query(%{"token" => token})
-    "#{path}?#{query}"
-  end
-
-  defp restore_env(key, :__missing__) do
-    Application.delete_env(:jido_code, key)
-  end
-
-  defp restore_env(key, value) do
-    Application.put_env(:jido_code, key, value)
   end
 end

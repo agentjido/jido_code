@@ -64,24 +64,6 @@ defmodule JidoCodeWeb.HomeLiveTest do
     refute has_element?(view, "a", "Create Account")
   end
 
-  defp register_owner(email, password) do
-    strategy = AshAuthentication.Info.strategy!(JidoCode.Accounts.User, :password)
-
-    {:ok, _owner} =
-      AshAuthentication.Strategy.action(
-        strategy,
-        :register,
-        %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
-        },
-        context: %{token_type: :sign_in}
-      )
-
-    :ok
-  end
-
   defp enable_provider_login!(provider, provider_host) do
     {:ok, config} =
       ProviderConfig.upsert(

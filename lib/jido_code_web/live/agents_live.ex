@@ -117,20 +117,13 @@ defmodule JidoCodeWeb.AgentsLive do
         </p>
       </section>
 
-      <section
+      <.operator_state_notice
         :if={@issue_bot_error}
         id="agents-issue-bot-error"
-        class="rounded-lg border border-warning/60 bg-warning/10 p-4 space-y-2"
-      >
-        <p id="agents-issue-bot-error-label" class="font-semibold">
-          Issue Bot configuration update failed
-        </p>
-        <p id="agents-issue-bot-error-type" class="text-sm">
-          Typed error: {@issue_bot_error.error_type}
-        </p>
-        <p id="agents-issue-bot-error-detail" class="text-sm">{@issue_bot_error.detail}</p>
-        <p id="agents-issue-bot-error-remediation" class="text-sm">{@issue_bot_error.remediation}</p>
-      </section>
+        title="Issue Bot configuration update failed"
+        state={@issue_bot_error}
+        kind={:error}
+      />
 
       <section class="rounded-lg border border-base-300 bg-base-100 overflow-x-auto">
         <table id="agents-project-table" class="table table-zebra w-full">

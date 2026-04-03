@@ -11,6 +11,7 @@ summary: Jido.Code centers the product on a governed software-factory control pl
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption
@@ -72,6 +73,7 @@ surface:
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
+  - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/DashboardRunSummaryWidget.vue
   - lib/jido_code_web/live/run_detail_live.ex
   - priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs
@@ -86,6 +88,7 @@ surface:
   - test/jido_code/governance/runtime_evidence_feed_test.exs
   - test/jido_code/governance/phase_eleven_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
+  - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - test/jido_code_web/live/phase_eleven_integration_test.exs
 ```

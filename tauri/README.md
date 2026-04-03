@@ -6,7 +6,7 @@ This is not the normal contributor workflow. For day-to-day repository developme
 
 ```bash
 mix setup
-mix phx.server
+mix server
 ```
 
 using a host PostgreSQL instance on `localhost:5432` with `postgres` / `postgres`.

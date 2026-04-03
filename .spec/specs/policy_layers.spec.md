@@ -48,9 +48,11 @@ surface:
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/runtime_integration.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
+  - lib/jido_code_web/live/settings_live.ex
   - test/jido_code/conversations/phase_four_integration_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code/runtime_integration_test.exs
+  - test/jido_code_web/live/security_settings_live_test.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
   - priv/repo/migrations/20260330193000_add_operations_event_and_assessment_resources.exs
@@ -134,6 +136,7 @@ surface:
     - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
     - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
     - Legacy project, workflow-run, and GitHub-ingress compatibility paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
+    - Hybrid settings summary widgets may improve operator scanning or event handoff, but the underlying repo mutation path still requires explicit current-actor propagation through LiveView-owned events.
 
 - id: architecture.policy_layers.scenario_public_turn_replay_and_governance_stay_policy_bound
   covers:
@@ -216,6 +219,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code_web/live/settings_live.ex
+  covers:
+    - architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
+
+- kind: source_file
+  target: test/jido_code_web/live/security_settings_live_test.exs
   covers:
     - architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
 

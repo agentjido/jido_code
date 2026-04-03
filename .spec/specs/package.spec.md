@@ -113,6 +113,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/planning/phase-14-incremental-operator-surface-adoption.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: .spec/specs/demand_ingress.spec.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -199,6 +204,16 @@ surface:
 
 - kind: source_file
   target: test/jido_code/conversations/phase_nine_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/dashboard_live_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code_web/live/security_settings_live_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

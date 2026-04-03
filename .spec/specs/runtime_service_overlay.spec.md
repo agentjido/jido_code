@@ -34,6 +34,7 @@ surface:
   - lib/jido_code/conversations/driver.ex
   - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code_web/live/dashboard_live.ex
+  - lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
   - lib/jido_code_web/live/run_detail_live.ex
   - test/jido_code/runtime_gateway_test.exs
   - test/jido_code/runtime_integration_test.exs
@@ -141,6 +142,7 @@ surface:
     - An operator opens dashboard, workbench-adjacent summaries, or governed run detail.
   then:
     - The product presents runtime posture as bounded governance evidence using product-readable language and avoids leaking runtime-native topology or transport implementation details.
+    - Hybrid operator summary widgets may improve local filtering or grouping, but they still receive bounded product-authored runtime posture props rather than raw runtime transport envelopes.
 
 - id: architecture.runtime_service_overlay.scenario_external_runtime_integration_composes_through_canonical_service
   covers:
@@ -210,6 +212,11 @@ surface:
   target: lib/jido_code/governance/runtime_evidence_feed.ex
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
+  target: lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
+  covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
 
 - kind: source_file

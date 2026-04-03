@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.WorkbenchLiveTest do
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -962,6 +964,13 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
+    vue = assert_vue_component(view, "WorkbenchSummaryWidget", id: "workbench-summary-widget")
+
+    assert vue.props["inventoryCount"] == 3
+    assert vue.props["inventoryTotalCount"] == 3
+    assert vue.props["resetVisible"] == false
+    assert_vue_handler(view, "resetFilters", "reset_filters", id: "workbench-summary-widget")
+
     assert has_element?(view, "#workbench-filters-form")
     assert has_element?(view, "#workbench-project-name-owner-repo-alpha", "owner/repo-alpha")
     assert has_element?(view, "#workbench-project-name-owner-repo-beta", "owner/repo-beta")
@@ -976,6 +985,11 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     refute has_element?(view, "#workbench-project-name-owner-repo-gamma")
     assert has_element?(view, "#workbench-filter-chip-project", "owner/repo-beta")
     assert has_element?(view, "#workbench-filter-results-count", "Showing 1 of 3")
+
+    filtered_vue = vue(view, id: "workbench-summary-widget")
+
+    assert filtered_vue.props["inventoryCount"] == 1
+    assert filtered_vue.props["resetVisible"] == true
 
     apply_workbench_filters(view, %{"work_state" => "issues_open"})
 

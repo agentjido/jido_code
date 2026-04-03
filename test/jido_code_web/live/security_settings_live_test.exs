@@ -1,4 +1,8 @@
 defmodule JidoCodeWeb.SecuritySettingsLiveTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   use JidoCodeWeb.ConnCase, async: false
 
   require Ash.Query
@@ -413,6 +417,53 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     assert has_element?(view, "#settings-github-repo-settings-#{repo.id}", "[SENSITIVE CONTENT SUPPRESSED]")
     assert has_element?(view, "#settings-github-repo-security-alert-#{repo.id}", "Security alert")
     refute has_element?(view, "#settings-github-repo-settings-#{repo.id}", leaked_token)
+  end
+
+  test "settings overview mounts a live vue summary while add-repo workflow stays liveview-owned",
+       %{conn: _conn} do
+    register_owner("overview-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token, _owner} =
+      authenticate_owner_conn("overview-owner@example.com", "owner-password-123")
+
+    unique = System.unique_integer([:positive])
+
+    {:ok, _enabled_repo} =
+      Repo.create(%{
+        owner: "overview-owner-#{unique}",
+        name: "enabled-repo-#{unique}",
+        settings: %{}
+      })
+
+    {:ok, disabled_repo} =
+      Repo.create(%{
+        owner: "overview-owner-#{unique}",
+        name: "disabled-repo-#{unique}",
+        settings: %{}
+      })
+
+    {:ok, _disabled_repo} = Repo.disable(disabled_repo)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/settings/github", on_error: :warn)
+
+    vue = assert_vue_component(view, "SettingsOverviewWidget", id: "settings-overview-widget")
+
+    assert vue.props["activeTab"] == "github"
+    assert vue.props["openAddRepoVisible"] == true
+    assert vue.props["activeTabSummary"] =~ "2 GitHub repo(s) connected"
+    assert_vue_handler(view, "openAddRepo", "open_add_modal", id: "settings-overview-widget")
+
+    assert Enum.any?(vue.props["cards"], fn card ->
+             card["id"] == "github" and card["value"] == "2" and card["active"] == true
+           end)
+
+    assert has_element?(view, "button[phx-click='open_add_modal']", "Add Repository")
+
+    view
+    |> element("button[phx-click='open_add_modal']")
+    |> render_click()
+
+    assert has_element?(view, "#add-repo-modal")
   end
 
   defp register_owner(email, password) do

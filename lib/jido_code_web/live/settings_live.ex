@@ -1,5 +1,7 @@
 defmodule JidoCodeWeb.SettingsLive do
   # covers: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Accounts.SecurityTokens
@@ -16,12 +18,12 @@ defmodule JidoCodeWeb.SettingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    repos = Repo.read!(actor: settings_actor(socket))
-
     socket =
       socket
       |> assign(:show_add_modal, false)
       |> assign(:form, nil)
+      |> assign(:repo_count, 0)
+      |> assign(:enabled_repo_count, 0)
       |> assign(:security_tokens, [])
       |> assign(:security_api_keys, [])
       |> assign(:security_audit_events, [])
@@ -37,7 +39,8 @@ defmodule JidoCodeWeb.SettingsLive do
       |> assign(:security_provider_rotation_form, empty_security_provider_rotation_form())
       |> assign(:secret_scope_options, @secret_scope_options)
       |> assign(:provider_rotation_options, SecretRefs.provider_rotation_options())
-      |> stream(:repos, repos)
+      |> stream(:repos, [], reset: true)
+      |> load_repos()
 
     {:ok, socket}
   end
@@ -116,33 +119,58 @@ defmodule JidoCodeWeb.SettingsLive do
           </nav>
 
           <div class="flex-1">
+            <.vue_surface
+              id="settings-overview-widget"
+              component="SettingsOverviewWidget"
+              socket={@socket}
+              props={
+                %{
+                  activeTab: @active_tab,
+                  cards: settings_overview_cards(assigns),
+                  activeTabSummary: settings_active_tab_summary(assigns),
+                  openAddRepoVisible: @active_tab == "github"
+                }
+              }
+              events={%{"openAddRepo" => "open_add_modal"}}
+            />
+
             <%= case @active_tab do %>
               <% "github" -> %>
-                <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
+                <div class="mt-6">
+                  <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
+                </div>
               <% "agents" -> %>
-                <.agents_tab />
+                <div class="mt-6">
+                  <.agents_tab />
+                </div>
               <% "account" -> %>
-                <.account_tab />
+                <div class="mt-6">
+                  <.account_tab />
+                </div>
               <% "security" -> %>
-                <.security_tab
-                  security_tokens={@security_tokens}
-                  security_api_keys={@security_api_keys}
-                  security_audit_events={@security_audit_events}
-                  security_revocation_error={@security_revocation_error}
-                  security_status_error={@security_status_error}
-                  security_secret_refs={@security_secret_refs}
-                  security_secret_error={@security_secret_error}
-                  security_secret_form={@security_secret_form}
-                  security_secret_lifecycle_audits={@security_secret_lifecycle_audits}
-                  security_secret_audit_error={@security_secret_audit_error}
-                  secret_scope_options={@secret_scope_options}
-                  security_provider_rotation_error={@security_provider_rotation_error}
-                  security_provider_rotation_report={@security_provider_rotation_report}
-                  security_provider_rotation_form={@security_provider_rotation_form}
-                  provider_rotation_options={@provider_rotation_options}
-                />
+                <div class="mt-6">
+                  <.security_tab
+                    security_tokens={@security_tokens}
+                    security_api_keys={@security_api_keys}
+                    security_audit_events={@security_audit_events}
+                    security_revocation_error={@security_revocation_error}
+                    security_status_error={@security_status_error}
+                    security_secret_refs={@security_secret_refs}
+                    security_secret_error={@security_secret_error}
+                    security_secret_form={@security_secret_form}
+                    security_secret_lifecycle_audits={@security_secret_lifecycle_audits}
+                    security_secret_audit_error={@security_secret_audit_error}
+                    secret_scope_options={@secret_scope_options}
+                    security_provider_rotation_error={@security_provider_rotation_error}
+                    security_provider_rotation_report={@security_provider_rotation_report}
+                    security_provider_rotation_form={@security_provider_rotation_form}
+                    provider_rotation_options={@provider_rotation_options}
+                  />
+                </div>
               <% _ -> %>
-                <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
+                <div class="mt-6">
+                  <.github_tab repos={@streams.repos} show_add_modal={@show_add_modal} form={@form} />
+                </div>
             <% end %>
           </div>
         </div>
@@ -786,7 +814,10 @@ defmodule JidoCodeWeb.SettingsLive do
 
     case result do
       {:ok, updated_repo} ->
-        {:noreply, stream_insert(socket, :repos, updated_repo)}
+        {:noreply,
+         socket
+         |> stream_insert(:repos, updated_repo)
+         |> load_repos()}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to update repository")}
@@ -799,7 +830,10 @@ defmodule JidoCodeWeb.SettingsLive do
 
     case Ash.destroy(repo, actor: actor) do
       :ok ->
-        {:noreply, stream_delete(socket, :repos, repo)}
+        {:noreply,
+         socket
+         |> stream_delete(:repos, repo)
+         |> load_repos()}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to delete repository")}
@@ -837,6 +871,7 @@ defmodule JidoCodeWeb.SettingsLive do
         socket =
           socket
           |> stream_insert(:repos, repo)
+          |> load_repos()
           |> assign(show_add_modal: false, form: nil)
           |> put_flash(:info, "Repository added successfully")
 
@@ -981,6 +1016,15 @@ defmodule JidoCodeWeb.SettingsLive do
   end
 
   defp maybe_load_security_tab(socket, _tab), do: socket
+
+  defp load_repos(socket) do
+    repos = Repo.read!(actor: settings_actor(socket))
+
+    socket
+    |> assign(:repo_count, length(repos))
+    |> assign(:enabled_repo_count, Enum.count(repos, &Map.get(&1, :enabled, false)))
+    |> stream(:repos, repos, reset: true)
+  end
 
   defp load_security_status(socket) do
     owner_id = current_owner_id(socket)
@@ -1136,6 +1180,80 @@ defmodule JidoCodeWeb.SettingsLive do
 
   defp provider_rotation_alarm_label(true), do: "Raised"
   defp provider_rotation_alarm_label(false), do: "None"
+
+  defp settings_overview_cards(assigns) do
+    [
+      %{
+        id: "github",
+        label: "GitHub repos",
+        value: Integer.to_string(Map.get(assigns, :repo_count, 0)),
+        detail: "#{Map.get(assigns, :enabled_repo_count, 0)} enabled for operator workflows",
+        active: Map.get(assigns, :active_tab) == "github"
+      },
+      %{
+        id: "agents",
+        label: "Agent config",
+        value: "Soon",
+        detail: "Agent behavior remains server-owned while the settings shell evolves.",
+        active: Map.get(assigns, :active_tab) == "agents"
+      },
+      %{
+        id: "account",
+        label: "Account",
+        value: "LiveView",
+        detail: "Identity and session preferences still live in the routed host shell.",
+        active: Map.get(assigns, :active_tab) == "account"
+      },
+      %{
+        id: "security",
+        label: "Security",
+        value: security_overview_value(assigns),
+        detail: security_overview_detail(assigns),
+        active: Map.get(assigns, :active_tab) == "security"
+      }
+    ]
+  end
+
+  defp settings_active_tab_summary(assigns) do
+    case Map.get(assigns, :active_tab) do
+      "github" ->
+        "#{Map.get(assigns, :repo_count, 0)} GitHub repo(s) connected, with #{Map.get(assigns, :enabled_repo_count, 0)} currently enabled for workflow execution."
+
+      "agents" ->
+        "Agent configuration remains an incremental adoption surface; richer client composition does not change server-owned policy or execution defaults."
+
+      "account" ->
+        "Account preferences stay routed through LiveView while this overview surfaces the active operator context."
+
+      "security" ->
+        "Security controls currently expose #{security_credential_count(assigns)} governed credential or secret record(s) in the active operator context."
+
+      _other ->
+        "Settings overview keeps the route in LiveView while grouping the active operator snapshot for faster scanning."
+    end
+  end
+
+  defp security_overview_value(assigns) do
+    if Map.get(assigns, :active_tab) == "security" do
+      Integer.to_string(security_credential_count(assigns))
+    else
+      "Load tab"
+    end
+  end
+
+  defp security_overview_detail(assigns) do
+    if Map.get(assigns, :active_tab) == "security" do
+      "#{length(Map.get(assigns, :security_secret_refs, []))} secret ref(s), #{length(Map.get(assigns, :security_tokens, []))} session token(s), #{length(Map.get(assigns, :security_api_keys, []))} API key(s)."
+    else
+      "Open Security to load governed credentials, revocations, and secret metadata."
+    end
+  end
+
+  defp security_credential_count(assigns) do
+    length(Map.get(assigns, :security_tokens, [])) +
+      length(Map.get(assigns, :security_api_keys, [])) +
+      length(Map.get(assigns, :security_secret_refs, []))
+  end
 
   defp settings_actor(socket) do
     socket.assigns

@@ -30,6 +30,7 @@ surface:
   - lib/jido_code/control/repo_bridge.ex
   - lib/jido_code/orchestration/run_summary_feed.ex
   - lib/jido_code_web/live/dashboard_live.ex
+  - lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
   - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/operations/ingress.ex
   - lib/jido_code/governance/run_governance_bridge.ex
@@ -217,6 +218,11 @@ surface:
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
+
+- kind: source_file
+  target: lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 
 - kind: source_file
   target: lib/jido_code/governance/policy_bridge.ex

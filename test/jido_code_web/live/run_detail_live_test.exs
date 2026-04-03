@@ -2,6 +2,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   use JidoCodeWeb.ConnCase, async: false
@@ -324,6 +326,18 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
 
     {:ok, view, _html} =
       live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    vue =
+      assert_vue_component(
+        view,
+        "RunGovernanceOverviewWidget",
+        id: "run-detail-governance-overview-widget"
+      )
+
+    assert vue.props["runStatus"] == "awaiting_approval"
+    assert vue.props["runtimeEvidence"]["statusLabel"] == "review required"
+    assert vue.props["evidenceCount"] == 3
+    assert vue.props["decisionCount"] == 0
 
     assert has_element?(view, "#run-detail-runtime-evidence")
     assert has_element?(view, "#run-detail-runtime-evidence-status", "review required")

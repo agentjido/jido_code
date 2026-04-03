@@ -1,5 +1,7 @@
 defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
@@ -212,6 +214,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
         id={"project-detail-panel-#{@project_detail.id}"}
         class="space-y-4 rounded-lg border border-base-300 bg-base-100 p-4"
       >
+        <% conversation_start_block = conversation_start_block_reason(@project_detail) %>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p id="project-detail-github-full-name" class="text-lg font-semibold">
@@ -225,6 +228,14 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             Back
           </.link>
         </div>
+
+        <.vue_surface
+          id="project-detail-overview-widget"
+          component="ProjectDetailOverviewWidget"
+          socket={@socket}
+          props={project_detail_overview_props(assigns, conversation_start_block)}
+          events={%{"startConversation" => "start_conversation"}}
+        />
 
         <section
           id="project-detail-workflow-defaults"
@@ -317,7 +328,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           id="project-detail-conversation-panel"
           class="space-y-3 rounded-lg border border-base-300 bg-base-200/30 p-4"
         >
-          <% conversation_start_block = conversation_start_block_reason(@project_detail) %>
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 id="project-detail-conversation-title" class="font-semibold">Project conversation</h2>
@@ -495,6 +505,94 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   defp workflow_launch_feedback(_states, _workflow_name), do: nil
+
+  defp project_detail_overview_props(assigns, conversation_start_block) do
+    project_detail = Map.get(assigns, :project_detail, %{})
+    supported_workflows = Map.get(assigns, :supported_workflows, [])
+
+    %{
+      githubFullName:
+        project_detail
+        |> map_get(:github_full_name, "github_full_name")
+        |> normalize_optional_string() || "unknown/repository",
+      projectName:
+        project_detail
+        |> map_get(:name, "name")
+        |> normalize_optional_string() || "Unnamed project",
+      defaultBranch:
+        project_detail
+        |> map_get(:default_branch, "default_branch")
+        |> normalize_optional_string() || "main",
+      managedRepoId:
+        project_detail
+        |> map_get(:managed_repo_id, "managed_repo_id")
+        |> normalize_optional_string(),
+      launchReady: project_ready_for_launch?(project_detail),
+      launchSummary: project_launch_summary(project_detail),
+      workflowCards:
+        Enum.map(supported_workflows, fn workflow ->
+          workflow_feedback =
+            workflow_launch_feedback(Map.get(assigns, :workflow_launch_states, %{}), workflow.name)
+
+          %{
+            id: workflow_dom_id(workflow.name),
+            label: workflow.label,
+            name: workflow.name,
+            launchable: project_ready_for_launch?(project_detail),
+            feedbackStatus: workflow_feedback_status(workflow_feedback),
+            feedbackMessage: workflow_feedback_message(workflow_feedback)
+          }
+        end),
+      conversation: %{
+        status: conversation_status_label(Map.get(assigns, :conversation_status)),
+        ready: Map.get(assigns, :conversation_ready?, false),
+        blocked: is_map(conversation_start_block),
+        blockedDetail:
+          conversation_start_block
+          |> map_get(:detail, "detail")
+          |> normalize_optional_string(),
+        messageCount: length(Map.get(assigns, :conversation_messages, [])),
+        startEnabled:
+          Map.get(assigns, :conversation_ready?, false) == false and
+            not is_map(conversation_start_block)
+      }
+    }
+  end
+
+  defp project_launch_summary(project_detail) do
+    if project_ready_for_launch?(project_detail) do
+      "Managed-repository launch defaults are ready for builtin workflow kickoff."
+    else
+      readiness = project_readiness(project_detail)
+
+      readiness
+      |> map_get(:detail, "detail")
+      |> normalize_optional_string() ||
+        "Managed-repository launch controls remain blocked until workspace readiness is restored."
+    end
+  end
+
+  defp workflow_feedback_status(%{status: :ok}), do: "ok"
+  defp workflow_feedback_status(%{status: :error}), do: "error"
+  defp workflow_feedback_status(_feedback), do: nil
+
+  defp workflow_feedback_message(%{status: :ok, run: run}) do
+    run
+    |> map_get(:run_id, "run_id")
+    |> normalize_optional_string()
+    |> case do
+      nil -> "Workflow kickoff succeeded."
+      run_id -> "Latest kickoff run: #{run_id}"
+    end
+  end
+
+  defp workflow_feedback_message(%{status: :error, error: error}) do
+    error
+    |> map_get(:detail, "detail")
+    |> normalize_optional_string() || "Workflow kickoff failed."
+  end
+
+  defp workflow_feedback_message(_feedback), do: nil
 
   defp reset_conversation_state(socket) do
     socket

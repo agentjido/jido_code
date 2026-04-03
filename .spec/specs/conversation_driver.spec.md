@@ -34,6 +34,7 @@ surface:
   - lib/jido_code/code_server.ex
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code_web/live/project_detail_live.ex
+  - lib/jido_code_web/live/ProjectDetailOverviewWidget.vue
   - test/jido_code/conversations/driver_test.exs
   - test/jido_code/conversations/phase_four_integration_test.exs
   - test/jido_code/conversations/turn_bridge_test.exs
@@ -173,6 +174,7 @@ surface:
     - An operator opens repo detail and starts a conversation from the existing route surface.
   then:
     - The page presents managed-repository context while preserving the compatibility identifier contract needed by current conversation entrypoints.
+    - Hybrid overview widgets may summarize workflow and conversation readiness on that route so long as start and send actions remain translated back into the existing LiveView conversation entry surface.
 ```
 
 ## Verification
@@ -296,6 +298,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
+  covers:
+    - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+
+- kind: source_file
+  target: lib/jido_code_web/live/ProjectDetailOverviewWidget.vue
   covers:
     - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
 

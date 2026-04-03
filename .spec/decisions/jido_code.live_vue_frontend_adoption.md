@@ -91,6 +91,13 @@ This means:
 - Browser-facing verification becomes slightly broader because richer surfaces
   need both LiveView and LiveVue-aware testing patterns.
 
+## Implementation Status
+
+Initial operator-surface adoption begins with bounded summary regions on the
+dashboard and settings routes. Those routes stay LiveView-owned for auth,
+policy, loading, and mutations while Vue-backed widgets handle client-local
+filtering, grouping, and progressive disclosure inside the routed product shell.
+
 ### Non-Goals
 
 - This decision does not turn `jido_code` into a Vue SPA.

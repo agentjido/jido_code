@@ -72,6 +72,7 @@ surface:
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
+  - lib/jido_code_web/live/DashboardRunSummaryWidget.vue
   - lib/jido_code_web/live/run_detail_live.ex
   - priv/repo/migrations/20260330143000_add_control_plane_repo_resources.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
@@ -192,6 +193,7 @@ surface:
     - An operator opens workbench, repo detail, dashboard, or run detail through existing route shapes.
   then:
     - The product resolves and presents control-plane records first while keeping the route and identifier contracts stable enough for mixed-mode rollout.
+    - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
 
 - id: architecture.factory_control_plane.scenario_rollout_backfill_and_operator_evidence_remain_explicit
   covers:
@@ -344,6 +346,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code/orchestration/run_summary_feed.ex
+  covers:
+    - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+
+- kind: source_file
+  target: lib/jido_code_web/live/DashboardRunSummaryWidget.vue
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
 

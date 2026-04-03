@@ -22,7 +22,7 @@ Back to index: [README](./README.md)
 - The product should adopt `live_vue` incrementally, starting with the highest-value operator surfaces rather than trying to convert every route at once.
 - Simpler routes may remain plain LiveView where richer client composition is not justified.
 
-[ ] 14 Phase 14 - Incremental Operator Surface Adoption
+[x] 14 Phase 14 - Incremental Operator Surface Adoption
   Migrate the highest-value operator-facing surfaces onto the new LiveView-plus-`live_vue` composition model in a controlled sequence that improves interactivity without destabilizing the product shell.
 
   [x] 14.1 Section - Dashboard and Summary Surface Adoption
@@ -59,19 +59,19 @@ Back to index: [README](./README.md)
       [x] 14.2.2.2 Subtask - Keep streaming, runtime-delivery, and product event translation on the LiveView side unless a richer client component truly needs a bounded projection.
       [x] 14.2.2.3 Subtask - Preserve compatibility for routes or sections that should remain plain HEEx and LiveView.
 
-  [ ] 14.3 Section - Phase 14 Integration Tests
+  [x] 14.3 Section - Phase 14 Integration Tests
     Validate the surface-by-surface migration pattern so later rollout hardening can focus on resilience rather than basic composition correctness.
 
-    [ ] 14.3.1 Task - Summary-surface migration scenarios
+    [x] 14.3.1 Task - Summary-surface migration scenarios
       Verify the first hybrid operator screens improve composition without changing route or auth ownership.
 
-      [ ] 14.3.1.1 Subtask - Add coverage for a dashboard or summary page rendering Vue-backed components inside a LiveView-owned route.
-      [ ] 14.3.1.2 Subtask - Add coverage for operator interaction flowing from Vue back into LiveView-driven state updates.
-      [ ] 14.3.1.3 Subtask - Add coverage showing plain LiveView fallback regions remain functional on the same page.
+      [x] 14.3.1.1 Subtask - Add coverage for a dashboard or summary page rendering Vue-backed components inside a LiveView-owned route.
+      [x] 14.3.1.2 Subtask - Add coverage for operator interaction flowing from Vue back into LiveView-driven state updates.
+      [x] 14.3.1.3 Subtask - Add coverage showing plain LiveView fallback regions remain functional on the same page.
 
-    [ ] 14.3.2 Task - Workflow-surface migration scenarios
+    [x] 14.3.2 Task - Workflow-surface migration scenarios
       Verify deeper operator workflows still preserve product-owned state transitions and governed runtime integrations after adopting richer client components.
 
-      [ ] 14.3.2.1 Subtask - Add coverage for project- or run-detail hybrid interactions.
-      [ ] 14.3.2.2 Subtask - Add coverage for runtime evidence or review flows traversing Vue-backed regions without leaking runtime-native transport details.
-      [ ] 14.3.2.3 Subtask - Verify planning, specs, and surface-level tests stay aligned through the incremental migration.
+      [x] 14.3.2.1 Subtask - Add coverage for project- or run-detail hybrid interactions.
+      [x] 14.3.2.2 Subtask - Add coverage for runtime evidence or review flows traversing Vue-backed regions without leaking runtime-native transport details.
+      [x] 14.3.2.3 Subtask - Verify planning, specs, and surface-level tests stay aligned through the incremental migration.

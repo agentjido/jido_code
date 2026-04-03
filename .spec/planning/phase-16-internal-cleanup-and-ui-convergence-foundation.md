@@ -23,7 +23,7 @@ Back to index: [README](./README.md)
 - `jido_os` is currently under review, so this phase should avoid changing product assumptions about upstream runtime internals or introducing new boundary contracts.
 - The next highest-value work is inside `jido_code` itself: reducing duplicated helpers and transitional seams, tightening startup and command behavior around the current frontend architecture, and making operator-facing UI behavior more consistent.
 
-[ ] 16 Phase 16 - Internal Cleanup and UI Convergence Foundation
+[x] 16 Phase 16 - Internal Cleanup and UI Convergence Foundation
   Consolidate `jido_code`’s own implementation seams so the product’s internal boundaries, startup behavior, and operator UI patterns become easier to maintain without depending on further upstream runtime changes.
 
   [x] 16.1 Section - Internal Boundary and Helper Cleanup
@@ -60,19 +60,19 @@ Back to index: [README](./README.md)
       [x] 16.2.2.2 Subtask - Extract or standardize shared operator-state presentation where consistency improves comprehension and maintenance.
       [x] 16.2.2.3 Subtask - Preserve LiveView ownership and bounded Vue regions while avoiding a second per-page UI language for the same product concepts.
 
-  [ ] 16.3 Section - Phase 16 Integration Tests
+  [x] 16.3 Section - Phase 16 Integration Tests
     Validate that the cleanup work improves maintainability and consistency without regressing startup behavior, product boundaries, or operator workflows.
 
-    [ ] 16.3.1 Task - Internal cleanup and startup convergence scenarios
+    [x] 16.3.1 Task - Internal cleanup and startup convergence scenarios
       Verify that shared helper extraction and start-path cleanup preserve the product’s current control-plane and frontend behavior.
 
-      [ ] 16.3.1.1 Subtask - Add coverage for the updated start-oriented Mix or app entrypoints where frontend build-chain expectations changed.
-      [ ] 16.3.1.2 Subtask - Add coverage for any extracted shared product helpers that now own repeated shaping or boundary logic.
-      [ ] 16.3.1.3 Subtask - Verify planning, specs, and contributor-facing command surfaces remain aligned after the cleanup.
+      [x] 16.3.1.1 Subtask - Add coverage for the updated start-oriented Mix or app entrypoints where frontend build-chain expectations changed.
+      [x] 16.3.1.2 Subtask - Add coverage for any extracted shared product helpers that now own repeated shaping or boundary logic.
+      [x] 16.3.1.3 Subtask - Verify planning, specs, and contributor-facing command surfaces remain aligned after the cleanup.
 
-    [ ] 16.3.2 Task - Operator UI consistency scenarios
+    [x] 16.3.2 Task - Operator UI consistency scenarios
       Verify the migrated operator surfaces still behave correctly while presenting more uniform product-owned UI states.
 
-      [ ] 16.3.2.1 Subtask - Add coverage for standardized loading, empty, warning, fallback, or refresh behavior on representative operator surfaces.
-      [ ] 16.3.2.2 Subtask - Add coverage showing hybrid LiveView-plus-Vue surfaces and plain LiveView surfaces remain coherent under the same product-state conventions.
-      [ ] 16.3.2.3 Subtask - Verify cleanup did not reintroduce runtime-topology leakage, ad hoc client islands, or legacy migration-state language into the UI.
+      [x] 16.3.2.1 Subtask - Add coverage for standardized loading, empty, warning, fallback, or refresh behavior on representative operator surfaces.
+      [x] 16.3.2.2 Subtask - Add coverage showing hybrid LiveView-plus-Vue surfaces and plain LiveView surfaces remain coherent under the same product-state conventions.
+      [x] 16.3.2.3 Subtask - Verify cleanup did not reintroduce runtime-topology leakage, ad hoc client islands, or legacy migration-state language into the UI.

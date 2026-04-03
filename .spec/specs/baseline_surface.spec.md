@@ -16,6 +16,7 @@ surface:
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/plugs/public_bootstrap_auth_gate.ex
   - lib/jido_code_web/components/layouts.ex
+  - test/support/conn_case.ex
   - test/jido_code_web/controllers/page_controller_test.exs
   - test/jido_code_web/live/home_live_test.exs
   - test/jido_code_web/live/setup_live_test.exs

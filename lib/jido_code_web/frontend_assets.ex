@@ -20,17 +20,17 @@ defmodule JidoCodeWeb.FrontendAssets do
                    }
                  })
   @fallback_manifest PhoenixVite.Manifest.parse(%{
-                     "js/app.js" => %{
-                       "file" => "assets/app.js",
-                       "css" => ["assets/app.css"],
-                       "imports" => []
-                     },
-                     "css/app.css" => %{
-                       "file" => "assets/app.css",
-                       "css" => [],
-                       "imports" => []
-                     }
-                   })
+                       "js/app.js" => %{
+                         "file" => "assets/app.js",
+                         "css" => ["assets/app.css"],
+                         "imports" => []
+                       },
+                       "css/app.css" => %{
+                         "file" => "assets/app.css",
+                         "css" => [],
+                         "imports" => []
+                       }
+                     })
   @compatibility_title "Interactive summary temporarily unavailable"
   @compatibility_detail "This page is running in server-rendered compatibility mode. Core controls remain available below."
 

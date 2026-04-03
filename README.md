@@ -24,12 +24,12 @@ cd jido_code
 
 asdf install
 mix setup
-mix phx.server
+mix server
 ```
 
 Then open http://localhost:4000
 
-For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies, prepares the development database, and builds assets. `mix test` provisions the test database automatically. Desktop packaging is separate and lives in [`tauri/README.md`](tauri/README.md).
+For normal local development, leave `DATABASE_URL` unset. `mix setup` installs dependencies, prepares the development database, and builds assets. `mix server` is the preferred start path and prepares browser dependencies or bundles first when the current LiveVue/Vite output is missing. `mix test` provisions the test database automatically. Desktop packaging is separate and lives in [`tauri/README.md`](tauri/README.md).
 
 ## What This Repo Contains
 
@@ -52,7 +52,7 @@ mix setup
 mix assets.setup
 mix assets.build
 mix frontend.verify
-mix phx.server
+mix server
 mix test
 mix ecto.reset
 ```
@@ -82,7 +82,7 @@ mix setup               # deps, ecto.setup, and asset build
 mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
 mix frontend.verify     # run the repo-owned browser pipeline verification
-mix phx.server          # start the local Phoenix server
+mix server              # preferred local start path; prepares browser deps/builds if needed
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
 mix test                # create/migrate the test DB and run tests
 mix q                   # fast merge-safe quality gate

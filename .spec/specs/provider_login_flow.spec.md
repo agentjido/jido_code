@@ -13,6 +13,7 @@ surface:
   - lib/jido_code/auth_providers/provider_login.ex
   - lib/jido_code_web/controllers/provider_auth_controller.ex
   - lib/jido_code_web/live/home_live.ex
+  - test/support/conn_case.ex
   - test/jido_code/auth_providers/provider_login_test.exs
   - test/jido_code_web/controllers/provider_auth_controller_test.exs
   - test/jido_code_web/live/home_live_test.exs

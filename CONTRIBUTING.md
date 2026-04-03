@@ -30,7 +30,7 @@ Thank you for your interest in contributing to JidoCode! This document provides 
 
 5. Start the development server:
    ```bash
-   mix phx.server
+   mix server
    ```
 
 For day-to-day development:
@@ -38,6 +38,7 @@ For day-to-day development:
 - `mix assets.setup` installs the Vite and LiveVue browser dependencies
 - `mix assets.build` builds the current browser bundle and SSR output
 - `mix frontend.verify` runs the repo-owned browser pipeline verification
+- `mix server` is the preferred local start path and prepares browser deps or builds when the LiveVue/Vite output is missing
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
 - `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`

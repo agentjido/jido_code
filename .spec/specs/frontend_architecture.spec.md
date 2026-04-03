@@ -8,9 +8,10 @@ ownership across multiple unrelated frontend stacks.
 id: architecture.frontend_stack
 kind: policy
 status: active
-summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with a product-owned mounting boundary and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.
+summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
 surface:
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
@@ -19,15 +20,21 @@ surface:
   - .spec/specs/product_foundation_docs.spec.md
   - lib/jido_code_web/router.ex
   - lib/jido_code_web.ex
+  - lib/jido_code/mix/frontend_start.ex
   - lib/jido_code_web/components/live_vue_components.ex
+  - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
+  - lib/mix/tasks/frontend.start.ex
   - assets/
   - mix.exs
   - config/
+  - test/jido_code/frontend_start_test.exs
   - test/support/live_vue_case.ex
   - test/jido_code_web/components/
+  - test/jido_code_web/components/operator_state_components_test.exs
   - test/jido_code_web/live/
+  - test/jido_code_web/live/phase_sixteen_integration_test.exs
 ```
 
 ## Requirements

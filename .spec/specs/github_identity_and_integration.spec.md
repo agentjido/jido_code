@@ -16,6 +16,7 @@ surface:
   - lib/jido_code/setup/github_installation_sync.ex
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/accounts/user_identity.ex
+  - test/support/conn_case.ex
   - test/jido_code/setup/github_credential_checks_test.exs
   - test/jido_code_web/live/setup_live_github_auth_mode_test.exs
 ```

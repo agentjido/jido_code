@@ -13,6 +13,7 @@ surface:
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/accounts/token.ex
   - lib/jido_code/accounts/security_tokens.ex
+  - test/support/conn_case.ex
   - test/jido_code_web/live/auth_session_live_test.exs
   - test/jido_code_web/live/auth_boundary_live_test.exs
   - test/jido_code_web/live/auth_sign_out_live_test.exs

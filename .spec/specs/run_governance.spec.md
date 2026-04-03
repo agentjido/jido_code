@@ -12,6 +12,7 @@ summary: Jido.Code evolves execution from standalone workflow-run records into g
 decisions:
   - jido_code.runic_execution_model
   - jido_code.factory_control_plane_and_runtime_overlay
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
@@ -32,6 +33,7 @@ surface:
   - lib/jido_code/orchestration/run_bridge.ex
   - lib/jido_code/orchestration/workflow_run.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
+  - test/support/conn_case.ex
   - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
 ```

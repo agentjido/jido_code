@@ -11,6 +11,7 @@ status: active
 summary: authenticated operators can manage provider-login broker trust on the landing page, see GitHub automation readiness separately, keep Git service secrets distinct from provider-login configuration, and only reach that console after bootstrap is complete and the lightweight signed-in start surface has yielded to ready-state operator access.
 surface:
   - lib/jido_code_web/live/home_live.ex
+  - test/support/conn_case.ex
   - test/jido_code_web/live/home_live_operator_settings_test.exs
 ```
 

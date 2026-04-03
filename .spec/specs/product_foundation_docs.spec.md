@@ -7,11 +7,12 @@ This subject defines the repository-facing docs that orient contributors to what
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack and verification orientation for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.
+summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, and verification orientation for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.local_developer_workflow
   - jido_code.canonical_repo_surface
+  - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
@@ -22,6 +23,7 @@ surface:
   - .spec/README.md
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
@@ -116,6 +118,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  covers:
+    - docs.product_foundation.durable_architecture_record_in_spec_workspace
+
+- kind: source_file
+  target: .spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

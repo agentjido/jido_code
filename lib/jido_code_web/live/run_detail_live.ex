@@ -1,6 +1,8 @@
 defmodule JidoCodeWeb.RunDetailLive do
   # covers: package.jido_code.primary_implementation_repo
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
@@ -210,6 +212,13 @@ defmodule JidoCodeWeb.RunDetailLive do
               Managed repo: {Map.get(@run, :managed_repo_id)}
             </p>
           </section>
+
+          <.vue_surface
+            id="run-detail-governance-overview-widget"
+            component="RunGovernanceOverviewWidget"
+            socket={@socket}
+            props={run_governance_widget_props(assigns)}
+          />
 
           <section
             id="run-detail-governance-summary"
@@ -982,6 +991,87 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_repo_posture(_run), do: nil
+
+  defp run_governance_widget_props(assigns) do
+    %{
+      runStatus:
+        assigns
+        |> Map.get(:run)
+        |> map_get(:status, "status")
+        |> status_label(),
+      currentStage:
+        assigns
+        |> Map.get(:run)
+        |> map_get(:current_stage, "current_stage")
+        |> normalize_optional_string(),
+      changeRequestStatus:
+        assigns
+        |> Map.get(:change_request)
+        |> map_get(:status, "status")
+        |> normalize_optional_string(),
+      evidenceCount: length(Map.get(assigns, :evidence_records, [])),
+      decisionCount: length(Map.get(assigns, :decisions, [])),
+      runtimeEvidence: run_runtime_evidence_widget(assigns),
+      evidenceEntries:
+        Enum.map(Map.get(assigns, :evidence_records, []), fn evidence ->
+          %{
+            key:
+              evidence
+              |> map_get(:key, "key")
+              |> normalize_optional_string() || "unknown",
+            summary:
+              evidence
+              |> map_get(:summary, "summary")
+              |> normalize_optional_string() || "Evidence summary unavailable."
+          }
+        end),
+      decisionEntries:
+        Enum.map(Map.get(assigns, :decisions, []), fn decision ->
+          %{
+            decision:
+              decision
+              |> map_get(:decision, "decision")
+              |> status_label(),
+            rationale:
+              decision
+              |> map_get(:rationale, "rationale")
+              |> normalize_optional_string()
+          }
+        end)
+    }
+  end
+
+  defp run_runtime_evidence_widget(assigns) do
+    case Map.get(assigns, :runtime_evidence_summary) do
+      %{} = runtime_evidence ->
+        %{
+          statusLabel:
+            runtime_evidence
+            |> map_get(:status, "status")
+            |> runtime_evidence_status_label(),
+          summary:
+            runtime_evidence
+            |> map_get(:summary, "summary")
+            |> normalize_optional_string() || "Runtime evidence summary unavailable.",
+          deliveryMode: widget_runtime_detail_value(map_get(runtime_evidence, :delivery_mode, "delivery_mode")),
+          reason: widget_runtime_detail_value(map_get(runtime_evidence, :reason_code, "reason_code")),
+          integration:
+            runtime_evidence
+            |> map_get(:integration_summary, "integration_summary")
+            |> normalize_optional_string()
+        }
+
+      _other ->
+        nil
+    end
+  end
+
+  defp widget_runtime_detail_value(value) do
+    case normalize_optional_string(value) do
+      nil -> nil
+      normalized -> humanize_runtime_value(normalized)
+    end
+  end
 
   defp maybe_subscribe_run_events(socket) do
     run_id =

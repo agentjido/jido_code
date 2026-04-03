@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.WorkbenchLive do
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
@@ -130,6 +132,18 @@ defmodule JidoCodeWeb.WorkbenchLive do
     socket =
       socket
       |> apply_invalid_filter_defaults("filters", "missing")
+      |> push_filter_state_patch()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("reset_filters", _params, socket) do
+    socket =
+      socket
+      |> assign(:filter_validation_notice, nil)
+      |> assign(:sort_validation_notice, nil)
+      |> apply_filters(@default_filter_values)
       |> push_filter_state_patch()
 
     {:noreply, socket}
@@ -291,6 +305,14 @@ defmodule JidoCodeWeb.WorkbenchLive do
           {@sort_validation_notice.remediation}
         </p>
       </section>
+
+      <.vue_surface
+        id="workbench-summary-widget"
+        component="WorkbenchSummaryWidget"
+        socket={@socket}
+        props={workbench_summary_widget_props(assigns)}
+        events={%{"resetFilters" => "reset_filters"}}
+      />
 
       <section id="workbench-filters-panel" class="rounded-lg border border-base-300 bg-base-100 p-4">
         <.form
@@ -602,6 +624,56 @@ defmodule JidoCodeWeb.WorkbenchLive do
       |> normalize_filter_values()
 
     push_patch(socket, to: workbench_path_with_filter_values(filter_values))
+  end
+
+  defp workbench_summary_widget_props(assigns) do
+    filter_values =
+      assigns
+      |> Map.get(:filter_values, @default_filter_values)
+      |> normalize_filter_values()
+
+    filter_chips = Map.get(assigns, :filter_chips, %{})
+
+    rows = Map.get(assigns, :inventory_rows_all, [])
+    filtered_rows = filter_rows(rows, filter_values)
+    {sorted_rows, _applied_filter_values, _sort_notice} = sort_rows_with_fallback(filtered_rows, filter_values)
+
+    project_summaries =
+      Enum.map(Enum.take(sorted_rows, 5), fn row ->
+        outcome =
+          recent_run_outcome(Map.get(assigns, :recent_run_outcomes, %{}), Map.get(row, :id)) || %{}
+
+        %{
+          id: Map.get(row, :id),
+          githubFullName: Map.get(row, :github_full_name),
+          backlogCount: backlog_size(row),
+          recentActivitySummary: Map.get(row, :recent_activity_summary),
+          runOutcomeStatus:
+            outcome
+            |> map_get(:status, "status")
+            |> normalize_optional_string(),
+          requiresAttention: workbench_summary_attention?(row, outcome)
+        }
+      end)
+
+    %{
+      inventoryCount: Map.get(assigns, :inventory_count, 0),
+      inventoryTotalCount: Map.get(assigns, :inventory_total_count, 0),
+      attentionCount: Enum.count(project_summaries, & &1.requiresAttention),
+      filterChips: %{
+        project: Map.get(filter_chips, :project),
+        workState: Map.get(filter_chips, :work_state),
+        freshnessWindow: Map.get(filter_chips, :freshness_window),
+        sortOrder: Map.get(filter_chips, :sort_order)
+      },
+      projectSummaries: project_summaries,
+      resetVisible: filter_values != @default_filter_values
+    }
+  end
+
+  defp workbench_summary_attention?(row, outcome) do
+    backlog_size(row) > 0 and
+      normalize_optional_string(map_get(outcome, :status, "status")) not in [nil, "completed"]
   end
 
   defp apply_filters(socket, filter_values) do

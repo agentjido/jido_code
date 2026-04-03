@@ -1,4 +1,6 @@
 defmodule JidoCodeWeb.ProjectDetailLiveTest do
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -269,6 +271,13 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       })
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project.id}", on_error: :warn)
+
+    vue = assert_vue_component(view, "ProjectDetailOverviewWidget", id: "project-detail-overview-widget")
+
+    assert vue.props["githubFullName"] == "owner/repo-conversation-ui"
+    assert vue.props["launchReady"] == true
+    assert vue.props["conversation"]["status"] == "Idle"
+    assert_vue_handler(view, "startConversation", "start_conversation", id: "project-detail-overview-widget")
 
     assert has_element?(view, "#project-detail-conversation-panel")
     assert has_element?(view, "#project-detail-conversation-start", "Start conversation")

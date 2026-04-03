@@ -42,22 +42,22 @@ Back to index: [README](./README.md)
       [x] 14.1.2.2 Subtask - Apply the same bounded mounting and event conventions introduced in Phase 13.
       [x] 14.1.2.3 Subtask - Keep route-level auth, policy gating, and server-authored loading logic fully in LiveView.
 
-  [ ] 14.2 Section - Deep Workflow Surface Adoption
+  [x] 14.2 Section - Deep Workflow Surface Adoption
     Migrate the richer workflow-heavy pages after the summary surfaces prove the hybrid pattern is operationally safe.
 
-    [ ] 14.2.1 Task - Introduce Live Vue-backed components on project and run detail surfaces
+    [x] 14.2.1 Task - Introduce Live Vue-backed components on project and run detail surfaces
       Improve highly interactive operator workflows while preserving the server-owned product shell and runtime-governance integrations.
 
-      [ ] 14.2.1.1 Subtask - Migrate the highest-value project-detail subregions to Vue-backed components while keeping conversation, run, and policy ownership on the server side.
-      [ ] 14.2.1.2 Subtask - Migrate the most interaction-heavy run-detail regions where richer client composition improves evidence navigation or review handling.
-      [ ] 14.2.1.3 Subtask - Preserve typed runtime evidence, operator review, and control-plane state transitions through the existing product boundaries.
+      [x] 14.2.1.1 Subtask - Migrate the highest-value project-detail subregions to Vue-backed components while keeping conversation, run, and policy ownership on the server side.
+      [x] 14.2.1.2 Subtask - Migrate the most interaction-heavy run-detail regions where richer client composition improves evidence navigation or review handling.
+      [x] 14.2.1.3 Subtask - Preserve typed runtime evidence, operator review, and control-plane state transitions through the existing product boundaries.
 
-    [ ] 14.2.2 Task - Adopt Live Vue selectively on workbench-style surfaces
+    [x] 14.2.2 Task - Adopt Live Vue selectively on workbench-style surfaces
       Use the new browser stack where composability helps the most, without forcing every workbench interaction into the richer client path.
 
-      [ ] 14.2.2.1 Subtask - Identify workbench regions that need richer progressive disclosure, layout composition, or client-local interaction.
-      [ ] 14.2.2.2 Subtask - Keep streaming, runtime-delivery, and product event translation on the LiveView side unless a richer client component truly needs a bounded projection.
-      [ ] 14.2.2.3 Subtask - Preserve compatibility for routes or sections that should remain plain HEEx and LiveView.
+      [x] 14.2.2.1 Subtask - Identify workbench regions that need richer progressive disclosure, layout composition, or client-local interaction.
+      [x] 14.2.2.2 Subtask - Keep streaming, runtime-delivery, and product event translation on the LiveView side unless a richer client component truly needs a bounded projection.
+      [x] 14.2.2.3 Subtask - Preserve compatibility for routes or sections that should remain plain HEEx and LiveView.
 
   [ ] 14.3 Section - Phase 14 Integration Tests
     Validate the surface-by-surface migration pattern so later rollout hardening can focus on resilience rather than basic composition correctness.

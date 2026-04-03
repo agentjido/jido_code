@@ -1,3 +1,4 @@
+import "vite/modulepreload-polyfill";
 // If you want to use Phoenix channels, run `mix help phx.gen.channel`
 // to get started and then uncomment the line below.
 // import "./user_socket.js"
@@ -20,11 +21,15 @@ import "phoenix_html";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
-import topbar from "../vendor/topbar";
+import { getHooks } from "live_vue";
+import liveVueApp from "../vue";
+import topbar from "topbar";
 import { createLiveToastHook } from "../../deps/live_toast/priv/static/live_toast.esm.js";
+
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {
@@ -32,8 +37,10 @@ const liveSocket = new LiveSocket("/live", Socket, {
   },
   hooks: {
     LiveToast: createLiveToastHook(),
+    ...getHooks(liveVueApp),
   },
 });
+
 // Show progress bar on live navigation and form submits
 topbar.config({
   barColors: {
@@ -41,15 +48,19 @@ topbar.config({
   },
   shadowColor: "rgba(0, 0, 0, .3)",
 });
+
 window.addEventListener("phx:page-loading-start", (_info) => topbar.show(300));
 window.addEventListener("phx:page-loading-stop", (_info) => topbar.hide());
+
 // connect if there are any LiveViews on the page
 liveSocket.connect();
+
 // expose liveSocket on window for web console debug logs and latency simulation:
 // >> liveSocket.enableDebug()
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket;
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //

@@ -38,14 +38,11 @@ Thumbs.db
 jido_code-*.tar
 
 # Ignore assets that are produced by build tools.
-/priv/static/assets/
-
-# Ignore digested assets cache.
-/priv/static/cache_manifest.json
+/priv/static/*
 
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
-/assets/node_modules/
+node_modules/
 
 # Environment files with secrets
 .env

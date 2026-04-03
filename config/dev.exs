@@ -1,4 +1,5 @@
 import Config
+config :live_vue, vite_host: "http://localhost:5173", ssr_module: LiveVue.SSR.ViteJS
 config :ash, policies: [show_policy_breakdowns?: true]
 
 config :git_ops,
@@ -32,10 +33,8 @@ config :jido_code, JidoCodeWeb.Endpoint,
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "EhyC3sZ9xWoeOHM5EvgUdSpa/MLgrYU39T1WVQ3nEioHBm9wa/kTrLj62/Zz1Aek",
-  watchers: [
-    esbuild: {Esbuild, :install_and_run, [:jido_code, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:jido_code, ~w(--watch)]}
-  ]
+  watchers: [vite: {PhoenixVite.Npm, :run, [:vite, ~w(dev)]}],
+  static_url: [host: "localhost", port: 5173]
 
 # ## SSL Support
 #
@@ -65,8 +64,6 @@ config :jido_code, JidoCodeWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
-      # Static assets, except user uploads
-      ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$",
       # Gettext translations
       ~r"priv/gettext/.*\.po$",
       # Router, Controllers, LiveViews and LiveComponents

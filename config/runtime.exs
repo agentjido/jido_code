@@ -24,6 +24,9 @@ config :jido_code, JidoCodeWeb.Endpoint, http: [port: String.to_integer(System.g
 
 if config_env() == :prod do
   config :jido_code_server, :llm_adapter, :jido_ai
+
+  config :jido_code, JidoCodeWeb.Endpoint,
+    cache_static_manifest_latest: PhoenixVite.cache_static_manifest_latest(:jido_code)
 end
 
 if secret_ref_encryption_key = System.get_env("JIDO_CODE_SECRET_REF_ENCRYPTION_KEY") do

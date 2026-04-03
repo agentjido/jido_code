@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "baseUrl": ".",
+    "lib": ["ES2015", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "*": [ "./deps/*", "node_modules/*" ]
+    },
+    "strict": true,
+    "types": [ "vite/client" ]
+  },
+  "include": [
+    "./assets/js/**/*",
+    "./assets/vue/**/*",
+    "./lib/jido_code_web/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

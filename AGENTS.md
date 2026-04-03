@@ -103,5 +103,4 @@ When touching these packages, consult usage rules first:
 - `deps/ash_json_api/usage-rules.md`
 - `deps/ash_authentication/usage-rules.md`
 - `deps/ash_phoenix/usage-rules.md`
-- `deps/ash_typescript/usage-rules.md`
 - `deps/phoenix/usage-rules/`

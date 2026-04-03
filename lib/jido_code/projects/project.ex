@@ -6,8 +6,7 @@ defmodule JidoCode.Projects.Project do
     otp_app: :jido_code,
     domain: JidoCode.Projects,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshTypescript.Resource]
+    authorizers: [Ash.Policy.Authorizer]
 
   alias JidoCode.Control.Checks.ActorClassIn
   alias JidoCode.Control.RepoBridge
@@ -16,10 +15,6 @@ defmodule JidoCode.Projects.Project do
   postgres do
     table "projects"
     repo JidoCode.Repo
-  end
-
-  typescript do
-    type_name "Project"
   end
 
   code_interface do

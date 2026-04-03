@@ -32,22 +32,8 @@ defmodule JidoCodeWeb.Router do
     plug(:set_actor, :user)
   end
 
-  pipeline :rpc_run do
-    plug(:accepts, ["json"])
-    plug(:fetch_session)
-    plug(:load_from_session)
-    plug(:set_actor, :user)
-  end
-
   pipeline :github_webhook do
     plug(:accepts, ["json"])
-  end
-
-  scope "/", JidoCodeWeb do
-    pipe_through(:rpc_run)
-
-    post("/rpc/run", AshTypescriptRpcController, :run)
-    post("/rpc/validate", AshTypescriptRpcController, :validate)
   end
 
   scope "/", JidoCodeWeb do

@@ -6,13 +6,13 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
   import Phoenix.LiveViewTest
 
   alias AshAuthentication.{Info, Jwt, Strategy}
+  alias AshAuthentication.TokenResource.Actions
   alias JidoCode.Accounts
   alias JidoCode.Accounts.ApiKey
+  alias JidoCode.Accounts.Token
   alias JidoCode.Accounts.User
   alias JidoCode.GitHub.Repo
   alias JidoCode.Security.SecretRefs
-
-  @run_action_params %{"action" => "rpc_list_repositories", "fields" => ["id"]}
 
   test "security tab exposes expiry metadata and revocation controls that invalidate bearer and api key auth",
        %{conn: _conn} do
@@ -37,16 +37,7 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     assert has_element?(view, "#settings-security-token-status-#{session_jti}", "Revoked")
     refute has_element?(view, "#settings-security-token-revoked-at-#{session_jti}", "Not revoked")
 
-    bearer_response =
-      build_conn()
-      |> put_req_header("authorization", "Bearer #{session_token}")
-      |> post(~p"/rpc/run", @run_action_params)
-      |> json_response(200)
-
-    assert bearer_response["success"] == false
-
-    assert get_in(bearer_response, ["errors", Access.at(0), "details", "reason"]) ==
-             "invalid_expired_or_revoked_bearer_token"
+    refute Actions.valid_jti?(Token, session_jti)
 
     view
     |> element("#settings-security-revoke-api-key-#{api_key_record.id}")
@@ -60,16 +51,14 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
              "Not revoked"
            )
 
-    api_key_response =
-      build_conn()
-      |> put_req_header("x-api-key", api_key)
-      |> post(~p"/rpc/validate", @run_action_params)
-      |> json_response(200)
+    api_key_strategy = Info.strategy!(User, :api_key)
 
-    assert api_key_response["success"] == false
-
-    assert get_in(api_key_response, ["errors", Access.at(0), "details", "reason"]) ==
-             "invalid_expired_or_revoked_api_key"
+    assert {:error, _reason} =
+             Strategy.action(
+               api_key_strategy,
+               :sign_in,
+               %{"api_key" => api_key}
+             )
 
     assert has_element?(view, "#settings-security-audit-log", "revoked at")
   end
@@ -108,16 +97,14 @@ defmodule JidoCodeWeb.SecuritySettingsLiveTest do
     unchanged_api_key = read_api_key!(api_key_record.id)
     assert DateTime.compare(unchanged_api_key.revoked_at, revoked_api_key.revoked_at) == :eq
 
-    api_key_response =
-      build_conn()
-      |> put_req_header("x-api-key", api_key)
-      |> post(~p"/rpc/validate", @run_action_params)
-      |> json_response(200)
+    api_key_strategy = Info.strategy!(User, :api_key)
 
-    assert api_key_response["success"] == false
-
-    assert get_in(api_key_response, ["errors", Access.at(0), "details", "reason"]) ==
-             "invalid_expired_or_revoked_api_key"
+    assert {:error, _reason} =
+             Strategy.action(
+               api_key_strategy,
+               :sign_in,
+               %{"api_key" => api_key}
+             )
   end
 
   test "security tab persists encrypted SecretRef metadata and never renders plaintext values", %{

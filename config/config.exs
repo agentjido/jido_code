@@ -7,20 +7,6 @@
 # General application configuration
 import Config
 
-config :ash_typescript,
-  output_file: "assets/js/ash_rpc.ts",
-  run_endpoint: "/rpc/run",
-  validate_endpoint: "/rpc/validate",
-  input_field_formatter: :camel_case,
-  output_field_formatter: :camel_case,
-  require_tenant_parameters: false,
-  generate_zod_schemas: false,
-  generate_phx_channel_rpc_actions: false,
-  generate_validation_functions: true,
-  zod_import_path: "zod",
-  zod_schema_suffix: "ZodSchema",
-  phoenix_import_path: "phoenix"
-
 config :mime,
   extensions: %{"json" => "application/vnd.api+json"},
   types: %{"application/vnd.api+json" => ["json"]}

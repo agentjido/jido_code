@@ -11,7 +11,7 @@
     </.live_title>
     <PhoenixVite.Components.assets
       names={["js/app.js", "css/app.css"]}
-      manifest={{:jido_code, "priv/static/.vite/manifest.json"}}
+      manifest={JidoCodeWeb.FrontendAssets.vite_manifest()}
       dev_server={PhoenixVite.Components.has_vite_watcher?(JidoCodeWeb.Endpoint)}
       to_url={fn p -> static_url(@conn, p) end}
     />

@@ -10,6 +10,7 @@ summary: jido_code is the primary implementation repo, maintains a package-local
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
+  - jido_code.live_vue_frontend_adoption
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_public_turn_runtime_adoption

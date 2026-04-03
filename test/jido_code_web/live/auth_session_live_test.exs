@@ -79,24 +79,6 @@ defmodule JidoCodeWeb.AuthSessionLiveTest do
     refute welcome_html =~ "owner@example.com"
   end
 
-  defp register_owner(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, _owner} =
-      Strategy.action(
-        strategy,
-        :register,
-        %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
-        },
-        context: %{token_type: :sign_in}
-      )
-
-    :ok
-  end
-
   defp redirect_path({path, _flash}) when is_binary(path), do: path
   defp redirect_path(path) when is_binary(path), do: path
 end

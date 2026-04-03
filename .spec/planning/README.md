@@ -40,6 +40,7 @@ The plan aligns to:
 13. [Phase 13 - Live Vue Product Boundary and Testing Conventions](./phase-13-live-vue-product-boundary-and-testing-conventions.md): standardize how `jido_code` mounts Vue through product-owned helpers, event conventions, and LiveVue-aware tests instead of ad hoc component islands.
 14. [Phase 14 - Incremental Operator Surface Adoption](./phase-14-incremental-operator-surface-adoption.md): migrate the highest-value operator surfaces to the LiveView-plus-`live_vue` composition model in an incremental, surface-by-surface rollout.
 15. [Phase 15 - Frontend Rollout Hardening and Contributor Convergence](./phase-15-frontend-rollout-hardening-and-contributor-convergence.md): harden SSR, fallback behavior, observability, and docs so the new frontend stack becomes the durable contributor and operator default without regressing simpler LiveView routes.
+16. [Phase 16 - Internal Cleanup and UI Convergence Foundation](./phase-16-internal-cleanup-and-ui-convergence-foundation.md): consolidate product-owned helpers, retire transitional seams, align start-oriented Mix entrypoints with the current frontend architecture, and standardize operator-facing UI states before the next feature wave.
 
 ## Shared Conventions
 - Numbering:

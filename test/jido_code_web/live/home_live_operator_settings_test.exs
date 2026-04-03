@@ -8,8 +8,6 @@ defmodule JidoCodeWeb.HomeLiveOperatorSettingsTest do
 
   import Phoenix.LiveViewTest
 
-  alias AshAuthentication.{Info, Strategy}
-  alias JidoCode.Accounts.User
   alias JidoCode.AuthProviders.ProviderConfig
 
   @checker_env :setup_github_credential_checker
@@ -36,7 +34,9 @@ defmodule JidoCodeWeb.HomeLiveOperatorSettingsTest do
     end)
 
     register_owner("owner@example.com", "owner-password-123")
-    {authed_conn, _session_token, _owner} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token, _owner} =
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
 
@@ -59,7 +59,9 @@ defmodule JidoCodeWeb.HomeLiveOperatorSettingsTest do
     end)
 
     register_owner("owner@example.com", "owner-password-123")
-    {authed_conn, _session_token, _owner} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token, _owner} =
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
 
@@ -98,7 +100,9 @@ defmodule JidoCodeWeb.HomeLiveOperatorSettingsTest do
     end)
 
     register_owner("owner@example.com", "owner-password-123")
-    {authed_conn, _session_token, _owner} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token, _owner} =
+      authenticate_owner_conn("owner@example.com", "owner-password-123", return_owner: true)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
 
@@ -179,65 +183,5 @@ defmodule JidoCodeWeb.HomeLiveOperatorSettingsTest do
         }
       ]
     }
-  end
-
-  defp register_owner(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, _owner} =
-      Strategy.action(
-        strategy,
-        :register,
-        %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
-        },
-        context: %{token_type: :sign_in}
-      )
-
-    :ok
-  end
-
-  defp authenticate_owner_conn(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, owner} =
-      Strategy.action(
-        strategy,
-        :sign_in,
-        %{"email" => email, "password" => password},
-        context: %{token_type: :sign_in}
-      )
-
-    token =
-      owner
-      |> Map.get(:__metadata__, %{})
-      |> Map.fetch!(:token)
-
-    auth_response = build_conn() |> get(owner_sign_in_with_token_path(strategy, token))
-    assert redirected_to(auth_response, 302) == "/"
-    session_token = get_session(auth_response, "user_token")
-    assert is_binary(session_token)
-    {recycle(auth_response), session_token, owner}
-  end
-
-  defp owner_sign_in_with_token_path(strategy, token) do
-    strategy_path =
-      strategy
-      |> Strategy.routes()
-      |> Enum.find_value(fn
-        {path, :sign_in_with_token} -> path
-        _other -> nil
-      end)
-
-    path =
-      Path.join(
-        "/auth",
-        String.trim_leading(strategy_path || "/user/password/sign_in_with_token", "/")
-      )
-
-    query = URI.encode_query(%{"token" => token})
-    "#{path}?#{query}"
   end
 end

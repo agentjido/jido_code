@@ -226,9 +226,33 @@ surface:
     - architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
 
 - kind: source_file
+  target: lib/jido_code_web/live/project_inventory_live.ex
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
   target: test/support/live_vue_case.ex
   covers:
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: test/jido_code_web/live/project_inventory_live_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
+  target: test/jido_code_web/live/agents_live_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
+
+- kind: source_file
+  target: test/jido_code_web/live/workflows_live_test.exs
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.adoption_is_incremental_per_surface
 
 - kind: source_file
   target: lib/jido_code_web/live/DashboardRunSummaryWidget.vue

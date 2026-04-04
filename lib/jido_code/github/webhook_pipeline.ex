@@ -9,13 +9,12 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   require Logger
 
   alias JidoCode.Agents.SupportAgentConfigs
-  alias JidoCode.Control.Actor
+  alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.GitHub.Repo
   alias JidoCode.GitHub.WebhookDelivery
   alias JidoCode.Governance.PolicyBridge
   alias JidoCode.Operations.Ingress
   alias JidoCode.Orchestration.WorkflowRun
-  alias JidoCode.Projects.Project
   alias JidoCode.Setup.GitHubInstallationSync
 
   @issue_triage_workflow_name "issue_triage"
@@ -581,15 +580,15 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp maybe_dispatch_issue_bot_candidate_delivery(delivery, issue_bot_event) do
     case issue_bot_project_policy_for_delivery(delivery) do
-      {:ok, %Project{} = project, false, _configured_events} ->
-        log_issue_bot_disabled_noop(delivery, issue_bot_event, project)
+      {:ok, %{} = repo_scope, false, _configured_events} ->
+        log_issue_bot_disabled_noop(delivery, issue_bot_event, repo_scope)
         :ok
 
-      {:ok, %Project{} = project, true, configured_events} ->
+      {:ok, %{} = repo_scope, true, configured_events} ->
         maybe_dispatch_issue_bot_event_for_project(
           delivery,
           issue_bot_event,
-          project,
+          repo_scope,
           configured_events
         )
 
@@ -628,8 +627,8 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp issue_bot_project_policy_for_delivery(delivery) do
     case fetch_project_for_delivery(delivery) do
-      {:ok, %Project{} = project} ->
-        {:ok, project, project_issue_bot_enabled?(project), project_issue_bot_webhook_events(project)}
+      {:ok, %{} = repo_scope} ->
+        {:ok, repo_scope, project_issue_bot_enabled?(repo_scope), project_issue_bot_webhook_events(repo_scope)}
 
       {:error, :project_not_found} ->
         {:error, :project_not_found}
@@ -676,13 +675,8 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   defp fetch_project_for_delivery(%{} = delivery) do
     with payload when is_map(payload) <- Map.get(delivery, :payload),
          {:ok, repo_full_name} <- extract_repo_full_name(payload),
-         {:ok, projects} <-
-           Project.read(
-             query: [filter: [github_full_name: repo_full_name], limit: 1],
-             actor: @webhook_actor
-           ),
-         [%Project{} = project | _rest] <- projects do
-      {:ok, project}
+         {:ok, repo_scope} <- RepoBridge.repo_scope(repo_full_name) do
+      {:ok, repo_scope}
     else
       _other -> {:error, :project_not_found}
     end
@@ -690,8 +684,8 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp fetch_project_for_delivery(_delivery), do: {:error, :project_not_found}
 
-  defp project_issue_bot_webhook_events(%Project{} = project) do
-    issue_bot_settings = issue_bot_settings(project)
+  defp project_issue_bot_webhook_events(%{} = repo_scope) do
+    issue_bot_settings = issue_bot_settings(repo_scope)
 
     if map_has_key?(issue_bot_settings, :webhook_events, "webhook_events") do
       issue_bot_settings
@@ -705,8 +699,8 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp project_issue_bot_webhook_events(_project), do: supported_issue_bot_webhook_events()
 
-  defp project_issue_bot_enabled?(%Project{} = project) do
-    project
+  defp project_issue_bot_enabled?(%{} = repo_scope) do
+    repo_scope
     |> issue_bot_settings()
     |> map_get(:enabled, "enabled")
     |> normalize_enabled(true)
@@ -714,22 +708,35 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp project_issue_bot_enabled?(_project), do: true
 
-  defp issue_bot_settings(%Project{} = project) do
-    project
-    |> map_get(:settings, "settings", %{})
+  defp issue_bot_settings(%{} = repo_scope) do
+    repo_scope
+    |> map_get(:managed_repo, "managed_repo", %{})
+    |> map_get(:integration_settings, "integration_settings", %{})
     |> map_get(:support_agent_config, "support_agent_config", %{})
     |> map_get(:github_issue_bot, "github_issue_bot", %{})
   end
 
   defp issue_bot_settings(_project), do: %{}
 
-  defp project_issue_bot_approval_policy(%Project{} = project) do
-    case PolicyBridge.approval_policy_for_project(Map.get(project, :id)) do
+  defp project_issue_bot_approval_policy(%{} = repo_scope) do
+    managed_repo_id =
+      repo_scope
+      |> map_get(:managed_repo_id, "managed_repo_id")
+      |> normalize_optional_string()
+
+    approval_policy_result =
+      if is_binary(managed_repo_id) do
+        PolicyBridge.approval_policy_for_managed_repo(managed_repo_id)
+      else
+        :error
+      end
+
+    case approval_policy_result do
       {:ok, approval_policy} ->
         approval_policy
 
       _other ->
-        project
+        repo_scope
         |> issue_bot_settings()
         |> map_get(:approval_mode, "approval_mode")
         |> issue_bot_approval_policy()
@@ -743,10 +750,10 @@ defmodule JidoCode.GitHub.WebhookPipeline do
        when issue_bot_event not in @issue_triage_workflow_trigger_events,
        do: :ok
 
-  defp maybe_create_issue_triage_run(delivery, issue_bot_event, %Project{} = project)
+  defp maybe_create_issue_triage_run(delivery, issue_bot_event, %{} = repo_scope)
        when issue_bot_event in @issue_triage_workflow_trigger_events do
     with {:ok, issue_triage_run_plan} <-
-           build_issue_triage_run_attributes(delivery, project, issue_bot_event),
+           build_issue_triage_run_attributes(delivery, repo_scope, issue_bot_event),
          run_attributes <- Map.fetch!(issue_triage_run_plan, :run_attributes),
          artifact_persistence_failure <- Map.get(issue_triage_run_plan, :artifact_persistence_failure),
          {:ok, %WorkflowRun{} = workflow_run} <-
@@ -767,14 +774,14 @@ defmodule JidoCode.GitHub.WebhookPipeline do
       posting_status = issue_triage_posting_status(finalized_run)
 
       Logger.info(
-        "github_webhook_issue_triage_run_created delivery_id=#{log_value(Map.get(delivery, :delivery_id))} project_id=#{log_value(Map.get(project, :id))} trigger_event=#{issue_bot_event} run_id=#{workflow_run.run_id} workflow_name=#{workflow_run.workflow_name} artifact_persistence=#{artifact_persistence_status} status=#{run_status} posting=#{posting_status}"
+        "github_webhook_issue_triage_run_created delivery_id=#{log_value(Map.get(delivery, :delivery_id))} project_id=#{log_value(map_get(repo_scope, :project_id, "project_id"))} trigger_event=#{issue_bot_event} run_id=#{workflow_run.run_id} workflow_name=#{workflow_run.workflow_name} artifact_persistence=#{artifact_persistence_status} status=#{run_status} posting=#{posting_status}"
       )
 
       :ok
     else
       {:error, reason} ->
         Logger.error(
-          "github_webhook_issue_triage_run_create_failed reason=#{inspect(reason)} delivery_id=#{log_value(Map.get(delivery, :delivery_id))} project_id=#{log_value(Map.get(project, :id))} trigger_event=#{issue_bot_event}"
+          "github_webhook_issue_triage_run_create_failed reason=#{inspect(reason)} delivery_id=#{log_value(Map.get(delivery, :delivery_id))} project_id=#{log_value(map_get(repo_scope, :project_id, "project_id"))} trigger_event=#{issue_bot_event}"
         )
 
         {:error, :issue_triage_run_create_failed}
@@ -783,7 +790,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp build_issue_triage_run_attributes(
          %{} = delivery,
-         %Project{} = project,
+         %{} = repo_scope,
          issue_bot_event
        )
        when is_binary(issue_bot_event) do
@@ -791,22 +798,26 @@ defmodule JidoCode.GitHub.WebhookPipeline do
          {:ok, issue_payload} <- issue_payload(payload),
          {:ok, issue_identifiers} <- source_issue_identifiers(issue_payload),
          issue_reference when is_binary(issue_reference) <-
-           issue_reference(source_repo_full_name(payload, project), issue_identifiers) do
+           issue_reference(source_repo_full_name(payload, repo_scope), issue_identifiers) do
       run_id = generated_run_id()
       delivery_id = delivery |> Map.get(:delivery_id) |> normalize_optional_string()
       event = delivery |> Map.get(:event) |> normalize_optional_string()
       action = normalize_action(payload)
-      project_id = project |> Map.get(:id) |> normalize_optional_string()
+      project_id = repo_scope |> map_get(:project_id, "project_id") |> normalize_optional_string()
+      managed_repo_id = repo_scope |> map_get(:managed_repo_id, "managed_repo_id") |> normalize_optional_string()
       started_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
       project_github_full_name =
-        project |> Map.get(:github_full_name) |> normalize_optional_string()
+        repo_scope
+        |> map_get(:source_repo, "source_repo", %{})
+        |> map_get(:full_name, "full_name")
+        |> normalize_optional_string()
 
       policy_name = issue_triage_webhook_policy_name(issue_bot_event)
-      approval_policy = project_issue_bot_approval_policy(project)
+      approval_policy = project_issue_bot_approval_policy(repo_scope)
 
       retriage_context =
-        retriage_context(issue_bot_event, project, issue_identifiers, issue_reference)
+        retriage_context(issue_bot_event, repo_scope, issue_identifiers, issue_reference)
 
       follow_up_context = follow_up_context(issue_bot_event, payload)
 
@@ -821,6 +832,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
               "event" => event,
               "action" => action,
               "project_id" => project_id,
+              "managed_repo_id" => managed_repo_id,
               "project_github_full_name" => project_github_full_name
             }),
           "webhook" =>
@@ -870,6 +882,7 @@ defmodule JidoCode.GitHub.WebhookPipeline do
              run_attributes: %{
                run_id: run_id,
                project_id: project_id,
+               managed_repo_id: managed_repo_id,
                workflow_name: @issue_triage_workflow_name,
                workflow_version: @issue_triage_workflow_version,
                trigger: trigger,
@@ -1469,14 +1482,15 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp source_issue_identifiers(_issue_payload), do: {:error, :missing_issue_number}
 
-  defp source_repo_full_name(payload, %Project{} = project) when is_map(payload) do
+  defp source_repo_full_name(payload, %{} = repo_scope) when is_map(payload) do
     case extract_repo_full_name(payload) do
       {:ok, repo_full_name} ->
         repo_full_name
 
       {:error, _reason} ->
-        project
-        |> Map.get(:github_full_name)
+        repo_scope
+        |> map_get(:source_repo, "source_repo", %{})
+        |> map_get(:full_name, "full_name")
         |> normalize_optional_string()
     end
   end
@@ -1560,13 +1574,13 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp retriage_context(
          "issues.edited",
-         %Project{} = project,
+         %{} = repo_scope,
          issue_identifiers,
          issue_reference
        )
        when is_map(issue_identifiers) and is_binary(issue_reference) do
     prior_issue_analysis_artifacts =
-      list_prior_issue_analysis_artifacts(project, issue_identifiers, issue_reference)
+      list_prior_issue_analysis_artifacts(repo_scope, issue_identifiers, issue_reference)
 
     %{
       "event" => "issues.edited",
@@ -1581,12 +1595,15 @@ defmodule JidoCode.GitHub.WebhookPipeline do
   defp retriage_context(_issue_bot_event, _project, _issue_identifiers, _issue_reference), do: nil
 
   defp list_prior_issue_analysis_artifacts(
-         %Project{} = project,
+         %{} = repo_scope,
          issue_identifiers,
          issue_reference
        )
        when is_map(issue_identifiers) and is_binary(issue_reference) do
-    project_id = project |> Map.get(:id) |> normalize_optional_string()
+    project_id =
+      repo_scope
+      |> map_get(:project_id, "project_id")
+      |> normalize_optional_string()
 
     issue_number =
       issue_identifiers
@@ -1713,9 +1730,9 @@ defmodule JidoCode.GitHub.WebhookPipeline do
 
   defp normalize_datetime_string(_datetime), do: nil
 
-  defp log_issue_bot_disabled_noop(delivery, issue_bot_event, project) do
+  defp log_issue_bot_disabled_noop(delivery, issue_bot_event, repo_scope) do
     Logger.info(
-      "github_webhook_trigger_filtered outcome=noop policy=support_agent_config.github_issue_bot.enabled delivery_id=#{log_value(Map.get(delivery, :delivery_id))} event=#{issue_bot_event} project_id=#{log_value(Map.get(project, :id))}"
+      "github_webhook_trigger_filtered outcome=noop policy=support_agent_config.github_issue_bot.enabled delivery_id=#{log_value(Map.get(delivery, :delivery_id))} event=#{issue_bot_event} project_id=#{log_value(map_get(repo_scope, :project_id, "project_id"))}"
     )
   end
 

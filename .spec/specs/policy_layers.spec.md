@@ -263,6 +263,11 @@ surface:
     - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
 
 - kind: source_file
+  target: test/jido_code_web/controllers/github_webhook_controller_test.exs
+  covers:
+    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
   target: test/jido_code/control/phase_six_integration_test.exs
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context

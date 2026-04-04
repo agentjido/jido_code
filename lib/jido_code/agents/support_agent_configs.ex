@@ -1,22 +1,22 @@
 defmodule JidoCode.Agents.SupportAgentConfigs do
   @moduledoc """
-  Reads and updates per-project Issue Bot configuration.
+  Reads and updates per-repository Issue Bot configuration.
   """
 
-  alias JidoCode.Control.Actor
-  alias JidoCode.Projects.Project
+  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.Governance.{PolicyBridge, PostureBridge}
 
   @load_error_type "support_agent_config_load_failed"
   @validation_error_type "support_agent_config_validation_failed"
-  @not_found_error_type "support_agent_config_project_not_found"
+  @not_found_error_type "support_agent_config_repo_not_found"
   @persistence_error_type "support_agent_config_persistence_failed"
 
   @load_remediation """
-  Retry loading agent configuration. If this persists, verify project access and database connectivity.
+  Retry loading agent configuration. If this persists, verify repository access and database connectivity.
   """
 
   @validation_remediation """
-  Select a valid project row and choose either Enable or Disable Issue Bot.
+  Select a valid repository row and choose either Enable or Disable Issue Bot.
   """
 
   @webhook_events_validation_remediation """
@@ -28,11 +28,11 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   """
 
   @not_found_remediation """
-  Refresh the Agents page and retry from an existing project row.
+  Refresh the Agents page and retry from an existing repository row.
   """
 
   @persistence_remediation """
-  Retry the Issue Bot toggle. If this persists, verify project settings persistence health.
+  Retry the Issue Bot toggle. If this persists, verify repository settings persistence health.
   """
 
   @supported_issue_bot_webhook_events [
@@ -84,8 +84,8 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   @spec list_issue_bot_configs() :: {:ok, [issue_bot_config()]} | {:error, typed_error()}
   def list_issue_bot_configs do
     case list_projects() do
-      {:ok, projects} ->
-        {:ok, Enum.map(projects, &to_issue_bot_config/1)}
+      {:ok, repo_scopes} ->
+        {:ok, Enum.map(repo_scopes, &to_issue_bot_config/1)}
 
       {:error, typed_error} ->
         {:error, normalize_typed_error(typed_error, @load_error_type, @load_remediation)}
@@ -97,11 +97,11 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   def set_issue_bot_enabled(project_id, enabled_value) do
     with {:ok, normalized_project_id} <- normalize_project_id(project_id),
          {:ok, enabled} <- normalize_enabled_input(enabled_value),
-         {:ok, project} <- fetch_project(normalized_project_id),
-         settings <- project |> map_get(:settings, "settings", %{}) |> normalize_map(),
+         {:ok, repo_scope} <- fetch_project(normalized_project_id),
+         settings <- integration_settings(repo_scope),
          updated_settings <- put_issue_bot_enabled(settings, enabled),
-         {:ok, updated_project} <- persist_project_settings(project, updated_settings) do
-      {:ok, to_issue_bot_config(updated_project)}
+         {:ok, updated_repo_scope} <- persist_project_settings(repo_scope, updated_settings) do
+      {:ok, to_issue_bot_config(updated_repo_scope)}
     else
       {:error, typed_error} ->
         {:error, typed_error}
@@ -121,11 +121,11 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   def set_issue_bot_webhook_events(project_id, webhook_events_value) do
     with {:ok, normalized_project_id} <- normalize_project_id(project_id),
          {:ok, webhook_events} <- normalize_webhook_events_input(webhook_events_value),
-         {:ok, project} <- fetch_project(normalized_project_id),
-         settings <- project |> map_get(:settings, "settings", %{}) |> normalize_map(),
+         {:ok, repo_scope} <- fetch_project(normalized_project_id),
+         settings <- integration_settings(repo_scope),
          updated_settings <- put_issue_bot_webhook_events(settings, webhook_events),
-         {:ok, updated_project} <- persist_project_settings(project, updated_settings) do
-      {:ok, to_issue_bot_config(updated_project)}
+         {:ok, updated_repo_scope} <- persist_project_settings(repo_scope, updated_settings) do
+      {:ok, to_issue_bot_config(updated_repo_scope)}
     else
       {:error, typed_error} ->
         {:error, typed_error}
@@ -145,11 +145,11 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   def set_issue_bot_approval_mode(project_id, approval_mode_value) do
     with {:ok, normalized_project_id} <- normalize_project_id(project_id),
          {:ok, approval_mode} <- normalize_issue_bot_approval_mode_input(approval_mode_value),
-         {:ok, project} <- fetch_project(normalized_project_id),
-         settings <- project |> map_get(:settings, "settings", %{}) |> normalize_map(),
+         {:ok, repo_scope} <- fetch_project(normalized_project_id),
+         settings <- integration_settings(repo_scope),
          updated_settings <- put_issue_bot_approval_mode(settings, approval_mode),
-         {:ok, updated_project} <- persist_project_settings(project, updated_settings) do
-      {:ok, to_issue_bot_config(updated_project)}
+         {:ok, updated_repo_scope} <- persist_project_settings(repo_scope, updated_settings) do
+      {:ok, to_issue_bot_config(updated_repo_scope)}
     else
       {:error, typed_error} ->
         {:error, typed_error}
@@ -185,17 +185,23 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   end
 
   @doc false
-  @spec default_loader() :: {:ok, [Project.t()]} | {:error, typed_error()}
+  @spec default_loader() :: {:ok, [map()]} | {:error, typed_error()}
   def default_loader do
-    case Project.read(query: [sort: [github_full_name: :asc]], actor: @project_actor) do
-      {:ok, projects} when is_list(projects) ->
-        {:ok, projects}
+    case ManagedRepo.read(query: [sort: [display_name: :asc]], actor: @project_actor) do
+      {:ok, managed_repos} when is_list(managed_repos) ->
+        {:ok,
+         Enum.map(managed_repos, fn managed_repo ->
+           case RepoBridge.repo_scope(managed_repo.id) do
+             {:ok, scope} -> scope
+             {:error, _reason} -> %{managed_repo: managed_repo}
+           end
+         end)}
 
       {:ok, other} ->
         {:error,
          typed_error(
            @load_error_type,
-           "Project loader returned an invalid list result (#{inspect(other)}).",
+           "Repository loader returned an invalid list result (#{inspect(other)}).",
            @load_remediation
          )}
 
@@ -237,7 +243,7 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
         {:error,
          typed_error(
            @validation_error_type,
-           "Project identifier is missing for Issue Bot configuration update.",
+           "Repository identifier is missing for Issue Bot configuration update.",
            @validation_remediation
          )}
 
@@ -293,15 +299,15 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   end
 
   defp fetch_project(project_id) do
-    case Project.read(query: [filter: [id: project_id], limit: 1], actor: @project_actor) do
-      {:ok, [project | _rest]} ->
-        {:ok, project}
+    case RepoBridge.repo_scope(project_id) do
+      {:ok, repo_scope} ->
+        {:ok, repo_scope}
 
-      {:ok, []} ->
+      {:error, :repo_scope_not_found} ->
         {:error,
          typed_error(
            @not_found_error_type,
-           "Project #{project_id} was not found for Issue Bot configuration update.",
+           "Repository #{project_id} was not found for Issue Bot configuration update.",
            @not_found_remediation
          )}
 
@@ -309,13 +315,17 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
         {:error,
          typed_error(
            @load_error_type,
-           "Project lookup for Issue Bot configuration failed (#{format_reason(reason)}).",
+           "Repository lookup for Issue Bot configuration failed (#{format_reason(reason)}).",
            @load_remediation
          )}
     end
   end
 
-  defp persist_project_settings(project, updated_settings) do
+  defp persist_project_settings(repo_scope, updated_settings) do
+    managed_repo =
+      repo_scope
+      |> map_get(:managed_repo, "managed_repo")
+
     updater =
       Application.get_env(
         :jido_code,
@@ -324,7 +334,13 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
       )
 
     if is_function(updater, 2) do
-      safe_invoke_updater(updater, project, %{settings: updated_settings})
+      with {:ok, updated_managed_repo} <-
+             safe_invoke_updater(updater, managed_repo, %{integration_settings: updated_settings}),
+           {:ok, refreshed_scope} <- RepoBridge.repo_scope(updated_managed_repo.id) do
+        {:ok, refreshed_scope}
+      else
+        {:error, _reason} = error -> error
+      end
     else
       {:error,
        typed_error(
@@ -336,9 +352,14 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
   end
 
   @doc false
-  @spec default_updater(Project.t(), map()) :: {:ok, Project.t()} | {:error, term()}
-  def default_updater(project, update_attributes) do
-    Project.update(project, update_attributes, actor: @project_actor)
+  @spec default_updater(ManagedRepo.t(), map()) :: {:ok, ManagedRepo.t()} | {:error, term()}
+  def default_updater(managed_repo, update_attributes) do
+    with {:ok, updated_managed_repo} <-
+           ManagedRepo.update(managed_repo, update_attributes, actor: @project_actor),
+         {:ok, _policy_set} <- PolicyBridge.sync_managed_repo(updated_managed_repo),
+         {:ok, _posture_projection} <- PostureBridge.sync_managed_repo(updated_managed_repo) do
+      {:ok, updated_managed_repo}
+    end
   end
 
   defp safe_invoke_updater(updater, project, update_attributes) do
@@ -382,32 +403,40 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
     end
   end
 
-  defp to_issue_bot_config(project) do
-    settings =
-      project
-      |> map_get(:settings, "settings", %{})
-      |> normalize_map()
+  defp to_issue_bot_config(repo_scope) do
+    managed_repo = map_get(repo_scope, :managed_repo, "managed_repo", repo_scope)
+    source_repo = map_get(repo_scope, :source_repo, "source_repo", %{})
+
+    route_id =
+      repo_scope
+      |> map_get(:route_id, "route_id")
+      |> normalize_optional_string() ||
+        managed_repo
+        |> map_get(:id, "id")
+        |> normalize_optional_string()
+
+    settings = integration_settings(repo_scope)
 
     %{
-      id:
-        project
-        |> map_get(:id, "id")
-        |> normalize_optional_string() || "unknown-project",
+      id: route_id || "unknown-project",
       name:
-        project
-        |> map_get(:name, "name")
-        |> normalize_optional_string() || "unknown-project",
-      github_full_name:
-        project
-        |> map_get(:github_full_name, "github_full_name")
+        managed_repo
+        |> map_get(:display_name, "display_name")
         |> normalize_optional_string() ||
-          project
+          source_repo
           |> map_get(:name, "name")
+          |> normalize_optional_string() || "unknown-project",
+      github_full_name:
+        source_repo
+        |> map_get(:full_name, "full_name")
+        |> normalize_optional_string() ||
+          managed_repo
+          |> map_get(:display_name, "display_name")
           |> normalize_optional_string() || "unknown-project",
       enabled: issue_bot_enabled(settings),
       webhook_events: issue_bot_webhook_events(settings),
       approval_policy: issue_bot_approval_policy(settings),
-      last_updated: issue_bot_last_updated(project)
+      last_updated: issue_bot_last_updated(managed_repo)
     }
   end
 
@@ -543,6 +572,13 @@ defmodule JidoCode.Agents.SupportAgentConfigs do
       updated_at: updated_at_iso8601,
       source: source
     }
+  end
+
+  defp integration_settings(repo_scope) do
+    repo_scope
+    |> map_get(:managed_repo, "managed_repo", repo_scope)
+    |> map_get(:integration_settings, "integration_settings", %{})
+    |> normalize_map()
   end
 
   defp normalize_typed_error(error, fallback_error_type, fallback_remediation) do

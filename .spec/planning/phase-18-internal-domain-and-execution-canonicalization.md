@@ -1,5 +1,7 @@
 # Phase 18 - Internal Domain and Execution Canonicalization
 
+<!-- covers: package.jido_code.spec_led_workspace -->
+
 Back to index: [README](./README.md)
 
 ## Relevant Shared APIs / Interfaces
@@ -47,22 +49,22 @@ Back to index: [README](./README.md)
       [x] 18.1.2.2 Subtask - Define fixture and test-helper expectations so new tests create only the canonical record graph needed by the current architecture.
       [x] 18.1.2.3 Subtask - Define which migration or seed behaviors must be simplified so greenfield setup no longer provisions previous-era shapes.
 
-  [ ] 18.2 Section - Managed Repo Internal Convergence
+  [x] 18.2 Section - Managed Repo Internal Convergence
     Replace the remaining `Project`-era internals so canonical repo surfaces are backed by managed-repo-first services rather than older domain records and bridge-only helpers.
 
-    [ ] 18.2.1 Task - Remove legacy repo-domain implementation seams
+    [x] 18.2.1 Task - Remove legacy repo-domain implementation seams
       Collapse older repo loaders, bridge helpers, and state shaping paths where managed-repo records are already the supported product truth.
 
-      [ ] 18.2.1.1 Subtask - Replace internal loaders and helpers that still fetch or shape `Project` records first when canonical operator surfaces now speak in managed-repo terms.
-      [ ] 18.2.1.2 Subtask - Remove internal bridge code that mirrors or backfills repo state solely to keep `Project`-era assumptions available behind the scenes.
-      [ ] 18.2.1.3 Subtask - Preserve only the canonical repo identifiers, loaders, and view-model helpers required by current operator and setup flows.
+      [x] 18.2.1.1 Subtask - Replace internal loaders and helpers that still fetch or shape `Project` records first when canonical operator surfaces now speak in managed-repo terms.
+      [x] 18.2.1.2 Subtask - Remove internal bridge code that mirrors or backfills repo state solely to keep `Project`-era assumptions available behind the scenes.
+      [x] 18.2.1.3 Subtask - Preserve only the canonical repo identifiers, loaders, and view-model helpers required by current operator and setup flows.
 
-    [ ] 18.2.2 Task - Simplify repo persistence, setup, and fixture behavior
+    [x] 18.2.2 Task - Simplify repo persistence, setup, and fixture behavior
       Ensure fresh setup and tests create the canonical repo graph directly rather than relying on previous-era records and sync behavior.
 
-      [ ] 18.2.2.1 Subtask - Update setup and import flows so managed-repo creation is the primary durable path without compatibility mirroring.
-      [ ] 18.2.2.2 Subtask - Simplify seeds, migrations, and shaping helpers so greenfield installs no longer expect `Project`-era persistence as a prerequisite.
-      [ ] 18.2.2.3 Subtask - Update test factories, helpers, and fixtures so repo-oriented tests create only canonical repo records and required adjunct state.
+      [x] 18.2.2.1 Subtask - Update setup and import flows so managed-repo creation is the primary durable path without compatibility mirroring.
+      [x] 18.2.2.2 Subtask - Simplify seeds, migrations, and shaping helpers so greenfield installs no longer expect `Project`-era persistence as a prerequisite.
+      [x] 18.2.2.3 Subtask - Update test factories, helpers, and fixtures so repo-oriented tests create only canonical repo records and required adjunct state.
 
   [ ] 18.3 Section - Governed Run Internal Convergence
     Replace the remaining `WorkflowRun`-era internals so execution, evidence, and operator run surfaces depend only on governed `Run` behavior and canonical projections.

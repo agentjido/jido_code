@@ -213,6 +213,12 @@ surface:
     - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
 
 - kind: source_file
+  target: test/jido_code_web/controllers/github_webhook_controller_test.exs
+  covers:
+    - architecture.demand_ingress.entrypoint_policy_metadata_preserved
+    - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
+
+- kind: source_file
   target: lib/jido_code/setup/project_import.ex
   covers:
     - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes

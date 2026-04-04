@@ -1,5 +1,15 @@
 defmodule JidoCodeWeb.ConnCase do
   # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.conversation_driver.actor_context_propagated
+  # covers: auth.system.local_email_identity
+  # covers: auth.system.password_registration_and_sign_in
+  # covers: auth.github_integration.non_blocking_local_auth
+  # covers: auth.operator_settings.hidden_during_bootstrap_entry
+  # covers: auth.provider_login_flow.local_auth_fallback_visible
+  # covers: auth.provider_login_flow.local_session_issuance
+  # covers: baseline.surface.auth_entrypoints_visible
+  # covers: users.admin_system.bootstrap_admin
+  # covers: users.admin_system.self_service_auth_lifecycle
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -20,6 +30,7 @@ defmodule JidoCodeWeb.ConnCase do
 
   alias AshAuthentication.{Info, Strategy}
   alias JidoCode.Accounts.User
+  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
 
   import Phoenix.ConnTest, only: [recycle: 1]
   import Plug.Conn, only: [get_session: 2]
@@ -126,6 +137,35 @@ defmodule JidoCodeWeb.ConnCase do
   def restore_system_env(key, :__missing__), do: System.delete_env(key)
   def restore_system_env(key, nil), do: System.delete_env(key)
   def restore_system_env(key, value), do: System.put_env(key, value)
+
+  def provision_managed_repo!(attrs) when is_map(attrs) do
+    {:ok, provisioned_repo} = provision_managed_repo(attrs)
+    provisioned_repo
+  end
+
+  def provision_managed_repo(attrs) when is_map(attrs) do
+    with {:ok, %{managed_repo: managed_repo, source_repo: source_repo}} <-
+           RepoBridge.upsert_managed_repo(attrs),
+         {:ok, repo_scope} <- RepoBridge.repo_scope(managed_repo.id) do
+      {:ok,
+       %{
+         managed_repo: managed_repo,
+         source_repo: source_repo,
+         repo_scope: repo_scope,
+         route_id: repo_scope.route_id
+       }}
+    end
+  end
+
+  def read_managed_repo!(managed_repo_id) when is_binary(managed_repo_id) do
+    {:ok, [managed_repo]} =
+      ManagedRepo.read(
+        query: [filter: [id: managed_repo_id], limit: 1],
+        actor: Actor.operator_actor()
+      )
+
+    managed_repo
+  end
 
   defp auth_result(conn, _session_token, _owner, false, false), do: conn
   defp auth_result(conn, session_token, _owner, true, false), do: {conn, session_token}

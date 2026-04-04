@@ -10,6 +10,7 @@ status: active
 summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, and verification orientation for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
+  - jido_code.internal_domain_and_execution_canonicalization
   - jido_code.namespace_and_control_naming
   - jido_code.local_developer_workflow
   - jido_code.canonical_repo_surface
@@ -20,6 +21,7 @@ decisions:
   - jido_code.jido_os_public_turn_runtime_adoption
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
+  - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - README.md
   - CONTRIBUTING.md
   - .spec/README.md
@@ -110,6 +112,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
+  covers:
+    - docs.product_foundation.durable_architecture_record_in_spec_workspace
+
+- kind: source_file
+  target: .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

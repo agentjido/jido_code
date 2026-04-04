@@ -12,6 +12,7 @@ summary: jido_code treats bootstrap-admin creation as the only hard first-run ga
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
+  - jido_code.internal_domain_and_execution_canonicalization
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
@@ -73,6 +74,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: setup.onboarding.greenfield_import_writes_canonical_repo_records
+  statement: Greenfield repository import and setup helpers shall write canonical `SourceRepo` and `ManagedRepo` records directly and shall not require `Project`-era persistence as an internal prerequisite for normal product setup.
+  priority: must
+  stability: evolving
+
 - id: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   statement: Signed-in post-bootstrap operator surfaces shall use canonical managed-repository and governed-run language once onboarding has created those records.
   priority: should
@@ -98,6 +104,7 @@ surface:
 - id: setup.onboarding.scenario.local_project_record
   covers:
     - setup.onboarding.repo_source_per_project
+    - setup.onboarding.greenfield_import_writes_canonical_repo_records
   given:
     - A desktop deployment needs to register a local repository into the product control plane.
   when:
@@ -177,6 +184,11 @@ surface:
   target: .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   covers:
     - setup.onboarding.repo_source_per_project
+
+- kind: source_file
+  target: .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
+  covers:
+    - setup.onboarding.greenfield_import_writes_canonical_repo_records
 
 - kind: source_file
   target: lib/jido_code/setup/project_import.ex

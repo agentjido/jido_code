@@ -256,7 +256,7 @@ defmodule JidoCode.Workbench.IssueTriageWorkflowKickoff do
          context_item_url: Map.get(context_item, :github_url),
          trigger: Map.fetch!(kickoff_request, :trigger),
          initiating_actor: Map.fetch!(kickoff_request, :initiating_actor),
-         detail_path: "/projects/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
          started_at: started_at
        }}
     else

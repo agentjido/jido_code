@@ -29,7 +29,7 @@ surface:
 
 ```spec-requirements
 - id: package.jido_code.package_quality_alignment_doc_present
-  statement: "The repository shall keep its package-quality alignment, approved browser-composition conventions, and any explicit product-repo exceptions documented in version-controlled repo files or specs."
+  statement: "The repository shall keep its package-quality alignment, approved browser-composition conventions, product-oriented fallback messaging expectations, and any explicit product-repo exceptions documented in version-controlled repo files or specs."
   priority: must
   stability: stable
 

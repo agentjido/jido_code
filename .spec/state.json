@@ -661,7 +661,7 @@
         "id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
         "priority": "should",
         "stability": "evolving",
-        "statement": "Frontend rollout observability for LiveVue delivery, SSR reduction, and compatibility fallback shall remain distinguishable from runtime-service observability and describe degraded browser behavior in product-oriented terms.",
+        "statement": "Frontend rollout observability for LiveVue delivery, SSR reduction, and fallback delivery shall remain distinguishable from runtime-service observability and describe degraded browser behavior in product-oriented terms.",
         "subject_id": "architecture.frontend_stack"
       },
       {
@@ -669,7 +669,7 @@
         "id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Hybrid operator surfaces shall fall back safely to product-owned LiveView regions when the richer Vue delivery path is unavailable, degraded, or intentionally reduced to compatibility mode.",
+        "statement": "Hybrid operator surfaces shall fall back safely to product-owned LiveView regions when the richer Vue delivery path is unavailable, degraded, or intentionally reduced to fallback mode.",
         "subject_id": "architecture.frontend_stack"
       },
       {
@@ -1141,7 +1141,7 @@
         "id": "architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented",
         "priority": "should",
         "stability": "evolving",
-        "statement": "Operator-facing dashboard, run-detail, and rollout surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state rather than exposing runtime topology or raw transport details.",
+        "statement": "Operator-facing dashboard and run-detail surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state rather than exposing runtime topology, raw transport details, or retired compatibility-rollout panels as part of the supported product narrative.",
         "subject_id": "architecture.runtime_service_overlay"
       },
       {
@@ -1717,7 +1717,7 @@
         "id": "baseline.surface.product_routes_declared",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Authenticated product routes and deployment integration routes shall remain declared in the router rather than being commented out or silently disabled.",
+        "statement": "Authenticated product routes and deployment integration routes shall remain declared in the router rather than being commented out or silently disabled, including the canonical `/repos`, `/repos/:id`, and `/repos/:id/runs/:run_id` operator surfaces.",
         "subject_id": "baseline.surface"
       },
       {
@@ -1869,7 +1869,7 @@
         "id": "developer.workflow.docs_split",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the `mix frontend.verify` browser verification path, and the current LiveView-plus-LiveVue frontend boundary instead of repo shell wrappers.",
+        "statement": "Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the `mix frontend.verify` browser verification path, and the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging instead of repo shell wrappers.",
         "subject_id": "developer.workflow"
       },
       {
@@ -2069,7 +2069,7 @@
         "id": "package.jido_code.package_quality_alignment_doc_present",
         "priority": "must",
         "stability": "stable",
-        "statement": "The repository shall keep its package-quality alignment, approved browser-composition conventions, and any explicit product-repo exceptions documented in version-controlled repo files or specs.",
+        "statement": "The repository shall keep its package-quality alignment, approved browser-composition conventions, product-oriented fallback messaging expectations, and any explicit product-repo exceptions documented in version-controlled repo files or specs.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -2768,13 +2768,13 @@
         "given": [
           "A routed operator page includes a Vue-backed hybrid region."
         ],
-        "id": "architecture.frontend_stack.scenario_hybrid_surface_degrades_to_liveview_compatibility",
+        "id": "architecture.frontend_stack.scenario_hybrid_surface_degrades_to_liveview_fallback",
         "subject_id": "architecture.frontend_stack",
         "then": [
           "The LiveView-owned route remains legible, bounded fallback messaging stays product-oriented, and degraded frontend signals remain observable without leaking raw runtime-service or toolchain contracts as the product interface."
         ],
         "when": [
-          "SSR or richer client delivery for that region is unavailable, degraded, or reduced to compatibility mode."
+          "SSR or richer client delivery for that region is unavailable, degraded, or reduced to fallback mode."
         ]
       },
       {
@@ -2865,7 +2865,7 @@
         ],
         "file": ".spec/specs/frontend_architecture.spec.md",
         "given": [
-          "A workflow-heavy operator route such as project detail, run detail, or a workbench summary region needs richer overview composition."
+          "A workflow-heavy operator route such as repo detail, run detail, or a workbench summary region needs richer overview composition."
         ],
         "id": "architecture.frontend_stack.scenario_workflow_route_adopts_bounded_vue_overview",
         "subject_id": "architecture.frontend_stack",
@@ -4361,7 +4361,7 @@
           "id": "collaboration.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary.",
+          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary and product-oriented frontend fallback wording.",
           "surface": [
             "AGENTS.md"
           ],
@@ -4793,7 +4793,7 @@
           "id": "docs.operator_provider_auth_guide",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server` start path, and verification path.",
+          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server` start path, verification path, and product-oriented frontend fallback language.",
           "surface": [
             "README.md",
             ".spec/specs/operator_auth_settings.spec.md",

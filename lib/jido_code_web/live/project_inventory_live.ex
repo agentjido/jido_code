@@ -48,7 +48,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
     {:noreply,
      socket
      |> apply_filters(@default_filter_values)
-     |> push_patch(to: "/projects")}
+     |> push_patch(to: "/repos")}
   end
 
   @impl true
@@ -56,9 +56,9 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={%{}}>
       <section class="space-y-2">
-        <h1 class="text-2xl font-bold">Projects</h1>
+        <h1 class="text-2xl font-bold">Repositories</h1>
         <p class="text-base-content/70">
-          Search and filter imported repositories, then open project detail.
+          Search and filter imported repositories, then open repo detail.
         </p>
       </section>
 
@@ -99,7 +99,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
         </div>
 
         <p id="project-inventory-results-count" class="pt-2 text-xs text-base-content/70">
-          Showing {@project_count} of {@project_total_count} projects.
+          Showing {@project_count} of {@project_total_count} repositories.
         </p>
       </section>
 
@@ -108,7 +108,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
           <thead>
             <tr>
               <th>Repository</th>
-              <th>Project name</th>
+              <th>Display name</th>
               <th>Default branch</th>
               <th>Actions</th>
             </tr>
@@ -116,7 +116,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
           <tbody id="project-inventory-rows" phx-update="stream">
             <tr :if={@project_count == 0} id="project-inventory-empty-state">
               <td colspan="4" class="py-8 text-center text-sm text-base-content/70">
-                No projects match the active search and filters.
+                No repositories match the active search and filters.
               </td>
             </tr>
             <tr :for={{dom_id, project} <- @streams.projects} id={dom_id}>
@@ -128,11 +128,11 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
               <td id={"project-inventory-actions-#{project.id}"}>
                 <%= if detail_path = project_detail_path(project, @filter_values) do %>
                   <.link id={"project-inventory-open-#{project.id}"} class="link link-primary" href={detail_path}>
-                    Open project
+                    Open repo
                   </.link>
                 <% else %>
                   <span id={"project-inventory-open-disabled-#{project.id}"} class="text-base-content/50">
-                    Project detail unavailable
+                    Repo detail unavailable
                   </span>
                 <% end %>
               </td>
@@ -312,8 +312,8 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
       |> Enum.reverse()
 
     case query_params do
-      [] -> "/projects"
-      _other -> "/projects?" <> URI.encode_query(query_params)
+      [] -> "/repos"
+      _other -> "/repos?" <> URI.encode_query(query_params)
     end
   end
 
@@ -326,10 +326,10 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
         nil
 
       project_id ->
-        base_path = "/projects/#{URI.encode(project_id)}"
+        base_path = "/repos/#{URI.encode(project_id)}"
         return_to = projects_path_with_filter_values(filter_values)
 
-        if return_to == "/projects" do
+        if return_to == "/repos" do
           base_path
         else
           "#{base_path}?return_to=#{URI.encode_www_form(return_to)}"

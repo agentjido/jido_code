@@ -30,7 +30,7 @@ defmodule JidoCode.Setup.ProjectImportPhaseOneIntegrationTest do
     :ok
   end
 
-  test "project import provisions control-plane repo state and preserves project detail compatibility" do
+  test "project import provisions control-plane repo state and keeps repo detail loadable" do
     onboarding_state = %{
       "4" => %{
         "github_credentials" => %{

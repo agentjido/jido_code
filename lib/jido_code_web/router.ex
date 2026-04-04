@@ -45,9 +45,9 @@ defmodule JidoCodeWeb.Router do
       live("/workbench", WorkbenchLive, :index)
       live("/workflows", WorkflowsLive, :index)
       live("/agents", AgentsLive, :index)
-      live("/projects", ProjectInventoryLive, :index)
-      live("/projects/:id", ProjectDetailLive, :show)
-      live("/projects/:id/runs/:run_id", RunDetailLive, :show)
+      live("/repos", ProjectInventoryLive, :index)
+      live("/repos/:id", ProjectDetailLive, :show)
+      live("/repos/:id/runs/:run_id", RunDetailLive, :show)
       live("/settings", SettingsLive, :index)
       live("/settings/:tab", SettingsLive, :index)
 

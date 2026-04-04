@@ -42,7 +42,7 @@ defmodule JidoCodeWeb.FrontendAssetsTest do
     assert delivery.mode == :fallback
     assert delivery.reason == :asset_manifest_unavailable
     assert delivery.title == "Interactive summary temporarily unavailable"
-    assert delivery.detail =~ "server-rendered compatibility mode"
+    assert delivery.detail =~ "server-rendered fallback mode"
     assert Map.has_key?(status.manifest, "js/app.js")
     assert Map.has_key?(status.manifest, "css/app.css")
   end

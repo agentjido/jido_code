@@ -81,12 +81,12 @@ surface:
   stability: evolving
 
 - id: architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
-  statement: Hybrid operator surfaces shall fall back safely to product-owned LiveView regions when the richer Vue delivery path is unavailable, degraded, or intentionally reduced to compatibility mode.
+  statement: Hybrid operator surfaces shall fall back safely to product-owned LiveView regions when the richer Vue delivery path is unavailable, degraded, or intentionally reduced to fallback mode.
   priority: must
   stability: evolving
 
 - id: architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented
-  statement: Frontend rollout observability for LiveVue delivery, SSR reduction, and compatibility fallback shall remain distinguishable from runtime-service observability and describe degraded browser behavior in product-oriented terms.
+  statement: Frontend rollout observability for LiveVue delivery, SSR reduction, and fallback delivery shall remain distinguishable from runtime-service observability and describe degraded browser behavior in product-oriented terms.
   priority: should
   stability: evolving
 ```
@@ -152,7 +152,7 @@ surface:
     - architecture.frontend_stack.server_authored_props_streams_and_events
     - architecture.frontend_stack.adoption_is_incremental_per_surface
   given:
-    - A workflow-heavy operator route such as project detail, run detail, or a workbench summary region needs richer overview composition.
+    - A workflow-heavy operator route such as repo detail, run detail, or a workbench summary region needs richer overview composition.
   when:
     - The route adds a bounded Vue-backed overview widget while preserving existing LiveView controls below it.
   then:
@@ -170,7 +170,7 @@ surface:
   then:
     - The standard stack remains LiveView plus `live_vue`, and testing/documentation do not reintroduce React or SPA assumptions as a second frontend model.
 
-- id: architecture.frontend_stack.scenario_hybrid_surface_degrades_to_liveview_compatibility
+- id: architecture.frontend_stack.scenario_hybrid_surface_degrades_to_liveview_fallback
   covers:
     - architecture.frontend_stack.liveview_remains_product_host_shell
     - architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades
@@ -178,7 +178,7 @@ surface:
   given:
     - A routed operator page includes a Vue-backed hybrid region.
   when:
-    - SSR or richer client delivery for that region is unavailable, degraded, or reduced to compatibility mode.
+    - SSR or richer client delivery for that region is unavailable, degraded, or reduced to fallback mode.
   then:
     - The LiveView-owned route remains legible, bounded fallback messaging stays product-oriented, and degraded frontend signals remain observable without leaking raw runtime-service or toolchain contracts as the product interface.
 ```

@@ -391,7 +391,7 @@ defmodule JidoCode.Workbench.RunOutcomes do
     normalized_run_id = normalize_optional_string(run_id)
 
     if normalized_project_id && normalized_run_id do
-      "/projects/#{URI.encode(normalized_project_id)}/runs/#{URI.encode(normalized_run_id)}"
+      "/repos/#{URI.encode(normalized_project_id)}/runs/#{URI.encode(normalized_run_id)}"
     end
   end
 

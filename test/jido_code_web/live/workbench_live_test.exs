@@ -64,100 +64,97 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project_one} =
-      Project.create(%{
-        name: "repo-one",
-        github_full_name: "owner/repo-one",
-        default_branch: "main",
-        settings: %{
-          "inventory" => %{
-            "open_issue_count" => 12,
-            "open_pr_count" => 3,
-            "recent_activity_summary" => "Triaged issues and queued follow-up in the last hour."
-          }
-        }
-      })
+    repo_one_id = "owner-repo-one"
+    repo_two_id = "owner-repo-two"
 
-    {:ok, project_two} =
-      Project.create(%{
-        name: "repo-two",
-        github_full_name: "owner/repo-two",
-        default_branch: "main",
-        settings: %{
-          "github" => %{
-            "open_issues_count" => "4",
-            "open_pull_requests_count" => 1,
-            "pushed_at" => "2026-02-13T16:00:00Z"
-          }
-        }
-      })
+    Application.put_env(:jido_code, :workbench_inventory_loader, fn ->
+      {:ok,
+       [
+         %{
+           id: repo_one_id,
+           name: "repo-one",
+           github_full_name: "owner/repo-one",
+           open_issue_count: 12,
+           open_pr_count: 3,
+           recent_activity_summary: "Triaged issues and queued follow-up in the last hour."
+         },
+         %{
+           id: repo_two_id,
+           name: "repo-two",
+           github_full_name: "owner/repo-two",
+           open_issue_count: 4,
+           open_pr_count: 1,
+           recent_activity_summary: "Last activity: 2026-02-13 16:00:00Z"
+         }
+       ], nil}
+    end)
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
     assert has_element?(view, "#workbench-project-table")
-    assert has_element?(view, "#workbench-project-name-#{project_one.id}", "owner/repo-one")
-    assert has_element?(view, "#workbench-project-open-issues-#{project_one.id}", "12")
-    assert has_element?(view, "#workbench-project-open-prs-#{project_one.id}", "3")
-    assert has_element?(view, "#workbench-project-issues-github-link-#{project_one.id}")
-    assert has_element?(view, "#workbench-project-issues-project-link-#{project_one.id}")
-    assert has_element?(view, "#workbench-project-prs-github-link-#{project_one.id}")
-    assert has_element?(view, "#workbench-project-prs-project-link-#{project_one.id}")
+    assert has_element?(view, "#workbench-project-name-#{repo_one_id}", "owner/repo-one")
+    assert has_element?(view, "#workbench-project-open-issues-#{repo_one_id}", "12")
+    assert has_element?(view, "#workbench-project-open-prs-#{repo_one_id}", "3")
+    assert has_element?(view, "#workbench-project-issues-github-link-#{repo_one_id}")
+    assert has_element?(view, "#workbench-project-issues-project-link-#{repo_one_id}")
+    assert has_element?(view, "#workbench-project-prs-github-link-#{repo_one_id}")
+    assert has_element?(view, "#workbench-project-prs-project-link-#{repo_one_id}")
 
     assert has_element?(
              view,
-             "#workbench-project-issues-github-link-#{project_one.id}[href='https://github.com/owner/repo-one/issues']"
+             "#workbench-project-issues-github-link-#{repo_one_id}[href='https://github.com/owner/repo-one/issues']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-github-link-#{project_one.id}[href='https://github.com/owner/repo-one/pulls']"
+             "#workbench-project-prs-github-link-#{repo_one_id}[href='https://github.com/owner/repo-one/pulls']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-project-link-#{project_one.id}[href='/projects/#{project_one.id}']"
+             "#workbench-project-issues-project-link-#{repo_one_id}[href='/repos/#{repo_one_id}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-project-link-#{project_one.id}[href='/projects/#{project_one.id}']"
+             "#workbench-project-prs-project-link-#{repo_one_id}[href='/repos/#{repo_one_id}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-recent-activity-#{project_one.id}",
+             "#workbench-project-recent-activity-#{repo_one_id}",
              "Triaged issues and queued follow-up in the last hour."
            )
 
-    assert has_element?(view, "#workbench-project-name-#{project_two.id}", "owner/repo-two")
-    assert has_element?(view, "#workbench-project-open-issues-#{project_two.id}", "4")
-    assert has_element?(view, "#workbench-project-open-prs-#{project_two.id}", "1")
-    assert has_element?(view, "#workbench-project-issues-github-link-#{project_two.id}")
-    assert has_element?(view, "#workbench-project-issues-project-link-#{project_two.id}")
-    assert has_element?(view, "#workbench-project-prs-github-link-#{project_two.id}")
-    assert has_element?(view, "#workbench-project-prs-project-link-#{project_two.id}")
+    assert has_element?(view, "#workbench-project-name-#{repo_two_id}", "owner/repo-two")
+    assert has_element?(view, "#workbench-project-open-issues-#{repo_two_id}", "4")
+    assert has_element?(view, "#workbench-project-open-prs-#{repo_two_id}", "1")
+    assert has_element?(view, "#workbench-project-issues-github-link-#{repo_two_id}")
+    assert has_element?(view, "#workbench-project-issues-project-link-#{repo_two_id}")
+    assert has_element?(view, "#workbench-project-prs-github-link-#{repo_two_id}")
+    assert has_element?(view, "#workbench-project-prs-project-link-#{repo_two_id}")
 
     assert has_element?(
              view,
-             "#workbench-project-issues-github-link-#{project_two.id}[href='https://github.com/owner/repo-two/issues']"
+             "#workbench-project-issues-github-link-#{repo_two_id}[href='https://github.com/owner/repo-two/issues']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-github-link-#{project_two.id}[href='https://github.com/owner/repo-two/pulls']"
+             "#workbench-project-prs-github-link-#{repo_two_id}[href='https://github.com/owner/repo-two/pulls']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-project-link-#{project_two.id}[href='/projects/#{project_two.id}']"
+             "#workbench-project-issues-project-link-#{repo_two_id}[href='/repos/#{repo_two_id}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-project-link-#{project_two.id}[href='/projects/#{project_two.id}']"
+             "#workbench-project-prs-project-link-#{repo_two_id}[href='/repos/#{repo_two_id}']"
            )
 
-    assert has_element?(view, "#workbench-project-recent-activity-#{project_two.id}")
+    assert has_element?(view, "#workbench-project-recent-activity-#{repo_two_id}")
 
     refute has_element?(view, "#workbench-stale-warning")
   end
@@ -218,7 +215,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-link[href='/projects/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-issues-run-outcome-#{project.id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
            )
 
     assert has_element?(
@@ -229,7 +226,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-prs-run-outcome-#{project.id}-link[href='/projects/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-prs-run-outcome-#{project.id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
            )
   end
 
@@ -254,7 +251,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       })
 
     run_id = "workbench-refresh-run-#{System.unique_integer([:positive])}"
-    run_detail_path = "/projects/#{project.id}/runs/#{run_id}"
+    run_detail_path = "/repos/#{project.id}/runs/#{run_id}"
     loader_state = start_supervised!({Agent, fn -> :initial end}, id: make_ref())
 
     Application.put_env(:jido_code, :workbench_recent_run_outcome_loader, fn _rows ->
@@ -499,25 +496,25 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert has_element?(
              view,
              "[id^='workbench-project-issues-project-disabled-workbench-row-'][aria-disabled='true']",
-             "Project detail"
+             "Repo detail"
            )
 
     assert has_element?(
              view,
              "[id^='workbench-project-issues-project-disabled-reason-workbench-row-']",
-             "Project detail link is unavailable for this row."
+             "Repo detail link is unavailable for this row."
            )
 
     assert has_element?(
              view,
              "[id^='workbench-project-prs-project-disabled-workbench-row-'][aria-disabled='true']",
-             "Project detail"
+             "Repo detail"
            )
 
     assert has_element?(
              view,
              "[id^='workbench-project-prs-project-disabled-reason-workbench-row-']",
-             "Project detail link is unavailable for this row."
+             "Repo detail link is unavailable for this row."
            )
 
     refute has_element?(view, "[id^='workbench-project-issues-github-link-workbench-row-']")
@@ -580,7 +577,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{project_id}-run-link[href='/projects/#{project_id}/runs/run-issue-123']"
+             "#workbench-project-issues-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-issue-123']"
            )
 
     refute has_element?(view, "#workbench-project-issues-fix-#{project_id}-error-type")
@@ -593,7 +590,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-prs-fix-#{project_id}-run-link[href='/projects/#{project_id}/runs/run-pr-456']"
+             "#workbench-project-prs-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-pr-456']"
            )
 
     refute has_element?(view, "#workbench-project-prs-fix-#{project_id}-error-type")
@@ -671,7 +668,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-triage-#{project_id}-run-link[href='/projects/#{project_id}/runs/run-triage-789']"
+             "#workbench-project-issues-triage-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-triage-789']"
            )
 
     refute has_element?(view, "#workbench-project-issues-triage-#{project_id}-error-type")
@@ -794,7 +791,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
            github_full_name: "owner/repo-without-id",
            open_issue_count: 1,
            open_pr_count: 1,
-           recent_activity_summary: "Missing project scope."
+           recent_activity_summary: "Missing repo scope."
          }
        ], nil}
     end)
@@ -913,7 +910,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{project_id}-run-link[href='/projects/#{project_id}/runs/run-recovered-789']"
+             "#workbench-project-issues-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-recovered-789']"
            )
 
     refute has_element?(view, "#workbench-project-issues-fix-#{project_id}-error-type")
@@ -1218,7 +1215,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
            )
 
     assert has_element?(view, "#workbench-sort-validation-detail", "Backlog size (highest first)")
-    assert has_element?(view, "#workbench-filter-chip-sort-order", "Project name (A-Z)")
+    assert has_element?(view, "#workbench-filter-chip-sort-order", "Repository name (A-Z)")
 
     assert has_element?(
              view,
@@ -1277,10 +1274,10 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
            )
 
     assert has_element?(view, "#workbench-filter-validation-detail", "project_id")
-    assert has_element?(view, "#workbench-filter-chip-project", "All projects")
+    assert has_element?(view, "#workbench-filter-chip-project", "All repositories")
     assert has_element?(view, "#workbench-filter-chip-work-state", "Any issue or PR state")
     assert has_element?(view, "#workbench-filter-chip-freshness-window", "Any freshness")
-    assert has_element?(view, "#workbench-filter-chip-sort-order", "Project name (A-Z)")
+    assert has_element?(view, "#workbench-filter-chip-sort-order", "Repository name (A-Z)")
     assert has_element?(view, "#workbench-filter-results-count", "Showing 2 of 2")
     assert has_element?(view, "#workbench-project-name-owner-repo-one", "owner/repo-one")
     assert has_element?(view, "#workbench-project-name-owner-repo-two", "owner/repo-two")
@@ -1347,12 +1344,12 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-project-link-owner-repo-beta[href='/projects/owner-repo-beta?return_to=#{encoded_return_to}']"
+             "#workbench-project-issues-project-link-owner-repo-beta[href='/repos/owner-repo-beta?return_to=#{encoded_return_to}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-project-link-owner-repo-beta[href='/projects/owner-repo-beta?return_to=#{encoded_return_to}']"
+             "#workbench-project-prs-project-link-owner-repo-beta[href='/repos/owner-repo-beta?return_to=#{encoded_return_to}']"
            )
 
     {:ok, restored_view, _html} =
@@ -1442,10 +1439,10 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
            )
 
     assert has_element?(view, "#workbench-filter-validation-detail", "project_id")
-    assert has_element?(view, "#workbench-filter-chip-project", "All projects")
+    assert has_element?(view, "#workbench-filter-chip-project", "All repositories")
     assert has_element?(view, "#workbench-filter-chip-work-state", "Any issue or PR state")
     assert has_element?(view, "#workbench-filter-chip-freshness-window", "Any freshness")
-    assert has_element?(view, "#workbench-filter-chip-sort-order", "Project name (A-Z)")
+    assert has_element?(view, "#workbench-filter-chip-sort-order", "Repository name (A-Z)")
     assert has_element?(view, "#workbench-filter-project option[value='all'][selected]")
     assert has_element?(view, "#workbench-filter-work-state option[value='all'][selected]")
     assert has_element?(view, "#workbench-filter-freshness-window option[value='any'][selected]")

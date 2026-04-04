@@ -42,7 +42,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     :ok
   end
 
-  test "launches supported builtin workflows from /projects/:id with defaults and project-detail traceability",
+  test "launches supported builtin workflows from /repos/:id with defaults and repo-detail traceability",
        %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
@@ -80,7 +80,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       end
     )
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project_id}", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project_id}", on_error: :warn)
 
     assert has_element?(view, "#project-detail-workflow-controls")
 
@@ -103,7 +103,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(
              view,
-             "#project-detail-launch-fix-failing-tests-run-link[href='/projects/#{project_id}/runs/run-fix-123']"
+             "#project-detail-launch-fix-failing-tests-run-link[href='/repos/#{project_id}/runs/run-fix-123']"
            )
 
     view
@@ -114,11 +114,11 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(
              view,
-             "#project-detail-launch-issue-triage-run-link[href='/projects/#{project_id}/runs/run-triage-456']"
+             "#project-detail-launch-issue-triage-run-link[href='/repos/#{project_id}/runs/run-triage-456']"
            )
 
     recorded_requests = launch_requests |> Agent.get(&Enum.reverse(&1))
-    project_route = "/projects/#{project_id}"
+    project_route = "/repos/#{project_id}"
 
     assert [
              %{
@@ -208,7 +208,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       end
     )
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project.id}", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     assert has_element?(view, "#project-detail-launch-disabled-guidance")
 
@@ -244,7 +244,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert %{fix: 0, triage: 0} = Agent.get(launcher_invocations, & &1)
   end
 
-  test "renders project conversation panel controls in project detail", %{conn: _conn} do
+  test "renders project conversation panel controls in repo detail", %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -268,7 +268,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         }
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project.id}", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     vue = assert_vue_component(view, "ProjectDetailOverviewWidget", id: "project-detail-overview-widget")
 
@@ -287,7 +287,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     refute has_element?(view, "#project-detail-conversation-disabled-guidance")
   end
 
-  test "supports conversation start send and stop lifecycle in project detail", %{conn: _conn} do
+  test "supports conversation start send and stop lifecycle in repo detail", %{conn: _conn} do
     Application.put_env(:jido_code, :code_server_runtime_module, RuntimeFake)
     Application.put_env(:jido_code, :code_server_engine_module, EngineFake)
     Application.put_env(:jido_code, :code_server_conversation_driver_module, DriverFake)
@@ -316,7 +316,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         }
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project.id}", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     view
     |> element("#project-detail-conversation-start")
@@ -364,7 +364,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         }
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project.id}", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     assert has_element?(view, "#project-detail-conversation-start[disabled]", "Start conversation")
     assert has_element?(view, "#project-detail-conversation-disabled-guidance")
@@ -403,7 +403,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
         }
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project.id}", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     assert has_element?(view, "#project-detail-conversation-start[disabled]", "Start conversation")
     assert has_element?(view, "#project-detail-conversation-disabled-guidance")

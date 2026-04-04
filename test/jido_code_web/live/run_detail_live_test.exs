@@ -60,7 +60,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       })
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/run-detail-123", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/run-detail-123", on_error: :warn)
 
     assert has_element?(view, "#run-detail-title", "Workflow run detail")
     assert has_element?(view, "#run-detail-run-id", "run-detail-123")
@@ -127,7 +127,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run_id}",
+        ~p"/repos/#{project.id}/runs/#{run_id}",
         on_error: :warn
       )
 
@@ -207,7 +207,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       })
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/#{run_id}", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     assert has_element?(view, "#run-detail-current-stage", "approval")
     assert has_element?(view, "#run-detail-evidence-list")
@@ -323,7 +323,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       )
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/#{run_id}", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     vue =
       assert_vue_component(
@@ -418,7 +418,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run_id}",
+        ~p"/repos/#{project.id}/runs/#{run_id}",
         on_error: :warn
       )
 
@@ -507,7 +507,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run_id}",
+        ~p"/repos/#{project.id}/runs/#{run_id}",
         on_error: :warn
       )
 
@@ -633,7 +633,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run_id}",
+        ~p"/repos/#{project.id}/runs/#{run_id}",
         on_error: :warn
       )
 
@@ -769,7 +769,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run_id}",
+        ~p"/repos/#{project.id}/runs/#{run_id}",
         on_error: :warn
       )
 
@@ -852,7 +852,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run.run_id}",
+        ~p"/repos/#{project.id}/runs/#{run.run_id}",
         on_error: :warn
       )
 
@@ -935,7 +935,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run.run_id}",
+        ~p"/repos/#{project.id}/runs/#{run.run_id}",
         on_error: :warn
       )
 
@@ -1017,7 +1017,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run.run_id}",
+        ~p"/repos/#{project.id}/runs/#{run.run_id}",
         on_error: :warn
       )
 
@@ -1131,7 +1131,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run.run_id}",
+        ~p"/repos/#{project.id}/runs/#{run.run_id}",
         on_error: :warn
       )
 
@@ -1226,7 +1226,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{run.run_id}",
+        ~p"/repos/#{project.id}/runs/#{run.run_id}",
         on_error: :warn
       )
 
@@ -1322,7 +1322,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{failed_run_id}",
+        ~p"/repos/#{project.id}/runs/#{failed_run_id}",
         on_error: :warn
       )
 
@@ -1385,7 +1385,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{failed_run_id}",
+        ~p"/repos/#{project.id}/runs/#{failed_run_id}",
         on_error: :warn
       )
 
@@ -1458,7 +1458,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{failed_run_id}",
+        ~p"/repos/#{project.id}/runs/#{failed_run_id}",
         on_error: :warn
       )
 
@@ -1468,7 +1468,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     render_click(element(view, "#run-detail-retry-button"))
 
     retry_run_id = "#{failed_run_id}-retry-2"
-    retry_path = ~p"/projects/#{project.id}/runs/#{retry_run_id}"
+    retry_path = ~p"/repos/#{project.id}/runs/#{retry_run_id}"
     assert_redirect(view, retry_path)
 
     {:ok, retried_run} =
@@ -1557,7 +1557,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{blocked_run_id}",
+        ~p"/repos/#{project.id}/runs/#{blocked_run_id}",
         on_error: :warn
       )
 
@@ -1644,7 +1644,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{failed_run_id}",
+        ~p"/repos/#{project.id}/runs/#{failed_run_id}",
         on_error: :warn
       )
 
@@ -1655,7 +1655,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     render_click(element(view, "#run-detail-step-retry-button"))
 
     retry_run_id = "#{failed_run_id}-retry-2"
-    retry_path = ~p"/projects/#{project.id}/runs/#{retry_run_id}"
+    retry_path = ~p"/repos/#{project.id}/runs/#{retry_run_id}"
     assert_redirect(view, retry_path)
 
     {:ok, retried_run} =
@@ -1730,7 +1730,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, view, _html} =
       live(
         recycle(authed_conn),
-        ~p"/projects/#{project.id}/runs/#{failed_run_id}",
+        ~p"/repos/#{project.id}/runs/#{failed_run_id}",
         on_error: :warn
       )
 

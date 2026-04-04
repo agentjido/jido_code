@@ -152,7 +152,7 @@ defmodule JidoCodeWeb.PhaseElevenIntegrationTest do
     refute dashboard_html =~ "subscriber_ref"
 
     {:ok, run_view, run_html} =
-      live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/#{run_id}", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     assert has_element?(run_view, "#run-detail-governance-summary")
     assert has_element?(run_view, "#run-detail-runtime-evidence-status", "blocked")

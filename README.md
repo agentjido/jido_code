@@ -73,7 +73,7 @@ You may also need extra credentials depending on what you are exercising:
 - Keep route ownership, auth/session boundaries, and straightforward forms in LiveView and HEEx.
 - Mount Vue-backed regions through `<.vue_surface ...>` rather than raw LiveVue calls so props, streams, and emits stay product-owned.
 - Treat `props:` and `streams:` as server-authored boundaries and map Vue emits back into LiveView events.
-- When changing the browser stack, run `mix frontend.verify`. Hybrid screens must degrade to product-oriented compatibility messaging instead of exposing raw Vite or SSR failures to operators.
+- When changing the browser stack, run `mix frontend.verify`. Hybrid screens must degrade to product-oriented fallback messaging instead of exposing raw Vite or SSR failures to operators.
 
 ## Day-To-Day Commands
 

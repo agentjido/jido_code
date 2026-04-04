@@ -61,7 +61,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoffTest do
     assert kickoff_run.workflow_name == "implement_task"
     assert kickoff_run.workflow_version == 7
     assert kickoff_run.project_id == project_id
-    assert kickoff_run.detail_path == "/projects/#{project_id}/runs/run-manual-123"
+    assert kickoff_run.detail_path == "/repos/#{project_id}/runs/run-manual-123"
 
     recorded_requests = requests |> Agent.get(&Enum.reverse(&1))
 

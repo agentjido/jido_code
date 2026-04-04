@@ -64,22 +64,22 @@ Back to index: [README](./README.md)
       [x] 17.2.2.2 Subtask - Update migrations, seeds, or data-shaping helpers so greenfield product setup no longer provisions compatibility-era record shapes or assumptions.
       [x] 17.2.2.3 Subtask - Ensure tests and fixtures create only the canonical record graph required by the current architecture.
 
-  [ ] 17.3 Section - Route, UI, And Contributor Surface Cutover
+  [x] 17.3 Section - Route, UI, And Contributor Surface Cutover
     Remove compatibility-era user-facing seams so routed product behavior, labels, and contributor guidance only present the current product model.
 
-    [ ] 17.3.1 Task - Replace compatibility routes and labels with canonical product surfaces
+    [x] 17.3.1 Task - Replace compatibility routes and labels with canonical product surfaces
       Cut over routed operator and workflow surfaces so old compatibility routes, ids, copy, and fallback labels no longer survive as parallel product vocabulary.
 
-      [ ] 17.3.1.1 Subtask - Remove compatibility route declarations and navigation helpers instead of preserving alias routes once canonical route shapes are defined in specs.
-      [ ] 17.3.1.2 Subtask - Update LiveView and LiveVue surfaces so UI labels, headings, DOM ids, and event names reflect only the canonical managed-repo and governed-run model.
-      [ ] 17.3.1.3 Subtask - Remove UI messaging that frames canonical behavior as compatibility, migration, or fallback when that language is no longer true.
+      [x] 17.3.1.1 Subtask - Remove compatibility route declarations and navigation helpers instead of preserving alias routes once canonical route shapes are defined in specs.
+      [x] 17.3.1.2 Subtask - Update LiveView and LiveVue surfaces so UI labels, headings, DOM ids, and event names reflect only the canonical managed-repo and governed-run model.
+      [x] 17.3.1.3 Subtask - Remove UI messaging that frames canonical behavior as compatibility, migration, or fallback when that language is no longer true.
 
-    [ ] 17.3.2 Task - Align contributor and operator docs to the post-compatibility world
+    [x] 17.3.2 Task - Align contributor and operator docs to the post-compatibility world
       Make repo-facing documentation describe only the supported current surfaces so new work does not reintroduce removed compatibility seams.
 
-      [ ] 17.3.2.1 Subtask - Update README, CONTRIBUTING, and adjacent repo guides to describe only the canonical route, runtime, and UI surfaces.
-      [ ] 17.3.2.2 Subtask - Remove examples, screenshots, or command references that preserve prior-era naming or mixed-mode rollout assumptions.
-      [ ] 17.3.2.3 Subtask - Keep test and contributor guidance aligned with the canonical surfaces so future changes do not accidentally recreate compatibility behavior.
+      [x] 17.3.2.1 Subtask - Update README, CONTRIBUTING, and adjacent repo guides to describe only the canonical route, runtime, and UI surfaces.
+      [x] 17.3.2.2 Subtask - Remove examples, screenshots, or command references that preserve prior-era naming or mixed-mode rollout assumptions.
+      [x] 17.3.2.3 Subtask - Keep test and contributor guidance aligned with the canonical surfaces so future changes do not accidentally recreate compatibility behavior.
 
   [ ] 17.4 Section - Phase 17 Integration Tests
     Verify that compatibility-era code is actually gone, canonical surfaces remain coherent, and the greenfield product still boots and runs through its current workflows without hidden mixed-mode dependencies.

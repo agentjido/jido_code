@@ -1,10 +1,11 @@
 defmodule JidoCode.Workbench.RunOutcomes do
+  # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   @moduledoc """
   Resolves recent governed run outcomes for workbench repository rows.
   """
 
   alias JidoCode.Control.Actor
-  alias JidoCode.Orchestration.{Run, RunBridge, WorkflowRun}
+  alias JidoCode.Orchestration.Run
 
   @fallback_row_id_prefix "workbench-row-"
   @query_timeout_ms 5_000
@@ -152,7 +153,7 @@ defmodule JidoCode.Workbench.RunOutcomes do
     else
       case load_governed_run_outcome(scope) do
         {:ok, nil} ->
-          load_legacy_run_outcome(scope)
+          {:ok, nil}
 
         other ->
           other
@@ -175,34 +176,6 @@ defmodule JidoCode.Workbench.RunOutcomes do
           {:ok, [run | _]} -> {:ok, run_outcome_from_run(project_id, run)}
           {:ok, []} -> {:ok, nil}
           {:error, reason} -> {:error, reason}
-        end
-    end
-  end
-
-  defp load_legacy_run_outcome(%{project_id: project_id}) do
-    case normalize_optional_string(project_id) do
-      nil ->
-        {:ok, nil}
-
-      normalized_project_id ->
-        case WorkflowRun.read(
-               query: [filter: [project_id: normalized_project_id], sort: [started_at: :desc], limit: 1],
-               actor: Actor.operator_actor()
-             ) do
-          {:ok, [run | _]} ->
-            case RunBridge.projected_run_for_workflow_run(run) do
-              {:ok, %Run{} = governed_run} ->
-                {:ok, run_outcome_from_run(normalized_project_id, governed_run)}
-
-              _other ->
-                {:ok, run_outcome_from_run(normalized_project_id, run)}
-            end
-
-          {:ok, []} ->
-            {:ok, nil}
-
-          {:error, reason} ->
-            {:error, reason}
         end
     end
   end

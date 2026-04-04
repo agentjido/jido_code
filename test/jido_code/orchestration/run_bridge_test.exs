@@ -1,5 +1,6 @@
 defmodule JidoCode.Orchestration.RunBridgeTest do
   # covers: architecture.run_governance.run_is_preferred_execution_record
+  # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   # covers: architecture.run_governance.execution_profile_governs_environment_defaults
   # covers: architecture.run_governance.execution_profile_preserves_repo_and_workflow_compatibility
   # covers: architecture.run_governance.run_launch_resolves_effective_execution_profile
@@ -68,6 +69,9 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
     assert run.stage_statuses["validation"] == "active"
     assert run.workflow_state_ref["workflow_run_id"] == workflow_run.id
     assert run.run_metadata["execution_profile_name"] == "workflow:issue_triage"
+    assert run.run_metadata["workflow_audit"]["status_transitions"] != []
+    assert run.run_metadata["workflow_audit"]["step_results"] == %{}
+    assert run.run_metadata["workflow_audit"]["error"] == %{}
     assert run.run_metadata["repo_prep_plan"] == ["repo_attach", "repo_sync", "repo_prep"]
     assert run.run_metadata["validation_plan"] == ["spec_check"]
     assert execution_profile.sandbox_profile["shape"] == "light"
@@ -93,6 +97,9 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
     assert updated_run.status == :awaiting_approval
     assert updated_run.current_stage == "approval"
     assert updated_run.stage_statuses["approval"] == "awaiting_decision"
+
+    assert List.last(updated_run.run_metadata["workflow_audit"]["status_transitions"])["to_status"] ==
+             "awaiting_approval"
   end
 
   test "governed work item launch creates linked workflow and run projections" do

@@ -34,9 +34,14 @@ surface:
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
+  - lib/jido_code/orchestration/run_summary_feed.ex
   - lib/jido_code/orchestration/workflow_run.ex
+  - lib/jido_code/workbench/run_outcomes.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - test/support/conn_case.ex
+  - test/jido_code/orchestration/run_bridge_test.exs
+  - test/jido_code_web/live/run_detail_live_test.exs
   - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
 ```
@@ -201,6 +206,7 @@ surface:
   target: lib/jido_code/orchestration/run.ex
   covers:
     - architecture.run_governance.run_is_preferred_execution_record
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 
 - kind: source_file
   target: lib/jido_code/orchestration/execution_profile.ex
@@ -213,6 +219,21 @@ surface:
   covers:
     - architecture.run_governance.run_launch_resolves_effective_execution_profile
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_summary_feed.ex
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: lib/jido_code/workbench/run_outcomes.ex
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 
 - kind: source_file
   target: lib/jido_code/governance/evidence.ex
@@ -258,6 +279,16 @@ surface:
   target: lib/jido_code/governance/policy_bridge.ex
   covers:
     - architecture.run_governance.review_policy_controls_change_request_creation
+
+- kind: source_file
+  target: test/jido_code/orchestration/run_bridge_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 
 - kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex

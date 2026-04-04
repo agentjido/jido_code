@@ -66,22 +66,22 @@ Back to index: [README](./README.md)
       [x] 18.2.2.2 Subtask - Simplify seeds, migrations, and shaping helpers so greenfield installs no longer expect `Project`-era persistence as a prerequisite.
       [x] 18.2.2.3 Subtask - Update test factories, helpers, and fixtures so repo-oriented tests create only canonical repo records and required adjunct state.
 
-  [ ] 18.3 Section - Governed Run Internal Convergence
+  [x] 18.3 Section - Governed Run Internal Convergence
     Replace the remaining `WorkflowRun`-era internals so execution, evidence, and operator run surfaces depend only on governed `Run` behavior and canonical projections.
 
-    [ ] 18.3.1 Task - Remove legacy execution-record implementation seams
+    [x] 18.3.1 Task - Remove legacy execution-record implementation seams
       Collapse execution loaders, retry paths, and evidence shaping that still depend on `WorkflowRun` as an implementation bridge rather than a canonical governed run.
 
-      [ ] 18.3.1.1 Subtask - Replace internal run loaders, live refresh paths, and projection helpers that still read `WorkflowRun` first when governed `Run` is the intended product record.
-      [ ] 18.3.1.2 Subtask - Remove backfill or mirroring behavior that writes or repairs `WorkflowRun`-era state purely to preserve older execution assumptions.
-      [ ] 18.3.1.3 Subtask - Preserve only the canonical governed-run lifecycle, evidence, decision, and runtime-evidence projections needed by operator and workflow flows.
+      [x] 18.3.1.1 Subtask - Replace internal run loaders, live refresh paths, and projection helpers that still read `WorkflowRun` first when governed `Run` is the intended product record.
+      [x] 18.3.1.2 Subtask - Remove backfill or mirroring behavior that writes or repairs `WorkflowRun`-era state purely to preserve older execution assumptions.
+      [x] 18.3.1.3 Subtask - Preserve only the canonical governed-run lifecycle, evidence, decision, and runtime-evidence projections needed by operator and workflow flows.
 
-    [ ] 18.3.2 Task - Simplify run persistence, runtime materialization, and test behavior
+    [x] 18.3.2 Task - Simplify run persistence, runtime materialization, and test behavior
       Ensure fresh execution paths and tests materialize governed-run records directly without shadow execution seams.
 
-      [ ] 18.3.2.1 Subtask - Update conversation, workflow kickoff, and runtime materialization paths so canonical `Run` records are the only durable execution target.
-      [ ] 18.3.2.2 Subtask - Update migrations, seeds, and persistence helpers so greenfield installs no longer provision or repair `WorkflowRun`-era record graphs.
-      [ ] 18.3.2.3 Subtask - Update run-oriented tests and fixtures so they create only canonical governed runs, evidence, and decisions unless a migration-specific test explicitly requires otherwise.
+      [x] 18.3.2.1 Subtask - Update conversation, workflow kickoff, and runtime materialization paths so canonical `Run` records are the only durable execution target.
+      [x] 18.3.2.2 Subtask - Update migrations, seeds, and persistence helpers so greenfield installs no longer provision or repair `WorkflowRun`-era record graphs.
+      [x] 18.3.2.3 Subtask - Update run-oriented tests and fixtures so they create only canonical governed runs, evidence, and decisions unless a migration-specific test explicitly requires otherwise.
 
   [ ] 18.4 Section - Phase 18 Integration Tests
     Verify that internal canonicalization is complete, fresh setup and operator workflows no longer rely on previous-era records, and cleanup did not reintroduce shadow compatibility seams.

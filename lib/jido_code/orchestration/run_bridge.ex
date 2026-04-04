@@ -123,6 +123,12 @@ defmodule JidoCode.Orchestration.RunBridge do
         "legacy_workflow_run_id" => workflow_run.id,
         "legacy_project_id" => workflow_run.project_id,
         "status_transitions" => workflow_run.status_transitions || [],
+        "workflow_audit" => %{
+          "status_transitions" => workflow_run.status_transitions || [],
+          "step_results" => normalize_map(workflow_run.step_results),
+          "error" => normalize_map(workflow_run.error),
+          "step_retry_contract" => projected_step_retry_contract(workflow_run)
+        },
         "execution_profile_name" => execution_profile.name,
         "repo_prep_plan" => execution_profile.repo_prep_plan,
         "validation_plan" => execution_profile.validation_plan,
@@ -473,6 +479,14 @@ defmodule JidoCode.Orchestration.RunBridge do
   defp turn_run_id(turn_id), do: "turn:#{turn_id}"
 
   defp turn_workflow_name(operation), do: "coding_turn_#{operation}"
+
+  defp projected_step_retry_contract(%WorkflowRun{} = workflow_run) do
+    case WorkflowRun.step_retry_contract(workflow_run) do
+      {:ok, contract} when is_map(contract) -> normalize_map(contract)
+      {:error, typed_failure} when is_map(typed_failure) -> %{"typed_failure" => normalize_map(typed_failure)}
+      _other -> %{}
+    end
+  end
 
   defp managed_repo(%WorkflowRun{managed_repo_id: managed_repo_id}) when is_binary(managed_repo_id) do
     case ManagedRepo.read(query: [filter: [id: managed_repo_id]], actor: @projection_actor) do

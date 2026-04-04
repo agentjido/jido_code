@@ -70,6 +70,11 @@ surface:
   statement: Governed run projection of terminal public-turn output shall be best-effort and non-blocking for conversation subscriber delivery so the runtime overlay can continue emitting bounded operator updates even when governed projection repairs fail.
   priority: should
   stability: evolving
+
+- id: architecture.execution_pipeline.governed_run_interfaces_hide_workflow_state
+  statement: Product-owned read and action surfaces shall inspect, approve, reject, and retry execution through governed `Run` interfaces, while any lower-level workflow state remains a bounded internal execution concern instead of a supported product-facing record.
+  priority: should
+  stability: evolving
 ```
 
 ## Scenarios
@@ -166,6 +171,11 @@ surface:
   covers:
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
     - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run.ex
+  covers:
+    - architecture.execution_pipeline.governed_run_interfaces_hide_workflow_state
 
 - kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex

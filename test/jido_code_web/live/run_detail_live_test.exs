@@ -2,6 +2,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented

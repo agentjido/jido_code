@@ -1,12 +1,11 @@
 defmodule JidoCode.CodeServer.ProjectScope do
   # covers: architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
   @moduledoc """
-  Resolves project scope required by the `JidoCode.CodeServer` facade.
+  Resolves managed-repository scope required by the `JidoCode.CodeServer` facade.
   """
 
   alias JidoCode.CodeServer.Error
-  alias JidoCode.Control.Actor
-  alias JidoCode.Projects.Project
+  alias JidoCode.Control.RepoBridge
 
   @project_not_found_remediation """
   Open Workbench, select an imported project, and retry the conversation action.
@@ -29,9 +28,14 @@ defmodule JidoCode.CodeServer.ProjectScope do
   @spec resolve(term()) :: {:ok, scope()} | {:error, Error.typed_error()}
   def resolve(project_id) do
     with {:ok, normalized_project_id} <- normalize_project_id(project_id),
-         {:ok, project} <- fetch_project(normalized_project_id),
-         {:ok, root_path} <- resolve_workspace_root(project, normalized_project_id) do
-      {:ok, %{project_id: normalized_project_id, root_path: root_path, project: project}}
+         {:ok, scope} <- fetch_scope(normalized_project_id),
+         {:ok, root_path} <- resolve_workspace_root(scope, normalized_project_id) do
+      resolved_project_id =
+        scope
+        |> map_get(:managed_repo_id, "managed_repo_id", normalized_project_id)
+        |> normalize_optional_string() || normalized_project_id
+
+      {:ok, %{project_id: resolved_project_id, root_path: root_path, project: scope}}
     end
   end
 
@@ -50,19 +54,16 @@ defmodule JidoCode.CodeServer.ProjectScope do
     end
   end
 
-  defp fetch_project(project_id) do
-    case project_reader_module().read(
-           query: [filter: [id: project_id], limit: 1],
-           actor: Actor.factory_system_actor()
-         ) do
-      {:ok, [project | _rest]} ->
-        {:ok, project}
+  defp fetch_scope(project_id) do
+    case repo_scope_module().repo_scope(project_id) do
+      {:ok, scope} ->
+        {:ok, scope}
 
-      {:ok, []} ->
+      {:error, :repo_scope_not_found} ->
         {:error,
          Error.build(
            "code_server_project_not_found",
-           "Project #{project_id} was not found.",
+           "Managed repository #{project_id} was not found.",
            @project_not_found_remediation,
            project_id: project_id
          )}
@@ -71,26 +72,25 @@ defmodule JidoCode.CodeServer.ProjectScope do
         {:error,
          Error.build(
            "code_server_project_not_found",
-           "Project lookup failed (#{format_reason(reason)}).",
+           "Managed repository lookup failed (#{format_reason(reason)}).",
            @project_not_found_remediation,
            project_id: project_id
          )}
     end
   end
 
-  defp project_reader_module do
-    Application.get_env(:jido_code, :code_server_project_reader_module, Project)
+  defp repo_scope_module do
+    Application.get_env(:jido_code, :code_server_repo_scope_module, RepoBridge)
   end
 
-  defp resolve_workspace_root(project, project_id) when is_map(project) do
-    settings =
-      project
-      |> map_get(:settings, "settings", %{})
-      |> normalize_map()
+  defp resolve_workspace_root(scope, project_id) when is_map(scope) do
+    managed_repo =
+      scope
+      |> map_get(:managed_repo, "managed_repo", %{})
 
     workspace_settings =
-      settings
-      |> map_get(:workspace, "workspace", %{})
+      managed_repo
+      |> map_get(:workspace_settings, "workspace_settings", %{})
       |> normalize_map()
 
     with :ok <- validate_workspace_readiness(workspace_settings, project_id) do
@@ -123,7 +123,7 @@ defmodule JidoCode.CodeServer.ProjectScope do
     end
   end
 
-  defp resolve_workspace_root(_project, project_id) do
+  defp resolve_workspace_root(_scope, project_id) do
     {:error,
      Error.build(
        "code_server_workspace_unavailable",

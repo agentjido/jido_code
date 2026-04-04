@@ -2,7 +2,6 @@ defmodule JidoCodeWeb.DashboardLive do
   # covers: package.jido_code.primary_implementation_repo
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
-  # covers: architecture.factory_control_plane.compatibility_rollout_exposes_removal_and_rollback_state
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
@@ -10,7 +9,6 @@ defmodule JidoCodeWeb.DashboardLive do
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
-  alias JidoCode.Control.CompatibilityRollout
   alias JidoCode.Governance.RuntimeEvidenceFeed
   alias JidoCode.Orchestration.{RunPubSub, RunSummaryFeed}
 
@@ -38,15 +36,10 @@ defmodule JidoCodeWeb.DashboardLive do
       |> assign(:runtime_evidence_summary, nil)
       |> stream_configure(:runtime_evidence_summaries, dom_id: &runtime_evidence_dom_id/1)
       |> stream(:runtime_evidence_summaries, [], reset: true)
-      |> assign(:compatibility_rollout_report, nil)
-      |> assign(:compatibility_rollout_warning, nil)
-      |> assign(:compatibility_rollout_backfill, nil)
-      |> assign(:compatibility_rollout_last_refreshed_at, nil)
       |> stream_configure(:run_summaries, dom_id: &run_summary_dom_id/1)
       |> stream(:run_summaries, [], reset: true)
       |> load_run_summaries()
       |> load_runtime_evidence_summaries()
-      |> load_compatibility_rollout_report()
       |> maybe_subscribe_run_events()
 
     {:ok, socket}
@@ -72,11 +65,6 @@ defmodule JidoCodeWeb.DashboardLive do
   @impl true
   def handle_event("refresh_runtime_evidence", _params, socket) do
     {:noreply, load_runtime_evidence_summaries(socket)}
-  end
-
-  @impl true
-  def handle_event("refresh_compatibility_rollout", _params, socket) do
-    {:noreply, run_compatibility_backfill(socket)}
   end
 
   @impl true
@@ -330,140 +318,6 @@ defmodule JidoCodeWeb.DashboardLive do
         </section>
 
         <section
-          id="dashboard-compatibility-rollout"
-          class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4 space-y-4"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="space-y-1">
-              <h2 class="text-lg font-semibold">Compatibility rollout</h2>
-              <p id="dashboard-compatibility-summary" class="text-sm text-base-content/80">
-                {compatibility_summary(@compatibility_rollout_report)}
-              </p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <p id="dashboard-compatibility-last-refreshed" class="text-xs text-base-content/70">
-                Last refreshed: {summary_refreshed_label(@compatibility_rollout_last_refreshed_at)}
-              </p>
-              <button
-                id="dashboard-compatibility-refresh"
-                type="button"
-                class="btn btn-sm btn-outline"
-                phx-click="refresh_compatibility_rollout"
-              >
-                Run compatibility backfill
-              </button>
-            </div>
-          </div>
-
-          <.operator_state_notice
-            :if={@compatibility_rollout_warning}
-            id="dashboard-compatibility-warning"
-            title="Compatibility rollout report may be stale"
-            state={@compatibility_rollout_warning}
-            compact={true}
-          />
-
-          <section
-            :if={@compatibility_rollout_backfill}
-            id="dashboard-compatibility-backfill"
-            class="rounded-lg border border-base-300/70 bg-base-200/30 p-3"
-          >
-            <p class="text-sm font-medium">Latest backfill run</p>
-            <div class="mt-2 grid gap-3 text-xs text-base-content/80 md:grid-cols-3">
-              <p id="dashboard-compatibility-backfill-projects">
-                Projects backfilled: {@compatibility_rollout_backfill.projects_backfilled}
-              </p>
-              <p id="dashboard-compatibility-backfill-workflow-runs">
-                Workflow runs backfilled: {@compatibility_rollout_backfill.workflow_runs_backfilled}
-              </p>
-              <p id="dashboard-compatibility-backfill-rollback-safe">
-                Rollback safe: {yes_no_label(@compatibility_rollout_backfill.rollback_safe)}
-              </p>
-            </div>
-          </section>
-
-          <div
-            :if={@compatibility_rollout_report}
-            id="dashboard-compatibility-counts"
-            class="grid gap-3 md:grid-cols-3"
-          >
-            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-              <p class="text-xs uppercase text-base-content/60">Projects missing managed repos</p>
-              <p id="dashboard-compatibility-count-project-gaps" class="mt-1 text-2xl font-semibold">
-                {compatibility_count(@compatibility_rollout_report, :projects_missing_managed_repo)}
-              </p>
-            </div>
-            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-              <p class="text-xs uppercase text-base-content/60">Workflow runs missing governed runs</p>
-              <p id="dashboard-compatibility-count-run-gaps" class="mt-1 text-2xl font-semibold">
-                {compatibility_count(@compatibility_rollout_report, :workflow_runs_missing_governed_run)}
-              </p>
-            </div>
-            <div class="rounded border border-base-300/70 bg-base-200/20 p-3">
-              <p class="text-xs uppercase text-base-content/60">Governed run projections</p>
-              <p id="dashboard-compatibility-count-governed-runs" class="mt-1 text-2xl font-semibold">
-                {compatibility_count(@compatibility_rollout_report, :governed_runs_total)}
-              </p>
-            </div>
-          </div>
-
-          <section :if={@compatibility_rollout_report} id="dashboard-compatibility-surfaces" class="space-y-2">
-            <h3 class="text-sm font-semibold uppercase text-base-content/70">Remaining shim dependencies</h3>
-            <ol class="space-y-2">
-              <li
-                :for={surface <- compatibility_surfaces(@compatibility_rollout_report)}
-                id={"dashboard-compatibility-surface-#{surface.id}"}
-                class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
-              >
-                <div class="flex flex-wrap items-center gap-2">
-                  <p class="text-sm font-medium">{surface.label}</p>
-                  <span class={compatibility_status_badge_class(surface.status)}>
-                    {compatibility_status_label(surface.status)}
-                  </span>
-                </div>
-                <p class="text-xs text-base-content/80">
-                  Depends on {surface.dependency}. {surface.detail}
-                </p>
-              </li>
-            </ol>
-          </section>
-
-          <section :if={@compatibility_rollout_report} id="dashboard-compatibility-removal" class="space-y-2">
-            <h3 class="text-sm font-semibold uppercase text-base-content/70">Removal criteria</h3>
-            <ol class="space-y-2">
-              <li
-                :for={criterion <- removal_criteria(@compatibility_rollout_report)}
-                id={"dashboard-compatibility-removal-#{criterion.id}"}
-                class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
-              >
-                <div class="flex flex-wrap items-center gap-2">
-                  <p class="text-sm font-medium">{criterion.label}</p>
-                  <span class={compatibility_status_badge_class(criterion.status)}>
-                    {compatibility_status_label(criterion.status)}
-                  </span>
-                </div>
-                <p class="text-xs text-base-content/80">{criterion.detail}</p>
-              </li>
-            </ol>
-          </section>
-
-          <section :if={@compatibility_rollout_report} id="dashboard-compatibility-rollback" class="space-y-2">
-            <h3 class="text-sm font-semibold uppercase text-base-content/70">Rollback procedures</h3>
-            <ol class="space-y-2">
-              <li
-                :for={procedure <- rollback_procedures(@compatibility_rollout_report)}
-                id={"dashboard-compatibility-rollback-#{procedure.id}"}
-                class="rounded border border-base-300/60 bg-base-200/20 p-3 space-y-1"
-              >
-                <p class="text-sm font-medium">{procedure.label}</p>
-                <p class="text-xs text-base-content/80">Trigger: {procedure.trigger}</p>
-                <p class="text-xs text-base-content/80">{procedure.procedure}</p>
-              </li>
-            </ol>
-          </section>
-        </section>
-
-        <section
           :if={!Enum.empty?(@onboarding_next_actions)}
           id="dashboard-onboarding-next-actions"
           class="mt-6 rounded-lg border border-base-300 bg-base-100 p-4"
@@ -502,42 +356,6 @@ defmodule JidoCodeWeb.DashboardLive do
         |> assign(:run_summary_warning, warning)
         |> assign(:run_summary_last_refreshed_at, now)
         |> stream(:run_summaries, [], reset: true)
-    end
-  end
-
-  defp load_compatibility_rollout_report(socket) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    case CompatibilityRollout.report() do
-      {:ok, report} ->
-        socket
-        |> assign(:compatibility_rollout_report, report)
-        |> assign(:compatibility_rollout_warning, nil)
-        |> assign(:compatibility_rollout_last_refreshed_at, now)
-
-      {:error, warning} ->
-        socket
-        |> assign(:compatibility_rollout_report, nil)
-        |> assign(:compatibility_rollout_warning, warning)
-        |> assign(:compatibility_rollout_last_refreshed_at, now)
-    end
-  end
-
-  defp run_compatibility_backfill(socket) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    case CompatibilityRollout.backfill_and_report() do
-      {:ok, %{backfill: backfill, report: report}} ->
-        socket
-        |> assign(:compatibility_rollout_report, report)
-        |> assign(:compatibility_rollout_backfill, backfill)
-        |> assign(:compatibility_rollout_warning, nil)
-        |> assign(:compatibility_rollout_last_refreshed_at, now)
-
-      {:error, warning} ->
-        socket
-        |> assign(:compatibility_rollout_warning, warning)
-        |> assign(:compatibility_rollout_last_refreshed_at, now)
     end
   end
 
@@ -584,29 +402,10 @@ defmodule JidoCodeWeb.DashboardLive do
   defp run_status_badge_class("pending"), do: "badge badge-outline"
   defp run_status_badge_class(_status), do: "badge badge-outline"
 
-  defp compatibility_status_badge_class("ready"), do: "badge badge-success"
-  defp compatibility_status_badge_class("ready_to_retire"), do: "badge badge-success"
-  defp compatibility_status_badge_class("legacy_dependency_present"), do: "badge badge-warning"
-  defp compatibility_status_badge_class("coexistence_active"), do: "badge badge-info"
-  defp compatibility_status_badge_class("pending"), do: "badge badge-outline"
-  defp compatibility_status_badge_class(_status), do: "badge badge-outline"
-
   defp runtime_evidence_badge_class("blocked"), do: "badge badge-error"
   defp runtime_evidence_badge_class("degraded"), do: "badge badge-warning"
   defp runtime_evidence_badge_class("available"), do: "badge badge-success"
   defp runtime_evidence_badge_class(_status), do: "badge badge-outline"
-
-  defp compatibility_status_label(status) do
-    case normalize_optional_string(status) do
-      "ready_to_retire" -> "ready to retire"
-      "legacy_dependency_present" -> "legacy dependency present"
-      "coexistence_active" -> "coexistence active"
-      "pending" -> "pending"
-      "ready" -> "ready"
-      nil -> "unknown"
-      other -> other
-    end
-  end
 
   defp runtime_evidence_status_label(status) do
     case normalize_optional_string(status) do
@@ -662,14 +461,6 @@ defmodule JidoCodeWeb.DashboardLive do
       parts -> Enum.join(parts, " · ")
     end
   end
-
-  defp compatibility_summary(%{} = report) do
-    report
-    |> Map.get(:summary)
-    |> normalize_optional_string() || "Compatibility rollout status is unavailable."
-  end
-
-  defp compatibility_summary(_report), do: "Compatibility rollout status is unavailable."
 
   defp runtime_evidence_summary(%{} = summary) do
     "Runtime posture tracks #{Map.get(summary, :total_count, 0)} repo(s): #{Map.get(summary, :blocked_count, 0)} blocked, #{Map.get(summary, :degraded_count, 0)} review-required, #{Map.get(summary, :available_count, 0)} stable."
@@ -800,84 +591,6 @@ defmodule JidoCodeWeb.DashboardLive do
     end
   end
 
-  defp compatibility_count(report, key) when is_map(report) do
-    report
-    |> Map.get(:counts, %{})
-    |> Map.get(key, 0)
-    |> normalize_non_negative_integer()
-  end
-
-  defp compatibility_count(_report, _key), do: 0
-
-  defp compatibility_surfaces(report) when is_map(report) do
-    report
-    |> Map.get(:compatibility_surfaces, [])
-    |> Enum.map(&normalize_compatibility_item/1)
-  end
-
-  defp compatibility_surfaces(_report), do: []
-
-  defp removal_criteria(report) when is_map(report) do
-    report
-    |> Map.get(:removal_criteria, [])
-    |> Enum.map(&normalize_compatibility_item/1)
-  end
-
-  defp removal_criteria(_report), do: []
-
-  defp rollback_procedures(report) when is_map(report) do
-    report
-    |> Map.get(:rollback_procedures, [])
-    |> Enum.map(&normalize_compatibility_item/1)
-  end
-
-  defp rollback_procedures(_report), do: []
-
-  defp normalize_compatibility_item(item) when is_map(item) do
-    %{
-      id:
-        item
-        |> Map.get(:id)
-        |> normalize_optional_string() || "unknown",
-      label:
-        item
-        |> Map.get(:label)
-        |> normalize_optional_string() || "Unknown",
-      dependency:
-        item
-        |> Map.get(:dependency)
-        |> normalize_optional_string(),
-      status:
-        item
-        |> Map.get(:status)
-        |> normalize_optional_string() || "pending",
-      detail:
-        item
-        |> Map.get(:detail)
-        |> normalize_optional_string(),
-      trigger:
-        item
-        |> Map.get(:trigger)
-        |> normalize_optional_string(),
-      procedure:
-        item
-        |> Map.get(:procedure)
-        |> normalize_optional_string()
-    }
-  end
-
-  defp normalize_compatibility_item(_item) do
-    %{
-      id: "unknown",
-      label: "Unknown",
-      dependency: nil,
-      status: "pending",
-      detail: nil,
-      trigger: nil,
-      procedure: nil
-    }
-  end
-
   defp relative_time_label(%DateTime{} = datetime) do
     seconds = DateTime.diff(DateTime.utc_now(), datetime, :second)
 
@@ -911,7 +624,7 @@ defmodule JidoCodeWeb.DashboardLive do
       |> normalize_optional_string()
 
     if project_id && run_id do
-      ~p"/projects/#{project_id}/runs/#{run_id}"
+      ~p"/repos/#{project_id}/runs/#{run_id}"
     else
       ~p"/dashboard"
     end
@@ -931,10 +644,6 @@ defmodule JidoCodeWeb.DashboardLive do
   end
 
   defp normalize_non_negative_integer(_value), do: 0
-
-  defp yes_no_label(true), do: "Yes"
-  defp yes_no_label(false), do: "No"
-  defp yes_no_label(_value), do: "No"
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 

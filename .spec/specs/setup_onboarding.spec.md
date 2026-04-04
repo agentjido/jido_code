@@ -8,12 +8,14 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where first-project import may normalize durable intake without reintroducing a blocking wizard.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard.
 decisions:
+  - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
+  - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - .spec/specs/baseline_surface.spec.md
   - .spec/specs/user_administration.spec.md
@@ -24,14 +26,12 @@ surface:
   - lib/jido_code_web/live/setup_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/components/operator_state_components.ex
-  - lib/jido_code/projects/project.ex
+  - lib/jido_code/control/source_repo.ex
+  - lib/jido_code/control/managed_repo.ex
   - test/support/conn_case.ex
-  - priv/repo/migrations/20260326122740_add_project_source_identity.exs
-  - priv/resource_snapshots/repo/projects/20260326122740.json
   - test/jido_code_web/live/setup_live_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code/setup/project_import_test.exs
-  - test/jido_code/projects/project_test.exs
   - test/jido_code/setup/deployment_mode_test.exs
 ```
 
@@ -59,7 +59,7 @@ surface:
   stability: evolving
 
 - id: setup.onboarding.deferred_integrations
-  statement: Provider credentials, GitHub integration, webhook readiness, and first-project import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry, and signed-in project import may normalize durable intake records without turning setup back into a blocking multi-step wizard.
+  statement: Provider credentials, GitHub integration, webhook readiness, and first repository import shall be deferred into signed-in follow-up flows or feature-level prompts instead of blocking initial product entry, and signed-in repository import may normalize durable intake records without turning setup back into a blocking multi-step wizard.
   priority: must
   stability: evolving
 
@@ -69,12 +69,12 @@ surface:
   stability: evolving
 
 - id: setup.onboarding.repo_source_per_project
-  statement: Repository source selection shall remain a per-project concern, with each project carrying its own source kind and source identity so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.
+  statement: Repository source selection shall remain a per-managed-repository concern, with each imported repository writing canonical `SourceRepo` and `ManagedRepo` records that carry their own source identity so local desktop repositories and hosted source-control repositories can coexist without being inferred from the global deployment mode.
   priority: must
   stability: evolving
 
 - id: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
-  statement: Signed-in post-bootstrap operator surfaces may preserve compatibility routes, but they shall progressively present managed-repository and governed-run control-plane language once onboarding has created those records.
+  statement: Signed-in post-bootstrap operator surfaces shall use canonical managed-repository and governed-run language once onboarding has created those records.
   priority: should
   stability: evolving
 ```
@@ -99,11 +99,11 @@ surface:
   covers:
     - setup.onboarding.repo_source_per_project
   given:
-    - A desktop deployment needs to register a local repository as a project.
+    - A desktop deployment needs to register a local repository into the product control plane.
   when:
-    - The project record is created for that local repository.
+    - The repository import record is created for that local repository.
   then:
-    - The record stores its local source kind and source identity on the project itself instead of inferring repository behavior from a global mode.
+    - The canonical source and managed-repository records store the local source identity instead of inferring repository behavior from a global mode.
 
 - id: setup.onboarding.scenario_cloud_start
   covers:
@@ -135,9 +135,9 @@ surface:
   given:
     - Bootstrap is complete and a signed-in operator has imported a repository into the control plane.
   when:
-    - The operator opens dashboard, workbench, or repo detail through the existing post-bootstrap routes.
+    - The operator opens dashboard, workbench, or repo detail through the post-bootstrap routes.
   then:
-    - Those post-bootstrap surfaces may keep compatibility paths while presenting managed-repository and governed-run concepts as the preferred operator language.
+    - Those post-bootstrap surfaces present managed-repository and governed-run concepts as the operator language.
     - They may also adopt bounded hybrid summary widgets incrementally as long as those routed surfaces keep onboarding-era auth, loading, and control-plane language in the LiveView host shell.
 ```
 
@@ -174,12 +174,7 @@ surface:
     - setup.onboarding.start_path_preference_persisted
 
 - kind: source_file
-  target: .spec/specs/setup_onboarding.spec.md
-  covers:
-    - setup.onboarding.repo_source_per_project
-
-- kind: source_file
-  target: lib/jido_code/projects/project.ex
+  target: .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   covers:
     - setup.onboarding.repo_source_per_project
 
@@ -187,11 +182,6 @@ surface:
   target: lib/jido_code/setup/project_import.ex
   covers:
     - setup.onboarding.deferred_integrations
-    - setup.onboarding.repo_source_per_project
-
-- kind: source_file
-  target: test/jido_code/projects/project_test.exs
-  covers:
     - setup.onboarding.repo_source_per_project
 
 - kind: source_file

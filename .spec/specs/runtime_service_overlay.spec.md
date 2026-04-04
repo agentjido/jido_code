@@ -82,7 +82,7 @@ surface:
   stability: evolving
 
 - id: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
-  statement: Operator-facing dashboard, run-detail, and rollout surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state rather than exposing runtime topology or raw transport details.
+  statement: Operator-facing dashboard and run-detail surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state rather than exposing runtime topology, raw transport details, or retired compatibility-rollout panels as part of the supported product narrative.
   priority: should
   stability: evolving
 

@@ -5,16 +5,16 @@ defmodule JidoCode.CodeServer.ProjectScopeTest do
   alias JidoCode.TestSupport.CodeServer.ProjectReaderFake
 
   setup do
-    original_reader_module = Application.get_env(:jido_code, :code_server_project_reader_module, :__missing__)
-    Application.put_env(:jido_code, :code_server_project_reader_module, ProjectReaderFake)
+    original_reader_module = Application.get_env(:jido_code, :code_server_repo_scope_module, :__missing__)
+    Application.put_env(:jido_code, :code_server_repo_scope_module, ProjectReaderFake)
     ProjectReaderFake.clear()
 
     on_exit(fn ->
       ProjectReaderFake.clear()
 
       case original_reader_module do
-        :__missing__ -> Application.delete_env(:jido_code, :code_server_project_reader_module)
-        module -> Application.put_env(:jido_code, :code_server_project_reader_module, module)
+        :__missing__ -> Application.delete_env(:jido_code, :code_server_repo_scope_module)
+        module -> Application.put_env(:jido_code, :code_server_repo_scope_module, module)
       end
     end)
 
@@ -24,39 +24,35 @@ defmodule JidoCode.CodeServer.ProjectScopeTest do
   test "resolves valid local workspace scope when readiness and path checks pass" do
     workspace_path = create_workspace_path!()
 
-    ProjectReaderFake.put_read_result(
+    ProjectReaderFake.put_repo_scope_result(
       {:ok,
-       [
-         project_fixture("project-local-ready", %{
-           "workspace_environment" => "local",
-           "workspace_path" => workspace_path,
-           "clone_status" => "ready",
-           "workspace_initialized" => true,
-           "baseline_synced" => true
-         })
-       ]}
+       scope_fixture("managed-repo-local-ready", %{
+         "workspace_environment" => "local",
+         "workspace_path" => workspace_path,
+         "clone_status" => "ready",
+         "workspace_initialized" => true,
+         "baseline_synced" => true
+       })}
     )
 
     assert {:ok,
             %{
-              project_id: "project-local-ready",
+              project_id: "managed-repo-local-ready",
               root_path: ^workspace_path,
-              project: %{id: "project-local-ready"}
+              project: %{managed_repo_id: "managed-repo-local-ready"}
             }} = ProjectScope.resolve("project-local-ready")
   end
 
   test "returns typed unsupported error when workspace environment is sprite" do
-    ProjectReaderFake.put_read_result(
+    ProjectReaderFake.put_repo_scope_result(
       {:ok,
-       [
-         project_fixture("project-sprite", %{
-           "workspace_environment" => "sprite",
-           "workspace_path" => "/tmp/ignored",
-           "clone_status" => "ready",
-           "workspace_initialized" => true,
-           "baseline_synced" => true
-         })
-       ]}
+       scope_fixture("managed-repo-sprite", %{
+         "workspace_environment" => "sprite",
+         "workspace_path" => "/tmp/ignored",
+         "clone_status" => "ready",
+         "workspace_initialized" => true,
+         "baseline_synced" => true
+       })}
     )
 
     assert {:error, typed_error} = ProjectScope.resolve("project-sprite")
@@ -65,16 +61,14 @@ defmodule JidoCode.CodeServer.ProjectScopeTest do
   end
 
   test "returns workspace unavailable when local workspace path is missing" do
-    ProjectReaderFake.put_read_result(
+    ProjectReaderFake.put_repo_scope_result(
       {:ok,
-       [
-         project_fixture("project-missing-path", %{
-           "workspace_environment" => "local",
-           "clone_status" => "ready",
-           "workspace_initialized" => true,
-           "baseline_synced" => true
-         })
-       ]}
+       scope_fixture("managed-repo-missing-path", %{
+         "workspace_environment" => "local",
+         "clone_status" => "ready",
+         "workspace_initialized" => true,
+         "baseline_synced" => true
+       })}
     )
 
     assert {:error, typed_error} = ProjectScope.resolve("project-missing-path")
@@ -84,18 +78,16 @@ defmodule JidoCode.CodeServer.ProjectScopeTest do
   end
 
   test "returns readiness remediation and workspace error context when baseline sync is blocked" do
-    ProjectReaderFake.put_read_result(
+    ProjectReaderFake.put_repo_scope_result(
       {:ok,
-       [
-         project_fixture("project-blocked", %{
-           "workspace_environment" => "local",
-           "clone_status" => "error",
-           "workspace_initialized" => true,
-           "baseline_synced" => false,
-           "last_error_type" => "baseline_sync_unavailable",
-           "retry_instructions" => "Retry step 7 after baseline sync is repaired."
-         })
-       ]}
+       scope_fixture("managed-repo-blocked", %{
+         "workspace_environment" => "local",
+         "clone_status" => "error",
+         "workspace_initialized" => true,
+         "baseline_synced" => false,
+         "last_error_type" => "baseline_sync_unavailable",
+         "retry_instructions" => "Retry step 7 after baseline sync is repaired."
+       })}
     )
 
     assert {:error, typed_error} = ProjectScope.resolve("project-blocked")
@@ -105,10 +97,13 @@ defmodule JidoCode.CodeServer.ProjectScopeTest do
     assert typed_error.remediation =~ "Retry step 7"
   end
 
-  defp project_fixture(project_id, workspace_settings) do
+  defp scope_fixture(managed_repo_id, workspace_settings) do
     %{
-      id: project_id,
-      settings: %{"workspace" => workspace_settings}
+      managed_repo_id: managed_repo_id,
+      managed_repo: %{
+        id: managed_repo_id,
+        workspace_settings: workspace_settings
+      }
     }
   end
 

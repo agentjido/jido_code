@@ -276,15 +276,15 @@ defmodule JidoCode.Operations.Synthesis do
 
       {"project_detail", "project_detail_workflow_kickoff", "fix_failing_tests"} ->
         {"operator_work_request", :high, :high, "launch_fix_workflow",
-         "Project detail requested fix workflow launch for a managed repository."}
+         "Repo detail requested fix workflow launch for a managed repository."}
 
       {"project_detail", "project_detail_workflow_kickoff", "issue_triage"} ->
         {"operator_work_request", :high, :high, "launch_issue_triage_workflow",
-         "Project detail requested issue triage workflow launch for a managed repository."}
+         "Repo detail requested issue triage workflow launch for a managed repository."}
 
       {"project_detail", "project_detail_workflow_kickoff", _workflow_name} ->
         {"operator_work_request", :medium, :medium, "review_operator_request",
-         "Project detail requested managed-repository work that should be reviewed before execution."}
+         "Repo detail requested managed-repository work that should be reviewed before execution."}
 
       {"conversation", "coding_turn_request", _workflow_name} ->
         {"conversation_work_request", :high, :high, "review_operator_request",

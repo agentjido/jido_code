@@ -51,8 +51,8 @@ defmodule JidoCodeWeb.LiveVueComponentsTest do
       })
 
     assert html =~ "Interactive summary temporarily unavailable"
-    assert html =~ "server-rendered compatibility mode"
-    assert html =~ "Compatibility mode reason: Asset manifest unavailable"
+    assert html =~ "server-rendered fallback mode"
+    assert html =~ "Fallback mode reason: Asset manifest unavailable"
     refute html =~ ~s(phx-hook="VueHook")
   end
 

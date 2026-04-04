@@ -9,7 +9,7 @@ records for managed repositories.
 id: architecture.repo_posture
 kind: feature
 status: active
-summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, and evidence instead of hiding trust state inside opaque service logic.
+summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, and canonical managed-repository scope instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.jido_os_public_turn_runtime_adoption
@@ -93,6 +93,11 @@ surface:
 
 - id: architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
   statement: When posture-relevant operator demand enters through normalized ingress, requested-by actor identity shall remain explainable through persisted source metadata so posture and review-burden explanations do not depend on raw transient entrypoint payloads.
+  priority: should
+  stability: evolving
+
+- id: architecture.repo_posture.canonical_repo_scope_remains_explainable_for_posture_inputs
+  statement: When posture-relevant demand or runtime outcomes enter through canonical repo provisioning and repo-scope resolution, posture refresh shall keep managed-repository identity explainable without requiring fallback project-record repair.
   priority: should
   stability: evolving
 
@@ -183,6 +188,7 @@ surface:
   target: lib/jido_code/operations/ingress.ex
   covers:
     - architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
+    - architecture.repo_posture.canonical_repo_scope_remains_explainable_for_posture_inputs
 
 - kind: source_file
   target: lib/jido_code/governance/repo_posture.ex

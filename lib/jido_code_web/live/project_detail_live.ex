@@ -188,7 +188,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       <section class="space-y-2">
         <h1 id="project-detail-title" class="text-2xl font-bold">Managed repo detail</h1>
         <p class="text-base-content/70">
-          Launch builtin workflows from the managed-repository control view while preserving project compatibility routes.
+          Launch builtin workflows from the managed-repository control view with governed run traceability.
         </p>
       </section>
 

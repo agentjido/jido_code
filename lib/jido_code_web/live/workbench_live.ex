@@ -40,7 +40,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   ]
 
   @sort_order_options [
-    {"Project name (A-Z)", "project_name_asc"},
+    {"Repository name (A-Z)", "project_name_asc"},
     {"Backlog size (highest first)", "backlog_desc"},
     {"Backlog size (lowest first)", "backlog_asc"},
     {"Recent activity (most recent first)", "recent_activity_desc"},
@@ -397,7 +397,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
                       link_id={"workbench-project-issues-project-link-#{project.id}"}
                       disabled_id={"workbench-project-issues-project-disabled-#{project.id}"}
                       reason_id={"workbench-project-issues-project-disabled-reason-#{project.id}"}
-                      label="Project detail"
+                      label="Repo detail"
                       target={project_detail_path(project, @filter_values)}
                       disabled_reason={project_detail_unavailable_reason()}
                     />
@@ -470,7 +470,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
                       link_id={"workbench-project-prs-project-link-#{project.id}"}
                       disabled_id={"workbench-project-prs-project-disabled-#{project.id}"}
                       reason_id={"workbench-project-prs-project-disabled-reason-#{project.id}"}
-                      label="Project detail"
+                      label="Repo detail"
                       target={project_detail_path(project, @filter_values)}
                       disabled_reason={project_detail_unavailable_reason()}
                     />
@@ -908,13 +908,13 @@ defmodule JidoCodeWeb.WorkbenchLive do
     project_label =
       case Map.fetch!(filter_values, "project_id") do
         @default_project_filter_value ->
-          "All projects"
+          "All repositories"
 
         project_id ->
           rows
           |> Enum.find(fn row -> Map.get(row, :id) == project_id end)
           |> case do
-            nil -> "All projects"
+            nil -> "All repositories"
             row -> row |> Map.get(:github_full_name) |> normalize_optional_string() || project_id
           end
       end
@@ -937,7 +937,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
         option_label(
           @sort_order_options,
           Map.fetch!(filter_values, "sort_order"),
-          "Project name (A-Z)"
+          "Repository name (A-Z)"
         )
     }
   end
@@ -1135,7 +1135,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
       |> Enum.uniq_by(fn {_label, value} -> value end)
       |> Enum.sort_by(fn {label, _value} -> String.downcase(label) end)
 
-    [{"All projects", @default_project_filter_value} | dynamic_options]
+    [{"All repositories", @default_project_filter_value} | dynamic_options]
   end
 
   defp work_state_filter_options, do: @work_state_filter_options
@@ -1143,8 +1143,8 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp sort_order_options, do: @sort_order_options
   defp to_filter_form(filter_values), do: to_form(filter_values, as: :filters)
 
-  defp empty_state_message(0), do: "No imported projects available yet."
-  defp empty_state_message(_inventory_total_count), do: "No projects match the active filters."
+  defp empty_state_message(0), do: "No imported repositories available yet."
+  defp empty_state_message(_inventory_total_count), do: "No repositories match the active filters."
 
   defp map_get(map, string_key, atom_key) do
     cond do
@@ -1308,7 +1308,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp run_detail_path(project_id, run_id) do
     normalized_project_id = normalize_optional_string(project_id) || "unknown-project"
     normalized_run_id = normalize_optional_string(run_id) || "unknown-run"
-    "/projects/#{URI.encode(normalized_project_id)}/runs/#{URI.encode(normalized_run_id)}"
+    "/repos/#{URI.encode(normalized_project_id)}/runs/#{URI.encode(normalized_run_id)}"
   end
 
   defp refresh_project_row(socket, project_row) when is_map(project_row) do
@@ -1656,7 +1656,7 @@ defmodule JidoCodeWeb.WorkbenchLive do
         nil
 
       project_id ->
-        base_path = "/projects/#{URI.encode(project_id)}"
+        base_path = "/repos/#{URI.encode(project_id)}"
         return_to = workbench_path_with_filter_values(normalize_filter_values(filter_values))
 
         if return_to == "/workbench" do
@@ -1733,5 +1733,5 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp normalize_optional_datetime(_value), do: nil
 
   defp github_url_unavailable_reason, do: "GitHub repository URL is unavailable for this row."
-  defp project_detail_unavailable_reason, do: "Project detail link is unavailable for this row."
+  defp project_detail_unavailable_reason, do: "Repo detail link is unavailable for this row."
 end

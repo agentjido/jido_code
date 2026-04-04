@@ -2,7 +2,7 @@ defmodule JidoCode.Setup.ProjectImportTest do
   # covers: setup.onboarding.repo_source_per_project
   use JidoCode.DataCase, async: false
 
-  alias JidoCode.Projects.Project
+  alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
   alias JidoCode.Setup.ProjectImport
 
   @managed_env_keys [
@@ -29,7 +29,7 @@ defmodule JidoCode.Setup.ProjectImportTest do
     :ok
   end
 
-  test "run/3 creates project records with source identity and default_branch metadata" do
+  test "run/3 provisions canonical repo records with source identity and default_branch metadata" do
     onboarding_state = %{
       "4" => %{
         "github_credentials" => %{
@@ -61,25 +61,28 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert report.baseline_metadata.synced_branch == "develop"
     assert %DateTime{} = report.baseline_metadata.last_synced_at
 
-    {:ok, [project]} =
-      Project.read(query: [filter: [source_kind: :github, source_identifier: "owner/repo-one"], limit: 1])
+    {:ok, source_repo} =
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
 
-    assert project.source_kind == :github
-    assert project.source_identifier == "owner/repo-one"
-    assert project.github_full_name == "owner/repo-one"
-    assert project.default_branch == "develop"
-    assert project.settings["workspace"]["clone_status"] == "ready"
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
 
-    assert Enum.map(project.settings["workspace"]["clone_status_history"], & &1["status"]) == [
+    assert report.project_record.id == managed_repo.id
+    assert source_repo.full_name == "owner/repo-one"
+    assert source_repo.default_branch == "develop"
+    assert managed_repo.display_name == "repo-one"
+    assert managed_repo.workspace_settings["clone_status"] == "ready"
+
+    assert Enum.map(managed_repo.workspace_settings["clone_status_history"], & &1["status"]) == [
              "pending",
              "cloning",
              "ready"
            ]
 
-    assert is_binary(project.settings["workspace"]["last_synced_at"])
+    assert is_binary(managed_repo.workspace_settings["last_synced_at"])
   end
 
-  test "run/3 does not create duplicate project records for repeat imports" do
+  test "run/3 does not create duplicate managed repo records for repeat imports" do
     onboarding_state = %{
       "4" => %{
         "github_credentials" => %{
@@ -101,8 +104,15 @@ defmodule JidoCode.Setup.ProjectImportTest do
     assert first_report.project_record.import_mode == :created
     assert second_report.project_record.import_mode == :existing
 
-    {:ok, projects} = Project.read(query: [filter: [github_full_name: "owner/repo-one"]])
-    assert length(projects) == 1
+    {:ok, source_repos} =
+      SourceRepo.read(query: [filter: [full_name: "owner/repo-one"]], actor: Actor.operator_actor())
+
+    {:ok, managed_repos} =
+      ManagedRepo.read(query: [sort: [inserted_at: :asc]], actor: Actor.operator_actor())
+
+    assert length(source_repos) == 1
+    assert length(managed_repos) == 1
+    assert first_report.project_record.id == second_report.project_record.id
   end
 
   test "run/3 reports typed persistence failure and does not expose partial project state" do
@@ -128,12 +138,18 @@ defmodule JidoCode.Setup.ProjectImportTest do
 
     assert ProjectImport.blocked?(report)
     assert report.status == :blocked
-    assert report.error_type == "project_persistence_create_failed"
+    assert report.error_type == "repo_persistence_upsert_failed"
     assert report.project_record == nil
     assert report.baseline_metadata == nil
 
-    {:ok, projects} = Project.read(query: [filter: [github_full_name: "owner/repo-one"]])
-    assert projects == []
+    {:ok, source_repos} =
+      SourceRepo.read(query: [filter: [full_name: "owner/repo-one"]], actor: Actor.operator_actor())
+
+    {:ok, managed_repos} =
+      ManagedRepo.read(query: [sort: [inserted_at: :asc]], actor: Actor.operator_actor())
+
+    assert source_repos == []
+    assert managed_repos == []
   end
 
   test "run/3 marks clone status error with retry remediation when baseline sync fails" do
@@ -170,12 +186,15 @@ defmodule JidoCode.Setup.ProjectImportTest do
              :error
            ]
 
-    {:ok, [project]} =
-      Project.read(query: [filter: [github_full_name: "owner/repo-one"], limit: 1])
+    {:ok, source_repo} =
+      SourceRepo.get_by_provider_and_full_name(:github, "owner/repo-one", actor: Actor.operator_actor())
 
-    assert project.settings["workspace"]["clone_status"] == "error"
-    assert project.settings["workspace"]["last_error_type"] == "baseline_sync_unavailable"
-    assert project.settings["workspace"]["retry_instructions"] =~ "Retry step 7"
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_source_repo_id(source_repo.id, actor: Actor.operator_actor())
+
+    assert managed_repo.workspace_settings["clone_status"] == "error"
+    assert managed_repo.workspace_settings["last_error_type"] == "baseline_sync_unavailable"
+    assert managed_repo.workspace_settings["retry_instructions"] =~ "Retry step 7"
   end
 
   defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)

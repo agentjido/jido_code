@@ -6,8 +6,7 @@ defmodule JidoCode.Setup.ProjectImport do
   Imports the selected repository during setup step 7 and initializes baseline project metadata.
   """
 
-  alias JidoCode.Control.Actor
-  alias JidoCode.Projects.Project
+  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
   alias JidoCode.Operations.Ingress
 
   @default_selection_remediation "Select one of the repositories validated in step 4 and retry import."
@@ -332,7 +331,9 @@ defmodule JidoCode.Setup.ProjectImport do
            project_id: map_get(project, :id, "id"),
            payload: %{
              "selected_repository" => selected_repository,
-             "project_name" => map_get(project, :name, "name"),
+             "project_name" =>
+               map_get(project, :display_name, "display_name") ||
+                 map_get(project, :name, "name"),
              "default_branch" => default_branch
            },
            source_metadata: %{
@@ -793,43 +794,23 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp ensure_project_record(name, selected_repository, default_branch) do
-    case Project.read(
-           query: [filter: [source_kind: :github, source_identifier: selected_repository], limit: 1],
-           actor: @project_actor
-         ) do
-      {:ok, [existing_project | _]} ->
-        update_attributes = %{
-          name: name,
-          default_branch: default_branch
-        }
+    import_mode =
+      case RepoBridge.repo_scope(selected_repository) do
+        {:ok, %{managed_repo: %ManagedRepo{}}} -> :existing
+        _other -> :created
+      end
 
-        case Project.update(existing_project, update_attributes, actor: @project_actor) do
-          {:ok, updated_project} ->
-            {:ok, updated_project, :existing}
-
-          {:error, reason} ->
-            {:error, {"project_persistence_update_failed", format_reason(reason)}}
-        end
-
-      {:ok, []} ->
-        create_attributes = %{
-          name: name,
-          source_kind: :github,
-          source_identifier: selected_repository,
-          github_full_name: selected_repository,
-          default_branch: default_branch
-        }
-
-        case Project.create(create_attributes, actor: @project_actor) do
-          {:ok, project} ->
-            {:ok, project, :created}
-
-          {:error, reason} ->
-            {:error, {"project_persistence_create_failed", format_reason(reason)}}
-        end
+    case RepoBridge.upsert_managed_repo(%{
+           name: name,
+           full_name: selected_repository,
+           default_branch: default_branch,
+           workspace_settings: %{}
+         }) do
+      {:ok, %{managed_repo: %ManagedRepo{} = managed_repo}} ->
+        {:ok, managed_repo, import_mode}
 
       {:error, reason} ->
-        {:error, {"project_persistence_lookup_failed", format_reason(reason)}}
+        {:error, {"repo_persistence_upsert_failed", format_reason(reason)}}
     end
   end
 
@@ -865,29 +846,38 @@ defmodule JidoCode.Setup.ProjectImport do
   end
 
   defp project_record(project, import_mode, imported_at) when is_map(project) do
-    workspace_settings = project_workspace_settings(project)
-    github_full_name = project |> map_get(:github_full_name, "github_full_name") |> normalize_optional_string()
-    local_path = project |> map_get(:local_path, "local_path") |> normalize_optional_string()
-    source_kind = project |> map_get(:source_kind, "source_kind", :github) |> normalize_source_kind(:github)
+    scope = repo_scope_for_record(project)
+    managed_repo = map_get(scope, :managed_repo, "managed_repo", project)
+    source_repo = map_get(scope, :source_repo, "source_repo", %{})
+    workspace_settings = project_workspace_settings(managed_repo)
+    github_full_name = source_repo |> map_get(:full_name, "full_name") |> normalize_optional_string()
+    local_path = nil
+    source_kind = :github
 
     source_identifier =
-      project
-      |> map_get(:source_identifier, "source_identifier")
-      |> normalize_optional_string()
-      |> case do
-        nil -> github_full_name || local_path || project |> map_get(:id, "id") |> to_string()
-        identifier -> identifier
-      end
+      github_full_name ||
+        source_repo
+        |> map_get(:id, "id")
+        |> normalize_optional_string() ||
+        managed_repo
+        |> map_get(:id, "id")
+        |> normalize_optional_string()
 
     %{
-      id: project |> map_get(:id, "id") |> to_string(),
-      name: project |> map_get(:name, "name") |> to_string(),
+      id:
+        managed_repo
+        |> map_get(:id, "id")
+        |> to_string(),
+      name:
+        managed_repo
+        |> map_get(:display_name, "display_name")
+        |> to_string(),
       source_kind: source_kind,
       source_identifier: source_identifier,
       github_full_name: github_full_name,
       local_path: local_path,
       default_branch:
-        project
+        source_repo
         |> map_get(:default_branch, "default_branch", @default_branch)
         |> to_string(),
       import_mode: normalize_import_mode(import_mode, :existing),
@@ -966,13 +956,7 @@ defmodule JidoCode.Setup.ProjectImport do
         )
       end
 
-    updated_settings =
-      project
-      |> map_get(:settings, "settings", %{})
-      |> normalize_keyed_map()
-      |> Map.put("workspace", workspace_settings)
-
-    case Project.update(project, %{settings: updated_settings}, actor: @project_actor) do
+    case ManagedRepo.update(project, %{workspace_settings: workspace_settings}, actor: @project_actor) do
       {:ok, updated_project} ->
         {:ok, updated_project}
 
@@ -987,11 +971,27 @@ defmodule JidoCode.Setup.ProjectImport do
 
   defp project_workspace_settings(project) do
     project
-    |> map_get(:settings, "settings", %{})
-    |> normalize_keyed_map()
-    |> Map.get("workspace", %{})
+    |> map_get(:workspace_settings, "workspace_settings", %{})
     |> normalize_keyed_map()
   end
+
+  defp repo_scope_for_record(project) when is_map(project) do
+    project
+    |> map_get(:id, "id")
+    |> normalize_optional_string()
+    |> case do
+      nil ->
+        %{}
+
+      identifier ->
+        case RepoBridge.repo_scope(identifier) do
+          {:ok, scope} -> scope
+          {:error, _reason} -> %{}
+        end
+    end
+  end
+
+  defp repo_scope_for_record(_project), do: %{}
 
   defp normalize_clone_result(clone_result, workspace_context) when is_map(clone_result) do
     workspace_environment =

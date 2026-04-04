@@ -150,7 +150,7 @@ defmodule JidoCode.Workbench.FixWorkflowKickoff do
          context_item_type: Map.fetch!(context_item, :type),
          context_item_label: Map.fetch!(context_item, :label),
          context_item_url: Map.get(context_item, :github_url),
-         detail_path: "/projects/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
          started_at: started_at
        }}
     else

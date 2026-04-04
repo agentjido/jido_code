@@ -13,7 +13,7 @@ Back to index: [README](./README.md)
 - `JidoCode.Governance`
 - `JidoCode.Governance.PostureBridge`
 - `JidoCode.Governance.RunGovernanceBridge`
-- `JidoCode.Control.CompatibilityRollout`
+- `JidoCode.Governance.RuntimeEvidenceFeed`
 - operator-facing dashboard and run-detail surfaces
 
 ## Relevant Assumptions / Defaults

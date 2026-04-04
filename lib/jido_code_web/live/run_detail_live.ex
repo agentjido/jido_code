@@ -132,7 +132,7 @@ defmodule JidoCodeWeb.RunDetailLive do
          |> assign(:retry_action_error, nil)
          |> assign(:approval_action_error, nil)
          |> put_flash(:info, "Full-run retry started as #{retried_run.run_id}.")
-         |> push_navigate(to: ~p"/projects/#{socket.assigns.project_id}/runs/#{retried_run.run_id}")}
+         |> push_navigate(to: ~p"/repos/#{socket.assigns.project_id}/runs/#{retried_run.run_id}")}
 
       {:error, typed_failure} ->
         {:noreply,
@@ -157,7 +157,7 @@ defmodule JidoCodeWeb.RunDetailLive do
            :info,
            "Step-level retry started at #{retried_run.current_step} as #{retried_run.run_id}."
          )
-         |> push_navigate(to: ~p"/projects/#{socket.assigns.project_id}/runs/#{retried_run.run_id}")}
+         |> push_navigate(to: ~p"/repos/#{socket.assigns.project_id}/runs/#{retried_run.run_id}")}
 
       {:error, typed_failure} ->
         {:noreply,

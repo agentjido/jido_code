@@ -73,7 +73,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
 
     assert has_element?(
              view,
-             "#workflows-run-feedback-run-link[href='/projects/#{project.id}/runs/run-manual-123']"
+             "#workflows-run-feedback-run-link[href='/repos/#{project.id}/runs/run-manual-123']"
            )
 
     assert has_element?(view, "#workflows-run-id-run-manual-123", "run-manual-123")
@@ -84,7 +84,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
 
     assert has_element?(
              view,
-             "#workflows-run-detail-link-run-manual-123[href='/projects/#{project.id}/runs/run-manual-123']"
+             "#workflows-run-detail-link-run-manual-123[href='/repos/#{project.id}/runs/run-manual-123']"
            )
 
     refute has_element?(view, "#workflows-runs-empty-state")

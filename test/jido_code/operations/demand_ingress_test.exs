@@ -171,8 +171,11 @@ defmodule JidoCode.Operations.DemandIngressTest do
 
     refute ProjectImport.blocked?(report)
 
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(report.project_record.id, actor: Actor.operator_actor())
+    {:ok, [managed_repo]} =
+      ManagedRepo.read(
+        query: [filter: [id: report.project_record.id], limit: 1],
+        actor: Actor.operator_actor()
+      )
 
     assert {:ok, [intake]} =
              Intake.read(

@@ -1,6 +1,6 @@
 defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
   @moduledoc """
-  Validates and launches workflow runs from project detail route controls.
+  Validates and launches workflow runs from repo detail route controls.
   """
 
   alias JidoCode.Operations.Ingress
@@ -11,11 +11,11 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
   @workflow_unsupported_error_type "project_detail_workflow_unsupported"
 
   @validation_remediation """
-  Verify project detail metadata and retry workflow launch from `/projects/:id`.
+  Verify repo detail metadata and retry workflow launch from `/repos/:id`.
   """
 
   @launcher_remediation """
-  Verify workflow runtime setup and retry kickoff from project detail.
+  Verify workflow runtime setup and retry kickoff from repo detail.
   """
 
   @supported_workflows [
@@ -134,12 +134,12 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
          execution_readiness: execution_readiness
        }}
     else
-      {:error, validation_error("Project detail is missing a durable project identifier.")}
+      {:error, validation_error("Repo detail is missing a durable repository identifier.")}
     end
   end
 
   defp normalize_project_scope(_project_detail) do
-    {:error, validation_error("Project detail context is unavailable for workflow launch.")}
+    {:error, validation_error("Repo detail context is unavailable for workflow launch.")}
   end
 
   defp ensure_project_ready(project_scope) do
@@ -176,7 +176,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
         {:error,
          kickoff_error(
            @workflow_unsupported_error_type,
-           "Workflow #{inspect(workflow_name)} is not supported from project detail controls.",
+           "Workflow #{inspect(workflow_name)} is not supported from repo detail controls.",
            @validation_remediation
          )}
     end
@@ -235,7 +235,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
       source: "project_detail",
       mode: "manual",
       source_row: %{
-        route: "/projects/#{project_id}",
+        route: "/repos/#{project_id}",
         project_id: project_id
       },
       policy: %{
@@ -249,7 +249,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
       source: "project_detail",
       mode: "manual",
       source_row: %{
-        route: "/projects/#{project_id}",
+        route: "/repos/#{project_id}",
         project_id: project_id
       }
     }
@@ -305,7 +305,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
       {:error,
        kickoff_error(
          @default_error_type,
-         "Project detail launcher configuration is invalid for #{Map.fetch!(workflow_definition, :name)}.",
+         "Repo detail launcher configuration is invalid for #{Map.fetch!(workflow_definition, :name)}.",
          @launcher_remediation
        )}
     end
@@ -324,7 +324,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
           {:error,
            kickoff_error(
              @default_error_type,
-             "Project detail launcher returned an invalid result (#{inspect(other)}).",
+             "Repo detail launcher returned an invalid result (#{inspect(other)}).",
              @launcher_remediation
            )}
       end
@@ -333,7 +333,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
         {:error,
          kickoff_error(
            @default_error_type,
-           "Project detail launcher crashed (#{Exception.message(exception)}).",
+           "Repo detail launcher crashed (#{Exception.message(exception)}).",
            @launcher_remediation
          )}
     catch
@@ -341,7 +341,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
         {:error,
          kickoff_error(
            @default_error_type,
-           "Project detail launcher threw #{inspect({kind, reason})}.",
+           "Repo detail launcher threw #{inspect({kind, reason})}.",
            @launcher_remediation
          )}
     end
@@ -368,14 +368,14 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
          project_defaults: Map.fetch!(kickoff_request, :project_defaults),
          trigger: Map.fetch!(kickoff_request, :trigger),
          initiating_actor: Map.fetch!(kickoff_request, :initiating_actor),
-         detail_path: "/projects/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
          started_at: started_at
        }}
     else
       {:error,
        kickoff_error(
          @default_error_type,
-         "Project detail workflow kickoff did not return a run identifier.",
+         "Repo detail workflow kickoff did not return a run identifier.",
          @launcher_remediation
        )}
     end
@@ -399,7 +399,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
   defp normalize_error(error) do
     kickoff_error(
       map_get(error, :error_type, "error_type", @default_error_type),
-      map_get(error, :detail, "detail", "Project detail workflow kickoff failed."),
+      map_get(error, :detail, "detail", "Repo detail workflow kickoff failed."),
       map_get(error, :remediation, "remediation", @launcher_remediation)
     )
   end
@@ -407,7 +407,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
   defp intake_error(reason) do
     kickoff_error(
       "project_detail_workflow_intake_record_failed",
-      "Project detail workflow kickoff could not be normalized into a durable intake (#{inspect(reason)}).",
+      "Repo detail workflow kickoff could not be normalized into a durable intake (#{inspect(reason)}).",
       @launcher_remediation
     )
   end
@@ -415,7 +415,7 @@ defmodule JidoCode.Workbench.ProjectDetailWorkflowKickoff do
   defp kickoff_error(error_type, detail, remediation) do
     %{
       error_type: normalize_optional_string(error_type) || @default_error_type,
-      detail: normalize_optional_string(detail) || "Project detail workflow kickoff failed.",
+      detail: normalize_optional_string(detail) || "Repo detail workflow kickoff failed.",
       remediation: normalize_optional_string(remediation) || @launcher_remediation
     }
   end

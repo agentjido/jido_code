@@ -80,7 +80,7 @@ defmodule JidoCodeWeb.LiveVueComponents do
         <p class="font-semibold">{@fallback_title}</p>
         <p class="text-sm text-base-content/80">{@fallback_detail}</p>
         <p :if={@delivery.reason} class="text-xs text-base-content/70">
-          Compatibility mode reason: {humanize_reason(@delivery.reason)}
+          Fallback mode reason: {humanize_reason(@delivery.reason)}
         </p>
         {render_slot(@inner_block)}
       </section>

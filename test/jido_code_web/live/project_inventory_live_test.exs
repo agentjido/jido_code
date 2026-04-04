@@ -5,7 +5,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
 
   alias JidoCode.Projects.Project
 
-  test "supports project search and filtering on /projects and preserves query context in project links",
+  test "supports repo search and filtering on /repos and preserves query context in repo links",
        %{conn: _conn} do
     register_owner("owner@example.com", "owner-password-123")
 
@@ -36,7 +36,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
         settings: %{}
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos", on_error: :warn)
 
     assert has_element?(view, "#project-inventory-table")
     assert has_element?(view, "#project-inventory-github-full-name-#{project_alpha.id}", "owner/repo-alpha")
@@ -52,7 +52,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
       }
     })
 
-    inventory_state_path = "/projects?search=beta&default_branch=release"
+    inventory_state_path = "/repos?search=beta&default_branch=release"
     assert_patch(view, inventory_state_path)
 
     refute has_element?(view, "#project-inventory-github-full-name-#{project_alpha.id}")
@@ -64,7 +64,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
 
     assert has_element?(
              view,
-             "#project-inventory-open-#{project_beta.id}[href='/projects/#{project_beta.id}?return_to=#{encoded_return_to}']"
+             "#project-inventory-open-#{project_beta.id}[href='/repos/#{project_beta.id}?return_to=#{encoded_return_to}']"
            )
   end
 
@@ -90,7 +90,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
         settings: %{}
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos", on_error: :warn)
 
     view
     |> element("#project-inventory-filters-form")
@@ -101,7 +101,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
       }
     })
 
-    assert_patch(view, "/projects?search=alpha&default_branch=main")
+    assert_patch(view, "/repos?search=alpha&default_branch=main")
     assert has_element?(view, "#project-inventory-github-full-name-#{project_alpha.id}", "owner/repo-alpha")
     refute has_element?(view, "#project-inventory-github-full-name-#{project_beta.id}")
 
@@ -114,7 +114,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
       }
     })
 
-    assert_patch(view, "/projects")
+    assert_patch(view, "/repos")
     assert has_element?(view, "#project-inventory-github-full-name-#{project_alpha.id}", "owner/repo-alpha")
     assert has_element?(view, "#project-inventory-github-full-name-#{project_beta.id}", "owner/repo-beta")
     assert has_element?(view, "#project-inventory-results-count", "Showing 2 of 2")
@@ -144,7 +144,7 @@ defmodule JidoCodeWeb.ProjectInventoryLiveTest do
       })
 
     invalid_path =
-      "/projects?" <>
+      "/repos?" <>
         URI.encode_query(%{
           "search" => "<script>alert('x')</script>",
           "default_branch" => "unknown-branch"

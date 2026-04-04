@@ -17,7 +17,7 @@ defmodule JidoCodeWeb.PhaseFifteenIntegrationTest do
     :ok
   end
 
-  test "dashboard falls back to bounded liveview compatibility when richer delivery degrades", %{
+  test "dashboard falls back to bounded liveview fallback when richer delivery degrades", %{
     conn: _conn
   } do
     register_owner("phase15-dashboard-owner@example.com", "owner-password-123")
@@ -41,13 +41,13 @@ defmodule JidoCodeWeb.PhaseFifteenIntegrationTest do
     assert has_element?(
              view,
              "#dashboard-run-summary-widget-fallback",
-             "server-rendered compatibility mode"
+             "server-rendered fallback mode"
            )
 
     assert has_element?(
              view,
              "#dashboard-run-summary-widget-fallback",
-             "Compatibility mode reason: Asset manifest unavailable"
+             "Fallback mode reason: Asset manifest unavailable"
            )
 
     assert has_element?(view, "#dashboard-run-summary-fallback", "LiveView detail fallback")
@@ -64,7 +64,7 @@ defmodule JidoCodeWeb.PhaseFifteenIntegrationTest do
     refute html =~ "vite build"
   end
 
-  test "plain liveview routes stay unaffected by frontend compatibility fallback", %{conn: conn} do
+  test "plain liveview routes stay unaffected by frontend fallback delivery", %{conn: conn} do
     Application.put_env(:jido_code, :frontend_assets_override, %{
       mode: :fallback,
       reason: :asset_manifest_unavailable
@@ -75,7 +75,7 @@ defmodule JidoCodeWeb.PhaseFifteenIntegrationTest do
     assert html =~ "Create your admin account"
     assert html =~ "Checking your system"
     refute html =~ "Interactive summary temporarily unavailable"
-    refute html =~ "Compatibility mode reason:"
+    refute html =~ "Fallback mode reason:"
   end
 
   test "repo docs and ci converge on the live vue verification path" do

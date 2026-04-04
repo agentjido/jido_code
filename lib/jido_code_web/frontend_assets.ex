@@ -31,8 +31,8 @@ defmodule JidoCodeWeb.FrontendAssets do
                          "imports" => []
                        }
                      })
-  @compatibility_title "Interactive summary temporarily unavailable"
-  @compatibility_detail "This page is running in server-rendered compatibility mode. Core controls remain available below."
+  @fallback_title "Interactive summary temporarily unavailable"
+  @fallback_detail "This page is running in server-rendered fallback mode. Core controls remain available below."
 
   def vite_manifest do
     case status() do
@@ -115,8 +115,8 @@ defmodule JidoCodeWeb.FrontendAssets do
           mode: :fallback,
           reason: :asset_manifest_unavailable,
           manifest: @fallback_manifest,
-          title: @compatibility_title,
-          detail: @compatibility_detail
+          title: @fallback_title,
+          detail: @fallback_detail
         }
     end
   end
@@ -143,8 +143,8 @@ defmodule JidoCodeWeb.FrontendAssets do
           mode: :fallback,
           reason: override_reason(override, :asset_manifest_unavailable),
           manifest: override_manifest(override, @fallback_manifest),
-          title: override_detail(override, :title, @compatibility_title),
-          detail: override_detail(override, :detail, @compatibility_detail)
+          title: override_detail(override, :title, @fallback_title),
+          detail: override_detail(override, :detail, @fallback_detail)
         }
 
       other ->

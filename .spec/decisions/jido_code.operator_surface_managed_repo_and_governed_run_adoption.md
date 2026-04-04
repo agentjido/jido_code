@@ -37,11 +37,10 @@ in progress.
 Operator-facing surfaces shall prefer the control-plane records now, not later.
 
 The workbench and repo-detail path shall resolve repository context through
-`ManagedRepo` first, while still accepting the existing `/projects/:id` route and
-legacy project identifiers during the coexistence period. Repo detail may also
-resolve a managed-repo identifier directly, but it shall preserve the legacy
-project compatibility id for downstream launch and conversation entrypoints until
-those seams are retired.
+`ManagedRepo` first and use the canonical `/repos/:id` route as the supported
+operator surface. Legacy identifiers may continue to exist internally only where
+they are still required to read older records, but they no longer define the
+supported browser contract.
 
 Dashboard and run-detail views shall prefer governed `Run` records over direct
 `WorkflowRun` assumptions when loading operator-visible run state. Those surfaces
@@ -49,16 +48,14 @@ shall expose first-class governance artifacts such as `Evidence`,
 `ChangeRequest`, and `Decision` instead of forcing operators to infer review state
 from workflow-local maps alone.
 
-This migration is additive and compatibility-preserving. Existing links,
-deep links, and route shapes remain valid while operator language and primary
-record loading shift toward the managed-repo control plane.
+This migration cuts the product over to the managed-repo control plane for
+operator-facing routes, labels, and primary record loading.
 
 ## Consequences
 
 - Operators will see managed-repository and governed-run concepts directly in the
   browser without requiring a route migration first.
-- Compatibility routes remain stable while the implementation underneath them
-  shifts toward the preferred ontology.
+- Canonical `/repos` routes become the only supported operator entrypoints.
 - Run-detail and dashboard surfaces become explainable governance views instead
   of only workflow audit views.
 - Remaining Phase 6 work can harden policy and retire shims from a product surface

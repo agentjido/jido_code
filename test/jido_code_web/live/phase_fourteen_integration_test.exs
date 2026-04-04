@@ -134,7 +134,7 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
     refute has_element?(view, "#workbench-project-name-owner-repo-alpha")
   end
 
-  test "project detail overview reflects the server-owned conversation lifecycle", %{conn: _conn} do
+  test "repo detail overview reflects the server-owned conversation lifecycle", %{conn: _conn} do
     Application.put_env(:jido_code, :code_server_runtime_module, RuntimeFake)
     Application.put_env(:jido_code, :code_server_engine_module, EngineFake)
     Application.put_env(:jido_code, :code_server_conversation_driver_module, DriverFake)
@@ -163,7 +163,7 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
         }
       })
 
-    {:ok, view, _html} = live(recycle(authed_conn), ~p"/projects/#{project.id}", on_error: :warn)
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
 
     widget =
       assert_vue_component(view, "ProjectDetailOverviewWidget", id: "project-detail-overview-widget")
@@ -306,7 +306,7 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
       )
 
     {:ok, view, _html} =
-      live(recycle(authed_conn), ~p"/projects/#{project.id}/runs/#{run_id}", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
 
     widget =
       assert_vue_component(

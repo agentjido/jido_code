@@ -1,30 +1,55 @@
 defmodule JidoCode.Control.RepoBridge do
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
-  # covers: architecture.factory_control_plane.compatibility_rollout_backfills_legacy_repo_records
   @moduledoc """
-  Keeps the transitional `Project` resource mirrored into control-plane repo resources.
+  Canonical managed-repository provisioning and scope resolution for product code.
+
+  The module name remains stable for existing call sites, but greenfield setup and
+  runtime entrypoints now resolve repository scope through `SourceRepo` and
+  `ManagedRepo` directly instead of repairing that scope from older `Project`
+  records on demand.
   """
 
   alias JidoCode.Control.{Actor, ManagedRepo, SourceRepo}
   alias JidoCode.Governance.{PolicyBridge, PostureBridge}
   alias JidoCode.Operations.RepoNativeState
-  alias JidoCode.Projects.Project
 
   @execution_setting_keys ["execution", "workflow"]
+  @provisioning_actor Actor.factory_system_actor()
   @read_actor Actor.operator_actor()
 
-  @spec sync_project(struct() | map()) :: {:ok, ManagedRepo.t()} | {:error, term()}
-  def sync_project(%{} = project) do
-    with {:ok, source_repo_attrs} <- source_repo_attrs(project),
-         {:ok, source_repo} <- SourceRepo.upsert_identity(source_repo_attrs, actor: Actor.factory_system_actor()),
+  @type scope :: %{
+          route_id: String.t(),
+          repo_id: String.t() | nil,
+          project_id: String.t() | nil,
+          managed_repo_id: String.t() | nil,
+          source_repo_id: String.t() | nil,
+          project: nil,
+          managed_repo: ManagedRepo.t() | nil,
+          source_repo: SourceRepo.t() | nil
+        }
+
+  @spec upsert_managed_repo(map()) ::
+          {:ok, %{managed_repo: ManagedRepo.t(), source_repo: SourceRepo.t()}} | {:error, term()}
+  def upsert_managed_repo(%{} = attrs) do
+    with {:ok, source_repo_attrs} <- source_repo_attrs(attrs),
+         {:ok, source_repo} <- SourceRepo.upsert_identity(source_repo_attrs, actor: @provisioning_actor),
          {:ok, managed_repo} <-
-           ManagedRepo.upsert_projection(
-             managed_repo_attrs(project, source_repo),
-             actor: Actor.factory_system_actor()
+           ManagedRepo.upsert_identity(
+             managed_repo_attrs(attrs, source_repo),
+             actor: @provisioning_actor
            ),
          {:ok, _policy_set} <- PolicyBridge.sync_managed_repo(managed_repo),
          {:ok, _repo_native_state} <- RepoNativeState.sync_managed_repo(managed_repo),
          {:ok, _repo_posture} <- PostureBridge.sync_managed_repo(managed_repo) do
+      {:ok, %{managed_repo: managed_repo, source_repo: source_repo}}
+    end
+  end
+
+  def upsert_managed_repo(_attrs), do: {:error, :invalid_repo_attrs}
+
+  @spec sync_project(struct() | map()) :: {:ok, ManagedRepo.t()} | {:error, term()}
+  def sync_project(%{} = project) do
+    with {:ok, %{managed_repo: managed_repo}} <- upsert_managed_repo(project) do
       {:ok, managed_repo}
     end
   end
@@ -32,43 +57,19 @@ defmodule JidoCode.Control.RepoBridge do
   def sync_project(_project), do: {:error, :invalid_project}
 
   @spec managed_repo_for_project(term()) :: {:ok, ManagedRepo.t()} | {:error, term()}
-  def managed_repo_for_project(project_id) when is_binary(project_id) do
-    case ManagedRepo.get_by_legacy_project_id(project_id, actor: Actor.factory_system_actor()) do
-      {:ok, %ManagedRepo{} = managed_repo} ->
-        {:ok, managed_repo}
-
-      {:ok, nil} ->
-        with {:ok, %Project{} = project} <- fetch_project_by_id(project_id),
-             {:ok, %ManagedRepo{} = managed_repo} <- sync_project(project) do
-          {:ok, managed_repo}
-        else
-          {:error, reason} -> {:error, reason}
-        end
-
-      {:error, _reason} ->
-        with {:ok, %Project{} = project} <- fetch_project_by_id(project_id),
-             {:ok, %ManagedRepo{} = managed_repo} <- sync_project(project) do
-          {:ok, managed_repo}
-        else
-          {:error, reason} -> {:error, reason}
-        end
+  def managed_repo_for_project(identifier) when is_binary(identifier) do
+    with {:ok, scope} <- repo_scope(identifier),
+         %ManagedRepo{} = managed_repo <- Map.get(scope, :managed_repo) do
+      {:ok, managed_repo}
+    else
+      nil -> {:error, :managed_repo_not_found}
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  def managed_repo_for_project(_project_id), do: {:error, :invalid_project_id}
+  def managed_repo_for_project(_identifier), do: {:error, :invalid_project_id}
 
-  @spec repo_scope(term()) ::
-          {:ok,
-           %{
-             route_id: String.t(),
-             project_id: String.t() | nil,
-             managed_repo_id: String.t() | nil,
-             source_repo_id: String.t() | nil,
-             project: Project.t() | nil,
-             managed_repo: ManagedRepo.t() | nil,
-             source_repo: SourceRepo.t() | nil
-           }}
-          | {:error, term()}
+  @spec repo_scope(term()) :: {:ok, scope()} | {:error, term()}
   def repo_scope(identifier) do
     with {:ok, normalized_identifier} <- normalize_identifier(identifier),
          {:ok, scope} <- fetch_scope(normalized_identifier) do
@@ -85,27 +86,21 @@ defmodule JidoCode.Control.RepoBridge do
 
   defp fetch_scope(identifier) do
     managed_repo =
-      case fetch_managed_repo_by_id(identifier) do
-        {:ok, %ManagedRepo{} = managed_repo} -> managed_repo
-        _other -> nil
-      end
+      fetch_managed_repo_by_id(identifier) ||
+        fetch_managed_repo_by_source_repo_identifier(identifier) ||
+        fetch_managed_repo_by_legacy_project_id(identifier)
 
-    project =
+    source_repo =
       case managed_repo do
         %ManagedRepo{} = repo ->
-          repo
-          |> map_get(:legacy_project_id, "legacy_project_id")
-          |> fetch_project_by_id()
-          |> case do
-            {:ok, %Project{} = project} -> project
-            _other -> nil
-          end
+          fetch_source_repo_by_id(
+            repo
+            |> map_get(:source_repo_id, "source_repo_id")
+            |> normalize_optional_string()
+          )
 
         nil ->
-          case fetch_project_by_id(identifier) do
-            {:ok, %Project{} = project} -> project
-            _other -> nil
-          end
+          fetch_source_repo_by_identifier(identifier)
       end
 
     managed_repo =
@@ -114,118 +109,154 @@ defmodule JidoCode.Control.RepoBridge do
           repo
 
         nil ->
-          project
+          source_repo
           |> map_get(:id, "id")
           |> normalize_optional_string()
-          |> case do
-            nil -> nil
-            project_id -> managed_repo_for_project(project_id)
-          end
-          |> case do
-            {:ok, %ManagedRepo{} = repo} -> repo
-            _other -> nil
-          end
+          |> fetch_managed_repo_by_source_repo_id()
       end
 
-    source_repo =
-      managed_repo
-      |> map_get(:source_repo_id, "source_repo_id")
-      |> fetch_source_repo_by_id()
-      |> case do
-        {:ok, %SourceRepo{} = source_repo} -> source_repo
-        _other -> nil
-      end
-
-    project_id =
-      project
-      |> map_get(:id, "id")
-      |> normalize_optional_string() ||
-        managed_repo
-        |> map_get(:legacy_project_id, "legacy_project_id")
-        |> normalize_optional_string()
-
-    managed_repo_id =
-      managed_repo
-      |> map_get(:id, "id")
-      |> normalize_optional_string()
-
-    source_repo_id =
-      source_repo
-      |> map_get(:id, "id")
-      |> normalize_optional_string() ||
-        managed_repo
-        |> map_get(:source_repo_id, "source_repo_id")
-        |> normalize_optional_string()
-
-    cond do
-      is_nil(project) and is_nil(managed_repo) ->
+    case {managed_repo, source_repo} do
+      {nil, nil} ->
         {:error, :repo_scope_not_found}
 
-      true ->
+      _other ->
+        managed_repo_id =
+          managed_repo
+          |> map_get(:id, "id")
+          |> normalize_optional_string()
+
+        source_repo_id =
+          source_repo
+          |> map_get(:id, "id")
+          |> normalize_optional_string() ||
+            managed_repo
+            |> map_get(:source_repo_id, "source_repo_id")
+            |> normalize_optional_string()
+
+        legacy_project_id =
+          managed_repo
+          |> map_get(:legacy_project_id, "legacy_project_id")
+          |> normalize_optional_string()
+
+        route_id = managed_repo_id || source_repo_id || identifier
+
         {:ok,
          %{
-           route_id: identifier,
-           project_id: project_id,
+           route_id: route_id,
+           repo_id: route_id,
+           project_id: legacy_project_id,
            managed_repo_id: managed_repo_id,
            source_repo_id: source_repo_id,
-           project: project,
+           project: nil,
            managed_repo: managed_repo,
            source_repo: source_repo
          }}
     end
   end
 
-  defp fetch_project_by_id(project_id) when is_binary(project_id) do
-    case Project.read(query: [filter: [id: project_id], limit: 1], actor: @read_actor) do
-      {:ok, [%Project{} = project | _rest]} -> {:ok, project}
-      {:ok, []} -> {:error, :project_not_found}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp fetch_project_by_id(_project_id), do: {:error, :project_not_found}
-
   defp fetch_managed_repo_by_id(managed_repo_id) when is_binary(managed_repo_id) do
     case ManagedRepo.read(query: [filter: [id: managed_repo_id], limit: 1], actor: @read_actor) do
-      {:ok, [%ManagedRepo{} = managed_repo | _rest]} -> {:ok, managed_repo}
-      {:ok, []} -> {:error, :managed_repo_not_found}
-      {:error, reason} -> {:error, reason}
+      {:ok, [%ManagedRepo{} = managed_repo | _rest]} -> managed_repo
+      _other -> nil
     end
   end
 
-  defp fetch_managed_repo_by_id(_managed_repo_id), do: {:error, :managed_repo_not_found}
+  defp fetch_managed_repo_by_id(_managed_repo_id), do: nil
+
+  defp fetch_managed_repo_by_source_repo_id(source_repo_id) when is_binary(source_repo_id) do
+    case ManagedRepo.get_by_source_repo_id(source_repo_id, actor: @read_actor) do
+      {:ok, %ManagedRepo{} = managed_repo} -> managed_repo
+      _other -> nil
+    end
+  end
+
+  defp fetch_managed_repo_by_source_repo_id(_source_repo_id), do: nil
+
+  defp fetch_managed_repo_by_source_repo_identifier(identifier) when is_binary(identifier) do
+    identifier
+    |> fetch_source_repo_by_identifier()
+    |> map_get(:id, "id")
+    |> normalize_optional_string()
+    |> fetch_managed_repo_by_source_repo_id()
+  end
+
+  defp fetch_managed_repo_by_source_repo_identifier(_identifier), do: nil
+
+  defp fetch_managed_repo_by_legacy_project_id(project_id) when is_binary(project_id) do
+    case ManagedRepo.get_by_legacy_project_id(project_id, actor: @read_actor) do
+      {:ok, %ManagedRepo{} = managed_repo} -> managed_repo
+      _other -> nil
+    end
+  end
+
+  defp fetch_managed_repo_by_legacy_project_id(_project_id), do: nil
+
+  defp fetch_source_repo_by_identifier(identifier) when is_binary(identifier) do
+    fetch_source_repo_by_id(identifier) || fetch_source_repo_by_full_name(identifier)
+  end
+
+  defp fetch_source_repo_by_identifier(_identifier), do: nil
 
   defp fetch_source_repo_by_id(source_repo_id) when is_binary(source_repo_id) do
     case SourceRepo.read(query: [filter: [id: source_repo_id], limit: 1], actor: @read_actor) do
-      {:ok, [%SourceRepo{} = source_repo | _rest]} -> {:ok, source_repo}
-      {:ok, []} -> {:error, :source_repo_not_found}
-      {:error, reason} -> {:error, reason}
+      {:ok, [%SourceRepo{} = source_repo | _rest]} -> source_repo
+      _other -> nil
     end
   end
 
-  defp fetch_source_repo_by_id(_source_repo_id), do: {:error, :source_repo_not_found}
+  defp fetch_source_repo_by_id(_source_repo_id), do: nil
 
-  defp source_repo_attrs(project) do
-    github_full_name =
-      project
-      |> map_get(:github_full_name, "github_full_name")
+  defp fetch_source_repo_by_full_name(full_name) when is_binary(full_name) do
+    case SourceRepo.get_by_provider_and_full_name(:github, full_name, actor: @read_actor) do
+      {:ok, %SourceRepo{} = source_repo} -> source_repo
+      _other -> nil
+    end
+  end
+
+  defp fetch_source_repo_by_full_name(_full_name), do: nil
+
+  defp source_repo_attrs(attrs) do
+    repo_full_name =
+      attrs
+      |> map_get(:full_name, "full_name")
       |> normalize_optional_string()
+      |> fallback_optional_string(
+        attrs
+        |> map_get(:github_full_name, "github_full_name")
+        |> normalize_optional_string()
+      )
+      |> fallback_optional_string(
+        attrs
+        |> map_get(:source_identifier, "source_identifier")
+        |> normalize_optional_string()
+      )
 
     default_branch =
-      project
+      attrs
       |> map_get(:default_branch, "default_branch")
-      |> normalize_optional_string() || "main"
+      |> normalize_optional_string()
+      |> Kernel.||("main")
 
-    case normalize_repo_identity(github_full_name) do
+    provider =
+      attrs
+      |> map_get(:provider, "provider", :github)
+      |> normalize_provider(:github)
+
+    source_metadata =
+      attrs
+      |> map_get(:source_metadata, "source_metadata", %{})
+      |> normalize_map()
+
+    case normalize_repo_identity(repo_full_name) do
       {:ok, owner, name, full_name} ->
         {:ok,
          %{
-           provider: :github,
+           provider: provider,
            owner: owner,
            name: name,
            full_name: full_name,
            default_branch: default_branch,
-           source_metadata: %{}
+           source_metadata: source_metadata
          }}
 
       {:error, reason} ->
@@ -233,35 +264,82 @@ defmodule JidoCode.Control.RepoBridge do
     end
   end
 
-  defp managed_repo_attrs(project, source_repo) do
+  defp managed_repo_attrs(attrs, source_repo) do
     settings =
-      project
+      attrs
       |> map_get(:settings, "settings", %{})
       |> normalize_map()
 
+    explicit_workspace_settings =
+      attrs
+      |> map_get(:workspace_settings, "workspace_settings")
+      |> normalize_optional_map()
+
+    explicit_execution_settings =
+      attrs
+      |> map_get(:execution_settings, "execution_settings")
+      |> normalize_optional_map()
+
+    explicit_integration_settings =
+      attrs
+      |> map_get(:integration_settings, "integration_settings")
+      |> normalize_optional_map()
+
     execution_settings =
-      settings
-      |> Map.take(@execution_setting_keys)
-      |> normalize_map()
+      explicit_execution_settings ||
+        settings
+        |> Map.take(@execution_setting_keys)
+        |> normalize_map()
 
     integration_settings =
-      settings
-      |> Map.drop(["workspace" | Map.keys(execution_settings)])
-      |> normalize_map()
+      explicit_integration_settings ||
+        settings
+        |> Map.drop(["workspace" | Map.keys(execution_settings)])
+        |> normalize_map()
+
+    workspace_settings =
+      explicit_workspace_settings ||
+        settings
+        |> Map.get("workspace", %{})
+        |> normalize_map()
+
+    legacy_project_id =
+      attrs
+      |> map_get(:legacy_project_id, "legacy_project_id")
+      |> normalize_optional_string()
+      |> fallback_optional_string(
+        attrs
+        |> map_get(:id, "id")
+        |> normalize_optional_string()
+      )
+
+    display_name =
+      attrs
+      |> map_get(:display_name, "display_name")
+      |> normalize_optional_string()
+      |> fallback_optional_string(
+        attrs
+        |> map_get(:name, "name")
+        |> normalize_optional_string()
+      )
+      |> fallback_optional_string(
+        source_repo
+        |> map_get(:name, "name")
+        |> normalize_optional_string()
+      )
+      |> Kernel.||("unknown-repo")
 
     %{
-      display_name:
-        project
-        |> map_get(:name, "name")
-        |> normalize_optional_string() ||
-          source_repo |> map_get(:name, "name") |> normalize_optional_string() ||
-          "unknown-repo",
-      legacy_project_id: project |> map_get(:id, "id"),
-      source_repo_id: source_repo |> map_get(:id, "id"),
-      workspace_settings: settings |> Map.get("workspace", %{}) |> normalize_map(),
+      display_name: display_name,
+      source_repo_id:
+        source_repo
+        |> map_get(:id, "id")
+        |> normalize_optional_string(),
+      workspace_settings: workspace_settings,
       execution_settings: execution_settings,
       integration_settings: integration_settings
     }
+    |> maybe_put(:legacy_project_id, legacy_project_id)
   end
 
   defp normalize_repo_identity(nil), do: {:error, :missing_github_full_name}
@@ -273,15 +351,29 @@ defmodule JidoCode.Control.RepoBridge do
       [owner, name] when owner != "" and name != "" ->
         {:ok, owner, name, normalized_full_name}
 
-      [name] when name != "" ->
-        {:ok, "unknown", name, normalized_full_name}
-
       _other ->
         {:error, :invalid_github_full_name}
     end
   end
 
   defp normalize_repo_identity(_github_full_name), do: {:error, :invalid_github_full_name}
+
+  defp normalize_provider(provider, _default) when provider in [:github, :gitlab, :bitbucket],
+    do: provider
+
+  defp normalize_provider(provider, default) when is_binary(provider) do
+    case String.trim(provider) do
+      "github" -> :github
+      "gitlab" -> :gitlab
+      "bitbucket" -> :bitbucket
+      _other -> default
+    end
+  end
+
+  defp normalize_provider(_provider, default), do: default
+
+  defp fallback_optional_string(nil, fallback), do: fallback
+  defp fallback_optional_string(value, _fallback), do: value
 
   defp map_get(map, atom_key, string_key, default \\ nil)
 
@@ -297,9 +389,11 @@ defmodule JidoCode.Control.RepoBridge do
 
   defp map_get(_map, _atom_key, _string_key, default), do: default
 
+  defp normalize_optional_map(value) when is_map(value), do: normalize_map(value)
+  defp normalize_optional_map(_value), do: nil
+
   defp normalize_map(value) when is_map(value) do
-    value
-    |> Enum.reduce(%{}, fn {key, nested_value}, acc ->
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
       normalized_key =
         case key do
           atom when is_atom(atom) -> Atom.to_string(atom)
@@ -317,6 +411,8 @@ defmodule JidoCode.Control.RepoBridge do
   defp normalize_nested_value(value) when is_list(value), do: Enum.map(value, &normalize_nested_value/1)
   defp normalize_nested_value(value), do: value
 
+  defp normalize_optional_string(nil), do: nil
+
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil
@@ -329,4 +425,7 @@ defmodule JidoCode.Control.RepoBridge do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

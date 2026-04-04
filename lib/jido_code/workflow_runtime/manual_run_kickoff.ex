@@ -313,8 +313,8 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
       nil ->
         {:error,
          validation_error(
-           "Project scope is required before starting a workflow run.",
-           [field_error("project_id", "required", "Select a project to scope this run.")]
+           "Repo scope is required before starting a workflow run.",
+           [field_error("project_id", "required", "Select a repository to scope this run.")]
          )}
 
       project_id ->
@@ -602,7 +602,7 @@ defmodule JidoCode.WorkflowRuntime.ManualRunKickoff do
          inputs: Map.fetch!(kickoff_request, :inputs),
          input_metadata: Map.fetch!(kickoff_request, :input_metadata),
          initiating_actor: Map.fetch!(kickoff_request, :initiating_actor),
-         detail_path: "/projects/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
+         detail_path: "/repos/#{URI.encode(project_id)}/runs/#{URI.encode(run_id)}",
          started_at: started_at
        }}
     else

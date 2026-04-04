@@ -11,6 +11,7 @@ kind: policy
 status: active
 summary: Coding conversations center on `JidoCode.CodingAssistance` as the first-class driver boundary while `CodeServer`, UI subscribers, and jido_os session state stay aligned through a stable conversation event contract.
 decisions:
+  - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.coding_assistance_conversation_driver
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_public_turn_live_delivery_adoption
@@ -20,6 +21,7 @@ decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
+  - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
   - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
@@ -55,12 +57,12 @@ surface:
   stability: evolving
 
 - id: architecture.conversation_driver.code_server_routes_through_boundary
-  statement: Project-scoped conversation entrypoints shall route coding-assistance turns through `JidoCode.CodingAssistance` instead of coupling UI or `CodeServer` directly to jido_os internals.
+  statement: Managed-repository conversation entrypoints shall route coding-assistance turns through `JidoCode.CodingAssistance` instead of coupling UI or `CodeServer` directly to jido_os internals.
   priority: must
   stability: evolving
 
 - id: architecture.conversation_driver.conversation_identity_maps_to_session
-  statement: Conversation identity shall align `conversation_id` with the coding-assistance `session_id`, while `project_id` remains the binding used to scope that session.
+  statement: Conversation identity shall align `conversation_id` with the coding-assistance `session_id`, while `managed_repo_id` remains the canonical binding used to scope that session.
   priority: must
   stability: evolving
 
@@ -80,7 +82,7 @@ surface:
   stability: evolving
 
 - id: architecture.conversation_driver.public_turn_start_is_primary_conversation_path
-  statement: Coding conversations shall prefer non-blocking public `jido_os` turn start as the primary runtime execution path, with compatibility-style `assist` kept only as a fallback or migration path rather than the main conversation-driver contract.
+  statement: Coding conversations shall use non-blocking public `jido_os` turn start as the primary runtime execution path instead of depending on one-shot compatibility assist envelopes for progress or completion.
   priority: must
   stability: evolving
 
@@ -99,18 +101,13 @@ surface:
   priority: must
   stability: evolving
 
-- id: architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
-  statement: Compatibility-oriented `assist` responses may remain available for narrow compatibility cases, but product conversation routing shall not depend on one-shot assist envelopes as the primary mechanism for coding turn progress and completion.
-  priority: should
-  stability: evolving
-
 - id: architecture.conversation_driver.conversation_is_ingress_and_steering_surface
   statement: Operator and repository conversations shall enter the same managed-repository control loop through `jido_os` sessions and turns as ingress and steering surfaces rather than acting as a parallel product control plane.
   priority: must
   stability: evolving
 
 - id: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
-  statement: Project-detail conversation entry surfaces shall present managed-repository control context while preserving compatibility route shapes and downstream identifiers needed by current `CodeServer` entrypoints during the migration.
+  statement: Repo-detail conversation entry surfaces shall present managed-repository control context through canonical repo routes and managed-repository identifiers.
   priority: should
   stability: evolving
 ```
@@ -161,23 +158,22 @@ surface:
     - architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path
     - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
     - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
-    - architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
   given:
     - A coding conversation has already been admitted into product-side ingress and policy layers.
   when:
     - The driver starts a non-blocking public `jido_os` turn for that conversation and subscribes to the admitted live-delivery surface.
   then:
-    - Incremental progress is expected to reach subscribers through a product-local live bridge over public turn delivery, while replay remains available for resume or recovery and explicit terminal handoff drives stable completion translation instead of a one-shot compatibility assist envelope.
+    - Incremental progress is expected to reach subscribers through a product-local live bridge over public turn delivery, while replay remains available for resume or recovery and explicit terminal handoff drives stable completion translation.
 
 - id: architecture.conversation_driver.scenario_project_detail_route_keeps_conversation_entry_stable
   covers:
     - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
   given:
-    - Repo detail can be resolved through either a legacy project identifier or a managed-repo identifier during migration.
+    - Repo detail can be resolved through a canonical managed-repository route.
   when:
-    - An operator opens repo detail and starts a conversation from the existing route surface.
+    - An operator opens repo detail and starts a conversation from the routed operator surface.
   then:
-    - The page presents managed-repository context while preserving the compatibility identifier contract needed by current conversation entrypoints.
+    - The page presents managed-repository context and uses the canonical managed-repository identifier contract needed by current conversation entrypoints.
     - Hybrid overview widgets may summarize workflow and conversation readiness on that route so long as start and send actions remain translated back into the existing LiveView conversation entry surface.
 ```
 
@@ -223,7 +219,6 @@ surface:
   target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   covers:
     - architecture.conversation_driver.public_turn_start_is_primary_conversation_path
-    - architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
@@ -289,6 +284,11 @@ surface:
     - architecture.conversation_driver.replay_bridge_drives_subscriber_updates
     - architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
     - architecture.conversation_driver.subscriber_event_contract_preserved
+
+- kind: source_file
+  target: .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
+  covers:
+    - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
 
 - kind: source_file
   target: .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md

@@ -32,7 +32,7 @@ surface:
   stability: stable
 
 - id: baseline.surface.product_routes_declared
-  statement: Authenticated product routes and deployment integration routes shall remain declared in the router rather than being commented out or silently disabled.
+  statement: Authenticated product routes and deployment integration routes shall remain declared in the router rather than being commented out or silently disabled, including the canonical `/repos`, `/repos/:id`, and `/repos/:id/runs/:run_id` operator surfaces.
   priority: must
   stability: evolving
 

@@ -32,7 +32,7 @@ operator-facing product truth all stay in the Elixir application layer.
 
 At the same time, several surfaces are now rich enough that plain HEEx plus
 small one-off hooks is no longer the only comfortable UI model. Workbench,
-project detail, run detail, dashboard, and other operator surfaces increasingly
+repo detail, run detail, dashboard, and other operator surfaces increasingly
 need richer client-side component composition.
 
 The repository previously carried an isolated React-based guide surface, but it
@@ -71,7 +71,7 @@ This means:
 - Adoption may be incremental by surface. Existing LiveView-only pages remain
   valid until a richer client component model is justified.
 - When richer delivery degrades, hybrid operator surfaces shall fall back to
-  bounded product-owned LiveView regions with compatibility messaging rather
+  bounded product-owned LiveView regions with fallback messaging rather
   than failing hard or exposing raw frontend toolchain details as the user
   contract.
 - Browser-facing tests keep LiveView as the routed-surface harness while
@@ -110,7 +110,7 @@ filtering, grouping, and progressive disclosure inside the routed product shell.
 
 As rollout matures, the shared browser boundary must also enforce safe fallback
 behavior. Missing asset manifests or unavailable SSR should reduce hybrid
-surfaces to server-rendered compatibility mode or client-only delivery without
+surfaces to server-rendered fallback mode or client-only delivery without
 breaking the LiveView-owned route, and frontend rollout telemetry should stay
 distinguishable from runtime-service observability.
 

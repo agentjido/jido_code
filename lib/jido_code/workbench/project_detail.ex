@@ -2,7 +2,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
   @moduledoc """
-  Loads managed-repo-first detail state and execution readiness metadata for `/projects/:id`.
+  Loads managed-repo-first detail state and execution readiness metadata for `/repos/:id`.
   """
 
   alias JidoCode.Control.RepoBridge
@@ -12,7 +12,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
   @project_not_ready_error_type "project_execution_not_ready"
 
   @project_not_found_remediation """
-  Open Workbench, select an imported project, and then retry project detail.
+  Open Workbench, select an imported repository, and then retry repo detail.
   """
 
   @project_not_ready_remediation """
@@ -68,7 +68,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
         {:error,
          load_error(
            @project_not_found_error_type,
-           "Project identifier is missing.",
+           "Repository identifier is missing.",
            @project_not_found_remediation
          )}
 
@@ -86,7 +86,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
         {:error,
          load_error(
            @project_not_found_error_type,
-           "Project or managed repository #{identifier} was not found.",
+           "Managed repository #{identifier} was not found.",
            @project_not_found_remediation
          )}
 
@@ -94,7 +94,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
         {:error,
          load_error(
            @project_load_failed_error_type,
-           "Project detail lookup failed (#{format_reason(reason)}).",
+           "Repo detail lookup failed (#{format_reason(reason)}).",
            @project_not_found_remediation
          )}
     end
@@ -295,7 +295,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
   defp load_error(error_type, detail, remediation) do
     %{
       error_type: normalize_optional_string(error_type) || @project_load_failed_error_type,
-      detail: normalize_optional_string(detail) || "Project detail lookup failed.",
+      detail: normalize_optional_string(detail) || "Repo detail lookup failed.",
       remediation: normalize_optional_string(remediation) || @project_not_found_remediation
     }
   end
@@ -306,6 +306,8 @@ defmodule JidoCode.Workbench.ProjectDetail do
   rescue
     _exception -> inspect(reason)
   end
+
+  defp normalize_optional_string(nil), do: nil
 
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do

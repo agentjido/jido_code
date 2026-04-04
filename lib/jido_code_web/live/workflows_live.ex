@@ -80,7 +80,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
       <section class="space-y-2">
         <h1 class="text-2xl font-bold">Workflows</h1>
         <p class="text-base-content/70">
-          Start manual workflow runs with explicit project scope and required input metadata.
+          Start manual workflow runs with explicit repo scope and required input metadata.
         </p>
       </section>
 
@@ -100,7 +100,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
               id="workflows-project-id"
               field={@run_form[:project_id]}
               type="select"
-              label="Project scope"
+              label="Repo scope"
               options={@project_options}
             />
             <.input
@@ -150,7 +150,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
                 Start workflow run
               </span>
               <p id="workflows-start-run-disabled-reason" class="text-sm text-warning">
-                Import at least one project before starting manual workflow runs.
+                Import at least one repository before starting manual workflow runs.
               </p>
             <% end %>
           </div>
@@ -316,7 +316,7 @@ defmodule JidoCodeWeb.WorkflowsLive do
     end)
   end
 
-  defp project_select_options([]), do: [{"Select a project", ""}]
+  defp project_select_options([]), do: [{"Select a repository", ""}]
 
   defp project_select_options(projects) do
     Enum.map(projects, fn project ->

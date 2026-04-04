@@ -307,6 +307,8 @@ defmodule JidoCode.Workbench.ProjectDetail do
     _exception -> inspect(reason)
   end
 
+  defp normalize_optional_string(nil), do: nil
+
   defp normalize_optional_string(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil

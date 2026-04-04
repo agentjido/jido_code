@@ -9,6 +9,7 @@ defmodule JidoCode.Operations.Ingress do
   # covers: architecture.work_synthesis.work_item_audit_preserves_ingress_actor_class
   # covers: architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity
   # covers: architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
+  # covers: architecture.repo_posture.canonical_repo_scope_remains_explainable_for_posture_inputs
   @moduledoc """
   Normalizes inbound external and operator demand into durable control-plane ingress records.
   """
@@ -16,7 +17,6 @@ defmodule JidoCode.Operations.Ingress do
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
   alias JidoCode.Governance.PostureBridge
   alias JidoCode.Operations.{ExternalObject, Intake, Observation, Synthesis}
-  alias JidoCode.Projects.Project
 
   @github_provider :github
   @github_issue_type :github_issue
@@ -259,26 +259,21 @@ defmodule JidoCode.Operations.Ingress do
   end
 
   defp repo_context_for_repo_full_name(repo_full_name) when is_binary(repo_full_name) do
-    case Project.read(
-           query: [filter: [github_full_name: repo_full_name], limit: 1],
-           actor:
-             Actor.external_ingress_actor(%{
-               "id" => "system:github-webhook",
-               "email" => "github-webhook@system.local"
-             })
-         ) do
-      {:ok, [%Project{} = project | _rest]} ->
-        project_id = normalize_optional_string(project.id)
+    case RepoBridge.repo_scope(repo_full_name) do
+      {:ok, scope} ->
+        %{
+          repo_full_name: repo_full_name,
+          project_id:
+            scope
+            |> map_get(:project_id, "project_id")
+            |> normalize_optional_string(),
+          managed_repo_id:
+            scope
+            |> map_get(:managed_repo_id, "managed_repo_id")
+            |> normalize_optional_string()
+        }
 
-        managed_repo_id =
-          case RepoBridge.managed_repo_for_project(project_id) do
-            {:ok, %ManagedRepo{} = managed_repo} -> normalize_optional_string(managed_repo.id)
-            _other -> nil
-          end
-
-        %{repo_full_name: repo_full_name, project_id: project_id, managed_repo_id: managed_repo_id}
-
-      _other ->
+      {:error, _reason} ->
         %{repo_full_name: repo_full_name, project_id: nil, managed_repo_id: nil}
     end
   end

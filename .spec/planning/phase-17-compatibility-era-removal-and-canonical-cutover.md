@@ -47,22 +47,22 @@ Back to index: [README](./README.md)
       [x] 17.1.2.2 Subtask - Identify any remaining persistence or migration helpers that only exist to bridge older `Project` or `WorkflowRun` assumptions into newer control-plane records.
       [x] 17.1.2.3 Subtask - Record which surviving paths are truly canonical and which older entrypoints must be removed rather than redirected.
 
-  [ ] 17.2 Section - Domain, Runtime, And Persistence Seam Removal
+  [x] 17.2 Section - Domain, Runtime, And Persistence Seam Removal
     Delete compatibility-era implementation paths so the codebase no longer maintains duplicate domain objects, duplicate execution records, or bridge-only persistence logic for older terminology.
 
-    [ ] 17.2.1 Task - Remove legacy domain and orchestration seams
+    [x] 17.2.1 Task - Remove legacy domain and orchestration seams
       Collapse older domain wrappers and execution compatibility paths where the newer control-plane structures are already the current truth.
 
-      [ ] 17.2.1.1 Subtask - Remove compatibility helpers and bridge code that only exist to keep `Project` or `WorkflowRun`-era assumptions alive once their canonical replacements are in place.
-      [ ] 17.2.1.2 Subtask - Remove rollout, backfill, or compatibility reporting modules that only serve mixed-mode migration rather than current product behavior.
-      [ ] 17.2.1.3 Subtask - Preserve only the canonical product-owned runtime gateways and governed record projections instead of dual execution or projection paths.
+      [x] 17.2.1.1 Subtask - Remove compatibility helpers and bridge code that only exist to keep `Project` or `WorkflowRun`-era assumptions alive once their canonical replacements are in place.
+      [x] 17.2.1.2 Subtask - Remove rollout, backfill, or compatibility reporting modules that only serve mixed-mode migration rather than current product behavior.
+      [x] 17.2.1.3 Subtask - Preserve only the canonical product-owned runtime gateways and governed record projections instead of dual execution or projection paths.
 
-    [ ] 17.2.2 Task - Remove migration-era persistence and backfill behavior
+    [x] 17.2.2 Task - Remove migration-era persistence and backfill behavior
       Simplify persistence so the product no longer writes or repairs older compatibility records when the canonical control-plane records already exist.
 
-      [ ] 17.2.2.1 Subtask - Remove code paths that opportunistically backfill, synchronize, or mirror older records purely for compatibility.
-      [ ] 17.2.2.2 Subtask - Update migrations, seeds, or data-shaping helpers so greenfield product setup no longer provisions compatibility-era record shapes or assumptions.
-      [ ] 17.2.2.3 Subtask - Ensure tests and fixtures create only the canonical record graph required by the current architecture.
+      [x] 17.2.2.1 Subtask - Remove code paths that opportunistically backfill, synchronize, or mirror older records purely for compatibility.
+      [x] 17.2.2.2 Subtask - Update migrations, seeds, or data-shaping helpers so greenfield product setup no longer provisions compatibility-era record shapes or assumptions.
+      [x] 17.2.2.3 Subtask - Ensure tests and fixtures create only the canonical record graph required by the current architecture.
 
   [ ] 17.3 Section - Route, UI, And Contributor Surface Cutover
     Remove compatibility-era user-facing seams so routed product behavior, labels, and contributor guidance only present the current product model.

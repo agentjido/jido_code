@@ -9,7 +9,7 @@ meaning before work synthesis begins.
 id: architecture.event_assessment_synthesis
 kind: feature
 status: active
-summary: Jido.Code derives durable `Event` and `Assessment` records from normalized ingress so verified external demand and trusted operator requests gain typed actionable meaning, repo correlation, and next-action guidance before work-item synthesis begins.
+summary: Jido.Code derives durable `Event` and `Assessment` records from normalized ingress so verified external demand and trusted operator requests admitted through canonical repo scope gain typed actionable meaning, repo correlation, and next-action guidance before work-item synthesis begins.
 decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay

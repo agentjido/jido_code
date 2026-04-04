@@ -40,7 +40,9 @@ surface:
   - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - test/support/conn_case.ex
+  - test/jido_code/orchestration/phase_eighteen_integration_test.exs
   - test/jido_code/orchestration/run_bridge_test.exs
+  - test/jido_code_web/live/phase_eighteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
   - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
@@ -286,7 +288,17 @@ surface:
     - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 
 - kind: source_file
+  target: test/jido_code/orchestration/phase_eighteen_integration_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_eighteen_integration_test.exs
   covers:
     - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 

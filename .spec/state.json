@@ -5253,7 +5253,9 @@
             "lib/jido_code_web/live/run_detail_live.ex",
             "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
             "test/support/conn_case.ex",
+            "test/jido_code/orchestration/phase_eighteen_integration_test.exs",
             "test/jido_code/orchestration/run_bridge_test.exs",
+            "test/jido_code_web/live/phase_eighteen_integration_test.exs",
             "test/jido_code_web/live/run_detail_live_test.exs",
             "priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs",
             "priv/repo/migrations/20260331113000_add_run_governance_records.exs"
@@ -7442,7 +7444,25 @@
         "file": ".spec/specs/run_governance.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.run_governance",
+        "target": "test/jido_code/orchestration/phase_eighteen_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
         "target": "test/jido_code_web/live/run_detail_live_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model"
+        ],
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code_web/live/phase_eighteen_integration_test.exs"
       },
       {
         "covers": [
@@ -10248,7 +10268,7 @@
     "requirements": 263,
     "scenarios": 105,
     "subjects": 37,
-    "verifications": 478
+    "verifications": 480
   },
   "verification": {
     "claims": [
@@ -14671,8 +14691,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.run_governance",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code/orchestration/phase_eighteen_integration_test.exs",
         "verification_index": 17
+      },
+      {
+        "cover_id": "architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "verification_index": 18
+      },
+      {
+        "cover_id": "architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model",
+        "file": ".spec/specs/run_governance.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.run_governance",
+        "target": "test/jido_code_web/live/phase_eighteen_integration_test.exs",
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence",
@@ -14683,7 +14725,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/orchestration/run_bridge.ex",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.run_governance.run_projection_preserves_explicit_stage_catalog",
@@ -14694,7 +14736,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/orchestration/run_bridge.ex",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.run_governance.review_policy_controls_change_request_creation",
@@ -14705,7 +14747,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/workbench/issue_triage_workflow_kickoff.ex",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution",
@@ -14716,7 +14758,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "lib/jido_code/orchestration/workflow_run.ex",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.run_governance.change_request_records_reviewable_run_state",
@@ -14727,7 +14769,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/governance/run_governance_bridge_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence",
@@ -14738,7 +14780,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/governance/run_governance_bridge_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.run_governance.decision_records_capture_governance_outcomes",
@@ -14749,7 +14791,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/governance/run_governance_bridge_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.run_governance.evidence_records_capture_run_outputs",
@@ -14760,7 +14802,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/governance/run_governance_bridge_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution",
@@ -14771,7 +14813,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/orchestration/workflow_run_test.exs",
-        "verification_index": 22
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence",
@@ -14782,7 +14824,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/conversations/phase_seven_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.run_governance.evidence_records_capture_run_outputs",
@@ -14793,7 +14835,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/conversations/phase_seven_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress",
@@ -14804,7 +14846,7 @@
         "strength": "linked",
         "subject_id": "architecture.run_governance",
         "target": "test/jido_code/conversations/phase_nine_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary",
@@ -20147,7 +20189,7 @@
     "strength_summary": {
       "claimed": 60,
       "executed": 0,
-      "linked": 839
+      "linked": 841
     },
     "threshold_failures": 0
   },

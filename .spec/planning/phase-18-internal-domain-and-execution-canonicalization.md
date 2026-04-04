@@ -29,7 +29,7 @@ Back to index: [README](./README.md)
 - This repository is treated as greenfield after the Phase 17 cutover, so internal implementation does not need to preserve `Project`- or `WorkflowRun`-era compatibility once the current-truth spec workspace is updated.
 - The next highest-value work is to remove the remaining previous-era internals that still survive behind canonical operator surfaces, especially domain helpers, persistence shims, fixtures, and execution loaders that keep old product records alive as implementation seams.
 
-[ ] 18 Phase 18 - Internal Domain and Execution Canonicalization
+[x] 18 Phase 18 - Internal Domain and Execution Canonicalization
   Remove the remaining previous-era internal seams so product code, persistence helpers, and tests create and consume only the canonical managed-repo and governed-run model.
 
   [x] 18.1 Section - Spec And Internal Cutover Contract
@@ -83,19 +83,19 @@ Back to index: [README](./README.md)
       [x] 18.3.2.2 Subtask - Update migrations, seeds, and persistence helpers so greenfield installs no longer provision or repair `WorkflowRun`-era record graphs.
       [x] 18.3.2.3 Subtask - Update run-oriented tests and fixtures so they create only canonical governed runs, evidence, and decisions unless a migration-specific test explicitly requires otherwise.
 
-  [ ] 18.4 Section - Phase 18 Integration Tests
+  [x] 18.4 Section - Phase 18 Integration Tests
     Verify that internal canonicalization is complete, fresh setup and operator workflows no longer rely on previous-era records, and cleanup did not reintroduce shadow compatibility seams.
 
-    [ ] 18.4.1 Task - Canonical repo and run continuity scenarios
+    [x] 18.4.1 Task - Canonical repo and run continuity scenarios
       Prove the product still boots and runs through representative repo, conversation, and governed-run flows using only the canonical internal record graph.
 
-      [ ] 18.4.1.1 Subtask - Add coverage for fresh setup and operator flows that create and load canonical managed-repo records without hidden `Project`-era dependencies.
-      [ ] 18.4.1.2 Subtask - Add coverage for representative execution, retry, conversation, and runtime-evidence flows that materialize governed runs without `WorkflowRun` mirrors.
-      [ ] 18.4.1.3 Subtask - Verify the current Mix, docs, and contributor surfaces continue to start and exercise the canonical greenfield product successfully.
+      [x] 18.4.1.1 Subtask - Add coverage for fresh setup and operator flows that create and load canonical managed-repo records without hidden `Project`-era dependencies.
+      [x] 18.4.1.2 Subtask - Add coverage for representative execution, retry, conversation, and runtime-evidence flows that materialize governed runs without `WorkflowRun` mirrors.
+      [x] 18.4.1.3 Subtask - Verify the current Mix, docs, and contributor surfaces continue to start and exercise the canonical greenfield product successfully.
 
-    [ ] 18.4.2 Task - Removal verification scenarios
+    [x] 18.4.2 Task - Removal verification scenarios
       Prove the deleted internal seams are absent rather than silently surviving behind canonical operator behavior.
 
-      [ ] 18.4.2.1 Subtask - Add coverage proving removed `Project`- and `WorkflowRun`-era helpers, fixtures, or backfill paths are no longer used by current product flows.
-      [ ] 18.4.2.2 Subtask - Add coverage proving fresh tests and setup helpers create only the canonical record graph required by the current architecture.
-      [ ] 18.4.2.3 Subtask - Verify cleanup did not leave duplicate route-independent loaders, shadow persistence writers, or previous-era execution vocabulary in product-owned internals.
+      [x] 18.4.2.1 Subtask - Add coverage proving removed `Project`- and `WorkflowRun`-era helpers, fixtures, or backfill paths are no longer used by current product flows.
+      [x] 18.4.2.2 Subtask - Add coverage proving fresh tests and setup helpers create only the canonical record graph required by the current architecture.
+      [x] 18.4.2.3 Subtask - Verify cleanup did not leave duplicate route-independent loaders, shadow persistence writers, or previous-era execution vocabulary in product-owned internals.

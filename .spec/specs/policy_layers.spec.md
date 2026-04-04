@@ -6,7 +6,7 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-project source identity and repo-native observations feeding repo governance independently from the global deployment-mode hint."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-managed-repository source identity and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -45,7 +45,6 @@ surface:
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/operations/work_item.ex
   - lib/jido_code/operations/work_synthesis.ex
-  - lib/jido_code/projects/project.ex
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/runtime_integration.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
@@ -67,7 +66,7 @@ surface:
 
 ```spec-requirements
 - id: architecture.policy_layers.repository_governance_policy_is_repo_control_layer
-  statement: Repository behavior, approval thresholds, autonomy limits, review expectations, and per-project source identity shall be governed through repo-level governance objects such as `PolicySet` and adjacent posture or review rules instead of being inferred from the global deployment mode.
+  statement: Repository behavior, approval thresholds, autonomy limits, review expectations, and per-managed-repository source identity shall be governed through repo-level governance objects such as `PolicySet` and adjacent posture or review rules instead of being inferred from the global deployment mode.
   priority: must
   stability: evolving
 
@@ -97,7 +96,7 @@ surface:
   stability: evolving
 
 - id: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
-  statement: Transitional repo, workflow, and GitHub-ingress surfaces shall fail closed without explicit human or machine actor context in product code paths, and trusted machine entrypoints shall use named actor classes instead of anonymous authorization bypass mutations.
+  statement: Repo, run, and GitHub-ingress surfaces shall fail closed without explicit human or machine actor context in product code paths, and trusted machine entrypoints shall use named actor classes instead of anonymous authorization bypass mutations.
   priority: must
   stability: evolving
 
@@ -137,7 +136,7 @@ surface:
     - Repo-native `.spec/` and optional Git-native planning observations may inform repo-governance choices without bypassing Ash-backed durable records or runtime capability admission.
     - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
     - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
-    - Legacy project, workflow-run, and GitHub-ingress compatibility paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
+    - Repo, run, and GitHub-ingress paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
     - Hybrid settings summary widgets may improve operator scanning or event handoff, but the underlying repo mutation path still requires explicit current-actor propagation through LiveView-owned events.
 
 - id: architecture.policy_layers.scenario_public_turn_replay_and_governance_stay_policy_bound
@@ -230,12 +229,6 @@ surface:
     - architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
 
 - kind: source_file
-  target: lib/jido_code/projects/project.ex
-  covers:
-    - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
-    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
-
-- kind: source_file
   target: lib/jido_code/github/webhook_pipeline.ex
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
@@ -268,11 +261,6 @@ surface:
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
-
-- kind: source_file
-  target: test/jido_code/projects/project_test.exs
-  covers:
-    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
 
 - kind: source_file
   target: test/jido_code/control/phase_six_integration_test.exs

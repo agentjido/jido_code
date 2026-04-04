@@ -19,9 +19,7 @@ affects:
 <!-- covers: package.jido_code.spec_led_workspace -->
 <!-- covers: architecture.conversation_driver.public_turn_start_is_primary_conversation_path -->
 <!-- covers: architecture.conversation_driver.replay_bridge_drives_subscriber_updates -->
-<!-- covers: architecture.conversation_driver.compatibility_assist_is_not_primary_conversation_path -->
 <!-- covers: coding_assistance.boundary.public_turn_wrapper_api -->
-<!-- covers: coding_assistance.boundary.compatibility_assist_wraps_public_turn_runtime -->
 <!-- covers: architecture.jido_os_session_turn_runtime.public_turn_replay_supports_incremental_bridge -->
 <!-- covers: architecture.jido_os_session_turn_runtime.operator_review_is_bounded_evidence_surface -->
 <!-- covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records -->

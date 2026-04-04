@@ -82,11 +82,6 @@ surface:
   priority: must
   stability: evolving
 
-- id: coding_assistance.boundary.compatibility_assist_wraps_public_turn_runtime
-  statement: If compatibility-oriented `assist` responses remain exposed, they shall be treated as a convenience path over the same public turn runtime rather than as a separate execution engine with different security, tracing, or policy behavior.
-  priority: should
-  stability: evolving
-
 - id: coding_assistance.boundary.runtime_service_topology_is_opaque_to_product
   statement: The coding-assistance boundary shall shield higher-level product code from `jido_os` runtime-topology details such as turn-execution ownership, signal-bus transport, substrate routing metadata, or other private authority wiring, relying only on documented public facades as the product contract.
   priority: must
@@ -121,7 +116,6 @@ surface:
   target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   covers:
     - coding_assistance.boundary.public_turn_wrapper_api
-    - coding_assistance.boundary.compatibility_assist_wraps_public_turn_runtime
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md

@@ -8,14 +8,16 @@ This subject defines the governed run projection model for `Jido.Code`.
 id: architecture.run_governance
 kind: policy
 status: active
-summary: Jido.Code evolves execution from standalone workflow-run records into governed Run projections linked to WorkItem and ExecutionProfile while preserving WorkflowRun as the migration seam beneath the preferred control-plane model, and lets governed run evidence feed explainable repo posture updates without replacing the run-governance records themselves.
+summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, and lets those records inform posture without replacing the run-governance model itself.
 decisions:
+  - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.runic_execution_model
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
+  - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
@@ -26,7 +28,6 @@ surface:
   - lib/jido_code/governance/evidence.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/governance/run_governance_bridge.ex
-  - lib/jido_code/control/compatibility_rollout.ex
   - lib/jido_code/orchestration.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
@@ -42,7 +43,7 @@ surface:
 
 ```spec-requirements
 - id: architecture.run_governance.run_is_preferred_execution_record
-  statement: Jido.Code shall treat `Run` as the preferred control-plane execution record linked to managed repository scope and optional `WorkItem` context, while preserving `WorkflowRun` as a transitional execution seam.
+  statement: Jido.Code shall treat `Run` as the canonical control-plane execution record linked to managed repository scope and optional `WorkItem` context, and operator-facing execution behavior shall not depend on `WorkflowRun` as a supported parallel product record.
   priority: must
   stability: evolving
 
@@ -52,7 +53,7 @@ surface:
   stability: evolving
 
 - id: architecture.run_governance.execution_profile_preserves_repo_and_workflow_compatibility
-  statement: Execution profile resolution shall preserve compatibility with repo-level execution defaults and workflow-specific execution overrides during the migration from project and workflow-local settings.
+  statement: Execution profile resolution shall preserve repo-level execution defaults and workflow-specific execution overrides as canonical execution inputs.
   priority: must
   stability: evolving
 
@@ -92,13 +93,8 @@ surface:
   stability: evolving
 
 - id: architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
-  statement: The legacy `WorkflowRun` seam and its governed projections shall preserve explicit actor class attribution across approval, retry, and machine-driven issue-triage transitions so compatibility views and governance records can distinguish operator, orchestrator, run-worker, and external-ingress actions.
+  statement: Execution lifecycle audit state shall preserve explicit actor class attribution across approval, retry, and machine-driven issue-triage transitions so governed run and review records can distinguish operator, orchestrator, run-worker, and external-ingress actions.
   priority: must
-  stability: evolving
-
-- id: architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
-  statement: Historical `WorkflowRun` records shall remain backfillable into governed `Run` projections and related review artifacts on demand or in batch so dashboard, workbench, and run-detail surfaces preserve execution continuity during mixed-mode rollout.
-  priority: should
   stability: evolving
 
 - id: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
@@ -119,11 +115,11 @@ surface:
   covers:
     - architecture.run_governance.run_is_preferred_execution_record
   given:
-    - A workflow run is created for a managed repository.
+    - A managed-repository execution is created for a governed work item or direct operator launch.
   when:
-    - The orchestration layer persists the legacy workflow-run seam.
+    - The orchestration layer persists and refreshes execution state.
   then:
-    - A governed `Run` projection is persisted with the same durable run identity and workflow-state reference without introducing a second step engine.
+    - A governed `Run` record remains the canonical product execution record with durable identity and workflow-state reference.
 
 - id: architecture.run_governance.scenario_execution_profile_is_resolved_from_repo_defaults
   covers:
@@ -148,7 +144,7 @@ surface:
     - The workflow run projection is synchronized into control-plane governance records.
   then:
     - Evidence is stored durably, a reviewable change request is created when the run awaits approval, and approval or rejection outcomes are persisted as decision records with actor attribution and evidence references.
-    - Retry, approval, and webhook-driven compatibility records keep explicit actor class attribution instead of collapsing machine and human actions into undifferentiated metadata.
+    - Retry, approval, and webhook-driven execution records keep explicit actor class attribution instead of collapsing machine and human actions into undifferentiated metadata.
 
 - id: architecture.run_governance.scenario_policy_governs_review_artifacts_and_launches
   covers:
@@ -161,16 +157,6 @@ surface:
     - A run is launched or projected into approval handling.
   then:
     - Review behavior follows the repo policy, blocked review states keep typed remediation, and the run projection continues to expose explicit repo-prep, validation, approval, and cleanup stage plans.
-
-- id: architecture.run_governance.scenario_legacy_history_recovers_forward_into_governed_runs
-  covers:
-    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
-  given:
-    - A workflow run exists from before governed run projections were fully backfilled.
-  when:
-    - An operator opens a run-sensitive surface or an explicit rollout backfill is triggered.
-  then:
-    - The workflow history can be projected forward into governed `Run` state so mixed-mode operator views do not lose execution continuity while the compatibility seam is still present.
 
 - id: architecture.run_governance.scenario_coding_turn_terminal_outputs_feed_governed_evidence
   covers:
@@ -187,6 +173,11 @@ surface:
 ## Verification
 
 ```spec-verification
+- kind: source_file
+  target: .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
+  covers:
+    - architecture.run_governance.run_is_preferred_execution_record
+
 - kind: source_file
   target: lib/jido_code/orchestration/run.ex
   covers:
@@ -289,28 +280,4 @@ surface:
   covers:
     - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
 
-- kind: source_file
-  target: lib/jido_code/orchestration/run_bridge.ex
-  covers:
-    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
-
-- kind: source_file
-  target: lib/jido_code/control/compatibility_rollout.ex
-  covers:
-    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
-
-- kind: source_file
-  target: test/jido_code/control/compatibility_rollout_test.exs
-  covers:
-    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
-
-- kind: source_file
-  target: test/jido_code/control/phase_six_integration_test.exs
-  covers:
-    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
-
-- kind: source_file
-  target: test/jido_code_web/live/phase_six_integration_test.exs
-  covers:
-    - architecture.run_governance.legacy_workflow_history_backfills_into_governed_runs
 ```

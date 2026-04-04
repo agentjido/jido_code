@@ -27,7 +27,7 @@ Back to index: [README](./README.md)
 - This repository is treated as greenfield for the next cutover step, so previous-era compatibility code does not need to survive once the specs are updated to the new canonical surfaces.
 - The next highest-value work is to remove transition-era shims, routes, labels, projections, and fallback records that still preserve earlier `Project`- and `WorkflowRun`-era compatibility rather than deepening or preserving them.
 
-[ ] 17 Phase 17 - Compatibility Era Removal and Canonical Cutover
+[x] 17 Phase 17 - Compatibility Era Removal and Canonical Cutover
   Remove transition-era compatibility code so the product, routes, records, and operator surfaces speak only the current canonical control-plane language and behavior.
 
   [x] 17.1 Section - Spec And Contract Cutover
@@ -81,19 +81,19 @@ Back to index: [README](./README.md)
       [x] 17.3.2.2 Subtask - Remove examples, screenshots, or command references that preserve prior-era naming or mixed-mode rollout assumptions.
       [x] 17.3.2.3 Subtask - Keep test and contributor guidance aligned with the canonical surfaces so future changes do not accidentally recreate compatibility behavior.
 
-  [ ] 17.4 Section - Phase 17 Integration Tests
+  [x] 17.4 Section - Phase 17 Integration Tests
     Verify that compatibility-era code is actually gone, canonical surfaces remain coherent, and the greenfield product still boots and runs through its current workflows without hidden mixed-mode dependencies.
 
-    [ ] 17.4.1 Task - Canonical surface and removal verification scenarios
+    [x] 17.4.1 Task - Canonical surface and removal verification scenarios
       Prove the product no longer depends on compatibility shims in its routed, governed, and contributor-facing behavior.
 
-      [ ] 17.4.1.1 Subtask - Add coverage proving the removed compatibility routes, bridges, or record shims are absent rather than silently still wired.
-      [ ] 17.4.1.2 Subtask - Add coverage proving canonical managed-repo, governed-run, and runtime-gateway surfaces continue to work without legacy mirrors.
-      [ ] 17.4.1.3 Subtask - Verify docs, specs, and Mix surfaces no longer advertise removed compatibility-era behavior.
+      [x] 17.4.1.1 Subtask - Add coverage proving the removed compatibility routes, bridges, or record shims are absent rather than silently still wired.
+      [x] 17.4.1.2 Subtask - Add coverage proving canonical managed-repo, governed-run, and runtime-gateway surfaces continue to work without legacy mirrors.
+      [x] 17.4.1.3 Subtask - Verify docs, specs, and Mix surfaces no longer advertise removed compatibility-era behavior.
 
-    [ ] 17.4.2 Task - Greenfield startup and workflow continuity scenarios
+    [x] 17.4.2 Task - Greenfield startup and workflow continuity scenarios
       Prove the repo still behaves correctly for a fresh install without relying on migration-era mixed-mode paths.
 
-      [ ] 17.4.2.1 Subtask - Add coverage for fresh setup, signed-in start, and representative operator flows using only canonical records and routes.
-      [ ] 17.4.2.2 Subtask - Add coverage for representative conversation, run, and runtime-evidence flows after compatibility shims are removed.
-      [ ] 17.4.2.3 Subtask - Verify cleanup did not reintroduce shadow compatibility helpers, duplicate route shapes, or transitional UI vocabulary.
+      [x] 17.4.2.1 Subtask - Add coverage for fresh setup, signed-in start, and representative operator flows using only canonical records and routes.
+      [x] 17.4.2.2 Subtask - Add coverage for representative conversation, run, and runtime-evidence flows after compatibility shims are removed.
+      [x] 17.4.2.3 Subtask - Verify cleanup did not reintroduce shadow compatibility helpers, duplicate route shapes, or transitional UI vocabulary.

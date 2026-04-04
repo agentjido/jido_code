@@ -112,6 +112,12 @@ surface:
     - auth.system.revocable_credentials
 
 - kind: source_file
+  target: test/support/conn_case.ex
+  covers:
+    - auth.system.local_email_identity
+    - auth.system.password_registration_and_sign_in
+
+- kind: source_file
   target: test/jido_code_web/live/auth_session_live_test.exs
   covers:
     - auth.system.local_email_identity

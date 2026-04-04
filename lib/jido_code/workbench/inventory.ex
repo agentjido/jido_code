@@ -5,7 +5,6 @@ defmodule JidoCode.Workbench.Inventory do
 
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
   alias JidoCode.Workbench.IssueTriageWorkflowKickoff
-  alias JidoCode.Projects.Project
   alias JidoCode.Setup.SystemConfig
 
   @default_fetch_error_type "workbench_inventory_fetch_failed"
@@ -21,6 +20,7 @@ defmodule JidoCode.Workbench.Inventory do
           source_repo_id: String.t() | nil,
           name: String.t(),
           github_full_name: String.t(),
+          default_branch: String.t(),
           open_issue_count: non_neg_integer(),
           open_pr_count: non_neg_integer(),
           recent_activity_summary: String.t(),
@@ -54,11 +54,9 @@ defmodule JidoCode.Workbench.Inventory do
   @doc false
   @spec default_loader() :: {:ok, [row()], stale_warning() | nil} | {:error, stale_warning()}
   def default_loader do
-    with {:ok, managed_repo_rows} <- managed_repo_rows(),
-         {:ok, legacy_only_rows} <- legacy_only_rows(managed_repo_rows) do
+    with {:ok, managed_repo_rows} <- managed_repo_rows() do
       rows =
         managed_repo_rows
-        |> Kernel.++(legacy_only_rows)
         |> Enum.sort_by(fn row ->
           row
           |> map_get(:github_full_name, "github_full_name")
@@ -94,49 +92,6 @@ defmodule JidoCode.Workbench.Inventory do
              {:error, _reason} -> to_inventory_row(%{managed_repo: managed_repo})
            end
          end)}
-
-      {:error, reason} ->
-        {:error,
-         stale_warning(
-           @default_fetch_error_type,
-           "Workbench inventory fetch failed (#{format_reason(reason)}).",
-           @default_fetch_remediation
-         )}
-    end
-  end
-
-  defp legacy_only_rows(rows) do
-    managed_project_ids =
-      rows
-      |> Enum.map(fn row ->
-        row
-        |> map_get(:legacy_project_id, "legacy_project_id")
-        |> normalize_optional_string()
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> MapSet.new()
-
-    case Project.read(query: [sort: [github_full_name: :asc]], actor: Actor.operator_actor()) do
-      {:ok, projects} ->
-        rows =
-          projects
-          |> Enum.reject(fn project ->
-            project
-            |> map_get(:id, "id")
-            |> normalize_optional_string()
-            |> then(&MapSet.member?(managed_project_ids, &1))
-          end)
-          |> Enum.map(fn project ->
-            project
-            |> map_get(:id, "id")
-            |> RepoBridge.repo_scope()
-            |> case do
-              {:ok, scope} -> to_inventory_row(scope)
-              {:error, _reason} -> to_inventory_row(%{project: project})
-            end
-          end)
-
-        {:ok, rows}
 
       {:error, reason} ->
         {:error,
@@ -246,28 +201,37 @@ defmodule JidoCode.Workbench.Inventory do
   defp repository_listing_warning(_onboarding_state), do: nil
 
   defp to_inventory_row(%{} = scope) do
-    project = map_get(scope, :project, "project")
     managed_repo = map_get(scope, :managed_repo, "managed_repo")
     source_repo = map_get(scope, :source_repo, "source_repo")
-
-    settings =
-      project
-      |> map_get(:settings, "settings", %{})
-      |> normalize_map()
 
     managed_workspace_settings =
       managed_repo
       |> map_get(:workspace_settings, "workspace_settings", %{})
       |> normalize_map()
 
-    inventory_settings = settings |> map_get(:inventory, "inventory", %{}) |> normalize_map()
-    github_settings = settings |> map_get(:github, "github", %{}) |> normalize_map()
-
-    workspace_settings =
-      settings
-      |> map_get(:workspace, "workspace", %{})
+    managed_execution_settings =
+      managed_repo
+      |> map_get(:execution_settings, "execution_settings", %{})
       |> normalize_map()
-      |> Map.merge(managed_workspace_settings)
+
+    managed_integration_settings =
+      managed_repo
+      |> map_get(:integration_settings, "integration_settings", %{})
+      |> normalize_map()
+
+    inventory_settings =
+      managed_integration_settings
+      |> map_get(:inventory, "inventory", %{})
+      |> normalize_map()
+
+    github_settings =
+      source_repo
+      |> map_get(:source_metadata, "source_metadata", %{})
+      |> normalize_map()
+      |> Map.get("github", %{})
+      |> normalize_map()
+
+    workspace_settings = managed_workspace_settings
 
     recent_activity_at =
       resolve_recent_activity_at(scope, inventory_settings, github_settings, workspace_settings)
@@ -296,8 +260,20 @@ defmodule JidoCode.Workbench.Inventory do
         |> map_get(:id, "id")
         |> normalize_optional_string()
 
+    route_id =
+      scope
+      |> map_get(:route_id, "route_id")
+      |> normalize_optional_string() ||
+        managed_repo_id || source_repo_id || legacy_project_id
+
+    settings =
+      %{}
+      |> Map.put("workspace", workspace_settings)
+      |> Map.put("execution", managed_execution_settings)
+      |> Map.merge(managed_integration_settings)
+
     %{
-      id: legacy_project_id || managed_repo_id || source_repo_id,
+      id: route_id,
       legacy_project_id: legacy_project_id,
       managed_repo_id: managed_repo_id,
       source_repo_id: source_repo_id,
@@ -305,19 +281,17 @@ defmodule JidoCode.Workbench.Inventory do
         managed_repo
         |> map_get(:display_name, "display_name")
         |> normalize_optional_string() ||
-          project
-          |> map_get(:name, "name")
-          |> normalize_optional_string() ||
           source_repo
           |> map_get(:name, "name")
           |> normalize_optional_string(),
       github_full_name:
         source_repo
         |> map_get(:full_name, "full_name")
-        |> normalize_optional_string() ||
-          project
-          |> map_get(:github_full_name, "github_full_name")
-          |> normalize_optional_string(),
+        |> normalize_optional_string(),
+      default_branch:
+        source_repo
+        |> map_get(:default_branch, "default_branch")
+        |> normalize_optional_string() || "main",
       open_issue_count:
         first_non_negative_integer([
           map_get(inventory_settings, :open_issue_count, "open_issue_count"),
@@ -352,21 +326,15 @@ defmodule JidoCode.Workbench.Inventory do
       recent_activity_at: recent_activity_at,
       issue_triage_policy:
         IssueTriageWorkflowKickoff.policy_state(%{
-          id: legacy_project_id,
+          id: route_id,
           name:
             managed_repo
             |> map_get(:display_name, "display_name")
-            |> normalize_optional_string() ||
-              project
-              |> map_get(:name, "name")
-              |> normalize_optional_string(),
+            |> normalize_optional_string(),
           github_full_name:
             source_repo
             |> map_get(:full_name, "full_name")
-            |> normalize_optional_string() ||
-              project
-              |> map_get(:github_full_name, "github_full_name")
-              |> normalize_optional_string(),
+            |> normalize_optional_string(),
           settings: settings,
           managed_repo_id: managed_repo_id,
           source_repo_id: source_repo_id
@@ -410,8 +378,6 @@ defmodule JidoCode.Workbench.Inventory do
       map_get(github_settings, :updated_at, "updated_at"),
       map_get(workspace_settings, :last_synced_at, "last_synced_at"),
       map_get(map_get(scope, :managed_repo, "managed_repo"), :updated_at, "updated_at"),
-      map_get(map_get(scope, :project, "project"), :updated_at, "updated_at"),
-      map_get(map_get(scope, :project, "project"), :inserted_at, "inserted_at"),
       map_get(map_get(scope, :source_repo, "source_repo"), :updated_at, "updated_at"),
       map_get(map_get(scope, :source_repo, "source_repo"), :inserted_at, "inserted_at")
     ])
@@ -460,6 +426,10 @@ defmodule JidoCode.Workbench.Inventory do
         |> normalize_optional_string(),
       name: name || github_full_name || fallback_id,
       github_full_name: github_full_name || name || fallback_id,
+      default_branch:
+        row
+        |> map_get(:default_branch, "default_branch")
+        |> normalize_optional_string() || "main",
       open_issue_count:
         row
         |> map_get(:open_issue_count, "open_issue_count", 0)
@@ -499,6 +469,7 @@ defmodule JidoCode.Workbench.Inventory do
       source_repo_id: nil,
       name: fallback_id,
       github_full_name: fallback_id,
+      default_branch: "main",
       open_issue_count: 0,
       open_pr_count: 0,
       recent_activity_summary: "No recent activity metadata.",

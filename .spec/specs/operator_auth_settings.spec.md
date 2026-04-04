@@ -94,6 +94,11 @@ surface:
     - auth.operator_settings.hidden_during_bootstrap_entry
 
 - kind: source_file
+  target: test/support/conn_case.ex
+  covers:
+    - auth.operator_settings.hidden_during_bootstrap_entry
+
+- kind: source_file
   target: test/jido_code_web/live/home_live_operator_settings_test.exs
   covers:
     - auth.operator_settings.sections_separated

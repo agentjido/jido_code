@@ -42,6 +42,7 @@ The plan aligns to:
 15. [Phase 15 - Frontend Rollout Hardening and Contributor Convergence](./phase-15-frontend-rollout-hardening-and-contributor-convergence.md): harden SSR, fallback behavior, observability, and docs so the new frontend stack becomes the durable contributor and operator default without regressing simpler LiveView routes.
 16. [Phase 16 - Internal Cleanup and UI Convergence Foundation](./phase-16-internal-cleanup-and-ui-convergence-foundation.md): consolidate product-owned helpers, retire transitional seams, align start-oriented Mix entrypoints with the current frontend architecture, and standardize operator-facing UI states before the next feature wave.
 17. [Phase 17 - Compatibility Era Removal and Canonical Cutover](./phase-17-compatibility-era-removal-and-canonical-cutover.md): remove previous-era compatibility routes, bridges, rollout seams, and mixed-mode record shaping so this greenfield repo keeps only the canonical control-plane, runtime, and UI surfaces after specs are updated.
+18. [Phase 18 - Internal Domain and Execution Canonicalization](./phase-18-internal-domain-and-execution-canonicalization.md): remove the remaining `Project`- and `WorkflowRun`-era implementation seams so product internals, persistence helpers, and test fixtures create and consume only the canonical managed-repo and governed-run model.
 
 ## Shared Conventions
 - Numbering:

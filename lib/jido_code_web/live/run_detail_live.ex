@@ -6,11 +6,12 @@ defmodule JidoCodeWeb.RunDetailLive do
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+  # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
-  alias JidoCode.Orchestration.{Run, RunBridge, RunPubSub, WorkflowRun}
+  alias JidoCode.Orchestration.{Run, RunPubSub}
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -71,12 +72,12 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("approve_run", _params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
-    case WorkflowRun.approve(run, %{
+  def handle_event("approve_run", _params, %{assigns: %{run: %Run{} = run}} = socket) do
+    case Run.approve(run, %{
            actor: approving_actor(socket),
            current_step: "resume_execution"
          }) do
-      {:ok, %WorkflowRun{} = _approved_run} ->
+      {:ok, %Run{} = _approved_run} ->
         {:noreply,
          socket
          |> refresh_run_assigns()
@@ -95,17 +96,17 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_event("approve_run", _params, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("reject_run", params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
+  def handle_event("reject_run", params, %{assigns: %{run: %Run{} = run}} = socket) do
     rationale =
       params
       |> map_get(:rationale, "rationale")
       |> normalize_optional_string()
 
-    case WorkflowRun.reject(run, %{
+    case Run.reject(run, %{
            actor: approving_actor(socket),
            rationale: rationale
          }) do
-      {:ok, %WorkflowRun{} = _rejected_run} ->
+      {:ok, %Run{} = _rejected_run} ->
         {:noreply,
          socket
          |> refresh_run_assigns()
@@ -124,9 +125,9 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_event("reject_run", _params, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("retry_run", _params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
-    case WorkflowRun.retry(run, %{actor: approving_actor(socket)}) do
-      {:ok, %WorkflowRun{} = retried_run} ->
+  def handle_event("retry_run", _params, %{assigns: %{run: %Run{} = run}} = socket) do
+    case Run.retry(run, %{actor: approving_actor(socket)}) do
+      {:ok, %Run{} = retried_run} ->
         {:noreply,
          socket
          |> assign(:retry_action_error, nil)
@@ -146,9 +147,9 @@ defmodule JidoCodeWeb.RunDetailLive do
   def handle_event("retry_run", _params, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("retry_step", _params, %{assigns: %{workflow_run: %WorkflowRun{} = run}} = socket) do
-    case WorkflowRun.retry_step(run, %{actor: approving_actor(socket)}) do
-      {:ok, %WorkflowRun{} = retried_run} ->
+  def handle_event("retry_step", _params, %{assigns: %{run: %Run{} = run}} = socket) do
+    case Run.retry_step(run, %{actor: approving_actor(socket)}) do
+      {:ok, %Run{} = retried_run} ->
         {:noreply,
          socket
          |> assign(:retry_action_error, nil)
@@ -772,7 +773,6 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:project_id, project_id)
     |> assign(:run_id, run_id)
     |> assign(:run, nil)
-    |> assign(:workflow_run, nil)
     |> assign(:evidence_records, [])
     |> assign(:change_request, nil)
     |> assign(:decisions, [])
@@ -789,9 +789,9 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:retry_action_error, nil)
   end
 
-  defp timeline_entries(%WorkflowRun{} = run) do
+  defp timeline_entries(%Run{} = run) do
     run
-    |> Map.get(:status_transitions, [])
+    |> workflow_audit_status_transitions()
     |> normalize_timeline_entries()
   end
 
@@ -801,7 +801,6 @@ defmodule JidoCodeWeb.RunDetailLive do
          socket,
          %{
            run: run,
-           workflow_run: workflow_run,
            evidence_records: evidence_records,
            change_request: change_request,
            decisions: decisions,
@@ -809,20 +808,19 @@ defmodule JidoCodeWeb.RunDetailLive do
          }
        ) do
     socket
-    |> assign(:run, run || workflow_run)
-    |> assign(:workflow_run, workflow_run)
+    |> assign(:run, run)
     |> assign(:evidence_records, evidence_records)
     |> assign(:change_request, change_request)
     |> assign(:decisions, decisions)
-    |> assign(:runtime_evidence_summary, runtime_evidence_summary(run || workflow_run, evidence_records, repo_posture))
-    |> assign(:timeline_entries, timeline_entries(workflow_run))
-    |> assign(:retry_lineage_entries, retry_lineage_entries(workflow_run))
-    |> assign(:artifact_categories, artifact_categories(workflow_run))
-    |> assign(:failure_context, failure_context(workflow_run))
-    |> assign(:issue_triage_artifacts, issue_triage_artifacts(workflow_run))
-    |> assign(:approval_context, approval_context(workflow_run))
-    |> assign(:approval_context_blocker, approval_context_blocker(workflow_run))
-    |> assign(:step_retry_state, step_retry_state(workflow_run))
+    |> assign(:runtime_evidence_summary, runtime_evidence_summary(run, evidence_records, repo_posture))
+    |> assign(:timeline_entries, timeline_entries(run))
+    |> assign(:retry_lineage_entries, retry_lineage_entries(run))
+    |> assign(:artifact_categories, artifact_categories(run))
+    |> assign(:failure_context, failure_context(run))
+    |> assign(:issue_triage_artifacts, issue_triage_artifacts(run))
+    |> assign(:approval_context, approval_context(run))
+    |> assign(:approval_context_blocker, approval_context_blocker(run))
+    |> assign(:step_retry_state, step_retry_state(run))
   end
 
   defp refresh_run_assigns(%{assigns: %{project_id: project_id, run_id: run_id}} = socket) do
@@ -834,12 +832,10 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp load_run_state(project_id, run_id) do
     with {:ok, project_scope} <- RepoBridge.repo_scope(project_id),
-         {:ok, run} <- load_governed_run(project_scope, run_id),
-         {:ok, workflow_run} <- load_workflow_run(run, project_scope, run_id) do
+         {:ok, run} <- load_governed_run(project_scope, run_id) do
       {:ok,
        %{
          run: run,
-         workflow_run: workflow_run,
          evidence_records: load_evidence_records(run),
          change_request: load_change_request(run),
          decisions: load_decisions(run),
@@ -847,13 +843,10 @@ defmodule JidoCodeWeb.RunDetailLive do
        }}
     else
       {:error, :governed_run_not_found} ->
-        load_legacy_run_state(project_id, run_id)
+        {:error, :not_found}
 
       {:error, :repo_scope_not_found} ->
-        load_legacy_run_state(project_id, run_id)
-
-      {:error, :workflow_run_not_found} ->
-        load_legacy_run_state(project_id, run_id)
+        {:error, :not_found}
 
       {:error, _reason} = error ->
         error
@@ -878,66 +871,6 @@ defmodule JidoCodeWeb.RunDetailLive do
           {:ok, nil} -> {:error, :governed_run_not_found}
           {:error, reason} -> {:error, reason}
         end
-    end
-  end
-
-  defp load_workflow_run(%Run{} = run, _project_scope, _run_id) do
-    workflow_run_id =
-      run
-      |> map_get(:workflow_run_id, "workflow_run_id")
-      |> normalize_optional_string()
-
-    if is_nil(workflow_run_id) do
-      {:error, :workflow_run_not_found}
-    else
-      case WorkflowRun.read(
-             query: [filter: [id: workflow_run_id], limit: 1],
-             actor: Actor.operator_actor()
-           ) do
-        {:ok, [%WorkflowRun{} = workflow_run | _rest]} -> {:ok, workflow_run}
-        {:ok, []} -> {:error, :workflow_run_not_found}
-        {:error, reason} -> {:error, reason}
-      end
-    end
-  end
-
-  defp load_workflow_run(_run, _project_scope, _run_id), do: {:error, :workflow_run_not_found}
-
-  defp load_legacy_run_state(project_id, run_id) do
-    case WorkflowRun.get_by_project_and_run_id(
-           %{project_id: project_id, run_id: run_id},
-           actor: Actor.operator_actor()
-         ) do
-      {:ok, %WorkflowRun{} = workflow_run} ->
-        case RunBridge.projected_run_for_workflow_run(workflow_run) do
-          {:ok, %Run{} = run} ->
-            {:ok,
-             %{
-               run: run,
-               workflow_run: workflow_run,
-               evidence_records: load_evidence_records(run),
-               change_request: load_change_request(run),
-               decisions: load_decisions(run),
-               repo_posture: load_repo_posture(run)
-             }}
-
-          _other ->
-            {:ok,
-             %{
-               run: workflow_run,
-               workflow_run: workflow_run,
-               evidence_records: [],
-               change_request: nil,
-               decisions: [],
-               repo_posture: nil
-             }}
-        end
-
-      {:ok, nil} ->
-        {:error, :not_found}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 
@@ -1106,12 +1039,57 @@ defmodule JidoCodeWeb.RunDetailLive do
       (is_nil(payload_run_id) or payload_run_id == socket_run_id)
   end
 
-  defp failure_context(%WorkflowRun{} = run) do
-    if failed_status?(Map.get(run, :status)) do
-      error =
+  defp workflow_audit(%Run{} = run) do
+    run_metadata =
+      run
+      |> Map.get(:run_metadata, %{})
+      |> normalize_map()
+
+    run_metadata
+    |> Map.get("workflow_audit", %{})
+    |> normalize_map()
+  end
+
+  defp workflow_audit(_run), do: %{}
+
+  defp workflow_audit_status_transitions(%Run{} = run) do
+    workflow_audit = workflow_audit(run)
+
+    case Map.get(workflow_audit, "status_transitions") do
+      transitions when is_list(transitions) ->
+        transitions
+
+      _other ->
         run
-        |> Map.get(:error, %{})
+        |> Map.get(:run_metadata, %{})
         |> normalize_map()
+        |> Map.get("status_transitions", [])
+    end
+  end
+
+  defp workflow_audit_status_transitions(_run), do: []
+
+  defp workflow_audit_step_results(%Run{} = run) do
+    run
+    |> workflow_audit()
+    |> Map.get("step_results", %{})
+    |> normalize_map()
+  end
+
+  defp workflow_audit_step_results(_run), do: %{}
+
+  defp workflow_audit_error(%Run{} = run) do
+    run
+    |> workflow_audit()
+    |> Map.get("error", %{})
+    |> normalize_map()
+  end
+
+  defp workflow_audit_error(_run), do: %{}
+
+  defp failure_context(%Run{} = run) do
+    if failed_status?(Map.get(run, :status)) do
+      error = workflow_audit_error(run)
 
       if map_size(error) == 0 do
         nil
@@ -1161,7 +1139,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp failure_context(_run), do: nil
 
-  defp issue_triage_artifacts(%WorkflowRun{} = run) do
+  defp issue_triage_artifacts(%Run{} = run) do
     workflow_name =
       run
       |> Map.get(:workflow_name)
@@ -1169,9 +1147,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
     if workflow_name == "issue_triage" do
       step_results =
-        run
-        |> Map.get(:step_results, %{})
-        |> normalize_map()
+        workflow_audit_step_results(run)
 
       triage_artifact =
         step_results
@@ -1457,11 +1433,8 @@ defmodule JidoCodeWeb.RunDetailLive do
     end)
   end
 
-  defp artifact_categories(%WorkflowRun{} = run) do
-    step_results =
-      run
-      |> Map.get(:step_results, %{})
-      |> normalize_map()
+  defp artifact_categories(%Run{} = run) do
+    step_results = workflow_audit_step_results(run)
 
     artifact_nodes = collect_artifact_nodes(step_results)
 
@@ -1626,11 +1599,8 @@ defmodule JidoCodeWeb.RunDetailLive do
     end
   end
 
-  defp approval_context(%WorkflowRun{} = run) do
-    step_results =
-      run
-      |> Map.get(:step_results, %{})
-      |> normalize_map()
+  defp approval_context(%Run{} = run) do
+    step_results = workflow_audit_step_results(run)
 
     context =
       step_results
@@ -1671,11 +1641,10 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp approval_context(_run), do: nil
 
-  defp approval_context_blocker(%WorkflowRun{} = run) do
+  defp approval_context_blocker(%Run{} = run) do
     diagnostics =
       run
-      |> Map.get(:error, %{})
-      |> normalize_map()
+      |> workflow_audit_error()
       |> Map.get("approval_context_diagnostics", [])
       |> normalize_diagnostics()
 
@@ -1686,7 +1655,7 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp approval_context_blocker(_run), do: nil
 
-  defp retry_lineage_entries(%WorkflowRun{} = run) do
+  defp retry_lineage_entries(%Run{} = run) do
     run
     |> Map.get(:retry_lineage, [])
     |> normalize_retry_lineage_entries()
@@ -1734,8 +1703,8 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   defp normalize_retry_lineage_entries(_entries), do: []
 
-  defp step_retry_state(%WorkflowRun{} = run) do
-    case WorkflowRun.step_retry_contract(run) do
+  defp step_retry_state(%Run{} = run) do
+    case Run.step_retry_contract(run) do
       {:ok, step_retry_contract} ->
         %{
           available: true,

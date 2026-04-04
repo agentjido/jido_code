@@ -1,5 +1,8 @@
 defmodule JidoCodeWeb.GitHubWebhookControllerTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.demand_ingress.entrypoint_policy_metadata_preserved
   # covers: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
+  # covers: architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
   use JidoCodeWeb.ConnCase, async: false
 
   import ExUnit.CaptureLog
@@ -32,11 +35,11 @@ defmodule JidoCodeWeb.GitHubWebhookControllerTest do
 
     on_exit(fn ->
       Logger.configure(level: original_log_level)
-      restore_env(:github_webhook_secret, original_secret)
-      restore_env(:github_webhook_verified_dispatcher, original_dispatcher)
-      restore_env(:system_config, original_system_config)
-      restore_env(:issue_triage_artifact_persister, original_issue_triage_artifact_persister)
-      restore_env(:issue_triage_response_poster, original_issue_triage_response_poster)
+      restore_jido_code_env(:github_webhook_secret, original_secret)
+      restore_jido_code_env(:github_webhook_verified_dispatcher, original_dispatcher)
+      restore_jido_code_env(:system_config, original_system_config)
+      restore_jido_code_env(:issue_triage_artifact_persister, original_issue_triage_artifact_persister)
+      restore_jido_code_env(:issue_triage_response_poster, original_issue_triage_response_poster)
     end)
 
     :ok
@@ -1634,9 +1637,9 @@ defmodule JidoCodeWeb.GitHubWebhookControllerTest do
 
   defp map_get(_map, _atom_key, _string_key, default), do: default
 
-  defp restore_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
+  defp restore_jido_code_env(key, :__missing__), do: Application.delete_env(:jido_code, key)
 
-  defp restore_env(key, value) do
+  defp restore_jido_code_env(key, value) do
     Application.put_env(:jido_code, key, value)
   end
 end

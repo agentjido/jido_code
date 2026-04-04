@@ -1,9 +1,10 @@
 defmodule JidoCodeWeb.WorkflowsLiveTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.frontend_stack.liveview_remains_product_host_shell
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
-
-  alias JidoCode.Projects.Project
 
   setup do
     original_workflow_definition_loader =
@@ -27,15 +28,15 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: repo} =
+      provision_managed_repo!(%{
         name: "repo-workflows",
         github_full_name: "owner/repo-workflows",
         default_branch: "main",
-        settings: %{}
+        workspace_settings: %{}
       })
 
-    project_id = project.id
+    repo_id = repo.id
 
     launch_requests = start_supervised!({Agent, fn -> [] end})
 
@@ -60,7 +61,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
     view
     |> form("#workflows-manual-run-form",
       run: %{
-        project_id: project.id,
+        project_id: repo_id,
         workflow_name: "implement_task",
         task_summary: "Ship onboarding copy updates with tests."
       }
@@ -73,7 +74,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
 
     assert has_element?(
              view,
-             "#workflows-run-feedback-run-link[href='/repos/#{project.id}/runs/run-manual-123']"
+             "#workflows-run-feedback-run-link[href='/repos/#{repo_id}/runs/run-manual-123']"
            )
 
     assert has_element?(view, "#workflows-run-id-run-manual-123", "run-manual-123")
@@ -84,7 +85,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
 
     assert has_element?(
              view,
-             "#workflows-run-detail-link-run-manual-123[href='/repos/#{project.id}/runs/run-manual-123']"
+             "#workflows-run-detail-link-run-manual-123[href='/repos/#{repo_id}/runs/run-manual-123']"
            )
 
     refute has_element?(view, "#workflows-runs-empty-state")
@@ -95,7 +96,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
              %{
                workflow_name: "implement_task",
                workflow_version: 4,
-               project_id: ^project_id,
+               project_id: ^repo_id,
                project_defaults: %{
                  default_branch: "main",
                  github_full_name: "owner/repo-workflows"
@@ -105,7 +106,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
                  mode: "manual",
                  source_row: %{
                    route: "/workflows",
-                   project_id: ^project_id,
+                   project_id: ^repo_id,
                    workflow_name: "implement_task",
                    workflow_version: 4
                  }
@@ -131,12 +132,12 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: repo} =
+      provision_managed_repo!(%{
         name: "repo-validation",
         github_full_name: "owner/repo-validation",
         default_branch: "main",
-        settings: %{}
+        workspace_settings: %{}
       })
 
     launcher_invocations = start_supervised!({Agent, fn -> 0 end})
@@ -151,7 +152,7 @@ defmodule JidoCodeWeb.WorkflowsLiveTest do
     view
     |> form("#workflows-manual-run-form",
       run: %{
-        project_id: project.id,
+        project_id: repo.id,
         workflow_name: "implement_task",
         task_summary: ""
       }

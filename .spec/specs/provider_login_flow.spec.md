@@ -112,6 +112,12 @@ surface:
     - auth.provider_login_flow.local_auth_fallback_visible
 
 - kind: source_file
+  target: test/support/conn_case.ex
+  covers:
+    - auth.provider_login_flow.local_session_issuance
+    - auth.provider_login_flow.local_auth_fallback_visible
+
+- kind: source_file
   target: test/jido_code/auth_providers/provider_login_test.exs
   covers:
     - auth.provider_login_flow.local_user_resolution

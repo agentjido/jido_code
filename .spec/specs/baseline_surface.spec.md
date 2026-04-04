@@ -86,6 +86,11 @@ surface:
     - baseline.surface.auth_entrypoints_visible
 
 - kind: source_file
+  target: test/support/conn_case.ex
+  covers:
+    - baseline.surface.auth_entrypoints_visible
+
+- kind: source_file
   target: test/jido_code_web/controllers/page_controller_test.exs
   covers:
     - baseline.surface.root_redirects_to_welcome

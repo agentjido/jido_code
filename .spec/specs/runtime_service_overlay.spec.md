@@ -82,7 +82,7 @@ surface:
   stability: evolving
 
 - id: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
-  statement: Operator-facing dashboard and run-detail surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state rather than exposing runtime topology, raw transport details, or retired compatibility-rollout panels as part of the supported product narrative.
+  statement: Operator-facing dashboard and run-detail surfaces shall describe runtime-service posture and degraded-path evidence in product-oriented language that explicitly distinguishes product-owned truth from bounded runtime-service state, and those surfaces shall load through governed run and evidence records instead of workflow-history fallback paths.
   priority: should
   stability: evolving
 
@@ -223,6 +223,11 @@ surface:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
 
 - kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
   target: lib/jido_code/governance/runtime_integration_bridge.ex
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
@@ -256,6 +261,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code_web/live/dashboard_live.ex
+  covers:
+    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
   covers:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product

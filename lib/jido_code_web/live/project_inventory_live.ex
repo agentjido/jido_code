@@ -1,8 +1,9 @@
 defmodule JidoCodeWeb.ProjectInventoryLive do
+  # covers: architecture.frontend_stack.liveview_remains_product_host_shell
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   use JidoCodeWeb, :live_view
 
-  alias JidoCode.Control.Actor
-  alias JidoCode.Projects.Project
+  alias JidoCode.Workbench.Inventory
 
   @default_branch_filter_value "all"
   @default_filter_values %{
@@ -75,7 +76,7 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
             field={@filter_form[:search]}
             type="text"
             label="Search"
-            placeholder="Repository, name, branch, or project ID"
+            placeholder="Repository, name, branch, or repository ID"
           />
           <.input
             id="project-inventory-filter-default-branch"
@@ -145,30 +146,30 @@ defmodule JidoCodeWeb.ProjectInventoryLive do
   end
 
   defp load_projects do
-    case Project.read(query: [sort: [github_full_name: :asc]], actor: Actor.operator_actor()) do
-      {:ok, projects} -> Enum.map(projects, &to_project_row/1)
+    case Inventory.load() do
+      {:ok, rows, _warning} -> Enum.map(rows, &to_project_row/1)
       {:error, _reason} -> []
     end
   end
 
-  defp to_project_row(project) do
+  defp to_project_row(row) do
     project_id =
-      project
+      row
       |> map_get(:id, "id")
       |> normalize_optional_string()
 
     project_name =
-      project
+      row
       |> map_get(:name, "name")
       |> normalize_optional_string()
 
     github_full_name =
-      project
+      row
       |> map_get(:github_full_name, "github_full_name")
       |> normalize_optional_string()
 
     default_branch =
-      project
+      row
       |> map_get(:default_branch, "default_branch")
       |> normalize_optional_string() || "main"
 

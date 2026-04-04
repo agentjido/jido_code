@@ -137,6 +137,12 @@ surface:
     - users.admin_system.registration_guardrails
 
 - kind: source_file
+  target: test/support/conn_case.ex
+  covers:
+    - users.admin_system.bootstrap_admin
+    - users.admin_system.self_service_auth_lifecycle
+
+- kind: source_file
   target: test/jido_code_web/live/setup_live_test.exs
   covers:
     - users.admin_system.bootstrap_admin

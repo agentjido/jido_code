@@ -1,19 +1,20 @@
 defmodule JidoCode.Orchestration.RunSummaryFeed do
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   @moduledoc """
   Loads recent governed run summaries for dashboard visibility.
   """
 
   alias JidoCode.Control.Actor
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence}
-  alias JidoCode.Orchestration.{Run, RunBridge, WorkflowRun}
+  alias JidoCode.Orchestration.Run
 
   @default_limit 8
   @default_fetch_error_type "dashboard_run_summary_feed_fetch_failed"
 
   @default_fetch_remediation """
-  Retry dashboard run summary refresh. If this persists, inspect workflow run persistence health.
+  Retry dashboard run summary refresh. If this persists, inspect governed run projection health.
   """
 
   @type stale_warning :: %{
@@ -59,7 +60,7 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
   def default_loader do
     case Run.read(query: [sort: [started_at: :desc], limit: @default_limit], actor: Actor.operator_actor()) do
       {:ok, []} ->
-        fallback_legacy_loader()
+        {:ok, [], nil}
 
       {:ok, runs} ->
         {:ok, Enum.map(runs, &to_run_summary/1), nil}
@@ -73,25 +74,6 @@ defmodule JidoCode.Orchestration.RunSummaryFeed do
          )}
     end
   end
-
-  defp fallback_legacy_loader do
-    case WorkflowRun.read(
-           query: [sort: [started_at: :desc], limit: @default_limit],
-           actor: Actor.operator_actor()
-         ) do
-      {:ok, runs} -> {:ok, Enum.map(runs, &projected_run_summary/1), nil}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp projected_run_summary(%WorkflowRun{} = workflow_run) do
-    case RunBridge.projected_run_for_workflow_run(workflow_run) do
-      {:ok, %Run{} = run} -> to_run_summary(run)
-      _other -> to_run_summary(workflow_run)
-    end
-  end
-
-  defp projected_run_summary(run), do: to_run_summary(run)
 
   defp safe_invoke_loader(loader) do
     try do

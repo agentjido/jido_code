@@ -314,4 +314,9 @@ surface:
   target: test/jido_code/control/repo_bridge_test.exs
   covers:
     - architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+
+- kind: source_file
+  target: test/support/conn_case.ex
+  covers:
+    - architecture.conversation_driver.actor_context_propagated
 ```

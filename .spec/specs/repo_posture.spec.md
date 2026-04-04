@@ -82,7 +82,7 @@ surface:
   stability: evolving
 
 - id: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
-  statement: Operator-facing dashboard and run-detail surfaces shall expose governed evidence, review, and decision state in a way that keeps repo posture and escalation drivers explainable outside internal bridge modules.
+  statement: Operator-facing dashboard and run-detail surfaces shall expose governed evidence, review, and decision state through canonical governed-run feeds so repo posture and escalation drivers remain explainable without workflow-history fallback loaders.
   priority: should
   stability: evolving
 
@@ -229,6 +229,16 @@ surface:
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
+  target: lib/jido_code/orchestration/run_summary_feed.ex
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+
+- kind: source_file
   target: lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
@@ -256,6 +266,11 @@ surface:
   target: test/jido_code/governance/runtime_capability_bridge_test.exs
   covers:
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 
 - kind: source_file
   target: test/jido_code/governance/runtime_evidence_bridge_test.exs

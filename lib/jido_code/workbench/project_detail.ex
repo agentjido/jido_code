@@ -101,24 +101,13 @@ defmodule JidoCode.Workbench.ProjectDetail do
   end
 
   defp to_project_detail(scope) when is_map(scope) do
-    project = map_get(scope, :project, "project", %{})
     managed_repo = map_get(scope, :managed_repo, "managed_repo", %{})
     source_repo = map_get(scope, :source_repo, "source_repo", %{})
-
-    settings =
-      project
-      |> map_get(:settings, "settings", %{})
-      |> normalize_map()
 
     workspace_settings =
       managed_repo
       |> map_get(:workspace_settings, "workspace_settings", %{})
       |> normalize_map()
-      |> Map.merge(
-        settings
-        |> map_get(:workspace, "workspace", %{})
-        |> normalize_map()
-      )
 
     execution_settings =
       managed_repo
@@ -137,18 +126,12 @@ defmodule JidoCode.Workbench.ProjectDetail do
     github_full_name =
       source_repo
       |> map_get(:full_name, "full_name")
-      |> normalize_optional_string() ||
-        project
-        |> map_get(:github_full_name, "github_full_name")
-        |> normalize_optional_string()
+      |> normalize_optional_string()
 
     name =
       managed_repo
       |> map_get(:display_name, "display_name")
       |> normalize_optional_string() ||
-        project
-        |> map_get(:name, "name")
-        |> normalize_optional_string() ||
         source_repo
         |> map_get(:name, "name")
         |> normalize_optional_string()
@@ -156,15 +139,7 @@ defmodule JidoCode.Workbench.ProjectDetail do
     default_branch =
       source_repo
       |> map_get(:default_branch, "default_branch")
-      |> normalize_optional_string() ||
-        project
-        |> map_get(:default_branch, "default_branch")
-        |> normalize_optional_string() || "main"
-
-    project_id =
-      scope
-      |> map_get(:project_id, "project_id")
-      |> normalize_optional_string()
+      |> normalize_optional_string() || "main"
 
     managed_repo_id =
       scope
@@ -176,13 +151,19 @@ defmodule JidoCode.Workbench.ProjectDetail do
       |> map_get(:source_repo_id, "source_repo_id")
       |> normalize_optional_string()
 
+    route_id =
+      scope
+      |> map_get(:route_id, "route_id")
+      |> normalize_optional_string() ||
+        managed_repo_id || source_repo_id || "unknown-repo"
+
     %{
-      id: project_id || managed_repo_id || source_repo_id || "unknown-project",
-      name: name || github_full_name || project_id || "unknown-project",
-      github_full_name: github_full_name || name || project_id || "unknown-project",
+      id: route_id,
+      name: name || github_full_name || route_id,
+      github_full_name: github_full_name || name || route_id,
       default_branch: default_branch,
       settings:
-        settings
+        %{}
         |> Map.put("workspace", workspace_settings)
         |> Map.put("execution", execution_settings)
         |> Map.merge(integration_settings),

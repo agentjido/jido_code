@@ -10,6 +10,7 @@ status: active
 summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, and whose repo-native state layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
+  - jido_code.internal_domain_and_execution_canonicalization
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -20,6 +21,7 @@ decisions:
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
+  - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
@@ -105,6 +107,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.factory_control_plane.internal_repo_loaders_use_canonical_repo_graph
+  statement: Product-owned repo loaders, setup helpers, and fixtures shall create and read the canonical `SourceRepo` plus `ManagedRepo` graph directly instead of defaulting to `Project`-era rows and bridge repair.
+  priority: must
+  stability: evolving
+
 - id: architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work
   statement: The product architecture shall normalize repository sync, policy loading, observation, intake, assessment, work creation, execution, evidence, and decision-making through one durable managed-repository control loop.
   priority: must
@@ -148,6 +155,7 @@ surface:
   covers:
     - architecture.factory_control_plane.product_is_governed_software_factory
     - architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects
+    - architecture.factory_control_plane.internal_repo_loaders_use_canonical_repo_graph
     - architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work
   given:
     - A Git-backed repository is under product supervision.
@@ -217,6 +225,11 @@ surface:
     - architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
     - architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
+
+- kind: source_file
+  target: .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
+  covers:
+    - architecture.factory_control_plane.internal_repo_loaders_use_canonical_repo_graph
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md

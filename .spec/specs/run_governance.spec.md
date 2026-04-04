@@ -11,6 +11,7 @@ status: active
 summary: Jido.Code treats governed `Run` as the canonical execution record linked to `WorkItem` and `ExecutionProfile`, keeps run evidence explainable and reviewable in first-class governance records, and lets those records inform posture without replacing the run-governance model itself.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
+  - jido_code.internal_domain_and_execution_canonicalization
   - jido_code.runic_execution_model
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -18,6 +19,7 @@ decisions:
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
+  - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
@@ -32,9 +34,16 @@ surface:
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
+  - lib/jido_code/orchestration/run_summary_feed.ex
   - lib/jido_code/orchestration/workflow_run.ex
+  - lib/jido_code/workbench/run_outcomes.ex
+  - lib/jido_code_web/live/run_detail_live.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - test/support/conn_case.ex
+  - test/jido_code/orchestration/phase_eighteen_integration_test.exs
+  - test/jido_code/orchestration/run_bridge_test.exs
+  - test/jido_code_web/live/phase_eighteen_integration_test.exs
+  - test/jido_code_web/live/run_detail_live_test.exs
   - priv/repo/migrations/20260331100000_add_runs_and_execution_profiles.exs
   - priv/repo/migrations/20260331113000_add_run_governance_records.exs
 ```
@@ -45,6 +54,16 @@ surface:
 - id: architecture.run_governance.run_is_preferred_execution_record
   statement: Jido.Code shall treat `Run` as the canonical control-plane execution record linked to managed repository scope and optional `WorkItem` context, and operator-facing execution behavior shall not depend on `WorkflowRun` as a supported parallel product record.
   priority: must
+  stability: evolving
+
+- id: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+  statement: Product-owned execution loaders, retry paths, and runtime materialization shall read and persist governed `Run` state first, using `WorkflowRun` only as bounded internal adapter or audit support where a current execution path still requires it.
+  priority: must
+  stability: evolving
+
+- id: architecture.run_governance.greenfield_tests_and_fixtures_create_canonical_run_graph
+  statement: Greenfield tests, fixtures, and setup helpers shall create canonical governed run, evidence, and decision records directly unless a migration-specific or audit-specific test explicitly requires lower-level workflow history.
+  priority: should
   stability: evolving
 
 - id: architecture.run_governance.execution_profile_governs_environment_defaults
@@ -114,6 +133,7 @@ surface:
 - id: architecture.run_governance.scenario_workflow_run_projects_into_run
   covers:
     - architecture.run_governance.run_is_preferred_execution_record
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   given:
     - A managed-repository execution is created for a governed work item or direct operator launch.
   when:
@@ -179,9 +199,16 @@ surface:
     - architecture.run_governance.run_is_preferred_execution_record
 
 - kind: source_file
+  target: .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+    - architecture.run_governance.greenfield_tests_and_fixtures_create_canonical_run_graph
+
+- kind: source_file
   target: lib/jido_code/orchestration/run.ex
   covers:
     - architecture.run_governance.run_is_preferred_execution_record
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 
 - kind: source_file
   target: lib/jido_code/orchestration/execution_profile.ex
@@ -194,6 +221,21 @@ surface:
   covers:
     - architecture.run_governance.run_launch_resolves_effective_execution_profile
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
+
+- kind: source_file
+  target: lib/jido_code/orchestration/run_summary_feed.ex
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: lib/jido_code/workbench/run_outcomes.ex
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: lib/jido_code_web/live/run_detail_live.ex
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 
 - kind: source_file
   target: lib/jido_code/governance/evidence.ex
@@ -239,6 +281,26 @@ surface:
   target: lib/jido_code/governance/policy_bridge.ex
   covers:
     - architecture.run_governance.review_policy_controls_change_request_creation
+
+- kind: source_file
+  target: test/jido_code/orchestration/run_bridge_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: test/jido_code/orchestration/phase_eighteen_integration_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_eighteen_integration_test.exs
+  covers:
+    - architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
 
 - kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex

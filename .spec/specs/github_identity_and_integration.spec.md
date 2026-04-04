@@ -107,6 +107,11 @@ surface:
     - auth.github_integration.local_user_mapping
 
 - kind: source_file
+  target: test/support/conn_case.ex
+  covers:
+    - auth.github_integration.non_blocking_local_auth
+
+- kind: source_file
   target: test/jido_code/setup/github_credential_checks_test.exs
   covers:
     - auth.github_integration.readiness_feedback

@@ -1,6 +1,8 @@
 defmodule JidoCode.Orchestration.Run do
   # covers: architecture.execution_pipeline.run_is_projection_of_workflow_state
+  # covers: architecture.execution_pipeline.governed_run_interfaces_hide_workflow_state
   # covers: architecture.run_governance.run_is_preferred_execution_record
+  # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
   # covers: architecture.run_governance.run_launch_resolves_effective_execution_profile
   use Ash.Resource,
     otp_app: :jido_code,
@@ -8,7 +10,11 @@ defmodule JidoCode.Orchestration.Run do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias JidoCode.Control.Checks.ActorClassIn
+  alias JidoCode.Control.{Actor, Checks.ActorClassIn}
+  alias JidoCode.Orchestration.WorkflowRun
+
+  @approval_action_error_type "workflow_run_approval_action_failed"
+  @retry_action_error_type "workflow_run_retry_action_failed"
 
   @statuses [:pending, :running, :awaiting_approval, :completed, :failed, :cancelled]
 
@@ -320,6 +326,116 @@ defmodule JidoCode.Orchestration.Run do
     identity :unique_managed_repo_run_id, [:managed_repo_id, :run_id]
   end
 
+  @spec approve(t(), map() | nil) :: {:ok, t()} | {:error, map()}
+  def approve(run, params \\ nil)
+
+  def approve(run, params) do
+    if run_record?(run) do
+      params = normalize_params(params)
+
+      with {:ok, workflow_run} <- workflow_run_for_action(run, @approval_action_error_type),
+           {:ok, %WorkflowRun{} = updated_workflow_run} <- WorkflowRun.approve(workflow_run, params),
+           {:ok, updated_run} <-
+             refresh_projected_run(updated_workflow_run, params, @approval_action_error_type) do
+        {:ok, updated_run}
+      end
+    else
+      {:error,
+       action_failure(
+         @approval_action_error_type,
+         "Governed run reference is invalid and cannot be approved.",
+         "Reload run detail and retry approval."
+       )}
+    end
+  end
+
+  @spec reject(t(), map() | nil) :: {:ok, t()} | {:error, map()}
+  def reject(run, params \\ nil)
+
+  def reject(run, params) do
+    if run_record?(run) do
+      params = normalize_params(params)
+
+      with {:ok, workflow_run} <- workflow_run_for_action(run, @approval_action_error_type),
+           {:ok, %WorkflowRun{} = updated_workflow_run} <- WorkflowRun.reject(workflow_run, params),
+           {:ok, updated_run} <-
+             refresh_projected_run(updated_workflow_run, params, @approval_action_error_type) do
+        {:ok, updated_run}
+      end
+    else
+      {:error,
+       action_failure(
+         @approval_action_error_type,
+         "Governed run reference is invalid and cannot be rejected.",
+         "Reload run detail and retry rejection."
+       )}
+    end
+  end
+
+  @spec retry(t(), map() | nil) :: {:ok, t()} | {:error, map()}
+  def retry(run, params \\ nil)
+
+  def retry(run, params) do
+    if run_record?(run) do
+      params = normalize_params(params)
+
+      with {:ok, workflow_run} <- workflow_run_for_action(run, @retry_action_error_type),
+           {:ok, %WorkflowRun{} = retried_workflow_run} <- WorkflowRun.retry(workflow_run, params),
+           {:ok, retried_run} <-
+             refresh_projected_run(retried_workflow_run, params, @retry_action_error_type) do
+        {:ok, retried_run}
+      end
+    else
+      {:error,
+       action_failure(
+         @retry_action_error_type,
+         "Governed run reference is invalid and cannot be retried.",
+         "Reload run detail and retry once the failed run is available."
+       )}
+    end
+  end
+
+  @spec step_retry_contract(t()) :: {:ok, map()} | {:error, map()}
+  def step_retry_contract(run)
+
+  def step_retry_contract(run) do
+    if run_record?(run) do
+      with {:ok, workflow_run} <- workflow_run_for_action(run, @retry_action_error_type) do
+        WorkflowRun.step_retry_contract(workflow_run)
+      end
+    else
+      {:error,
+       action_failure(
+         @retry_action_error_type,
+         "Governed run reference is invalid and step-level retry is unavailable.",
+         "Reload run detail and retry once the failed run is available."
+       )}
+    end
+  end
+
+  @spec retry_step(t(), map() | nil) :: {:ok, t()} | {:error, map()}
+  def retry_step(run, params \\ nil)
+
+  def retry_step(run, params) do
+    if run_record?(run) do
+      params = normalize_params(params)
+
+      with {:ok, workflow_run} <- workflow_run_for_action(run, @retry_action_error_type),
+           {:ok, %WorkflowRun{} = retried_workflow_run} <- WorkflowRun.retry_step(workflow_run, params),
+           {:ok, retried_run} <-
+             refresh_projected_run(retried_workflow_run, params, @retry_action_error_type) do
+        {:ok, retried_run}
+      end
+    else
+      {:error,
+       action_failure(
+         @retry_action_error_type,
+         "Governed run reference is invalid and step-level retry cannot start.",
+         "Reload run detail and retry once the failed run is available."
+       )}
+    end
+  end
+
   defp normalize_projection_defaults(changeset, _context) do
     current_step =
       changeset
@@ -370,6 +486,89 @@ defmodule JidoCode.Orchestration.Run do
       :run_metadata,
       changeset |> Ash.Changeset.get_attribute(:run_metadata) |> normalize_map()
     )
+  end
+
+  defp workflow_run_for_action(run, error_type) when is_binary(error_type) do
+    workflow_run_id =
+      run
+      |> Map.get(:workflow_run_id)
+      |> normalize_optional_string()
+
+    if is_nil(workflow_run_id) do
+      {:error,
+       action_failure(
+         error_type,
+         "Governed run is missing workflow audit state and cannot perform this action.",
+         "Refresh run projections and retry from run detail."
+       )}
+    else
+      case WorkflowRun.read(query: [filter: [id: workflow_run_id], limit: 1], actor: Actor.operator_actor()) do
+        {:ok, [%WorkflowRun{} = workflow_run | _rest]} ->
+          {:ok, workflow_run}
+
+        {:ok, []} ->
+          {:error,
+           action_failure(
+             error_type,
+             "Underlying workflow audit state is unavailable for this governed run.",
+             "Refresh run projections and retry from run detail."
+           )}
+
+        {:error, reason} ->
+          {:error,
+           action_failure(
+             error_type,
+             "Underlying workflow audit state could not be loaded (#{format_reason(reason)}).",
+             "Refresh run projections and retry from run detail."
+           )}
+      end
+    end
+  end
+
+  defp refresh_projected_run(%WorkflowRun{id: workflow_run_id}, params, error_type) do
+    actor =
+      params
+      |> Map.get("actor")
+      |> Actor.effective_actor()
+      |> case do
+        nil -> Actor.operator_actor()
+        resolved_actor -> resolved_actor
+      end
+
+    case get_by_workflow_run_id(workflow_run_id, actor: actor) do
+      {:ok, run} when is_map(run) ->
+        {:ok, run}
+
+      {:ok, nil} ->
+        {:error,
+         action_failure(
+           error_type,
+           "Governed run projection is unavailable after workflow state changed.",
+           "Refresh run projections and retry from run detail."
+         )}
+
+      {:error, reason} ->
+        {:error,
+         action_failure(
+           error_type,
+           "Governed run projection could not be refreshed (#{format_reason(reason)}).",
+           "Refresh run projections and retry from run detail."
+         )}
+    end
+  end
+
+  defp run_record?(%{__struct__: module}) when module == __MODULE__, do: true
+  defp run_record?(_run), do: false
+
+  defp normalize_params(params) when is_map(params), do: normalize_map(params)
+  defp normalize_params(_params), do: %{}
+
+  defp action_failure(error_type, detail, remediation) do
+    %{
+      error_type: error_type,
+      detail: detail,
+      remediation: remediation
+    }
   end
 
   defp normalize_string(value, default) do
@@ -424,4 +623,8 @@ defmodule JidoCode.Orchestration.Run do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
+
+  defp format_reason(reason) when is_binary(reason), do: reason
+  defp format_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp format_reason(reason), do: inspect(reason)
 end

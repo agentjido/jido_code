@@ -1,9 +1,10 @@
 defmodule JidoCodeWeb.AgentsLiveTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: architecture.frontend_stack.liveview_remains_product_host_shell
+  # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
-
-  alias JidoCode.Projects.Project
 
   setup do
     original_project_loader =
@@ -29,24 +30,24 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project_enabled} =
-      Project.create(%{
+    %{managed_repo: repo_enabled} =
+      provision_managed_repo!(%{
         name: "repo-enabled",
         github_full_name: "owner/repo-enabled",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{"enabled" => true}
           }
         }
       })
 
-    {:ok, project_disabled} =
-      Project.create(%{
+    %{managed_repo: repo_disabled} =
+      provision_managed_repo!(%{
         name: "repo-disabled",
         github_full_name: "owner/repo-disabled",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{"enabled" => false}
           }
@@ -59,41 +60,41 @@ defmodule JidoCodeWeb.AgentsLiveTest do
 
     assert has_element?(
              view,
-             "#agents-project-github-full-name-#{project_enabled.id}",
+             "#agents-project-github-full-name-#{repo_enabled.id}",
              "owner/repo-enabled"
            )
 
     assert has_element?(
              view,
-             "#agents-project-github-full-name-#{project_disabled.id}",
+             "#agents-project-github-full-name-#{repo_disabled.id}",
              "owner/repo-disabled"
            )
 
-    assert has_element?(view, "#agents-issue-bot-enable-#{project_enabled.id}")
-    assert has_element?(view, "#agents-issue-bot-disable-#{project_enabled.id}")
-    assert has_element?(view, "#agents-issue-bot-enable-#{project_disabled.id}")
-    assert has_element?(view, "#agents-issue-bot-disable-#{project_disabled.id}")
+    assert has_element?(view, "#agents-issue-bot-enable-#{repo_enabled.id}")
+    assert has_element?(view, "#agents-issue-bot-disable-#{repo_enabled.id}")
+    assert has_element?(view, "#agents-issue-bot-enable-#{repo_disabled.id}")
+    assert has_element?(view, "#agents-issue-bot-disable-#{repo_disabled.id}")
 
-    assert has_element?(view, "#agents-issue-bot-status-#{project_enabled.id}", "Enabled")
-    assert has_element?(view, "#agents-issue-bot-status-#{project_disabled.id}", "Disabled")
-
-    view
-    |> element("#agents-issue-bot-disable-#{project_enabled.id}")
-    |> render_click()
-
-    assert has_element?(view, "#agents-issue-bot-status-#{project_enabled.id}", "Disabled")
-
-    refreshed_project_enabled = read_project!(project_enabled.id)
-    assert issue_bot_enabled(refreshed_project_enabled.settings) == false
+    assert has_element?(view, "#agents-issue-bot-status-#{repo_enabled.id}", "Enabled")
+    assert has_element?(view, "#agents-issue-bot-status-#{repo_disabled.id}", "Disabled")
 
     view
-    |> element("#agents-issue-bot-enable-#{project_disabled.id}")
+    |> element("#agents-issue-bot-disable-#{repo_enabled.id}")
     |> render_click()
 
-    assert has_element?(view, "#agents-issue-bot-status-#{project_disabled.id}", "Enabled")
+    assert has_element?(view, "#agents-issue-bot-status-#{repo_enabled.id}", "Disabled")
 
-    refreshed_project_disabled = read_project!(project_disabled.id)
-    assert issue_bot_enabled(refreshed_project_disabled.settings) == true
+    refreshed_repo_enabled = read_managed_repo!(repo_enabled.id)
+    assert issue_bot_enabled(refreshed_repo_enabled.integration_settings) == false
+
+    view
+    |> element("#agents-issue-bot-enable-#{repo_disabled.id}")
+    |> render_click()
+
+    assert has_element?(view, "#agents-issue-bot-status-#{repo_disabled.id}", "Enabled")
+
+    refreshed_repo_disabled = read_managed_repo!(repo_disabled.id)
+    assert issue_bot_enabled(refreshed_repo_disabled.integration_settings) == true
   end
 
   test "persistence failure leaves enabled state unchanged and renders typed error feedback", %{
@@ -104,12 +105,12 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: repo} =
+      provision_managed_repo!(%{
         name: "repo-failure",
         github_full_name: "owner/repo-failure",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{"enabled" => true}
           }
@@ -122,10 +123,10 @@ defmodule JidoCodeWeb.AgentsLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/agents", on_error: :warn)
 
-    assert has_element?(view, "#agents-issue-bot-status-#{project.id}", "Enabled")
+    assert has_element?(view, "#agents-issue-bot-status-#{repo.id}", "Enabled")
 
     view
-    |> element("#agents-issue-bot-disable-#{project.id}")
+    |> element("#agents-issue-bot-disable-#{repo.id}")
     |> render_click()
 
     assert has_element?(
@@ -134,10 +135,10 @@ defmodule JidoCodeWeb.AgentsLiveTest do
              "support_agent_config_persistence_failed"
            )
 
-    assert has_element?(view, "#agents-issue-bot-status-#{project.id}", "Enabled")
+    assert has_element?(view, "#agents-issue-bot-status-#{repo.id}", "Enabled")
 
-    refreshed_project = read_project!(project.id)
-    assert issue_bot_enabled(refreshed_project.settings) == true
+    refreshed_repo = read_managed_repo!(repo.id)
+    assert issue_bot_enabled(refreshed_repo.integration_settings) == true
   end
 
   test "agents page persists explicit per-project webhook event list updates", %{conn: _conn} do
@@ -146,12 +147,12 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: repo} =
+      provision_managed_repo!(%{
         name: "repo-events",
         github_full_name: "owner/repo-events",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{
               "enabled" => true,
@@ -165,29 +166,29 @@ defmodule JidoCodeWeb.AgentsLiveTest do
 
     assert has_element?(
              view,
-             "#agents-issue-bot-event-checkbox-#{project.id}-issues-opened"
+             "#agents-issue-bot-event-checkbox-#{repo.id}-issues-opened"
            )
 
     assert has_element?(
              view,
-             "#agents-issue-bot-event-checkbox-#{project.id}-issues-edited"
+             "#agents-issue-bot-event-checkbox-#{repo.id}-issues-edited"
            )
 
     assert has_element?(
              view,
-             "#agents-issue-bot-event-checkbox-#{project.id}-issue-comment-created"
+             "#agents-issue-bot-event-checkbox-#{repo.id}-issue-comment-created"
            )
 
     view
-    |> element("#agents-issue-bot-events-form-#{project.id}")
+    |> element("#agents-issue-bot-events-form-#{repo.id}")
     |> render_submit(%{
-      "project_id" => project.id,
+      "project_id" => repo.id,
       "webhook_events" => ["issues.edited", "issue_comment.created"]
     })
 
-    refreshed_project = read_project!(project.id)
+    refreshed_repo = read_managed_repo!(repo.id)
 
-    assert issue_bot_webhook_events(refreshed_project.settings) == [
+    assert issue_bot_webhook_events(refreshed_repo.integration_settings) == [
              "issues.edited",
              "issue_comment.created"
            ]
@@ -201,12 +202,12 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: repo} =
+      provision_managed_repo!(%{
         name: "repo-event-validation",
         github_full_name: "owner/repo-event-validation",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{
               "enabled" => true,
@@ -219,9 +220,9 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/agents", on_error: :warn)
 
     view
-    |> element("#agents-issue-bot-events-form-#{project.id}")
+    |> element("#agents-issue-bot-events-form-#{repo.id}")
     |> render_submit(%{
-      "project_id" => project.id,
+      "project_id" => repo.id,
       "webhook_events" => ["issues.opened", "issues.invalid_action"]
     })
 
@@ -237,8 +238,8 @@ defmodule JidoCodeWeb.AgentsLiveTest do
              "issues.invalid_action"
            )
 
-    refreshed_project = read_project!(project.id)
-    assert issue_bot_webhook_events(refreshed_project.settings) == ["issues.opened"]
+    refreshed_repo = read_managed_repo!(repo.id)
+    assert issue_bot_webhook_events(refreshed_repo.integration_settings) == ["issues.opened"]
   end
 
   test "agents page supports per-project approval mode selection and persists issue bot policy",
@@ -250,12 +251,12 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: repo} =
+      provision_managed_repo!(%{
         name: "repo-approval-mode",
         github_full_name: "owner/repo-approval-mode",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{
               "enabled" => true,
@@ -269,39 +270,39 @@ defmodule JidoCodeWeb.AgentsLiveTest do
 
     assert has_element?(
              view,
-             "#agents-issue-bot-approval-select-#{project.id} option[value='auto_post']",
+             "#agents-issue-bot-approval-select-#{repo.id} option[value='auto_post']",
              "Auto-post"
            )
 
     assert has_element?(
              view,
-             "#agents-issue-bot-approval-select-#{project.id} option[value='approval_required']",
+             "#agents-issue-bot-approval-select-#{repo.id} option[value='approval_required']",
              "Approval required"
            )
 
     assert has_element?(
              view,
-             "#agents-issue-bot-approval-mode-#{project.id}",
+             "#agents-issue-bot-approval-mode-#{repo.id}",
              "Approval required"
            )
 
-    assert has_element?(view, "#agents-issue-bot-last-updated-#{project.id}", "Last updated:")
+    assert has_element?(view, "#agents-issue-bot-last-updated-#{repo.id}", "Last updated:")
 
     view
-    |> element("#agents-issue-bot-approval-form-#{project.id}")
+    |> element("#agents-issue-bot-approval-form-#{repo.id}")
     |> render_submit(%{
-      "project_id" => project.id,
+      "project_id" => repo.id,
       "approval_mode" => "auto_post"
     })
 
     assert has_element?(
              view,
-             "#agents-issue-bot-approval-mode-#{project.id}",
+             "#agents-issue-bot-approval-mode-#{repo.id}",
              "Auto-post"
            )
 
-    refreshed_project = read_project!(project.id)
-    assert issue_bot_approval_mode(refreshed_project.settings) == "auto_post"
+    refreshed_repo = read_managed_repo!(repo.id)
+    assert issue_bot_approval_mode(refreshed_repo.integration_settings) == "auto_post"
   end
 
   test "approval mode persistence failure keeps prior policy and renders typed failure context",
@@ -313,12 +314,12 @@ defmodule JidoCodeWeb.AgentsLiveTest do
     {authed_conn, _session_token} =
       authenticate_owner_conn("owner@example.com", "owner-password-123")
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: repo} =
+      provision_managed_repo!(%{
         name: "repo-approval-mode-failure",
         github_full_name: "owner/repo-approval-mode-failure",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{
               "enabled" => true,
@@ -336,14 +337,14 @@ defmodule JidoCodeWeb.AgentsLiveTest do
 
     assert has_element?(
              view,
-             "#agents-issue-bot-approval-mode-#{project.id}",
+             "#agents-issue-bot-approval-mode-#{repo.id}",
              "Approval required"
            )
 
     view
-    |> element("#agents-issue-bot-approval-form-#{project.id}")
+    |> element("#agents-issue-bot-approval-form-#{repo.id}")
     |> render_submit(%{
-      "project_id" => project.id,
+      "project_id" => repo.id,
       "approval_mode" => "auto_post"
     })
 
@@ -355,17 +356,12 @@ defmodule JidoCodeWeb.AgentsLiveTest do
 
     assert has_element?(
              view,
-             "#agents-issue-bot-approval-mode-#{project.id}",
+             "#agents-issue-bot-approval-mode-#{repo.id}",
              "Approval required"
            )
 
-    refreshed_project = read_project!(project.id)
-    assert issue_bot_approval_mode(refreshed_project.settings) == "approval_required"
-  end
-
-  defp read_project!(project_id) do
-    {:ok, [project]} = Project.read(query: [filter: [id: project_id], limit: 1])
-    project
+    refreshed_repo = read_managed_repo!(repo.id)
+    assert issue_bot_approval_mode(refreshed_repo.integration_settings) == "approval_required"
   end
 
   defp issue_bot_enabled(settings) when is_map(settings) do

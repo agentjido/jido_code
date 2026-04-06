@@ -61,14 +61,14 @@ capabilities over code structure, relationships, and patterns.
     [x] 20.4.3 Task - Add KG tools to Reviewer
       Update Reviewer agent to use KGQuery for impact analysis.
 
-  [ ] 20.5 Section - KG Integration Tests
+  [x] 20.5 Section - KG Integration Tests
     Verify KG functionality with end-to-end scenarios.
 
-    [ ] 20.5.1 Task - KG query tests
+    [x] 20.5.1 Task - KG query tests
       Test SPARQL queries against known code structures.
 
-    [ ] 20.5.2 Task - KG update tests
+    [x] 20.5.2 Task - KG update tests
       Verify incremental updates when code changes.
 
-    [ ] 20.5.3 Task - Agent integration tests
+    [x] 20.5.3 Task - Agent integration tests
       Verify agents can use KG tools effectively.

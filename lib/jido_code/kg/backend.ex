@@ -18,8 +18,14 @@ defmodule JidoCode.KG.MemoryBackend do
   end
 
   def stop_link do
-    :ets.delete(@table_name_triples)
-    :ets.delete(@table_name_nodes)
+    if :ets.whereis(@table_name_triples) != :undefined do
+      :ets.delete(@table_name_triples)
+    end
+
+    if :ets.whereis(@table_name_nodes) != :undefined do
+      :ets.delete(@table_name_nodes)
+    end
+
     :ok
   end
 
@@ -60,8 +66,7 @@ defmodule JidoCode.KG.MemoryBackend do
     direction = Keyword.get(opts, :direction, :both)
     depth = Keyword.get(opts, :depth, 3)
 
-    results = explore_graph(start_node, direction, depth)
-    {:ok, results}
+    explore_graph(start_node, direction, depth)
   end
 
   # Private functions

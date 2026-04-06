@@ -102,9 +102,9 @@ defmodule JidoCode.KG.Indexer do
   defp build_module_triples(parsed) do
     Enum.flat_map(parsed.modules, fn module_name ->
       [
-        {{parsed.file, :defines, module_name}},
-        {{module_name, :type, :module}},
-        {{module_name, :in_file, parsed.file}}
+        {parsed.file, :defines, module_name},
+        {module_name, :type, :module},
+        {module_name, :in_file, parsed.file}
       ]
     end)
   end
@@ -113,24 +113,31 @@ defmodule JidoCode.KG.Indexer do
     Enum.flat_map(parsed.functions, fn func ->
       function_id = "#{func.module}.#{func.name}/#{func.arity}"
       [
-        {{parsed.file, :defines, function_id}},
-        {{function_id, :type, :function}},
-        {{function_id, :name, func.name}},
-        {{function_id, :arity, func.arity}},
-        {{function_id, :in_module, func.module}},
-        {{function_id, :in_file, parsed.file}}
+        {parsed.file, :defines, function_id},
+        {function_id, :type, :function},
+        {function_id, :name, func.name},
+        {function_id, :arity, func.arity},
+        {function_id, :in_module, func.module},
+        {function_id, :in_file, parsed.file}
       ]
     end)
   end
 
   defp build_call_triples(parsed) do
     Enum.map(parsed.calls, fn call ->
-      caller_id = if call.from_function, do: "#{call.from_module}.#{call.from_function}", else: call.from_module
-      callee_id = if call.to_module == call.from_module,
-        do: call.to_function,
-        else: "#{call.to_module}.#{call.to_function}"
+      caller_id = if Map.get(call, :from_function) do
+        "#{call.from_module}.#{call.from_function}"
+      else
+        call.from_module
+      end
 
-      {{caller_id, :calls, callee_id}}
+      callee_id = if call.to_module == call.from_module do
+        call.to_function
+      else
+        "#{call.to_module}.#{call.to_function}"
+      end
+
+      {caller_id, :calls, callee_id}
     end)
   end
 

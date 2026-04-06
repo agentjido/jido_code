@@ -249,13 +249,13 @@ defmodule JidoCode.AgentOS.Manager do
     end
   end
 
-  defp track_kernel(kernel_name, managed_repo_id, extra) do
+  defp track_kernel(kernel_name, managed_repo_id, extra) when is_list(extra) do
     state = %KernelState{
       managed_repo_id: managed_repo_id,
       created_at: DateTime.utc_now()
     }
 
-    state = Enum.into(extra, state)
+    state = Enum.reduce(extra, state, fn {k, v}, acc -> Map.put(acc, k, v) end)
 
     :ets.insert(@table_name, {kernel_name, state})
     :ok

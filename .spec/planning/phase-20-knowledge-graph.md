@@ -37,16 +37,16 @@ capabilities over code structure, relationships, and patterns.
     [x] 20.2.3 Task - Implement KGExplore action
       Create `JidoCode.Actions.KGExplore` for exploring relationships.
 
-  [ ] 20.3 Section - Code Indexing
+  [x] 20.3 Section - Code Indexing
     Implement parsing and indexing of Elixir code into the KG.
 
-    [ ] 20.3.1 Task - Implement AST-based code parser
+    [x] 20.3.1 Task - Implement AST-based code parser
       Create parser for Elixir AST extraction (functions, modules, calls).
 
-    [ ] 20.3.2 Task - Implement code indexer
+    [x] 20.3.2 Task - Implement code indexer
       Create indexer that builds the KG from parsed AST data.
 
-    [ ] 20.3.3 Task - Implement incremental index updates
+    [x] 20.3.3 Task - Implement incremental index updates
       Update KG when files change (detected by RepoMonitor).
 
   [ ] 20.4 Section - KG Tool Integration

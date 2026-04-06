@@ -74,8 +74,12 @@ defmodule JidoCode.KG.MockAdapter do
   end
 
   @impl true
-  def explore(_start_node, _opts) do
-    {:ok, []}
+  def explore(start_node, _opts) do
+    results = [
+      %{from: start_node, relationship: "imports", to: "lib/jido_code/repo.ex"},
+      %{from: start_node, relationship: "calls", to: "lib/jido_code/agent_workspace.ex"}
+    ]
+    {:ok, results}
   end
 
   # Private helper

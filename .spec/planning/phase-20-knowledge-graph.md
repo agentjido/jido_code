@@ -25,16 +25,16 @@ capabilities over code structure, relationships, and patterns.
     [x] 20.1.3 Task - Create mock adapter for testing
       Implement a mock KG adapter for unit testing.
 
-  [ ] 20.2 Section - KG Actions
+  [x] 20.2 Section - KG Actions
     Implement Jido.Action modules for KG operations.
 
-    [ ] 20.2.1 Task - Implement KGQuery action
+    [x] 20.2.1 Task - Implement KGQuery action
       Create `JidoCode.Actions.KGQuery` for SPARQL queries.
 
-    [ ] 20.2.2 Task - Implement KGUpdate action
+    [x] 20.2.2 Task - Implement KGUpdate action
       Create `JidoCode.Actions.KGUpdate` for updating the KG.
 
-    [ ] 20.2.3 Task - Implement KGExplore action
+    [x] 20.2.3 Task - Implement KGExplore action
       Create `JidoCode.Actions.KGExplore` for exploring relationships.
 
   [ ] 20.3 Section - Code Indexing

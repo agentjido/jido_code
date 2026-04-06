@@ -49,16 +49,16 @@ capabilities over code structure, relationships, and patterns.
     [x] 20.3.3 Task - Implement incremental index updates
       Update KG when files change (detected by RepoMonitor).
 
-  [ ] 20.4 Section - KG Tool Integration
+  [x] 20.4 Section - KG Tool Integration
     Add KG tools to AI agents that need code understanding.
 
-    [ ] 20.4.1 Task - Add KG tools to Planner
+    [x] 20.4.1 Task - Add KG tools to Planner
       Update Planner agent to use KGQuery and KGExplore.
 
-    [ ] 20.4.2 Task - Add KG tools to Coder
+    [x] 20.4.2 Task - Add KG tools to Coder
       Update Coder agent to use KGQuery for pattern discovery.
 
-    [ ] 20.4.3 Task - Add KG tools to Reviewer
+    [x] 20.4.3 Task - Add KG tools to Reviewer
       Update Reviewer agent to use KGQuery for impact analysis.
 
   [ ] 20.5 Section - KG Integration Tests

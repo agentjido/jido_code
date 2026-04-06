@@ -263,7 +263,26 @@
         "status": "accepted",
         "title": "VSM Recursion And Scope"
       }
-    ]
+    ],
+    "jido_code.jido_os_deprecation": {
+      "id": "jido_code.jido_os_deprecation",
+      "status": "accepted",
+      "date": "2026-04-06",
+      "affects": [
+        "package.jido_code",
+        "architecture.conversation_driver",
+        "coding_assistance.boundary",
+        "architecture.runtime_service_overlay",
+        "architecture.jido_os_session_turn_runtime",
+        "jido_os.runtime.compatibility",
+        "docs.product_foundation"
+      ],
+      "file": ".spec/decisions/jido_code.jido_os_deprecation.md",
+      "covers": [
+        "package.jido_code.spec_led_workspace",
+        "docs.product_foundation.durable_architecture_record_in_spec_workspace"
+      ]
+    }
   },
   "findings": [],
   "index": {

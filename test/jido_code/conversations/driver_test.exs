@@ -3,7 +3,6 @@ defmodule JidoCode.Conversations.DriverTest do
   # covers: architecture.conversation_driver.conversation_identity_maps_to_session
   # covers: architecture.conversation_driver.actor_context_propagated
   # covers: architecture.conversation_driver.subscriber_event_contract_preserved
-  # covers: architecture.conversation_driver.public_jido_os_turn_event_bridge
   use JidoCode.DataCase, async: false
 
   alias JidoCode.CodingAssistance
@@ -12,15 +11,6 @@ defmodule JidoCode.Conversations.DriverTest do
   alias JidoCode.Projects.Project
 
   setup do
-    instance_id = "jido-code-conversation-driver-#{System.unique_integer([:positive, :monotonic])}"
-    previous_instance_id = Application.get_env(:jido_code, :jido_os_instance_id)
-
-    Application.put_env(:jido_code, :jido_os_instance_id, instance_id)
-
-    on_exit(fn ->
-      restore_env(:jido_code, :jido_os_instance_id, previous_instance_id)
-    end)
-
     :ok
   end
 
@@ -99,7 +89,4 @@ defmodule JidoCode.Conversations.DriverTest do
       settings: %{}
     })
   end
-
-  defp restore_env(app, key, nil), do: Application.delete_env(app, key)
-  defp restore_env(app, key, value), do: Application.put_env(app, key, value)
 end

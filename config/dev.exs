@@ -97,3 +97,14 @@ config :phoenix_live_view,
 config :swoosh, :api_client, false
 
 config :jido_code_server, :llm_adapter, :jido_ai
+
+# AgentOS configuration
+config :jido_code,
+  # AgentOS kernel manager configuration
+  agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,
+  agent_os_registry: JidoCode.AgentOS.Manager.Registry,
+  # Ecto persistence for kernels and pods
+  agent_os_persistence: [
+    adapter: Jido.Ecto.Storage,
+    repo: JidoCode.Repo
+  ]

@@ -21,7 +21,10 @@ defmodule JidoCode.Application do
         {Registry, keys: :unique, name: JidoCode.Forge.SessionRegistry},
         {DynamicSupervisor, name: JidoCode.Forge.SpriteSupervisor, strategy: :one_for_one},
         {DynamicSupervisor, name: JidoCode.Forge.ExecSessionSupervisor, strategy: :one_for_one},
-        JidoCode.Forge.Manager
+        JidoCode.Forge.Manager,
+        # AgentOS supervision tree
+        {JidoCode.AgentOS.Manager.Server, []},
+        {JidoCode.AgentOS.Manager.Supervisor, []}
       ] ++ live_vue_children() ++ forge_dev_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

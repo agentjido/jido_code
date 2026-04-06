@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Pods.CodingPod do
+defmodule JidoCode.Pods.CodingPod do
   # covers: architecture.agent_os_integration.pod_hierarchy
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """
@@ -31,38 +31,38 @@ defmodule JidoCode.AgentOS.Pods.CodingPod do
     name: "coding_pod",
     topology: %{
       task_board: %{
-        agent: JidoCode.AgentOS.Agents.TaskBoard,
+        agent: JidoCode.Agents.TaskBoard,
         manager: :task_board,
         activation: :eager
       },
       project_context: %{
-        agent: JidoCode.AgentOS.Agents.ProjectContext,
+        agent: JidoCode.Agents.ProjectContext,
         manager: :project_context,
         activation: :eager
       },
       # Lazy AI specialists - started on demand
       planner: %{
-        agent: JidoCode.AgentOS.Agents.Planner,
+        agent: JidoCode.Agents.Planner,
         manager: :planning,
         activation: :lazy
       },
       coder: %{
-        agent: JidoCode.AgentOS.Agents.Coder,
+        agent: JidoCode.Agents.Coder,
         manager: :coding,
         activation: :lazy
       },
       reviewer: %{
-        agent: JidoCode.AgentOS.Agents.Reviewer,
+        agent: JidoCode.Agents.Reviewer,
         manager: :review,
         activation: :lazy
       },
       refactorer: %{
-        agent: JidoCode.AgentOS.Agents.Refactorer,
+        agent: JidoCode.Agents.Refactorer,
         manager: :refactoring,
         activation: :lazy
       },
       explainer: %{
-        agent: JidoCode.AgentOS.Agents.Explainer,
+        agent: JidoCode.Agents.Explainer,
         manager: :explanation,
         activation: :lazy
       }

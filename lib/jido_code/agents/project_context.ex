@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.ProjectContext do
+defmodule JidoCode.Agents.ProjectContext do
   # covers: architecture.agent_os_integration.pod_hierarchy
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """

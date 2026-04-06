@@ -2,8 +2,8 @@ defmodule JidoCode.AgentOSAIAgentsTest do
   # covers: architecture.agent_os_integration.coding_agents
   use ExUnit.Case, async: true
 
-  alias JidoCode.AgentOS.Agents.{Planner, Coder, Reviewer, Refactorer, Explainer}
-  alias JidoCode.AgentOS.Pods.CodingPod
+  alias JidoCode.Agents.{Planner, Coder, Reviewer, Refactorer, Explainer}
+  alias JidoCode.Pods.CodingPod
 
   describe "CodingPod with AI agents" do
     test "module exists and is a pod" do
@@ -16,9 +16,9 @@ defmodule JidoCode.AgentOSAIAgentsTest do
       nodes = topology.nodes
 
       # Eager agents
-      assert nodes.task_board.module == JidoCode.AgentOS.Agents.TaskBoard
+      assert nodes.task_board.module == JidoCode.Agents.TaskBoard
       assert nodes.task_board.activation == :eager
-      assert nodes.project_context.module == JidoCode.AgentOS.Agents.ProjectContext
+      assert nodes.project_context.module == JidoCode.Agents.ProjectContext
       assert nodes.project_context.activation == :eager
 
       # Lazy AI agents

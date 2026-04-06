@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.GitStatus do
+defmodule JidoCode.Actions.GitStatus do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to get git status for the workspace.

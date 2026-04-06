@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Pods.Empty do
+defmodule JidoCode.Pods.Empty do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   @moduledoc """
   Placeholder pod for AgentOS kernels.

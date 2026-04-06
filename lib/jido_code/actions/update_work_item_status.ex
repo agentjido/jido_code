@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.UpdateWorkItemStatus do
+defmodule JidoCode.Actions.UpdateWorkItemStatus do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to update WorkItem status via the JidoCode product API.

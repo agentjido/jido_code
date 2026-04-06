@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.TaskBoard do
+defmodule JidoCode.Agents.TaskBoard do
   # covers: architecture.agent_os_integration.pod_hierarchy
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """

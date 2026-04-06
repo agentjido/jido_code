@@ -2,8 +2,8 @@ defmodule JidoCode.AgentOSPodsTest do
   # covers: architecture.agent_os_integration.pod_hierarchy
   use ExUnit.Case, async: true
 
-  alias JidoCode.AgentOS.Pods.{RepoPod, CodingPod}
-  alias JidoCode.AgentOS.Agents.{RepoMonitor, WorkRegistry, TaskBoard, ProjectContext}
+  alias JidoCode.Pods.{RepoPod, CodingPod}
+  alias JidoCode.Agents.{RepoMonitor, WorkRegistry, TaskBoard, ProjectContext}
 
   describe "RepoPod" do
     test "module exists and is a pod" do
@@ -25,6 +25,18 @@ defmodule JidoCode.AgentOSPodsTest do
       assert nodes.work_registry.module == WorkRegistry
       assert nodes.work_registry.activation == :eager
     end
+
+    test "has lazy AI agents configured" do
+      topology = CodingPod.topology()
+      nodes = topology.nodes
+
+      # Verify lazy agents exist and are lazy
+      assert nodes.planner.activation == :lazy
+      assert nodes.coder.activation == :lazy
+      assert nodes.reviewer.activation == :lazy
+      assert nodes.refactorer.activation == :lazy
+      assert nodes.explainer.activation == :lazy
+    end
   end
 
   describe "CodingPod" do
@@ -42,22 +54,10 @@ defmodule JidoCode.AgentOSPodsTest do
       topology = CodingPod.topology()
       nodes = topology.nodes
 
-      assert nodes.task_board.module == TaskBoard
+      assert nodes.task_board.module == JidoCode.Agents.TaskBoard
       assert nodes.task_board.activation == :eager
-      assert nodes.project_context.module == ProjectContext
+      assert nodes.project_context.module == JidoCode.Agents.ProjectContext
       assert nodes.project_context.activation == :eager
-    end
-
-    test "has lazy AI agents configured" do
-      topology = CodingPod.topology()
-      nodes = topology.nodes
-
-      # Verify lazy agents exist and are lazy
-      assert nodes.planner.activation == :lazy
-      assert nodes.coder.activation == :lazy
-      assert nodes.reviewer.activation == :lazy
-      assert nodes.refactorer.activation == :lazy
-      assert nodes.explainer.activation == :lazy
     end
   end
 

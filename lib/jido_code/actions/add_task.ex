@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.AddTask do
+defmodule JidoCode.Actions.AddTask do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to add a task to the task board.

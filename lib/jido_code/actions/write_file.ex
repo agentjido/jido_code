@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.WriteFile do
+defmodule JidoCode.Actions.WriteFile do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to write content to a file in the workspace.

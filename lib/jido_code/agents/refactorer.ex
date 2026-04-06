@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.Refactorer do
+defmodule JidoCode.Agents.Refactorer do
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """
   Refactoring specialist for the CodingPod.
@@ -13,13 +13,13 @@ defmodule JidoCode.AgentOS.Agents.Refactorer do
     streaming: false,
     max_iterations: 12,
     tools: [
-      JidoCode.AgentOS.Actions.ReadFile,
-      JidoCode.AgentOS.Actions.WriteFile,
-      JidoCode.AgentOS.Actions.ListFiles,
-      JidoCode.AgentOS.Actions.SearchCode,
-      JidoCode.AgentOS.Actions.GitStatus,
-      JidoCode.AgentOS.Actions.GitDiff,
-      JidoCode.AgentOS.Actions.RunTests
+      JidoCode.Actions.ReadFile,
+      JidoCode.Actions.WriteFile,
+      JidoCode.Actions.ListFiles,
+      JidoCode.Actions.SearchCode,
+      JidoCode.Actions.GitStatus,
+      JidoCode.Actions.GitDiff,
+      JidoCode.Actions.RunTests
     ],
     system_prompt: """
     You are the refactoring specialist for JidoCode, an AI-powered coding system.

@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.RepoMonitor do
+defmodule JidoCode.Agents.RepoMonitor do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.pod_hierarchy
   @moduledoc """

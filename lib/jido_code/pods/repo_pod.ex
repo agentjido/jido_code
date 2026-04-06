@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Pods.RepoPod do
+defmodule JidoCode.Pods.RepoPod do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.pod_hierarchy
   @moduledoc """
@@ -22,12 +22,12 @@ defmodule JidoCode.AgentOS.Pods.RepoPod do
     name: "repo_pod",
     topology: %{
       repo_monitor: %{
-        agent: JidoCode.AgentOS.Agents.RepoMonitor,
+        agent: JidoCode.Agents.RepoMonitor,
         manager: :repo_monitor,
         activation: :eager
       },
       work_registry: %{
-        agent: JidoCode.AgentOS.Agents.WorkRegistry,
+        agent: JidoCode.Agents.WorkRegistry,
         manager: :work_registry,
         activation: :eager
       }

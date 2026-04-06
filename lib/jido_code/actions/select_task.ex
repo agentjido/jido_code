@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.SelectTask do
+defmodule JidoCode.Actions.SelectTask do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to select the active task on the task board.

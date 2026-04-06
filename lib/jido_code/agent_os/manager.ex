@@ -210,7 +210,7 @@ defmodule JidoCode.AgentOS.Manager do
     config = [
       kernel_name: kernel_name,
       otp_app: :jido_code,
-      pod: JidoCode.AgentOS.Pods.Empty,
+      pod: JidoCode.Pods.Empty,
       persistence: persistence_config()
     ]
 

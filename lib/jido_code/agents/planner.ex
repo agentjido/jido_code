@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.Planner do
+defmodule JidoCode.Agents.Planner do
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """
   Planning specialist for the CodingPod.
@@ -14,12 +14,12 @@ defmodule JidoCode.AgentOS.Agents.Planner do
     streaming: false,
     max_iterations: 10,
     tools: [
-      JidoCode.AgentOS.Actions.ReadFile,
-      JidoCode.AgentOS.Actions.ListFiles,
-      JidoCode.AgentOS.Actions.SearchCode,
-      JidoCode.AgentOS.Actions.GitStatus,
-      JidoCode.AgentOS.Actions.AddTask,
-      JidoCode.AgentOS.Actions.StoreArtifact
+      JidoCode.Actions.ReadFile,
+      JidoCode.Actions.ListFiles,
+      JidoCode.Actions.SearchCode,
+      JidoCode.Actions.GitStatus,
+      JidoCode.Actions.AddTask,
+      JidoCode.Actions.StoreArtifact
     ],
     system_prompt: """
     You are the planning specialist for JidoCode, an AI-powered coding system.

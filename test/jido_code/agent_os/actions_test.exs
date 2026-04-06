@@ -2,7 +2,7 @@ defmodule JidoCode.AgentOSActionsTest do
   # covers: architecture.agent_os_integration.actions
   use ExUnit.Case, async: true
 
-  alias JidoCode.AgentOS.Actions.{
+  alias JidoCode.Actions.{
     ReadFile,
     WriteFile,
     ListFiles,

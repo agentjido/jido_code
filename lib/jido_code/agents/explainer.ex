@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.Explainer do
+defmodule JidoCode.Agents.Explainer do
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """
   Explanation specialist for the CodingPod.
@@ -13,9 +13,9 @@ defmodule JidoCode.AgentOS.Agents.Explainer do
     streaming: false,
     max_iterations: 6,
     tools: [
-      JidoCode.AgentOS.Actions.ReadFile,
-      JidoCode.AgentOS.Actions.ListFiles,
-      JidoCode.AgentOS.Actions.SearchCode
+      JidoCode.Actions.ReadFile,
+      JidoCode.Actions.ListFiles,
+      JidoCode.Actions.SearchCode
     ],
     system_prompt: """
     You are the explanation specialist for JidoCode, an AI-powered coding system.

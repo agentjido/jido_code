@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.ReadFile do
+defmodule JidoCode.Actions.ReadFile do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to read a file from the workspace.

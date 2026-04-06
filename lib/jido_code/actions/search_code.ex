@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.SearchCode do
+defmodule JidoCode.Actions.SearchCode do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to search for text within files in the workspace.

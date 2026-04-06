@@ -20,8 +20,8 @@ defmodule JidoCode.AgentWorkspace do
   Functions for planning, executing, and reviewing work through agents.
   """
 
-  alias JidoCode.AgentOS.{Manager, Pods}
-  alias JidoCode.AgentOS.Pods.{RepoPod, CodingPod}
+  alias JidoCode.AgentOS.Manager
+  alias JidoCode.Pods.{RepoPod, CodingPod}
 
   @type managed_repo_id :: String.t()
   @type work_item_id :: String.t()

@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Actions.RunTests do
+defmodule JidoCode.Actions.RunTests do
   # covers: architecture.agent_os_integration.actions
   @moduledoc """
   Action to run tests in the workspace.

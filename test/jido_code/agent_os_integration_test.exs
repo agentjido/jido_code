@@ -105,7 +105,7 @@ defmodule JidoCode.AgentOSIntegrationTest do
   describe "19.7.3 Agent collaboration scenarios" do
     test "19.7.3.1 planner agent has required tools" do
       # Verify the planner agent has access to required tools
-      planner = JidoCode.AgentOS.Agents.Planner
+      planner = JidoCode.Agents.Planner
 
       # The agent should be callable
       assert function_exported?(planner, :ask, 2)
@@ -113,7 +113,7 @@ defmodule JidoCode.AgentOSIntegrationTest do
 
     test "19.7.3.2 coder agent has required tools" do
       # Verify the coder agent has access to required tools
-      coder = JidoCode.AgentOS.Agents.Coder
+      coder = JidoCode.Agents.Coder
 
       # The agent should be callable
       assert function_exported?(coder, :ask, 2)
@@ -121,7 +121,7 @@ defmodule JidoCode.AgentOSIntegrationTest do
 
     test "19.7.3.3 reviewer agent has required tools" do
       # Verify the reviewer agent has access to required tools
-      reviewer = JidoCode.AgentOS.Agents.Reviewer
+      reviewer = JidoCode.Agents.Reviewer
 
       # The agent should be callable
       assert function_exported?(reviewer, :ask, 2)

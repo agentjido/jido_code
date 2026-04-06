@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.Coder do
+defmodule JidoCode.Agents.Coder do
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """
   Coding specialist for the CodingPod.
@@ -14,15 +14,15 @@ defmodule JidoCode.AgentOS.Agents.Coder do
     streaming: false,
     max_iterations: 15,
     tools: [
-      JidoCode.AgentOS.Actions.ReadFile,
-      JidoCode.AgentOS.Actions.WriteFile,
-      JidoCode.AgentOS.Actions.ListFiles,
-      JidoCode.AgentOS.Actions.SearchCode,
-      JidoCode.AgentOS.Actions.RunTests,
-      JidoCode.AgentOS.Actions.GitStatus,
-      JidoCode.AgentOS.Actions.GitDiff,
-      JidoCode.AgentOS.Actions.SelectTask,
-      JidoCode.AgentOS.Actions.AppendEvent
+      JidoCode.Actions.ReadFile,
+      JidoCode.Actions.WriteFile,
+      JidoCode.Actions.ListFiles,
+      JidoCode.Actions.SearchCode,
+      JidoCode.Actions.RunTests,
+      JidoCode.Actions.GitStatus,
+      JidoCode.Actions.GitDiff,
+      JidoCode.Actions.SelectTask,
+      JidoCode.Actions.AppendEvent
     ],
     system_prompt: """
     You are the coding specialist for JidoCode, an AI-powered coding system.

@@ -1,4 +1,4 @@
-defmodule JidoCode.AgentOS.Agents.Reviewer do
+defmodule JidoCode.Agents.Reviewer do
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """
   Review specialist for the CodingPod.
@@ -13,12 +13,12 @@ defmodule JidoCode.AgentOS.Agents.Reviewer do
     streaming: false,
     max_iterations: 8,
     tools: [
-      JidoCode.AgentOS.Actions.ReadFile,
-      JidoCode.AgentOS.Actions.ListFiles,
-      JidoCode.AgentOS.Actions.SearchCode,
-      JidoCode.AgentOS.Actions.GitStatus,
-      JidoCode.AgentOS.Actions.GitDiff,
-      JidoCode.AgentOS.Actions.RunTests
+      JidoCode.Actions.ReadFile,
+      JidoCode.Actions.ListFiles,
+      JidoCode.Actions.SearchCode,
+      JidoCode.Actions.GitStatus,
+      JidoCode.Actions.GitDiff,
+      JidoCode.Actions.RunTests
     ],
     system_prompt: """
     You are the review specialist for JidoCode, an AI-powered coding system.

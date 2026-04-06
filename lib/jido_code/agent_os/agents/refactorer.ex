@@ -13,11 +13,13 @@ defmodule JidoCode.AgentOS.Agents.Refactorer do
     streaming: false,
     max_iterations: 12,
     tools: [
-      # TODO: Replace with JidoCode.AgentOS.Actions.* in Section 19.4
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ReadFile,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.WriteFile,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ListFiles,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.SearchCode
+      JidoCode.AgentOS.Actions.ReadFile,
+      JidoCode.AgentOS.Actions.WriteFile,
+      JidoCode.AgentOS.Actions.ListFiles,
+      JidoCode.AgentOS.Actions.SearchCode,
+      JidoCode.AgentOS.Actions.GitStatus,
+      JidoCode.AgentOS.Actions.GitDiff,
+      JidoCode.AgentOS.Actions.RunTests
     ],
     system_prompt: """
     You are the refactoring specialist for JidoCode, an AI-powered coding system.

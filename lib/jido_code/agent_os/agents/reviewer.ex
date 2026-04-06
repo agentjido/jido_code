@@ -13,10 +13,12 @@ defmodule JidoCode.AgentOS.Agents.Reviewer do
     streaming: false,
     max_iterations: 8,
     tools: [
-      # TODO: Replace with JidoCode.AgentOS.Actions.* in Section 19.4
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ReadFile,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ListFiles,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.SearchCode
+      JidoCode.AgentOS.Actions.ReadFile,
+      JidoCode.AgentOS.Actions.ListFiles,
+      JidoCode.AgentOS.Actions.SearchCode,
+      JidoCode.AgentOS.Actions.GitStatus,
+      JidoCode.AgentOS.Actions.GitDiff,
+      JidoCode.AgentOS.Actions.RunTests
     ],
     system_prompt: """
     You are the review specialist for JidoCode, an AI-powered coding system.

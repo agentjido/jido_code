@@ -13,10 +13,9 @@ defmodule JidoCode.AgentOS.Agents.Explainer do
     streaming: false,
     max_iterations: 6,
     tools: [
-      # TODO: Replace with JidoCode.AgentOS.Actions.* in Section 19.4
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ReadFile,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ListFiles,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.SearchCode
+      JidoCode.AgentOS.Actions.ReadFile,
+      JidoCode.AgentOS.Actions.ListFiles,
+      JidoCode.AgentOS.Actions.SearchCode
     ],
     system_prompt: """
     You are the explanation specialist for JidoCode, an AI-powered coding system.

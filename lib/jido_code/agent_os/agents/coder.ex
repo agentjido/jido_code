@@ -14,12 +14,15 @@ defmodule JidoCode.AgentOS.Agents.Coder do
     streaming: false,
     max_iterations: 15,
     tools: [
-      # TODO: Replace with JidoCode.AgentOS.Actions.* in Section 19.4
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ReadFile,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.WriteFile,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ListFiles,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.SearchCode,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.RunTests
+      JidoCode.AgentOS.Actions.ReadFile,
+      JidoCode.AgentOS.Actions.WriteFile,
+      JidoCode.AgentOS.Actions.ListFiles,
+      JidoCode.AgentOS.Actions.SearchCode,
+      JidoCode.AgentOS.Actions.RunTests,
+      JidoCode.AgentOS.Actions.GitStatus,
+      JidoCode.AgentOS.Actions.GitDiff,
+      JidoCode.AgentOS.Actions.SelectTask,
+      JidoCode.AgentOS.Actions.AppendEvent
     ],
     system_prompt: """
     You are the coding specialist for JidoCode, an AI-powered coding system.

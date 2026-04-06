@@ -14,10 +14,12 @@ defmodule JidoCode.AgentOS.Agents.Planner do
     streaming: false,
     max_iterations: 10,
     tools: [
-      # TODO: Replace with JidoCode.AgentOS.Actions.* in Section 19.4
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ReadFile,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.ListFiles,
-      Jido.AgentOS.Pods.CodingAssistant.Actions.SearchCode
+      JidoCode.AgentOS.Actions.ReadFile,
+      JidoCode.AgentOS.Actions.ListFiles,
+      JidoCode.AgentOS.Actions.SearchCode,
+      JidoCode.AgentOS.Actions.GitStatus,
+      JidoCode.AgentOS.Actions.AddTask,
+      JidoCode.AgentOS.Actions.StoreArtifact
     ],
     system_prompt: """
     You are the planning specialist for JidoCode, an AI-powered coding system.

@@ -51,3 +51,12 @@ config :jido_code,
   system_config_saver: &JidoCode.Setup.SystemConfig.default_saver/1
 
 config :jido_code_server, :llm_adapter, :deterministic
+
+# AgentOS configuration for testing
+config :jido_code,
+  agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,
+  agent_os_registry: JidoCode.AgentOS.Manager.Registry,
+  agent_os_persistence: [
+    adapter: Jido.Ecto.Storage,
+    repo: JidoCode.Repo
+  ]

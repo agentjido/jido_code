@@ -1,8 +1,19 @@
-# JidoCode + Jido.AgentOS Integration Design
+---
+id: jido_code.jido_agent_os_integration
+status: proposed
+date: 2025-04-06
+affects:
+  - package.jido_code
+  - architecture.conversation_driver
+  - architecture.agent_os_integration
+related:
+  - jido_code.jido_os_deprecation
+---
 
-**Status:** Proposed
-**Date:** 2025-04-06
-**Related:** [jido_os_deprecation](./jido_code.jido_os_deprecation.md)
+<!-- covers: package.jido_code.spec_led_workspace -->
+<!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
+
+# JidoCode + Jido.AgentOS Integration Design
 
 ## Context
 

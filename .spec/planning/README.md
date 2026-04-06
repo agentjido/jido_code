@@ -33,6 +33,7 @@ The plan aligns to:
 10. [Phase 16 - Internal Cleanup and UI Convergence Foundation](./phase-16-internal-cleanup-and-ui-convergence-foundation.md): consolidate product-owned helpers, retire transitional seams, align start-oriented Mix entrypoints with the current frontend architecture, and standardize operator-facing UI states before the next feature wave.
 11. [Phase 17 - Compatibility Era Removal and Canonical Cutover](./phase-17-compatibility-era-removal-and-canonical-cutover.md): remove previous-era compatibility routes, bridges, rollout seams, and mixed-mode record shaping so this greenfield repo keeps only the canonical control-plane, runtime, and UI surfaces after specs are updated.
 12. [Phase 18 - Internal Domain and Execution Canonicalization](./phase-18-internal-domain-and-execution-canonicalization.md): remove the remaining `Project`- and `WorkflowRun`-era implementation seams so product internals, persistence helpers, and test fixtures create and consume only the canonical managed-repo and governed-run model.
+13. [Phase 19 - AgentOS Integration](./phase-19-agent-os-integration.md): integrate `jido_agent_os` to provide durable, multi-repository coding operations with one kernel per ManagedRepo, one RepoPod singleton for repository monitoring, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 
 ## Shared Conventions
 - Numbering:

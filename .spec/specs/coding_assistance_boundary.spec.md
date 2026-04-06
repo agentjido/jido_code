@@ -8,14 +8,17 @@ surface.
 ```spec-meta
 id: coding_assistance.boundary
 kind: feature
-status: active
+status: deprecated
 summary: jido_code exposes a product-local coding-assistance boundary that ensures a jido_os instance and session, routes requests through public coding-assistance and authority-facade surfaces, delegates session/project/AI-preference state to canonical jido_os authorities, and keeps higher-level conversation drivers out of runtime topology details while exposing the public turn runtime through product-owned wrappers.
+superseded_by: architecture.agent_os_integration
 decisions:
   - jido_code.coding_assistance_conversation_driver
   - jido_code.jido_os_runtime_service_overlay_adoption
   - jido_code.jido_os_public_turn_live_delivery_adoption
   - jido_code.jido_os_session_turn_runtime
   - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.jido_os_deprecation
+  - jido_code.jido_agent_os_integration
 surface:
   - lib/jido_code/coding_assistance.ex
   - lib/jido_code/runtime_gateway.ex

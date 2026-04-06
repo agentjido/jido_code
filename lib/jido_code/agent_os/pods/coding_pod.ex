@@ -15,9 +15,11 @@ defmodule JidoCode.AgentOS.Pods.CodingPod do
   * `ProjectContext` - Maintains workspace path, file index, and project-level context
 
   ### Lazy (started on demand)
-  * `Planner` - Generates implementation plans (referenced in Section 19.3)
-  * `Coder` - Implements code changes (referenced in Section 19.3)
-  * `Reviewer` - Reviews proposed changes (referenced in Section 19.3)
+  * `Planner` - Generates implementation plans
+  * `Coder` - Implements code changes
+  * `Reviewer` - Reviews proposed changes
+  * `Refactorer` - Refactors code for improved structure
+  * `Explainer` - Explains code and changes
 
   ## Lifecycle
 
@@ -37,12 +39,32 @@ defmodule JidoCode.AgentOS.Pods.CodingPod do
         agent: JidoCode.AgentOS.Agents.ProjectContext,
         manager: :project_context,
         activation: :eager
-      }
-
+      },
       # Lazy AI specialists - started on demand
-      # These will be added in Section 19.3
-      # planner: %{agent: JidoCode.AgentOS.Agents.Planner, manager: :planning, activation: :lazy},
-      # coder: %{agent: JidoCode.AgentOS.Agents.Coder, manager: :coding, activation: :lazy},
-      # reviewer: %{agent: JidoCode.AgentOS.Agents.Reviewer, manager: :review, activation: :lazy}
+      planner: %{
+        agent: JidoCode.AgentOS.Agents.Planner,
+        manager: :planning,
+        activation: :lazy
+      },
+      coder: %{
+        agent: JidoCode.AgentOS.Agents.Coder,
+        manager: :coding,
+        activation: :lazy
+      },
+      reviewer: %{
+        agent: JidoCode.AgentOS.Agents.Reviewer,
+        manager: :review,
+        activation: :lazy
+      },
+      refactorer: %{
+        agent: JidoCode.AgentOS.Agents.Refactorer,
+        manager: :refactoring,
+        activation: :lazy
+      },
+      explainer: %{
+        agent: JidoCode.AgentOS.Agents.Explainer,
+        manager: :explanation,
+        activation: :lazy
+      }
     }
 end

@@ -47,6 +47,18 @@ defmodule JidoCode.AgentOSPodsTest do
       assert nodes.project_context.module == ProjectContext
       assert nodes.project_context.activation == :eager
     end
+
+    test "has lazy AI agents configured" do
+      topology = CodingPod.topology()
+      nodes = topology.nodes
+
+      # Verify lazy agents exist and are lazy
+      assert nodes.planner.activation == :lazy
+      assert nodes.coder.activation == :lazy
+      assert nodes.reviewer.activation == :lazy
+      assert nodes.refactorer.activation == :lazy
+      assert nodes.explainer.activation == :lazy
+    end
   end
 
   describe "RepoMonitor agent" do

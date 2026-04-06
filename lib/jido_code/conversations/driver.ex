@@ -2,14 +2,13 @@ defmodule JidoCode.Conversations.Driver do
   # covers: architecture.conversation_driver.code_server_routes_through_boundary
   # covers: architecture.conversation_driver.conversation_identity_maps_to_session
   # covers: architecture.conversation_driver.actor_context_propagated
-  # covers: coding_assistance.boundary.policy_context_propagation
   @moduledoc """
   Product-local conversation driver for coding-oriented turns.
 
-  The driver resolves managed-repository scope, prepares the `jido_os` session
+  The driver resolves managed-repository scope, prepares the session
   boundary through `JidoCode.CodingAssistance`, normalizes the turn into the
-  product control loop, and translates public service outcomes back into the
-  stable conversation event contract.
+  product control loop, and translates outcomes back into the stable
+  conversation event contract.
   """
 
   alias JidoCode.CodingAssistance
@@ -39,9 +38,12 @@ defmodule JidoCode.Conversations.Driver do
       actor_id ->
         runtime_attrs = runtime_attrs(context)
 
-        with {:ok, _session} <- coding_assistance_module().ensure_session(context.session_id, actor_id, runtime_attrs),
-             {:ok, _session} <- maybe_bind_project(context, actor_id, runtime_attrs) do
-          {:ok, context}
+        case coding_assistance_module().ensure_session(context.session_id, actor_id, runtime_attrs) do
+          {:ok, _session} ->
+            {:ok, context}
+
+          {:error, _reason} = error ->
+            error
         end
     end
   end
@@ -87,13 +89,6 @@ defmodule JidoCode.Conversations.Driver do
      event_bridge_module().failure_event(:invalid_conversation_turn, context, %{})}
   end
 
-  defp maybe_bind_project(%{managed_repo_id: managed_repo_id}, actor_id, runtime_attrs)
-       when is_binary(managed_repo_id) do
-    coding_assistance_module().bind_project(runtime_attrs.session_id, actor_id, managed_repo_id, runtime_attrs)
-  end
-
-  defp maybe_bind_project(_context, _actor_id, _runtime_attrs), do: {:ok, %{}}
-
   defp turn_params(attrs, context, ingress_result) do
     %{
       session_id: context.session_id,
@@ -117,6 +112,7 @@ defmodule JidoCode.Conversations.Driver do
         review_policy:
           ingress_result
           |> nested_get([:intake, :source_metadata, "review_policy"])
+          |> normalize_optional_string()
       },
       tool_intent: %{
         action_ids: [],
@@ -188,7 +184,6 @@ defmodule JidoCode.Conversations.Driver do
 
   defp runtime_attrs(context) do
     %{
-      session_id: context.session_id,
       project_id: context.managed_repo_id || context.project_id,
       request_id: context.request_id,
       correlation_id: context.correlation_id,

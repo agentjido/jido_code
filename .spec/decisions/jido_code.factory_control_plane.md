@@ -1,7 +1,7 @@
 ---
 id: jido_code.factory_control_plane_and_runtime_overlay
 status: accepted
-date: 2026-03-30
+date: 2026-03-29
 affects:
   - package.jido_code
   - architecture.factory_control_plane
@@ -34,13 +34,11 @@ affects:
 <!-- covers: architecture.work_synthesis.work_item_auditability_preserved -->
 <!-- covers: architecture.policy_layers.repository_governance_policy_is_repo_control_layer -->
 <!-- covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane -->
-<!-- covers: architecture.policy_layers.runtime_policy_governs_session_and_turn_capability -->
-<!-- covers: architecture.policy_layers.policy_layers_interlock_without_collapsing -->
 <!-- covers: architecture.policy_layers.explicit_human_and_machine_actor_classes -->
 <!-- covers: architecture.conversation_driver.conversation_is_ingress_and_steering_surface -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 
-# Factory Control Plane And Runtime Overlay
+# Factory Control Plane
 
 ## Context
 
@@ -53,8 +51,8 @@ The current implementation has:
 - imported Git-backed repositories represented today by `Project`
 - workflow-run execution records represented today by `WorkflowRun`
 - a project-scoped conversation facade through `CodeServer`
-- a product-local coding-assistance boundary that delegates to public `jido_os`
-- architecture ADRs that already center execution on `Jido.Runic` and model the
+- a product-local coding-assistance boundary
+- architecture ADRs that center execution on `Jido.Runic` and model the
   factory plus each managed repository as recursive viable systems
 
 At the same time, the product still risks being interpreted as a chat-first coding
@@ -112,8 +110,7 @@ than force a duplicate work object.
 That decision still happens in layers. Product-side conversation policy decides
 whether the turn should create new work, steer an existing work item, or halt
 before runtime execution begins. Ash remains the authorization membrane around
-the durable records that capture that choice, and `jido_os` runtime policy
-remains the final admission boundary for the session and turn that follow.
+the durable records that capture that choice.
 
 After ingress capture, interpretation becomes a system-owned control-plane step.
 `Event` and `Assessment` records should be synthesized under product authority,
@@ -140,41 +137,17 @@ planning layers such as Beadwork should inform posture, review, planning, and wo
 selection while Ash remains the durable control-plane store for the factory's own
 records.
 
-`jido_os` shall remain the runtime and interaction overlay rather than the product's
-canonical control plane. It owns sessions, turns, steering, interruption, and runtime
-capability gates. Operator chat and repo chat are ingress and steering surfaces into
-the same managed-repository control loop, not a parallel product truth model.
-
 The policy model remains explicitly layered:
 
 - repository governance policy in `PolicySet` and adjacent review or posture rules
 - Ash policies as the product's data-plane authority membrane
-- `jido_os` runtime policy for session, turn, and execution capability admission
-
-These layers must interlock, but they must not collapse into one merged policy system.
 
 Hosted multi-user support remains intentionally lightweight. The product is
 single-user-first, but cloud-hosted deployments should support admins and standard
 operators supervising the same factory without introducing a heavy enterprise
 permission lattice in the first version.
 
-## Consequences
+## Deprecation Note
 
-- The current `Project` and `WorkflowRun` resources should be treated as transitional
-  implementation surfaces rather than the final control-plane ontology.
-- The control plane needs additional Ash resources such as `ManagedRepo`, `PolicySet`,
-  `Observation`, `Intake`, `ExternalObject`, `Event`, `Assessment`, `WorkItem`,
-  `Evidence`, `ChangeRequest`, `Decision`, and posture-oriented records.
-- Existing webhook, setup, and workbench entrypoints should be adapted to durable
-  ingress normalization rather than continuing to jump directly into feature-local
-  launch paths.
-- Verification should favor surface-level paths such as webhook routing, setup
-  import, and workbench kickoff when proving that ingress, interpretation, and
-  work synthesis all flow through the same durable control-plane chain.
-- Conversation and coding-assistance flows need to feed the same durable repo control
-  loop instead of remaining a separate orchestration lane.
-- Existing auth, setup, workflow, and coding-assistance work remains valuable because
-  those surfaces become inputs and execution mechanisms inside the factory rather than
-  discarded experiments.
-- Migration should be staged. The new direction is a re-centering of the product
-  architecture, not a justification for a full rewrite.
+As of 2026-04-06, this control plane no longer integrates with `jido_os` runtime.
+See `jido_code.jido_os_deprecation` for details.

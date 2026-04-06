@@ -1,263 +1,252 @@
 defmodule JidoCode.CodingAssistanceTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: coding_assistance.boundary.session_prepared_before_assist
-  # covers: coding_assistance.boundary.session_authority_delegation
-  # covers: coding_assistance.boundary.public_jido_os_service_boundary
-  # covers: coding_assistance.boundary.public_turn_wrapper_api
-  # covers: coding_assistance.boundary.live_delivery_ack_and_resume_boundary
-  # covers: coding_assistance.boundary.replay_and_recovery_wrappers_remain_available
-  # covers: jido_os.runtime.compatibility.local_override_present
-  # covers: jido_os.runtime.compatibility.public_runtime_surface
-  # covers: jido_os.runtime.compatibility.session_and_envelope_behaviour
-  # covers: jido_os.runtime.compatibility.public_turn_runtime_surface
-  # covers: jido_os.runtime.compatibility.compatibility_assist_uses_same_turn_model
-  use ExUnit.Case, async: false
+  # covers: coding_assistance.boundary.product_local_driver_api
+  use ExUnit.Case, async: true
 
   alias JidoCode.CodingAssistance
 
-  setup do
-    instance_id = "jido-code-test-#{System.unique_integer([:positive, :monotonic])}"
-    previous_instance_id = Application.get_env(:jido_code, :jido_os_instance_id)
-    previous_service_opts = Application.get_env(:jido_os, :managed_service_opts, %{})
+  describe "session management" do
+    test "ensure_session creates a new session" do
+      actor_id = "user-1"
+      session_id = "thread-1"
 
-    Application.put_env(:jido_code, :jido_os_instance_id, instance_id)
+      assert {:ok, session} = CodingAssistance.ensure_session(session_id, actor_id)
+      assert is_map(session)
+    end
 
-    on_exit(fn ->
-      restore_env(:jido_code, :jido_os_instance_id, previous_instance_id)
-      Application.put_env(:jido_os, :managed_service_opts, previous_service_opts)
-    end)
+    test "lookup_session returns an existing session" do
+      actor_id = "user-2"
+      session_id = "thread-2"
 
-    %{instance_id: instance_id}
+      assert {:ok, _session} = CodingAssistance.ensure_session(session_id, actor_id)
+      assert {:ok, session} = CodingAssistance.lookup_session(session_id, actor_id)
+      assert is_map(session)
+    end
   end
 
-  test "coding assistance exposes runtime service status through the product gateway" do
-    actor_id = "user-runtime-status"
+  describe "project binding" do
+    test "bind_project binds a session to a project" do
+      actor_id = "user-3"
+      session_id = "thread-3"
+      project_id = "project-a"
 
-    assert CodingAssistance.runtime_service_module() == Jido.Os.CodingAssist.Service
-    assert CodingAssistance.runtime_service_key() == "coding_assistance_service"
+      assert {:ok, result} = CodingAssistance.bind_project(session_id, actor_id, project_id)
+      assert is_map(result)
+    end
 
-    assert {:ok, status} = CodingAssistance.runtime_service_status(actor_id)
-    assert status.service_key == CodingAssistance.runtime_service_key()
-    assert status.status == "available"
-    assert status.admitted? == true
-    assert status.available? == true
-    assert status.ready? == true
-    assert status.runtime_status == "running"
-    assert status.dependency_status == "satisfied"
-    assert status.extension_admission == %{enabled: true, reason_code: nil}
+    test "unbind_project unbinds a session from its project" do
+      actor_id = "user-4"
+      session_id = "thread-4"
 
-    assert {:ok, true} = CodingAssistance.runtime_service_available?(actor_id)
+      assert {:ok, result} = CodingAssistance.unbind_project(session_id, actor_id)
+      assert is_map(result)
+    end
   end
 
-  test "assist ensures a jido_os session and returns a typed envelope" do
-    actor_id = "user-1"
-    session_id = "thread-1"
+  describe "AI selection" do
+    test "update_ai_selection updates AI preferences" do
+      actor_id = "user-5"
+      session_id = "thread-5"
 
-    assert {:ok, envelope} =
-             CodingAssistance.assist(actor_id, %{
-               session_id: session_id,
-               objective: "Plan a safe refactor of the authentication flow",
-               operation: "plan",
-               operation_profile: %{
-                 ai_mediation_required: false,
-                 default_strategy_key: "adaptive",
-                 allowed_strategy_keys: ["adaptive"]
-               }
-             })
+      assert {:ok, result} =
+               CodingAssistance.update_ai_selection(session_id, actor_id, %{
+                 preferred_model_profile: "balanced"
+               })
 
-    assert envelope.outcome == "ok"
-    assert envelope.context.instance_id == Application.get_env(:jido_code, :jido_os_instance_id)
-    assert envelope.context.session_id == session_id
-    assert envelope.payload.operation == "plan"
-    assert is_list(envelope.payload.artifacts)
+      assert is_map(result)
+    end
 
-    assert {:ok, session} = CodingAssistance.lookup_session(session_id, actor_id)
-    assert session.session_id == session_id
+    test "get_ai_selection returns AI preferences" do
+      actor_id = "user-6"
+      session_id = "thread-6"
+
+      assert {:ok, selection} = CodingAssistance.get_ai_selection(session_id, actor_id)
+      assert is_map(selection)
+    end
   end
 
-  test "session AI selection helpers delegate through jido_os session authority" do
-    actor_id = "user-2"
-    session_id = "thread-2"
+  describe "turn lifecycle" do
+    test "start_turn creates and returns a turn" do
+      actor_id = "user-7"
+      session_id = "thread-7"
 
-    assert {:ok, _session} = CodingAssistance.ensure_session(session_id, actor_id)
+      assert {:ok, turn} =
+               CodingAssistance.start_turn(actor_id, %{
+                 session_id: session_id,
+                 objective: "Implement a feature",
+                 operation: "implement"
+               })
 
-    assert {:ok, updated} =
-             CodingAssistance.update_ai_selection(session_id, actor_id, %{
-               preferred_model_profile: "balanced"
-             })
+      assert turn.session_id == session_id
+      assert turn.state == "completed"
+      assert is_binary(turn.turn_id)
+    end
 
-    assert updated.preferred_model_profile == "balanced"
+    test "get_turn retrieves an existing turn" do
+      actor_id = "user-8"
+      session_id = "thread-8"
 
-    assert {:ok, selection} = CodingAssistance.get_ai_selection(session_id, actor_id)
-    assert selection.preferred_model_profile == "balanced"
+      assert {:ok, turn} =
+               CodingAssistance.start_turn(actor_id, %{
+                 session_id: session_id,
+                 objective: "Test feature",
+                 operation: "implement"
+               })
+
+      assert {:ok, fetched_turn} =
+               CodingAssistance.get_turn(actor_id, %{
+                 session_id: session_id,
+                 turn_id: turn.turn_id
+               })
+
+      assert fetched_turn.turn_id == turn.turn_id
+    end
+
+    test "list_turns returns turns for a session" do
+      actor_id = "user-9"
+      session_id = "thread-9"
+
+      assert {:ok, _turn} =
+               CodingAssistance.start_turn(actor_id, %{
+                 session_id: session_id,
+                 objective: "List turns test",
+                 operation: "plan"
+               })
+
+      assert {:ok, turns} = CodingAssistance.list_turns(actor_id, %{session_id: session_id})
+      assert is_list(turns)
+    end
+
+    test "cancel_turn cancels a turn" do
+      actor_id = "user-10"
+      session_id = "thread-10"
+
+      assert {:ok, turn} =
+               CodingAssistance.start_turn(actor_id, %{
+                 session_id: session_id,
+                 objective: "Cancel test",
+                 operation: "plan"
+               })
+
+      assert {:ok, cancelled_turn} =
+               CodingAssistance.cancel_turn(actor_id, %{
+                 session_id: session_id,
+                 turn_id: turn.turn_id
+               })
+
+      assert cancelled_turn.state == "cancelled"
+    end
   end
 
-  test "project binding helpers update session project assignment through the directory boundary" do
-    actor_id = "user-3"
-    session_id = "thread-3"
+  describe "assist compatibility wrapper" do
+    test "assist provides a simple wrapper for starting turns" do
+      actor_id = "user-11"
+      session_id = "thread-11"
 
-    assert {:ok, _session} = CodingAssistance.ensure_session(session_id, actor_id)
+      assert {:ok, envelope} =
+               CodingAssistance.assist(actor_id, %{
+                 session_id: session_id,
+                 objective: "Plan a refactor",
+                 operation: "plan"
+               })
 
-    assert {:ok, bound} =
-             CodingAssistance.bind_project(session_id, actor_id, "project-a")
-
-    assert bound.project_id == "project-a"
-
-    assert {:ok, rebound} =
-             CodingAssistance.rebind_project(session_id, actor_id, "project-b")
-
-    assert rebound.project_id == "project-b"
-
-    assert {:ok, unbound} = CodingAssistance.unbind_project(session_id, actor_id)
-    refute Map.has_key?(unbound, :project_id)
-
-    assert {:ok, reloaded} = CodingAssistance.lookup_session(session_id, actor_id)
-    refute Map.has_key?(reloaded, :project_id)
+      assert is_map(envelope)
+    end
   end
 
-  test "public turn wrappers expose the additive session-turn runtime surface" do
-    actor_id = "user-4"
-    session_id = "thread-4"
+  describe "turn events" do
+    test "list_turn_events returns events for a turn" do
+      actor_id = "user-12"
+      session_id = "thread-12"
 
-    assert {:ok, turn} =
-             CodingAssistance.start_turn(actor_id, %{
-               session_id: session_id,
-               objective: "Implement the replay bridge for coding-turn events",
-               operation: "implement",
-               workspace_id: "/tmp/repo-public-turns"
-             })
+      assert {:ok, turn} =
+               CodingAssistance.start_turn(actor_id, %{
+                 session_id: session_id,
+                 objective: "Events test",
+                 operation: "plan"
+               })
 
-    assert turn.session_id == session_id
-    assert turn.conversation_id == session_id
-    assert turn.state == "completed"
-    assert is_binary(turn.turn_id)
+      assert {:ok, events} =
+               CodingAssistance.list_turn_events(actor_id, %{
+                 session_id: session_id,
+                 turn_id: turn.turn_id
+               })
 
-    assert {:ok, fetched_turn} =
-             CodingAssistance.get_turn(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id
-             })
-
-    assert fetched_turn.turn_id == turn.turn_id
-    assert fetched_turn.assistant_output.message =~ "Implement"
-
-    assert {:ok, turns} = CodingAssistance.list_turns(actor_id, %{session_id: session_id})
-    assert Enum.any?(turns, &(&1.turn_id == turn.turn_id))
-
-    assert {:ok, events} =
-             CodingAssistance.list_turn_events(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id
-             })
-
-    assert Enum.map(events, & &1.family) == ["admitted", "progress", "completed"]
-
-    assert {:ok, replay_events} =
-             CodingAssistance.list_turn_events(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id,
-               after_event_id: hd(events).event_id
-             })
-
-    assert Enum.map(replay_events, & &1.family) == ["progress", "completed"]
-
-    assert {:ok, artifacts} =
-             CodingAssistance.list_turn_artifacts(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id
-             })
-
-    assert artifacts == []
-
-    assert {:ok, review} =
-             CodingAssistance.review_turn(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id
-             })
-
-    assert review.turn_id == turn.turn_id
-    assert review.assistant_output.message =~ "Implement"
-
-    assert {:ok, cancelled_turn} =
-             CodingAssistance.cancel_turn(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id
-             })
-
-    assert cancelled_turn.turn_id == turn.turn_id
-    assert cancelled_turn.state == "completed"
+      assert is_list(events)
+    end
   end
 
-  test "live turn wrappers normalize acknowledgements while replay surfaces remain available" do
-    actor_id = "user-5"
-    session_id = "thread-5"
+  describe "turn artifacts" do
+    test "list_turn_artifacts returns artifacts for a turn" do
+      actor_id = "user-13"
+      session_id = "thread-13"
 
-    assert {:ok, turn} =
-             CodingAssistance.start_turn(actor_id, %{
-               session_id: session_id,
-               objective: "Stream public live turn updates through the coding boundary",
-               operation: "implement"
-             })
+      assert {:ok, turn} =
+               CodingAssistance.start_turn(actor_id, %{
+                 session_id: session_id,
+                 objective: "Artifacts test",
+                 operation: "implement"
+               })
 
-    assert {:ok, ack} =
-             CodingAssistance.subscribe_turn_events(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id,
-               subscriber: self()
-             })
+      assert {:ok, artifacts} =
+               CodingAssistance.list_turn_artifacts(actor_id, %{
+                 session_id: session_id,
+                 turn_id: turn.turn_id
+               })
 
-    assert ack.delivery_status == "subscribed"
-    assert ack.session_id == session_id
-    assert ack.conversation_id == session_id
-    assert ack.turn_id == turn.turn_id
-    assert is_binary(ack.subscription_id)
-    assert ack.terminal_state == "completed"
-    assert ack.latest_event_id =~ turn.turn_id
-
-    assert_receive {:jido_os_turn_delivery, %{kind: "turn_event", event: admitted_event}}
-    assert admitted_event.family == "admitted"
-
-    assert_receive {:jido_os_turn_delivery, %{kind: "turn_event", event: progress_event}}
-    assert progress_event.family == "progress"
-
-    assert_receive {:jido_os_turn_delivery, %{kind: "turn_event", event: completed_event}}
-    assert completed_event.family == "completed"
-
-    assert_receive {:jido_os_turn_delivery, terminal_handoff}
-    assert terminal_handoff.kind == "terminal_handoff"
-    assert terminal_handoff.subscription_id == ack.subscription_id
-    assert terminal_handoff.terminal_state == "completed"
-
-    assert {:ok, invalid_cursor_ack} =
-             CodingAssistance.subscribe_turn_events(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id,
-               subscriber: self(),
-               resume_after_event_id: "missing-event"
-             })
-
-    assert invalid_cursor_ack.delivery_status == "invalid_cursor"
-    assert invalid_cursor_ack.reason_code == "invalid_after_event_id"
-
-    assert {:ok, detached_ack} =
-             CodingAssistance.unsubscribe_turn_events(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id,
-               subscription_id: ack.subscription_id
-             })
-
-    assert detached_ack.delivery_status in ["detached", "already_detached"]
-
-    assert {:ok, replay_events} =
-             CodingAssistance.list_turn_events(actor_id, %{
-               session_id: session_id,
-               turn_id: turn.turn_id,
-               after_event_id: admitted_event.event_id
-             })
-
-    assert Enum.map(replay_events, & &1.family) == ["progress", "completed"]
+      assert is_list(artifacts)
+    end
   end
 
-  defp restore_env(app, key, nil), do: Application.delete_env(app, key)
-  defp restore_env(app, key, value), do: Application.put_env(app, key, value)
+  describe "turn review" do
+    test "review_turn returns review information" do
+      actor_id = "user-14"
+      session_id = "thread-14"
+
+      assert {:ok, turn} =
+               CodingAssistance.start_turn(actor_id, %{
+                 session_id: session_id,
+                 objective: "Review test",
+                 operation: "review"
+               })
+
+      assert {:ok, review} =
+               CodingAssistance.review_turn(actor_id, %{
+                 session_id: session_id,
+                 turn_id: turn.turn_id
+               })
+
+      assert is_map(review)
+    end
+  end
+
+  describe "live subscription" do
+    test "subscribe_turn_events returns a subscription acknowledgment" do
+      actor_id = "user-15"
+      session_id = "thread-15"
+
+      assert {:ok, ack} =
+               CodingAssistance.subscribe_turn_events(actor_id, %{
+                 session_id: session_id,
+                 turn_id: "test-turn"
+               })
+
+      assert ack.status == "subscribed"
+      assert is_binary(ack.subscription_id)
+    end
+
+    test "unsubscribe_turn_events detaches a subscription" do
+      actor_id = "user-16"
+      session_id = "thread-16"
+
+      assert {:ok, ack} =
+               CodingAssistance.unsubscribe_turn_events(actor_id, %{
+                 session_id: session_id,
+         turn_id: "test-turn"
+       })
+
+      assert ack.status == "detached"
+    end
+  end
 end

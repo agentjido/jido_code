@@ -1,7 +1,5 @@
 defmodule JidoCode.Conversations.EventBridge do
   # covers: architecture.conversation_driver.subscriber_event_contract_preserved
-  # covers: architecture.conversation_driver.public_jido_os_turn_event_bridge
-  # covers: architecture.conversation_driver.explicit_terminal_handoff_drives_completion_translation
   # covers: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
   @moduledoc """
   Translates product-local coding assistance outcomes into the existing
@@ -301,25 +299,10 @@ defmodule JidoCode.Conversations.EventBridge do
             {:halt, nil}
           end
 
-        is_map(acc) and is_binary(key) ->
-          atom_key = safe_existing_atom(key)
-
-          if is_atom(atom_key) and Map.has_key?(acc, atom_key) do
-            {:cont, Map.get(acc, atom_key)}
-          else
-            {:halt, nil}
-          end
-
         true ->
           {:halt, nil}
       end
     end)
-  end
-
-  defp safe_existing_atom(value) when is_binary(value) do
-    String.to_existing_atom(value)
-  rescue
-    ArgumentError -> nil
   end
 
   defp normalize_optional_string(nil), do: nil

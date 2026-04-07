@@ -52,6 +52,9 @@ config :jido_code,
 
 config :jido_code_server, :llm_adapter, :deterministic
 
+# Ontology configuration (optional - requires elixir_ontologies package)
+config :jido_code, :ontology_enabled, false
+
 # AgentOS configuration for testing
 config :jido_code,
   agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,

@@ -179,6 +179,10 @@ defmodule JidoCode.MixProject do
       {:jido_workflow, path: "compat/jido_workflow", override: true},
       {:libgraph, github: "zblanco/libgraph", branch: "zw/multigraph-indexes", override: true},
 
+      # Ontology generation (optional - for KG ontology features)
+      # Enable when package is available:
+      # {:elixir_ontologies, github: "agentjido/elixir_ontologies"},
+
       # Product-specific Jido integrations
       {:jido_code_server, git: "https://github.com/pcharbon70/jido_code_server.git", branch: "main"},
       {:gettext, "~> 0.26", override: true},

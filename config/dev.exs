@@ -98,6 +98,10 @@ config :swoosh, :api_client, false
 
 config :jido_code_server, :llm_adapter, :jido_ai
 
+# Ontology configuration (optional - requires elixir_ontologies package)
+# When elixir_ontologies is available, uncomment to enable:
+# config :jido_code, :ontology_enabled, true
+
 # AgentOS configuration
 config :jido_code,
   # AgentOS kernel manager configuration

@@ -1686,7 +1686,7 @@
         "id": "developer.workflow.docs_split",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the `mix frontend.verify` browser verification path, and the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging instead of repo shell wrappers.",
+        "statement": "Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the `mix frontend.verify` browser verification path, the `mix source_graph.verify` semantic graph verification path, and the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging instead of repo shell wrappers.",
         "subject_id": "developer.workflow"
       },
       {
@@ -1702,7 +1702,7 @@
         "id": "developer.workflow.phoenix_mix_surface",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix server` is the preferred local start path and prepares the current browser stack when needed, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh, browser verification, plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.",
+        "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix server` is the preferred local start path and prepares the current browser stack when needed, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh, browser verification, semantic graph verification, plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.",
         "subject_id": "developer.workflow"
       },
       {
@@ -1775,6 +1775,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "The top-level README shall give contributors a quickstart for the normal host-Postgres Phoenix workflow.",
+        "subject_id": "docs.product_foundation"
+      },
+      {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation.readme_source_graph_orientation_present",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "The top-level README shall explain the repository-scoped semantic source-code graph capability, its explicit analyze/load/refresh/query lifecycle, and the repo-owned verification path for that stack in contributor terms.",
         "subject_id": "docs.product_foundation"
       },
       {
@@ -1870,7 +1878,7 @@
         "id": "package.jido_code.package_quality_mix_surface_aligned",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`, and repo-owned `mix server`), direct Mix task entrypoints for repo-owned CLI flows, Vite-backed `mix assets.setup`, `mix assets.build`, and `mix assets.deploy` aliases for the browser toolchain, a repo-owned `mix frontend.verify` command for deeper browser-pipeline verification, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for browser verification, documentation coverage, and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
+        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`, and repo-owned `mix server`), direct Mix task entrypoints for repo-owned CLI flows, Vite-backed `mix assets.setup`, `mix assets.build`, and `mix assets.deploy` aliases for the browser toolchain, a repo-owned `mix frontend.verify` command for deeper browser-pipeline verification, a repo-owned `mix source_graph.verify` command for semantic source-code graph verification, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for browser verification, semantic graph verification, documentation coverage, and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -3880,6 +3888,7 @@
           "docs.product_foundation.readme_quickstart_present",
           "docs.product_foundation.product_summary_present",
           "docs.product_foundation.readme_frontend_stack_orientation_present",
+          "docs.product_foundation.readme_source_graph_orientation_present",
           "docs.product_foundation.durable_architecture_record_in_spec_workspace"
         ],
         "file": ".spec/specs/product_foundation_docs.spec.md",
@@ -4167,7 +4176,7 @@
           "id": "collaboration.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary and product-oriented frontend fallback wording.",
+          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary, product-oriented frontend fallback wording, and repository-scoped semantic source graph usage guidance.",
           "surface": [
             "AGENTS.md"
           ],
@@ -4216,7 +4225,7 @@
           "id": "developer.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server` and `mix frontend.verify` commands for the richer browser stack, adds the source-code graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
+          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, and `mix source_graph.verify` commands, adds the source-code graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
           "surface": [
             ".tool-versions",
             "mix.exs",
@@ -4378,7 +4387,7 @@
           "id": "architecture.frontend_stack",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.",
+          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies and a dedicated semantic graph verification alias, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.",
           "surface": [
             ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
             ".spec/specs/frontend_architecture.spec.md",
@@ -4477,7 +4486,7 @@
           "id": "docs.operator_provider_auth_guide",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server` start path, verification path, and product-oriented frontend fallback language.",
+          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server` and `mix source_graph.verify` paths, semantic graph lifecycle orientation, and product-oriented fallback language.",
           "surface": [
             "README.md",
             ".spec/specs/operator_auth_settings.spec.md",
@@ -4543,7 +4552,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology/store stack adds heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, contributor docs that describe the approved LiveView-plus-LiveVue browser boundary, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology/store stack adds heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, a repo-owned `mix source_graph.verify` semantic graph verification command, contributor docs that describe both the approved LiveView-plus-LiveVue browser boundary and the repository-scoped source graph workflow, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
           "surface": [
             ".doctor.exs",
             "mix.exs",
@@ -4641,7 +4650,7 @@
           "id": "docs.product_foundation",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, and verification orientation for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.",
+          "summary": "Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -5112,7 +5121,7 @@
           "id": "workflow.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes and repo-owned contributor start or quality-alias growth even as browser and source-code graph toolchain dependencies evolve alongside it.",
+          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes and repo-owned contributor start, browser verification, and semantic graph verification alias growth even as browser and source-code graph toolchain dependencies evolve alongside it.",
           "surface": [
             "mix.exs",
             "compat/jido_workflow/mix.exs",
@@ -7893,6 +7902,15 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.phoenix_mix_surface"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
         "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs"
       },
       {
@@ -7920,7 +7938,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
       },
       {
         "covers": [
@@ -7929,7 +7947,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
       },
       {
         "covers": [
@@ -8018,6 +8036,7 @@
           "docs.product_foundation.readme_quickstart_present",
           "docs.product_foundation.product_summary_present",
           "docs.product_foundation.readme_frontend_stack_orientation_present",
+          "docs.product_foundation.readme_source_graph_orientation_present",
           "docs.product_foundation.docs_index_present"
         ],
         "file": ".spec/specs/product_foundation_docs.spec.md",
@@ -8735,6 +8754,15 @@
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "command",
         "subject_id": "package.jido_code.package_quality_standards",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_mix_surface_aligned"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code.package_quality_standards",
         "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs"
       },
       {
@@ -8745,7 +8773,7 @@
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "command",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'mix server|mix frontend.verify|LiveView-plus-LiveVue|<\\.vue_surface' README.md CONTRIBUTING.md AGENTS.md"
+        "target": "rg -n 'mix server|mix frontend.verify|mix source_graph.verify|LiveView-plus-LiveVue|<\\.vue_surface|source_code graph|semantic graph' README.md CONTRIBUTING.md AGENTS.md"
       },
       {
         "covers": [
@@ -9216,10 +9244,10 @@
     "decisions": 16,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 235,
+    "requirements": 236,
     "scenarios": 105,
     "subjects": 35,
-    "verifications": 413
+    "verifications": 415
   },
   "verification": {
     "claims": [
@@ -15842,7 +15870,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs",
         "verification_index": 5
       },
       {
@@ -15853,18 +15881,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs",
+        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
         "verification_index": 6
       },
       {
-        "cover_id": "developer.workflow.docs_split",
+        "cover_id": "developer.workflow.phoenix_mix_surface",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'extras: \\[\"README.md\", \"CHANGELOG.md\", \"CONTRIBUTING.md\", \"\\.spec/README.md\"\\]' mix.exs",
+        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs",
         "verification_index": 7
       },
       {
@@ -15875,7 +15903,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
+        "target": "rg -n 'extras: \\[\"README.md\", \"CHANGELOG.md\", \"CONTRIBUTING.md\", \"\\.spec/README.md\"\\]' mix.exs",
         "verification_index": 8
       },
       {
@@ -15886,18 +15914,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
         "verification_index": 9
       },
       {
-        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "cover_id": "developer.workflow.docs_split",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
         "verification_index": 10
       },
       {
@@ -15908,7 +15936,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'asdf install|\\.tool-versions' README.md",
+        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
         "verification_index": 11
       },
       {
@@ -15919,18 +15947,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'asdf install' CONTRIBUTING.md",
+        "target": "rg -n 'asdf install|\\.tool-versions' README.md",
         "verification_index": 12
       },
       {
-        "cover_id": "developer.workflow.docs_split",
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
+        "target": "rg -n 'asdf install' CONTRIBUTING.md",
         "verification_index": 13
       },
       {
@@ -15941,8 +15969,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'not the normal contributor workflow|mix setup|mix server|DATABASE_URL' tauri/README.md",
+        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
         "verification_index": 14
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'not the normal contributor workflow|mix setup|mix server|DATABASE_URL' tauri/README.md",
+        "verification_index": 15
       },
       {
         "cover_id": "docs.operator_provider_auth_guide.external_operator_docs_allowed",
@@ -16034,6 +16073,17 @@
       },
       {
         "cover_id": "docs.product_foundation.readme_quickstart_present",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": "README.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "docs.product_foundation.readme_source_graph_orientation_present",
         "file": ".spec/specs/product_foundation_docs.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -16920,8 +16970,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs",
         "verification_index": 4
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "verification_index": 5
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -16931,29 +16992,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'mix server|mix frontend.verify|LiveView-plus-LiveVue|<\\.vue_surface' README.md CONTRIBUTING.md AGENTS.md",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
-        "file": ".spec/specs/package_quality_standards.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'mix server|mix frontend.verify|LiveView-plus-LiveVue|<\\.vue_surface' README.md CONTRIBUTING.md AGENTS.md",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
-        "file": ".spec/specs/package_quality_standards.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code.package_quality_standards",
-        "target": "mix help command",
+        "target": "rg -n 'mix server|mix frontend.verify|mix source_graph.verify|LiveView-plus-LiveVue|<\\.vue_surface|source_code graph|semantic graph' README.md CONTRIBUTING.md AGENTS.md",
         "verification_index": 6
       },
       {
@@ -16964,18 +17003,29 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "mix help coveralls",
-        "verification_index": 7
+        "target": "rg -n 'mix server|mix frontend.verify|mix source_graph.verify|LiveView-plus-LiveVue|<\\.vue_surface|source_code graph|semantic graph' README.md CONTRIBUTING.md AGENTS.md",
+        "verification_index": 6
       },
       {
-        "cover_id": "package.jido_code.package_quality_ci_and_release_present",
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml",
+        "target": "mix help command",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "mix help coveralls",
         "verification_index": 8
       },
       {
@@ -16986,8 +17036,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'Verify frontend asset pipeline|mix frontend.verify|actions/setup-node@v4' .github/workflows/ci.yml",
+        "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml",
         "verification_index": 9
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_ci_and_release_present",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "rg -n 'Verify frontend asset pipeline|mix frontend.verify|actions/setup-node@v4' .github/workflows/ci.yml",
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.admin_bootstrap_completion_gate",
@@ -17796,9 +17857,9 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 54,
+      "claimed": 56,
       "executed": 0,
-      "linked": 725
+      "linked": 726
     },
     "threshold_failures": 0
   },

@@ -8,6 +8,7 @@ Status today is alpha and developer-focused. The repo is real, runnable software
 
 <!-- covers: docs.product_foundation.readme_quickstart_present -->
 <!-- covers: docs.operator_provider_auth_guide.local_quickstart_excludes_operator_setup -->
+<!-- covers: docs.product_foundation.readme_source_graph_orientation_present -->
 ## Quickstart
 
 Normal repository development uses the repo root and a host PostgreSQL instance.
@@ -65,6 +66,35 @@ You may also need extra credentials depending on what you are exercising:
 - `SPRITES_API_TOKEN` for live Sprites-backed execution
 - mail provider settings such as `RESEND_API_KEY`
 
+## Source Code Graph
+
+The repo now carries a repository-scoped semantic source-code graph capability
+for managed repositories.
+
+- The stack is built from `elixir_ontologies`, `triple_store`, `sparql`, and
+  `rocksdb`.
+- The graph is repository-local, not a global service. Each workspace keeps its
+  store under `.jido_code/source_code_graph/triple_store`.
+- Normal lifecycle is explicit: analyze, load or refresh the canonical
+  `source_code` named graph, then query it.
+- Contributors touching this stack should have the normal native build toolchain
+  available for RocksDB-backed dependencies. The repo already pins the Elixir,
+  Erlang, Node, Rust, and Zig toolchain through `.tool-versions`.
+
+Use the semantic graph when you need cross-file semantic structure:
+
+- module and function discovery across a repository
+- bounded impact tracing
+- runtime pattern lookups
+- repeated SPARQL-backed structural questions
+
+Prefer ordinary file/code tools when you need:
+
+- exact latest source text
+- line-level editing context
+- one-off single-file reads
+- answers that should not depend on the current graph being analyzed or loaded
+
 <!-- covers: docs.product_foundation.readme_frontend_stack_orientation_present -->
 ## Frontend Stack
 
@@ -82,6 +112,7 @@ mix setup               # deps, ecto.setup, and asset build
 mix assets.setup        # install browser toolchain dependencies
 mix assets.build        # build the Vite + SSR browser bundle
 mix frontend.verify     # run the repo-owned browser pipeline verification
+mix source_graph.verify # run the repo-owned semantic graph verification suite
 mix server              # preferred local start path; prepares browser deps/builds if needed
 mix ecto.reset          # drop, recreate, migrate, and seed the dev DB
 mix test                # create/migrate the test DB and run tests

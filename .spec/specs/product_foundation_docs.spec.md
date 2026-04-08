@@ -7,7 +7,7 @@ This subject defines the repository-facing docs that orient contributors to what
 id: docs.product_foundation
 kind: feature
 status: active
-summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, and verification orientation for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.
+summary: Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -52,6 +52,11 @@ surface:
   priority: should
   stability: evolving
 
+- id: docs.product_foundation.readme_source_graph_orientation_present
+  statement: The top-level README shall explain the repository-scoped semantic source-code graph capability, its explicit analyze/load/refresh/query lifecycle, and the repo-owned verification path for that stack in contributor terms.
+  priority: should
+  stability: evolving
+
 - id: docs.product_foundation.durable_architecture_record_in_spec_workspace
   statement: Durable architecture and product-shaping decisions shall live in the repo-local `.spec` workspace rather than in a separate root `docs/` tree.
   priority: must
@@ -71,6 +76,7 @@ surface:
     - docs.product_foundation.readme_quickstart_present
     - docs.product_foundation.product_summary_present
     - docs.product_foundation.readme_frontend_stack_orientation_present
+    - docs.product_foundation.readme_source_graph_orientation_present
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
   given:
     - A contributor wants to understand what Jido.Code is trying to build before editing implementation code.
@@ -99,6 +105,7 @@ surface:
     - docs.product_foundation.readme_quickstart_present
     - docs.product_foundation.product_summary_present
     - docs.product_foundation.readme_frontend_stack_orientation_present
+    - docs.product_foundation.readme_source_graph_orientation_present
     - docs.product_foundation.docs_index_present
 
 - kind: source_file

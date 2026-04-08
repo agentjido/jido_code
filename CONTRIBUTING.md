@@ -38,11 +38,29 @@ For day-to-day development:
 - `mix assets.setup` installs the Vite and LiveVue browser dependencies
 - `mix assets.build` builds the current browser bundle and SSR output
 - `mix frontend.verify` runs the repo-owned browser pipeline verification
+- `mix source_graph.verify` runs the repo-owned semantic source-code graph verification suite
 - `mix server` is the preferred local start path and prepares browser deps or builds when the LiveVue/Vite output is missing
 - `mix test` provisions the test database and runs the test suite
 - `mix ecto.reset` drops, recreates, migrates, and seeds the local development database
 - `mix spec.prime --base HEAD`, `mix spec.next`, `mix spec.check --base origin/main`, and `mix spec.status` are the repo-local `spec_led_ex` commands for `.spec/`
 - `tauri/README.md` is only for desktop packaging/runtime work, not the normal contributor path
+
+## Source Code Graph Capability
+
+The repository-scoped semantic graph stack uses `elixir_ontologies`,
+`triple_store`, `sparql`, and `rocksdb`.
+
+- The canonical named graph is `source_code`.
+- Repository-local graph data lives under `.jido_code/source_code_graph/triple_store`.
+- Normal workflow is explicit: analyze, load or refresh, then query.
+- If you touch the semantic graph boundary, actions, pod agents, or repository
+  workspace entrypoints, run `mix source_graph.verify`.
+
+Reach for the semantic graph when you need repository-wide semantic structure
+such as module discovery, function discovery, impact tracing, runtime-pattern
+lookups, or repeated SPARQL-backed questions. Prefer normal file/code tools when
+you need exact latest source text, line-level editing context, or trivial
+single-file inspection.
 
 ## Code Quality
 
@@ -67,6 +85,7 @@ mix quality
 
 This extends `mix q` with:
 - `mix frontend.verify` - LiveVue/Vite/SSR pipeline verification
+- `mix source_graph.verify` - repository-scoped semantic graph verification
 - `mix doctor --raise` - Documentation coverage check
 - `mix dialyzer` - Broader static type analysis
 

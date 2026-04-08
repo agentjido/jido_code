@@ -43,22 +43,22 @@ Back to index: [README](./README.md)
       [x] 23.1.2.2 Subtask - Define retry and recovery entrypoints for failed analysis or load attempts.
       [x] 23.1.2.3 Subtask - Ensure query callers receive bounded degraded-state outcomes instead of raw store or ontology exceptions.
 
-  [ ] 23.2 Section - Contributor and Operational Convergence
+  [x] 23.2 Section - Contributor and Operational Convergence
     Align the repo’s docs, start surfaces, and maintenance expectations so the new semantic graph capability is understandable and maintainable by contributors.
 
-    [ ] 23.2.1 Task - Update contributor-facing guidance
+    [x] 23.2.1 Task - Update contributor-facing guidance
       Document the SourceCodeGraphPod capability and its dependency expectations in repo-owned docs and contributor instructions.
 
-      [ ] 23.2.1.1 Subtask - Add README and contributor guidance for semantic graph dependencies and local setup assumptions.
-      [ ] 23.2.1.2 Subtask - Document the repository-scoped `source_code` graph lifecycle and explicit analyze/load/query workflow.
-      [ ] 23.2.1.3 Subtask - Document when higher-level workflows should rely on the semantic graph versus ordinary file/code tools.
+      [x] 23.2.1.1 Subtask - Add README and contributor guidance for semantic graph dependencies and local setup assumptions.
+      [x] 23.2.1.2 Subtask - Document the repository-scoped `source_code` graph lifecycle and explicit analyze/load/query workflow.
+      [x] 23.2.1.3 Subtask - Document when higher-level workflows should rely on the semantic graph versus ordinary file/code tools.
 
-    [ ] 23.2.2 Task - Align operational verification surfaces
+    [x] 23.2.2 Task - Align operational verification surfaces
       Make the new capability visible to repo-owned verification paths without turning it into an opaque local-only convention.
 
-      [ ] 23.2.2.1 Subtask - Add repo-owned checks or test groupings for semantic graph analysis, load, and query coverage.
-      [ ] 23.2.2.2 Subtask - Ensure contributor guidance references the semantic graph verification path in the current stack.
-      [ ] 23.2.2.3 Subtask - Keep graph-store and ontology dependencies version-controlled and explicit in repo-owned setup surfaces.
+      [x] 23.2.2.1 Subtask - Add repo-owned checks or test groupings for semantic graph analysis, load, and query coverage.
+      [x] 23.2.2.2 Subtask - Ensure contributor guidance references the semantic graph verification path in the current stack.
+      [x] 23.2.2.3 Subtask - Keep graph-store and ontology dependencies version-controlled and explicit in repo-owned setup surfaces.
 
   [ ] 23.3 Section - Phase 23 Integration Tests
     Verify the hardened semantic graph capability remains repository-scoped, revision-aware, failure-explainable, and contributor-maintainable in end-to-end scenarios.

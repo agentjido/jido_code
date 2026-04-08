@@ -222,6 +222,32 @@ defmodule JidoCode.AgentOS.Manager do
   end
 
   @doc """
+  Merges metadata into an existing logical pod entry for a ManagedRepo.
+  """
+  @spec update_pod_metadata(String.t(), pod_id(), map()) :: {:ok, map()} | {:error, term()}
+  def update_pod_metadata(managed_repo_id, pod_id, updates)
+      when is_binary(managed_repo_id) and is_binary(pod_id) and is_map(updates) do
+    kernel_name = kernel_name(managed_repo_id)
+
+    case get_kernel_state(kernel_name) do
+      {:ok, state} ->
+        case pod_entries(state)[pod_id] do
+          nil ->
+            {:error, :pod_not_found}
+
+          pod_entry ->
+            next_pod_entry = put_in(pod_entry.metadata, Map.merge(pod_entry.metadata, updates))
+            next_state = put_in(state.pods[pod_id], next_pod_entry)
+            :ets.insert(@table_name, {kernel_name, next_state})
+            {:ok, next_pod_entry}
+        end
+
+      :error ->
+        {:error, :kernel_not_found}
+    end
+  end
+
+  @doc """
   Converts a ManagedRepo ID to a kernel name.
 
   ## Examples
@@ -351,12 +377,20 @@ defmodule JidoCode.AgentOS.Manager do
 
   defp build_pod_entry(state, pod_id, pod_module, metadata) do
     existing = pod_entries(state)[pod_id]
+    incoming_metadata = Map.delete(metadata, :scope)
+
+    merged_metadata =
+      existing
+      |> then(fn
+        nil -> incoming_metadata
+        existing_entry -> merge_pod_metadata(existing_entry.metadata, incoming_metadata)
+      end)
 
     %{
       pod_id: pod_id,
       module: pod_module,
       scope: Map.get(metadata, :scope, :repository),
-      metadata: Map.delete(metadata, :scope),
+      metadata: merged_metadata,
       registered_at: (existing && existing.registered_at) || DateTime.utc_now()
     }
   end
@@ -380,6 +414,21 @@ defmodule JidoCode.AgentOS.Manager do
       _other, acc ->
         acc
     end)
+  end
+
+  defp merge_pod_metadata(existing_metadata, incoming_metadata) do
+    merged_metadata = Map.merge(existing_metadata, incoming_metadata)
+
+    case {Map.get(existing_metadata, :latest_import_status), Map.get(incoming_metadata, :latest_import_status)} do
+      {%{ready?: true} = existing_status, %{ready?: false}} ->
+        Map.put(merged_metadata, :latest_import_status, existing_status)
+
+      {%{ready?: true} = existing_status, nil} ->
+        Map.put(merged_metadata, :latest_import_status, existing_status)
+
+      _other ->
+        merged_metadata
+    end
   end
 
   defp kernel_supervisor do

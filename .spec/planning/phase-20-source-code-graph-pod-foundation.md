@@ -62,22 +62,22 @@ Back to index: [README](./README.md)
       [x] 20.2.2.2 Subtask - Define an action for SPARQL query execution over the loaded `source_code` graph.
       [x] 20.2.2.3 Subtask - Define any bounded helper actions for graph revision lookup, dataset inspection, or load health diagnostics.
 
-  [ ] 20.3 Section - Product-Owned Workspace Integration
+  [x] 20.3 Section - Product-Owned Workspace Integration
     Update the product-owned AgentWorkspace boundary so repository entrypoints can ensure and route to the source-code graph pod without exposing pod topology details.
 
-    [ ] 20.3.1 Task - Extend AgentWorkspace with source-code graph entrypoints
+    [x] 20.3.1 Task - Extend AgentWorkspace with source-code graph entrypoints
       Add the repository-scoped workspace APIs needed to ensure the pod exists and trigger analyze, load, refresh, and query behavior.
 
-      [ ] 20.3.1.1 Subtask - Define `ensure_source_code_graph_pod/2` or equivalent repository-scoped pod lifecycle entrypoint.
-      [ ] 20.3.1.2 Subtask - Define product-owned entrypoints for analyze/load/refresh behavior that hide pod internals.
-      [ ] 20.3.1.3 Subtask - Define a product-owned query entrypoint that returns structured semantic query results rather than pod-native internals.
+      [x] 20.3.1.1 Subtask - Define `ensure_source_code_graph_pod/2` or equivalent repository-scoped pod lifecycle entrypoint.
+      [x] 20.3.1.2 Subtask - Define product-owned entrypoints for analyze/load/refresh behavior that hide pod internals.
+      [x] 20.3.1.3 Subtask - Define a product-owned query entrypoint that returns structured semantic query results rather than pod-native internals.
 
-    [ ] 20.3.2 Task - Define capability gating and failure shaping
+    [x] 20.3.2 Task - Define capability gating and failure shaping
       Keep the new graph capability bounded and explainable by making enablement, readiness, and failure semantics explicit at the workspace boundary.
 
-      [ ] 20.3.2.1 Subtask - Define enablement behavior for repositories where the semantic source-code graph is not configured or not yet loaded.
-      [ ] 20.3.2.2 Subtask - Define typed failure outcomes for ontology analysis, graph load, and query attempts.
-      [ ] 20.3.2.3 Subtask - Define how graph readiness and degradation remain repository-scoped rather than becoming global product state.
+      [x] 20.3.2.1 Subtask - Define enablement behavior for repositories where the semantic source-code graph is not configured or not yet loaded.
+      [x] 20.3.2.2 Subtask - Define typed failure outcomes for ontology analysis, graph load, and query attempts.
+      [x] 20.3.2.3 Subtask - Define how graph readiness and degradation remain repository-scoped rather than becoming global product state.
 
   [ ] 20.4 Section - Phase 20 Integration Tests
     Verify the new SourceCodeGraphPod contract fits the existing repository-scoped AgentOS model and exposes explicit, product-owned entrypoints without ambient graph coupling.

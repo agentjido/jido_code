@@ -5,14 +5,12 @@ date: 2026-03-31
 affects:
   - architecture.factory_control_plane
   - architecture.repo_posture
-  - architecture.conversation_driver
   - setup.onboarding
   - package.jido_code
 ---
 
 <!-- covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records -->
 <!-- covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state -->
-<!-- covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context -->
 <!-- covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language -->
 <!-- covers: package.jido_code.spec_led_workspace -->
 

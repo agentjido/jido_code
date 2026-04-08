@@ -4,7 +4,6 @@ status: accepted
 date: 2026-04-04
 affects:
   - architecture.factory_control_plane
-  - architecture.conversation_driver
   - architecture.run_governance
   - setup.onboarding
   - docs.product_foundation
@@ -13,7 +12,6 @@ affects:
 <!-- covers: architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects -->
 <!-- covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records -->
 <!-- covers: architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors -->
-<!-- covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context -->
 <!-- covers: architecture.run_governance.run_is_preferred_execution_record -->
 <!-- covers: setup.onboarding.repo_source_per_project -->
 <!-- covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language -->
@@ -50,7 +48,7 @@ The canonical product model is:
 - `SourceRepo` as the external repository identity
 - `ManagedRepo` as the managed internal repository object
 - governed `Run` as the operator-facing execution record
-- runtime gateways and conversation boundaries keyed by managed-repo identity
+- runtime gateways and control-plane boundaries keyed by managed-repo identity
 
 The canonical routed operator surfaces are:
 

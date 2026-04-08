@@ -237,34 +237,22 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
       WorkflowRun.create(%{
         project_id: project.id,
         run_id: run_id,
-        workflow_name: "coding_turn_plan",
+        workflow_name: "implement_task",
         workflow_version: 1,
-        trigger: %{
-          source: "public_turn_runtime",
-          mode: "conversation_runtime",
-          turn_id: "turn-run-detail-1"
-        },
-        inputs: %{"turn_id" => "turn-run-detail-1"},
-        input_metadata: %{"turn_id" => %{required: true, source: "test"}},
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Render runtime evidence"},
+        input_metadata: %{"task_summary" => %{required: true, source: "test"}},
         initiating_actor: %{id: "owner-1", email: "runtime-run-owner@example.com"},
-        current_step: "public_turn_materialized",
+        current_step: "queued",
         started_at: ~U[2026-04-01 12:00:00Z],
         step_results: %{
-          "coding_turn_summary" => %{
-            "turn_id" => "turn-run-detail-1",
-            "conversation_id" => "conversation-run-detail-1",
-            "state" => "completed",
-            "assistant_output" => %{"message" => "Live delivery resumed through replay."}
-          },
+          "diff_summary" => "2 files changed (+9/-1).",
           "runtime_service_delivery" => %{
             "delivery_mode" => "replay_recovery",
             "reason_code" => "live_delivery_detached",
             "terminal_handoff_kind" => "replay_terminal_lookup",
             "terminal_state" => "completed",
-            "turn_id" => "turn-run-detail-1",
-            "session_id" => "conversation-run-detail-1",
-            "conversation_id" => "conversation-run-detail-1",
-            "summary" => "Coding turn delivery repaired through replay recovery."
+            "summary" => "Runtime delivery repaired through replay recovery."
           }
         }
       })
@@ -272,7 +260,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     {:ok, workflow_run} =
       WorkflowRun.transition_status(workflow_run, %{
         to_status: :running,
-        current_step: "public_turn_in_progress",
+        current_step: "plan_changes",
         transitioned_at: ~U[2026-04-01 12:01:00Z]
       })
 

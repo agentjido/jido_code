@@ -7,7 +7,6 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
-  # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
   use JidoCodeWeb.ConnCase, async: false
@@ -18,28 +17,13 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
   alias JidoCode.Governance.RepoPosture
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
-  alias JidoCode.TestSupport.CodeServer.DriverFake
-  alias JidoCode.TestSupport.CodeServer.EngineFake
-  alias JidoCode.TestSupport.CodeServer.RuntimeFake
 
   setup do
     original_workbench_loader =
       Application.get_env(:jido_code, :workbench_inventory_loader, :__missing__)
 
-    original_code_server_runtime_module =
-      Application.get_env(:jido_code, :code_server_runtime_module, :__missing__)
-
-    original_code_server_engine_module =
-      Application.get_env(:jido_code, :code_server_engine_module, :__missing__)
-
-    original_code_server_driver_module =
-      Application.get_env(:jido_code, :code_server_conversation_driver_module, :__missing__)
-
     on_exit(fn ->
       restore_env(:workbench_inventory_loader, original_workbench_loader)
-      restore_env(:code_server_runtime_module, original_code_server_runtime_module)
-      restore_env(:code_server_engine_module, original_code_server_engine_module)
-      restore_env(:code_server_conversation_driver_module, original_code_server_driver_module)
     end)
 
     :ok
@@ -134,12 +118,7 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
     refute has_element?(view, "#workbench-project-name-owner-repo-alpha")
   end
 
-  test "repo detail overview reflects the server-owned conversation lifecycle", %{conn: _conn} do
-    Application.put_env(:jido_code, :code_server_runtime_module, RuntimeFake)
-    Application.put_env(:jido_code, :code_server_engine_module, EngineFake)
-    Application.put_env(:jido_code, :code_server_conversation_driver_module, DriverFake)
-    DriverFake.clear()
-
+  test "repo detail overview keeps workflow state server-authored", %{conn: _conn} do
     register_owner("phase14-project-owner@example.com", "owner-password-123")
 
     {authed_conn, _session_token} =
@@ -168,31 +147,10 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
     widget =
       assert_vue_component(view, "ProjectDetailOverviewWidget", id: "project-detail-overview-widget")
 
-    assert widget.props["conversation"]["status"] == "Idle"
-    assert widget.props["conversation"]["messageCount"] == 0
-    assert_vue_handler(view, "startConversation", "start_conversation", id: "project-detail-overview-widget")
-
-    assert has_element?(view, "#project-detail-conversation-panel")
-    assert has_element?(view, "#project-detail-conversation-start", "Start conversation")
-
-    view
-    |> element("#project-detail-conversation-start")
-    |> render_click()
-
-    active_widget = vue(view, id: "project-detail-overview-widget")
-
-    assert active_widget.props["conversation"]["status"] == "Active"
-    assert active_widget.props["conversation"]["startEnabled"] == false
-    assert has_element?(view, "#project-detail-conversation-status", "Active")
-
-    view
-    |> form("#project-detail-conversation-form", %{"conversation" => %{"input" => "hello"}})
-    |> render_submit()
-
-    updated_widget = vue(view, id: "project-detail-overview-widget")
-
-    assert updated_widget.props["conversation"]["messageCount"] == 2
-    assert has_element?(view, "#project-detail-conversation-messages", "Ack: hello")
+    assert widget.props["githubFullName"] == "owner/repo-phase14-project-detail"
+    assert widget.props["launchReady"] == true
+    assert length(widget.props["workflowCards"]) == 2
+    refute render(view) =~ "Start conversation"
   end
 
   test "run detail governance overview keeps runtime evidence bounded and product-oriented", %{
@@ -212,41 +170,26 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
       })
 
     run_id = "run-phase14-detail-#{System.unique_integer([:positive])}"
-    turn_id = "turn-phase14-runtime-1"
-    conversation_id = "conversation-phase14-runtime-1"
-
     {:ok, workflow_run} =
       WorkflowRun.create(%{
         project_id: project.id,
         run_id: run_id,
-        workflow_name: "coding_turn_plan",
+        workflow_name: "implement_task",
         workflow_version: 1,
-        trigger: %{
-          source: "public_turn_runtime",
-          mode: "conversation_runtime",
-          turn_id: turn_id
-        },
-        inputs: %{"turn_id" => turn_id},
-        input_metadata: %{"turn_id" => %{required: true, source: "test"}},
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Render governed runtime evidence."},
+        input_metadata: %{"task_summary" => %{required: true, source: "test"}},
         initiating_actor: %{id: "owner-1", email: "phase14-run-owner@example.com"},
-        current_step: "public_turn_materialized",
+        current_step: "queued",
         started_at: ~U[2026-04-01 12:00:00Z],
         step_results: %{
-          "coding_turn_summary" => %{
-            "turn_id" => turn_id,
-            "conversation_id" => conversation_id,
-            "state" => "completed",
-            "assistant_output" => %{"message" => "Live delivery resumed through replay."}
-          },
+          "diff_summary" => "2 files changed (+9/-1).",
           "runtime_service_delivery" => %{
             "delivery_mode" => "replay_recovery",
             "reason_code" => "live_delivery_detached",
             "terminal_handoff_kind" => "replay_terminal_lookup",
             "terminal_state" => "completed",
-            "turn_id" => turn_id,
-            "session_id" => conversation_id,
-            "conversation_id" => conversation_id,
-            "summary" => "Coding turn delivery repaired through replay recovery."
+            "summary" => "Runtime delivery repaired through replay recovery."
           }
         }
       })
@@ -254,7 +197,7 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
     {:ok, workflow_run} =
       WorkflowRun.transition_status(workflow_run, %{
         to_status: :running,
-        current_step: "public_turn_in_progress",
+        current_step: "plan_changes",
         transitioned_at: ~U[2026-04-01 12:01:00Z]
       })
 
@@ -319,11 +262,6 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
     assert widget.props["runtimeEvidence"]["statusLabel"] == "review required"
     refute Map.has_key?(widget.props["runtimeEvidence"], "turnId")
     refute Map.has_key?(widget.props["runtimeEvidence"], "sessionId")
-
-    rendered = render(view)
-
-    refute rendered =~ turn_id
-    refute rendered =~ conversation_id
 
     assert has_element?(view, "#run-detail-runtime-evidence")
 

@@ -1,5 +1,5 @@
 defmodule JidoCode.Control.RepoBridgeTest do
-  # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
+  # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 

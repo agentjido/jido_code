@@ -14,13 +14,11 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
 surface:
-  - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/operations/work_item.ex
   - lib/jido_code/operations/work_synthesis.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/operations/ingress.ex
   - priv/repo/migrations/20260330195000_add_operations_work_items.exs
-  - test/jido_code/conversations/ingress_test.exs
   - test/jido_code/operations/work_synthesis_test.exs
   - test/jido_code/operations/phase_two_integration_test.exs
 ```
@@ -50,11 +48,6 @@ surface:
 
 - id: architecture.work_synthesis.work_item_auditability_preserved
   statement: Work synthesis shall preserve auditability for why a work item was created, refreshed, reprioritized, or treated as a suppressed duplicate.
-  priority: must
-  stability: evolving
-
-- id: architecture.work_synthesis.conversation_turns_can_steer_existing_work
-  statement: When a normalized conversation turn explicitly targets an existing work item, work synthesis shall steer that durable record instead of forcing a new duplicate work item, while preserving conversation context in work metadata and audit history.
   priority: must
   stability: evolving
 
@@ -95,18 +88,6 @@ surface:
   then:
     - Existing open work is updated or duplicate demand is suppressed with an audit trail instead of spawning uncontrolled duplicate work items.
 
-- id: architecture.work_synthesis.scenario_conversation_turn_steers_existing_work
-  covers:
-    - architecture.work_synthesis.work_item_metadata_and_origin_links_preserved
-    - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
-    - architecture.work_synthesis.work_item_auditability_preserved
-    - architecture.work_synthesis.conversation_turns_can_steer_existing_work
-  given:
-    - An open managed-repository work item already exists.
-  when:
-    - A normalized coding conversation turn explicitly targets that work item.
-  then:
-    - Work synthesis updates the targeted work item, preserves conversation context in durable metadata, and records an audit entry showing that the work was steered rather than recreated.
 ```
 
 ## Verification
@@ -129,7 +110,6 @@ surface:
     - architecture.work_synthesis.work_item_creation_can_stop_before_execution
     - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
     - architecture.work_synthesis.work_item_auditability_preserved
-    - architecture.work_synthesis.conversation_turns_can_steer_existing_work
 
 - kind: source_file
   target: lib/jido_code/operations/synthesis.ex
@@ -169,8 +149,4 @@ surface:
     - architecture.work_synthesis.work_item_reprioritization_and_duplicate_suppression
     - architecture.work_synthesis.work_item_auditability_preserved
 
-- kind: source_file
-  target: test/jido_code/conversations/ingress_test.exs
-  covers:
-    - architecture.work_synthesis.conversation_turns_can_steer_existing_work
 ```

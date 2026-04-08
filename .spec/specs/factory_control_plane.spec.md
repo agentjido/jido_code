@@ -14,9 +14,6 @@ decisions:
   - jido_code.namespace_and_control_naming
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
-  - jido_code.jido_os_runtime_service_overlay_adoption
-  - jido_code.jido_os_public_turn_live_delivery_adoption
-  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
@@ -24,9 +21,6 @@ surface:
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - .spec/decisions/jido_code.namespace_and_control_naming.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
-  - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
-  - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
-  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/control.ex
@@ -57,11 +51,6 @@ surface:
   - lib/jido_code/governance/posture_bridge.ex
   - lib/jido_code/operations/intake.ex
   - lib/jido_code/operations/ingress.ex
-  - lib/jido_code/conversations/ingress.ex
-  - lib/jido_code/conversations/driver.ex
-  - lib/jido_code/conversations/event_bridge.ex
-  - lib/jido_code/conversations/turn_bridge.ex
-  - lib/jido_code/conversations/policy.ex
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/operations/work_item.ex
   - lib/jido_code/operations/work_synthesis.ex
@@ -70,7 +59,6 @@ surface:
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
   - lib/jido_code/orchestration/run_summary_feed.ex
-  - lib/jido_code/code_server.ex
   - lib/jido_code_web/live/workbench_live.ex
   - lib/jido_code_web/live/project_detail_live.ex
   - lib/jido_code_web/live/dashboard_live.ex
@@ -132,11 +120,6 @@ surface:
   priority: must
   stability: evolving
 
-- id: architecture.factory_control_plane.runtime_turns_feed_governed_control_records
-  statement: When coding conversations execute through public `jido_os` turn runtime surfaces, admitted turns and their bounded terminal outputs shall flow back into managed-repository ingress, governed run projections, and governed evidence records instead of creating a parallel product truth lane outside the control plane.
-  priority: must
-  stability: evolving
-
 - id: architecture.factory_control_plane.runtime_overlay_preserves_product_truth
   statement: Even as `jido_os` grows richer admitted runtime services and authority-backed facades, those services shall remain runtime overlays whose typed outcomes rejoin managed-repository governance rather than displacing product-owned control-plane truth.
   priority: must
@@ -195,17 +178,6 @@ surface:
     - The product resolves and presents canonical managed-repository and governed-run records directly.
     - Hybrid summary widgets may appear inside those routes so long as they continue to present managed-repository and governed-run state from product-owned records instead of introducing a parallel browser truth lane.
 
-- id: architecture.factory_control_plane.scenario_runtime_turns_rejoin_governed_control_plane
-  covers:
-    - architecture.factory_control_plane.durable_control_loop_normalizes_demand_into_work
-    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
-    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
-  given:
-    - A coding conversation has been admitted through product-side ingress for a managed repository.
-  when:
-    - The conversation runs asynchronously through the public `jido_os` turn runtime.
-  then:
-    - Runtime turn progress may stay in the runtime overlay, but explicit terminal handoff plus replay verification drive projection of bounded turn identity and outcomes back into governed work, run, and evidence records owned by the product control plane.
 ```
 
 ## Verification
@@ -232,16 +204,6 @@ surface:
     - architecture.factory_control_plane.internal_repo_loaders_use_canonical_repo_graph
 
 - kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
-  covers:
-    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
-
-- kind: source_file
-  target: .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
-  covers:
-    - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
-
-- kind: source_file
   target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   covers:
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
@@ -266,11 +228,6 @@ surface:
   target: test/jido_code/governance/phase_ten_integration_test.exs
   covers:
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
-
-- kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
-  covers:
-    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
 
 - kind: source_file
   target: test/jido_code/governance/runtime_evidence_feed_test.exs
@@ -323,11 +280,6 @@ surface:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
 
 - kind: source_file
-  target: lib/jido_code/code_server/project_scope.ex
-  covers:
-    - architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
-
-- kind: source_file
   target: lib/jido_code/control/source_repo.ex
   covers:
     - architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
@@ -352,23 +304,4 @@ surface:
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
 
-- kind: source_file
-  target: test/jido_code/conversations/phase_seven_integration_test.exs
-  covers:
-    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_nine_integration_test.exs
-  covers:
-    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
-
-- kind: source_file
-  target: lib/jido_code/conversations/event_bridge.ex
-  covers:
-    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
-
-- kind: source_file
-  target: lib/jido_code/conversations/turn_bridge.ex
-  covers:
-    - architecture.factory_control_plane.runtime_turns_feed_governed_control_records
 ```

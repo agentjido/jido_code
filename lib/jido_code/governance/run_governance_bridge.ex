@@ -4,9 +4,6 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
   # covers: architecture.run_governance.decision_records_capture_governance_outcomes
   # covers: architecture.run_governance.review_policy_controls_change_request_creation
   # covers: architecture.run_governance.blocked_review_context_preserves_typed_remediation
-  # covers: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
-  # covers: architecture.policy_layers.public_turn_materialization_preserves_layered_policy
-  # covers: architecture.repo_posture.governed_turn_evidence_can_inform_posture
   @moduledoc """
   Projects governed run review artifacts from workflow-run audit data.
   """
@@ -103,27 +100,9 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
       "workflow_run.step_results"
     )
     |> maybe_add_map_entry(
-      "coding_turn_summary",
-      "coding_turn_summary",
-      Map.get(step_results, "coding_turn_summary"),
-      "workflow_run.step_results"
-    )
-    |> maybe_add_map_entry(
-      "coding_turn_review",
-      "coding_turn_review",
-      Map.get(step_results, "coding_turn_review"),
-      "workflow_run.step_results"
-    )
-    |> maybe_add_map_entry(
       "runtime_service_delivery",
       "runtime_service_delivery",
       Map.get(step_results, "runtime_service_delivery"),
-      "workflow_run.step_results"
-    )
-    |> maybe_add_list_entry(
-      "coding_turn_artifacts",
-      "coding_turn_artifacts",
-      Map.get(step_results, "coding_turn_artifacts"),
       "workflow_run.step_results"
     )
     |> maybe_add_map_entry(
@@ -202,7 +181,6 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
         "workflow_name" => run.workflow_name,
         "current_step" => run.current_step,
         "approval_context" => workflow_run.step_results |> normalize_map() |> Map.get("approval_context", %{}),
-        "coding_turn_review" => coding_turn_review(workflow_run),
         "runtime_service_delivery" => runtime_service_delivery(workflow_run),
         "evidence_keys" => Enum.map(evidence_records, & &1.key)
       },
@@ -211,7 +189,6 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
         "run_status" => Atom.to_string(run.status),
         "review_policy" => review_policy,
         "review_blocked" => not is_nil(blocking_diagnostic),
-        "public_turn" => public_turn_summary(workflow_run),
         "runtime_service_delivery" => runtime_service_delivery(workflow_run)
       },
       evidence_ids: evidence_ids,
@@ -244,8 +221,6 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
       evidence_ids: evidence_ids,
       decision_metadata:
         normalize_map(decision_payload)
-        |> Map.put("coding_turn_summary", public_turn_summary(workflow_run))
-        |> Map.put("coding_turn_review", coding_turn_review(workflow_run))
         |> Map.put("runtime_service_delivery", runtime_service_delivery(workflow_run)),
       decided_at: decision_timestamp
     }
@@ -420,20 +395,6 @@ defmodule JidoCode.Governance.RunGovernanceBridge do
 
   defp normalize_optional_string(value) when is_integer(value), do: Integer.to_string(value)
   defp normalize_optional_string(_value), do: nil
-
-  defp public_turn_summary(workflow_run) do
-    workflow_run
-    |> step_results_map()
-    |> Map.get("coding_turn_summary", %{})
-    |> normalize_map()
-  end
-
-  defp coding_turn_review(workflow_run) do
-    workflow_run
-    |> step_results_map()
-    |> Map.get("coding_turn_review", %{})
-    |> normalize_map()
-  end
 
   defp runtime_service_delivery(workflow_run) do
     workflow_run

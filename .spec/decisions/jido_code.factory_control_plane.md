@@ -9,7 +9,6 @@ affects:
   - architecture.event_assessment_synthesis
   - architecture.work_synthesis
   - architecture.policy_layers
-  - architecture.conversation_driver
   - docs.product_foundation
 ---
 
@@ -35,7 +34,6 @@ affects:
 <!-- covers: architecture.policy_layers.repository_governance_policy_is_repo_control_layer -->
 <!-- covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane -->
 <!-- covers: architecture.policy_layers.explicit_human_and_machine_actor_classes -->
-<!-- covers: architecture.conversation_driver.conversation_is_ingress_and_steering_surface -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 
 # Factory Control Plane
@@ -50,8 +48,6 @@ The current implementation has:
 - a Phoenix and Ash product shell with local and provider-backed authentication
 - imported Git-backed repositories represented today by `Project`
 - workflow-run execution records represented today by `WorkflowRun`
-- a project-scoped conversation facade through `CodeServer`
-- a product-local coding-assistance boundary
 - architecture ADRs that center execution on `Jido.Runic` and model the
   factory plus each managed repository as recursive viable systems
 
@@ -100,17 +96,17 @@ workbench-originated operator requests should normalize into `Intake`, preservin
 actor attribution, source metadata, and managed-repository correlation before `Event`
 or `Assessment` synthesis begins.
 
-Coding conversations follow the same rule. A coding turn is not a second
-control-plane lane; it is normalized operator demand with conversation or session,
-request, correlation, and managed-repository context preserved through durable
-`Intake`, `Event`, `Assessment`, and `WorkItem` records. When a turn explicitly
+Operator-originated repository demand follows the same rule. It is not a second
+control-plane lane; it is normalized product demand with actor, request,
+correlation, and managed-repository context preserved through durable `Intake`,
+`Event`, `Assessment`, and `WorkItem` records. When incoming demand explicitly
 targets an existing work item, the control plane should steer that record rather
 than force a duplicate work object.
 
-That decision still happens in layers. Product-side conversation policy decides
-whether the turn should create new work, steer an existing work item, or halt
-before runtime execution begins. Ash remains the authorization membrane around
-the durable records that capture that choice.
+That decision still happens in layers. Product-side policy decides whether the
+demand should create new work, steer an existing work item, or halt before
+execution begins. Ash remains the authorization membrane around the durable
+records that capture that choice.
 
 After ingress capture, interpretation becomes a system-owned control-plane step.
 `Event` and `Assessment` records should be synthesized under product authority,

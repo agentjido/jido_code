@@ -20,14 +20,12 @@ surface:
   - lib/jido_code/operations/observation.ex
   - lib/jido_code/operations/intake.ex
   - lib/jido_code/operations/ingress.ex
-  - lib/jido_code/conversations/ingress.ex
   - lib/jido_code/github/webhook_pipeline.ex
   - lib/jido_code/setup/project_import.ex
   - lib/jido_code/workbench/fix_workflow_kickoff.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - lib/jido_code/workbench/project_detail_workflow_kickoff.ex
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
-  - test/jido_code/conversations/ingress_test.exs
   - test/jido_code/operations/demand_ingress_test.exs
   - test/jido_code/operations/phase_two_integration_test.exs
 ```
@@ -63,21 +61,6 @@ surface:
 - id: architecture.demand_ingress.entrypoint_policy_metadata_preserved
   statement: Ingress entrypoints that can launch governed runs shall preserve repo-governance approval or review-policy metadata in their normalized source metadata so downstream execution and review behavior remains correlated with the originating intake or webhook.
   priority: should
-  stability: evolving
-
-- id: architecture.demand_ingress.conversation_turns_become_durable_intake
-  statement: Coding conversation turns shall enter the same managed-repository control loop by normalizing into durable `Intake`, `Event`, `Assessment`, and `WorkItem` records instead of bypassing the ingress layer as transient chat state.
-  priority: must
-  stability: evolving
-
-- id: architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context
-  statement: Conversation ingress shall preserve actor, conversation or session identity, request, correlation, workspace, and repository context across normalized intake and downstream work records.
-  priority: must
-  stability: evolving
-
-- id: architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering
-  statement: Conversation ingress shall distinguish brand-new work demand from explicit steering of an existing work item so the control loop can update an existing record when the turn targets one.
-  priority: must
   stability: evolving
 
 - id: architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
@@ -127,17 +110,6 @@ surface:
   then:
     - The normalized launch metadata preserves the effective approval or review policy alongside the ingress correlation context.
 
-- id: architecture.demand_ingress.scenario_conversation_turn_becomes_durable_work_input
-  covers:
-    - architecture.demand_ingress.conversation_turns_become_durable_intake
-    - architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context
-    - architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering
-  given:
-    - A managed-repository conversation is active for a coding-oriented operator turn.
-  when:
-    - The product normalizes that turn into ingress records.
-  then:
-    - The turn becomes durable intake, preserves conversation and tracing context, and either creates new work or steers the targeted work item instead of remaining isolated chat-only state.
 ```
 
 ## Verification
@@ -169,13 +141,6 @@ surface:
     - architecture.demand_ingress.trusted_ingress_uses_explicit_actor_classes
 
 - kind: source_file
-  target: lib/jido_code/conversations/ingress.ex
-  covers:
-    - architecture.demand_ingress.conversation_turns_become_durable_intake
-    - architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context
-    - architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering
-
-- kind: source_file
   target: test/jido_code/operations/demand_ingress_test.exs
   covers:
     - architecture.demand_ingress.external_object_tracks_repo_external_entities
@@ -190,13 +155,6 @@ surface:
     - architecture.demand_ingress.observation_captures_repo_and_system_facts
     - architecture.demand_ingress.intake_captures_operator_and_trusted_requests
     - architecture.demand_ingress.normalized_ingress_preserves_attribution_and_correlation
-
-- kind: source_file
-  target: test/jido_code/conversations/ingress_test.exs
-  covers:
-    - architecture.demand_ingress.conversation_turns_become_durable_intake
-    - architecture.demand_ingress.conversation_turns_preserve_session_and_correlation_context
-    - architecture.demand_ingress.conversation_turns_distinguish_new_work_from_steering
 
 - kind: command
   target: mix test test/jido_code/operations/demand_ingress_test.exs

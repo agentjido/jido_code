@@ -6,7 +6,6 @@ Back to index: [README](./README.md)
 
 ## Relevant Shared APIs / Interfaces
 - `../specs/agent_os_integration.spec.md`
-- `../specs/conversation_driver.spec.md`
 - `../specs/factory_control_plane.spec.md`
 - `../specs/execution_pipeline.spec.md`
 - `../decisions/jido_code.jido_agent_os_integration.md`
@@ -16,7 +15,6 @@ Back to index: [README](./README.md)
 - `lib/jido_code/agent_os/pods/`
 - `lib/jido_code/agent_os/agents/`
 - `lib/jido_code/agent_os/actions/`
-- `lib/jido_code/conversations/driver.ex`
 - `test/jido_code/agent_os/`
 
 ## Relevant Assumptions / Defaults
@@ -217,14 +215,14 @@ Back to index: [README](./README.md)
       [ ] 19.5.3.2 Subtask - Implement work queue management
       Add logic to track and limit concurrent work per repository.
 
-  [ ] 19.6 Section - Conversation Driver Integration
-    Update the conversation driver to integrate with AgentOS instead of the deprecated jido_os boundary.
+  [ ] 19.6 Section - Product Work Entrypoint Integration
+    Update product-owned work entrypoints to integrate with AgentOS instead of the deprecated jido_os boundary.
 
-    [ ] 19.6.1 Task - Update conversation driver for AgentOS
-    Modify `JidoCode.Conversations.Driver` to use AgentWorkspace for kernel and pod management.
+    [ ] 19.6.1 Task - Update product work entrypoints for AgentOS
+    Modify product-owned work entrypoints to use `AgentWorkspace` for kernel and pod management.
 
       [ ] 19.6.1.1 Subtask - Remove deprecated jido_os integration code
-        Delete calls to `JidoCode.CodingAssistance` (old jido_os boundary).
+        Delete any remaining calls to deprecated jido_os-specific work-routing boundaries.
 
       [ ] 19.6.1.2 Subtask - Add kernel and pod ensuring logic
         Call `AgentWorkspace.ensure_kernel/2` and `ensure_coding_pod/3` before routing work.
@@ -232,10 +230,10 @@ Back to index: [README](./README.md)
       [ ] 19.6.1.3 Subtask - Update signal routing to agents
         Route operations to specific agents (planner, coder, reviewer) within pods.
 
-    [ ] 19.6.2 Task - Update conversation tests for AgentOS
-      Ensure existing conversation tests pass with the new AgentOS integration.
+    [ ] 19.6.2 Task - Update work-entry tests for AgentOS
+      Ensure product-owned work-entry tests pass with the new AgentOS integration.
 
-      [ ] 19.6.2.1 Subtask - Update `DriverTest` for AgentOS
+      [ ] 19.6.2.1 Subtask - Update work-entrypoint tests for AgentOS
         Modify tests to mock AgentWorkspace and verify kernel/pod lifecycle.
 
       [ ] 19.6.2.2 Subtask - Update integration tests for AgentOS
@@ -280,17 +278,17 @@ Back to index: [README](./README.md)
       [ ] 19.7.3.3 Subtask - Test reviewer agent workflow
         Verify the reviewer agent analyzes changes and provides feedback.
 
-    [ ] 19.7.4 Task - End-to-end conversation scenarios
-      Prove conversations flow through AgentOS to produce correct results.
+    [ ] 19.7.4 Task - End-to-end work-entry scenarios
+      Prove product work entrypoints flow through AgentOS to produce correct results.
 
-      [ ] 19.7.4.1 Subtask - Test plan operation through conversation
+      [ ] 19.7.4.1 Subtask - Test plan operation through product entrypoints
         Verify sending a "plan" operation creates a CodingPod and routes to the planner agent.
 
-      [ ] 19.7.4.2 Subtask - Test implement operation through conversation
+      [ ] 19.7.4.2 Subtask - Test implement operation through product entrypoints
         Verify sending an "implement" operation routes to the coder agent.
 
-      [ ] 19.7.4.3 Subtask - Test review operation through conversation
+      [ ] 19.7.4.3 Subtask - Test review operation through product entrypoints
         Verify sending a "review" operation routes to the reviewer agent.
 
-      [ ] 19.7.4.4 Subtask - Test full workflow conversation
-        Verify a complete plan → code → review workflow works through conversation turns.
+      [ ] 19.7.4.4 Subtask - Test full workflow entrypoint
+        Verify a complete plan → code → review workflow works through product-owned work routing.

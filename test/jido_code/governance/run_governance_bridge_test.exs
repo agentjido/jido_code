@@ -3,8 +3,6 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
   # covers: architecture.run_governance.evidence_records_capture_run_outputs
   # covers: architecture.run_governance.change_request_records_reviewable_run_state
   # covers: architecture.run_governance.decision_records_capture_governance_outcomes
-  # covers: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
-  # covers: architecture.policy_layers.public_turn_materialization_preserves_layered_policy
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.Actor
@@ -233,97 +231,6 @@ defmodule JidoCode.Governance.RunGovernanceBridgeTest do
 
     assert change_request.review_context["blocking_diagnostic"]["remediation"] =~
              "diff summary"
-  end
-
-  test "coding turn summaries and review data enrich governed review records" do
-    {:ok, project} = create_project("repo-coding-turn-review")
-
-    {:ok, workflow_run} =
-      WorkflowRun.create(%{
-        project_id: project.id,
-        run_id: "run-coding-turn-#{System.unique_integer([:positive])}",
-        workflow_name: "coding_turn_plan",
-        workflow_version: 1,
-        trigger: %{source: "public_turn_runtime", mode: "conversation_runtime", turn_id: "turn-governed-1"},
-        inputs: %{"turn_id" => "turn-governed-1"},
-        input_metadata: %{"turn_id" => %{required: true, source: "test"}},
-        initiating_actor: %{id: "operator-5", email: "operator5@example.com"},
-        current_step: "public_turn_materialized",
-        started_at: ~U[2026-03-31 23:00:00Z],
-        step_results: %{
-          "coding_turn_summary" => %{
-            "turn_id" => "turn-governed-1",
-            "conversation_id" => "conversation-governed-1",
-            "state" => "completed",
-            "assistant_output" => %{"message" => "Replay bridge ready."}
-          },
-          "coding_turn_review" => %{
-            "turn_id" => "turn-governed-1",
-            "assistant_output" => %{"message" => "Replay bridge ready."}
-          },
-          "runtime_service_delivery" => %{
-            "delivery_mode" => "replay_recovery",
-            "live_delivery_status" => "subscribed",
-            "reason_code" => "live_delivery_detached",
-            "terminal_handoff_kind" => "replay_terminal_lookup",
-            "terminal_state" => "completed",
-            "turn_id" => "turn-governed-1",
-            "session_id" => "conversation-governed-1",
-            "conversation_id" => "conversation-governed-1",
-            "summary" => "Coding turn delivery repaired through replay recovery."
-          },
-          "coding_turn_artifacts" => [
-            %{"artifact_id" => "artifact-1", "kind" => "patch", "title" => "Patch summary"}
-          ],
-          "approval_context" => %{"detail" => "Runtime evidence is ready for review."}
-        }
-      })
-
-    {:ok, workflow_run} =
-      WorkflowRun.transition_status(workflow_run, %{
-        to_status: :running,
-        current_step: "public_turn_in_progress",
-        transitioned_at: ~U[2026-03-31 23:01:00Z]
-      })
-
-    {:ok, workflow_run} =
-      WorkflowRun.transition_status(workflow_run, %{
-        to_status: :awaiting_approval,
-        current_step: "approval_gate",
-        transitioned_at: ~U[2026-03-31 23:02:00Z]
-      })
-
-    {:ok, _approved_run} =
-      WorkflowRun.approve(workflow_run, %{
-        actor: %{id: "admin-turn", email: "admin-turn@example.com"},
-        approved_at: ~U[2026-03-31 23:03:00Z]
-      })
-
-    {:ok, run} = Run.get_by_workflow_run_id(workflow_run.id, actor: Actor.operator_actor())
-    {:ok, change_request} = ChangeRequest.get_by_run_id(run.id, actor: Actor.operator_actor())
-
-    {:ok, [decision]} =
-      Decision.read(
-        query: [filter: [run_id: run.id], sort: [decided_at: :desc]],
-        actor: Actor.operator_actor()
-      )
-
-    {:ok, evidence_records} =
-      Evidence.read(query: [filter: [run_id: run.id], sort: [key: :asc]], actor: Actor.operator_actor())
-
-    assert Enum.any?(evidence_records, &(&1.key == "coding_turn_summary"))
-    assert Enum.any?(evidence_records, &(&1.key == "coding_turn_review"))
-    assert Enum.any?(evidence_records, &(&1.key == "runtime_service_delivery"))
-    assert Enum.any?(evidence_records, &(&1.key == "coding_turn_artifacts"))
-    assert change_request.review_context["coding_turn_review"]["turn_id"] == "turn-governed-1"
-    assert change_request.request_metadata["public_turn"]["turn_id"] == "turn-governed-1"
-    assert change_request.review_context["runtime_service_delivery"]["delivery_mode"] == "replay_recovery"
-    assert change_request.request_metadata["runtime_service_delivery"]["turn_id"] == "turn-governed-1"
-    assert decision.decision_metadata["coding_turn_summary"]["turn_id"] == "turn-governed-1"
-    assert decision.decision_metadata["coding_turn_review"]["assistant_output"]["message"] == "Replay bridge ready."
-
-    assert decision.decision_metadata["runtime_service_delivery"]["terminal_handoff_kind"] ==
-             "replay_terminal_lookup"
   end
 
   defp create_project(name) do

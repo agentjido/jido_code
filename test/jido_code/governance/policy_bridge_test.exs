@@ -41,10 +41,10 @@ defmodule JidoCode.Governance.PolicyBridgeTest do
     assert {:ok, %{assessment: _assessment}} =
              Ingress.record_operator_intake(%{
                project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
                actor: %{id: "operator-autonomous", email: "auto@example.com"},
-               payload: %{"objective" => "Keep supervision lightweight."}
+               payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
     assert {:ok, repo_posture} =

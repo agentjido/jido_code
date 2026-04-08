@@ -4,11 +4,8 @@ status: accepted
 date: 2026-04-06
 affects:
   - package.jido_code
-  - architecture.conversation_driver
-  - coding_assistance.boundary
   - architecture.runtime_service_overlay
-  - architecture.jido_os_session_turn_runtime
-  - jido_os.runtime.compatibility
+  - architecture.agent_os_integration
   - docs.product_foundation
 ---
 
@@ -50,12 +47,9 @@ The product will:
    - `JidoCode.RuntimeGateway` - shared runtime service helpers
    - `JidoCode.RuntimeIntegration` - external SaaS integration gateway
    - `JidoCode.Governance.RuntimeIntegrationBridge` - runtime state projection
-3. **Replace `JidoCode.CodingAssistance`** with a simpler coding assistance boundary
-   that doesn't depend on `jido_os` sessions or turns.
-4. **Simplify conversation bridges** (`TurnBridge`, `EventBridge`) to work without
-   `jido_os` event protocols.
-5. **Update `Conversations.Driver`** to work without `jido_os` session management.
-6. **Remove all jido_os-related specs** and update affected architecture decisions.
+3. **Remove product-local work-routing boundaries** that depended on `jido_os`
+   sessions, turns, or event protocols.
+4. **Remove all jido_os-related specs** and update affected architecture decisions.
 
 Future coding assistance and external integration capabilities will be built
 directly in `jido_code` using simpler, product-owned patterns rather than
@@ -69,8 +63,8 @@ delegating to a separate runtime overlay.
   state between two systems.
 - **Easier testing**: Unit tests can run without bootstrapping a full runtime.
 - **Cleaner dependency graph**: Fewer transitive dependencies from `jido_os`.
-- **Feature implications**: Any features that depended on `jido_os` (session
-  management, turn lifecycle, external integration bindings) will need to be
+- **Feature implications**: Any features that depended on `jido_os` (runtime
+  state management, delivery lifecycle, external integration bindings) will need to be
   re-implemented or removed.
 - **Migration path**: Existing deployments using `jido_os` features will need
   migration guidance (if any exist).
@@ -82,14 +76,9 @@ specs will be removed in this commit.
 
 ## Replaced Specs
 
-The following specs are deprecated by this decision:
+The following specs and ADRs are deprecated by this decision:
 
 - `jido_os_runtime_compatibility.spec.md` - local compatibility package
-- `jido_os_session_turn_runtime.spec.md` - turn runtime contract
-- `jido_code.jido_os_session_turn_runtime.md` - session turn ownership
-- `jido_code.jido_os_public_turn_runtime_adoption.md` - public turn API
-- `jido_code.jido_os_public_turn_live_delivery_adoption.md` - live delivery
-- `jido_code.jido_os_runtime_service_overlay_adoption.md` - runtime overlay
 
 ## Replacement Architecture
 

@@ -13,20 +13,15 @@ superseded_by: architecture.agent_os_integration
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
-  - jido_code.jido_os_runtime_service_overlay_adoption
-  - jido_code.jido_os_public_turn_live_delivery_adoption
-  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
 surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
-  - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
-  - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
-  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
+  - .spec/decisions/jido_code.jido_os_deprecation.md
+  - .spec/decisions/jido_code.jido_agent_os_integration.md
   - .spec/specs/factory_control_plane.spec.md
-  - .spec/specs/coding_assistance_boundary.spec.md
   - lib/jido_code/jido_os_runtime.ex
   - lib/jido_code/runtime_gateway.ex
   - lib/jido_code/runtime_integration.ex
@@ -34,9 +29,6 @@ surface:
   - lib/jido_code/governance/runtime_evidence_bridge.ex
   - lib/jido_code/governance/runtime_evidence_feed.ex
   - lib/jido_code/governance/runtime_integration_bridge.ex
-  - lib/jido_code/coding_assistance.ex
-  - lib/jido_code/conversations/driver.ex
-  - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
@@ -75,7 +67,7 @@ surface:
   stability: evolving
 
 - id: architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
-  statement: When Jido.Code adopts public jido_os runtime services, it shall do so through product-owned gateway boundaries such as `JidoCode.CodingAssistance` so UI, workbench, and control-plane flows stay insulated from provider-neutral runtime payloads and runtime topology churn.
+  statement: When Jido.Code adopts public jido_os runtime services, it shall do so through product-owned gateway boundaries such as `JidoCode.RuntimeGateway` and `JidoCode.RuntimeIntegration` so UI, workbench, and control-plane flows stay insulated from provider-neutral runtime payloads and runtime topology churn.
   priority: must
   stability: evolving
 
@@ -131,7 +123,7 @@ surface:
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
   given:
-    - A managed-repository workflow or conversation produced rollout, replay, review, or degraded-path runtime evidence.
+    - A managed-repository workflow or runtime-service interaction produced rollout, replay, review, or degraded-path runtime evidence.
   when:
     - That evidence changes operator trust, review posture, or execution decisions.
   then:
@@ -166,14 +158,12 @@ surface:
 
 ```spec-verification
 - kind: source_file
-  target: .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
+  target: .spec/decisions/jido_code.jido_os_deprecation.md
   covers:
     - architecture.runtime_service_overlay.jido_os_is_authority_backed_runtime_services_overlay
     - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
     - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
     - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
-    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
 
 - kind: source_file
@@ -190,13 +180,6 @@ surface:
     - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
     - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
     - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
-    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
-
-- kind: source_file
-  target: lib/jido_code/coding_assistance.ex
-  covers:
-    - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
-    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
 
 - kind: source_file

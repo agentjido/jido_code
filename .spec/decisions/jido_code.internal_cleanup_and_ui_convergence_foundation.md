@@ -7,7 +7,6 @@ affects:
   - developer.workflow
   - architecture.frontend_stack
   - architecture.factory_control_plane
-  - architecture.conversation_driver
   - architecture.runtime_service_overlay
   - architecture.repo_posture
   - architecture.run_governance
@@ -21,7 +20,6 @@ affects:
 <!-- covers: architecture.frontend_stack.adoption_is_incremental_per_surface -->
 <!-- covers: architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades -->
 <!-- covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records -->
-<!-- covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context -->
 <!-- covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented -->
 <!-- covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state -->
 <!-- covers: architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress -->

@@ -49,6 +49,33 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
   end
 
   describe "load/refresh/query entrypoints" do
+    test "persists analysis state in repository-scoped status" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, analysis_result} =
+               AgentWorkspace.analyze_source_code_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "abc123"
+               )
+
+      assert analysis_result.latest_analysis_status.state == :analyzed
+
+      assert {:ok, status_result} =
+               AgentWorkspace.source_code_graph_status(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "abc123"
+               )
+
+      assert status_result.ready? == false
+      assert status_result.stale? == false
+      assert status_result.requested_revision == "abc123"
+      assert status_result.latest_analysis_status.state == :analyzed
+      assert status_result.latest_analysis_status.analyzed_revision == "abc123"
+    end
+
     test "persists repository-scoped graph readiness after load" do
       managed_repo_id = "repo-#{System.unique_integer()}"
       workspace_path = create_workspace_path!()
@@ -63,10 +90,17 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
       assert load_result.latest_import_status.ready? == true
 
       assert {:ok, status_result} =
-               AgentWorkspace.source_code_graph_status(managed_repo_id, workspace_path)
+               AgentWorkspace.source_code_graph_status(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "abc123"
+               )
 
       assert status_result.ready? == true
+      assert status_result.stale? == false
+      assert status_result.imported_revision == "abc123"
       assert status_result.latest_import_status.state == :loaded
+      assert status_result.latest_analysis_status.state == :analyzed
     end
 
     test "returns typed not-ready error for query before load" do
@@ -98,6 +132,26 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
       assert query_result.engine == :sparql
       assert query_result.graph_name == "source_code"
       assert query_result.bindings == []
+    end
+
+    test "returns a typed stale outcome when the loaded revision is outdated" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, _load_result} =
+               AgentWorkspace.load_source_code_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 revision: "abc123"
+               )
+
+      assert {:error, :source_code_graph_stale, _message} =
+               AgentWorkspace.query_source_code_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 "SELECT * WHERE { ?s ?p ?o }",
+                 revision: "def456"
+               )
     end
 
     test "keeps graph readiness repository-scoped" do

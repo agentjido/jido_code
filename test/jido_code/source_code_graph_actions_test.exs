@@ -72,11 +72,19 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
       assert {:ok, status_result} =
                GetSourceCodeGraphStatus.run(
                  %{},
-                 Map.put(context, :latest_import_status, load_result.latest_import_status)
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   latest_analysis_status: load_result.latest_analysis_status
+                 }
                )
 
       assert status_result.ready? == true
+      assert status_result.stale? == false
+      assert status_result.imported_revision == "abc123"
       assert status_result.latest_import_status.state == :loaded
+      assert status_result.latest_analysis_status.state == :analyzed
     end
 
     test "returns coherent replacement metadata for refresh", %{context: context} do
@@ -96,11 +104,26 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
                QuerySourceCodeGraph.run(%{sparql: "SELECT * WHERE { ?s ?p ?o }"}, context)
     end
 
+    test "returns typed stale error when a newer revision is requested", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
+
+      assert {:error, :source_code_graph_stale, _message} =
+               QuerySourceCodeGraph.run(
+                 %{revision: "def456", sparql: "SELECT * WHERE { ?s ?p ?o }"},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status
+                 }
+               )
+    end
+
     test "returns structured SPARQL query result after load" do
       loaded_context = %{
         managed_repo_id: "repo-123",
         workspace_path: "/tmp/example-repo",
-        latest_import_status: %{state: :loaded, ready?: true}
+        latest_import_status: %{state: :loaded, ready?: true, imported_revision: "abc123"},
+        graph: %{revision: "abc123"}
       }
 
       assert {:ok, result} =

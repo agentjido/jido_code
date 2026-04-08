@@ -18,11 +18,19 @@ defmodule JidoCode.Actions.GetSourceCodeGraphStatus do
   @impl true
   def run(params, context) do
     with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
+      requested_revision = graph_context.revision_metadata.revision
+      latest_import_status = graph_context.latest_import_status
+      latest_analysis_status = graph_context.latest_analysis_status
+
       {:ok,
        %{
          graph_name: graph_context.graph_name,
-         ready?: SourceCodeGraphSupport.ready?(graph_context.latest_import_status),
-         latest_import_status: graph_context.latest_import_status,
+         ready?: SourceCodeGraphSupport.ready?(latest_import_status),
+         stale?: SourceCodeGraphSupport.stale?(latest_import_status, requested_revision),
+         requested_revision: requested_revision,
+         imported_revision: Map.get(latest_import_status, :imported_revision),
+         latest_import_status: latest_import_status,
+         latest_analysis_status: latest_analysis_status,
          dataset: graph_context.dataset_metadata
        }}
     else

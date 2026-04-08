@@ -51,6 +51,16 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
   @spec ready?(map()) :: boolean()
   def ready?(status) when is_map(status), do: Map.get(status, :ready?, false)
 
+  @spec stale?(map(), String.t() | nil) :: boolean()
+  def stale?(status, requested_revision) when is_map(status) and is_binary(requested_revision) do
+    case Map.get(status, :imported_revision) do
+      nil -> false
+      imported_revision -> imported_revision != requested_revision
+    end
+  end
+
+  def stale?(_status, _requested_revision), do: false
+
   defp normalize_managed_repo_id(value) when is_binary(value) do
     case String.trim(value) do
       "" -> {:error, :missing_managed_repo_id}

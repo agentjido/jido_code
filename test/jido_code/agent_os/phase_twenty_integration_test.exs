@@ -35,29 +35,32 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
     test "20.4.1.1 one repository can host a source code graph pod without affecting another kernel" do
       repo_one = "repo-#{System.unique_integer()}"
       repo_two = "repo-#{System.unique_integer()}"
+      workspace_one = create_workspace_path!("repo-one")
+      workspace_two = create_workspace_path!("repo-two")
 
       assert {:ok, repo_one_summary} =
-               AgentWorkspace.ensure_source_code_graph_pod(repo_one, "/tmp/repo-one")
+               AgentWorkspace.ensure_source_code_graph_pod(repo_one, workspace_one)
 
       assert {:ok, repo_two_summary} =
-               AgentWorkspace.ensure_source_code_graph_pod(repo_two, "/tmp/repo-two")
+               AgentWorkspace.ensure_source_code_graph_pod(repo_two, workspace_two)
 
       assert repo_one_summary.pod_id == "source_code_graph"
       assert repo_two_summary.pod_id == "source_code_graph"
       assert repo_one_summary.graph_store_path != repo_two_summary.graph_store_path
 
-      assert Manager.pod_status(repo_one, "source_code_graph").metadata.workspace_path == "/tmp/repo-one"
-      assert Manager.pod_status(repo_two, "source_code_graph").metadata.workspace_path == "/tmp/repo-two"
+      assert Manager.pod_status(repo_one, "source_code_graph").metadata.workspace_path == workspace_one
+      assert Manager.pod_status(repo_two, "source_code_graph").metadata.workspace_path == workspace_two
     end
 
     test "20.4.1.2 the source code graph pod remains singleton per repository even when work items multiply" do
       managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!("singleton")
 
       assert {:ok, _summary} =
-               AgentWorkspace.ensure_source_code_graph_pod(managed_repo_id, "/tmp/example-repo")
+               AgentWorkspace.ensure_source_code_graph_pod(managed_repo_id, workspace_path)
 
       assert {:ok, _summary} =
-               AgentWorkspace.ensure_source_code_graph_pod(managed_repo_id, "/tmp/example-repo")
+               AgentWorkspace.ensure_source_code_graph_pod(managed_repo_id, workspace_path)
 
       assert {:ok, _pod_name_one} =
                AgentWorkspace.ensure_coding_pod(managed_repo_id, "work-#{System.unique_integer()}", "/tmp")
@@ -75,9 +78,10 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
 
     test "20.4.1.3 AgentWorkspace hides the pod topology from callers" do
       managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!("topology")
 
       assert {:ok, summary} =
-               AgentWorkspace.ensure_source_code_graph_pod(managed_repo_id, "/tmp/example-repo")
+               AgentWorkspace.ensure_source_code_graph_pod(managed_repo_id, workspace_path)
 
       refute Map.has_key?(summary, :module)
       refute Map.has_key?(summary, :metadata)
@@ -107,20 +111,56 @@ defmodule JidoCode.AgentOSPhaseTwentyIntegrationTest do
 
     test "20.4.2.2 disabled or not-ready graph states surface as typed workspace outcomes" do
       managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!("typed-outcomes")
 
       assert {:error, :source_code_graph_disabled} =
                AgentWorkspace.ensure_source_code_graph_pod(
                  managed_repo_id,
-                 "/tmp/example-repo",
+                 workspace_path,
                  enabled?: false
                )
 
       assert {:error, :source_code_graph_not_ready, _message} =
                AgentWorkspace.query_source_code_graph(
                  managed_repo_id,
-                 "/tmp/example-repo",
+                 workspace_path,
                  "SELECT * WHERE { ?s ?p ?o }"
                )
     end
+  end
+
+  defp create_workspace_path!(suffix) do
+    workspace_path =
+      Path.join(
+        System.tmp_dir!(),
+        "jido_code_phase_twenty_#{suffix}_#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(Path.join(workspace_path, "lib"))
+
+    File.write!(
+      Path.join(workspace_path, "mix.exs"),
+      """
+      defmodule PhaseTwenty.MixProject do
+        use Mix.Project
+
+        def project do
+          [app: :phase_twenty_example, version: "0.1.0", elixir: "~> 1.18", deps: []]
+        end
+      end
+      """
+    )
+
+    File.write!(
+      Path.join(workspace_path, "lib/phase_twenty_example.ex"),
+      """
+      defmodule PhaseTwentyExample do
+        def greet(name) when is_binary(name), do: "hello " <> name
+      end
+      """
+    )
+
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+    workspace_path
   end
 end

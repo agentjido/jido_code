@@ -12,6 +12,7 @@ defmodule JidoCode.SourceCodeGraph do
   @pod_id "source_code_graph"
   @graph_name "source_code"
   @ontology_profile "full"
+  @named_graph_iri "https://jido.run/graphs/source_code"
   @ontology_schema_filenames [
     "elixir-core.ttl",
     "elixir-structure.ttl",
@@ -34,6 +35,12 @@ defmodule JidoCode.SourceCodeGraph do
 
   @spec ontology_schema_filenames() :: [String.t()]
   def ontology_schema_filenames, do: @ontology_schema_filenames
+
+  @spec named_graph_iri() :: String.t()
+  def named_graph_iri, do: @named_graph_iri
+
+  @spec named_graph_resource() :: RDF.IRI.t()
+  def named_graph_resource, do: RDF.iri(@named_graph_iri)
 
   @spec capability_enabled?(keyword()) :: boolean()
   def capability_enabled?(opts \\ []) do
@@ -83,6 +90,7 @@ defmodule JidoCode.SourceCodeGraph do
          managed_repo_id: managed_repo_id,
          dataset_id: "#{managed_repo_id}:#{@graph_name}",
          graph_name: @graph_name,
+         named_graph_iri: @named_graph_iri,
          ontology_profile: @ontology_profile,
          base_iri: base_iri(managed_repo_id),
          workspace_path: normalized_workspace_path,

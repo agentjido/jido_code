@@ -14,6 +14,8 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
     InspectSourceCodeGraphDataset
   }
 
+  alias JidoCode.SourceCodeGraph
+
   setup do
     workspace_path = create_workspace_path!()
     %{context: %{managed_repo_id: "repo-123", workspace_path: workspace_path}}
@@ -57,7 +59,15 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
     test "return ready graph metadata once loaded", %{context: context} do
       assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
       assert load_result.status == :graph_loaded
+      assert load_result.store.backend == :triple_store
+      assert load_result.store.schema == :quad
+      assert File.dir?(load_result.store.path)
       assert load_result.latest_import_status.ready? == true
+      assert load_result.latest_import_status.schema_included? == true
+      assert load_result.latest_import_status.individuals_included? == true
+      assert load_result.latest_import_status.total_triple_count > 0
+
+      assert_source_code_graph_loaded!(load_result.store.path, context.managed_repo_id)
 
       assert {:ok, status_result} =
                GetSourceCodeGraphStatus.run(
@@ -75,6 +85,8 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
       assert result.status == :graph_refreshed
       assert result.latest_import_status.ready? == true
       assert result.latest_import_status.refresh_mode == :replace_named_graph
+      assert result.latest_import_status.imported_revision == "def456"
+      assert_source_code_graph_loaded!(result.store.path, context.managed_repo_id)
     end
   end
 
@@ -160,5 +172,50 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
 
     on_exit(fn -> File.rm_rf!(workspace_path) end)
     workspace_path
+  end
+
+  defp assert_source_code_graph_loaded!(store_path, managed_repo_id) do
+    {:ok, store} = TripleStore.open(store_path, create_if_missing: false, schema: :quad)
+    named_graph = RDF.iri(SourceCodeGraph.named_graph_iri())
+
+    try do
+      assert {:ok, %{^named_graph => quad_count}} =
+               TripleStore.QuadOperations.graphs_summary(store.db, include_default: false)
+
+      assert quad_count > 0
+
+      {:ok, graph_id} = TripleStore.Adapter.term_to_id(store.dict_manager, named_graph)
+      {:ok, rdf_type_id} = TripleStore.Adapter.term_to_id(store.dict_manager, RDF.iri(RDF.type()))
+
+      {:ok, module_class_id} =
+        TripleStore.Adapter.term_to_id(
+          store.dict_manager,
+          RDF.iri("https://w3id.org/elixir-code/structure#Module")
+        )
+
+      {:ok, owl_class_id} =
+        TripleStore.Adapter.term_to_id(
+          store.dict_manager,
+          RDF.iri("http://www.w3.org/2002/07/owl#Class")
+        )
+
+      {:ok, repo_module_id} =
+        TripleStore.Adapter.term_to_id(
+          store.dict_manager,
+          RDF.iri("#{SourceCodeGraph.base_iri(managed_repo_id)}Example")
+        )
+
+      assert TripleStore.QuadOperations.quad_exists?(
+               store.db,
+               {module_class_id, rdf_type_id, owl_class_id, graph_id}
+             )
+
+      assert TripleStore.QuadOperations.quad_exists?(
+               store.db,
+               {repo_module_id, rdf_type_id, module_class_id, graph_id}
+             )
+    after
+      :ok = TripleStore.close(store)
+    end
   end
 end

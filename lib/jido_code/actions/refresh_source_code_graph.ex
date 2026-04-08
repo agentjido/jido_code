@@ -15,26 +15,22 @@ defmodule JidoCode.Actions.RefreshSourceCodeGraph do
     ]
 
   alias JidoCode.Actions.SourceCodeGraphSupport
+  alias JidoCode.SourceCodeGraph.Analysis
+  alias JidoCode.SourceCodeGraph.Store
 
   @impl true
   def run(params, context) do
     with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
-      latest_import_status = %{
-        state: :refreshed,
-        ready?: true,
-        graph_name: graph_context.graph_name,
-        imported_revision: graph_context.revision_metadata.revision,
-        imported_at: DateTime.utc_now(),
-        refresh_mode: :replace_named_graph
-      }
+      with {:ok, analysis_result} <- Analysis.analyze(graph_context),
+           {:ok, refresh_result} <- Store.load_snapshot(analysis_result, mode: :refresh) do
+        {:ok, refresh_result}
+      else
+        {:error, %{state: :analysis_failed} = diagnostics} ->
+          {:error, :source_code_graph_analysis_failed, diagnostics}
 
-      {:ok,
-       %{
-         status: :graph_refreshed,
-         graph_name: graph_context.graph_name,
-         dataset: graph_context.dataset_metadata,
-         latest_import_status: latest_import_status
-       }}
+        {:error, diagnostics} when is_map(diagnostics) ->
+          {:error, :source_code_graph_store_failed, diagnostics}
+      end
     else
       {:error, reason} -> {:error, reason}
     end

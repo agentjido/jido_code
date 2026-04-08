@@ -7,6 +7,11 @@ defmodule JidoCode.MixProject do
   @version "0.1.0"
   @source_url "https://github.com/epic-creative/jido_code"
   @description "Primary Jido.Code product and implementation repository."
+  @erlang_rocksdb_opts "-DWITH_BUNDLE_SNAPPY=ON -DWITH_BUNDLE_LZ4=OFF -DWITH_LZ4=TRUE"
+
+  if System.get_env("ERLANG_ROCKSDB_OPTS") in [nil, ""] do
+    System.put_env("ERLANG_ROCKSDB_OPTS", @erlang_rocksdb_opts)
+  end
 
   def project do
     [
@@ -184,6 +189,11 @@ defmodule JidoCode.MixProject do
       {:elixir_ontologies,
        git: "https://github.com/pcharbon70/elixir-ontologies.git", ref: "ccb069136f3b96cfd3684468a8ec1be70f41dc0b"},
       {:sparql, "~> 0.3.11"},
+      {:triple_store,
+       git: "https://github.com/pcharbon70/triple_store.git",
+       ref: "ff3665c4f8e6bbb0e68f966d88d5d9e952e4de2a",
+       override: true},
+      {:rocksdb, "~> 2.6", override: true},
 
       # Product-specific Jido integrations
       {:jido_code_server, git: "https://github.com/pcharbon70/jido_code_server.git", branch: "main"},

@@ -181,3 +181,13 @@ Phase 22.3 brings the semantic graph into product-owned workflow boundaries:
   product-owned and visible
 - workflow consumers receive bounded semantic context maps, while durable
   product truth remains outside the semantic graph itself
+
+Phase 22.4 closes the phase with end-to-end repository coverage:
+
+- integration tests now prove repository-local load, query, and refresh all
+  operate through the canonical `sparql` and `source_code` graph boundaries
+- workspace helper entrypoints now show bounded module, function,
+  runtime-pattern, and impact lookups without leaking pod or store topology
+- higher-level plan and explanation flows now demonstrate that semantic graph
+  inputs only appear when explicitly requested through workspace options, not as
+  an ambient dependency

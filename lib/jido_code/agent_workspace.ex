@@ -697,11 +697,11 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path,
       Keyword.get(graph_opts, :modules),
       fn params ->
-      find_source_code_graph_modules(
+        find_source_code_graph_modules(
           managed_repo_id,
           workspace_path,
           Keyword.merge(runtime_opts, params)
-      )
+        )
       end
     )
     |> maybe_add_semantic_step(
@@ -710,11 +710,11 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path,
       Keyword.get(graph_opts, :functions),
       fn params ->
-      find_source_code_graph_functions(
+        find_source_code_graph_functions(
           managed_repo_id,
           workspace_path,
           Keyword.merge(runtime_opts, params)
-      )
+        )
       end
     )
     |> maybe_add_semantic_step(

@@ -19,7 +19,7 @@ Back to index: [README](./README.md)
 - SPARQL query execution should use the `sparql` library as the canonical query surface.
 - Semantic query remains an explicit tool flow for pod-local agents, not an ambient side channel.
 
-[ ] 22 Phase 22 - Source Code Graph Query Agents and Workflow Adoption
+[x] 22 Phase 22 - Source Code Graph Query Agents and Workflow Adoption
   Add SPARQL-backed query tools and specialist agents to the SourceCodeGraphPod, then expose repository-scoped semantic query behavior through product-owned workspace entrypoints and pod workflows.
 
   [x] 22.1 Section - SPARQL Query Action Surface
@@ -73,19 +73,19 @@ Back to index: [README](./README.md)
       [x] 22.3.2.2 Subtask - Define how semantic query results feed planning, review, or explanation flows as bounded inputs.
       [x] 22.3.2.3 Subtask - Keep product truth in managed-repo and governed-run records even when workflows consult semantic graph state.
 
-  [ ] 22.4 Section - Phase 22 Integration Tests
+  [x] 22.4 Section - Phase 22 Integration Tests
     Verify that pod-local agents can query the loaded `source_code` graph through the SPARQL action surface and that product-owned workspace entrypoints expose bounded repository-scoped semantic queries.
 
-    [ ] 22.4.1 Task - SPARQL query scenarios
+    [x] 22.4.1 Task - SPARQL query scenarios
       Prove the repository semantic graph is queryable through the canonical SPARQL tool surface after load.
 
-      [ ] 22.4.1.1 Subtask - Add coverage proving query actions use the `sparql` library and target the repository-local `source_code` graph.
-      [ ] 22.4.1.2 Subtask - Add coverage proving structured result rows are returned for representative module/function/runtime queries.
-      [ ] 22.4.1.3 Subtask - Add coverage proving query failures and not-ready states stay typed and bounded.
+      [x] 22.4.1.1 Subtask - Add coverage proving query actions use the `sparql` library and target the repository-local `source_code` graph.
+      [x] 22.4.1.2 Subtask - Add coverage proving structured result rows are returned for representative module/function/runtime queries.
+      [x] 22.4.1.3 Subtask - Add coverage proving query failures and not-ready states stay typed and bounded.
 
-    [ ] 22.4.2 Task - Pod and workflow adoption scenarios
+    [x] 22.4.2 Task - Pod and workflow adoption scenarios
       Prove specialist agents and repository-scoped workspace entrypoints can use the semantic graph without leaking pod internals or ambient graph coupling.
 
-      [ ] 22.4.2.1 Subtask - Add coverage proving SourceCodeGraphPod specialist agents can analyze, refresh, and query one repository graph.
-      [ ] 22.4.2.2 Subtask - Add coverage proving repository-scoped workspace entrypoints hide pod topology details.
-      [ ] 22.4.2.3 Subtask - Add coverage proving selected higher-level workflows consult the semantic graph only through explicit bounded entrypoints.
+      [x] 22.4.2.1 Subtask - Add coverage proving SourceCodeGraphPod specialist agents can analyze, refresh, and query one repository graph.
+      [x] 22.4.2.2 Subtask - Add coverage proving repository-scoped workspace entrypoints hide pod topology details.
+      [x] 22.4.2.3 Subtask - Add coverage proving selected higher-level workflows consult the semantic graph only through explicit bounded entrypoints.

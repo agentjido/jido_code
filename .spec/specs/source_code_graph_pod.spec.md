@@ -331,4 +331,12 @@ surface:
   target: test/jido_code/agent_workspace_test.exs
   covers:
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_two_integration_test.exs
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+    - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
 ```

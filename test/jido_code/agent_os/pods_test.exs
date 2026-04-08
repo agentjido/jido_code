@@ -182,8 +182,7 @@ defmodule JidoCode.AgentOSPodsTest do
                {"source_graph.inspect", JidoCode.Actions.InspectSourceCodeGraphDataset},
                {"source_graph.find_modules", JidoCode.Actions.FindSourceCodeGraphModules},
                {"source_graph.find_functions", JidoCode.Actions.FindSourceCodeGraphFunctions},
-               {"source_graph.find_runtime_patterns",
-                JidoCode.Actions.FindSourceCodeGraphRuntimePatterns},
+               {"source_graph.find_runtime_patterns", JidoCode.Actions.FindSourceCodeGraphRuntimePatterns},
                {"source_graph.trace_impact", JidoCode.Actions.TraceSourceCodeGraphImpact}
              ]
 

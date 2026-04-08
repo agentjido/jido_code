@@ -337,4 +337,11 @@ surface:
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.actions_use_jido_action
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_two_integration_test.exs
+  covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.workspace_context_hides_kernel_topology
 ```

@@ -16,23 +16,17 @@ decisions:
   - jido_code.canonical_repo_surface
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
-  - jido_code.jido_os_runtime_service_overlay_adoption
-  - jido_code.jido_os_public_turn_live_delivery_adoption
-  - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.jido_os_deprecation
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - README.md
   - CONTRIBUTING.md
   - .spec/README.md
-  - .spec/decisions/jido_code.coding_assistance_conversation_driver.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   - .spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
-  - .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
-  - .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
-  - .spec/decisions/jido_code.jido_os_session_turn_runtime.md
-  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  - .spec/decisions/jido_code.jido_os_deprecation.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.vsm_recursion_and_scope.md
   - tauri/README.md
@@ -126,11 +120,6 @@ surface:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 
 - kind: source_file
-  target: .spec/decisions/jido_code.coding_assistance_conversation_driver.md
-  covers:
-    - docs.product_foundation.durable_architecture_record_in_spec_workspace
-
-- kind: source_file
   target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
@@ -146,22 +135,7 @@ surface:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 
 - kind: source_file
-  target: .spec/decisions/jido_code.jido_os_runtime_service_overlay_adoption.md
-  covers:
-    - docs.product_foundation.durable_architecture_record_in_spec_workspace
-
-- kind: source_file
-  target: .spec/decisions/jido_code.jido_os_session_turn_runtime.md
-  covers:
-    - docs.product_foundation.durable_architecture_record_in_spec_workspace
-
-- kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
-  covers:
-    - docs.product_foundation.durable_architecture_record_in_spec_workspace
-
-- kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
+  target: .spec/decisions/jido_code.jido_os_deprecation.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

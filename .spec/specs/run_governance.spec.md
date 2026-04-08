@@ -15,16 +15,13 @@ decisions:
   - jido_code.runic_execution_model
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
-  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
-  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
-  - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/governance/change_request.ex
   - lib/jido_code/governance/decision.ex
   - lib/jido_code/governance/evidence.ex
@@ -116,15 +113,6 @@ surface:
   priority: must
   stability: evolving
 
-- id: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
-  statement: When coding conversations produce workflow-relevant terminal outputs, replay summaries, artifacts, or operator-review bundles through public `jido_os` turn surfaces, Jido.Code shall materialize the bounded results it needs into governed `Run` and `Evidence` records instead of treating runtime replay as the product's durable audit store.
-  priority: must
-  stability: evolving
-
-- id: architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
-  statement: If governed run or evidence projection of a terminal coding turn fails, Jido.Code shall degrade to typed warnings and preserve runtime progress or subscriber continuity instead of treating projection failure as turn execution failure.
-  priority: should
-  stability: evolving
 ```
 
 ## Scenarios
@@ -178,16 +166,6 @@ surface:
   then:
     - Review behavior follows the repo policy, blocked review states keep typed remediation, and the run projection continues to expose explicit repo-prep, validation, approval, and cleanup stage plans.
 
-- id: architecture.run_governance.scenario_coding_turn_terminal_outputs_feed_governed_evidence
-  covers:
-    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
-    - architecture.run_governance.evidence_records_capture_run_outputs
-  given:
-    - A coding conversation turn produces a terminal public turn projection with replayable events, artifacts, or operator-review output.
-  when:
-    - The product needs governed review, posture, or audit context from that runtime turn.
-  then:
-    - The bounded runtime outputs are expected to be projected into governed `Run` and `Evidence` records rather than left only in replay-oriented runtime storage.
 ```
 
 ## Verification
@@ -243,21 +221,6 @@ surface:
     - architecture.run_governance.evidence_records_capture_run_outputs
 
 - kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
-  covers:
-    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
-
-- kind: source_file
-  target: lib/jido_code/conversations/turn_bridge.ex
-  covers:
-    - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
-
-- kind: source_file
-  target: test/jido_code/conversations/turn_bridge_test.exs
-  covers:
-    - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
-
-- kind: source_file
   target: lib/jido_code/governance/change_request.ex
   covers:
     - architecture.run_governance.change_request_records_reviewable_run_state
@@ -271,7 +234,6 @@ surface:
   target: lib/jido_code/governance/run_governance_bridge.ex
   covers:
     - architecture.run_governance.evidence_records_capture_run_outputs
-    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
     - architecture.run_governance.change_request_records_reviewable_run_state
     - architecture.run_governance.decision_records_capture_governance_outcomes
     - architecture.run_governance.review_policy_controls_change_request_creation
@@ -306,7 +268,6 @@ surface:
   target: lib/jido_code/orchestration/run_bridge.ex
   covers:
     - architecture.run_governance.run_projection_preserves_explicit_stage_catalog
-    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
 
 - kind: source_file
   target: lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
@@ -324,22 +285,10 @@ surface:
     - architecture.run_governance.evidence_records_capture_run_outputs
     - architecture.run_governance.change_request_records_reviewable_run_state
     - architecture.run_governance.decision_records_capture_governance_outcomes
-    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
 
 - kind: source_file
   target: test/jido_code/orchestration/workflow_run_test.exs
   covers:
     - architecture.run_governance.workflow_run_audit_preserves_actor_class_attribution
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_seven_integration_test.exs
-  covers:
-    - architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence
-    - architecture.run_governance.evidence_records_capture_run_outputs
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_nine_integration_test.exs
-  covers:
-    - architecture.run_governance.turn_projection_failures_degrade_without_blocking_runtime_progress
 
 ```

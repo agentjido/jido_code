@@ -12,9 +12,7 @@ decisions:
   - jido_code.canonical_repo_surface
   - jido_code.live_vue_frontend_adoption
   - jido_code.internal_cleanup_and_ui_convergence_foundation
-  - jido_code.jido_os_runtime_service_overlay_adoption
-  - jido_code.jido_os_public_turn_live_delivery_adoption
-  - jido_code.jido_os_public_turn_runtime_adoption
+  - jido_code.jido_os_deprecation
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
@@ -103,21 +101,6 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
-  target: .spec/planning/phase-07-public-turn-runtime-bridge-and-governed-projection-adoption.md
-  covers:
-    - package.jido_code.spec_led_workspace
-
-- kind: source_file
-  target: .spec/planning/phase-09-live-runtime-delivery-and-conversation-bridge-hardening.md
-  covers:
-    - package.jido_code.spec_led_workspace
-
-- kind: source_file
-  target: .spec/planning/phase-11-runtime-evidence-posture-and-rollout-convergence.md
-  covers:
-    - package.jido_code.spec_led_workspace
-
-- kind: source_file
   target: .spec/planning/phase-14-incremental-operator-surface-adoption.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -148,22 +131,12 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
-  target: .spec/specs/conversation_driver.spec.md
-  covers:
-    - package.jido_code.spec_led_workspace
-
-- kind: source_file
   target: .spec/specs/repo_posture.spec.md
   covers:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
   target: test/jido_code/operations/phase_two_integration_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_four_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 
@@ -188,12 +161,7 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
-  covers:
-    - package.jido_code.spec_led_workspace
-
-- kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_live_delivery_adoption.md
+  target: .spec/decisions/jido_code.jido_os_deprecation.md
   covers:
     - package.jido_code.spec_led_workspace
 
@@ -204,16 +172,6 @@ surface:
 
 - kind: source_file
   target: test/jido_code/control/repo_bridge_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_seven_integration_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_nine_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

@@ -2,7 +2,6 @@
 // covers: architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
 // covers: architecture.frontend_stack.server_authored_props_streams_and_events
 // covers: architecture.frontend_stack.adoption_is_incremental_per_surface
-// covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
 import { computed, ref } from "vue"
 
 type WorkflowCard = {
@@ -12,15 +11,6 @@ type WorkflowCard = {
   launchable: boolean
   feedbackStatus: string | null
   feedbackMessage: string | null
-}
-
-type ConversationSummary = {
-  status: string
-  ready: boolean
-  blocked: boolean
-  blockedDetail: string | null
-  messageCount: number
-  startEnabled: boolean
 }
 
 type FilterMode = "all" | "launchable"
@@ -33,11 +23,6 @@ const props = defineProps<{
   launchReady: boolean
   launchSummary: string
   workflowCards: WorkflowCard[]
-  conversation: ConversationSummary
-}>()
-
-const emit = defineEmits<{
-  (event: "startConversation"): void
 }>()
 
 const filter = ref<FilterMode>("all")
@@ -64,19 +49,9 @@ const launchStateLabel = computed(() => (props.launchReady ? "Ready" : "Blocked"
       <div class="space-y-1">
         <h2 class="text-lg font-semibold">Managed repo overview</h2>
         <p class="text-sm text-base-content/70">
-          LiveView still owns workflow launch and conversation state; this summary only groups the current server-authored context.
+          LiveView still owns workflow launch state; this summary only groups the current server-authored context.
         </p>
       </div>
-
-      <button
-        v-if="props.conversation.startEnabled"
-        id="project-detail-overview-start-conversation"
-        type="button"
-        class="btn btn-sm btn-primary"
-        @click="emit('startConversation')"
-      >
-        Start conversation
-      </button>
     </div>
 
     <div class="grid gap-3 md:grid-cols-3">
@@ -95,13 +70,10 @@ const launchStateLabel = computed(() => (props.launchReady ? "Ready" : "Blocked"
       </article>
 
       <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
-        <p class="text-xs uppercase text-base-content/60">Conversation</p>
-        <p class="mt-1 text-2xl font-semibold">{{ props.conversation.status }}</p>
+        <p class="text-xs uppercase text-base-content/60">Workflow cards</p>
+        <p class="mt-1 text-2xl font-semibold">{{ props.workflowCards.length }}</p>
         <p class="mt-2 text-xs text-base-content/70">
-          {{ props.conversation.messageCount }} message(s) in the current session view.
-        </p>
-        <p v-if="props.conversation.blockedDetail" class="mt-1 text-xs text-warning">
-          {{ props.conversation.blockedDetail }}
+          Launch status and outcome summaries stay server-authored for governed operator review.
         </p>
       </article>
     </div>

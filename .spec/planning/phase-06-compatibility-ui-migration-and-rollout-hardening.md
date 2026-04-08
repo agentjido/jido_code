@@ -5,7 +5,6 @@ Back to index: [README](./README.md)
 ## Relevant Shared APIs / Interfaces
 - `../specs/factory_control_plane.spec.md`
 - `../specs/policy_layers.spec.md`
-- `../specs/conversation_driver.spec.md`
 - `JidoCode.Workbench`
 - `JidoCodeWeb.ProjectDetailLive`
 - `JidoCodeWeb.RunDetailLive`

@@ -6,21 +6,17 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and `jido_os` runtime policy for session and turn capability admission, with per-managed-repository source identity and repo-native observations feeding repo governance independently from the global deployment-mode hint."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
-  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
-  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/control/actor.ex
   - lib/jido_code/control/checks/actor_class_in.ex
-  - lib/jido_code/conversations/ingress.ex
-  - lib/jido_code/conversations/policy.ex
   - lib/jido_code/control/source_repo.ex
   - lib/jido_code/control/managed_repo.ex
   - lib/jido_code/governance.ex
@@ -50,7 +46,6 @@ surface:
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - lib/jido_code_web/live/settings_live.ex
   - test/support/conn_case.ex
-  - test/jido_code/conversations/phase_four_integration_test.exs
   - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code/runtime_integration_test.exs
   - test/jido_code_web/live/security_settings_live_test.exs
@@ -75,8 +70,8 @@ surface:
   priority: must
   stability: evolving
 
-- id: architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
-  statement: `jido_os` runtime policy shall govern what sessions, turns, and runtime execution paths are admitted or denied at the interaction layer.
+- id: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  statement: Runtime capability policy shall govern which product-owned runtime operations and execution paths are admitted or denied at the interaction layer.
   priority: must
   stability: evolving
 
@@ -100,11 +95,6 @@ surface:
   priority: must
   stability: evolving
 
-- id: architecture.policy_layers.public_turn_materialization_preserves_layered_policy
-  statement: When `jido_code` adopts public `jido_os` turn replay, review, and terminal materialization, product-side ingress and Ash authorization shall remain explicit before runtime turn start, and bounded runtime outputs shall only re-enter governed product records through actor-aware product bridges instead of bypassing repo governance or data-plane policy.
-  priority: must
-  stability: evolving
-
 - id: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
   statement: Product-owned runtime integration gateways shall propagate explicit actor, repo, request, correlation, and workspace context into public `jido_os` integration operations and fail closed on typed unavailable, denied, ambiguous, or missing-binding outcomes instead of bypassing layered policy through setup-local side effects.
   priority: should
@@ -123,7 +113,7 @@ surface:
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
-    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+    - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
     - architecture.policy_layers.explicit_human_and_machine_actor_classes
   given:
@@ -135,21 +125,8 @@ surface:
     - Repository source identity remains a repo-governance concern instead of a shortcut derived from deployment flavor.
     - Repo-native `.spec/` and optional Git-native planning observations may inform repo-governance choices without bypassing Ash-backed durable records or runtime capability admission.
     - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
-    - Conversation-triggered work follows the same layered policy path instead of bypassing Ash authorization or repo governance because it originated in chat.
     - Repo, run, and GitHub-ingress paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
     - Hybrid settings summary widgets may improve operator scanning or event handoff, but the underlying repo mutation path still requires explicit current-actor propagation through LiveView-owned events.
-
-- id: architecture.policy_layers.scenario_public_turn_replay_and_governance_stay_policy_bound
-  covers:
-    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
-    - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
-    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
-  given:
-    - A coding turn is started through the product boundary and runtime turn capability is admitted by `jido_os`.
-  when:
-    - The product replays turn progress and projects terminal outputs into governed records.
-  then:
-    - Runtime capability policy remains the authority for turn execution, while actor-aware product bridges preserve repo governance and Ash data-plane policy when those bounded outputs become product truth.
 ```
 
 ## Verification
@@ -160,26 +137,9 @@ surface:
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
-    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+    - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
     - architecture.policy_layers.explicit_human_and_machine_actor_classes
-
-- kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
-  covers:
-    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
-
-- kind: source_file
-  target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
-  covers:
-    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
-
-- kind: source_file
-  target: lib/jido_code/conversations/policy.ex
-  covers:
-    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
-    - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
-    - architecture.policy_layers.policy_layers_interlock_without_collapsing
 
 - kind: source_file
   target: lib/jido_code/governance/policy_bridge.ex
@@ -191,13 +151,13 @@ surface:
 - kind: source_file
   target: lib/jido_code/jido_os_runtime.ex
   covers:
-    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+    - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
 
 - kind: source_file
   target: lib/jido_code/runtime_integration.ex
   covers:
-    - architecture.policy_layers.runtime_policy_governs_session_and_turn_capability
+    - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
 
 - kind: source_file
@@ -234,12 +194,6 @@ surface:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
 
 - kind: source_file
-  target: test/jido_code/conversations/phase_four_integration_test.exs
-  covers:
-    - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
-    - architecture.policy_layers.policy_layers_interlock_without_collapsing
-
-- kind: source_file
   target: test/jido_code/governance/phase_eight_integration_test.exs
   covers:
     - architecture.policy_layers.policy_layers_interlock_without_collapsing
@@ -271,21 +225,6 @@ surface:
   target: test/jido_code/control/phase_six_integration_test.exs
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_seven_integration_test.exs
-  covers:
-    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
-
-- kind: source_file
-  target: lib/jido_code/governance/run_governance_bridge.ex
-  covers:
-    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
-
-- kind: source_file
-  target: test/jido_code/governance/run_governance_bridge_test.exs
-  covers:
-    - architecture.policy_layers.public_turn_materialization_preserves_layered_policy
 
 - kind: source_file
   target: test/jido_code/runtime_integration_test.exs

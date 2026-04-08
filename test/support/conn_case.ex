@@ -1,6 +1,5 @@
 defmodule JidoCodeWeb.ConnCase do
   # covers: package.jido_code.version_controlled_quality_surfaces
-  # covers: architecture.conversation_driver.actor_context_propagated
   # covers: auth.system.local_email_identity
   # covers: auth.system.password_registration_and_sign_in
   # covers: auth.github_integration.non_blocking_local_auth

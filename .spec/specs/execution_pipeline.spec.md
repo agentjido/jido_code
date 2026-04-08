@@ -10,13 +10,10 @@ status: active
 summary: Jido.Code centers execution on Jido.Runic, which drives Runic workflows through the Jido runtime while sprite sessions provide sandbox lifecycle and Ash resources provide durable governance projections.
 decisions:
   - jido_code.runic_execution_model
-  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
   - .spec/decisions/jido_code.runic_execution_model.md
-  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
-  - lib/jido_code/conversations/turn_bridge.ex
   - lib/jido_code/orchestration/execution_profile.ex
   - lib/jido_code/orchestration/run.ex
   - lib/jido_code/orchestration/run_bridge.ex
@@ -61,16 +58,6 @@ surface:
   priority: must
   stability: stable
 
-- id: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
-  statement: When public `jido_os` coding turns are materialized into governed run records, that projection shall preserve Jido.Runic as the canonical execution authority and treat public-turn records as bounded runtime evidence rather than as a second durable step engine.
-  priority: must
-  stability: evolving
-
-- id: architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
-  statement: Governed run projection of terminal public-turn output shall be best-effort and non-blocking for conversation subscriber delivery so the runtime overlay can continue emitting bounded operator updates even when governed projection repairs fail.
-  priority: should
-  stability: evolving
-
 - id: architecture.execution_pipeline.governed_run_interfaces_hide_workflow_state
   statement: Product-owned read and action surfaces shall inspect, approve, reject, and retry execution through governed `Run` interfaces, while any lower-level workflow state remains a bounded internal execution concern instead of a supported product-facing record.
   priority: should
@@ -114,16 +101,6 @@ surface:
   then:
     - They may be represented as explicit workflow steps that fan out and rejoin before the next approval or landing decision.
 
-- id: architecture.execution_pipeline.scenario_public_turn_terminal_projection_preserves_execution_model
-  covers:
-    - architecture.execution_pipeline.run_is_projection_of_workflow_state
-    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
-  given:
-    - A coding conversation finishes through the public `jido_os` turn runtime and the product needs governed execution evidence.
-  when:
-    - `jido_code` materializes the terminal turn into governed run and evidence records.
-  then:
-    - The governed run remains a product-side projection over runtime state rather than replacing Jido.Runic with a second product-owned execution engine.
 ```
 
 ## Verification
@@ -141,49 +118,13 @@ surface:
     - architecture.execution_pipeline.session_bootstrap_distinct_from_repo_prep
 
 - kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
-  covers:
-    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
-
-- kind: source_file
-  target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
-  covers:
-    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
-
-- kind: source_file
-  target: lib/jido_code/conversations/turn_bridge.ex
-  covers:
-    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
-    - architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
-
-- kind: source_file
-  target: test/jido_code/conversations/turn_bridge_test.exs
-  covers:
-    - architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_nine_integration_test.exs
-  covers:
-    - architecture.execution_pipeline.public_turn_projection_is_non_blocking_for_conversation_delivery
-
-- kind: source_file
   target: lib/jido_code/orchestration/run_bridge.ex
   covers:
     - architecture.execution_pipeline.run_is_projection_of_workflow_state
-    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
 
 - kind: source_file
   target: lib/jido_code/orchestration/run.ex
   covers:
     - architecture.execution_pipeline.governed_run_interfaces_hide_workflow_state
 
-- kind: source_file
-  target: lib/jido_code/orchestration/run_bridge.ex
-  covers:
-    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
-
-- kind: source_file
-  target: test/jido_code/conversations/phase_seven_integration_test.exs
-  covers:
-    - architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority
 ```

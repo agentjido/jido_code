@@ -4,7 +4,6 @@ status: proposed
 date: 2025-04-06
 affects:
   - package.jido_code
-  - architecture.conversation_driver
   - architecture.agent_os_integration
 related:
   - jido_code.jido_os_deprecation
@@ -906,7 +905,7 @@ end
 **Key points:**
 - **One CodingPod per WorkItem** - Each conversation/WorkItem gets its own pod
 - **Agent routing** - Operations route to specific agents within the pod
-- **State persistence** - Pod state persists between conversation turns
+- **State persistence** - Pod state persists between related work requests
 - **Parallel conversations** - Different WorkItems have independent pods
 
 ### 12. Summary Architecture

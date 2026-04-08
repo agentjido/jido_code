@@ -47,10 +47,10 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
     assert {:ok, %{assessment: first_assessment, work_item: work_item}} =
              Ingress.record_operator_intake(%{
                project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
                actor: %{id: "operator-stable", email: "stable@example.com"},
-               payload: %{"objective" => "Improve stable repo posture."}
+               payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
     assert first_assessment.inputs["repo_native_state"]["beadwork"]["present"] == false
@@ -62,10 +62,10 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
     assert {:ok, %{assessment: second_assessment}} =
              Ingress.record_operator_intake(%{
                project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
                actor: %{id: "operator-stable", email: "stable@example.com"},
-               payload: %{"objective" => "Refine the stable repo posture plan."}
+               payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
     assert second_assessment.inputs["repo_native_state"]["beadwork"]["status"] == "aligned"
@@ -108,10 +108,10 @@ defmodule JidoCode.Governance.PhaseFiveIntegrationTest do
     assert {:ok, %{assessment: assessment, work_item: work_item}} =
              Ingress.record_operator_intake(%{
                project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
                actor: %{id: "operator-threat", email: "threat@example.com"},
-               payload: %{"objective" => "Handle viability threat."}
+               payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
     assert {:ok, _workflow_run} =

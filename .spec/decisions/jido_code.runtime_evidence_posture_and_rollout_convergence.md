@@ -4,7 +4,6 @@ status: accepted
 date: 2026-04-02
 affects:
   - package.jido_code
-  - architecture.conversation_driver
   - architecture.execution_pipeline
   - architecture.factory_control_plane
   - architecture.policy_layers
@@ -18,27 +17,23 @@ affects:
 <!-- covers: architecture.factory_control_plane.runtime_overlay_preserves_product_truth -->
 <!-- covers: architecture.repo_posture.governed_turn_evidence_can_inform_posture -->
 <!-- covers: architecture.repo_posture.runtime_capability_observations_can_inform_posture -->
-<!-- covers: architecture.run_governance.coding_turn_runtime_outputs_materialize_as_evidence -->
-<!-- covers: architecture.policy_layers.public_turn_materialization_preserves_layered_policy -->
-<!-- covers: architecture.execution_pipeline.public_turn_materialization_preserves_execution_authority -->
-<!-- covers: architecture.conversation_driver.public_turn_live_delivery_is_preferred_incremental_path -->
 
 # Runtime Evidence, Posture, and Rollout Convergence
 
 ## Context
 
-Phases 8 through 10 established the runtime-service gateway model, live coding
-turn delivery, and the product-owned integration gateway over `jido_os`.
+Phases 8 through 10 established the runtime-service gateway model and the
+product-owned integration gateway over `jido_os`.
 
 That left one important gap:
 
 - runtime capability posture already informed product governance
-- governed runs already materialized terminal coding turn output
+- governed runs already materialized bounded runtime outputs where needed
 - integration outcomes already re-entered product observations and events
 
 But the product still lacked one bounded, product-readable way to converge:
 
-- rollout-withheld or denied live coding delivery
+- rollout-withheld or denied runtime-service delivery
 - replay fallback or replay-recovery delivery facts
 - integration binding health and latest invocation outcomes
 - posture-relevant runtime evidence that should influence trust and review
@@ -60,10 +55,11 @@ This means:
    posture, or operator trust must be re-expressed as product observations,
    evidence, and review metadata.
 
-2. Coding-turn delivery facts are governed evidence, not transport trivia.
-   When public turn delivery falls back, detaches, or completes through replay
-   repair, the product records bounded delivery metadata in governed run
-   evidence instead of relying on subscriber transport state as the only trace.
+2. Runtime-delivery facts are governed evidence, not transport trivia.
+   When a runtime-service delivery path falls back, detaches, or completes
+   through replay repair, the product records bounded delivery metadata in
+   governed run evidence instead of relying on transport state as the only
+   trace.
 
 3. Repo posture consumes governed runtime evidence, not raw runtime topology.
    Posture may use bounded runtime-service evidence to shape trust and recovery
@@ -77,7 +73,7 @@ This means:
 
 5. Operator-facing rollout narratives stay product-readable.
    Runtime evidence should be summarized in provider-neutral, policy-oriented
-   language that preserves joinable repo, run, work-item, session, turn,
+   language that preserves joinable repo, run, work-item, request,
    provider, and actor references where they matter, while avoiding raw
    transport payloads or topology leakage.
 

@@ -1,6 +1,5 @@
 defmodule JidoCode.Workbench.ProjectDetail do
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
-  # covers: architecture.conversation_driver.project_detail_surface_preserves_managed_repo_context
   @moduledoc """
   Loads managed-repo-first detail state and execution readiness metadata for `/repos/:id`.
   """

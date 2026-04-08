@@ -5,7 +5,6 @@ defmodule JidoCode.Operations.Synthesis do
   # covers: architecture.event_assessment_synthesis.assessment_priority_and_next_action
   # covers: architecture.event_assessment_synthesis.assessment_space_for_future_inputs
   # covers: architecture.event_assessment_synthesis.repo_native_state_informs_assessment_inputs
-  # covers: architecture.event_assessment_synthesis.conversation_turn_context_shapes_assessment
   # covers: architecture.event_assessment_synthesis.correlation_prefers_persisted_requested_by_actor_identity
   # covers: architecture.work_synthesis.work_item_audit_can_fall_back_to_persisted_ingress_actor_identity
   @moduledoc """
@@ -225,27 +224,14 @@ defmodule JidoCode.Operations.Synthesis do
   end
 
   defp intake_correlation_key(intake, category) do
-    conversation_reference =
-      intake.source_metadata
-      |> normalize_map()
-      |> Map.get("conversation_id")
-      |> normalize_optional_string()
-
     actor_reference = requested_by_actor_id(intake) || actor_reference(intake, :email)
 
-    case conversation_reference do
-      nil ->
-        [
-          intake.managed_repo_id || "unscoped",
-          category,
-          actor_reference || "anonymous"
-        ]
-        |> Enum.join(":")
-
-      conversation_id ->
-        [intake.managed_repo_id || "unscoped", category, conversation_id]
-        |> Enum.join(":")
-    end
+    [
+      intake.managed_repo_id || "unscoped",
+      category,
+      actor_reference || "anonymous"
+    ]
+    |> Enum.join(":")
   end
 
   defp intake_event_category(intake) do
@@ -285,14 +271,6 @@ defmodule JidoCode.Operations.Synthesis do
       {"project_detail", "project_detail_workflow_kickoff", _workflow_name} ->
         {"operator_work_request", :medium, :medium, "review_operator_request",
          "Repo detail requested managed-repository work that should be reviewed before execution."}
-
-      {"conversation", "coding_turn_request", _workflow_name} ->
-        {"conversation_work_request", :high, :high, "review_operator_request",
-         "Conversation demand entered the managed-repository control loop as new work."}
-
-      {"conversation", "work_item_steering", _workflow_name} ->
-        {"conversation_work_steering", :high, :high, "steer_existing_work_item",
-         "Conversation demand steers an existing managed-repository work item."}
 
       _other ->
         {"operator_request", :medium, :medium, "review_operator_request",

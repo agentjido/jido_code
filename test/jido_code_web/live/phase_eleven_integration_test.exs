@@ -33,34 +33,22 @@ defmodule JidoCodeWeb.PhaseElevenIntegrationTest do
       WorkflowRun.create(%{
         project_id: project.id,
         run_id: run_id,
-        workflow_name: "coding_turn_plan",
+        workflow_name: "implement_task",
         workflow_version: 1,
-        trigger: %{
-          source: "public_turn_runtime",
-          mode: "conversation_runtime",
-          turn_id: "turn-phase-eleven-live-1"
-        },
-        inputs: %{"turn_id" => "turn-phase-eleven-live-1"},
-        input_metadata: %{"turn_id" => %{required: true, source: "test"}},
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Governed review remains available."},
+        input_metadata: %{"task_summary" => %{required: true, source: "test"}},
         initiating_actor: %{id: "owner-1", email: "phase-eleven-owner@example.com"},
-        current_step: "public_turn_materialized",
+        current_step: "queued",
         started_at: ~U[2026-04-02 12:00:00Z],
         step_results: %{
-          "coding_turn_summary" => %{
-            "turn_id" => "turn-phase-eleven-live-1",
-            "conversation_id" => "conversation-phase-eleven-live-1",
-            "state" => "completed",
-            "assistant_output" => %{"message" => "Governed review remains available."}
-          },
+          "diff_summary" => "1 file changed (+6/-0).",
           "runtime_service_delivery" => %{
             "delivery_mode" => "replay_fallback",
             "reason_code" => "rollout_withheld",
             "terminal_handoff_kind" => "replay_terminal_lookup",
             "terminal_state" => "completed",
-            "turn_id" => "turn-phase-eleven-live-1",
-            "session_id" => "conversation-phase-eleven-live-1",
-            "conversation_id" => "conversation-phase-eleven-live-1",
-            "summary" => "Coding turn delivery fell back to replay because rollout was withheld."
+            "summary" => "Runtime delivery fell back to replay because rollout was withheld."
           }
         }
       })
@@ -68,7 +56,7 @@ defmodule JidoCodeWeb.PhaseElevenIntegrationTest do
     {:ok, workflow_run} =
       WorkflowRun.transition_status(workflow_run, %{
         to_status: :running,
-        current_step: "public_turn_in_progress",
+        current_step: "plan_changes",
         transitioned_at: ~U[2026-04-02 12:01:00Z]
       })
 

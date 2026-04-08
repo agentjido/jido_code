@@ -11,8 +11,6 @@ The plan aligns to:
 - `../specs/policy_layers.spec.md`
 - `../specs/vsm_recursion.spec.md`
 - `../specs/execution_pipeline.spec.md`
-- `../specs/conversation_driver.spec.md`
-- `../specs/coding_assistance_boundary.spec.md`
 - `../specs/run_governance.spec.md`
 - `../decisions/jido_code.factory_control_plane.md`
 - `../decisions/jido_code.live_vue_frontend_adoption.md`

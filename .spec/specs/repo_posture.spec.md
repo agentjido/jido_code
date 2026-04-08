@@ -12,12 +12,10 @@ status: active
 summary: Jido.Code observes repo-native `.spec/` and optional Git-native planning state as durable signals, then projects explainable `RepoPosture` and `PostureCheck` records that stay linked to observations, assessments, evidence, and canonical managed-repository scope instead of hiding trust state inside opaque service logic.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
-  - jido_code.jido_os_public_turn_runtime_adoption
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
-  - .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md
   - lib/jido_code/operations/repo_native_state.ex
@@ -86,11 +84,6 @@ surface:
   priority: should
   stability: evolving
 
-- id: architecture.repo_posture.governed_turn_evidence_can_inform_posture
-  statement: When coding conversations emit public-turn summaries, artifacts, or review bundles that matter to trust or review burden, Jido.Code shall let repo posture consume the governed `Run` and `Evidence` projections derived from those outputs instead of reading runtime replay or review state directly from `jido_os`.
-  priority: should
-  stability: evolving
-
 - id: architecture.repo_posture.ingress_actor_identity_remains_explainable_for_posture_inputs
   statement: When posture-relevant operator demand enters through normalized ingress, requested-by actor identity shall remain explainable through persisted source metadata so posture and review-burden explanations do not depend on raw transient entrypoint payloads.
   priority: should
@@ -152,17 +145,6 @@ surface:
   then:
     - The product surfaces enough governed review state to explain why posture or escalation-relevant review burden exists.
 
-- id: architecture.repo_posture.scenario_coding_turn_evidence_feeds_explainable_posture
-  covers:
-    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
-    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
-  given:
-    - A coding conversation turn has been projected into governed run and evidence records.
-  when:
-    - Repo posture or operator-facing review surfaces evaluate trust and review burden.
-  then:
-    - The posture flow can use the governed evidence derived from the turn while keeping operator-facing explanations anchored in product-owned records.
-
 - id: architecture.repo_posture.scenario_runtime_capability_posture_stays_explainable
   covers:
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
@@ -207,7 +189,6 @@ surface:
     - architecture.repo_posture.posture_checks_preserve_explainable_links
     - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
     - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
-    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
@@ -219,7 +200,6 @@ surface:
   target: lib/jido_code/governance/runtime_evidence_bridge.ex
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
-    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
@@ -259,7 +239,6 @@ surface:
   covers:
     - architecture.repo_posture.repo_posture_summarizes_trust_dimensions
     - architecture.repo_posture.posture_checks_preserve_explainable_links
-    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
@@ -276,7 +255,6 @@ surface:
   target: test/jido_code/governance/runtime_evidence_bridge_test.exs
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
-    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
@@ -334,11 +312,6 @@ surface:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 
 - kind: source_file
-  target: .spec/decisions/jido_code.jido_os_public_turn_runtime_adoption.md
-  covers:
-    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
-
-- kind: source_file
   target: lib/jido_code/orchestration/run_summary_feed.ex
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
@@ -353,8 +326,4 @@ surface:
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 
-- kind: source_file
-  target: lib/jido_code/governance/run_governance_bridge.ex
-  covers:
-    - architecture.repo_posture.governed_turn_evidence_can_inform_posture
 ```

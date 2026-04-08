@@ -5,7 +5,6 @@ Back to index: [README](./README.md)
 ## Relevant Shared APIs / Interfaces
 - `../specs/factory_control_plane.spec.md`
 - `../specs/frontend_architecture.spec.md`
-- `../specs/conversation_driver.spec.md`
 - `../specs/run_governance.spec.md`
 - `../specs/runtime_service_overlay.spec.md`
 - `../specs/setup_onboarding.spec.md`

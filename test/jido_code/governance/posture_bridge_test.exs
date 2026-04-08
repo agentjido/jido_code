@@ -3,14 +3,13 @@ defmodule JidoCode.Governance.PostureBridgeTest do
   # covers: architecture.repo_posture.repo_posture_summarizes_trust_dimensions
   # covers: architecture.repo_posture.posture_checks_preserve_explainable_links
   # covers: architecture.repo_posture.runtime_capability_observations_can_inform_posture
-  # covers: architecture.repo_posture.governed_turn_evidence_can_inform_posture
   # covers: architecture.vsm_recursion.algedonic_escalation
   use JidoCode.DataCase, async: false
 
   alias JidoCode.Control.{Actor, ManagedRepo}
-  alias JidoCode.Governance.{Evidence, PostureBridge, PostureCheck, RepoPosture, RuntimeEvidenceBridge}
+  alias JidoCode.Governance.{Evidence, PostureBridge, PostureCheck, RepoPosture}
   alias JidoCode.Operations.{Ingress, Observation}
-  alias JidoCode.Orchestration.{RunBridge, WorkflowRun}
+  alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
 
   test "repo posture and posture checks stay explainable across observations assessments and evidence" do
@@ -47,10 +46,10 @@ defmodule JidoCode.Governance.PostureBridgeTest do
     assert {:ok, %{assessment: assessment, work_item: work_item}} =
              Ingress.record_operator_intake(%{
                project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
                actor: %{id: "operator-posture", email: "posture@example.com"},
-               payload: %{"objective" => "Stabilize posture computation."}
+               payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
     assert {:ok, workflow_run} =
@@ -175,115 +174,6 @@ defmodule JidoCode.Governance.PostureBridgeTest do
     assert execution_check.observation_id == review_check.observation_id
     assert execution_check.details["runtime_capability_state"]["status"] == "blocked"
     assert review_check.details["runtime_capability_state"]["blocked_service_count"] == 1
-  end
-
-  test "runtime service delivery evidence can lower recovery resilience without replacing governed runs as execution authority" do
-    workspace_path = create_workspace_path!()
-    seed_spec_state!(workspace_path)
-
-    {:ok, project} =
-      Project.create(%{
-        name: "repo-posture-runtime-evidence",
-        github_full_name: "owner/repo-posture-runtime-evidence",
-        default_branch: "main",
-        settings: %{
-          "workspace" => %{
-            "workspace_environment" => "local",
-            "workspace_path" => workspace_path,
-            "clone_status" => "ready",
-            "workspace_initialized" => true,
-            "baseline_synced" => true
-          },
-          "runtime_capabilities" => %{
-            "required_services" => ["coding_assistance_service"]
-          }
-        }
-      })
-
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
-
-    assert {:ok, %{work_item: work_item}} =
-             Ingress.record_operator_intake(%{
-               project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
-               actor: %{id: "operator-runtime-evidence", email: "runtime-evidence@example.com"},
-               payload: %{"objective" => "Exercise replay fallback posture evidence."}
-             })
-
-    turn_id = "turn-runtime-posture-#{System.unique_integer([:positive, :monotonic])}"
-    session_id = "conversation-runtime-posture-#{System.unique_integer([:positive, :monotonic])}"
-
-    assert {:ok, %{run: run}} =
-             RunBridge.materialize_turn(%{
-               project_id: project.id,
-               managed_repo_id: managed_repo.id,
-               work_item_id: work_item.id,
-               actor_id: "operator-runtime-evidence",
-               actor_email: "runtime-evidence@example.com",
-               conversation_id: session_id,
-               turn: %{
-                 turn_id: turn_id,
-                 session_id: session_id,
-                 conversation_id: session_id,
-                 state: "completed",
-                 operation: "plan",
-                 objective: "Exercise replay fallback posture evidence.",
-                 assistant_output: %{"message" => "Replay fallback evidence recorded."}
-               },
-               review: %{
-                 turn_id: turn_id,
-                 assistant_output: %{"message" => "Replay fallback evidence recorded."}
-               },
-               events: [
-                 %{
-                   "event_id" => "runtime-posture-event-1",
-                   "turn_id" => turn_id,
-                   "family" => "progress",
-                   "content" => "Repairing through replay recovery."
-                 }
-               ],
-               runtime_delivery: %{
-                 "delivery_mode" => "replay_recovery",
-                 "live_delivery_status" => "subscribed",
-                 "reason_code" => "live_delivery_detached",
-                 "terminal_handoff_kind" => "replay_terminal_lookup",
-                 "terminal_state" => "completed",
-                 "turn_id" => turn_id,
-                 "session_id" => session_id,
-                 "conversation_id" => session_id,
-                 "correlation_id" => "corr-runtime-posture",
-                 "summary" => "Coding turn delivery repaired through replay recovery."
-               }
-             })
-
-    assert is_binary(run.id)
-
-    assert {:ok, %{repo_posture: repo_posture, posture_checks: posture_checks}} =
-             PostureBridge.sync_managed_repo(managed_repo)
-
-    assert repo_posture.execution_readiness == "high"
-    assert repo_posture.recovery_resilience == "medium"
-    assert repo_posture.posture_metadata["runtime_service_evidence_state"]["status"] == "degraded"
-    assert repo_posture.posture_metadata["runtime_service_evidence_state"]["runtime_delivery"]["turn_id"] == turn_id
-    assert repo_posture.posture_metadata["latest_observation_ids"]["runtime_service_evidence"]
-
-    recovery_check = posture_check(posture_checks, "recovery_resilience")
-
-    assert recovery_check.value == "medium"
-    assert recovery_check.source == "governance.evidence+runtime_service"
-
-    assert recovery_check.observation_id ==
-             repo_posture.posture_metadata["latest_observation_ids"]["runtime_service_evidence"]
-
-    assert recovery_check.details["runtime_service_evidence"]["runtime_delivery"]["turn_id"] == turn_id
-
-    assert {:ok, latest_runtime_evidence} =
-             RuntimeEvidenceBridge.latest_signal_snapshot(managed_repo.id)
-
-    assert latest_runtime_evidence["runtime_delivery"]["turn_id"] == turn_id
-    assert latest_runtime_evidence["runtime_delivery"]["run_id"] == run.id
   end
 
   defp posture_check(posture_checks, dimension) do

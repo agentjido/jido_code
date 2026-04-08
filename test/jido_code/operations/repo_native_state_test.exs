@@ -54,10 +54,10 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
     assert {:ok, %{work_item: work_item}} =
              Ingress.record_operator_intake(%{
                project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
                actor: %{id: "operator-repo-native", email: "signals@example.com"},
-               payload: %{"objective" => "Review the managed repository runtime posture."}
+               payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
     seed_beadwork_state!(workspace_path, work_item.id)
@@ -70,10 +70,10 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
     assert {:ok, %{assessment: assessment}} =
              Ingress.record_operator_intake(%{
                project_id: project.id,
-               channel: "conversation",
-               intent: "coding_turn_request",
+               channel: "workbench",
+               intent: "fix_workflow_kickoff",
                actor: %{id: "operator-repo-native", email: "signals@example.com"},
-               payload: %{"objective" => "Refine the repo-native signal handling."}
+               payload: %{"workflow_name" => "fix_failing_tests", "failure_signal" => "mix test"}
              })
 
     assert assessment.inputs["repo_native_state"]["spec_led"]["status"] == "verified"
@@ -104,20 +104,19 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
 
     File.write!(Path.join(specs_dir, "factory_control_plane.spec.md"), "# Factory Control Plane\n")
     File.write!(Path.join(specs_dir, "repo_posture.spec.md"), "# Repo Posture\n")
-    File.write!(Path.join(specs_dir, "conversation_driver.spec.md"), "# Conversation Driver\n")
     File.write!(Path.join(decisions_dir, "README.md"), "# Decisions\n")
     File.write!(Path.join(decisions_dir, "factory_control_plane.md"), "# ADR\n")
 
     state = %{
       "summary" => %{
-        "subjects" => 3,
+        "subjects" => 2,
         "decisions" => 1,
-        "requirements" => 9,
+        "requirements" => 8,
         "scenarios" => 4,
         "findings" => 0
       },
       "workspace" => %{
-        "spec_count" => 3,
+        "spec_count" => 2,
         "decision_count" => 1
       },
       "verification" => %{

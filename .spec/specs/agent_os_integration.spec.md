@@ -18,7 +18,6 @@ surface:
   - lib/jido_code/agent_os/pods/
   - lib/jido_code/agent_os/agents/
   - lib/jido_code/agent_os/actions/
-  - lib/jido_code/conversations/driver.ex
 ```
 
 ## Requirements
@@ -69,8 +68,8 @@ surface:
   priority: must
   stability: proposed
 
-- id: architecture.agent_os_integration.conversation_driver_routes_to_workspace
-  statement: The conversation driver shall integrate with AgentOS by ensuring kernels and pods exist, then routing to appropriate agents within pods.
+- id: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  statement: Product-owned work entrypoints shall integrate with AgentOS through `AgentWorkspace` by ensuring kernels and pods exist, then routing to appropriate agents within pods.
   priority: must
   stability: proposed
 
@@ -173,17 +172,17 @@ surface:
     - Kernels and pods restore their previous state from Ecto storage.
     - Work can continue without losing context.
 
-- id: architecture.agent_os_integration.scenario_conversation_driver_integration
+- id: architecture.agent_os_integration.scenario_product_work_entrypoint_routes_to_workspace
   covers:
-    - architecture.agent_os_integration.conversation_driver_routes_to_workspace
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
   given:
-    - A conversation turn is received for a WorkItem.
+    - A product work request is received for a WorkItem.
   when:
-    - The conversation driver processes the turn.
+    - The product entrypoint processes the request through `AgentWorkspace`.
   then:
-    - The driver ensures the repository kernel exists.
-    - The driver ensures or finds the CodingPod for the WorkItem.
-    - The driver routes the operation to the appropriate agent (planner, coder, reviewer).
+    - The entrypoint ensures the repository kernel exists.
+    - The entrypoint ensures or finds the CodingPod for the WorkItem.
+    - The entrypoint routes the operation to the appropriate agent (planner, coder, reviewer).
 ```
 
 ## Verification
@@ -234,7 +233,7 @@ surface:
     - architecture.agent_os_integration.state_operations_modify_agent_state
 
 - kind: source_file
-  target: lib/jido_code/conversations/driver.ex
+  target: lib/jido_code/agent_workspace.ex
   covers:
-    - architecture.agent_os_integration.conversation_driver_routes_to_workspace
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
 ```

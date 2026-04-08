@@ -21,6 +21,11 @@ defmodule JidoCode.Pods.RepoPod do
 
   use Jido.AgentOS.Pod,
     name: "repo_pod",
+    signal_routes: [
+      {"jido.agent.child.started", Jido.Actions.Control.Noop},
+      {"jido.agent.child.exit", Jido.Actions.Control.Noop},
+      {"jido.agent.orphaned", Jido.Actions.Control.Noop}
+    ],
     topology: %{
       repo_monitor: %{
         agent: JidoCode.Agents.RepoMonitor,

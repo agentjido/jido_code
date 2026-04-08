@@ -2,6 +2,8 @@ defmodule JidoCode.AgentOSIntegrationTest do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.dynamic_kernel_lifecycle
   # covers: architecture.agent_os_integration.pod_hierarchy
+  # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   use ExUnit.Case, async: false
 
   alias JidoCode.AgentWorkspace
@@ -66,13 +68,19 @@ defmodule JidoCode.AgentOSIntegrationTest do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_1 = "work-#{System.unique_integer()}"
       work_item_2 = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
 
       # Ensure kernel
       assert {:ok, _kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
 
       # Create pods for two work items
-      assert {:ok, pod_name_1} = AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_1, "/tmp")
-      assert {:ok, pod_name_2} = AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_2, "/tmp")
+      assert {:ok, pod_name_1} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_1, workspace_path)
+
+      assert {:ok, pod_name_2} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_2, workspace_path)
 
       # Each work item should get a unique pod name
       assert pod_name_1 != pod_name_2
@@ -83,11 +91,14 @@ defmodule JidoCode.AgentOSIntegrationTest do
     test "19.7.2.2 parallel pod execution" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_items = for i <- 1..3, do: "work-#{System.unique_integer()}-#{i}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
 
       # Ensure all work items get pods
       results =
         Enum.map(work_items, fn work_item_id ->
-          AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, "/tmp")
+          AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
         end)
 
       # All should succeed
@@ -132,45 +143,84 @@ defmodule JidoCode.AgentOSIntegrationTest do
     test "19.7.4.1 plan operation through workspace" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
 
       # Plan work through workspace
-      assert {:ok, result} = AgentWorkspace.plan_work(managed_repo_id, work_item_id, "Plan a feature")
+      assert {:ok, result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Plan a feature",
+                 workspace_path: workspace_path
+               )
 
       # Should return a plan result
       assert is_map(result)
       assert Map.has_key?(result, :plan)
+      assert result.plan =~ "deterministic planner response"
     end
 
     test "19.7.4.2 implement operation through workspace" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
 
       # Execute work through workspace
-      assert {:ok, result} = AgentWorkspace.execute_work(managed_repo_id, work_item_id, "Implement a feature")
+      assert {:ok, result} =
+               AgentWorkspace.execute_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Implement a feature",
+                 workspace_path: workspace_path
+               )
 
       # Should return a changes result
       assert is_map(result)
       assert Map.has_key?(result, :changes)
+      assert result.changes =~ "deterministic coder response"
     end
 
     test "19.7.4.3 review operation through workspace" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
 
       # Review work through workspace
-      assert {:ok, result} = AgentWorkspace.review_work(managed_repo_id, work_item_id, "Review implementation")
+      assert {:ok, result} =
+               AgentWorkspace.review_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Review implementation",
+                 workspace_path: workspace_path
+               )
 
       # Should return a feedback result
       assert is_map(result)
       assert Map.has_key?(result, :feedback)
+      assert result.feedback =~ "deterministic reviewer response"
     end
 
     test "19.7.4.4 full workflow conversation" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
 
       # Full workflow through workspace
-      assert {:ok, result} = AgentWorkspace.full_workflow(managed_repo_id, work_item_id, "Add user settings")
+      assert {:ok, result} =
+               AgentWorkspace.full_workflow(
+                 managed_repo_id,
+                 work_item_id,
+                 "Add user settings",
+                 workspace_path: workspace_path
+               )
 
       # Should return combined results
       assert is_map(result)
@@ -178,5 +228,19 @@ defmodule JidoCode.AgentOSIntegrationTest do
       assert Map.has_key?(result, :changes)
       assert Map.has_key?(result, :feedback)
     end
+  end
+
+  defp create_workspace_path! do
+    workspace_path =
+      Path.join(
+        System.tmp_dir!(),
+        "jido_code_agent_os_integration_#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(Path.join(workspace_path, "lib"))
+    File.write!(Path.join(workspace_path, "mix.exs"), "defmodule AgentOSIntegration.MixProject do\n  use Mix.Project\n  def project, do: [app: :agent_os_integration, version: \"0.1.0\", elixir: \"~> 1.18\", deps: []]\nend\n")
+    File.write!(Path.join(workspace_path, "lib/example.ex"), "defmodule AgentOSIntegration.Example do\n  def hello, do: :world\nend\n")
+
+    workspace_path
   end
 end

@@ -32,6 +32,8 @@ defmodule JidoCode.AgentWorkspace do
   """
 
   alias JidoCode.AgentOS.Manager
+  alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
+  alias JidoCode.Pods.{CodingPod, RepoPod}
 
   alias JidoCode.Actions.{
     AnalyzeSourceCodeGraph,
@@ -45,14 +47,23 @@ defmodule JidoCode.AgentWorkspace do
     TraceSourceCodeGraphImpact
   }
 
+  alias JidoCode.AgentWorkspace.RuntimeSpecialistRunner
   alias JidoCode.Pods.SourceCodeGraphPod
   alias JidoCode.SourceCodeGraph
+  alias Jido.AgentOS.ManagerSupervisor
+  alias Jido.AgentOS.Naming
+  alias Jido.AgentOS.Persistence
+  alias Jido.AgentOS.Pod, as: AgentOSPod
+  alias Jido.AgentServer
+  alias Jido.Pod
+  alias Jido.Pod.Runtime, as: PodRuntime
 
   @type managed_repo_id :: String.t()
   @type work_item_id :: String.t()
   @type kernel_name :: atom()
   @type pod_name :: atom()
   @type source_code_graph_summary :: map()
+  @repo_pod_id "repo-pod"
 
   ## Kernel Lifecycle
 
@@ -70,7 +81,10 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec ensure_kernel(managed_repo_id()) :: {:ok, kernel_name()} | {:error, term()}
   def ensure_kernel(managed_repo_id) when is_binary(managed_repo_id) do
-    Manager.ensure_kernel(managed_repo_id)
+    with {:ok, kernel_name} <- Manager.ensure_kernel(managed_repo_id),
+         {:ok, _repo_pod_entry, _repo_pod_pid} <- ensure_repo_pod_runtime(managed_repo_id) do
+      {:ok, kernel_name}
+    end
   end
 
   @doc """
@@ -134,10 +148,12 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t()) :: {:ok, pod_name()} | {:error, term()}
   def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path) do
-    with {:ok, kernel_name} <- ensure_kernel(managed_repo_id),
-         pod_name = pod_name(work_item_id),
-         {:ok, _} <- ensure_pods_workspace_path(kernel_name, pod_name, workspace_path) do
-      {:ok, pod_name}
+    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, resolved_workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, workspace_path),
+         {:ok, _pod_entry, _pod_pid} <-
+           ensure_runtime_coding_pod(managed_repo_id, work_item_id, resolved_workspace_path) do
+      {:ok, pod_name(work_item_id)}
     end
   end
 
@@ -151,10 +167,26 @@ defmodule JidoCode.AgentWorkspace do
 
   """
   @spec complete_work(managed_repo_id(), work_item_id()) :: :ok
-  def complete_work(_managed_repo_id, _work_item_id) do
-    # TODO: Implement pod shutdown
-    # For now, this is a no-op since we don't have dynamic pod management yet
-    :ok
+  def complete_work(managed_repo_id, work_item_id) do
+    pod_id = coding_pod_id(work_item_id)
+
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      nil ->
+        :ok
+
+      pod_entry ->
+        maybe_stop_runtime_pod(pod_entry)
+
+        _ =
+          Manager.update_pod_metadata(managed_repo_id, pod_id, %{
+            runtime_pid: nil,
+            runtime_status: :completed,
+            completed_at: DateTime.utc_now(),
+            latest_failure: nil
+          })
+
+        :ok
+    end
   end
 
   @doc """
@@ -167,10 +199,13 @@ defmodule JidoCode.AgentWorkspace do
 
   """
   @spec active_work_items(managed_repo_id()) :: [work_item_id()]
-  def active_work_items(_managed_repo_id) do
-    # TODO: Implement active work tracking
-    # For now, return empty list
-    []
+  def active_work_items(managed_repo_id) do
+    managed_repo_id
+    |> Manager.list_pods()
+    |> Enum.filter(&active_coding_pod?/1)
+    |> Enum.map(&get_in(&1, [:metadata, :work_item_id]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort()
   end
 
   ## Work Execution
@@ -195,18 +230,25 @@ defmodule JidoCode.AgentWorkspace do
   @spec plan_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
   def plan_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
-    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
+    with {:ok, workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :plan, opts),
-         _pod_name = pod_name(work_item_id) do
-      # TODO: Route to planner agent
-      # For now, return a placeholder response
-      {:ok,
-       %{
-         plan: "placeholder",
-         instruction: instruction,
-         semantic_context: semantic_context
-       }}
+         {:ok, planner_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :planner),
+         {:ok, response} <-
+           run_specialist(
+             Planner,
+             planner_pid,
+             agent_instruction(:plan, instruction, semantic_context),
+             managed_repo_id,
+             workspace_path,
+             semantic_context,
+             opts
+           ) do
+      result = %{plan: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      persist_coding_pod_result(managed_repo_id, work_item_id, :planning, %{last_plan: result})
+      {:ok, result}
     end
   end
 
@@ -230,12 +272,25 @@ defmodule JidoCode.AgentWorkspace do
   @spec execute_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
   def execute_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
-    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
-         _pod_name = pod_name(work_item_id) do
-      # TODO: Route to coder agent
-      # For now, return a placeholder response
-      {:ok, %{changes: [], instruction: instruction}}
+    with {:ok, workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :execute, opts),
+         {:ok, coder_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :coder),
+         {:ok, response} <-
+           run_specialist(
+             Coder,
+             coder_pid,
+             agent_instruction(:execute, instruction, semantic_context),
+             managed_repo_id,
+             workspace_path,
+             semantic_context,
+             opts
+           ) do
+      result = %{changes: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      persist_coding_pod_result(managed_repo_id, work_item_id, :coding, %{last_changes: result})
+      {:ok, result}
     end
   end
 
@@ -259,18 +314,25 @@ defmodule JidoCode.AgentWorkspace do
   @spec review_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
   def review_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
-    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
+    with {:ok, workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :review, opts),
-         _pod_name = pod_name(work_item_id) do
-      # TODO: Route to reviewer agent
-      # For now, return a placeholder response
-      {:ok,
-       %{
-         feedback: [],
-         instruction: instruction,
-         semantic_context: semantic_context
-       }}
+         {:ok, reviewer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :reviewer),
+         {:ok, response} <-
+           run_specialist(
+             Reviewer,
+             reviewer_pid,
+             agent_instruction(:review, instruction, semantic_context),
+             managed_repo_id,
+             workspace_path,
+             semantic_context,
+             opts
+           ) do
+      result = %{feedback: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      persist_coding_pod_result(managed_repo_id, work_item_id, :reviewing, %{last_review: result})
+      {:ok, result}
     end
   end
 
@@ -285,16 +347,25 @@ defmodule JidoCode.AgentWorkspace do
   @spec explain_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
   def explain_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
-    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
+    with {:ok, workspace_path} <-
+           resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
+         {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :explain, opts),
-         _pod_name = pod_name(work_item_id) do
-      {:ok,
-       %{
-         explanation: "placeholder",
-         instruction: instruction,
-         semantic_context: semantic_context
-       }}
+         {:ok, explainer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :explainer),
+         {:ok, response} <-
+           run_specialist(
+             Explainer,
+             explainer_pid,
+             agent_instruction(:explain, instruction, semantic_context),
+             managed_repo_id,
+             workspace_path,
+             semantic_context,
+             opts
+           ) do
+      result = %{explanation: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      persist_coding_pod_result(managed_repo_id, work_item_id, :explaining, %{last_explanation: result})
+      {:ok, result}
     end
   end
 
@@ -342,15 +413,37 @@ defmodule JidoCode.AgentWorkspace do
 
   """
   @spec parallel_plan(managed_repo_id(), [work_item_id()]) :: {:ok, map()} | {:error, term()}
-  def parallel_plan(_managed_repo_id, work_item_ids) when is_list(work_item_ids) do
-    # TODO: Implement parallel planning
-    # For now, return placeholder response
-    results =
-      Map.new(work_item_ids, fn id ->
-        {id, %{plan: "placeholder", work_item_id: id}}
-      end)
+  def parallel_plan(managed_repo_id, work_item_ids) when is_list(work_item_ids) do
+    existing_work_items = MapSet.new(active_work_items(managed_repo_id))
 
-    {:ok, results}
+    if Enum.all?(work_item_ids, &MapSet.member?(existing_work_items, &1)) do
+      results =
+        work_item_ids
+        |> Task.async_stream(
+          fn work_item_id ->
+            {work_item_id, plan_work(managed_repo_id, work_item_id, "Plan work item #{work_item_id}")}
+          end,
+          timeout: 30_000,
+          on_timeout: :kill_task
+        )
+        |> Enum.reduce_while(%{}, fn
+          {:ok, {work_item_id, {:ok, result}}}, acc ->
+            {:cont, Map.put(acc, work_item_id, result)}
+
+          {:ok, {work_item_id, {:error, reason}}}, _acc ->
+            {:halt, {:error, {:parallel_plan_failed, work_item_id, reason}}}
+
+          {:exit, reason}, _acc ->
+            {:halt, {:error, reason}}
+        end)
+
+      case results do
+        {:error, _reason} = error -> error
+        result_map -> {:ok, result_map}
+      end
+    else
+      {:error, :missing_workspace_path}
+    end
   end
 
   ## Source Code Graph
@@ -627,10 +720,259 @@ defmodule JidoCode.AgentWorkspace do
     |> String.to_atom()
   end
 
-  defp ensure_pods_workspace_path(_kernel_name, _pod_name, _workspace_path) do
-    # TODO: Set workspace path in the pod's ProjectContext agent
-    # For now, this is a no-op since we don't have dynamic pod management
-    {:ok, nil}
+  defp coding_pod_id(work_item_id), do: "coding-pod-#{work_item_id}"
+
+  defp ensure_repo_pod_runtime(managed_repo_id) do
+    ensure_runtime_pod(
+      managed_repo_id,
+      @repo_pod_id,
+      RepoPod,
+      %{
+        scope: :repository,
+        managed_repo_id: managed_repo_id,
+        runtime_status: :running
+      },
+      %{managed_repo_id: managed_repo_id}
+    )
+  end
+
+  defp ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path) do
+    ensure_runtime_pod(
+      managed_repo_id,
+      coding_pod_id(work_item_id),
+      CodingPod,
+      %{
+        scope: :work_item,
+        managed_repo_id: managed_repo_id,
+        work_item_id: work_item_id,
+        workspace_path: workspace_path,
+        runtime_status: :running
+      },
+      %{
+        managed_repo_id: managed_repo_id,
+        work_item_id: work_item_id,
+        workspace_path: workspace_path
+      }
+    )
+  end
+
+  defp ensure_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state) do
+    case Manager.pod_status(managed_repo_id, pod_id) do
+      %{metadata: %{runtime_pid: pid}} = pod_entry when is_pid(pid) ->
+        if Process.alive?(pid) do
+          {:ok, pod_entry, pid}
+        else
+          start_and_track_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state)
+        end
+
+      _pod_entry ->
+        start_and_track_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state)
+    end
+  end
+
+  defp start_and_track_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state) do
+    with {:ok, pod_pid} <- start_runtime_pod(managed_repo_id, pod_id, pod_module, initial_state),
+         {:ok, pod_entry} <-
+           Manager.ensure_pod(
+             managed_repo_id,
+             pod_id,
+             pod_module,
+             Map.merge(metadata, %{
+               runtime_pid: pod_pid,
+               started_at: DateTime.utc_now()
+             })
+           ) do
+      {:ok, pod_entry, pod_pid}
+    end
+  end
+
+  defp start_runtime_pod(managed_repo_id, pod_id, pod_module, initial_state) do
+    naming = Naming.new(Manager.kernel_name(managed_repo_id))
+    jido_instance = Naming.kernel_jido_instance(naming)
+    pod_runtime_id = "#{managed_repo_id}:#{pod_id}"
+
+    with :ok <-
+           ManagerSupervisor.ensure_managers(
+             pod_module,
+             agent_os_persistence(),
+             jido_instance,
+             naming
+           ),
+         pod_agent <-
+           pod_module.new(
+             id: pod_runtime_id,
+             state: initial_state
+           ),
+         {:ok, scoped_pod_agent} <-
+           Pod.put_topology(pod_agent, AgentOSPod.scoped_topology(pod_module, naming)),
+         {:ok, pod_pid} <-
+           AgentServer.start(
+             agent: scoped_pod_agent,
+             agent_module: pod_module,
+             jido: jido_instance,
+             id: pod_runtime_id
+           ),
+         {:ok, _report} <- Pod.reconcile(pod_pid) do
+      {:ok, pod_pid}
+    else
+      {:error, %{stage: :reconcile} = reason} -> {:error, reason}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp ensure_coding_specialist(managed_repo_id, work_item_id, node_name) do
+    with {:ok, pod_pid} <- coding_pod_pid(managed_repo_id, work_item_id) do
+      Pod.ensure_node(pod_pid, node_name)
+    end
+  end
+
+  defp coding_pod_pid(managed_repo_id, work_item_id) do
+    case Manager.pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
+      %{metadata: %{runtime_pid: pid}} when is_pid(pid) ->
+        if Process.alive?(pid) do
+          {:ok, pid}
+        else
+          {:error, :coding_pod_not_started}
+        end
+
+      _other ->
+        {:error, :coding_pod_not_started}
+    end
+  end
+
+  defp maybe_stop_runtime_pod(%{metadata: %{runtime_pid: pid}}) when is_pid(pid) do
+    if Process.alive?(pid) do
+      _ = PodRuntime.teardown_runtime(pid)
+
+      try do
+        GenServer.stop(pid, :shutdown, 5_000)
+      catch
+        :exit, _reason -> :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  defp maybe_stop_runtime_pod(_pod_entry), do: :ok
+
+  defp active_coding_pod?(%{module: CodingPod, metadata: metadata}) when is_map(metadata) do
+    Map.get(metadata, :runtime_status) != :completed and
+      match?(pid when is_pid(pid), Map.get(metadata, :runtime_pid)) and
+      Process.alive?(Map.get(metadata, :runtime_pid))
+  end
+
+  defp active_coding_pod?(_pod_entry), do: false
+
+  defp resolve_workspace_path(managed_repo_id, work_item_id, workspace_path) when is_binary(workspace_path) do
+    case String.trim(workspace_path) do
+      "" -> resolve_workspace_path(managed_repo_id, work_item_id, nil)
+      path -> {:ok, Path.expand(path)}
+    end
+  end
+
+  defp resolve_workspace_path(managed_repo_id, work_item_id, _workspace_path) do
+    case Manager.pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
+      %{metadata: %{workspace_path: path}} when is_binary(path) and path != "" ->
+        {:ok, path}
+
+      _other ->
+        {:error, :missing_workspace_path}
+    end
+  end
+
+  defp run_specialist(agent_module, pid, instruction, managed_repo_id, workspace_path, semantic_context, opts) do
+    specialist_runner().run(
+      agent_module,
+      pid,
+      instruction,
+      [
+        tool_context: specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts),
+        timeout: Keyword.get(opts, :timeout, 30_000)
+      ]
+    )
+  end
+
+  defp specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts) do
+    base = %{
+      managed_repo_id: managed_repo_id,
+      workspace_path: workspace_path
+    }
+
+    case Keyword.get(opts, :source_code_graph) do
+      nil ->
+        base
+
+      _graph_opts ->
+        case source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
+          {:ok, graph_context} ->
+            base
+            |> Map.put(:latest_import_status, graph_context.latest_import_status)
+            |> Map.put(:latest_analysis_status, graph_context.latest_analysis_status)
+            |> Map.put(:latest_failure, graph_context.latest_failure)
+            |> Map.put(:graph, %{revision: get_in(semantic_context, [:graph_status, :current_revision])})
+
+          {:error, _reason} ->
+            base
+        end
+    end
+  end
+
+  defp agent_instruction(_workflow, instruction, semantic_context) when semantic_context == %{}, do: instruction
+
+  defp agent_instruction(workflow, instruction, semantic_context) do
+    """
+    Workflow: #{workflow}
+    Instruction: #{instruction}
+
+    Semantic context:
+    #{inspect(semantic_context, pretty: true, limit: :infinity)}
+    """
+  end
+
+  defp normalize_specialist_result(%{summary: summary}) when is_binary(summary), do: summary
+  defp normalize_specialist_result(%{result: result}), do: result
+  defp normalize_specialist_result(result), do: result
+
+  defp persist_coding_pod_result(managed_repo_id, work_item_id, runtime_status, updates) do
+    _ =
+      Manager.update_pod_metadata(
+        managed_repo_id,
+        coding_pod_id(work_item_id),
+        Map.merge(updates, %{
+          runtime_status: runtime_status,
+          last_activity_at: DateTime.utc_now()
+        })
+      )
+
+    :ok
+  end
+
+  defp specialist_runner do
+    Application.get_env(
+      :jido_code,
+      :agent_workspace_specialist_runner,
+      RuntimeSpecialistRunner
+    )
+  end
+
+  defp agent_os_persistence do
+    :jido_code
+    |> Application.get_env(:agent_os_persistence)
+    |> Persistence.resolve()
+    |> case do
+      {:ok, %Persistence{adapter: adapter} = persistence} ->
+        if Code.ensure_loaded?(adapter) do
+          Persistence.storage(persistence)
+        else
+          nil
+        end
+
+      {:ok, nil} ->
+        nil
+
+      {:error, _reason} -> nil
+    end
   end
 
   defp ensure_source_code_graph_enabled(opts) do

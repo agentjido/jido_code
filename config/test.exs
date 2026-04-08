@@ -59,6 +59,7 @@ config :jido_code, :ontology_enabled, false
 config :jido_code,
   agent_os_kernel_supervisor: JidoCode.AgentOS.Manager.Supervisor,
   agent_os_registry: JidoCode.AgentOS.Manager.Registry,
+  agent_workspace_specialist_runner: JidoCode.AgentWorkspace.DeterministicSpecialistRunner,
   agent_os_persistence: [
     adapter: Jido.Ecto.Storage,
     repo: JidoCode.Repo

@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -286,6 +286,16 @@ surface:
     - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
 
 - kind: source_file
+  target: lib/jido_code/agent_workspace/runtime_specialist_runner.ex
+  covers:
+    - architecture.agent_os_integration.signal_routing_within_pod
+
+- kind: source_file
+  target: lib/jido_code/agent_workspace/deterministic_specialist_runner.ex
+  covers:
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+
+- kind: source_file
   target: test/jido_code/agent_os/phase_twenty_one_integration_test.exs
   covers:
     - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
@@ -362,4 +372,18 @@ surface:
   target: test/jido_code/agent_os/phase_twenty_three_integration_test.exs
   covers:
     - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+
+- kind: source_file
+  target: test/jido_code/agent_workspace_test.exs
+  covers:
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.pod_cleanup_on_completion
+    - architecture.agent_os_integration.multiple_pods_parallel_execution
+
+- kind: source_file
+  target: test/jido_code/agent_os_integration_test.exs
+  covers:
+    - architecture.agent_os_integration.kernel_per_managed_repo
+    - architecture.agent_os_integration.dynamic_kernel_lifecycle
+    - architecture.agent_os_integration.signal_routing_within_pod
 ```

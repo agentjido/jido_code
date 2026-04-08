@@ -56,6 +56,20 @@ Runtime behavior remains bounded by product-owned policy and context. Product
 entrypoints must preserve actor, repository, and work-item context when they
 cross into AgentOS-managed operations.
 
+`AgentWorkspace` is the product-owned execution facade for this boundary. It
+must ensure the repository kernel, reconcile the repository-scoped `RepoPod`,
+ensure or resume the `CodingPod` for a `WorkItem`, and then route plan,
+execute, review, explain, and parallel planning calls through real pod-backed
+specialist agents rather than placeholder response maps. Runtime pod startup
+must use kernel-scoped topology so node manager names are scoped per repository
+kernel instead of falling back to compile-time logical manager atoms.
+
+When a configured AgentOS persistence adapter is not actually available in the
+host repo, runtime pod and node startup shall fail closed into an explicit
+non-persistent path rather than pretending durable persistence exists. This
+keeps product-owned workspace execution functional without hiding missing host
+runtime dependencies behind placeholder success responses.
+
 ## Current Domain Model
 
 ```

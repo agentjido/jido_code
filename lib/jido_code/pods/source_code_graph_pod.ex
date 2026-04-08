@@ -11,6 +11,11 @@ defmodule JidoCode.Pods.SourceCodeGraphPod do
 
   use Jido.AgentOS.Pod,
     name: "source_code_graph_pod",
+    signal_routes: [
+      {"jido.agent.child.started", Jido.Actions.Control.Noop},
+      {"jido.agent.child.exit", Jido.Actions.Control.Noop},
+      {"jido.agent.orphaned", Jido.Actions.Control.Noop}
+    ],
     topology: %{
       source_code_graph_context: %{
         agent: JidoCode.Agents.SourceCodeGraphContext,

@@ -1,7 +1,12 @@
 defmodule JidoCode.AgentWorkspaceTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.agent_os_integration.workspace_context
   # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.agent_os_integration.pod_cleanup_on_completion
+  # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
+  # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+  # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   use ExUnit.Case, async: false
 
   alias JidoCode.AgentWorkspace
@@ -38,23 +43,44 @@ defmodule JidoCode.AgentWorkspaceTest do
     test "ensure_coding_pod returns ok with pod name" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      assert {:ok, pod_name} = AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, "/tmp")
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, pod_name} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
       assert is_atom(pod_name)
     end
 
-    test "complete_work returns ok" do
+    test "complete_work stops the work item and removes it from active work" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, _pod_name} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
+      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
 
       assert :ok = AgentWorkspace.complete_work(managed_repo_id, work_item_id)
+      refute work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
     end
 
-    test "active_work_items returns list" do
+    test "active_work_items returns active coding work items" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, _pod_name} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
 
       items = AgentWorkspace.active_work_items(managed_repo_id)
-      assert is_list(items)
+      assert work_item_id in items
     end
   end
 
@@ -62,35 +88,78 @@ defmodule JidoCode.AgentWorkspaceTest do
     test "plan_work returns ok with plan map" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      assert {:ok, result} = AgentWorkspace.plan_work(managed_repo_id, work_item_id, "Implement feature")
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Implement feature",
+                 workspace_path: workspace_path
+               )
+
       assert is_map(result)
       assert Map.has_key?(result, :plan)
+      assert result.plan =~ "deterministic planner response"
     end
 
     test "execute_work returns ok with changes map" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      assert {:ok, result} = AgentWorkspace.execute_work(managed_repo_id, work_item_id, "Implement function")
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.execute_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Implement function",
+                 workspace_path: workspace_path
+               )
+
       assert is_map(result)
       assert Map.has_key?(result, :changes)
+      assert result.changes =~ "deterministic coder response"
     end
 
     test "review_work returns ok with feedback map" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      assert {:ok, result} = AgentWorkspace.review_work(managed_repo_id, work_item_id, "Review code")
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.review_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Review code",
+                 workspace_path: workspace_path
+               )
+
       assert is_map(result)
       assert Map.has_key?(result, :feedback)
+      assert result.feedback =~ "deterministic reviewer response"
     end
 
     test "full_workflow returns ok with plan, changes, and feedback" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      assert {:ok, result} = AgentWorkspace.full_workflow(managed_repo_id, work_item_id, "Full workflow")
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.full_workflow(
+                 managed_repo_id,
+                 work_item_id,
+                 "Full workflow",
+                 workspace_path: workspace_path
+               )
+
       assert Map.has_key?(result, :plan)
       assert Map.has_key?(result, :changes)
       assert Map.has_key?(result, :feedback)
@@ -101,11 +170,20 @@ defmodule JidoCode.AgentWorkspaceTest do
     test "parallel_plan returns ok with results map" do
       managed_repo_id = "test-repo-#{System.unique_integer()}"
       work_item_ids = ["work-1", "work-2"]
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      Enum.each(work_item_ids, fn work_item_id ->
+        assert {:ok, _pod_name} =
+                 AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+      end)
 
       assert {:ok, results} = AgentWorkspace.parallel_plan(managed_repo_id, work_item_ids)
       assert is_map(results)
       assert Map.has_key?(results, "work-1")
       assert Map.has_key?(results, "work-2")
+      assert results["work-1"].plan =~ "deterministic planner response"
     end
   end
 

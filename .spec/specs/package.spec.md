@@ -202,16 +202,6 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
-  target: test/jido_code/coding_assistance_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: lib/jido_code/runtime_integration.ex
-  covers:
-    - package.jido_code.primary_implementation_repo
-
-- kind: source_file
   target: lib/jido_code/governance/runtime_evidence_feed.ex
   covers:
     - package.jido_code.primary_implementation_repo
@@ -225,16 +215,6 @@ surface:
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - package.jido_code.primary_implementation_repo
-
-- kind: source_file
-  target: test/jido_code/runtime_integration_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code/governance/runtime_integration_bridge_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
   target: lib/jido_code_web.ex
@@ -287,22 +267,7 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
-  target: lib/jido_code/governance/runtime_evidence_bridge.ex
-  covers:
-    - package.jido_code.primary_implementation_repo
-
-- kind: source_file
-  target: test/jido_code/governance/runtime_evidence_bridge_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
   target: test/jido_code/governance/runtime_evidence_feed_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code/governance/phase_eleven_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 
@@ -317,22 +282,12 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
-  target: test/jido_code/governance/phase_ten_integration_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code_web/live/phase_eleven_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

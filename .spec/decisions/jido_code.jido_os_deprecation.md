@@ -11,6 +11,11 @@ affects:
 
 <!-- covers: package.jido_code.spec_led_workspace -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
+<!-- covers: architecture.runtime_service_overlay.jido_os_is_authority_backed_runtime_services_overlay -->
+<!-- covers: architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam -->
+<!-- covers: architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed -->
+<!-- covers: architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts -->
+<!-- covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product -->
 
 # Jido OS Integration Deprecation
 

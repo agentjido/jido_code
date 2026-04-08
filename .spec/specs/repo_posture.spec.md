@@ -22,8 +22,6 @@ surface:
   - lib/jido_code/governance/repo_posture.ex
   - lib/jido_code/governance/posture_check.ex
   - lib/jido_code/governance/posture_bridge.ex
-  - lib/jido_code/governance/runtime_capability_bridge.ex
-  - lib/jido_code/governance/runtime_evidence_bridge.ex
   - lib/jido_code/governance/runtime_evidence_feed.ex
   - lib/jido_code/governance/policy_bridge.ex
   - lib/jido_code/control/repo_bridge.ex
@@ -39,12 +37,9 @@ surface:
   - test/jido_code/operations/repo_native_state_test.exs
   - test/jido_code/governance/posture_bridge_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
-  - test/jido_code/governance/runtime_evidence_bridge_test.exs
   - test/jido_code/governance/runtime_evidence_feed_test.exs
-  - test/jido_code/governance/phase_eleven_integration_test.exs
   - test/jido_code/governance/policy_bridge_test.exs
   - test/jido_code/governance/phase_five_integration_test.exs
-  - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
@@ -192,17 +187,6 @@ surface:
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
 
 - kind: source_file
-  target: lib/jido_code/governance/runtime_capability_bridge.ex
-  covers:
-    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
-
-- kind: source_file
-  target: lib/jido_code/governance/runtime_evidence_bridge.ex
-  covers:
-    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
-    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
-
-- kind: source_file
   target: lib/jido_code/governance/runtime_evidence_feed.ex
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
@@ -252,19 +236,7 @@ surface:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
 
 - kind: source_file
-  target: test/jido_code/governance/runtime_evidence_bridge_test.exs
-  covers:
-    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
-    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
-
-- kind: source_file
   target: test/jido_code/governance/runtime_evidence_feed_test.exs
-  covers:
-    - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
-    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
-
-- kind: source_file
-  target: test/jido_code/governance/phase_eleven_integration_test.exs
   covers:
     - architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
     - architecture.repo_posture.runtime_capability_observations_can_inform_posture
@@ -283,13 +255,6 @@ surface:
     - architecture.repo_posture.posture_checks_preserve_explainable_links
     - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
     - architecture.repo_posture.algedonic_escalation_is_typed_and_evidence_rich
-
-- kind: source_file
-  target: test/jido_code/governance/phase_eight_integration_test.exs
-  covers:
-    - architecture.repo_posture.runtime_capability_observations_can_inform_posture
-    - architecture.repo_posture.supervision_modes_are_explicit_and_reversible
-    - architecture.repo_posture.posture_checks_preserve_explainable_links
 
 - kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs

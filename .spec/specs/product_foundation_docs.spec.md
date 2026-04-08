@@ -24,7 +24,7 @@ surface:
   - README.md
   - CONTRIBUTING.md
   - .spec/README.md
-  - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
@@ -122,7 +122,7 @@ surface:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 
 - kind: source_file
-  target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  target: .spec/decisions/jido_code.factory_control_plane.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

@@ -33,6 +33,8 @@ affects:
 <!-- covers: architecture.work_synthesis.work_item_auditability_preserved -->
 <!-- covers: architecture.policy_layers.repository_governance_policy_is_repo_control_layer -->
 <!-- covers: architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane -->
+<!-- covers: architecture.policy_layers.runtime_policy_governs_runtime_capability -->
+<!-- covers: architecture.policy_layers.policy_layers_interlock_without_collapsing -->
 <!-- covers: architecture.policy_layers.explicit_human_and_machine_actor_classes -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 
@@ -142,6 +144,18 @@ Hosted multi-user support remains intentionally lightweight. The product is
 single-user-first, but cloud-hosted deployments should support admins and standard
 operators supervising the same factory without introducing a heavy enterprise
 permission lattice in the first version.
+
+## Consequences
+
+- `ManagedRepo`, governed `Run`, and adjacent governance records remain the
+  canonical product truth, which keeps older `Project`- and `WorkflowRun`-era
+  seams internal and removable.
+- Policy stays layered: repo governance, Ash authorization, and bounded runtime
+  capability policy must cooperate without collapsing into one anonymous approval
+  mechanism.
+- Runtime-oriented evidence can influence posture and review, but product-facing
+  operator narratives still come from durable control-plane records instead of
+  runtime-native transport state.
 
 ## Deprecation Note
 

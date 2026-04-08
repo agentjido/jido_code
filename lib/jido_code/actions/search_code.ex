@@ -145,7 +145,7 @@ defmodule JidoCode.Actions.SearchCode do
 
     matches
     |> Enum.map(fn {start, length} ->
-      {line, content} =
+      {line, line_content} =
         content
         |> String.split_at(start)
         |> then(fn {before_match, rest} ->
@@ -163,7 +163,7 @@ defmodule JidoCode.Actions.SearchCode do
         file: Path.basename(file),
         file_path: file,
         line: line,
-        content: String.trim(line)
+        content: line_content
       }
     end)
   end

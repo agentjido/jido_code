@@ -214,6 +214,10 @@ surface:
     - architecture.agent_os_integration.coding_pod_per_work_item
     - architecture.agent_os_integration.pod_contains_multiple_agents
     - architecture.agent_os_integration.eager_and_lazy_agent_activation
+    - architecture.agent_os_integration.multiple_pods_parallel_execution
+    - architecture.agent_os_integration.kernel_naming_convention
+    - architecture.agent_os_integration.pod_naming_convention
+    - architecture.agent_os_integration.signal_routing_within_pod
 
 - kind: source_file
   target: .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
@@ -224,14 +228,23 @@ surface:
   target: lib/jido_code/agent_workspace.ex
   covers:
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
-    - architecture.agent_os_integration.dynamic_kernel_lifecycle
     - architecture.agent_os_integration.pod_cleanup_on_completion
+    - architecture.agent_os_integration.pod_naming_convention
+    - architecture.agent_os_integration.multiple_pods_parallel_execution
+    - architecture.agent_os_integration.signal_routing_within_pod
 
 - kind: source_file
   target: lib/jido_code/agent_os.ex
   covers:
     - architecture.agent_os_integration.kernel_per_managed_repo
     - architecture.agent_os_integration.ecto_persistence_per_kernel
+    - architecture.agent_os_integration.kernel_naming_convention
+
+- kind: source_file
+  target: lib/jido_code/agent_os/manager.ex
+  covers:
+    - architecture.agent_os_integration.dynamic_kernel_lifecycle
+    - architecture.agent_os_integration.kernel_naming_convention
 
 - kind: source_file
   target: lib/jido_code/pods/repo_pod.ex

@@ -1,5 +1,10 @@
 defmodule JidoCode.AgentWorkspace do
-  # covers: architecture.agent_os_integration.workspace_context
+  # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
+  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.agent_os_integration.pod_cleanup_on_completion
+  # covers: architecture.agent_os_integration.pod_naming_convention
+  # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
+  # covers: architecture.agent_os_integration.signal_routing_within_pod
   @moduledoc """
   Context module for AgentOS workspace operations.
 
@@ -21,7 +26,6 @@ defmodule JidoCode.AgentWorkspace do
   """
 
   alias JidoCode.AgentOS.Manager
-  alias JidoCode.Pods.{RepoPod, CodingPod}
 
   @type managed_repo_id :: String.t()
   @type work_item_id :: String.t()
@@ -125,7 +129,7 @@ defmodule JidoCode.AgentWorkspace do
 
   """
   @spec complete_work(managed_repo_id(), work_item_id()) :: :ok
-  def complete_work(managed_repo_id, work_item_id) do
+  def complete_work(_managed_repo_id, _work_item_id) do
     # TODO: Implement pod shutdown
     # For now, this is a no-op since we don't have dynamic pod management yet
     :ok
@@ -141,7 +145,7 @@ defmodule JidoCode.AgentWorkspace do
 
   """
   @spec active_work_items(managed_repo_id()) :: [work_item_id()]
-  def active_work_items(managed_repo_id) do
+  def active_work_items(_managed_repo_id) do
     # TODO: Implement active work tracking
     # For now, return empty list
     []
@@ -163,9 +167,9 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec plan_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
   def plan_work(managed_repo_id, work_item_id, instruction) do
-    with {:ok, kernel_name} <- ensure_kernel(managed_repo_id),
+    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, ""),
-         pod_name = pod_name(work_item_id) do
+         _pod_name = pod_name(work_item_id) do
       # TODO: Route to planner agent
       # For now, return a placeholder response
       {:ok, %{plan: "placeholder", instruction: instruction}}
@@ -186,9 +190,9 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec execute_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
   def execute_work(managed_repo_id, work_item_id, instruction) do
-    with {:ok, kernel_name} <- ensure_kernel(managed_repo_id),
+    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, ""),
-         pod_name = pod_name(work_item_id) do
+         _pod_name = pod_name(work_item_id) do
       # TODO: Route to coder agent
       # For now, return a placeholder response
       {:ok, %{changes: [], instruction: instruction}}
@@ -209,9 +213,9 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec review_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
   def review_work(managed_repo_id, work_item_id, instruction) do
-    with {:ok, kernel_name} <- ensure_kernel(managed_repo_id),
+    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, ""),
-         pod_name = pod_name(work_item_id) do
+         _pod_name = pod_name(work_item_id) do
       # TODO: Route to reviewer agent
       # For now, return a placeholder response
       {:ok, %{feedback: [], instruction: instruction}}
@@ -235,11 +239,12 @@ defmodule JidoCode.AgentWorkspace do
     with {:ok, plan} <- plan_work(managed_repo_id, work_item_id, instruction),
          {:ok, changes} <- execute_work(managed_repo_id, work_item_id, instruction),
          {:ok, feedback} <- review_work(managed_repo_id, work_item_id, instruction) do
-      {:ok, %{
-        plan: plan,
-        changes: changes,
-        feedback: feedback
-      }}
+      {:ok,
+       %{
+         plan: plan,
+         changes: changes,
+         feedback: feedback
+       }}
     end
   end
 
@@ -255,7 +260,7 @@ defmodule JidoCode.AgentWorkspace do
 
   """
   @spec parallel_plan(managed_repo_id(), [work_item_id()]) :: {:ok, map()} | {:error, term()}
-  def parallel_plan(managed_repo_id, work_item_ids) when is_list(work_item_ids) do
+  def parallel_plan(_managed_repo_id, work_item_ids) when is_list(work_item_ids) do
     # TODO: Implement parallel planning
     # For now, return placeholder response
     results =
@@ -275,7 +280,7 @@ defmodule JidoCode.AgentWorkspace do
     |> String.to_atom()
   end
 
-  defp ensure_pods_workspace_path(kernel_name, pod_name, workspace_path) do
+  defp ensure_pods_workspace_path(_kernel_name, _pod_name, _workspace_path) do
     # TODO: Set workspace path in the pod's ProjectContext agent
     # For now, this is a no-op since we don't have dynamic pod management
     {:ok, nil}

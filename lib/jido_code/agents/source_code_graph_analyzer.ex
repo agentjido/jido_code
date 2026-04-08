@@ -10,6 +10,9 @@ defmodule JidoCode.Agents.SourceCodeGraphAnalyzer do
   use Jido.Agent,
     name: "source_code_graph_analyzer",
     priority: :normal,
+    signal_routes: [
+      {"source_graph.analyze", JidoCode.Actions.AnalyzeSourceCodeGraph}
+    ],
     schema: [
       last_analysis_request: [
         type: :map,

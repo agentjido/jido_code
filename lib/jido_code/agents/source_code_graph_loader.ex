@@ -10,6 +10,10 @@ defmodule JidoCode.Agents.SourceCodeGraphLoader do
   use Jido.Agent,
     name: "source_code_graph_loader",
     priority: :normal,
+    signal_routes: [
+      {"source_graph.load", JidoCode.Actions.LoadSourceCodeGraph},
+      {"source_graph.refresh", JidoCode.Actions.RefreshSourceCodeGraph}
+    ],
     schema: [
       last_load_request: [
         type: :map,

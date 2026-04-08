@@ -10,6 +10,11 @@ defmodule JidoCode.Agents.SourceCodeGraphQuerier do
   use Jido.Agent,
     name: "source_code_graph_querier",
     priority: :normal,
+    signal_routes: [
+      {"source_graph.status", JidoCode.Actions.GetSourceCodeGraphStatus},
+      {"source_graph.query", JidoCode.Actions.QuerySourceCodeGraph},
+      {"source_graph.inspect", JidoCode.Actions.InspectSourceCodeGraphDataset}
+    ],
     schema: [
       last_query_request: [
         type: :map,

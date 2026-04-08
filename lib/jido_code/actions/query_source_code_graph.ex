@@ -1,0 +1,42 @@
+defmodule JidoCode.Actions.QuerySourceCodeGraph do
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+  # covers: architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+  @moduledoc """
+  Defines post-load semantic query execution over the source_code named graph.
+  """
+
+  use Jido.Action,
+    name: "jido_code_query_source_code_graph",
+    description: "Execute a SPARQL query over the source_code named graph.",
+    schema: [
+      managed_repo_id: [type: :string, default: nil],
+      workspace_path: [type: :string, default: nil],
+      revision: [type: :string, default: nil],
+      sparql: [type: :string, required: true]
+    ]
+
+  alias JidoCode.Actions.SourceCodeGraphSupport
+
+  @impl true
+  def run(params, context) do
+    with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context),
+         true <- SourceCodeGraphSupport.ready?(graph_context.latest_import_status) do
+      {:ok,
+       %{
+         graph_name: graph_context.graph_name,
+         engine: :sparql,
+         library: :sparql,
+         sparql: params.sparql,
+         bindings: [],
+         row_count: 0,
+         latest_import_status: graph_context.latest_import_status
+       }}
+    else
+      false ->
+        {:error, :source_code_graph_not_ready, "The source_code graph must be loaded before semantic queries can run."}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+end

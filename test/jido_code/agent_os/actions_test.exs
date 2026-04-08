@@ -15,7 +15,13 @@ defmodule JidoCode.AgentOSActionsTest do
     StoreArtifact,
     AppendEvent,
     GetWorkItem,
-    UpdateWorkItemStatus
+    UpdateWorkItemStatus,
+    AnalyzeSourceCodeGraph,
+    LoadSourceCodeGraph,
+    RefreshSourceCodeGraph,
+    GetSourceCodeGraphStatus,
+    QuerySourceCodeGraph,
+    InspectSourceCodeGraphDataset
   }
 
   describe "ReadFile action" do
@@ -106,6 +112,48 @@ defmodule JidoCode.AgentOSActionsTest do
     test "has correct action configuration" do
       assert UpdateWorkItemStatus.name() == "jido_code_update_work_item_status"
       assert function_exported?(UpdateWorkItemStatus, :run, 2)
+    end
+  end
+
+  describe "AnalyzeSourceCodeGraph action" do
+    test "has correct action configuration" do
+      assert AnalyzeSourceCodeGraph.name() == "jido_code_analyze_source_code_graph"
+      assert function_exported?(AnalyzeSourceCodeGraph, :run, 2)
+    end
+  end
+
+  describe "LoadSourceCodeGraph action" do
+    test "has correct action configuration" do
+      assert LoadSourceCodeGraph.name() == "jido_code_load_source_code_graph"
+      assert function_exported?(LoadSourceCodeGraph, :run, 2)
+    end
+  end
+
+  describe "RefreshSourceCodeGraph action" do
+    test "has correct action configuration" do
+      assert RefreshSourceCodeGraph.name() == "jido_code_refresh_source_code_graph"
+      assert function_exported?(RefreshSourceCodeGraph, :run, 2)
+    end
+  end
+
+  describe "GetSourceCodeGraphStatus action" do
+    test "has correct action configuration" do
+      assert GetSourceCodeGraphStatus.name() == "jido_code_get_source_code_graph_status"
+      assert function_exported?(GetSourceCodeGraphStatus, :run, 2)
+    end
+  end
+
+  describe "QuerySourceCodeGraph action" do
+    test "has correct action configuration" do
+      assert QuerySourceCodeGraph.name() == "jido_code_query_source_code_graph"
+      assert function_exported?(QuerySourceCodeGraph, :run, 2)
+    end
+  end
+
+  describe "InspectSourceCodeGraphDataset action" do
+    test "has correct action configuration" do
+      assert InspectSourceCodeGraphDataset.name() == "jido_code_inspect_source_code_graph_dataset"
+      assert function_exported?(InspectSourceCodeGraphDataset, :run, 2)
     end
   end
 end

@@ -45,22 +45,22 @@ Back to index: [README](./README.md)
       [x] 20.1.2.2 Subtask - Define the local TripleStore database path and per-repository storage isolation rules.
       [x] 20.1.2.3 Subtask - Define stable naming for the `source_code` graph and any repository-local dataset metadata that accompanies it.
 
-  [ ] 20.2 Section - Explicit Action Surface
+  [x] 20.2 Section - Explicit Action Surface
     Define the explicit tools that agents will use so analyze, ingest, refresh, and query behavior remains traceable and testable.
 
-    [ ] 20.2.1 Task - Define ontology analysis and ingestion actions
+    [x] 20.2.1 Task - Define ontology analysis and ingestion actions
       Introduce the explicit actions that run ElixirOntologies full-mode analysis and load the resulting graph into the local TripleStore database.
 
-      [ ] 20.2.1.1 Subtask - Define an action for full-profile ontology analysis over a repository workspace.
-      [ ] 20.2.1.2 Subtask - Define an action for loading ontology/schema and extracted individuals into the `source_code` named graph.
-      [ ] 20.2.1.3 Subtask - Define an action for coherent graph refresh that replaces the named graph rather than layering partial revisions.
+      [x] 20.2.1.1 Subtask - Define an action for full-profile ontology analysis over a repository workspace.
+      [x] 20.2.1.2 Subtask - Define an action for loading ontology/schema and extracted individuals into the `source_code` named graph.
+      [x] 20.2.1.3 Subtask - Define an action for coherent graph refresh that replaces the named graph rather than layering partial revisions.
 
-    [ ] 20.2.2 Task - Define query and status actions
+    [x] 20.2.2 Task - Define query and status actions
       Introduce the explicit actions that inspect graph readiness and execute post-load semantic queries for pod agents.
 
-      [ ] 20.2.2.1 Subtask - Define an action for graph status and latest import metadata.
-      [ ] 20.2.2.2 Subtask - Define an action for SPARQL query execution over the loaded `source_code` graph.
-      [ ] 20.2.2.3 Subtask - Define any bounded helper actions for graph revision lookup, dataset inspection, or load health diagnostics.
+      [x] 20.2.2.1 Subtask - Define an action for graph status and latest import metadata.
+      [x] 20.2.2.2 Subtask - Define an action for SPARQL query execution over the loaded `source_code` graph.
+      [x] 20.2.2.3 Subtask - Define any bounded helper actions for graph revision lookup, dataset inspection, or load health diagnostics.
 
   [ ] 20.3 Section - Product-Owned Workspace Integration
     Update the product-owned AgentWorkspace boundary so repository entrypoints can ensure and route to the source-code graph pod without exposing pod topology details.

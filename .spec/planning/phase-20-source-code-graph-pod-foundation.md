@@ -28,22 +28,22 @@ Back to index: [README](./README.md)
 [ ] 20 Phase 20 - Source Code Graph Pod Foundation
   Establish the repository-scoped SourceCodeGraphPod contract, state ownership model, and explicit action surfaces needed for full-mode ontology analysis and named-graph ingestion.
 
-  [ ] 20.1 Section - Pod Contract and Runtime Boundaries
+  [x] 20.1 Section - Pod Contract and Runtime Boundaries
     Define the pod, state, and repository-scoped runtime ownership model so the semantic source-code graph capability fits the existing AgentOS kernel topology without reviving an ambient service.
 
-    [ ] 20.1.1 Task - Define the repository-scoped pod topology
+    [x] 20.1.1 Task - Define the repository-scoped pod topology
       Introduce the SourceCodeGraphPod as a managed-repo singleton with eager context/state ownership and lazy specialist agents.
 
-      [ ] 20.1.1.1 Subtask - Create `JidoCode.Pods.SourceCodeGraphPod` as one optional singleton per ManagedRepo kernel.
-      [ ] 20.1.1.2 Subtask - Define one eager graph-context agent that owns workspace path, graph-store path, graph name, ontology profile, revision metadata, and latest import status.
-      [ ] 20.1.1.3 Subtask - Define lazy specialist agents for ontology analysis, named-graph load/refresh, and SPARQL query execution.
+      [x] 20.1.1.1 Subtask - Create `JidoCode.Pods.SourceCodeGraphPod` as one optional singleton per ManagedRepo kernel.
+      [x] 20.1.1.2 Subtask - Define one eager graph-context agent that owns workspace path, graph-store path, graph name, ontology profile, revision metadata, and latest import status.
+      [x] 20.1.1.3 Subtask - Define lazy specialist agents for ontology analysis, named-graph load/refresh, and SPARQL query execution.
 
-    [ ] 20.1.2 Task - Define workspace and store boundary ownership
+    [x] 20.1.2 Task - Define workspace and store boundary ownership
       Make the repository workspace path, local graph-store location, and graph identity explicit so later phases can load and query a durable repository-local source graph safely.
 
-      [ ] 20.1.2.1 Subtask - Define how the pod resolves the managed-repo workspace path from product-owned repository context.
-      [ ] 20.1.2.2 Subtask - Define the local TripleStore database path and per-repository storage isolation rules.
-      [ ] 20.1.2.3 Subtask - Define stable naming for the `source_code` graph and any repository-local dataset metadata that accompanies it.
+      [x] 20.1.2.1 Subtask - Define how the pod resolves the managed-repo workspace path from product-owned repository context.
+      [x] 20.1.2.2 Subtask - Define the local TripleStore database path and per-repository storage isolation rules.
+      [x] 20.1.2.3 Subtask - Define stable naming for the `source_code` graph and any repository-local dataset metadata that accompanies it.
 
   [ ] 20.2 Section - Explicit Action Surface
     Define the explicit tools that agents will use so analyze, ingest, refresh, and query behavior remains traceable and testable.

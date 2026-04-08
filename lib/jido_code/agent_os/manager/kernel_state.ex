@@ -5,13 +5,13 @@ defmodule JidoCode.AgentOS.Manager.KernelState do
           managed_repo_id: String.t(),
           pid: pid(),
           created_at: DateTime.t(),
-          pods: [String.t()]
+          pods: %{optional(String.t()) => map()}
         }
 
   defstruct [
     :managed_repo_id,
     :pid,
     :created_at,
-    pods: []
+    pods: %{}
   ]
 end

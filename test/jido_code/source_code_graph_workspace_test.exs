@@ -1,7 +1,9 @@
 defmodule JidoCode.SourceCodeGraphWorkspaceTest do
   # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
   # covers: package.jido_code.version_controlled_quality_surfaces
   use ExUnit.Case, async: false
 
@@ -126,12 +128,17 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
                AgentWorkspace.query_source_code_graph(
                  managed_repo_id,
                  workspace_path,
-                 "SELECT * WHERE { GRAPH <source_code> { ?s ?p ?o } }"
+                 """
+                 SELECT ?module
+                 WHERE {
+                   ?module a struct:Module .
+                 }
+                 """
                )
 
       assert query_result.engine == :sparql
       assert query_result.graph_name == "source_code"
-      assert query_result.bindings == []
+      assert query_result.row_count >= 1
     end
 
     test "returns a typed stale outcome when the loaded revision is outdated" do
@@ -152,6 +159,61 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
                  "SELECT * WHERE { ?s ?p ?o }",
                  revision: "def456"
                )
+    end
+
+    test "exposes bounded helper entrypoints for modules and functions" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, _load_result} =
+               AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
+
+      assert {:ok, modules_result} =
+               AgentWorkspace.find_source_code_graph_modules(
+                 managed_repo_id,
+                 workspace_path,
+                 module_name_contains: "ExampleWorkspace"
+               )
+
+      assert modules_result.helper == :modules
+      assert modules_result.row_count >= 1
+
+      assert {:ok, functions_result} =
+               AgentWorkspace.find_source_code_graph_functions(
+                 managed_repo_id,
+                 workspace_path,
+                 module_name: "ExampleWorkspace",
+                 function_name: "greet"
+               )
+
+      assert functions_result.helper == :functions
+      assert functions_result.row_count >= 1
+    end
+
+    test "exposes bounded helper entrypoints for runtime patterns and impact" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, _load_result} =
+               AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
+
+      assert {:ok, runtime_result} =
+               AgentWorkspace.find_source_code_graph_runtime_patterns(
+                 managed_repo_id,
+                 workspace_path
+               )
+
+      assert runtime_result.helper == :runtime_patterns
+
+      assert {:ok, impact_result} =
+               AgentWorkspace.trace_source_code_graph_impact(
+                 managed_repo_id,
+                 workspace_path,
+                 module_name: "ExampleWorkspace"
+               )
+
+      assert impact_result.helper == :impact
+      assert impact_result.row_count >= 1
     end
 
     test "keeps graph readiness repository-scoped" do

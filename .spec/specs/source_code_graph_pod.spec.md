@@ -10,7 +10,7 @@ ingestion and query.
 id: architecture.source_code_graph_pod
 kind: feature
 status: proposed
-summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness and stale-revision status through AgentWorkspace, and continues toward explicit SPARQL-based specialist query actions for pod-local agents.
+summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness and stale-revision status through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -100,6 +100,32 @@ surface:
     - The action uses the `sparql` library as the canonical query surface.
     - The agent receives structured query results rather than raw store internals.
 
+- id: architecture.source_code_graph_pod.scenario_selected_coding_agents_receive_explicit_semantic_tools
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+  given:
+    - A managed repository has semantic source-code graph capability enabled.
+  when:
+    - Planning, review, or explanation specialists need semantic graph context.
+  then:
+    - Only explicitly selected coding specialists receive semantic graph tools.
+    - Those tools remain the same bounded query and helper actions used by the pod-local semantic specialists.
+    - Semantic lookup remains an explicit tool call rather than an ambient hidden dependency.
+
+- id: architecture.source_code_graph_pod.scenario_helper_actions_compile_to_explicit_queries
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+  given:
+    - A managed repository already has a loaded `source_code` named graph.
+  when:
+    - Pod-local or product-owned callers ask for modules, functions, runtime patterns, or bounded impact lookups through helper actions.
+  then:
+    - The helper action compiles to an explicit SPARQL query.
+    - The helper still routes through the canonical query surface.
+    - Empty or failed results remain typed and bounded.
+
 - id: architecture.source_code_graph_pod.scenario_graph_refresh_replaces_previous_snapshot
   covers:
     - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
@@ -111,6 +137,19 @@ surface:
   then:
     - The `source_code` named graph is rebuilt or replaced coherently.
     - Later queries observe one semantic snapshot rather than a mixed old/new graph.
+
+- id: architecture.source_code_graph_pod.scenario_workspace_workflows_consult_graph_through_bounded_entrypoints
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+  given:
+    - A managed repository has the source-code graph capability enabled.
+  when:
+    - Product-owned planning, review, or explanation flows request semantic inputs.
+  then:
+    - `AgentWorkspace` prepares or refreshes the repository graph explicitly when requested.
+    - Semantic graph lookups route through repository-scoped workspace entrypoints instead of pod internals.
+    - Workflow consumers receive bounded semantic input maps rather than raw TripleStore or pod state.
 ```
 
 ## Verification
@@ -155,6 +194,43 @@ surface:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
 
 - kind: source_file
+  target: lib/jido_code/agent_workspace.ex
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/agents/source_code_graph_analyzer.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/agents/source_code_graph_loader.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/agents/source_code_graph_querier.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+
+- kind: source_file
+  target: lib/jido_code/agents/planner.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/agents/reviewer.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/agents/explainer.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
   target: lib/jido_code/actions/analyze_source_code_graph.ex
   covers:
     - architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
@@ -171,6 +247,41 @@ surface:
   covers:
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph/query.ex
+  covers:
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph/helper_queries.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/actions/find_source_code_graph_modules.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+
+- kind: source_file
+  target: lib/jido_code/actions/find_source_code_graph_functions.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+
+- kind: source_file
+  target: lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+
+- kind: source_file
+  target: lib/jido_code/actions/trace_source_code_graph_impact.ex
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
 
 - kind: source_file
   target: lib/jido_code/actions/refresh_source_code_graph.ex
@@ -191,5 +302,41 @@ surface:
     - architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store
     - architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target
     - architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together
+    - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_actions_test.exs
+  covers:
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_os/pods_test.exs
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_workspace_test.exs
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_workspace_test.exs
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_two_integration_test.exs
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
 ```

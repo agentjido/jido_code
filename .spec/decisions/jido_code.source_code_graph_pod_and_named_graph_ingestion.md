@@ -141,3 +141,53 @@ Phase 21 extends that foundation with the first real semantic ingestion path:
 - `AgentWorkspace` now preserves repository-scoped analysis/import status,
   imported revision, and typed stale-revision outcomes through the pod metadata
   boundary
+
+Phase 22 begins the semantic query surface on top of that stored graph:
+
+- `QuerySourceCodeGraph` now validates and executes SPARQL through the `sparql`
+  library while targeting the repository-local `source_code` named graph from
+  `TripleStore`
+- query results are returned as bounded product-shaped rows and metadata rather
+  than raw store handles or internal result structs
+- helper actions now compile common module, function, runtime-pattern, and
+  bounded impact lookups down to explicit SPARQL queries instead of introducing
+  an ambient hidden semantic side channel
+
+Phase 22.2 extends that query surface into the pod and selected coding
+specialists:
+
+- the SourceCodeGraph analyzer, loader, and querier agents now expose explicit
+  bounded signal routes and state shapes for analysis, refresh, query, and
+  helper-query activity
+- the querier specialist now owns explicit helper routes for module, function,
+  runtime-pattern, and bounded impact lookups instead of generic hidden graph
+  inspection
+- selected coding specialists (planner, reviewer, explainer) now receive
+  semantic graph tools through explicit composition, while coder and refactorer
+  remain free of semantic graph tooling by default
+- prompts now state that semantic lookup is an explicit tool call gated by
+  repository readiness rather than an ambient assumption
+
+Phase 22.3 brings the semantic graph into product-owned workflow boundaries:
+
+- `AgentWorkspace` now exposes repository-scoped helper entrypoints for module,
+  function, runtime-pattern, impact, and direct SPARQL lookup without exposing
+  pod topology
+- planning, review, and explanation flows can now request explicit semantic
+  inputs through bounded `source_code_graph` workflow options instead of
+  assuming the graph exists ambiently
+- workflow semantic preparation explicitly chooses whether to check status,
+  load-if-missing, or refresh before query, keeping graph refresh decisions
+  product-owned and visible
+- workflow consumers receive bounded semantic context maps, while durable
+  product truth remains outside the semantic graph itself
+
+Phase 22.4 closes the phase with end-to-end repository coverage:
+
+- integration tests now prove repository-local load, query, and refresh all
+  operate through the canonical `sparql` and `source_code` graph boundaries
+- workspace helper entrypoints now show bounded module, function,
+  runtime-pattern, and impact lookups without leaking pod or store topology
+- higher-level plan and explanation flows now demonstrate that semantic graph
+  inputs only appear when explicitly requested through workspace options, not as
+  an ambient dependency

@@ -6,6 +6,8 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
   # covers: architecture.agent_os_integration.signal_routing_within_pod
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   @moduledoc """
   Context module for AgentOS workspace operations.
 
@@ -30,10 +32,14 @@ defmodule JidoCode.AgentWorkspace do
 
   alias JidoCode.Actions.{
     AnalyzeSourceCodeGraph,
+    FindSourceCodeGraphFunctions,
+    FindSourceCodeGraphModules,
+    FindSourceCodeGraphRuntimePatterns,
     GetSourceCodeGraphStatus,
     LoadSourceCodeGraph,
     QuerySourceCodeGraph,
-    RefreshSourceCodeGraph
+    RefreshSourceCodeGraph,
+    TraceSourceCodeGraphImpact
   }
 
   alias JidoCode.Pods.SourceCodeGraphPod
@@ -180,12 +186,24 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec plan_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
   def plan_work(managed_repo_id, work_item_id, instruction) do
+    plan_work(managed_repo_id, work_item_id, instruction, [])
+  end
+
+  @spec plan_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def plan_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
     with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, ""),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
+         {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :plan, opts),
          _pod_name = pod_name(work_item_id) do
       # TODO: Route to planner agent
       # For now, return a placeholder response
-      {:ok, %{plan: "placeholder", instruction: instruction}}
+      {:ok,
+       %{
+         plan: "placeholder",
+         instruction: instruction,
+         semantic_context: semantic_context
+       }}
     end
   end
 
@@ -203,8 +221,14 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec execute_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
   def execute_work(managed_repo_id, work_item_id, instruction) do
+    execute_work(managed_repo_id, work_item_id, instruction, [])
+  end
+
+  @spec execute_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def execute_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
     with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, ""),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
          _pod_name = pod_name(work_item_id) do
       # TODO: Route to coder agent
       # For now, return a placeholder response
@@ -226,12 +250,48 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec review_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
   def review_work(managed_repo_id, work_item_id, instruction) do
+    review_work(managed_repo_id, work_item_id, instruction, [])
+  end
+
+  @spec review_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def review_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
     with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
-         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, ""),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
+         {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :review, opts),
          _pod_name = pod_name(work_item_id) do
       # TODO: Route to reviewer agent
       # For now, return a placeholder response
-      {:ok, %{feedback: [], instruction: instruction}}
+      {:ok,
+       %{
+         feedback: [],
+         instruction: instruction,
+         semantic_context: semantic_context
+       }}
+    end
+  end
+
+  @doc """
+  Explains work with an optional explicit semantic source-graph context.
+  """
+  @spec explain_work(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
+  def explain_work(managed_repo_id, work_item_id, instruction) do
+    explain_work(managed_repo_id, work_item_id, instruction, [])
+  end
+
+  @spec explain_work(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def explain_work(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
+    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path, "")),
+         {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :explain, opts),
+         _pod_name = pod_name(work_item_id) do
+      {:ok,
+       %{
+         explanation: "placeholder",
+         instruction: instruction,
+         semantic_context: semantic_context
+       }}
     end
   end
 
@@ -249,9 +309,15 @@ defmodule JidoCode.AgentWorkspace do
   """
   @spec full_workflow(managed_repo_id(), work_item_id(), String.t()) :: {:ok, map()} | {:error, term()}
   def full_workflow(managed_repo_id, work_item_id, instruction) do
-    with {:ok, plan} <- plan_work(managed_repo_id, work_item_id, instruction),
-         {:ok, changes} <- execute_work(managed_repo_id, work_item_id, instruction),
-         {:ok, feedback} <- review_work(managed_repo_id, work_item_id, instruction) do
+    full_workflow(managed_repo_id, work_item_id, instruction, [])
+  end
+
+  @spec full_workflow(managed_repo_id(), work_item_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def full_workflow(managed_repo_id, work_item_id, instruction, opts) when is_list(opts) do
+    with {:ok, plan} <- plan_work(managed_repo_id, work_item_id, instruction, opts),
+         {:ok, changes} <- execute_work(managed_repo_id, work_item_id, instruction, opts),
+         {:ok, feedback} <- review_work(managed_repo_id, work_item_id, instruction, opts) do
       {:ok,
        %{
          plan: plan,
@@ -387,15 +453,81 @@ defmodule JidoCode.AgentWorkspace do
           {:ok, map()} | {:error, term()}
   def query_source_code_graph(managed_repo_id, workspace_path, sparql, opts \\ [])
       when is_binary(sparql) do
-    with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
-         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
-         {:ok, result} <-
-           QuerySourceCodeGraph.run(
-             Map.put(source_code_graph_params(opts), :sparql, sparql),
-             action_context
-           ) do
-      {:ok, result}
-    end
+    run_source_code_graph_action(
+      managed_repo_id,
+      workspace_path,
+      opts,
+      QuerySourceCodeGraph,
+      Map.put(source_code_graph_params(opts), :sparql, sparql)
+    )
+  end
+
+  @doc """
+  Runs the bounded module helper query against the repository-scoped source graph.
+  """
+  @spec find_source_code_graph_modules(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def find_source_code_graph_modules(managed_repo_id, workspace_path, opts \\ []) do
+    run_source_code_graph_action(
+      managed_repo_id,
+      workspace_path,
+      opts,
+      FindSourceCodeGraphModules,
+      source_code_graph_params(opts, [:revision, :module_name_contains, :limit])
+    )
+  end
+
+  @doc """
+  Runs the bounded function helper query against the repository-scoped source graph.
+  """
+  @spec find_source_code_graph_functions(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def find_source_code_graph_functions(managed_repo_id, workspace_path, opts \\ []) do
+    run_source_code_graph_action(
+      managed_repo_id,
+      workspace_path,
+      opts,
+      FindSourceCodeGraphFunctions,
+      source_code_graph_params(opts, [:revision, :module_name, :function_name, :limit])
+    )
+  end
+
+  @doc """
+  Runs the bounded runtime-pattern helper query against the repository-scoped source graph.
+  """
+  @spec find_source_code_graph_runtime_patterns(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def find_source_code_graph_runtime_patterns(managed_repo_id, workspace_path, opts \\ []) do
+    run_source_code_graph_action(
+      managed_repo_id,
+      workspace_path,
+      opts,
+      FindSourceCodeGraphRuntimePatterns,
+      source_code_graph_params(opts, [:revision, :pattern_name_contains, :limit])
+    )
+  end
+
+  @doc """
+  Runs the bounded impact helper query against the repository-scoped source graph.
+  """
+  @spec trace_source_code_graph_impact(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def trace_source_code_graph_impact(managed_repo_id, workspace_path, opts \\ []) do
+    run_source_code_graph_action(
+      managed_repo_id,
+      workspace_path,
+      opts,
+      TraceSourceCodeGraphImpact,
+      source_code_graph_params(opts, [
+        :revision,
+        :subject_iri,
+        :module_name,
+        :function_name,
+        :arity,
+        :direction,
+        :limit
+      ])
+    )
   end
 
   ## Private Functions
@@ -453,7 +585,213 @@ defmodule JidoCode.AgentWorkspace do
     }
   end
 
-  defp source_code_graph_params(opts) do
-    %{revision: Keyword.get(opts, :revision)}
+  defp run_source_code_graph_action(managed_repo_id, workspace_path, opts, action_module, params)
+       when is_atom(action_module) and is_map(params) do
+    with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
+         {:ok, result} <- action_module.run(params, action_context) do
+      {:ok, result}
+    end
+  end
+
+  defp workflow_semantic_context(_managed_repo_id, _workflow, opts) when opts == [] do
+    {:ok, %{}}
+  end
+
+  defp workflow_semantic_context(managed_repo_id, workflow, opts) when is_list(opts) do
+    case Keyword.get(opts, :source_code_graph) do
+      nil ->
+        {:ok, %{}}
+
+      graph_opts when is_list(graph_opts) ->
+        workspace_path =
+          Keyword.get(graph_opts, :workspace_path) ||
+            Keyword.get(opts, :workspace_path)
+
+        with {:ok, workspace_path} <- normalize_workflow_workspace_path(workspace_path),
+             {:ok, graph_status_result} <-
+               prepare_source_code_graph_for_workflow(managed_repo_id, workspace_path, graph_opts),
+             {:ok, semantic_results} <-
+               workflow_semantic_requests(managed_repo_id, workspace_path, workflow, graph_opts) do
+          {:ok,
+           %{
+             workflow: workflow,
+             graph_name: SourceCodeGraph.graph_name(),
+             graph_status: normalize_workflow_graph_status(graph_status_result),
+             results: semantic_results
+           }}
+        end
+    end
+  end
+
+  defp normalize_workflow_workspace_path(path) when is_binary(path) do
+    case String.trim(path) do
+      "" -> {:error, :missing_workspace_path}
+      value -> {:ok, value}
+    end
+  end
+
+  defp normalize_workflow_workspace_path(_path), do: {:error, :missing_workspace_path}
+
+  defp prepare_source_code_graph_for_workflow(managed_repo_id, workspace_path, graph_opts) do
+    prepare_mode = Keyword.get(graph_opts, :prepare, :load_if_missing)
+    source_graph_opts = source_code_graph_runtime_opts(graph_opts)
+
+    case prepare_mode do
+      :none ->
+        source_code_graph_status(managed_repo_id, workspace_path, source_graph_opts)
+
+      :load ->
+        load_source_code_graph(managed_repo_id, workspace_path, source_graph_opts)
+
+      :refresh ->
+        refresh_source_code_graph(managed_repo_id, workspace_path, source_graph_opts)
+
+      :load_if_missing ->
+        with {:ok, status} <- source_code_graph_status(managed_repo_id, workspace_path, source_graph_opts) do
+          if status.ready? do
+            {:ok, status}
+          else
+            load_source_code_graph(managed_repo_id, workspace_path, source_graph_opts)
+          end
+        end
+    end
+  end
+
+  defp workflow_semantic_requests(managed_repo_id, workspace_path, _workflow, graph_opts) do
+    request_steps = semantic_request_steps(managed_repo_id, workspace_path, graph_opts)
+
+    Enum.reduce_while(request_steps, {:ok, %{}}, fn {name, fun}, {:ok, acc} ->
+      case fun.() do
+        {:ok, result} ->
+          {:cont, {:ok, Map.put(acc, name, result)}}
+
+        {:error, _reason} = error ->
+          {:halt, error}
+
+        {:error, _reason, _diagnostics} = error ->
+          {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, results} when map_size(results) == 0 ->
+        {:ok,
+         %{
+           status: :no_requests,
+           managed_repo_id: managed_repo_id,
+           workspace_path: workspace_path
+         }}
+
+      other ->
+        other
+    end
+  end
+
+  defp semantic_request_steps(managed_repo_id, workspace_path, graph_opts) do
+    runtime_opts = source_code_graph_runtime_opts(graph_opts)
+
+    []
+    |> maybe_add_semantic_step(
+      :modules,
+      managed_repo_id,
+      workspace_path,
+      Keyword.get(graph_opts, :modules),
+      fn params ->
+        find_source_code_graph_modules(
+          managed_repo_id,
+          workspace_path,
+          Keyword.merge(runtime_opts, params)
+        )
+      end
+    )
+    |> maybe_add_semantic_step(
+      :functions,
+      managed_repo_id,
+      workspace_path,
+      Keyword.get(graph_opts, :functions),
+      fn params ->
+        find_source_code_graph_functions(
+          managed_repo_id,
+          workspace_path,
+          Keyword.merge(runtime_opts, params)
+        )
+      end
+    )
+    |> maybe_add_semantic_step(
+      :runtime_patterns,
+      managed_repo_id,
+      workspace_path,
+      Keyword.get(graph_opts, :runtime_patterns),
+      fn params ->
+        find_source_code_graph_runtime_patterns(
+          managed_repo_id,
+          workspace_path,
+          Keyword.merge(runtime_opts, params)
+        )
+      end
+    )
+    |> maybe_add_semantic_step(:impact, managed_repo_id, workspace_path, Keyword.get(graph_opts, :impact), fn params ->
+      trace_source_code_graph_impact(
+        managed_repo_id,
+        workspace_path,
+        Keyword.merge(runtime_opts, params)
+      )
+    end)
+    |> maybe_add_semantic_step(:query, managed_repo_id, workspace_path, Keyword.get(graph_opts, :query), fn
+      params when is_list(params) ->
+        query_source_code_graph(
+          managed_repo_id,
+          workspace_path,
+          Keyword.fetch!(params, :sparql),
+          Keyword.merge(runtime_opts, Keyword.delete(params, :sparql))
+        )
+
+      sparql when is_binary(sparql) ->
+        query_source_code_graph(
+          managed_repo_id,
+          workspace_path,
+          sparql,
+          runtime_opts
+        )
+    end)
+  end
+
+  defp maybe_add_semantic_step(steps, _name, _managed_repo_id, _workspace_path, nil, _fun), do: steps
+
+  defp maybe_add_semantic_step(steps, name, _managed_repo_id, _workspace_path, params, fun)
+       when is_list(params) or is_binary(params) do
+    steps ++
+      [
+        {name,
+         fn ->
+           fun.(params)
+         end}
+      ]
+  end
+
+  defp source_code_graph_runtime_opts(opts) do
+    Keyword.take(opts, [:revision, :enabled?])
+  end
+
+  defp normalize_workflow_graph_status(%{ready?: _ready?} = result), do: result
+
+  defp normalize_workflow_graph_status(%{latest_import_status: latest_import_status} = result) do
+    %{
+      ready?: Map.get(latest_import_status, :ready?, false),
+      stale?: false,
+      requested_revision: get_in(result, [:dataset, :revision]),
+      imported_revision: Map.get(latest_import_status, :imported_revision),
+      latest_import_status: latest_import_status,
+      latest_analysis_status: Map.get(result, :latest_analysis_status, %{}),
+      dataset: Map.get(result, :dataset, %{})
+    }
+  end
+
+  defp normalize_workflow_graph_status(result), do: %{ready?: false, raw: result}
+
+  defp source_code_graph_params(opts, allowed_keys \\ [:revision]) do
+    opts
+    |> Keyword.take(allowed_keys)
+    |> Enum.into(%{})
   end
 end

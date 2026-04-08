@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -167,6 +167,19 @@ surface:
     - The planner uses tools (ReadFile, SearchCode) to analyze the codebase.
     - The plan is stored in the task_board agent state.
 
+- id: architecture.agent_os_integration.scenario_selected_coding_agents_receive_semantic_tools_explicitly
+  covers:
+    - architecture.agent_os_integration.pod_contains_multiple_agents
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  given:
+    - A managed repository has a loaded source-code graph.
+  when:
+    - Planning, review, or explanation specialists need semantic repository context.
+  then:
+    - Only selected coding specialists receive semantic graph tools through explicit composition.
+    - The same bounded source-graph action surface is reused rather than hidden helper pathways.
+    - Repository readiness and stale-revision gating remain enforced by the product boundary and action layer.
+
 - id: architecture.agent_os_integration.scenario_workspace_context_hides_topology
   covers:
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
@@ -202,6 +215,20 @@ surface:
     - The entrypoint ensures the repository kernel exists.
     - The entrypoint ensures or finds the CodingPod for the WorkItem.
     - The entrypoint routes the operation to the appropriate agent (planner, coder, reviewer).
+
+- id: architecture.agent_os_integration.scenario_workflows_consult_source_graph_through_workspace
+  covers:
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.workspace_context_hides_kernel_topology
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+  given:
+    - A repository workflow needs semantic graph context for planning, review, or explanation.
+  when:
+    - Product code requests source-code graph inputs through `AgentWorkspace`.
+  then:
+    - `AgentWorkspace` ensures the repository-scoped SourceCodeGraphPod is available.
+    - Graph preparation and query behavior route through explicit workspace entrypoints.
+    - The workflow receives bounded semantic input maps rather than pod handles or store internals.
 
 - id: architecture.agent_os_integration.scenario_repository_scoped_source_graph_capability_routes_through_workspace
   covers:
@@ -310,4 +337,11 @@ surface:
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.actions_use_jido_action
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_two_integration_test.exs
+  covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.workspace_context_hides_kernel_topology
 ```

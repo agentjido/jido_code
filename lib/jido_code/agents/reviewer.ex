@@ -1,5 +1,6 @@
 defmodule JidoCode.Agents.Reviewer do
   # covers: architecture.agent_os_integration.coding_agents
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   @moduledoc """
   Review specialist for the CodingPod.
 
@@ -18,6 +19,10 @@ defmodule JidoCode.Agents.Reviewer do
       JidoCode.Actions.SearchCode,
       JidoCode.Actions.GitStatus,
       JidoCode.Actions.GitDiff,
+      JidoCode.Actions.QuerySourceCodeGraph,
+      JidoCode.Actions.FindSourceCodeGraphFunctions,
+      JidoCode.Actions.FindSourceCodeGraphRuntimePatterns,
+      JidoCode.Actions.TraceSourceCodeGraphImpact,
       JidoCode.Actions.RunTests
     ],
     system_prompt: """
@@ -36,6 +41,9 @@ defmodule JidoCode.Agents.Reviewer do
 
     Provide clear suggestions for improvement with specific examples
     when relevant. Reference specific files and line numbers.
+    Use semantic graph tools only through explicit tool calls when the
+    repository source-code graph is enabled and ready. Do not assume graph
+    context exists unless the tool surface confirms it.
 
     Elixir-specific considerations:
     - Proper use of processes and supervisors

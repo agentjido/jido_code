@@ -1,5 +1,6 @@
 defmodule JidoCode.Agents.Planner do
   # covers: architecture.agent_os_integration.coding_agents
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   @moduledoc """
   Planning specialist for the CodingPod.
 
@@ -18,6 +19,9 @@ defmodule JidoCode.Agents.Planner do
       JidoCode.Actions.ListFiles,
       JidoCode.Actions.SearchCode,
       JidoCode.Actions.GitStatus,
+      JidoCode.Actions.FindSourceCodeGraphModules,
+      JidoCode.Actions.FindSourceCodeGraphFunctions,
+      JidoCode.Actions.TraceSourceCodeGraphImpact,
       JidoCode.Actions.AddTask,
       JidoCode.Actions.StoreArtifact
     ],
@@ -35,6 +39,10 @@ defmodule JidoCode.Agents.Planner do
 
     Use the available tools to ground your plan in the actual codebase.
     Read relevant files to understand the context before planning.
+    If the repository source-code graph is enabled and ready, use the explicit
+    semantic graph tools to confirm module/function relationships or bounded
+    impact paths. Treat semantic lookup as an explicit tool call, not as an
+    ambient hidden dependency.
 
     Output format:
     1. Summary of the request

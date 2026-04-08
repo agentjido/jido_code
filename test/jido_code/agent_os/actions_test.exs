@@ -21,7 +21,11 @@ defmodule JidoCode.AgentOSActionsTest do
     RefreshSourceCodeGraph,
     GetSourceCodeGraphStatus,
     QuerySourceCodeGraph,
-    InspectSourceCodeGraphDataset
+    InspectSourceCodeGraphDataset,
+    FindSourceCodeGraphModules,
+    FindSourceCodeGraphFunctions,
+    FindSourceCodeGraphRuntimePatterns,
+    TraceSourceCodeGraphImpact
   }
 
   describe "ReadFile action" do
@@ -154,6 +158,36 @@ defmodule JidoCode.AgentOSActionsTest do
     test "has correct action configuration" do
       assert InspectSourceCodeGraphDataset.name() == "jido_code_inspect_source_code_graph_dataset"
       assert function_exported?(InspectSourceCodeGraphDataset, :run, 2)
+    end
+  end
+
+  describe "FindSourceCodeGraphModules action" do
+    test "has correct action configuration" do
+      assert FindSourceCodeGraphModules.name() == "jido_code_find_source_code_graph_modules"
+      assert function_exported?(FindSourceCodeGraphModules, :run, 2)
+    end
+  end
+
+  describe "FindSourceCodeGraphFunctions action" do
+    test "has correct action configuration" do
+      assert FindSourceCodeGraphFunctions.name() == "jido_code_find_source_code_graph_functions"
+      assert function_exported?(FindSourceCodeGraphFunctions, :run, 2)
+    end
+  end
+
+  describe "FindSourceCodeGraphRuntimePatterns action" do
+    test "has correct action configuration" do
+      assert FindSourceCodeGraphRuntimePatterns.name() ==
+               "jido_code_find_source_code_graph_runtime_patterns"
+
+      assert function_exported?(FindSourceCodeGraphRuntimePatterns, :run, 2)
+    end
+  end
+
+  describe "TraceSourceCodeGraphImpact action" do
+    test "has correct action configuration" do
+      assert TraceSourceCodeGraphImpact.name() == "jido_code_trace_source_code_graph_impact"
+      assert function_exported?(TraceSourceCodeGraphImpact, :run, 2)
     end
   end
 end

@@ -11,7 +11,11 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
     RefreshSourceCodeGraph,
     GetSourceCodeGraphStatus,
     QuerySourceCodeGraph,
-    InspectSourceCodeGraphDataset
+    InspectSourceCodeGraphDataset,
+    FindSourceCodeGraphModules,
+    FindSourceCodeGraphFunctions,
+    FindSourceCodeGraphRuntimePatterns,
+    TraceSourceCodeGraphImpact
   }
 
   alias JidoCode.SourceCodeGraph
@@ -118,24 +122,143 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
                )
     end
 
-    test "returns structured SPARQL query result after load" do
-      loaded_context = %{
-        managed_repo_id: "repo-123",
-        workspace_path: "/tmp/example-repo",
-        latest_import_status: %{state: :loaded, ready?: true, imported_revision: "abc123"},
-        graph: %{revision: "abc123"}
-      }
+    test "returns structured SPARQL query result after load", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
 
       assert {:ok, result} =
                QuerySourceCodeGraph.run(
-                 %{sparql: "SELECT * WHERE { GRAPH <source_code> { ?s ?p ?o } }"},
-                 loaded_context
+                 %{
+                   sparql: """
+                   SELECT ?module ?module_name
+                   WHERE {
+                     ?module a struct:Module .
+                     OPTIONAL { ?module struct:moduleName ?module_name . }
+                   }
+                   ORDER BY ?module
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   graph: %{revision: "abc123"}
+                 }
                )
 
+      assert result.status == :query_succeeded
       assert result.engine == :sparql
       assert result.library == :sparql
       assert result.graph_name == "source_code"
-      assert result.bindings == []
+      assert result.target.backend == :triple_store
+      assert result.named_graph_iri == SourceCodeGraph.named_graph_iri()
+      assert result.row_count >= 1
+      assert "module" in result.variables
+      assert Enum.any?(result.bindings, fn row -> get_in(row, ["module_name", :value]) == "Example" end)
+    end
+
+    test "returns typed invalid-query diagnostics for explicit GRAPH clauses", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
+
+      assert {:error, :source_code_graph_invalid_query, diagnostics} =
+               QuerySourceCodeGraph.run(
+                 %{sparql: "SELECT * WHERE { GRAPH <https://jido.run/graphs/source_code> { ?s ?p ?o } }"},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   graph: %{revision: "abc123"}
+                 }
+               )
+
+      assert diagnostics.stage == :validate_query
+      assert diagnostics.library == :sparql
+    end
+  end
+
+  describe "helper query actions" do
+    test "find modules compiles to explicit SPARQL and returns structured rows", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
+
+      assert {:ok, result} =
+               FindSourceCodeGraphModules.run(
+                 %{module_name_contains: "Example"},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   graph: %{revision: "abc123"}
+                 }
+               )
+
+      assert result.helper == :modules
+      assert is_binary(result.compiled_sparql)
+      assert result.row_count >= 1
+      assert Enum.any?(result.bindings, fn row -> get_in(row, ["module_name", :value]) == "Example" end)
+    end
+
+    test "find functions returns module, function name, and arity rows", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
+
+      assert {:ok, result} =
+               FindSourceCodeGraphFunctions.run(
+                 %{module_name: "Example", function_name: "greet"},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   graph: %{revision: "abc123"}
+                 }
+               )
+
+      assert result.helper == :functions
+      assert result.row_count >= 1
+
+      assert Enum.any?(result.bindings, fn row ->
+               get_in(row, ["module_name", :value]) == "Example" and
+                 get_in(row, ["function_name", :value]) == "greet" and
+                 get_in(row, ["arity", :value]) == 1
+             end)
+    end
+
+    test "find runtime patterns returns bounded empty results when none are present", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
+
+      assert {:ok, result} =
+               FindSourceCodeGraphRuntimePatterns.run(
+                 %{},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   graph: %{revision: "abc123"}
+                 }
+               )
+
+      assert result.helper == :runtime_patterns
+      assert result.engine == :sparql
+      assert is_list(result.bindings)
+    end
+
+    test "trace impact returns explicit semantic relationships for a module", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
+
+      assert {:ok, result} =
+               TraceSourceCodeGraphImpact.run(
+                 %{module_name: "Example"},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   graph: %{revision: "abc123"}
+                 }
+               )
+
+      assert result.helper == :impact
+      assert result.row_count >= 1
+
+      assert Enum.any?(result.bindings, fn row ->
+               String.contains?(get_in(row, ["predicate", :value]) || "", "containsFunction")
+             end)
     end
   end
 

@@ -16,6 +16,7 @@ defmodule JidoCode.Actions.QuerySourceCodeGraph do
     ]
 
   alias JidoCode.Actions.SourceCodeGraphSupport
+  alias JidoCode.SourceCodeGraph.Query
 
   @impl true
   def run(params, context) do
@@ -33,16 +34,7 @@ defmodule JidoCode.Actions.QuerySourceCodeGraph do
            "The source_code graph must be refreshed for the requested revision before semantic queries can run."}
 
         true ->
-          {:ok,
-           %{
-             graph_name: graph_context.graph_name,
-             engine: :sparql,
-             library: :sparql,
-             sparql: params.sparql,
-             bindings: [],
-             row_count: 0,
-             latest_import_status: graph_context.latest_import_status
-           }}
+          Query.run(graph_context, params.sparql)
       end
     else
       {:error, reason} -> {:error, reason}

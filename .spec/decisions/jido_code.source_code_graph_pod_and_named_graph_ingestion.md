@@ -1,0 +1,111 @@
+---
+id: jido_code.source_code_graph_pod_and_named_graph_ingestion
+status: accepted
+date: 2026-04-08
+affects:
+  - package.jido_code
+  - architecture.agent_os_integration
+  - architecture.source_code_graph_pod
+  - docs.product_foundation
+related:
+  - jido_code.jido_agent_os_integration
+  - jido_code.jido_os_deprecation
+---
+
+<!-- covers: package.jido_code.spec_led_workspace -->
+<!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
+<!-- covers: architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled -->
+<!-- covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod -->
+<!-- covers: architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required -->
+<!-- covers: architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store -->
+<!-- covers: architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target -->
+<!-- covers: architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together -->
+<!-- covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query -->
+<!-- covers: architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface -->
+<!-- covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently -->
+
+# Source Code Graph Pod And Named Graph Ingestion
+
+## Context
+
+`Jido.Code` no longer carries the earlier generic knowledge-graph subsystem.
+At the same time, the current AgentOS direction gives us a better place to add
+repository-scoped semantic analysis without reintroducing an ambient singleton
+service.
+
+Two external building blocks now make a more explicit design viable:
+
+- `elixir-ontologies` can analyze an Elixir project into RDF with Elixir-aware
+  ontology terms, OTP/runtime modeling, provenance, and optional full
+  expression-level extraction.
+- `triple_store` can persist RDF locally with named graphs and SPARQL-capable
+  query/update semantics.
+
+The desired product outcome is narrower than a general-purpose graph platform.
+For each managed repository, we want a durable local source-code graph that:
+
+- analyzes the repository in full Elixir ontology mode
+- loads the ontology and extracted individuals into a canonical named graph
+  called `source_code`
+- remains queryable by pod-local agents afterward through explicit tools
+
+This capability belongs naturally inside the repository-scoped AgentOS kernel
+model rather than in top-level product controllers or in a resurrected
+cross-repository KG service.
+
+## Decision
+
+`Jido.Code` shall add a repository-scoped `SourceCodeGraphPod` within the
+ManagedRepo kernel model.
+
+When enabled for a managed repository, that pod shall be the canonical
+repository-local semantic analysis surface. It shall own:
+
+- analysis of the repository with `elixir-ontologies`
+- use of the full ontology extraction profile, including expression-level
+  detail rather than the light structural profile
+- loading of ontology schema terms and repository-derived individuals into a
+  local `triple_store` database configured for named-graph storage
+- use of the named graph `source_code` as the canonical target for that
+  repository's source-code graph load
+- explicit query actions that let pod agents ask SPARQL questions against the
+  resulting graph through the `sparql` library
+
+The pod shall be repository-scoped rather than work-item-scoped. It is not a
+replacement for `RepoPod` or `CodingPod`; it is an additional specialist pod for
+durable source analysis and semantic query within one managed repository's
+kernel boundary.
+
+The expected pod shape is:
+
+- one eager context/state agent that knows workspace path, local graph-store
+  path, graph name, ontology profile, latest imported revision, and import
+  status
+- lazy specialist agents for ontology analysis, graph loading/refresh, and
+  graph query
+- explicit `Jido.Action` tools for analyze, load, refresh, and query behavior
+
+The canonical storage and query split shall be:
+
+- `triple_store` owns persisted RDF storage and named-graph durability
+- `elixir-ontologies` owns Elixir-aware ontology extraction
+- `sparql` owns the pod-local agent query surface for authoring/parsing and
+  executing the post-load query workflow
+
+The canonical named graph for this capability shall be exactly `source_code`.
+
+## Consequences
+
+- `Jido.Code` will gain a repository-local semantic capability without
+  reintroducing the removed generic KG subsystem.
+- The source-code graph becomes a durable repository-scoped asset, not an ad hoc
+  transient analysis result hidden inside one agent prompt.
+- Full ontology mode increases detail and likely storage/runtime cost, so graph
+  refresh should be explicit and coherent rather than ambient on every minor
+  event.
+- Named-graph replacement semantics need to avoid mixed revisions, since the
+  same `source_code` graph will hold both ontology-backed schema and extracted
+  project individuals for one repository snapshot.
+- Future coding or review flows may consult this pod, but the semantic store
+  remains a bounded specialist capability rather than the product's source of
+  durable truth.

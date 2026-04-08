@@ -6,6 +6,9 @@ defmodule JidoCode.Actions.GetWorkItem do
   Retrieves the current state, instructions, and context for a WorkItem.
   """
 
+  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Operations.WorkItem
+
   use Jido.Action,
     name: "jido_code_get_work_item",
     description: "Fetch WorkItem details from the JidoCode API.",
@@ -14,23 +17,23 @@ defmodule JidoCode.Actions.GetWorkItem do
     ]
 
   @impl true
-  def run(%{work_item_id: work_item_id}, _context) do
-    # This is a placeholder implementation. In production, this would:
-    # 1. Call the JidoCode product API
-    # 2. Fetch the WorkItem by ID
-    # 3. Return the WorkItem details
+  @actor Actor.managed_repo_orchestrator_actor(%{
+           "id" => "system:agent-os-get-work-item",
+           "email" => "agent-os-get-work-item@system.local"
+         })
 
-    case JidoCode.WorkItems.get_work_item(work_item_id) do
-      {:ok, work_item} ->
+  def run(%{work_item_id: work_item_id}, _context) do
+    case fetch_work_item(work_item_id) do
+      {:ok, %WorkItem{} = work_item} ->
         {:ok,
          %{
            work_item_id: work_item.id,
-           title: work_item.title,
-           description: work_item.description,
+           title: work_item.summary,
+           description: work_item.recommended_action,
            status: work_item.status,
-           workspace_path: work_item.workspace_path,
+           workspace_path: workspace_path(work_item.managed_repo_id),
            managed_repo_id: work_item.managed_repo_id,
-           metadata: work_item.metadata
+           metadata: work_item.work_metadata
          }}
 
       {:error, :not_found} ->
@@ -40,4 +43,28 @@ defmodule JidoCode.Actions.GetWorkItem do
         {:error, reason}
     end
   end
+
+  defp fetch_work_item(work_item_id) when is_binary(work_item_id) do
+    case WorkItem.read(query: [filter: [id: work_item_id], limit: 1], actor: @actor) do
+      {:ok, [%WorkItem{} = work_item | _rest]} -> {:ok, work_item}
+      {:ok, []} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp fetch_work_item(_work_item_id), do: {:error, :not_found}
+
+  defp workspace_path(managed_repo_id) when is_binary(managed_repo_id) do
+    case ManagedRepo.read(query: [filter: [id: managed_repo_id], limit: 1], actor: @actor) do
+      {:ok, [%ManagedRepo{} = managed_repo | _rest]} ->
+        managed_repo
+        |> Map.get(:workspace_settings, %{})
+        |> Map.get("workspace_path")
+
+      _other ->
+        nil
+    end
+  end
+
+  defp workspace_path(_managed_repo_id), do: nil
 end

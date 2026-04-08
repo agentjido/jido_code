@@ -1,5 +1,6 @@
 defmodule JidoCode.Pods.RepoPod do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
+  # covers: architecture.agent_os_integration.repo_pod_singleton_per_kernel
   # covers: architecture.agent_os_integration.pod_hierarchy
   @moduledoc """
   Repository-level pod for monitoring repository state and tracking work.

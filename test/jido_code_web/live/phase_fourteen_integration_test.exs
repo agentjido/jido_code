@@ -170,6 +170,7 @@ defmodule JidoCodeWeb.PhaseFourteenIntegrationTest do
       })
 
     run_id = "run-phase14-detail-#{System.unique_integer([:positive])}"
+
     {:ok, workflow_run} =
       WorkflowRun.create(%{
         project_id: project.id,

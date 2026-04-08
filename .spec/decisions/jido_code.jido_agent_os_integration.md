@@ -1,7 +1,7 @@
 ---
 id: jido_code.jido_agent_os_integration
-status: proposed
-date: 2025-04-06
+status: accepted
+date: 2026-04-06
 affects:
   - package.jido_code
   - architecture.agent_os_integration
@@ -11,12 +11,50 @@ related:
 
 <!-- covers: package.jido_code.spec_led_workspace -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
+<!-- covers: architecture.agent_os_integration.kernel_per_managed_repo -->
+<!-- covers: architecture.agent_os_integration.dynamic_kernel_lifecycle -->
+<!-- covers: architecture.agent_os_integration.repo_pod_singleton_per_kernel -->
+<!-- covers: architecture.agent_os_integration.coding_pod_per_work_item -->
+<!-- covers: architecture.agent_os_integration.multiple_pods_parallel_execution -->
+<!-- covers: architecture.agent_os_integration.pod_contains_multiple_agents -->
+<!-- covers: architecture.agent_os_integration.eager_and_lazy_agent_activation -->
+<!-- covers: architecture.agent_os_integration.ecto_persistence_per_kernel -->
+<!-- covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology -->
+<!-- covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace -->
+<!-- covers: architecture.agent_os_integration.actions_use_jido_action -->
+<!-- covers: architecture.agent_os_integration.state_operations_modify_agent_state -->
+<!-- covers: architecture.agent_os_integration.pod_naming_convention -->
+<!-- covers: architecture.agent_os_integration.kernel_naming_convention -->
+<!-- covers: architecture.agent_os_integration.signal_routing_within_pod -->
+<!-- covers: architecture.agent_os_integration.pod_cleanup_on_completion -->
+<!-- covers: architecture.policy_layers.runtime_policy_governs_runtime_capability -->
+<!-- covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy -->
+<!-- covers: architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts -->
+<!-- covers: architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary -->
 
 # JidoCode + Jido.AgentOS Integration Design
 
 ## Context
 
 Following the deprecation of `jido_os`, we've adopted `jido_agent_os` as our durable runtime layer. This document outlines how `jido_agent_os` integrates with JidoCode's domain model (ManagedRepo, WorkItem) to support multi-repository coding operations.
+
+## Decision
+
+`jido_code` shall use repository-scoped `jido_agent_os` kernels and pods as the
+runtime boundary for multi-repository agent work.
+
+The accepted shape is:
+
+- one kernel per `ManagedRepo`
+- one eager `RepoPod` singleton per kernel
+- one `CodingPod` per `WorkItem`
+- optional repository-scoped specialist pods such as `SourceCodeGraphPod`
+- product-owned entrypoints routing through `AgentWorkspace`
+- Jido actions as the tool boundary used by collaborating pod agents
+
+Runtime behavior remains bounded by product-owned policy and context. Product
+entrypoints must preserve actor, repository, and work-item context when they
+cross into AgentOS-managed operations.
 
 ## Current Domain Model
 
@@ -1378,6 +1416,18 @@ Task board actions:
 - [ ] Concurrent pod execution for multiple WorkItems
 - [ ] Pod cleanup and resource management
 - [ ] Archive/resume functionality
+
+## Consequences
+
+- Managed repositories gain isolated runtime kernels, which makes pod lifecycle
+  and repository-level state explicit product concerns.
+- Product code must keep actor, repository, and work-item context intact when
+  routing work into `AgentWorkspace` and pod agents.
+- Specialist pods can be added per kernel without reintroducing global shared
+  runtime state, which enables repository-scoped capabilities such as
+  `SourceCodeGraphPod`.
+- Pod naming, kernel naming, and lazy-versus-eager activation become part of the
+  stable product architecture and must stay reflected in specs and helper code.
 
 ## Open Questions
 

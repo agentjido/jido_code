@@ -35,9 +35,15 @@ defmodule JidoCode.Projects.Project do
       change &normalize_source_fields/2
 
       change after_action(fn _changeset, project, _context ->
-               case RepoBridge.sync_project(project) do
-                 {:ok, _managed_repo} -> {:ok, project}
-                 {:error, reason} -> {:error, reason}
+               case project.source_kind do
+                 :local ->
+                   {:ok, project}
+
+                 _other ->
+                   case RepoBridge.sync_project(project) do
+                     {:ok, _managed_repo} -> {:ok, project}
+                     {:error, reason} -> {:error, reason}
+                   end
                end
              end)
     end
@@ -54,9 +60,15 @@ defmodule JidoCode.Projects.Project do
       change &normalize_source_fields/2
 
       change after_action(fn _changeset, project, _context ->
-               case RepoBridge.sync_project(project) do
-                 {:ok, _managed_repo} -> {:ok, project}
-                 {:error, reason} -> {:error, reason}
+               case project.source_kind do
+                 :local ->
+                   {:ok, project}
+
+                 _other ->
+                   case RepoBridge.sync_project(project) do
+                     {:ok, _managed_repo} -> {:ok, project}
+                     {:error, reason} -> {:error, reason}
+                   end
                end
              end)
     end

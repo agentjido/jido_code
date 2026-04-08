@@ -22,8 +22,7 @@ defmodule JidoCode.Agents.Coder do
       JidoCode.Actions.GitStatus,
       JidoCode.Actions.GitDiff,
       JidoCode.Actions.SelectTask,
-      JidoCode.Actions.AppendEvent,
-      JidoCode.Actions.KGQuery
+      JidoCode.Actions.AppendEvent
     ],
     system_prompt: """
     You are the coding specialist for JidoCode, an AI-powered coding system.
@@ -43,7 +42,6 @@ defmodule JidoCode.Agents.Coder do
     - Consider edge cases
     - Run tests when available
     - Ensure the code compiles
-    - Use KGQuery to understand related code and find patterns
 
     Coding conventions for Elixir:
     - Use snake_case for variables and function names

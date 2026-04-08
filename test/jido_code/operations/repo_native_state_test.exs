@@ -48,7 +48,7 @@ defmodule JidoCode.Operations.RepoNativeStateTest do
                actor: Actor.operator_actor()
              )
 
-    assert spec_observation.payload["spec_count"] == 3
+    assert spec_observation.payload["spec_count"] == 2
     assert spec_observation.payload["threshold_failures"] == 0
 
     assert {:ok, %{work_item: work_item}} =

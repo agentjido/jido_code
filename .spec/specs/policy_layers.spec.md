@@ -12,8 +12,9 @@ decisions:
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.runtime_evidence_posture_and_rollout_convergence
 surface:
-  - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
+  - .spec/decisions/jido_code.jido_agent_os_integration.md
   - lib/jido_code/accounts/user.ex
   - lib/jido_code/control/actor.ex
   - lib/jido_code/control/checks/actor_class_in.ex
@@ -41,13 +42,11 @@ surface:
   - lib/jido_code/operations/synthesis.ex
   - lib/jido_code/operations/work_item.ex
   - lib/jido_code/operations/work_synthesis.ex
-  - lib/jido_code/jido_os_runtime.ex
-  - lib/jido_code/runtime_integration.ex
+  - lib/jido_code/agent_workspace.ex
   - lib/jido_code/workbench/issue_triage_workflow_kickoff.ex
   - lib/jido_code_web/live/settings_live.ex
   - test/support/conn_case.ex
-  - test/jido_code/governance/phase_eight_integration_test.exs
-  - test/jido_code/runtime_integration_test.exs
+  - test/jido_code/agent_os_integration_test.exs
   - test/jido_code_web/live/security_settings_live_test.exs
   - priv/repo/migrations/20260330161500_add_governance_policy_sets.exs
   - priv/repo/migrations/20260330183000_add_operations_ingress_resources.exs
@@ -133,7 +132,7 @@ surface:
 
 ```spec-verification
 - kind: source_file
-  target: .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  target: .spec/decisions/jido_code.factory_control_plane.md
   covers:
     - architecture.policy_layers.repository_governance_policy_is_repo_control_layer
     - architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane
@@ -149,13 +148,7 @@ surface:
     - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
 
 - kind: source_file
-  target: lib/jido_code/jido_os_runtime.ex
-  covers:
-    - architecture.policy_layers.runtime_policy_governs_runtime_capability
-    - architecture.policy_layers.policy_layers_interlock_without_collapsing
-
-- kind: source_file
-  target: lib/jido_code/runtime_integration.ex
+  target: .spec/decisions/jido_code.jido_agent_os_integration.md
   covers:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
@@ -194,12 +187,6 @@ surface:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
 
 - kind: source_file
-  target: test/jido_code/governance/phase_eight_integration_test.exs
-  covers:
-    - architecture.policy_layers.policy_layers_interlock_without_collapsing
-    - architecture.policy_layers.repo_posture_can_shape_effective_review_policy
-
-- kind: source_file
   target: test/jido_code/governance/policy_set_test.exs
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
@@ -226,13 +213,4 @@ surface:
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
 
-- kind: source_file
-  target: test/jido_code/runtime_integration_test.exs
-  covers:
-    - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
-
-- kind: source_file
-  target: test/jido_code/governance/phase_ten_integration_test.exs
-  covers:
-    - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
 ```

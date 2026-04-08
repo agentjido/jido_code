@@ -17,31 +17,18 @@ decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
 surface:
-  - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
   - .spec/decisions/jido_code.jido_agent_os_integration.md
   - .spec/specs/factory_control_plane.spec.md
-  - lib/jido_code/jido_os_runtime.ex
-  - lib/jido_code/runtime_gateway.ex
-  - lib/jido_code/runtime_integration.ex
-  - lib/jido_code/governance/runtime_capability_bridge.ex
-  - lib/jido_code/governance/runtime_evidence_bridge.ex
   - lib/jido_code/governance/runtime_evidence_feed.ex
-  - lib/jido_code/governance/runtime_integration_bridge.ex
   - lib/jido_code_web/components/operator_state_components.ex
   - lib/jido_code_web/live/dashboard_live.ex
   - lib/jido_code_web/live/DashboardRuntimePostureWidget.vue
   - lib/jido_code_web/live/run_detail_live.ex
-  - test/jido_code/runtime_gateway_test.exs
-  - test/jido_code/runtime_integration_test.exs
-  - test/jido_code/governance/runtime_integration_bridge_test.exs
-  - test/jido_code/governance/runtime_evidence_bridge_test.exs
   - test/jido_code/governance/runtime_evidence_feed_test.exs
-  - test/jido_code/governance/phase_eleven_integration_test.exs
-  - test/jido_code/governance/phase_ten_integration_test.exs
   - test/jido_code/governance/runtime_capability_bridge_test.exs
-  - test/jido_code/governance/phase_eight_integration_test.exs
   - test/jido_code_web/live/dashboard_live_test.exs
   - test/jido_code_web/live/phase_sixteen_integration_test.exs
   - test/jido_code_web/live/run_detail_live_test.exs
@@ -167,37 +154,6 @@ surface:
     - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
 
 - kind: source_file
-  target: lib/jido_code/runtime_gateway.ex
-  covers:
-    - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
-    - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
-    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
-    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
-
-- kind: source_file
-  target: lib/jido_code/runtime_integration.ex
-  covers:
-    - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
-    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
-    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
-    - architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
-
-- kind: source_file
-  target: lib/jido_code/jido_os_runtime.ex
-  covers:
-    - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
-
-- kind: source_file
-  target: lib/jido_code/governance/runtime_capability_bridge.ex
-  covers:
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
-
-- kind: source_file
-  target: lib/jido_code/governance/runtime_evidence_bridge.ex
-  covers:
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
-
-- kind: source_file
   target: lib/jido_code/governance/runtime_evidence_feed.ex
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
@@ -214,36 +170,10 @@ surface:
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
 
 - kind: source_file
-  target: lib/jido_code/governance/runtime_integration_bridge.ex
-  covers:
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
-    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
-
-- kind: source_file
-  target: test/jido_code/governance/phase_eight_integration_test.exs
-  covers:
-    - architecture.runtime_service_overlay.public_service_facades_are_only_product_runtime_seam
-    - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
-    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
-
-- kind: source_file
-  target: test/jido_code/runtime_integration_test.exs
+  target: .spec/decisions/jido_code.jido_agent_os_integration.md
   covers:
     - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
     - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
-    - architecture.runtime_service_overlay.optional_runtime_capabilities_are_explicit_and_typed
-
-- kind: source_file
-  target: test/jido_code/governance/runtime_integration_bridge_test.exs
-  covers:
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
-    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
-
-- kind: source_file
-  target: test/jido_code/governance/runtime_evidence_bridge_test.exs
-  covers:
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 
 - kind: source_file
   target: lib/jido_code_web/live/dashboard_live.ex
@@ -267,19 +197,6 @@ surface:
   covers:
     - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
     - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
-
-- kind: source_file
-  target: test/jido_code/governance/phase_eleven_integration_test.exs
-  covers:
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
-    - architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
-
-- kind: source_file
-  target: test/jido_code/governance/phase_ten_integration_test.exs
-  covers:
-    - architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts
-    - architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary
-    - architecture.runtime_service_overlay.runtime_capability_posture_feeds_product_governance
 
 - kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs

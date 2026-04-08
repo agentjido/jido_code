@@ -20,7 +20,7 @@ surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
   - .spec/decisions/jido_code.runic_execution_model.md
-  - .spec/decisions/jido_code.factory_control_plane_and_runtime_overlay.md
+  - .spec/decisions/jido_code.factory_control_plane.md
   - .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   - lib/jido_code/governance/change_request.ex
   - lib/jido_code/governance/decision.ex

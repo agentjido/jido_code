@@ -61,6 +61,7 @@ defmodule JidoCode.Orchestration.RunBridge do
   end
 
   def launch_work_item(_work_item, _attrs), do: {:error, :invalid_work_item}
+
   defp projection_attrs(workflow_run, managed_repo, execution_profile) do
     work_item_id = referenced_work_item_id(workflow_run)
     governed_stages = effective_governed_stages(execution_profile)

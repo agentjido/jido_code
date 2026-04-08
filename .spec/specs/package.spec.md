@@ -13,6 +13,7 @@ decisions:
   - jido_code.live_vue_frontend_adoption
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_deprecation
+  - jido_code.source_code_graph_pod_and_named_graph_ingestion
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
@@ -201,16 +202,6 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
-  target: test/jido_code/coding_assistance_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: lib/jido_code/runtime_integration.ex
-  covers:
-    - package.jido_code.primary_implementation_repo
-
-- kind: source_file
   target: lib/jido_code/governance/runtime_evidence_feed.ex
   covers:
     - package.jido_code.primary_implementation_repo
@@ -224,16 +215,6 @@ surface:
   target: lib/jido_code_web/live/run_detail_live.ex
   covers:
     - package.jido_code.primary_implementation_repo
-
-- kind: source_file
-  target: test/jido_code/runtime_integration_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code/governance/runtime_integration_bridge_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
   target: lib/jido_code_web.ex
@@ -286,22 +267,7 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
-  target: lib/jido_code/governance/runtime_evidence_bridge.ex
-  covers:
-    - package.jido_code.primary_implementation_repo
-
-- kind: source_file
-  target: test/jido_code/governance/runtime_evidence_bridge_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
   target: test/jido_code/governance/runtime_evidence_feed_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code/governance/phase_eleven_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 
@@ -316,22 +282,12 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
-  target: test/jido_code/governance/phase_ten_integration_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
   target: test/jido_code_web/live/dashboard_live_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
-  covers:
-    - package.jido_code.version_controlled_quality_surfaces
-
-- kind: source_file
-  target: test/jido_code_web/live/phase_eleven_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

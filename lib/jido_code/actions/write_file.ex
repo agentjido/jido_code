@@ -67,6 +67,7 @@ defmodule JidoCode.Actions.WriteFile do
 
   defp maybe_create_dirs(full_path, true) do
     dir = Path.dirname(full_path)
+
     case File.mkdir_p(dir) do
       :ok -> :ok
       {:error, reason} -> {:error, {:mkdir_failed, reason}}

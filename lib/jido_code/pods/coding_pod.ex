@@ -1,4 +1,7 @@
 defmodule JidoCode.Pods.CodingPod do
+  # covers: architecture.agent_os_integration.coding_pod_per_work_item
+  # covers: architecture.agent_os_integration.pod_contains_multiple_agents
+  # covers: architecture.agent_os_integration.eager_and_lazy_agent_activation
   # covers: architecture.agent_os_integration.pod_hierarchy
   # covers: architecture.agent_os_integration.coding_agents
   @moduledoc """

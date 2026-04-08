@@ -92,9 +92,9 @@ defmodule JidoCode.AgentOSIntegrationTest do
 
       # All should succeed
       assert Enum.all?(results, fn
-        {:ok, _pod_name} -> true
-        _ -> false
-      end)
+               {:ok, _pod_name} -> true
+               _ -> false
+             end)
 
       # Each should have unique pod names
       pod_names = Enum.map(results, fn {:ok, pod_name} -> pod_name end)

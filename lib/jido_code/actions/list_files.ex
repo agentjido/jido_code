@@ -80,7 +80,7 @@ defmodule JidoCode.Actions.ListFiles do
       Path.wildcard(Path.join(path, wildcard))
       |> Enum.filter(&File.regular?/1)
       |> Enum.filter(&(include_hidden or not hidden_file?(&1)))
-      |> Enum.filter(&(extension_match?(&1, extensions)))
+      |> Enum.filter(&extension_match?(&1, extensions))
       |> Enum.take(max_results)
 
     {:ok, files}
@@ -92,7 +92,8 @@ defmodule JidoCode.Actions.ListFiles do
   end
 
   defp extension_match?(_path, nil), do: true
-  defp extension_match?(path, []), do: true
+  defp extension_match?(_path, []), do: true
+
   defp extension_match?(path, extensions) when is_list(extensions) do
     ext = Path.extname(path)
     ext in extensions or ext == ""

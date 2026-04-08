@@ -54,7 +54,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   test "self-hosted deployment supports provider login and GitHub service auth together", %{
     conn: conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner("owner@example.com", "owner-password-123")
     configure_github_service_ready!()
     enable_provider_login!(:github, "github.com")
     {issued_state, handoff_token} = valid_broker_handoff("integration-enabled")
@@ -76,7 +76,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   end
 
   test "GitHub service auth remains available when provider login is disabled", %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner("owner@example.com", "owner-password-123")
     configure_github_service_ready!()
     enable_provider_login!(:github, "github.com", enabled: false, login_enabled: false)
     {issued_state, handoff_token} = valid_broker_handoff("integration-disabled")
@@ -90,7 +90,8 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
 
     assert response["error"]["error_type"] == "provider_login_disabled"
 
-    {authed_conn, _session_token, _owner} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+    {authed_conn, _session_token, _owner} =
+      authenticate_bootstrap_owner_conn("owner@example.com", "owner-password-123")
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
 
@@ -99,7 +100,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   end
 
   test "broker unavailability keeps local email auth as the fallback path", %{conn: conn} do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner("owner@example.com", "owner-password-123")
     enable_provider_login!(:github, "github.com")
     {:ok, issued_state} = issue_state("broker-unavailable")
 
@@ -127,8 +128,10 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
              "Sign In with GitHub"
            )
 
-    register_owner("fallback@example.com", "fallback-password-123")
-    {authed_conn, _session_token, _owner} = authenticate_owner_conn("fallback@example.com", "fallback-password-123")
+    bootstrap_owner("fallback@example.com", "fallback-password-123")
+
+    {authed_conn, _session_token, _owner} =
+      authenticate_bootstrap_owner_conn("fallback@example.com", "fallback-password-123")
 
     {:ok, authed_view, _html} = live(recycle(authed_conn), ~p"/welcome")
 
@@ -139,7 +142,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
   test "allowlist rejection blocks provider login without breaking GitHub service readiness", %{
     conn: conn
   } do
-    register_owner("owner@example.com", "owner-password-123")
+    bootstrap_owner("owner@example.com", "owner-password-123")
     configure_github_service_ready!()
 
     enable_provider_login!(:github, "github.com",
@@ -164,7 +167,8 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     assert response["error"]["error_type"] == "provider_identity_not_allowlisted"
     assert get_session(response_conn, "user_token") == nil
 
-    {authed_conn, _session_token, _owner} = authenticate_owner_conn("owner@example.com", "owner-password-123")
+    {authed_conn, _session_token, _owner} =
+      authenticate_bootstrap_owner_conn("owner@example.com", "owner-password-123")
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/welcome")
 
@@ -237,7 +241,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     config
   end
 
-  defp register_owner(email, password) do
+  defp bootstrap_owner(email, password) do
     {:ok, _owner} =
       User.bootstrap_admin(
         %{
@@ -251,7 +255,7 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
     :ok
   end
 
-  defp authenticate_owner_conn(email, password) do
+  defp authenticate_bootstrap_owner_conn(email, password) do
     strategy = Info.strategy!(User, :password)
 
     {:ok, owner} =
@@ -267,14 +271,14 @@ defmodule JidoCodeWeb.SelfHostedProviderAuthTest do
       |> Map.get(:__metadata__, %{})
       |> Map.fetch!(:token)
 
-    auth_response = build_conn() |> get(owner_sign_in_with_token_path(strategy, token))
+    auth_response = build_conn() |> get(bootstrap_owner_sign_in_with_token_path(strategy, token))
     assert redirected_to(auth_response, 302) == "/"
     session_token = get_session(auth_response, "user_token")
     assert is_binary(session_token)
     {recycle(auth_response), session_token, owner}
   end
 
-  defp owner_sign_in_with_token_path(strategy, token) do
+  defp bootstrap_owner_sign_in_with_token_path(strategy, token) do
     strategy_path =
       strategy
       |> Strategy.routes()

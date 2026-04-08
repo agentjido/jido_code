@@ -71,6 +71,7 @@ defmodule JidoCode.Actions.GitStatus do
 
   defp validate_git_repo(path) do
     git_dir = Path.join(path, ".git")
+
     if File.dir?(git_dir) or File.dir?(Path.join([path, "..", ".git"])) do
       :ok
     else
@@ -102,6 +103,7 @@ defmodule JidoCode.Actions.GitStatus do
     |> String.split("\n", trim: true)
     |> Enum.map(fn line ->
       <<status::binary-size(2), " ", file::binary>> = line
+
       %{
         file: file,
         status: parse_file_status(status)

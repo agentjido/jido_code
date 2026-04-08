@@ -69,7 +69,9 @@ defmodule JidoCode.Actions.RunTests do
 
     output =
       case cmd_parts do
-        [] -> ""
+        [] ->
+          ""
+
         _ ->
           {result, _exit_code} =
             System.cmd(

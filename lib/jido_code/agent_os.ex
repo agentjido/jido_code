@@ -1,6 +1,8 @@
 defmodule JidoCode.AgentOS do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.dynamic_kernel_lifecycle
+  # covers: architecture.agent_os_integration.ecto_persistence_per_kernel
+  # covers: architecture.agent_os_integration.kernel_naming_convention
   @moduledoc """
   Public API for JidoCode's AgentOS integration.
 

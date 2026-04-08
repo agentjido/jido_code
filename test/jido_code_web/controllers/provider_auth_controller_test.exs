@@ -8,9 +8,7 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
   # covers: auth.provider_login_flow.redirect_path_completion
   use JidoCodeWeb.ConnCase, async: false
 
-  alias AshAuthentication.{Info, Strategy}
   alias JidoCode.AuthProviders.{BrokerNonceStore, BrokerState, ProviderConfig}
-  alias JidoCode.Accounts.User
   alias JidoCode.Accounts.UserIdentity
 
   @resolver_env :provider_auth_broker_jwks_resolver
@@ -207,24 +205,6 @@ defmodule JidoCodeWeb.ProviderAuthControllerTest do
       )
 
     config
-  end
-
-  defp register_owner(email, password) do
-    strategy = Info.strategy!(User, :password)
-
-    {:ok, _owner} =
-      Strategy.action(
-        strategy,
-        :register,
-        %{
-          "email" => email,
-          "password" => password,
-          "password_confirmation" => password
-        },
-        context: %{token_type: :sign_in}
-      )
-
-    :ok
   end
 
   defp handoff_token(jwk, overrides) do

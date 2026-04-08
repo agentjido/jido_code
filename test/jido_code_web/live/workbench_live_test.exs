@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Orchestration.{RunPubSub, WorkflowRun}
   alias JidoCode.Projects.Project
 
@@ -182,6 +183,8 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
         }
       })
 
+    route_id = managed_repo_route_id!(project.id)
+
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     {:ok, run} =
@@ -209,24 +212,24 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-status",
+             "#workbench-project-issues-run-outcome-#{route_id}-status",
              "completed"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-issues-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-run-outcome-#{project.id}-status",
+             "#workbench-project-prs-run-outcome-#{route_id}-status",
              "completed"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-prs-run-outcome-#{project.id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
+             "#workbench-project-prs-run-outcome-#{route_id}-link[href='/repos/#{project.id}/runs/#{completed_run.run_id}']"
            )
   end
 
@@ -250,15 +253,16 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
         }
       })
 
+    route_id = managed_repo_route_id!(project.id)
     run_id = "workbench-refresh-run-#{System.unique_integer([:positive])}"
-    run_detail_path = "/repos/#{project.id}/runs/#{run_id}"
+    run_detail_path = "/repos/#{route_id}/runs/#{run_id}"
     loader_state = start_supervised!({Agent, fn -> :initial end}, id: make_ref())
 
     Application.put_env(:jido_code, :workbench_recent_run_outcome_loader, fn _rows ->
       case Agent.get(loader_state, & &1) do
         :terminal ->
           %{
-            project.id => %{
+            route_id => %{
               status: "completed",
               run_id: run_id,
               detail_path: run_detail_path
@@ -278,23 +282,23 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-status",
+             "#workbench-project-issues-run-outcome-#{route_id}-status",
              "No recent run"
            )
 
     view
-    |> element("#workbench-project-issues-fix-action-#{project.id}")
+    |> element("#workbench-project-issues-fix-action-#{route_id}")
     |> render_click()
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-status",
+             "#workbench-project-issues-run-outcome-#{route_id}-status",
              "pending"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-link[href='#{run_detail_path}']"
+             "#workbench-project-issues-run-outcome-#{route_id}-link[href='#{run_detail_path}']"
            )
 
     Agent.update(loader_state, fn _current_state -> :terminal end)
@@ -308,14 +312,14 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     assert_eventually(fn ->
       has_element?(
         view,
-        "#workbench-project-issues-run-outcome-#{project.id}-status",
+        "#workbench-project-issues-run-outcome-#{route_id}-status",
         "completed"
       )
     end)
 
     assert has_element?(
              view,
-             "#workbench-project-prs-run-outcome-#{project.id}-status",
+             "#workbench-project-prs-run-outcome-#{route_id}-status",
              "completed"
            )
   end
@@ -342,9 +346,11 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
         }
       })
 
+    route_id = managed_repo_route_id!(project.id)
+
     Application.put_env(:jido_code, :workbench_recent_run_outcome_loader, fn _rows ->
       %{
-        project.id => %{
+        route_id => %{
           status: "mystery_status",
           run_id: "run-unknown-#{System.unique_integer([:positive])}",
           detail: "Recent run metadata is incomplete.",
@@ -358,19 +364,19 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-status",
+             "#workbench-project-issues-run-outcome-#{route_id}-status",
              "unknown"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-error-type",
+             "#workbench-project-issues-run-outcome-#{route_id}-error-type",
              "workbench_recent_run_status_unresolved"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-run-outcome-#{project.id}-guidance",
+             "#workbench-project-issues-run-outcome-#{route_id}-guidance",
              "Refresh workbench data"
            )
   end
@@ -546,6 +552,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       })
 
     project_id = project.id
+    route_id = managed_repo_route_id!(project_id)
     launcher_requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn kickoff_request ->
@@ -562,49 +569,49 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
-    assert has_element?(view, "#workbench-project-issues-fix-action-#{project_id}")
-    assert has_element?(view, "#workbench-project-prs-fix-action-#{project_id}")
+    assert has_element?(view, "#workbench-project-issues-fix-action-#{route_id}")
+    assert has_element?(view, "#workbench-project-prs-fix-action-#{route_id}")
 
     view
-    |> element("#workbench-project-issues-fix-action-#{project_id}")
+    |> element("#workbench-project-issues-fix-action-#{route_id}")
     |> render_click()
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{project_id}-run-id",
+             "#workbench-project-issues-fix-#{route_id}-run-id",
              "run-issue-123"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-issue-123']"
+             "#workbench-project-issues-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-issue-123']"
            )
 
-    refute has_element?(view, "#workbench-project-issues-fix-#{project_id}-error-type")
+    refute has_element?(view, "#workbench-project-issues-fix-#{route_id}-error-type")
 
     view
-    |> element("#workbench-project-prs-fix-action-#{project_id}")
+    |> element("#workbench-project-prs-fix-action-#{route_id}")
     |> render_click()
 
-    assert has_element?(view, "#workbench-project-prs-fix-#{project_id}-run-id", "run-pr-456")
+    assert has_element?(view, "#workbench-project-prs-fix-#{route_id}-run-id", "run-pr-456")
 
     assert has_element?(
              view,
-             "#workbench-project-prs-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-pr-456']"
+             "#workbench-project-prs-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-pr-456']"
            )
 
-    refute has_element?(view, "#workbench-project-prs-fix-#{project_id}-error-type")
+    refute has_element?(view, "#workbench-project-prs-fix-#{route_id}-error-type")
 
     recorded_requests = launcher_requests |> Agent.get(&Enum.reverse(&1))
 
     assert [
              %{
-               project_id: ^project_id,
+               project_id: ^route_id,
                workflow_name: "fix_failing_tests",
                context_item: %{type: :issue}
              },
              %{
-               project_id: ^project_id,
+               project_id: ^route_id,
                workflow_name: "fix_failing_tests",
                context_item: %{type: :pull_request}
              }
@@ -641,6 +648,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       })
 
     project_id = project.id
+    route_id = managed_repo_route_id!(project_id)
     launcher_requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(
@@ -654,30 +662,30 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
-    assert has_element?(view, "#workbench-project-issues-triage-action-#{project_id}")
+    assert has_element?(view, "#workbench-project-issues-triage-action-#{route_id}")
 
     view
-    |> element("#workbench-project-issues-triage-action-#{project_id}")
+    |> element("#workbench-project-issues-triage-action-#{route_id}")
     |> render_click()
 
     assert has_element?(
              view,
-             "#workbench-project-issues-triage-#{project_id}-run-id",
+             "#workbench-project-issues-triage-#{route_id}-run-id",
              "run-triage-789"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-triage-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-triage-789']"
+             "#workbench-project-issues-triage-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-triage-789']"
            )
 
-    refute has_element?(view, "#workbench-project-issues-triage-#{project_id}-error-type")
+    refute has_element?(view, "#workbench-project-issues-triage-#{route_id}-error-type")
 
     recorded_requests = launcher_requests |> Agent.get(&Enum.reverse(&1))
 
     assert [
              %{
-               project_id: ^project_id,
+               project_id: ^route_id,
                workflow_name: "issue_triage",
                context_item: %{type: :issue},
                trigger: %{
@@ -685,7 +693,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
                  mode: "manual",
                  source_row: %{
                    route: "/workbench",
-                   project_id: ^project_id,
+                   project_id: ^route_id,
                    context_item_type: :issue
                  },
                  approval_policy: %{
@@ -872,6 +880,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       })
 
     project_id = project.id
+    route_id = managed_repo_route_id!(project_id)
 
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn _kickoff_request ->
       {:error,
@@ -887,33 +896,33 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
     {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
 
     view
-    |> element("#workbench-project-issues-fix-action-#{project_id}")
+    |> element("#workbench-project-issues-fix-action-#{route_id}")
     |> render_click()
 
     assert has_element?(
              view,
-             "#workbench-project-name-#{project_id}",
+             "#workbench-project-name-#{route_id}",
              "owner/repo-network-resolution"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{project_id}-status",
+             "#workbench-project-issues-fix-#{route_id}-status",
              "Kickoff confirmed after interruption"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{project_id}-run-id",
+             "#workbench-project-issues-fix-#{route_id}-run-id",
              "run-recovered-789"
            )
 
     assert has_element?(
              view,
-             "#workbench-project-issues-fix-#{project_id}-run-link[href='/repos/#{project_id}/runs/run-recovered-789']"
+             "#workbench-project-issues-fix-#{route_id}-run-link[href='/repos/#{route_id}/runs/run-recovered-789']"
            )
 
-    refute has_element?(view, "#workbench-project-issues-fix-#{project_id}-error-type")
+    refute has_element?(view, "#workbench-project-issues-fix-#{route_id}-error-type")
   end
 
   test "applies project, state, and freshness filters without route changes", %{conn: _conn} do
@@ -1469,6 +1478,13 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       current_step: "queued",
       started_at: started_at
     })
+  end
+
+  defp managed_repo_route_id!(legacy_project_id) do
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(legacy_project_id, actor: Actor.operator_actor())
+
+    managed_repo.id
   end
 
   defp assert_eventually(assertion_fun, attempts \\ 20)

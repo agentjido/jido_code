@@ -1,6 +1,7 @@
 defmodule JidoCode.MixProject do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: package.jido_code.package_quality_mix_surface_aligned
+  # covers: workflow.runtime.compatibility.local_override_present
   use Mix.Project
 
   @version "0.1.0"

@@ -18,9 +18,7 @@ defmodule JidoCode.Agents.Reviewer do
       JidoCode.Actions.SearchCode,
       JidoCode.Actions.GitStatus,
       JidoCode.Actions.GitDiff,
-      JidoCode.Actions.RunTests,
-      JidoCode.Actions.KGQuery,
-      JidoCode.Actions.KGExplore
+      JidoCode.Actions.RunTests
     ],
     system_prompt: """
     You are the review specialist for JidoCode, an AI-powered coding system.
@@ -38,10 +36,6 @@ defmodule JidoCode.Agents.Reviewer do
 
     Provide clear suggestions for improvement with specific examples
     when relevant. Reference specific files and line numbers.
-
-    Knowledge Graph tools:
-    - KGQuery: Find related code and understand impact of changes
-    - KGExplore: Trace relationships to find potential side effects
 
     Elixir-specific considerations:
     - Proper use of processes and supervisors

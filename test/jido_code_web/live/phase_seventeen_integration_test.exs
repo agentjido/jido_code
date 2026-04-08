@@ -107,15 +107,18 @@ defmodule JidoCodeWeb.PhaseSeventeenIntegrationTest do
         }
       })
 
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
     {:ok, inventory_view, _html} = live(recycle(authed_conn), ~p"/repos", on_error: :warn)
 
     assert has_element?(inventory_view, "#project-inventory-table")
     assert has_element?(inventory_view, "h1", "Repositories")
 
-    assert render(inventory_view) =~ ~s(href="/repos/#{project.id})
+    assert render(inventory_view) =~ ~s(href="/repos/#{managed_repo.id})
 
     {:ok, detail_view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{managed_repo.id}", on_error: :warn)
 
     assert has_element?(detail_view, "#project-detail-title", "Managed repo detail")
     refute render(detail_view) =~ "Start conversation"
@@ -149,9 +152,6 @@ defmodule JidoCodeWeb.PhaseSeventeenIntegrationTest do
         current_step: "approval_gate",
         transitioned_at: ~U[2026-04-04 12:02:00Z]
       })
-
-    {:ok, managed_repo} =
-      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
 
     {:ok, _repo_posture} =
       RepoPosture.upsert_for_managed_repo(
@@ -190,7 +190,7 @@ defmodule JidoCodeWeb.PhaseSeventeenIntegrationTest do
       )
 
     {:ok, run_view, _html} =
-      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+      live(recycle(authed_conn), ~p"/repos/#{managed_repo.id}/runs/#{run_id}", on_error: :warn)
 
     assert has_element?(run_view, "#run-detail-title", "Workflow run detail")
     assert has_element?(run_view, "#run-detail-status", "awaiting_approval")

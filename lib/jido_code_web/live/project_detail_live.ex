@@ -187,7 +187,6 @@ defmodule JidoCodeWeb.ProjectDetailLive do
             />
           </article>
         </section>
-
       </section>
     </Layouts.app>
     """

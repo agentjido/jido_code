@@ -7,8 +7,6 @@ defmodule JidoCodeWeb.PhaseSixteenIntegrationTest do
 
   import Phoenix.LiveViewTest
 
-  alias JidoCode.Projects.Project
-
   setup do
     original_workbench_loader =
       Application.get_env(:jido_code, :workbench_inventory_loader, :__missing__)
@@ -78,12 +76,12 @@ defmodule JidoCodeWeb.PhaseSixteenIntegrationTest do
        }}
     end)
 
-    {:ok, project} =
-      Project.create(%{
+    %{managed_repo: managed_repo} =
+      provision_managed_repo!(%{
         name: "phase16-agent-project",
         github_full_name: "owner/phase16-agent-project",
         default_branch: "main",
-        settings: %{
+        integration_settings: %{
           "support_agent_config" => %{
             "github_issue_bot" => %{"enabled" => true}
           }
@@ -114,7 +112,7 @@ defmodule JidoCodeWeb.PhaseSixteenIntegrationTest do
     {:ok, agents_view, _html} = live(recycle(authed_conn), ~p"/agents", on_error: :warn)
 
     agents_view
-    |> element("#agents-issue-bot-disable-#{project.id}")
+    |> element("#agents-issue-bot-disable-#{managed_repo.id}")
     |> render_click()
 
     assert has_element?(
@@ -138,7 +136,7 @@ defmodule JidoCodeWeb.PhaseSixteenIntegrationTest do
     assert has_element?(
              agents_view,
              "#agents-issue-bot-error-remediation",
-             "Retry the Issue Bot toggle. If this persists, verify project settings persistence health."
+             "Retry the Issue Bot toggle. If this persists, verify repository settings persistence health."
            )
   end
 

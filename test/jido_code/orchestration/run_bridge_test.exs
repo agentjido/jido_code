@@ -164,5 +164,4 @@ defmodule JidoCode.Orchestration.RunBridgeTest do
     assert execution_profile.sandbox_profile["shape"] == "large"
     assert execution_profile.validation_plan == ["tests"]
   end
-
 end

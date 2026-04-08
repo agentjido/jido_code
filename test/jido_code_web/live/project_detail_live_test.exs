@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Projects.Project
 
   setup do
@@ -48,6 +49,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
       })
 
     project_id = project.id
+    managed_repo_id = managed_repo_route_id!(project_id)
     launch_requests = start_supervised!({Agent, fn -> [] end})
 
     Application.put_env(:jido_code, :workbench_fix_workflow_launcher, fn kickoff_request ->
@@ -87,7 +89,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(
              view,
-             "#project-detail-launch-fix-failing-tests-run-link[href='/repos/#{project_id}/runs/run-fix-123']"
+             "#project-detail-launch-fix-failing-tests-run-link[href='/repos/#{managed_repo_id}/runs/run-fix-123']"
            )
 
     view
@@ -98,16 +100,16 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
     assert has_element?(
              view,
-             "#project-detail-launch-issue-triage-run-link[href='/repos/#{project_id}/runs/run-triage-456']"
+             "#project-detail-launch-issue-triage-run-link[href='/repos/#{managed_repo_id}/runs/run-triage-456']"
            )
 
     recorded_requests = launch_requests |> Agent.get(&Enum.reverse(&1))
-    project_route = "/repos/#{project_id}"
+    project_route = "/repos/#{managed_repo_id}"
 
     assert [
              %{
                workflow_name: "fix_failing_tests",
-               project_id: ^project_id,
+               project_id: ^managed_repo_id,
                project_defaults: %{
                  default_branch: "main",
                  github_full_name: "owner/repo-ready"
@@ -117,7 +119,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                  mode: "manual",
                  source_row: %{
                    route: ^project_route,
-                   project_id: ^project_id
+                   project_id: ^managed_repo_id
                  }
                },
                context_item: %{type: :issue},
@@ -125,7 +127,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
              },
              %{
                workflow_name: "issue_triage",
-               project_id: ^project_id,
+               project_id: ^managed_repo_id,
                project_defaults: %{
                  default_branch: "main",
                  github_full_name: "owner/repo-ready"
@@ -135,7 +137,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
                  mode: "manual",
                  source_row: %{
                    route: ^project_route,
-                   project_id: ^project_id
+                   project_id: ^managed_repo_id
                  }
                },
                context_item: %{type: :issue},
@@ -270,5 +272,12 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     File.mkdir_p!(workspace_path)
     on_exit(fn -> File.rm_rf(workspace_path) end)
     workspace_path
+  end
+
+  defp managed_repo_route_id!(legacy_project_id) do
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(legacy_project_id, actor: Actor.operator_actor())
+
+    managed_repo.id
   end
 end

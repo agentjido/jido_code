@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -42,6 +42,11 @@ surface:
 
 - id: architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
   statement: When semantic source-code graph capability is enabled for a managed repository, its kernel shall host one repository-scoped SourceCodeGraphPod singleton for ontology extraction, named-graph loading, and semantic query.
+  priority: should
+  stability: proposed
+
+- id: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+  statement: Repository-scoped source graph stale status, latest failure metadata, degraded-query admission, and recovery entrypoints shall remain exposed through AgentWorkspace and product-owned actions instead of leaking pod or store internals.
   priority: should
   stability: proposed
 
@@ -221,6 +226,7 @@ surface:
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
     - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
   given:
     - A repository workflow needs semantic graph context for planning, review, or explanation.
   when:
@@ -228,6 +234,7 @@ surface:
   then:
     - `AgentWorkspace` ensures the repository-scoped SourceCodeGraphPod is available.
     - Graph preparation and query behavior route through explicit workspace entrypoints.
+    - Stale state, degraded admission, and typed recovery remain workspace-owned instead of leaking pod internals.
     - The workflow receives bounded semantic input maps rather than pod handles or store internals.
 
 - id: architecture.agent_os_integration.scenario_repository_scoped_source_graph_capability_routes_through_workspace
@@ -276,6 +283,7 @@ surface:
     - architecture.agent_os_integration.multiple_pods_parallel_execution
     - architecture.agent_os_integration.signal_routing_within_pod
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
 
 - kind: source_file
   target: test/jido_code/agent_os/phase_twenty_one_integration_test.exs
@@ -344,4 +352,9 @@ surface:
     - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_workspace_test.exs
+  covers:
+    - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
 ```

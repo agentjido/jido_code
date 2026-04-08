@@ -1,4 +1,6 @@
 defmodule JidoCode.Actions.SourceCodeGraphSupport do
+  # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+  # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   @moduledoc false
 
   alias JidoCode.SourceCodeGraph
@@ -30,6 +32,13 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
            :latest_analysis_status,
            latest_analysis_status(context, graph_context.latest_analysis_status)
          )
+       end)
+       |> then(fn graph_context ->
+         Map.put(
+           graph_context,
+           :latest_failure,
+           latest_failure(context, graph_context.latest_failure)
+         )
        end)}
     end
   end
@@ -48,18 +57,76 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
       default_status
   end
 
+  @spec latest_failure(map(), map() | nil) :: map() | nil
+  def latest_failure(context, default_failure) do
+    context[:latest_failure] ||
+      get_in(context, [:graph, :latest_failure]) ||
+      default_failure
+  end
+
   @spec ready?(map()) :: boolean()
   def ready?(status) when is_map(status), do: Map.get(status, :ready?, false)
 
-  @spec stale?(map(), String.t() | nil) :: boolean()
-  def stale?(status, requested_revision) when is_map(status) and is_binary(requested_revision) do
-    case Map.get(status, :imported_revision) do
-      nil -> false
-      imported_revision -> imported_revision != requested_revision
+  @spec stale_status(map(), map() | String.t() | nil) :: map()
+  def stale_status(status, revision_metadata) when is_map(status) and is_map(revision_metadata) do
+    current_revision = Map.get(revision_metadata, :current_revision) || Map.get(revision_metadata, :revision)
+
+    target_revision =
+      Map.get(revision_metadata, :requested_revision) ||
+        Map.get(status, :requested_revision) ||
+        current_revision
+
+    status
+    |> stale_status(target_revision)
+    |> Map.put(:current_revision, current_revision)
+  end
+
+  def stale_status(status, requested_revision) when is_map(status) and is_binary(requested_revision) do
+    imported_revision = Map.get(status, :imported_revision)
+    ready? = ready?(status)
+
+    cond do
+      not ready? or is_nil(imported_revision) ->
+        %{
+          stale?: false,
+          stale_reason: nil,
+          imported_revision: imported_revision,
+          current_revision: requested_revision,
+          queryable_when_stale?: false
+        }
+
+      imported_revision == requested_revision ->
+        %{
+          stale?: false,
+          stale_reason: nil,
+          imported_revision: imported_revision,
+          current_revision: requested_revision,
+          queryable_when_stale?: false
+        }
+
+      true ->
+        %{
+          stale?: true,
+          stale_reason: :workspace_revision_changed,
+          imported_revision: imported_revision,
+          current_revision: requested_revision,
+          queryable_when_stale?: true
+        }
     end
   end
 
-  def stale?(_status, _requested_revision), do: false
+  def stale_status(status, _requested_revision) when is_map(status) do
+    %{
+      stale?: false,
+      stale_reason: nil,
+      imported_revision: Map.get(status, :imported_revision),
+      current_revision: nil,
+      queryable_when_stale?: false
+    }
+  end
+
+  @spec stale?(map(), map() | String.t() | nil) :: boolean()
+  def stale?(status, revision_metadata), do: stale_status(status, revision_metadata).stale?
 
   defp normalize_managed_repo_id(value) when is_binary(value) do
     case String.trim(value) do

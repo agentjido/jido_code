@@ -27,5 +27,19 @@ defmodule JidoCode.SourceCodeGraphTest do
     test "rejects missing workspace paths" do
       assert {:error, :missing_workspace_path} = SourceCodeGraph.dataset_metadata("repo-123", "")
     end
+
+    test "derives current revision metadata from the workspace when no explicit revision is provided" do
+      workspace_path =
+        Path.join(System.tmp_dir!(), "jido_code_source_code_graph_boundary_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(Path.join(workspace_path, "lib"))
+      File.write!(Path.join(workspace_path, "mix.exs"), "defmodule Boundary.MixProject do\nend\n")
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, revision_metadata} = SourceCodeGraph.current_revision_metadata(workspace_path)
+      assert String.starts_with?(revision_metadata.workspace_snapshot_identity, "snapshot:")
+      assert revision_metadata.current_revision == revision_metadata.workspace_snapshot_identity
+      assert revision_metadata.revision_source == :workspace_snapshot_identity
+    end
   end
 end

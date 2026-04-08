@@ -30,6 +30,10 @@ defmodule JidoCode.SourceCodeGraph.Store do
         graph_name: dataset.graph_name,
         imported_revision: revision_metadata.analyzed_revision,
         imported_at: imported_at,
+        requested_revision: revision_metadata.requested_revision,
+        source_commit: revision_metadata.source_commit,
+        workspace_snapshot_identity: revision_metadata.workspace_snapshot_identity,
+        revision_source: revision_metadata.revision_source,
         load_strategy: :staged_store_swap,
         refresh_mode: revision_metadata.refresh_mode,
         schema_included?: true,
@@ -37,7 +41,8 @@ defmodule JidoCode.SourceCodeGraph.Store do
         schema_triple_count: load_counts.schema_triple_count,
         individual_triple_count: load_counts.individual_triple_count,
         total_triple_count: load_counts.total_triple_count,
-        graph_store_path: canonical_store_path
+        graph_store_path: canonical_store_path,
+        failure: nil
       }
 
       {:ok,
@@ -126,6 +131,10 @@ defmodule JidoCode.SourceCodeGraph.Store do
     store_path
     |> Path.dirname()
     |> File.mkdir_p()
+    |> case do
+      :ok -> :ok
+      {:error, reason} -> {:error, %{stage: :prepare_store_parent, reason: inspect(reason)}}
+    end
   end
 
   defp reset_directory(path) do

@@ -21,15 +21,19 @@ defmodule JidoCode.Actions.LoadSourceCodeGraph do
   @impl true
   def run(params, context) do
     with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
-      with {:ok, analysis_result} <- Analysis.analyze(graph_context),
-           {:ok, load_result} <- Store.load_snapshot(analysis_result, mode: :load) do
-        {:ok, load_result}
-      else
+      case Analysis.analyze(graph_context) do
+        {:ok, analysis_result} ->
+          case Store.load_snapshot(analysis_result, mode: :load) do
+            {:ok, load_result} ->
+              {:ok, load_result}
+
+            {:error, diagnostics} when is_map(diagnostics) ->
+              {:error, :source_code_graph_store_failed,
+               Map.put(diagnostics, :latest_analysis_status, analysis_result.latest_analysis_status)}
+          end
+
         {:error, %{state: :analysis_failed} = diagnostics} ->
           {:error, :source_code_graph_analysis_failed, diagnostics}
-
-        {:error, diagnostics} when is_map(diagnostics) ->
-          {:error, :source_code_graph_store_failed, diagnostics}
       end
     else
       {:error, reason} -> {:error, reason}

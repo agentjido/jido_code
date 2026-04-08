@@ -26,22 +26,22 @@ Back to index: [README](./README.md)
 [ ] 23 Phase 23 - Source Code Graph Hardening and Operational Convergence
   Harden the repository semantic graph capability so refresh, failure handling, contributor guidance, and end-to-end pod scenarios are durable enough for regular product use.
 
-  [ ] 23.1 Section - Revision Coherence and Failure Recovery
+  [x] 23.1 Section - Revision Coherence and Failure Recovery
     Strengthen refresh, snapshot identity, and failure behavior so repository semantic graph state remains explainable under change and failure.
 
-    [ ] 23.1.1 Task - Harden graph revision tracking
+    [x] 23.1.1 Task - Harden graph revision tracking
       Make graph freshness and revision identity explicit enough for operators and dependent workflows to reason about semantic state safely.
 
-      [ ] 23.1.1.1 Subtask - Record stable repository revision metadata alongside the latest successful `source_code` load.
-      [ ] 23.1.1.2 Subtask - Detect and surface stale graph state when the workspace revision has moved beyond the last loaded graph revision.
-      [ ] 23.1.1.3 Subtask - Define safe behavior for callers when semantic graph revision is stale but still queryable.
+      [x] 23.1.1.1 Subtask - Record stable repository revision metadata alongside the latest successful `source_code` load.
+      [x] 23.1.1.2 Subtask - Detect and surface stale graph state when the workspace revision has moved beyond the last loaded graph revision.
+      [x] 23.1.1.3 Subtask - Define safe behavior for callers when semantic graph revision is stale but still queryable.
 
-    [ ] 23.1.2 Task - Harden failure and degraded-state behavior
+    [x] 23.1.2 Task - Harden failure and degraded-state behavior
       Keep semantic capability trustworthy by surfacing analysis, load, and query failures as explicit, recoverable repository-scoped state.
 
-      [ ] 23.1.2.1 Subtask - Persist latest failure kind, message, and stage in graph-context state.
-      [ ] 23.1.2.2 Subtask - Define retry and recovery entrypoints for failed analysis or load attempts.
-      [ ] 23.1.2.3 Subtask - Ensure query callers receive bounded degraded-state outcomes instead of raw store or ontology exceptions.
+      [x] 23.1.2.1 Subtask - Persist latest failure kind, message, and stage in graph-context state.
+      [x] 23.1.2.2 Subtask - Define retry and recovery entrypoints for failed analysis or load attempts.
+      [x] 23.1.2.3 Subtask - Ensure query callers receive bounded degraded-state outcomes instead of raw store or ontology exceptions.
 
   [ ] 23.2 Section - Contributor and Operational Convergence
     Align the repo’s docs, start surfaces, and maintenance expectations so the new semantic graph capability is understandable and maintainable by contributors.

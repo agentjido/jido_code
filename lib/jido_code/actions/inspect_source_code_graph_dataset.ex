@@ -24,7 +24,8 @@ defmodule JidoCode.Actions.InspectSourceCodeGraphDataset do
          diagnostics: %{
            graph_name: graph_context.graph_name,
            ready?: SourceCodeGraphSupport.ready?(graph_context.latest_import_status),
-           latest_import_status: graph_context.latest_import_status
+           latest_import_status: graph_context.latest_import_status,
+           latest_failure: graph_context.latest_failure
          }
        }}
     else

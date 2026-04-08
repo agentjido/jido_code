@@ -6,7 +6,7 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness and stale-revision gating, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, stale-revision gating, bounded degraded-query admission, recovery entrypoints, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -126,7 +126,7 @@ surface:
     - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
     - Repo, run, and GitHub-ingress paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
     - Hybrid settings summary widgets may improve operator scanning or event handoff, but the underlying repo mutation path still requires explicit current-actor propagation through LiveView-owned events.
-    - Optional repository-scoped runtime capabilities fail closed with typed disabled, not-ready, or stale-revision outcomes instead of silently enabling an ambient global service.
+    - Optional repository-scoped runtime capabilities fail closed with typed disabled, not-ready, stale-revision, degraded-query, or recovery-required outcomes instead of silently enabling an ambient global service.
 ```
 
 ## Verification

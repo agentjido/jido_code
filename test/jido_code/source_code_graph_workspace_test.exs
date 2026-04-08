@@ -2,6 +2,9 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
   # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+  # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+  # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+  # covers: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
   # covers: package.jido_code.version_controlled_quality_surfaces
@@ -100,9 +103,12 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
 
       assert status_result.ready? == true
       assert status_result.stale? == false
+      assert status_result.stale_reason == nil
+      assert status_result.queryable_when_stale? == false
       assert status_result.imported_revision == "abc123"
       assert status_result.latest_import_status.state == :loaded
       assert status_result.latest_analysis_status.state == :analyzed
+      assert status_result.latest_failure == nil
     end
 
     test "returns typed not-ready error for query before load" do
@@ -159,6 +165,71 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
                  "SELECT * WHERE { ?s ?p ?o }",
                  revision: "def456"
                )
+    end
+
+    test "surfaces stale repository state after workspace changes and allows explicit stale queries" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      assert {:ok, load_result} =
+               AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
+
+      rewrite_workspace_module!(workspace_path, "ExampleWorkspaceRenamed")
+
+      assert {:ok, status_result} =
+               AgentWorkspace.source_code_graph_status(managed_repo_id, workspace_path)
+
+      assert status_result.ready? == true
+      assert status_result.stale? == true
+      assert status_result.stale_reason == :workspace_revision_changed
+      assert status_result.queryable_when_stale? == true
+      assert status_result.current_revision != load_result.latest_import_status.imported_revision
+
+      assert {:ok, query_result} =
+               AgentWorkspace.query_source_code_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 "SELECT * WHERE { ?s ?p ?o } LIMIT 5",
+                 allow_stale?: true
+               )
+
+      assert query_result.degraded? == true
+      assert query_result.stale_graph? == true
+    end
+
+    test "persists latest failure state and recovers after a failed load" do
+      managed_repo_id = "repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+      blocker_path = Path.join(workspace_path, ".jido_code")
+
+      File.write!(blocker_path, "block store directory")
+
+      assert {:error, :source_code_graph_store_failed, diagnostics} =
+               AgentWorkspace.load_source_code_graph(managed_repo_id, workspace_path)
+
+      assert diagnostics.stage == :prepare_store_parent
+
+      assert {:ok, failed_status} =
+               AgentWorkspace.source_code_graph_status(managed_repo_id, workspace_path)
+
+      assert failed_status.ready? == false
+      assert failed_status.latest_failure.kind == :source_code_graph_store_failed
+      assert failed_status.latest_failure.operation == :load
+      assert failed_status.latest_failure.stage == :prepare_store_parent
+
+      File.rm!(blocker_path)
+
+      assert {:ok, recovery_result} =
+               AgentWorkspace.recover_source_code_graph(managed_repo_id, workspace_path)
+
+      assert recovery_result.recovery_action == :load
+      assert recovery_result.graph_status.ready? == true
+
+      assert {:ok, recovered_status} =
+               AgentWorkspace.source_code_graph_status(managed_repo_id, workspace_path)
+
+      assert recovered_status.ready? == true
+      assert recovered_status.latest_failure == nil
     end
 
     test "exposes bounded helper entrypoints for modules and functions" do
@@ -268,5 +339,16 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
 
     on_exit(fn -> File.rm_rf!(workspace_path) end)
     workspace_path
+  end
+
+  defp rewrite_workspace_module!(workspace_path, module_name) do
+    File.write!(
+      Path.join(workspace_path, "lib/example_workspace.ex"),
+      """
+      defmodule #{module_name} do
+        def greet(name) when is_binary(name), do: "hello " <> name
+      end
+      """
+    )
   end
 end

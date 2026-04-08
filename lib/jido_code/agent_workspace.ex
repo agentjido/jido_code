@@ -5,6 +5,7 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.agent_os_integration.pod_naming_convention
   # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
   # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   @moduledoc """
   Context module for AgentOS workspace operations.
 
@@ -27,10 +28,22 @@ defmodule JidoCode.AgentWorkspace do
 
   alias JidoCode.AgentOS.Manager
 
+  alias JidoCode.Actions.{
+    AnalyzeSourceCodeGraph,
+    GetSourceCodeGraphStatus,
+    LoadSourceCodeGraph,
+    QuerySourceCodeGraph,
+    RefreshSourceCodeGraph
+  }
+
+  alias JidoCode.Pods.SourceCodeGraphPod
+  alias JidoCode.SourceCodeGraph
+
   @type managed_repo_id :: String.t()
   @type work_item_id :: String.t()
   @type kernel_name :: atom()
   @type pod_name :: atom()
+  @type source_code_graph_summary :: map()
 
   ## Kernel Lifecycle
 
@@ -271,6 +284,103 @@ defmodule JidoCode.AgentWorkspace do
     {:ok, results}
   end
 
+  ## Source Code Graph
+
+  @doc """
+  Ensures the repository-scoped SourceCodeGraphPod is configured for a ManagedRepo.
+
+  Returns a product-owned summary of the capability rather than pod internals.
+  """
+  @spec ensure_source_code_graph_pod(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, source_code_graph_summary()} | {:error, term()}
+  def ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts \\ []) do
+    with :ok <- ensure_source_code_graph_enabled(opts),
+         {:ok, pod_metadata} <- SourceCodeGraph.pod_metadata(managed_repo_id, workspace_path, opts),
+         {:ok, pod_entry} <-
+           Manager.ensure_pod(
+             managed_repo_id,
+             SourceCodeGraph.pod_id(),
+             SourceCodeGraphPod,
+             pod_metadata
+           ) do
+      {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+    end
+  end
+
+  @doc """
+  Returns the current repository-scoped source-code graph status.
+  """
+  @spec source_code_graph_status(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def source_code_graph_status(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
+         {:ok, result} <- GetSourceCodeGraphStatus.run(source_code_graph_params(opts), action_context) do
+      {:ok, result}
+    end
+  end
+
+  @doc """
+  Runs full-profile ontology analysis for the repository-scoped source graph capability.
+  """
+  @spec analyze_source_code_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def analyze_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
+         {:ok, result} <- AnalyzeSourceCodeGraph.run(source_code_graph_params(opts), action_context) do
+      {:ok, result}
+    end
+  end
+
+  @doc """
+  Loads ontology/schema and project individuals into the repository-scoped source graph.
+  """
+  @spec load_source_code_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def load_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
+         {:ok, result} <- LoadSourceCodeGraph.run(source_code_graph_params(opts), action_context),
+         {:ok, _pod_entry} <-
+           persist_source_code_graph_status(managed_repo_id, result.latest_import_status) do
+      {:ok, result}
+    end
+  end
+
+  @doc """
+  Refreshes the repository-scoped source graph by replacing the named graph coherently.
+  """
+  @spec refresh_source_code_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def refresh_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
+         {:ok, result} <- RefreshSourceCodeGraph.run(source_code_graph_params(opts), action_context),
+         {:ok, _pod_entry} <-
+           persist_source_code_graph_status(managed_repo_id, result.latest_import_status) do
+      {:ok, result}
+    end
+  end
+
+  @doc """
+  Executes a structured semantic query over the repository-scoped source graph.
+  """
+  @spec query_source_code_graph(managed_repo_id(), String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def query_source_code_graph(managed_repo_id, workspace_path, sparql, opts \\ [])
+      when is_binary(sparql) do
+    with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
+         {:ok, result} <-
+           QuerySourceCodeGraph.run(
+             Map.put(source_code_graph_params(opts), :sparql, sparql),
+             action_context
+           ) do
+      {:ok, result}
+    end
+  end
+
   ## Private Functions
 
   defp pod_name(work_item_id) do
@@ -284,5 +394,56 @@ defmodule JidoCode.AgentWorkspace do
     # TODO: Set workspace path in the pod's ProjectContext agent
     # For now, this is a no-op since we don't have dynamic pod management
     {:ok, nil}
+  end
+
+  defp ensure_source_code_graph_enabled(opts) do
+    if SourceCodeGraph.capability_enabled?(opts) do
+      :ok
+    else
+      {:error, :source_code_graph_disabled}
+    end
+  end
+
+  defp source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
+    latest_import_status =
+      managed_repo_id
+      |> Manager.pod_status(SourceCodeGraph.pod_id())
+      |> case do
+        nil -> nil
+        pod_entry -> get_in(pod_entry, [:metadata, :latest_import_status])
+      end
+
+    context = %{
+      managed_repo_id: managed_repo_id,
+      workspace_path: workspace_path,
+      latest_import_status: latest_import_status,
+      graph: %{revision: Keyword.get(opts, :revision)}
+    }
+
+    with {:ok, _graph_context} <- SourceCodeGraph.graph_context(managed_repo_id, workspace_path, opts) do
+      {:ok, context}
+    end
+  end
+
+  defp persist_source_code_graph_status(managed_repo_id, latest_import_status) when is_map(latest_import_status) do
+    Manager.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), %{
+      latest_import_status: latest_import_status
+    })
+  end
+
+  defp source_code_graph_summary(managed_repo_id, pod_entry) do
+    %{
+      managed_repo_id: managed_repo_id,
+      pod_id: pod_entry.pod_id,
+      graph_name: get_in(pod_entry, [:metadata, :graph_name]),
+      ontology_profile: get_in(pod_entry, [:metadata, :ontology_profile]),
+      workspace_path: get_in(pod_entry, [:metadata, :workspace_path]),
+      graph_store_path: get_in(pod_entry, [:metadata, :graph_store_path]),
+      ready?: get_in(pod_entry, [:metadata, :latest_import_status, :ready?]) || false
+    }
+  end
+
+  defp source_code_graph_params(opts) do
+    %{revision: Keyword.get(opts, :revision)}
   end
 end

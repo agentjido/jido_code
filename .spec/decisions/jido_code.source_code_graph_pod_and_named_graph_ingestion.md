@@ -109,3 +109,19 @@ The canonical named graph for this capability shall be exactly `source_code`.
 - Future coding or review flows may consult this pod, but the semantic store
   remains a bounded specialist capability rather than the product's source of
   durable truth.
+
+## Implementation Note
+
+Phase 20 now establishes the product-owned foundation for this decision inside
+`jido_code`:
+
+- a repository-scoped `SourceCodeGraphPod` contract with one eager graph context
+  agent and lazy specialist agents for analyze, load/refresh, and query work
+- a product-owned `SourceCodeGraph` boundary that fixes the canonical graph name
+  to `source_code`, the ontology profile to `full`, and the repository-local
+  TripleStore path shape
+- explicit Jido actions for analyze, load, refresh, status, query, and bounded
+  dataset inspection behavior
+- `AgentWorkspace` entrypoints that ensure the capability, hide pod topology,
+  preserve repository-scoped readiness, and fail closed on disabled or not-ready
+  graph states

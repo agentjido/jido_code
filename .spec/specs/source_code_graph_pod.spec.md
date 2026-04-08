@@ -127,4 +127,46 @@ surface:
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph.ex
+  covers:
+    - architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
+    - architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store
+    - architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target
+
+- kind: source_file
+  target: lib/jido_code/pods/source_code_graph_pod.ex
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+
+- kind: source_file
+  target: lib/jido_code/actions/analyze_source_code_graph.ex
+  covers:
+    - architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/actions/load_source_code_graph.ex
+  covers:
+    - architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/actions/query_source_code_graph.ex
+  covers:
+    - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/actions/refresh_source_code_graph.ex
+  covers:
+    - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_integration_test.exs
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
 ```

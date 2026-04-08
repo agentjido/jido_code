@@ -2,8 +2,18 @@ defmodule JidoCode.AgentOSPodsTest do
   # covers: architecture.agent_os_integration.pod_hierarchy
   use ExUnit.Case, async: true
 
-  alias JidoCode.Pods.{RepoPod, CodingPod}
-  alias JidoCode.Agents.{RepoMonitor, WorkRegistry, TaskBoard, ProjectContext}
+  alias JidoCode.Pods.{RepoPod, CodingPod, SourceCodeGraphPod}
+
+  alias JidoCode.Agents.{
+    RepoMonitor,
+    WorkRegistry,
+    TaskBoard,
+    ProjectContext,
+    SourceCodeGraphContext,
+    SourceCodeGraphAnalyzer,
+    SourceCodeGraphLoader,
+    SourceCodeGraphQuerier
+  }
 
   describe "RepoPod" do
     test "module exists and is a pod" do
@@ -61,6 +71,35 @@ defmodule JidoCode.AgentOSPodsTest do
     end
   end
 
+  describe "SourceCodeGraphPod" do
+    test "module exists and is a pod" do
+      assert function_exported?(SourceCodeGraphPod, :pod?, 0)
+      assert SourceCodeGraphPod.pod?() == true
+    end
+
+    test "has correct pod configuration" do
+      assert SourceCodeGraphPod.name() == "source_code_graph_pod"
+      assert is_map(SourceCodeGraphPod.topology())
+    end
+
+    test "has eager graph context and lazy specialist agents" do
+      topology = SourceCodeGraphPod.topology()
+      nodes = topology.nodes
+
+      assert nodes.source_code_graph_context.module == SourceCodeGraphContext
+      assert nodes.source_code_graph_context.activation == :eager
+
+      assert nodes.source_code_graph_analyzer.module == SourceCodeGraphAnalyzer
+      assert nodes.source_code_graph_analyzer.activation == :lazy
+
+      assert nodes.source_code_graph_loader.module == SourceCodeGraphLoader
+      assert nodes.source_code_graph_loader.activation == :lazy
+
+      assert nodes.source_code_graph_querier.module == SourceCodeGraphQuerier
+      assert nodes.source_code_graph_querier.activation == :lazy
+    end
+  end
+
   describe "RepoMonitor agent" do
     test "has correct name and schema" do
       assert RepoMonitor.name() == "repo_monitor"
@@ -86,6 +125,13 @@ defmodule JidoCode.AgentOSPodsTest do
     test "has correct name and schema" do
       assert ProjectContext.name() == "project_context"
       assert is_map(ProjectContext.schema())
+    end
+  end
+
+  describe "SourceCodeGraphContext agent" do
+    test "has correct name and schema" do
+      assert SourceCodeGraphContext.name() == "source_code_graph_context"
+      assert is_map(SourceCodeGraphContext.schema())
     end
   end
 end

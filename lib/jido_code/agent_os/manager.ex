@@ -35,6 +35,7 @@ defmodule JidoCode.AgentOS.Manager do
 
   @type kernel_ref :: atom() | String.t()
   @type kernel_name :: atom()
+  @type pod_id :: String.t()
   @table_name __MODULE__
 
   ## Client API
@@ -159,6 +160,94 @@ defmodule JidoCode.AgentOS.Manager do
   end
 
   @doc """
+  Ensures a logical pod entry exists for the given ManagedRepo.
+
+  This product-owned registry keeps repository-scoped pod identity and metadata
+  explicit even while the underlying AgentOS integration continues to evolve.
+  """
+  @spec ensure_pod(String.t(), pod_id(), module(), map()) :: {:ok, map()} | {:error, term()}
+  def ensure_pod(managed_repo_id, pod_id, pod_module, metadata \\ %{})
+      when is_binary(managed_repo_id) and is_binary(pod_id) and is_atom(pod_module) and is_map(metadata) do
+    with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id) do
+      kernel_name = kernel_name(managed_repo_id)
+
+      case get_kernel_state(kernel_name) do
+        {:ok, state} ->
+          pod_entry = build_pod_entry(state, pod_id, pod_module, metadata)
+          next_state = put_in(state.pods[pod_id], pod_entry)
+          :ets.insert(@table_name, {kernel_name, next_state})
+          {:ok, pod_entry}
+
+        :error ->
+          {:error, :kernel_not_found}
+      end
+    end
+  end
+
+  @doc """
+  Returns the tracked pod entry for a ManagedRepo and pod ID.
+  """
+  @spec pod_status(String.t(), pod_id()) :: map() | nil
+  def pod_status(managed_repo_id, pod_id) when is_binary(managed_repo_id) and is_binary(pod_id) do
+    kernel_name = kernel_name(managed_repo_id)
+
+    case get_kernel_state(kernel_name) do
+      {:ok, state} ->
+        state
+        |> pod_entries()
+        |> Map.get(pod_id)
+
+      :error ->
+        nil
+    end
+  end
+
+  @doc """
+  Lists tracked logical pod entries for a ManagedRepo.
+  """
+  @spec list_pods(String.t()) :: [map()]
+  def list_pods(managed_repo_id) when is_binary(managed_repo_id) do
+    kernel_name = kernel_name(managed_repo_id)
+
+    case get_kernel_state(kernel_name) do
+      {:ok, state} ->
+        state
+        |> pod_entries()
+        |> Map.values()
+        |> Enum.sort_by(& &1.pod_id)
+
+      :error ->
+        []
+    end
+  end
+
+  @doc """
+  Merges metadata into an existing logical pod entry for a ManagedRepo.
+  """
+  @spec update_pod_metadata(String.t(), pod_id(), map()) :: {:ok, map()} | {:error, term()}
+  def update_pod_metadata(managed_repo_id, pod_id, updates)
+      when is_binary(managed_repo_id) and is_binary(pod_id) and is_map(updates) do
+    kernel_name = kernel_name(managed_repo_id)
+
+    case get_kernel_state(kernel_name) do
+      {:ok, state} ->
+        case pod_entries(state)[pod_id] do
+          nil ->
+            {:error, :pod_not_found}
+
+          pod_entry ->
+            next_pod_entry = put_in(pod_entry.metadata, Map.merge(pod_entry.metadata, updates))
+            next_state = put_in(state.pods[pod_id], next_pod_entry)
+            :ets.insert(@table_name, {kernel_name, next_state})
+            {:ok, next_pod_entry}
+        end
+
+      :error ->
+        {:error, :kernel_not_found}
+    end
+  end
+
+  @doc """
   Converts a ManagedRepo ID to a kernel name.
 
   ## Examples
@@ -278,8 +367,68 @@ defmodule JidoCode.AgentOS.Manager do
       managed_repo_id: state.managed_repo_id,
       supervisor_pid: Map.get(state, :pid),
       created_at: state.created_at,
-      pods: Map.get(state, :pods, [])
+      pods:
+        state
+        |> pod_entries()
+        |> Map.values()
+        |> Enum.sort_by(& &1.pod_id)
     }
+  end
+
+  defp build_pod_entry(state, pod_id, pod_module, metadata) do
+    existing = pod_entries(state)[pod_id]
+    incoming_metadata = Map.delete(metadata, :scope)
+
+    merged_metadata =
+      existing
+      |> then(fn
+        nil -> incoming_metadata
+        existing_entry -> merge_pod_metadata(existing_entry.metadata, incoming_metadata)
+      end)
+
+    %{
+      pod_id: pod_id,
+      module: pod_module,
+      scope: Map.get(metadata, :scope, :repository),
+      metadata: merged_metadata,
+      registered_at: (existing && existing.registered_at) || DateTime.utc_now()
+    }
+  end
+
+  defp pod_entries(%KernelState{pods: pods}) when is_map(pods), do: pods
+
+  defp pod_entries(%KernelState{pods: pods}) when is_list(pods) do
+    Enum.reduce(pods, %{}, fn
+      pod_id, acc when is_binary(pod_id) ->
+        Map.put(acc, pod_id, %{
+          pod_id: pod_id,
+          module: nil,
+          scope: :unknown,
+          metadata: %{},
+          registered_at: nil
+        })
+
+      %{pod_id: pod_id} = pod_entry, acc when is_binary(pod_id) ->
+        Map.put(acc, pod_id, pod_entry)
+
+      _other, acc ->
+        acc
+    end)
+  end
+
+  defp merge_pod_metadata(existing_metadata, incoming_metadata) do
+    merged_metadata = Map.merge(existing_metadata, incoming_metadata)
+
+    case {Map.get(existing_metadata, :latest_import_status), Map.get(incoming_metadata, :latest_import_status)} do
+      {%{ready?: true} = existing_status, %{ready?: false}} ->
+        Map.put(merged_metadata, :latest_import_status, existing_status)
+
+      {%{ready?: true} = existing_status, nil} ->
+        Map.put(merged_metadata, :latest_import_status, existing_status)
+
+      _other ->
+        merged_metadata
+    end
   end
 
   defp kernel_supervisor do

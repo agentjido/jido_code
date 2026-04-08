@@ -202,6 +202,22 @@ surface:
     - The entrypoint ensures the repository kernel exists.
     - The entrypoint ensures or finds the CodingPod for the WorkItem.
     - The entrypoint routes the operation to the appropriate agent (planner, coder, reviewer).
+
+- id: architecture.agent_os_integration.scenario_repository_scoped_source_graph_capability_routes_through_workspace
+  covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.workspace_context_hides_kernel_topology
+    - architecture.agent_os_integration.actions_use_jido_action
+  given:
+    - A managed repository enables the source-code graph capability.
+  when:
+    - Product code ensures, loads, and queries the repository-scoped source graph through `AgentWorkspace`.
+  then:
+    - `AgentWorkspace` ensures one repository-scoped SourceCodeGraphPod.
+    - The workspace boundary returns product-owned graph summaries rather than pod internals.
+    - Analyze, load, refresh, status, and query operations route through explicit `Jido.Action` tools.
+    - Repository-local readiness is preserved per repository kernel rather than as global state.
 ```
 
 ## Verification
@@ -232,6 +248,7 @@ surface:
     - architecture.agent_os_integration.pod_naming_convention
     - architecture.agent_os_integration.multiple_pods_parallel_execution
     - architecture.agent_os_integration.signal_routing_within_pod
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
 
 - kind: source_file
   target: lib/jido_code/agent_os.ex
@@ -270,7 +287,20 @@ surface:
     - architecture.agent_os_integration.state_operations_modify_agent_state
 
 - kind: source_file
-  target: lib/jido_code/agent_workspace.ex
+  target: lib/jido_code/pods/source_code_graph_pod.ex
   covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+
+- kind: source_file
+  target: lib/jido_code/actions/analyze_source_code_graph.ex
+  covers:
+    - architecture.agent_os_integration.actions_use_jido_action
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_integration_test.exs
+  covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.workspace_context_hides_kernel_topology
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.actions_use_jido_action
 ```

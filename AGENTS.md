@@ -81,6 +81,14 @@ mix spec.decision.new <slug> --title "Decision title"
 - If a hybrid surface degrades, keep the operator experience in product-oriented server-rendered fallback mode rather than surfacing raw Vite, SSR, or manifest failures.
 - When touching `live_vue`, Vite, SSR entrypoints, or shared browser helpers, run `mix frontend.verify`.
 
+### Source Code Graph
+
+- The semantic graph capability is repository-scoped. Treat `.jido_code/source_code_graph/triple_store` as repository-local runtime state, not product truth.
+- Use the semantic graph for repository-wide structural questions like module discovery, function discovery, runtime-pattern lookup, bounded impact tracing, or repeated SPARQL-backed semantic questions.
+- Prefer ordinary file/code tools when you need exact latest source text, line-level context, or one-off single-file inspection.
+- Keep the lifecycle explicit: analyze, load or refresh, then query. Do not assume the `source_code` graph is ambiently fresh.
+- When touching the semantic graph boundary, actions, pod agents, helper queries, or workspace entrypoints, run `mix source_graph.verify`.
+
 ### JS and CSS
 
 - Tailwind v4 import style in `assets/css/app.css` must stay:

@@ -10,7 +10,7 @@ ingestion and query.
 id: architecture.source_code_graph_pod
 kind: feature
 status: proposed
-summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness and stale-revision status through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
+summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -64,6 +64,16 @@ surface:
 
 - id: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
   statement: Refreshing the source-code graph shall replace or rebuild the `source_code` named graph coherently so mixed ontology/project revisions are not exposed to subsequent pod queries.
+  priority: should
+  stability: proposed
+
+- id: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+  statement: Repository-scoped source graph status shall surface current workspace revision identity, latest imported graph revision identity, explicit stale state, and latest failure metadata so operators and dependent workflows can reason about semantic readiness safely.
+  priority: must
+  stability: proposed
+
+- id: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+  statement: When the source graph is stale or query/store work fails, callers shall receive bounded typed degraded or failure outcomes, and AgentWorkspace shall provide a repository-scoped recovery entrypoint rather than leaking raw TripleStore or ontology exceptions.
   priority: should
   stability: proposed
 ```
@@ -138,6 +148,31 @@ surface:
     - The `source_code` named graph is rebuilt or replaced coherently.
     - Later queries observe one semantic snapshot rather than a mixed old/new graph.
 
+- id: architecture.source_code_graph_pod.scenario_status_surfaces_stale_revision_and_latest_failure
+  covers:
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+  given:
+    - A repository has previously loaded a `source_code` graph snapshot.
+  when:
+    - The workspace changes or a later analyze, load, or query attempt fails.
+  then:
+    - Status exposes current revision identity and imported revision identity.
+    - Stale graph state is surfaced explicitly when the workspace moved beyond the loaded snapshot.
+    - The latest bounded failure kind, stage, and message remain visible until a successful operation clears them.
+
+- id: architecture.source_code_graph_pod.scenario_stale_query_and_recovery_remain_bounded
+  covers:
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+  given:
+    - A repository has a stale or broken local source graph store.
+  when:
+    - A caller explicitly allows stale query behavior or asks the workspace to recover the source graph capability.
+  then:
+    - Stale semantic queries return bounded degraded results instead of pretending freshness.
+    - Store or query failures return typed bounded diagnostics instead of raw engine errors.
+    - `AgentWorkspace` can recover the repository graph through explicit analyze, load, or refresh behavior.
+
 - id: architecture.source_code_graph_pod.scenario_workspace_workflows_consult_graph_through_bounded_entrypoints
   covers:
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
@@ -173,6 +208,7 @@ surface:
     - architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
     - architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store
     - architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
 
 - kind: source_file
   target: lib/jido_code/source_code_graph/analysis.ex
@@ -198,6 +234,8 @@ surface:
   covers:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
 
 - kind: source_file
   target: lib/jido_code/agents/source_code_graph_analyzer.ex
@@ -247,12 +285,25 @@ surface:
   covers:
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
 
 - kind: source_file
   target: lib/jido_code/source_code_graph/query.ex
   covers:
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+
+- kind: source_file
+  target: lib/jido_code/actions/get_source_code_graph_status.ex
+  covers:
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+
+- kind: source_file
+  target: lib/jido_code/actions/source_code_graph_support.ex
+  covers:
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
 
 - kind: source_file
   target: lib/jido_code/source_code_graph/helper_queries.ex
@@ -309,6 +360,7 @@ surface:
   covers:
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
 
 - kind: source_file
   target: test/jido_code/agent_os/pods_test.exs
@@ -326,6 +378,8 @@ surface:
   covers:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
 
 - kind: source_file
   target: test/jido_code/agent_workspace_test.exs
@@ -338,5 +392,12 @@ surface:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+    - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_three_integration_test.exs
+  covers:
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
     - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
 ```

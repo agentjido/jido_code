@@ -13,6 +13,7 @@ defmodule JidoCode.Actions.FindSourceCodeGraphRuntimePatterns do
       managed_repo_id: [type: :string, default: nil],
       workspace_path: [type: :string, default: nil],
       revision: [type: :string, default: nil],
+      allow_stale?: [type: :boolean, default: false],
       pattern_name_contains: [type: :string, default: nil],
       limit: [type: :integer, default: 50]
     ]
@@ -25,7 +26,10 @@ defmodule JidoCode.Actions.FindSourceCodeGraphRuntimePatterns do
     with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
       compiled_query = HelperQueries.runtime_patterns(graph_context, params)
 
-      case QuerySourceCodeGraph.run(%{sparql: compiled_query, revision: params[:revision]}, context) do
+      case QuerySourceCodeGraph.run(
+             %{sparql: compiled_query, revision: params[:revision], allow_stale?: params[:allow_stale?]},
+             context
+           ) do
         {:ok, result} ->
           {:ok,
            result

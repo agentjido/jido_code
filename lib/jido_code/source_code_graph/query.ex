@@ -1,6 +1,7 @@
 defmodule JidoCode.SourceCodeGraph.Query do
   # covers: architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+  # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   @moduledoc false
 
   alias JidoCode.SourceCodeGraph
@@ -13,7 +14,7 @@ defmodule JidoCode.SourceCodeGraph.Query do
          {:ok, query} <- parse_query(sparql),
          {:ok, store} <- open_store(graph_context.dataset_metadata.graph_store_path) do
       try do
-        with {:ok, graph} <- export_named_graph(store),
+        with {:ok, graph} <- export_named_graph(store, graph_context),
              {:ok, raw_result} <- execute_query(graph, query, graph_context) do
           build_result(raw_result, graph_context, sparql, query)
         end
@@ -65,19 +66,31 @@ defmodule JidoCode.SourceCodeGraph.Query do
 
   defp open_store(store_path) do
     case TripleStore.open(store_path, create_if_missing: false, schema: :quad) do
-      {:ok, store} -> {:ok, store}
-      {:error, reason} -> {:error, :open_store, reason}
+      {:ok, store} ->
+        {:ok, store}
+
+      {:error, reason} ->
+        {:error, :source_code_graph_query_failed,
+         %{
+           stage: :open_store,
+           reason: inspect(reason),
+           graph_store_path: store_path,
+           library: :sparql
+         }}
     end
   end
 
-  defp export_named_graph(store) do
+  defp export_named_graph(store, graph_context) do
     case TripleStore.Exporter.export_single_graph(
            store.db,
            store.dict_manager,
            SourceCodeGraph.named_graph_resource()
          ) do
-      {:ok, graph} -> {:ok, graph}
-      {:error, reason} -> {:error, :export_named_graph, reason}
+      {:ok, graph} ->
+        {:ok, graph}
+
+      {:error, reason} ->
+        {:error, :source_code_graph_query_failed, failure_diagnostics(graph_context, :export_named_graph, reason)}
     end
   end
 

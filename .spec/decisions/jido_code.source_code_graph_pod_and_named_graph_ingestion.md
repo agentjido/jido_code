@@ -23,6 +23,8 @@ related:
 <!-- covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query -->
 <!-- covers: architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface -->
 <!-- covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently -->
+<!-- covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable -->
+<!-- covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded -->
 
 # Source Code Graph Pod And Named Graph Ingestion
 
@@ -191,3 +193,18 @@ Phase 22.4 closes the phase with end-to-end repository coverage:
 - higher-level plan and explanation flows now demonstrate that semantic graph
   inputs only appear when explicitly requested through workspace options, not as
   an ambient dependency
+
+Phase 23 begins the hardening pass on that capability:
+
+- the repository-local graph boundary now preserves stable current workspace
+  revision metadata alongside the latest successful import metadata so status
+  can surface both the loaded graph revision and the current workspace revision
+- stale graph state is now explicit and explainable through workspace-owned
+  status, rather than remaining an implicit mismatch hidden behind query errors
+- stale queries can now run only when the caller explicitly allows bounded
+  degraded behavior, and the result remains marked as stale instead of
+  pretending freshness
+- latest analysis, load, refresh, and query failures are now preserved as
+  repository-scoped pod metadata until a later successful operation clears them
+- `AgentWorkspace` now owns an explicit recovery entrypoint that can select
+  analyze, load, or refresh behavior for repository-scoped source-graph repair

@@ -347,6 +347,14 @@
       },
       {
         "file": ".spec/specs/agent_os_integration.spec.md",
+        "id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Repository-scoped source graph stale status, latest failure metadata, degraded-query admission, and recovery entrypoints shall remain exposed through AgentWorkspace and product-owned actions instead of leaking pod or store internals.",
+        "subject_id": "architecture.agent_os_integration"
+      },
+      {
+        "file": ".spec/specs/agent_os_integration.spec.md",
         "id": "architecture.agent_os_integration.state_operations_modify_agent_state",
         "priority": "must",
         "stability": "proposed",
@@ -1035,6 +1043,14 @@
       },
       {
         "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Repository-scoped source graph status shall surface current workspace revision identity, latest imported graph revision identity, explicit stale state, and latest failure metadata so operators and dependent workflows can reason about semantic readiness safely.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
         "id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
         "priority": "must",
         "stability": "proposed",
@@ -1071,6 +1087,14 @@
         "priority": "must",
         "stability": "proposed",
         "statement": "After the `source_code` graph is loaded, pod-local graph queries shall use the `sparql` library as the canonical SPARQL query surface for agents.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "When the source graph is stale or query/store work fails, callers shall receive bounded typed degraded or failure outcomes, and AgentWorkspace shall provide a repository-scoped recovery entrypoint rather than leaking raw TripleStore or ontology exceptions.",
         "subject_id": "architecture.source_code_graph_pod"
       },
       {
@@ -1662,7 +1686,7 @@
         "id": "developer.workflow.docs_split",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the `mix frontend.verify` browser verification path, and the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging instead of repo shell wrappers.",
+        "statement": "Contributor-facing setup docs, ExDoc extras, and the root env example shall describe host-Postgres repo development separately from the desktop packaging and runtime guide while exposing the repo-local `spec_led_ex` workflow, direct Mix task entrypoints, the `mix frontend.verify` browser verification path, the `mix source_graph.verify` semantic graph verification path, and the current LiveView-plus-LiveVue frontend boundary with product-oriented fallback messaging instead of repo shell wrappers.",
         "subject_id": "developer.workflow"
       },
       {
@@ -1678,7 +1702,7 @@
         "id": "developer.workflow.phoenix_mix_surface",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix server` is the preferred local start path and prepares the current browser stack when needed, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh, browser verification, plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.",
+        "statement": "The primary contributor commands shall present a Phoenix-style workflow where `mix setup` drives `ecto.setup`, `mix server` is the preferred local start path and prepares the current browser stack when needed, `mix test` provisions the test database with Ecto tasks, and repo dependency refresh, browser verification, semantic graph verification, plus fast quality hygiene stay rooted in the same Mix surface instead of external wrapper scripts or desktop-only entrypoints.",
         "subject_id": "developer.workflow"
       },
       {
@@ -1751,6 +1775,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "The top-level README shall give contributors a quickstart for the normal host-Postgres Phoenix workflow.",
+        "subject_id": "docs.product_foundation"
+      },
+      {
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "id": "docs.product_foundation.readme_source_graph_orientation_present",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "The top-level README shall explain the repository-scoped semantic source-code graph capability, its explicit analyze/load/refresh/query lifecycle, and the repo-owned verification path for that stack in contributor terms.",
         "subject_id": "docs.product_foundation"
       },
       {
@@ -1846,7 +1878,7 @@
         "id": "package.jido_code.package_quality_mix_surface_aligned",
         "priority": "must",
         "stability": "evolving",
-        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`, and repo-owned `mix server`), direct Mix task entrypoints for repo-owned CLI flows, Vite-backed `mix assets.setup`, `mix assets.build`, and `mix assets.deploy` aliases for the browser toolchain, a repo-owned `mix frontend.verify` command for deeper browser-pipeline verification, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for browser verification, documentation coverage, and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
+        "statement": "The repository shall provide a standards-aligned mix surface with Phoenix-style contributor entrypoints (`mix setup`, `mix ecto.setup`, `mix ecto.reset`, `mix test`, and repo-owned `mix server`), direct Mix task entrypoints for repo-owned CLI flows, Vite-backed `mix assets.setup`, `mix assets.build`, and `mix assets.deploy` aliases for the browser toolchain, a repo-owned `mix frontend.verify` command for deeper browser-pipeline verification, a repo-owned `mix source_graph.verify` command for semantic source-code graph verification, coverage metadata, a fast `mix q` contributor gate that covers deps hygiene, lockfile hygiene, format, compile warnings, and Credo, plus repo-owned deeper quality surfaces for browser verification, semantic graph verification, documentation coverage, and broader static analysis while the repo carries existing Doctor and Dialyzer debt.",
         "subject_id": "package.jido_code.package_quality_standards"
       },
       {
@@ -2248,7 +2280,8 @@
         "covers": [
           "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
           "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
-          "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled"
+          "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
+          "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound"
         ],
         "file": ".spec/specs/agent_os_integration.spec.md",
         "given": [
@@ -2259,6 +2292,7 @@
         "then": [
           "`AgentWorkspace` ensures the repository-scoped SourceCodeGraphPod is available.",
           "Graph preparation and query behavior route through explicit workspace entrypoints.",
+          "Stale state, degraded admission, and typed recovery remain workspace-owned instead of leaking pod internals.",
           "The workflow receives bounded semantic input maps rather than pod handles or store internals."
         ],
         "when": [
@@ -2688,7 +2722,7 @@
           "Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.",
           "Repo, run, and GitHub-ingress paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.",
           "Hybrid settings summary widgets may improve operator scanning or event handoff, but the underlying repo mutation path still requires explicit current-actor propagation through LiveView-owned events.",
-          "Optional repository-scoped runtime capabilities fail closed with typed disabled, not-ready, or stale-revision outcomes instead of silently enabling an ambient global service."
+          "Optional repository-scoped runtime capabilities fail closed with typed disabled, not-ready, stale-revision, degraded-query, or recovery-required outcomes instead of silently enabling an ambient global service."
         ],
         "when": [
           "The system decides whether work may be created, executed, or exposed."
@@ -3052,6 +3086,45 @@
         ],
         "when": [
           "Planning, review, or explanation specialists need semantic graph context."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "given": [
+          "A repository has a stale or broken local source graph store."
+        ],
+        "id": "architecture.source_code_graph_pod.scenario_stale_query_and_recovery_remain_bounded",
+        "subject_id": "architecture.source_code_graph_pod",
+        "then": [
+          "Stale semantic queries return bounded degraded results instead of pretending freshness.",
+          "Store or query failures return typed bounded diagnostics instead of raw engine errors.",
+          "`AgentWorkspace` can recover the repository graph through explicit analyze, load, or refresh behavior."
+        ],
+        "when": [
+          "A caller explicitly allows stale query behavior or asks the workspace to recover the source graph capability."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "given": [
+          "A repository has previously loaded a `source_code` graph snapshot."
+        ],
+        "id": "architecture.source_code_graph_pod.scenario_status_surfaces_stale_revision_and_latest_failure",
+        "subject_id": "architecture.source_code_graph_pod",
+        "then": [
+          "Status exposes current revision identity and imported revision identity.",
+          "Stale graph state is surfaced explicitly when the workspace moved beyond the loaded snapshot.",
+          "The latest bounded failure kind, stage, and message remain visible until a successful operation clears them."
+        ],
+        "when": [
+          "The workspace changes or a later analyze, load, or query attempt fails."
         ]
       },
       {
@@ -3815,6 +3888,7 @@
           "docs.product_foundation.readme_quickstart_present",
           "docs.product_foundation.product_summary_present",
           "docs.product_foundation.readme_frontend_stack_orientation_present",
+          "docs.product_foundation.readme_source_graph_orientation_present",
           "docs.product_foundation.durable_architecture_record_in_spec_workspace"
         ],
         "file": ".spec/specs/product_foundation_docs.spec.md",
@@ -4030,7 +4104,7 @@
           "id": "architecture.agent_os_integration",
           "kind": "policy",
           "status": "proposed",
-          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, and one CodingPod per WorkItem containing multiple collaborating AI agents.",
+          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, and one CodingPod per WorkItem containing multiple collaborating AI agents.",
           "surface": [
             ".spec/decisions/jido_code.jido_agent_os_integration.md",
             ".spec/decisions/jido_code.jido_os_deprecation.md",
@@ -4102,7 +4176,7 @@
           "id": "collaboration.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary and product-oriented frontend fallback wording.",
+          "summary": "jido_code uses Beadwork for local durable agent state and GitHub issues plus pull requests for shared collaboration, while keeping the repo AGENTS guide aligned with the current local Spec Led handoff flow and repo-owned contributor conventions such as the LiveView-plus-LiveVue frontend boundary, product-oriented frontend fallback wording, and repository-scoped semantic source graph usage guidance.",
           "surface": [
             "AGENTS.md"
           ],
@@ -4151,7 +4225,7 @@
           "id": "developer.workflow",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server` and `mix frontend.verify` commands for the richer browser stack, adds the source-code graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
+          "summary": "jido_code keeps normal repository development on a host Postgres-backed Phoenix workflow, presents a quickstart-first repo README, uses root Mix commands as the canonical dependency refresh and quality surface including repo-owned `mix server`, `mix frontend.verify`, and `mix source_graph.verify` commands, adds the source-code graph ontology/store/query dependency stack through the same root Mix surface instead of out-of-band installers, pins the repo toolchain through asdf including the Node runtime needed by the Vite frontend pipeline plus the Rust/Zig toolchain used by native dependencies, and isolates desktop runtime configuration behind desktop-specific entrypoints.",
           "surface": [
             ".tool-versions",
             "mix.exs",
@@ -4313,7 +4387,7 @@
           "id": "architecture.frontend_stack",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.",
+          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies and a dedicated semantic graph verification alias, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.",
           "surface": [
             ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
             ".spec/specs/frontend_architecture.spec.md",
@@ -4412,7 +4486,7 @@
           "id": "docs.operator_provider_auth_guide",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server` start path, verification path, and product-oriented frontend fallback language.",
+          "summary": "jido_code keeps the operator auth contract modeled in repo-local specs while allowing the detailed step-by-step operator prose to live outside the repository, even as contributor-facing README guidance grows to cover the approved frontend stack, repo-owned `mix server` and `mix source_graph.verify` paths, semantic graph lifecycle orientation, and product-oriented fallback language.",
           "surface": [
             "README.md",
             ".spec/specs/operator_auth_settings.spec.md",
@@ -4440,7 +4514,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, and shared product-helper surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query and semantic helper action surface for that capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, and shared product-helper surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, and semantic helper action surface for that capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -4478,7 +4552,7 @@
           "id": "package.jido_code.package_quality_standards",
           "kind": "policy",
           "status": "active",
-          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology/store stack adds heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, contributor docs that describe the approved LiveView-plus-LiveVue browser boundary, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
+          "summary": "jido_code keeps the contributor-facing quality and core Mix command surfaces from the Jido package standards current, including repo-local compatibility package wiring, a repo-local Doctor config for generated modules without source files, committed dependency and lockfile hygiene that keeps `mix q` actionable after consolidated refreshes even as the source-code graph ontology/store stack adds heavier native dependencies, a repo-owned `mix server` start alias that prepares the current browser stack before boot, Vite-backed frontend asset commands that still flow through repo-owned Mix aliases, a deeper `mix frontend.verify` browser verification command, a repo-owned `mix source_graph.verify` semantic graph verification command, contributor docs that describe both the approved LiveView-plus-LiveVue browser boundary and the repository-scoped source graph workflow, and a documented fast-vs-deep quality split while the repo carries existing Dialyzer and Doctor debt, plus the current repo-local Spec Led gate surface in docs and CI.",
           "surface": [
             ".doctor.exs",
             "mix.exs",
@@ -4509,7 +4583,7 @@
           "id": "architecture.policy_layers",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness and stale-revision gating, and repo-native observations feeding repo governance independently from the global deployment-mode hint.",
+          "summary": "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, stale-revision gating, bounded degraded-query admission, recovery entrypoints, and repo-native observations feeding repo governance independently from the global deployment-mode hint.",
           "surface": [
             ".spec/decisions/jido_code.factory_control_plane.md",
             ".spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md",
@@ -4576,7 +4650,7 @@
           "id": "docs.product_foundation",
           "kind": "feature",
           "status": "active",
-          "summary": "Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, and verification orientation for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.",
+          "summary": "Jido.Code keeps a quickstart-oriented top-level README, including the approved frontend-stack, repo-owned `mix server` start path, semantic source-code graph orientation, and verification guidance for contributors, while durable architecture and product-shaping guidance live in the repo-local `.spec` workspace and adjacent contributor guides.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -4910,7 +4984,7 @@
           "id": "architecture.source_code_graph_pod",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness and stale-revision status through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.",
+          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.",
           "surface": [
             ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
             ".spec/specs/agent_os_integration.spec.md",
@@ -5047,7 +5121,7 @@
           "id": "workflow.runtime.compatibility",
           "kind": "feature",
           "status": "active",
-          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes and repo-owned contributor start or quality-alias growth even as browser and source-code graph toolchain dependencies evolve alongside it.",
+          "summary": "jido_code provides a version-controlled local jido_workflow compatibility package that satisfies jido_code_server's legacy loader and engine API without requiring CI access to a private transitive Git dependency, while keeping the root Mix dependency surface responsible for the local override during dependency refreshes and repo-owned contributor start, browser verification, and semantic graph verification alias growth even as browser and source-code graph toolchain dependencies evolve alongside it.",
           "surface": [
             "mix.exs",
             "compat/jido_workflow/mix.exs",
@@ -5092,7 +5166,8 @@
           "architecture.agent_os_integration.pod_naming_convention",
           "architecture.agent_os_integration.multiple_pods_parallel_execution",
           "architecture.agent_os_integration.signal_routing_within_pod",
-          "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace"
+          "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
+          "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound"
         ],
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
@@ -5210,6 +5285,24 @@
         "kind": "source_file",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
       },
       {
         "covers": [
@@ -6664,7 +6757,8 @@
         "covers": [
           "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
           "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
-          "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target"
+          "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -6705,7 +6799,9 @@
       {
         "covers": [
           "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
-          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query"
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -6790,7 +6886,8 @@
       {
         "covers": [
           "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query"
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -6800,12 +6897,32 @@
       {
         "covers": [
           "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query"
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/query.ex"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/get_source_code_graph_status.ex"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/source_code_graph_support.ex"
       },
       {
         "covers": [
@@ -6892,7 +7009,8 @@
       {
         "covers": [
           "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query"
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -6921,7 +7039,9 @@
       {
         "covers": [
           "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
-          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query"
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -6948,6 +7068,17 @@
         "kind": "source_file",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+          "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
       },
       {
         "covers": [
@@ -7791,6 +7922,15 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs"
+      },
+      {
+        "covers": [
+          "developer.workflow.phoenix_mix_surface"
+        ],
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "subject_id": "developer.workflow",
         "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs"
       },
       {
@@ -7818,7 +7958,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md"
       },
       {
         "covers": [
@@ -7827,7 +7967,7 @@
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md"
       },
       {
         "covers": [
@@ -7916,6 +8056,7 @@
           "docs.product_foundation.readme_quickstart_present",
           "docs.product_foundation.product_summary_present",
           "docs.product_foundation.readme_frontend_stack_orientation_present",
+          "docs.product_foundation.readme_source_graph_orientation_present",
           "docs.product_foundation.docs_index_present"
         ],
         "file": ".spec/specs/product_foundation_docs.spec.md",
@@ -8633,6 +8774,15 @@
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "command",
         "subject_id": "package.jido_code.package_quality_standards",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs"
+      },
+      {
+        "covers": [
+          "package.jido_code.package_quality_mix_surface_aligned"
+        ],
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "subject_id": "package.jido_code.package_quality_standards",
         "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs"
       },
       {
@@ -8643,7 +8793,7 @@
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "command",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'mix server|mix frontend.verify|LiveView-plus-LiveVue|<\\.vue_surface' README.md CONTRIBUTING.md AGENTS.md"
+        "target": "rg -n 'mix server|mix frontend.verify|mix source_graph.verify|LiveView-plus-LiveVue|<\\.vue_surface|source_code graph|semantic graph' README.md CONTRIBUTING.md AGENTS.md"
       },
       {
         "covers": [
@@ -9114,10 +9264,10 @@
     "decisions": 16,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 232,
-    "scenarios": 103,
+    "requirements": 236,
+    "scenarios": 105,
     "subjects": 35,
-    "verifications": 410
+    "verifications": 417
   },
   "verification": {
     "claims": [
@@ -9266,6 +9416,17 @@
       },
       {
         "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 2
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -9549,6 +9710,28 @@
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
         "verification_index": 13
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -12917,6 +13100,17 @@
         "verification_index": 1
       },
       {
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/source_code_graph.ex",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -13027,7 +13221,29 @@
         "verification_index": 5
       },
       {
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 5
+      },
+      {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -13181,6 +13397,17 @@
         "verification_index": 14
       },
       {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/query_source_code_graph.ex",
+        "verification_index": 14
+      },
+      {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -13201,6 +13428,50 @@
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/query.ex",
         "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/source_code_graph/query.ex",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/get_source_code_graph_status.ex",
+        "verification_index": 16
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/source_code_graph_support.ex",
+        "verification_index": 17
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/source_code_graph_support.ex",
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -13211,50 +13482,6 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/helper_queries.ex",
-        "verification_index": 16
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
-        "verification_index": 17
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
-        "verification_index": 17
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
-        "verification_index": 18
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
         "verification_index": 18
       },
       {
@@ -13265,7 +13492,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
         "verification_index": 19
       },
       {
@@ -13276,7 +13503,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
         "verification_index": 19
       },
       {
@@ -13287,7 +13514,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
         "verification_index": 20
       },
       {
@@ -13298,8 +13525,52 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
         "verification_index": 20
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
+        "verification_index": 21
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
+        "verification_index": 21
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "verification_index": 22
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -13310,7 +13581,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/refresh_source_code_graph.ex",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
@@ -13321,7 +13592,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/refresh_source_code_graph.ex",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -13332,7 +13603,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 22
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
@@ -13343,7 +13614,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 22
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
@@ -13354,7 +13625,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
@@ -13365,7 +13636,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
@@ -13376,7 +13647,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
@@ -13387,7 +13658,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
@@ -13398,39 +13669,6 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 23
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/source_code_graph_actions_test.exs",
-        "verification_index": 24
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/source_code_graph_actions_test.exs",
-        "verification_index": 24
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/pods_test.exs",
         "verification_index": 25
       },
       {
@@ -13441,7 +13679,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
+        "target": "test/jido_code/source_code_graph_actions_test.exs",
         "verification_index": 26
       },
       {
@@ -13452,7 +13690,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
+        "target": "test/jido_code/source_code_graph_actions_test.exs",
+        "verification_index": 26
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/source_code_graph_actions_test.exs",
         "verification_index": 26
       },
       {
@@ -13463,18 +13712,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/source_code_graph_workspace_test.exs",
-        "verification_index": 27
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "target": "test/jido_code/agent_os/pods_test.exs",
         "verification_index": 27
       },
       {
@@ -13485,7 +13723,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_workspace_test.exs",
+        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
+        "verification_index": 28
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
         "verification_index": 28
       },
       {
@@ -13496,18 +13745,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
         "verification_index": 29
       },
       {
-        "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
         "verification_index": 29
       },
       {
@@ -13518,8 +13767,63 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
         "verification_index": 29
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "verification_index": 29
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_workspace_test.exs",
+        "verification_index": 30
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "verification_index": 31
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "verification_index": 31
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
@@ -13530,7 +13834,40 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 29
+        "verification_index": 31
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 32
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 32
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -15597,7 +15934,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs",
         "verification_index": 5
       },
       {
@@ -15608,18 +15945,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs",
+        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
         "verification_index": 6
       },
       {
-        "cover_id": "developer.workflow.docs_split",
+        "cover_id": "developer.workflow.phoenix_mix_surface",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'extras: \\[\"README.md\", \"CHANGELOG.md\", \"CONTRIBUTING.md\", \"\\.spec/README.md\"\\]' mix.exs",
+        "target": "rg -n 'test: \\[\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"\\]' mix.exs",
         "verification_index": 7
       },
       {
@@ -15630,7 +15967,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
+        "target": "rg -n 'extras: \\[\"README.md\", \"CHANGELOG.md\", \"CONTRIBUTING.md\", \"\\.spec/README.md\"\\]' mix.exs",
         "verification_index": 8
       },
       {
@@ -15641,18 +15978,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix setup|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix ecto.reset|mix test|live_vue|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|mix skill.list|mix command list|mix workflow.control definitions' README.md",
         "verification_index": 9
       },
       {
-        "cover_id": "developer.workflow.repo_toolchain_asdf",
+        "cover_id": "developer.workflow.docs_split",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
+        "target": "rg -n 'localhost:5432|postgres / `postgres`|mix assets.setup|mix assets.build|mix frontend.verify|mix source_graph.verify|mix server|mix test|mix ecto.reset|<\\.vue_surface|source_code graph|semantic graph|mix spec.prime --base HEAD|mix spec.next|mix spec.check --base origin/main|mix spec.status|tauri/README.md' CONTRIBUTING.md",
         "verification_index": 10
       },
       {
@@ -15663,7 +16000,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'asdf install|\\.tool-versions' README.md",
+        "target": "rg -n '^erlang 27\\.3$|^elixir 1\\.18\\.4-otp-27$|^nodejs 22\\.14\\.0$|^rust stable$|^zig 0\\.15\\.2$' .tool-versions",
         "verification_index": 11
       },
       {
@@ -15674,18 +16011,18 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'asdf install' CONTRIBUTING.md",
+        "target": "rg -n 'asdf install|\\.tool-versions' README.md",
         "verification_index": 12
       },
       {
-        "cover_id": "developer.workflow.docs_split",
+        "cover_id": "developer.workflow.repo_toolchain_asdf",
         "file": ".spec/specs/developer_workflow.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
+        "target": "rg -n 'asdf install' CONTRIBUTING.md",
         "verification_index": 13
       },
       {
@@ -15696,8 +16033,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "developer.workflow",
-        "target": "rg -n 'not the normal contributor workflow|mix setup|mix server|DATABASE_URL' tauri/README.md",
+        "target": "rg -n 'Leave DATABASE_URL unset|localhost:5432|jido_code_dev|jido_code_test' .env.example",
         "verification_index": 14
+      },
+      {
+        "cover_id": "developer.workflow.docs_split",
+        "file": ".spec/specs/developer_workflow.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "developer.workflow",
+        "target": "rg -n 'not the normal contributor workflow|mix setup|mix server|DATABASE_URL' tauri/README.md",
+        "verification_index": 15
       },
       {
         "cover_id": "docs.operator_provider_auth_guide.external_operator_docs_allowed",
@@ -15789,6 +16137,17 @@
       },
       {
         "cover_id": "docs.product_foundation.readme_quickstart_present",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": "README.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "docs.product_foundation.readme_source_graph_orientation_present",
         "file": ".spec/specs/product_foundation_docs.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
@@ -16675,8 +17034,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "target": "rg -n '\"source_graph.verify\": \\[' mix.exs",
         "verification_index": 4
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "rg -n 'server: \\[\"frontend.start\", \"phx.server\"\\]' mix.exs",
+        "verification_index": 5
       },
       {
         "cover_id": "package.jido_code.package_quality_alignment_doc_present",
@@ -16686,29 +17056,7 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'mix server|mix frontend.verify|LiveView-plus-LiveVue|<\\.vue_surface' README.md CONTRIBUTING.md AGENTS.md",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
-        "file": ".spec/specs/package_quality_standards.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'mix server|mix frontend.verify|LiveView-plus-LiveVue|<\\.vue_surface' README.md CONTRIBUTING.md AGENTS.md",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
-        "file": ".spec/specs/package_quality_standards.spec.md",
-        "kind": "command",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "package.jido_code.package_quality_standards",
-        "target": "mix help command",
+        "target": "rg -n 'mix server|mix frontend.verify|mix source_graph.verify|LiveView-plus-LiveVue|<\\.vue_surface|source_code graph|semantic graph' README.md CONTRIBUTING.md AGENTS.md",
         "verification_index": 6
       },
       {
@@ -16719,18 +17067,29 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "mix help coveralls",
-        "verification_index": 7
+        "target": "rg -n 'mix server|mix frontend.verify|mix source_graph.verify|LiveView-plus-LiveVue|<\\.vue_surface|source_code graph|semantic graph' README.md CONTRIBUTING.md AGENTS.md",
+        "verification_index": 6
       },
       {
-        "cover_id": "package.jido_code.package_quality_ci_and_release_present",
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
         "file": ".spec/specs/package_quality_standards.spec.md",
         "kind": "command",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml",
+        "target": "mix help command",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_mix_surface_aligned",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "mix help coveralls",
         "verification_index": 8
       },
       {
@@ -16741,8 +17100,19 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "package.jido_code.package_quality_standards",
-        "target": "rg -n 'Verify frontend asset pipeline|mix frontend.verify|actions/setup-node@v4' .github/workflows/ci.yml",
+        "target": "test -f .github/workflows/ci.yml -a -f .github/workflows/release.yml",
         "verification_index": 9
+      },
+      {
+        "cover_id": "package.jido_code.package_quality_ci_and_release_present",
+        "file": ".spec/specs/package_quality_standards.spec.md",
+        "kind": "command",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "package.jido_code.package_quality_standards",
+        "target": "rg -n 'Verify frontend asset pipeline|mix frontend.verify|actions/setup-node@v4' .github/workflows/ci.yml",
+        "verification_index": 10
       },
       {
         "cover_id": "setup.onboarding.admin_bootstrap_completion_gate",
@@ -17551,9 +17921,9 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 54,
+      "claimed": 56,
       "executed": 0,
-      "linked": 712
+      "linked": 730
     },
     "threshold_failures": 0
   },

@@ -12,6 +12,7 @@ defmodule JidoCode.Actions.TraceSourceCodeGraphImpact do
       managed_repo_id: [type: :string, default: nil],
       workspace_path: [type: :string, default: nil],
       revision: [type: :string, default: nil],
+      allow_stale?: [type: :boolean, default: false],
       subject_iri: [type: :string, default: nil],
       module_name: [type: :string, default: nil],
       function_name: [type: :string, default: nil],
@@ -28,7 +29,10 @@ defmodule JidoCode.Actions.TraceSourceCodeGraphImpact do
     try do
       with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context),
            compiled_query <- HelperQueries.impact(graph_context, params) do
-        case QuerySourceCodeGraph.run(%{sparql: compiled_query, revision: params[:revision]}, context) do
+        case QuerySourceCodeGraph.run(
+               %{sparql: compiled_query, revision: params[:revision], allow_stale?: params[:allow_stale?]},
+               context
+             ) do
           {:ok, result} ->
             {:ok,
              result

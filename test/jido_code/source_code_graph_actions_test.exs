@@ -2,6 +2,7 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
   # covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+  # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: package.jido_code.version_controlled_quality_surfaces
   use ExUnit.Case, async: true
 
@@ -86,9 +87,11 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
 
       assert status_result.ready? == true
       assert status_result.stale? == false
+      assert status_result.stale_reason == nil
       assert status_result.imported_revision == "abc123"
       assert status_result.latest_import_status.state == :loaded
       assert status_result.latest_analysis_status.state == :analyzed
+      assert status_result.latest_failure == nil
     end
 
     test "returns coherent replacement metadata for refresh", %{context: context} do
@@ -154,6 +157,28 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
       assert result.row_count >= 1
       assert "module" in result.variables
       assert Enum.any?(result.bindings, fn row -> get_in(row, ["module_name", :value]) == "Example" end)
+      assert result.degraded? == false
+      assert result.stale_graph? == false
+    end
+
+    test "allows bounded degraded queries when the workspace revision moved", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{}, context)
+      rewrite_workspace_module!(context.workspace_path, "ExampleRenamed")
+
+      assert {:ok, result} =
+               QuerySourceCodeGraph.run(
+                 %{sparql: "SELECT * WHERE { ?s ?p ?o } LIMIT 5", allow_stale?: true},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status
+                 }
+               )
+
+      assert result.degraded? == true
+      assert result.stale_graph? == true
+      assert result.stale_reason == :workspace_revision_changed
+      assert result.current_revision != result.imported_revision
     end
 
     test "returns typed invalid-query diagnostics for explicit GRAPH clauses", %{context: context} do
@@ -172,6 +197,26 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
 
       assert diagnostics.stage == :validate_query
       assert diagnostics.library == :sparql
+    end
+
+    test "normalizes store-open failures into bounded query diagnostics", %{context: context} do
+      assert {:ok, load_result} = LoadSourceCodeGraph.run(%{revision: "abc123"}, context)
+      File.rm_rf!(load_result.store.path)
+
+      assert {:error, :source_code_graph_query_failed, diagnostics} =
+               QuerySourceCodeGraph.run(
+                 %{sparql: "SELECT * WHERE { ?s ?p ?o }", revision: "abc123"},
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_import_status: load_result.latest_import_status,
+                   graph: %{revision: "abc123"}
+                 }
+               )
+
+      assert diagnostics.stage == :open_store
+      assert diagnostics.library == :sparql
+      assert is_binary(diagnostics.reason)
     end
   end
 
@@ -318,6 +363,17 @@ defmodule JidoCode.SourceCodeGraphActionsTest do
 
     on_exit(fn -> File.rm_rf!(workspace_path) end)
     workspace_path
+  end
+
+  defp rewrite_workspace_module!(workspace_path, module_name) do
+    File.write!(
+      Path.join(workspace_path, "lib/example.ex"),
+      """
+      defmodule #{module_name} do
+        def greet(name) when is_binary(name), do: "hello " <> name
+      end
+      """
+    )
   end
 
   defp assert_source_code_graph_loaded!(store_path, managed_repo_id) do

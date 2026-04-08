@@ -8,6 +8,9 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+  # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+  # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+  # covers: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
   @moduledoc """
   Context module for AgentOS workspace operations.
 
@@ -400,13 +403,28 @@ defmodule JidoCode.AgentWorkspace do
           {:ok, map()} | {:error, term()}
   def analyze_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
     with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
-         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
-         {:ok, result} <- AnalyzeSourceCodeGraph.run(source_code_graph_params(opts), action_context),
-         {:ok, _pod_entry} <-
-           persist_source_code_graph_state(managed_repo_id, %{
-             latest_analysis_status: result.latest_analysis_status
-           }) do
-      {:ok, result}
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case AnalyzeSourceCodeGraph.run(source_code_graph_params(opts), action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_source_code_graph_state(managed_repo_id, %{
+                   latest_analysis_status: result.latest_analysis_status,
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        {:error, reason, diagnostics} ->
+          persist_source_code_graph_failure(
+            managed_repo_id,
+            :analyze,
+            reason,
+            diagnostics,
+            %{latest_analysis_status: diagnostics}
+          )
+
+          {:error, reason, diagnostics}
+      end
     end
   end
 
@@ -417,14 +435,29 @@ defmodule JidoCode.AgentWorkspace do
           {:ok, map()} | {:error, term()}
   def load_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
     with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
-         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
-         {:ok, result} <- LoadSourceCodeGraph.run(source_code_graph_params(opts), action_context),
-         {:ok, _pod_entry} <-
-           persist_source_code_graph_state(managed_repo_id, %{
-             latest_analysis_status: result.latest_analysis_status,
-             latest_import_status: result.latest_import_status
-           }) do
-      {:ok, result}
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case LoadSourceCodeGraph.run(source_code_graph_params(opts), action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_source_code_graph_state(managed_repo_id, %{
+                   latest_analysis_status: result.latest_analysis_status,
+                   latest_import_status: result.latest_import_status,
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        {:error, reason, diagnostics} ->
+          persist_source_code_graph_failure(
+            managed_repo_id,
+            :load,
+            reason,
+            diagnostics,
+            maybe_analysis_update(diagnostics)
+          )
+
+          {:error, reason, diagnostics}
+      end
     end
   end
 
@@ -435,14 +468,68 @@ defmodule JidoCode.AgentWorkspace do
           {:ok, map()} | {:error, term()}
   def refresh_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
     with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
-         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
-         {:ok, result} <- RefreshSourceCodeGraph.run(source_code_graph_params(opts), action_context),
-         {:ok, _pod_entry} <-
-           persist_source_code_graph_state(managed_repo_id, %{
-             latest_analysis_status: result.latest_analysis_status,
-             latest_import_status: result.latest_import_status
-           }) do
-      {:ok, result}
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case RefreshSourceCodeGraph.run(source_code_graph_params(opts), action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_source_code_graph_state(managed_repo_id, %{
+                   latest_analysis_status: result.latest_analysis_status,
+                   latest_import_status: result.latest_import_status,
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        {:error, reason, diagnostics} ->
+          persist_source_code_graph_failure(
+            managed_repo_id,
+            :refresh,
+            reason,
+            diagnostics,
+            maybe_analysis_update(diagnostics)
+          )
+
+          {:error, reason, diagnostics}
+      end
+    end
+  end
+
+  @doc """
+  Recovers repository-scoped source graph state after analysis, load, refresh, or query failures.
+  """
+  @spec recover_source_code_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def recover_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, status} <- source_code_graph_status(managed_repo_id, workspace_path, opts) do
+      recovery_action = source_code_graph_recovery_action(status, opts)
+
+      case recovery_action do
+        :none ->
+          {:ok,
+           %{
+             status: :source_code_graph_recovery_not_needed,
+             recovery_action: :none,
+             graph_status: status
+           }}
+
+        action ->
+          case run_source_code_graph_recovery(managed_repo_id, workspace_path, action, opts) do
+            {:ok, result} ->
+              {:ok,
+               %{
+                 status: :source_code_graph_recovered,
+                 recovery_action: action,
+                 graph_status: normalize_workflow_graph_status(result),
+                 result: result
+               }}
+
+            {:error, _reason} = error ->
+              error
+
+            {:error, _reason, _diagnostics} = error ->
+              error
+          end
+      end
     end
   end
 
@@ -458,7 +545,7 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path,
       opts,
       QuerySourceCodeGraph,
-      Map.put(source_code_graph_params(opts), :sparql, sparql)
+      Map.put(source_code_graph_params(opts, [:revision, :allow_stale?]), :sparql, sparql)
     )
   end
 
@@ -473,7 +560,7 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path,
       opts,
       FindSourceCodeGraphModules,
-      source_code_graph_params(opts, [:revision, :module_name_contains, :limit])
+      source_code_graph_params(opts, [:revision, :allow_stale?, :module_name_contains, :limit])
     )
   end
 
@@ -488,7 +575,7 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path,
       opts,
       FindSourceCodeGraphFunctions,
-      source_code_graph_params(opts, [:revision, :module_name, :function_name, :limit])
+      source_code_graph_params(opts, [:revision, :allow_stale?, :module_name, :function_name, :limit])
     )
   end
 
@@ -503,7 +590,7 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path,
       opts,
       FindSourceCodeGraphRuntimePatterns,
-      source_code_graph_params(opts, [:revision, :pattern_name_contains, :limit])
+      source_code_graph_params(opts, [:revision, :allow_stale?, :pattern_name_contains, :limit])
     )
   end
 
@@ -520,6 +607,7 @@ defmodule JidoCode.AgentWorkspace do
       TraceSourceCodeGraphImpact,
       source_code_graph_params(opts, [
         :revision,
+        :allow_stale?,
         :subject_iri,
         :module_name,
         :function_name,
@@ -561,6 +649,7 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path: workspace_path,
       latest_import_status: get_in(pod_entry, [:metadata, :latest_import_status]),
       latest_analysis_status: get_in(pod_entry, [:metadata, :latest_analysis_status]),
+      latest_failure: get_in(pod_entry, [:metadata, :latest_failure]),
       graph: %{revision: Keyword.get(opts, :revision)}
     }
 
@@ -573,6 +662,30 @@ defmodule JidoCode.AgentWorkspace do
     Manager.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), updates)
   end
 
+  defp persist_source_code_graph_failure(managed_repo_id, operation, reason, diagnostics, updates \\ %{})
+       when is_atom(operation) and is_map(updates) do
+    failure =
+      case diagnostics do
+        diagnostics when is_map(diagnostics) ->
+          %{
+            kind: reason,
+            operation: operation,
+            stage: Map.get(diagnostics, :stage),
+            message: failure_message(reason, diagnostics),
+            recorded_at: DateTime.utc_now()
+          }
+
+        _ ->
+          nil
+      end
+
+    merged_updates =
+      updates
+      |> Map.put(:latest_failure, failure)
+
+    persist_source_code_graph_state(managed_repo_id, merged_updates)
+  end
+
   defp source_code_graph_summary(managed_repo_id, pod_entry) do
     %{
       managed_repo_id: managed_repo_id,
@@ -581,16 +694,30 @@ defmodule JidoCode.AgentWorkspace do
       ontology_profile: get_in(pod_entry, [:metadata, :ontology_profile]),
       workspace_path: get_in(pod_entry, [:metadata, :workspace_path]),
       graph_store_path: get_in(pod_entry, [:metadata, :graph_store_path]),
-      ready?: get_in(pod_entry, [:metadata, :latest_import_status, :ready?]) || false
+      ready?: get_in(pod_entry, [:metadata, :latest_import_status, :ready?]) || false,
+      latest_failure: get_in(pod_entry, [:metadata, :latest_failure])
     }
   end
 
   defp run_source_code_graph_action(managed_repo_id, workspace_path, opts, action_module, params)
        when is_atom(action_module) and is_map(params) do
     with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
-         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
-         {:ok, result} <- action_module.run(params, action_context) do
-      {:ok, result}
+         {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case action_module.run(params, action_context) do
+        {:ok, result} ->
+          persist_source_code_graph_state(managed_repo_id, %{latest_failure: nil})
+          {:ok, result}
+
+        {:error, reason, diagnostics} = error ->
+          if reason == :source_code_graph_query_failed and is_map(diagnostics) do
+            persist_source_code_graph_failure(managed_repo_id, :query, reason, diagnostics)
+          end
+
+          error
+
+        other ->
+          other
+      end
     end
   end
 
@@ -647,16 +774,116 @@ defmodule JidoCode.AgentWorkspace do
       :refresh ->
         refresh_source_code_graph(managed_repo_id, workspace_path, source_graph_opts)
 
+      :recover ->
+        with {:ok, recovery_result} <-
+               recover_source_code_graph(managed_repo_id, workspace_path, source_graph_opts) do
+          {:ok, recovery_result.graph_status}
+        end
+
       :load_if_missing ->
         with {:ok, status} <- source_code_graph_status(managed_repo_id, workspace_path, source_graph_opts) do
-          if status.ready? do
-            {:ok, status}
-          else
-            load_source_code_graph(managed_repo_id, workspace_path, source_graph_opts)
+          cond do
+            status.ready? and status.stale? ->
+              refresh_source_code_graph(managed_repo_id, workspace_path, source_graph_opts)
+
+            status.ready? ->
+              {:ok, status}
+
+            true ->
+              load_source_code_graph(managed_repo_id, workspace_path, source_graph_opts)
           end
         end
     end
   end
+
+  defp source_code_graph_recovery_action(status, opts) do
+    case Keyword.get(opts, :mode, :auto) do
+      :auto ->
+        cond do
+          status.stale? ->
+            :refresh
+
+          query_failure_requires_refresh?(status) ->
+            :refresh
+
+          not status.ready? and Map.get(status.latest_analysis_status, :ready?, false) ->
+            :load
+
+          not status.ready? ->
+            :analyze
+
+          true ->
+            :none
+        end
+
+      mode ->
+        mode
+    end
+  end
+
+  defp run_source_code_graph_recovery(managed_repo_id, workspace_path, :analyze, opts) do
+    analyze_source_code_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp run_source_code_graph_recovery(managed_repo_id, workspace_path, :load, opts) do
+    load_source_code_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp run_source_code_graph_recovery(managed_repo_id, workspace_path, :refresh, opts) do
+    refresh_source_code_graph(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp run_source_code_graph_recovery(managed_repo_id, workspace_path, :status, opts) do
+    source_code_graph_status(managed_repo_id, workspace_path, Keyword.delete(opts, :mode))
+  end
+
+  defp query_failure_requires_refresh?(status) do
+    case status.latest_failure do
+      %{kind: :source_code_graph_query_failed} -> true
+      _ -> false
+    end
+  end
+
+  defp failure_message(reason, diagnostics) when is_map(diagnostics) do
+    Map.get(diagnostics, :failure) ||
+      Map.get(diagnostics, :reason) ||
+      "Source code graph #{reason}"
+  end
+
+  defp failure_message(reason, _diagnostics), do: "Source code graph #{reason}"
+
+  defp maybe_analysis_update(%{latest_analysis_status: latest_analysis_status})
+       when is_map(latest_analysis_status) do
+    %{latest_analysis_status: latest_analysis_status}
+  end
+
+  defp maybe_analysis_update(_diagnostics), do: %{}
+
+  defp source_code_graph_runtime_opts(opts) do
+    Keyword.take(opts, [:revision, :enabled?, :allow_stale?])
+  end
+
+  defp normalize_workflow_graph_status(%{ready?: _ready?} = result), do: result
+
+  defp normalize_workflow_graph_status(%{latest_import_status: latest_import_status} = result) do
+    stale? = Map.get(result, :stale?, false)
+    latest_failure = Map.get(result, :latest_failure)
+
+    %{
+      ready?: Map.get(latest_import_status, :ready?, false),
+      stale?: stale?,
+      stale_reason: Map.get(result, :stale_reason),
+      requested_revision: get_in(result, [:dataset, :revision]),
+      current_revision: Map.get(result, :current_revision),
+      imported_revision: Map.get(latest_import_status, :imported_revision),
+      latest_import_status: latest_import_status,
+      latest_analysis_status: Map.get(result, :latest_analysis_status, %{}),
+      latest_failure: latest_failure,
+      dataset: Map.get(result, :dataset, %{})
+    }
+  end
+
+  defp normalize_workflow_graph_status(result), do: %{ready?: false, raw: result}
 
   defp workflow_semantic_requests(managed_repo_id, workspace_path, _workflow, graph_opts) do
     request_steps = semantic_request_steps(managed_repo_id, workspace_path, graph_opts)
@@ -768,26 +995,6 @@ defmodule JidoCode.AgentWorkspace do
          end}
       ]
   end
-
-  defp source_code_graph_runtime_opts(opts) do
-    Keyword.take(opts, [:revision, :enabled?])
-  end
-
-  defp normalize_workflow_graph_status(%{ready?: _ready?} = result), do: result
-
-  defp normalize_workflow_graph_status(%{latest_import_status: latest_import_status} = result) do
-    %{
-      ready?: Map.get(latest_import_status, :ready?, false),
-      stale?: false,
-      requested_revision: get_in(result, [:dataset, :revision]),
-      imported_revision: Map.get(latest_import_status, :imported_revision),
-      latest_import_status: latest_import_status,
-      latest_analysis_status: Map.get(result, :latest_analysis_status, %{}),
-      dataset: Map.get(result, :dataset, %{})
-    }
-  end
-
-  defp normalize_workflow_graph_status(result), do: %{ready?: false, raw: result}
 
   defp source_code_graph_params(opts, allowed_keys \\ [:revision]) do
     opts

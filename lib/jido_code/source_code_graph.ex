@@ -5,14 +5,20 @@ defmodule JidoCode.SourceCodeGraph do
   @moduledoc """
   Product-owned boundary helpers for repository-scoped source-code graph state.
 
-  Phase 20 establishes the canonical graph identity, ontology profile, and
-  repository-local storage boundary before the later ontology and TripleStore
-  integrations land.
+  The boundary fixes the canonical graph identity, ontology profile, repository-
+  local storage boundary, and repository-scoped ontology analysis defaults.
   """
 
   @pod_id "source_code_graph"
   @graph_name "source_code"
   @ontology_profile "full"
+  @ontology_schema_filenames [
+    "elixir-core.ttl",
+    "elixir-structure.ttl",
+    "elixir-otp.ttl",
+    "elixir-evolution.ttl",
+    "elixir-shapes.ttl"
+  ]
 
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
@@ -25,6 +31,9 @@ defmodule JidoCode.SourceCodeGraph do
 
   @spec ontology_profile() :: String.t()
   def ontology_profile, do: @ontology_profile
+
+  @spec ontology_schema_filenames() :: [String.t()]
+  def ontology_schema_filenames, do: @ontology_schema_filenames
 
   @spec capability_enabled?(keyword()) :: boolean()
   def capability_enabled?(opts \\ []) do
@@ -48,6 +57,23 @@ defmodule JidoCode.SourceCodeGraph do
     |> then(&Path.join([&1, ".jido_code", "source_code_graph", "triple_store"]))
   end
 
+  @spec base_iri(managed_repo_id()) :: String.t()
+  def base_iri(managed_repo_id) when is_binary(managed_repo_id) do
+    "https://jido.run/managed_repos/#{managed_repo_id}/source_code#"
+  end
+
+  @spec ontology_artifacts() :: [map()]
+  def ontology_artifacts do
+    Enum.map(@ontology_schema_filenames, fn filename ->
+      %{
+        kind: :ontology_schema,
+        filename: filename,
+        format: :turtle,
+        path: ElixirOntologies.ontology_path(filename)
+      }
+    end)
+  end
+
   @spec dataset_metadata(managed_repo_id(), workspace_path(), keyword()) ::
           {:ok, map()} | {:error, atom()}
   def dataset_metadata(managed_repo_id, workspace_path, opts \\ []) when is_binary(managed_repo_id) do
@@ -58,6 +84,7 @@ defmodule JidoCode.SourceCodeGraph do
          dataset_id: "#{managed_repo_id}:#{@graph_name}",
          graph_name: @graph_name,
          ontology_profile: @ontology_profile,
+         base_iri: base_iri(managed_repo_id),
          workspace_path: normalized_workspace_path,
          graph_store_path: graph_store_path(normalized_workspace_path),
          revision: Keyword.get(opts, :revision),
@@ -81,6 +108,7 @@ defmodule JidoCode.SourceCodeGraph do
            refresh_mode: Keyword.get(opts, :refresh_mode, :replace_named_graph)
          },
          dataset_metadata: metadata,
+         latest_analysis_status: default_analysis_status(metadata),
          latest_import_status: %{
            state: :not_loaded,
            ready?: false,
@@ -102,9 +130,22 @@ defmodule JidoCode.SourceCodeGraph do
          ontology_profile: context.ontology_profile,
          workspace_path: context.workspace_path,
          graph_store_path: context.graph_store_path,
+         latest_analysis_status: context.latest_analysis_status,
          latest_import_status: context.latest_import_status,
          dataset_metadata: context.dataset_metadata
        }}
     end
+  end
+
+  defp default_analysis_status(metadata) do
+    %{
+      state: :not_analyzed,
+      ready?: false,
+      graph_name: @graph_name,
+      ontology_profile: @ontology_profile,
+      analyzed_revision: metadata.revision,
+      analyzed_at: nil,
+      failure: nil
+    }
   end
 end

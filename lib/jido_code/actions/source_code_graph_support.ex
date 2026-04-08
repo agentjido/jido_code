@@ -23,7 +23,14 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
          graph_context,
          :latest_import_status,
          latest_import_status(context, graph_context.latest_import_status)
-       )}
+       )
+       |> then(fn graph_context ->
+         Map.put(
+           graph_context,
+           :latest_analysis_status,
+           latest_analysis_status(context, graph_context.latest_analysis_status)
+         )
+       end)}
     end
   end
 
@@ -31,6 +38,13 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
   def latest_import_status(context, default_status) do
     context[:latest_import_status] ||
       get_in(context, [:graph, :latest_import_status]) ||
+      default_status
+  end
+
+  @spec latest_analysis_status(map(), map()) :: map()
+  def latest_analysis_status(context, default_status) do
+    context[:latest_analysis_status] ||
+      get_in(context, [:graph, :latest_analysis_status]) ||
       default_status
   end
 

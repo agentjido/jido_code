@@ -56,22 +56,22 @@ Back to index: [README](./README.md)
       [x] 22.2.2.2 Subtask - Preserve repository-scoped gating so those tools only run when the semantic graph is enabled and ready.
       [x] 22.2.2.3 Subtask - Keep semantic queries as explicit tool calls in prompts and activity history rather than hidden helper behavior.
 
-  [ ] 22.3 Section - Product Workflow Entry Points
+  [x] 22.3 Section - Product Workflow Entry Points
     Expose semantic graph query and refresh behavior through product-owned workspace APIs so the pod can be used by higher-level workflows without leaking topology.
 
-    [ ] 22.3.1 Task - Implement repository-scoped query entrypoints
+    [x] 22.3.1 Task - Implement repository-scoped query entrypoints
       Add product-facing query APIs that ensure the pod is ready and route semantic lookups safely.
 
-      [ ] 22.3.1.1 Subtask - Implement a workspace query entrypoint that targets the `source_code` graph for one managed repository.
-      [ ] 22.3.1.2 Subtask - Implement repository-scoped helper entrypoints for common semantic lookup flows if needed.
-      [ ] 22.3.1.3 Subtask - Preserve typed not-loaded, disabled, and query-failed outcomes at the workspace boundary.
+      [x] 22.3.1.1 Subtask - Implement a workspace query entrypoint that targets the `source_code` graph for one managed repository.
+      [x] 22.3.1.2 Subtask - Implement repository-scoped helper entrypoints for common semantic lookup flows if needed.
+      [x] 22.3.1.3 Subtask - Preserve typed not-loaded, disabled, and query-failed outcomes at the workspace boundary.
 
-    [ ] 22.3.2 Task - Integrate semantic graph use into repository workflows
+    [x] 22.3.2 Task - Integrate semantic graph use into repository workflows
       Make the new capability available to repository-scoped workflows where it adds value without reintroducing old ambient graph assumptions.
 
-      [ ] 22.3.2.1 Subtask - Define which repository workflows should ensure or refresh the graph explicitly before semantic query.
-      [ ] 22.3.2.2 Subtask - Define how semantic query results feed planning, review, or explanation flows as bounded inputs.
-      [ ] 22.3.2.3 Subtask - Keep product truth in managed-repo and governed-run records even when workflows consult semantic graph state.
+      [x] 22.3.2.1 Subtask - Define which repository workflows should ensure or refresh the graph explicitly before semantic query.
+      [x] 22.3.2.2 Subtask - Define how semantic query results feed planning, review, or explanation flows as bounded inputs.
+      [x] 22.3.2.3 Subtask - Keep product truth in managed-repo and governed-run records even when workflows consult semantic graph state.
 
   [ ] 22.4 Section - Phase 22 Integration Tests
     Verify that pod-local agents can query the loaded `source_code` graph through the SPARQL action surface and that product-owned workspace entrypoints expose bounded repository-scoped semantic queries.

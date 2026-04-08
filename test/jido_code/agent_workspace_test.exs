@@ -1,5 +1,7 @@
 defmodule JidoCode.AgentWorkspaceTest do
   # covers: architecture.agent_os_integration.workspace_context
+  # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   use ExUnit.Case, async: false
 
   alias JidoCode.AgentWorkspace
@@ -105,5 +107,131 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert Map.has_key?(results, "work-1")
       assert Map.has_key?(results, "work-2")
     end
+  end
+
+  describe "source code graph workflow adoption" do
+    setup do
+      previous = Application.get_env(:jido_code, :source_code_graph_enabled, false)
+      Application.put_env(:jido_code, :source_code_graph_enabled, true)
+
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn ->
+        Application.put_env(:jido_code, :source_code_graph_enabled, previous)
+        File.rm_rf!(workspace_path)
+      end)
+
+      {:ok, workspace_path: workspace_path}
+    end
+
+    test "plan_work can gather explicit semantic graph inputs", %{workspace_path: workspace_path} do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+
+      assert {:ok, result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Plan feature",
+                 workspace_path: workspace_path,
+                 source_code_graph: [
+                   workspace_path: workspace_path,
+                   prepare: :load_if_missing,
+                   modules: [module_name_contains: "Example"],
+                   impact: [module_name: "Example"]
+                 ]
+               )
+
+      assert result.semantic_context.workflow == :plan
+      assert result.semantic_context.graph_status.ready? == true
+      assert result.semantic_context.results.modules.helper == :modules
+      assert result.semantic_context.results.impact.helper == :impact
+    end
+
+    test "review_work can gather explicit semantic review inputs", %{workspace_path: workspace_path} do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+
+      assert {:ok, result} =
+               AgentWorkspace.review_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Review feature",
+                 workspace_path: workspace_path,
+                 source_code_graph: [
+                   workspace_path: workspace_path,
+                   prepare: :load_if_missing,
+                   functions: [module_name: "Example", function_name: "greet"],
+                   runtime_patterns: []
+                 ]
+               )
+
+      assert result.semantic_context.workflow == :review
+      assert result.semantic_context.graph_status.ready? == true
+      assert result.semantic_context.results.functions.helper == :functions
+      assert result.semantic_context.results.runtime_patterns.helper == :runtime_patterns
+    end
+
+    test "explain_work can query the graph through explicit workspace entrypoints", %{workspace_path: workspace_path} do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+
+      assert {:ok, result} =
+               AgentWorkspace.explain_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Explain feature",
+                 workspace_path: workspace_path,
+                 source_code_graph: [
+                   workspace_path: workspace_path,
+                   prepare: :load_if_missing,
+                   query: """
+                   SELECT ?module
+                   WHERE {
+                     ?module a struct:Module .
+                   }
+                   ORDER BY ?module
+                   """
+                 ]
+               )
+
+      assert result.semantic_context.workflow == :explain
+      assert result.semantic_context.results.query.engine == :sparql
+      assert result.semantic_context.results.query.row_count >= 1
+    end
+  end
+
+  defp create_workspace_path! do
+    workspace_path =
+      Path.join(
+        System.tmp_dir!(),
+        "jido_code_agent_workspace_source_graph_#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(Path.join(workspace_path, "lib"))
+
+    File.write!(
+      Path.join(workspace_path, "mix.exs"),
+      """
+      defmodule AgentWorkspaceExample.MixProject do
+        use Mix.Project
+
+        def project do
+          [app: :agent_workspace_example, version: "0.1.0", elixir: "~> 1.18", deps: []]
+        end
+      end
+      """
+    )
+
+    File.write!(
+      Path.join(workspace_path, "lib/example.ex"),
+      """
+      defmodule Example do
+        def greet(name) when is_binary(name), do: "hello " <> name
+      end
+      """
+    )
+
+    workspace_path
   end
 end

@@ -10,7 +10,7 @@ ingestion and query.
 id: architecture.source_code_graph_pod
 kind: feature
 status: proposed
-summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness and stale-revision status through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, and grants selected coding specialists explicit semantic lookup tools only through bounded composition.
+summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness and stale-revision status through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -137,6 +137,19 @@ surface:
   then:
     - The `source_code` named graph is rebuilt or replaced coherently.
     - Later queries observe one semantic snapshot rather than a mixed old/new graph.
+
+- id: architecture.source_code_graph_pod.scenario_workspace_workflows_consult_graph_through_bounded_entrypoints
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+  given:
+    - A managed repository has the source-code graph capability enabled.
+  when:
+    - Product-owned planning, review, or explanation flows request semantic inputs.
+  then:
+    - `AgentWorkspace` prepares or refreshes the repository graph explicitly when requested.
+    - Semantic graph lookups route through repository-scoped workspace entrypoints instead of pod internals.
+    - Workflow consumers receive bounded semantic input maps rather than raw TripleStore or pod state.
 ```
 
 ## Verification
@@ -179,6 +192,12 @@ surface:
   target: lib/jido_code/pods/source_code_graph_pod.ex
   covers:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+
+- kind: source_file
+  target: lib/jido_code/agent_workspace.ex
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
 
 - kind: source_file
   target: lib/jido_code/agents/source_code_graph_analyzer.ex
@@ -301,4 +320,15 @@ surface:
   covers:
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_workspace_test.exs
+  covers:
+    - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_workspace_test.exs
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
 ```

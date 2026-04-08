@@ -167,3 +167,17 @@ specialists:
   remain free of semantic graph tooling by default
 - prompts now state that semantic lookup is an explicit tool call gated by
   repository readiness rather than an ambient assumption
+
+Phase 22.3 brings the semantic graph into product-owned workflow boundaries:
+
+- `AgentWorkspace` now exposes repository-scoped helper entrypoints for module,
+  function, runtime-pattern, impact, and direct SPARQL lookup without exposing
+  pod topology
+- planning, review, and explanation flows can now request explicit semantic
+  inputs through bounded `source_code_graph` workflow options instead of
+  assuming the graph exists ambiently
+- workflow semantic preparation explicitly chooses whether to check status,
+  load-if-missing, or refresh before query, keeping graph refresh decisions
+  product-owned and visible
+- workflow consumers receive bounded semantic context maps, while durable
+  product truth remains outside the semantic graph itself

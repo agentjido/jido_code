@@ -13,6 +13,7 @@ decisions:
   - jido_code.live_vue_frontend_adoption
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.jido_os_deprecation
+  - jido_code.source_code_graph_pod_and_named_graph_ingestion
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:

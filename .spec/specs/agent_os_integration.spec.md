@@ -6,18 +6,20 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
+  - jido_code.source_code_graph_pod_and_named_graph_ingestion
 surface:
   - .spec/decisions/jido_code.jido_agent_os_integration.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
+  - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
+  - lib/jido_code/agent_os.ex
   - lib/jido_code/agent_workspace.ex
-  - lib/jido_code/agent_os/
-  - lib/jido_code/agent_os/pods/
-  - lib/jido_code/agent_os/agents/
-  - lib/jido_code/agent_os/actions/
+  - lib/jido_code/pods/
+  - lib/jido_code/agents/
+  - lib/jido_code/actions/
 ```
 
 ## Requirements
@@ -36,6 +38,11 @@ surface:
 - id: architecture.agent_os_integration.repo_pod_singleton_per_kernel
   statement: Each kernel shall host exactly one RepoPod instance with eager agents for repository monitoring and work registry.
   priority: must
+  stability: proposed
+
+- id: architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+  statement: When semantic source-code graph capability is enabled for a managed repository, its kernel shall host one repository-scoped SourceCodeGraphPod singleton for ontology extraction, named-graph loading, and semantic query.
+  priority: should
   stability: proposed
 
 - id: architecture.agent_os_integration.coding_pod_per_work_item
@@ -133,6 +140,18 @@ surface:
     - All CodingPods execute in parallel within the same kernel.
     - Each pod has isolated agent state.
 
+- id: architecture.agent_os_integration.scenario_source_code_graph_pod_is_repo_scoped
+  covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.kernel_per_managed_repo
+  given:
+    - Semantic source-code graph capability is enabled for a managed repository.
+  when:
+    - The repository kernel is prepared for semantic analysis work.
+  then:
+    - The kernel hosts one repository-scoped SourceCodeGraphPod singleton.
+    - The pod remains associated with that managed repository rather than one WorkItem.
+
 - id: architecture.agent_os_integration.scenario_agent_collaboration_within_pod
   covers:
     - architecture.agent_os_integration.pod_contains_multiple_agents
@@ -197,6 +216,11 @@ surface:
     - architecture.agent_os_integration.eager_and_lazy_agent_activation
 
 - kind: source_file
+  target: .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
+  covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+
+- kind: source_file
   target: lib/jido_code/agent_workspace.ex
   covers:
     - architecture.agent_os_integration.workspace_context_hides_kernel_topology
@@ -204,30 +228,30 @@ surface:
     - architecture.agent_os_integration.pod_cleanup_on_completion
 
 - kind: source_file
-  target: lib/jido_code/agent_os/
+  target: lib/jido_code/agent_os.ex
   covers:
     - architecture.agent_os_integration.kernel_per_managed_repo
     - architecture.agent_os_integration.ecto_persistence_per_kernel
 
 - kind: source_file
-  target: lib/jido_code/agent_os/pods/repo_pod.ex
+  target: lib/jido_code/pods/repo_pod.ex
   covers:
     - architecture.agent_os_integration.repo_pod_singleton_per_kernel
 
 - kind: source_file
-  target: lib/jido_code/agent_os/pods/coding_pod.ex
+  target: lib/jido_code/pods/coding_pod.ex
   covers:
     - architecture.agent_os_integration.coding_pod_per_work_item
     - architecture.agent_os_integration.pod_contains_multiple_agents
     - architecture.agent_os_integration.eager_and_lazy_agent_activation
 
 - kind: source_file
-  target: lib/jido_code/agent_os/agents/
+  target: lib/jido_code/agents/
   covers:
     - architecture.agent_os_integration.pod_contains_multiple_agents
 
 - kind: source_file
-  target: lib/jido_code/agent_os/actions/
+  target: lib/jido_code/actions/
   covers:
     - architecture.agent_os_integration.actions_use_jido_action
     - architecture.agent_os_integration.state_operations_modify_agent_state

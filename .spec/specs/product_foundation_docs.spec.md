@@ -17,6 +17,7 @@ decisions:
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
   - jido_code.jido_os_deprecation
+  - jido_code.source_code_graph_pod_and_named_graph_ingestion
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
   - .spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md
@@ -27,6 +28,7 @@ surface:
   - .spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
+  - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
   - .spec/decisions/jido_code.runic_execution_model.md
   - .spec/decisions/jido_code.vsm_recursion_and_scope.md
   - tauri/README.md
@@ -136,6 +138,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.jido_os_deprecation.md
+  covers:
+    - docs.product_foundation.durable_architecture_record_in_spec_workspace
+
+- kind: source_file
+  target: .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
   covers:
     - docs.product_foundation.durable_architecture_record_in_spec_workspace
 

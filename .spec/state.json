@@ -197,6 +197,19 @@
       {
         "affects": [
           "package.jido_code",
+          "architecture.agent_os_integration",
+          "architecture.source_code_graph_pod",
+          "docs.product_foundation"
+        ],
+        "date": "2026-04-08",
+        "file": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "id": "jido_code.source_code_graph_pod_and_named_graph_ingestion",
+        "status": "accepted",
+        "title": "Source Code Graph Pod And Named Graph Ingestion"
+      },
+      {
+        "affects": [
+          "package.jido_code",
           "architecture.vsm_recursion",
           "docs.product_foundation"
         ],
@@ -266,55 +279,6 @@
       "message": "Requirement is not referenced by any verification item: architecture.agent_os_integration.signal_routing_within_pod"
     },
     {
-      "code": "surface_target_missing",
-      "entity_id": "architecture.agent_os_integration",
-      "file": ".spec/specs/agent_os_integration.spec.md",
-      "level": "warning",
-      "message": "Surface entry does not exist: lib/jido_code/agent_os/actions/"
-    },
-    {
-      "code": "surface_target_missing",
-      "entity_id": "architecture.agent_os_integration",
-      "file": ".spec/specs/agent_os_integration.spec.md",
-      "level": "warning",
-      "message": "Surface entry does not exist: lib/jido_code/agent_os/agents/"
-    },
-    {
-      "code": "surface_target_missing",
-      "entity_id": "architecture.agent_os_integration",
-      "file": ".spec/specs/agent_os_integration.spec.md",
-      "level": "warning",
-      "message": "Surface entry does not exist: lib/jido_code/agent_os/pods/"
-    },
-    {
-      "code": "verification_target_missing",
-      "entity_id": "architecture.agent_os_integration",
-      "file": ".spec/specs/agent_os_integration.spec.md",
-      "level": "warning",
-      "message": "Verification target file does not exist: lib/jido_code/agent_os/actions/"
-    },
-    {
-      "code": "verification_target_missing",
-      "entity_id": "architecture.agent_os_integration",
-      "file": ".spec/specs/agent_os_integration.spec.md",
-      "level": "warning",
-      "message": "Verification target file does not exist: lib/jido_code/agent_os/agents/"
-    },
-    {
-      "code": "verification_target_missing",
-      "entity_id": "architecture.agent_os_integration",
-      "file": ".spec/specs/agent_os_integration.spec.md",
-      "level": "warning",
-      "message": "Verification target file does not exist: lib/jido_code/agent_os/pods/coding_pod.ex"
-    },
-    {
-      "code": "verification_target_missing",
-      "entity_id": "architecture.agent_os_integration",
-      "file": ".spec/specs/agent_os_integration.spec.md",
-      "level": "warning",
-      "message": "Verification target file does not exist: lib/jido_code/agent_os/pods/repo_pod.ex"
-    },
-    {
       "code": "verification_target_missing_reference",
       "entity_id": "architecture.agent_os_integration",
       "file": ".spec/specs/agent_os_integration.spec.md",
@@ -347,6 +311,13 @@
       "entity_id": "architecture.agent_os_integration",
       "file": ".spec/specs/agent_os_integration.spec.md",
       "level": "warning",
+      "message": "Verification target lib/jido_code/agent_os.ex does not reference covered requirement: architecture.agent_os_integration.ecto_persistence_per_kernel"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "architecture.agent_os_integration",
+      "file": ".spec/specs/agent_os_integration.spec.md",
+      "level": "warning",
       "message": "Verification target lib/jido_code/agent_workspace.ex does not reference covered requirement: architecture.agent_os_integration.dynamic_kernel_lifecycle"
     },
     {
@@ -369,6 +340,34 @@
       "file": ".spec/specs/agent_os_integration.spec.md",
       "level": "warning",
       "message": "Verification target lib/jido_code/agent_workspace.ex does not reference covered requirement: architecture.agent_os_integration.workspace_context_hides_kernel_topology"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "architecture.agent_os_integration",
+      "file": ".spec/specs/agent_os_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code/pods/coding_pod.ex does not reference covered requirement: architecture.agent_os_integration.coding_pod_per_work_item"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "architecture.agent_os_integration",
+      "file": ".spec/specs/agent_os_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code/pods/coding_pod.ex does not reference covered requirement: architecture.agent_os_integration.eager_and_lazy_agent_activation"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "architecture.agent_os_integration",
+      "file": ".spec/specs/agent_os_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code/pods/coding_pod.ex does not reference covered requirement: architecture.agent_os_integration.pod_contains_multiple_agents"
+    },
+    {
+      "code": "verification_target_missing_reference",
+      "entity_id": "architecture.agent_os_integration",
+      "file": ".spec/specs/agent_os_integration.spec.md",
+      "level": "warning",
+      "message": "Verification target lib/jido_code/pods/repo_pod.ex does not reference covered requirement: architecture.agent_os_integration.repo_pod_singleton_per_kernel"
     },
     {
       "code": "surface_target_missing",
@@ -995,6 +994,14 @@
         "priority": "must",
         "stability": "proposed",
         "statement": "Signals shall be routed to specific agents within a pod using Jido.Pod.ensure_node/3 and Jido.AgentServer.call/3.",
+        "subject_id": "architecture.agent_os_integration"
+      },
+      {
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "When semantic source-code graph capability is enabled for a managed repository, its kernel shall host one repository-scoped SourceCodeGraphPod singleton for ontology extraction, named-graph loading, and semantic query.",
         "subject_id": "architecture.agent_os_integration"
       },
       {
@@ -1660,6 +1667,70 @@
         "stability": "evolving",
         "statement": "Ongoing internal runtime migrations inside jido_os, including authority-family reshaping or turn-execution ownership changes, shall not require Jido.Code to change its product architecture so long as the documented public `Jido.Os.*` contracts remain stable.",
         "subject_id": "architecture.runtime_service_overlay"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Source-code graph behavior shall be exposed through explicit Jido.Action tools for analyze, load, refresh, and query operations rather than hidden ambient helper calls.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Source-code graph analysis shall use ElixirOntologies full extraction mode, including expression-level detail, instead of the light structural-only profile.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Refreshing the source-code graph shall replace or rebuild the `source_code` named graph coherently so mixed ontology/project revisions are not exposed to subsequent pod queries.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The persisted backing store for the source-code graph shall be a local TripleStore database configured for named-graph storage so repository-scoped graph data remains durable and isolated.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The source-code graph load shall include both ontology/schema material and repository-derived individuals in the `source_code` named graph so pod queries operate on one coherent semantic view.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "When semantic source-code analysis is enabled for a managed repository, Jido.Code shall provide a repository-scoped SourceCodeGraphPod within that repository's AgentOS kernel rather than a cross-repository singleton service.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The canonical named graph for repository source-code semantics shall be exactly `source_code`.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "After the `source_code` graph is loaded, pod-local graph queries shall use the `sparql` library as the canonical SPARQL query surface for agents.",
+        "subject_id": "architecture.source_code_graph_pod"
       },
       {
         "file": ".spec/specs/vsm_recursion.spec.md",
@@ -2772,6 +2843,25 @@
       },
       {
         "covers": [
+          "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
+          "architecture.agent_os_integration.kernel_per_managed_repo"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "given": [
+          "Semantic source-code graph capability is enabled for a managed repository."
+        ],
+        "id": "architecture.agent_os_integration.scenario_source_code_graph_pod_is_repo_scoped",
+        "subject_id": "architecture.agent_os_integration",
+        "then": [
+          "The kernel hosts one repository-scoped SourceCodeGraphPod singleton.",
+          "The pod remains associated with that managed repository rather than one WorkItem."
+        ],
+        "when": [
+          "The repository kernel is prepared for semantic analysis work."
+        ]
+      },
+      {
+        "covers": [
           "architecture.agent_os_integration.workspace_context_hides_kernel_topology"
         ],
         "file": ".spec/specs/agent_os_integration.spec.md",
@@ -3454,6 +3544,68 @@
         ],
         "when": [
           "That evidence changes operator trust, review posture, or execution decisions."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+          "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "given": [
+          "A managed repository already has a loaded `source_code` named graph."
+        ],
+        "id": "architecture.source_code_graph_pod.scenario_agents_query_loaded_source_code_graph",
+        "subject_id": "architecture.source_code_graph_pod",
+        "then": [
+          "The query goes through an explicit query action.",
+          "The action uses the `sparql` library as the canonical query surface.",
+          "The agent receives structured query results rather than raw store internals."
+        ],
+        "when": [
+          "A pod-local specialist agent asks a SPARQL question about modules, functions, runtime patterns, or evolution facts."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+          "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "given": [
+          "A repository's `source_code` graph was previously loaded."
+        ],
+        "id": "architecture.source_code_graph_pod.scenario_graph_refresh_replaces_previous_snapshot",
+        "subject_id": "architecture.source_code_graph_pod",
+        "then": [
+          "The `source_code` named graph is rebuilt or replaced coherently.",
+          "Later queries observe one semantic snapshot rather than a mixed old/new graph."
+        ],
+        "when": [
+          "The pod refreshes the graph after source changes or an explicit re-analysis request."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
+          "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
+          "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
+          "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
+          "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "given": [
+          "A managed repository has a workspace path and semantic source-code analysis is enabled."
+        ],
+        "id": "architecture.source_code_graph_pod.scenario_initial_repository_analysis_populates_source_code_graph",
+        "subject_id": "architecture.source_code_graph_pod",
+        "then": [
+          "ElixirOntologies runs in full mode.",
+          "A local TripleStore named-graph store is used.",
+          "Ontology/schema material and project individuals are loaded into the `source_code` named graph."
+        ],
+        "when": [
+          "The SourceCodeGraphPod analyzes and loads the repository for the first time."
         ]
       },
       {
@@ -4406,20 +4558,22 @@
         "meta": {
           "decisions": [
             "jido_code.jido_os_deprecation",
-            "jido_code.jido_agent_os_integration"
+            "jido_code.jido_agent_os_integration",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion"
           ],
           "id": "architecture.agent_os_integration",
           "kind": "policy",
           "status": "proposed",
-          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, and one CodingPod per WorkItem containing multiple collaborating AI agents.",
+          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod, and one CodingPod per WorkItem containing multiple collaborating AI agents.",
           "surface": [
             ".spec/decisions/jido_code.jido_agent_os_integration.md",
             ".spec/decisions/jido_code.jido_os_deprecation.md",
+            ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+            "lib/jido_code/agent_os.ex",
             "lib/jido_code/agent_workspace.ex",
-            "lib/jido_code/agent_os/",
-            "lib/jido_code/agent_os/pods/",
-            "lib/jido_code/agent_os/agents/",
-            "lib/jido_code/agent_os/actions/"
+            "lib/jido_code/pods/",
+            "lib/jido_code/agents/",
+            "lib/jido_code/actions/"
           ],
           "verification_minimum_strength": null
         },
@@ -4816,6 +4970,7 @@
             "jido_code.live_vue_frontend_adoption",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.jido_os_deprecation",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion",
             "jido_code.runtime_evidence_posture_and_rollout_convergence",
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption"
           ],
@@ -4953,7 +5108,8 @@
             "jido_code.canonical_repo_surface",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.live_vue_frontend_adoption",
-            "jido_code.jido_os_deprecation"
+            "jido_code.jido_os_deprecation",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion"
           ],
           "id": "docs.product_foundation",
           "kind": "feature",
@@ -4969,6 +5125,7 @@
             ".spec/decisions/jido_code.internal_cleanup_and_ui_convergence_foundation.md",
             ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
             ".spec/decisions/jido_code.jido_os_deprecation.md",
+            ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
             ".spec/decisions/jido_code.runic_execution_model.md",
             ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
             "tauri/README.md"
@@ -5299,6 +5456,31 @@
         "title": "Setup Onboarding"
       },
       {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod",
+        "meta": {
+          "decisions": [
+            "jido_code.jido_agent_os_integration",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion"
+          ],
+          "id": "architecture.source_code_graph_pod",
+          "kind": "feature",
+          "status": "proposed",
+          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, loads ontology schema and extracted project individuals into the canonical `source_code` named graph of a local TripleStore database, and exposes explicit SPARQL-based query actions for pod-local agents.",
+          "surface": [
+            ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+            ".spec/specs/agent_os_integration.spec.md",
+            "lib/jido_code/agent_workspace.ex",
+            "lib/jido_code/pods/",
+            "lib/jido_code/agents/",
+            "lib/jido_code/actions/",
+            "test/jido_code/agent_os/"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Source Code Graph Pod"
+      },
+      {
         "file": ".spec/specs/source_provider_adapter.spec.md",
         "id": "source.provider_adapter",
         "meta": {
@@ -5448,6 +5630,15 @@
       },
       {
         "covers": [
+          "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.agent_os_integration",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md"
+      },
+      {
+        "covers": [
           "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
           "architecture.agent_os_integration.dynamic_kernel_lifecycle",
           "architecture.agent_os_integration.pod_cleanup_on_completion"
@@ -5465,7 +5656,7 @@
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/"
+        "target": "lib/jido_code/agent_os.ex"
       },
       {
         "covers": [
@@ -5474,7 +5665,7 @@
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/pods/repo_pod.ex"
+        "target": "lib/jido_code/pods/repo_pod.ex"
       },
       {
         "covers": [
@@ -5485,7 +5676,7 @@
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/pods/coding_pod.ex"
+        "target": "lib/jido_code/pods/coding_pod.ex"
       },
       {
         "covers": [
@@ -5494,7 +5685,7 @@
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/agents/"
+        "target": "lib/jido_code/agents/"
       },
       {
         "covers": [
@@ -5504,7 +5695,7 @@
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/actions/"
+        "target": "lib/jido_code/actions/"
       },
       {
         "covers": [
@@ -7169,6 +7360,22 @@
       },
       {
         "covers": [
+          "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
+          "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
+          "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
+          "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
+          "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
+          "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+          "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+          "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md"
+      },
+      {
+        "covers": [
           "architecture.vsm_recursion.factory_is_viable_system",
           "architecture.vsm_recursion.managed_repo_is_viable_system",
           "architecture.vsm_recursion.repo_system1_scope",
@@ -8212,6 +8419,15 @@
         "kind": "source_file",
         "subject_id": "docs.product_foundation",
         "target": ".spec/decisions/jido_code.jido_os_deprecation.md"
+      },
+      {
+        "covers": [
+          "docs.product_foundation.durable_architecture_record_in_spec_workspace"
+        ],
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md"
       },
       {
         "covers": [
@@ -9347,13 +9563,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 15,
+    "decisions": 16,
     "exceptions": 0,
-    "findings": 96,
-    "requirements": 223,
-    "scenarios": 93,
-    "subjects": 34,
-    "verifications": 398
+    "findings": 94,
+    "requirements": 232,
+    "scenarios": 97,
+    "subjects": 35,
+    "verifications": 401
   },
   "verification": {
     "claims": [
@@ -9402,6 +9618,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.agent_os_integration.dynamic_kernel_lifecycle",
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
@@ -9410,7 +9637,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_cleanup_on_completion",
@@ -9421,7 +9648,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
@@ -9432,7 +9659,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
@@ -9442,8 +9669,8 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/",
-        "verification_index": 2
+        "target": "lib/jido_code/agent_os.ex",
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_per_managed_repo",
@@ -9451,10 +9678,10 @@
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
-        "strength": "claimed",
+        "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/",
-        "verification_index": 2
+        "target": "lib/jido_code/agent_os.ex",
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.agent_os_integration.repo_pod_singleton_per_kernel",
@@ -9464,8 +9691,8 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/pods/repo_pod.ex",
-        "verification_index": 3
+        "target": "lib/jido_code/pods/repo_pod.ex",
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.agent_os_integration.coding_pod_per_work_item",
@@ -9475,8 +9702,8 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/pods/coding_pod.ex",
-        "verification_index": 4
+        "target": "lib/jido_code/pods/coding_pod.ex",
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_and_lazy_agent_activation",
@@ -9486,30 +9713,30 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/pods/coding_pod.ex",
-        "verification_index": 4
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/pods/coding_pod.ex",
-        "verification_index": 4
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "claimed",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/agents/",
+        "target": "lib/jido_code/pods/coding_pod.ex",
         "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/pods/coding_pod.ex",
+        "verification_index": 5
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "claimed",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agents/",
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.agent_os_integration.actions_use_jido_action",
@@ -9519,8 +9746,8 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/actions/",
-        "verification_index": 6
+        "target": "lib/jido_code/actions/",
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.agent_os_integration.state_operations_modify_agent_state",
@@ -9530,8 +9757,8 @@
         "required_strength": "claimed",
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/actions/",
-        "verification_index": 6
+        "target": "lib/jido_code/actions/",
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -9542,7 +9769,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -13285,6 +13512,94 @@
         "verification_index": 22
       },
       {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
         "file": ".spec/specs/vsm_recursion.spec.md",
         "kind": "source_file",
@@ -15646,8 +15961,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "docs.product_foundation",
-        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
         "verification_index": 9
+      },
+      {
+        "cover_id": "docs.product_foundation.durable_architecture_record_in_spec_workspace",
+        "file": ".spec/specs/product_foundation_docs.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "docs.product_foundation",
+        "target": ".spec/decisions/jido_code.vsm_recursion_and_scope.md",
+        "verification_index": 10
       },
       {
         "cover_id": "package.jido_code.primary_implementation_repo",
@@ -17325,14 +17651,14 @@
     "cli_minimum_strength": null,
     "default_minimum_strength": "claimed",
     "strength_summary": {
-      "claimed": 142,
+      "claimed": 141,
       "executed": 0,
-      "linked": 582
+      "linked": 593
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 15,
-    "spec_count": 34
+    "decision_count": 16,
+    "spec_count": 35
   }
 }

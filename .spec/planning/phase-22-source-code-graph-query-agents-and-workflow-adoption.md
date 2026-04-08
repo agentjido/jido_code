@@ -39,22 +39,22 @@ Back to index: [README](./README.md)
       [x] 22.1.2.2 Subtask - Define helper actions for impact-style traversals over semantic relationships when those are common agent needs.
       [x] 22.1.2.3 Subtask - Define typed query failure and empty-result behavior for pod agents and product-owned callers.
 
-  [ ] 22.2 Section - Specialist Agent Adoption
+  [x] 22.2 Section - Specialist Agent Adoption
     Add the lazy specialist agents that perform semantic graph analysis, refresh, and query work inside the SourceCodeGraphPod.
 
-    [ ] 22.2.1 Task - Implement the graph specialist agents
+    [x] 22.2.1 Task - Implement the graph specialist agents
       Build the pod-local agents that own analysis, load, and query behavior over the repository semantic graph.
 
-      [ ] 22.2.1.1 Subtask - Implement an ontology-analysis specialist agent that drives full-mode repository analysis.
-      [ ] 22.2.1.2 Subtask - Implement a graph-loader specialist agent that drives initial load and coherent refresh of `source_code`.
-      [ ] 22.2.1.3 Subtask - Implement a semantic-query specialist agent that runs SPARQL-backed graph questions for other pod or product flows.
+      [x] 22.2.1.1 Subtask - Implement an ontology-analysis specialist agent that drives full-mode repository analysis.
+      [x] 22.2.1.2 Subtask - Implement a graph-loader specialist agent that drives initial load and coherent refresh of `source_code`.
+      [x] 22.2.1.3 Subtask - Implement a semantic-query specialist agent that runs SPARQL-backed graph questions for other pod or product flows.
 
-    [ ] 22.2.2 Task - Add query tools to interested coding flows
+    [x] 22.2.2 Task - Add query tools to interested coding flows
       Let selected repository or coding specialists consult the source-code graph explicitly once it exists, without making semantic lookup an ambient dependency.
 
-      [ ] 22.2.2.1 Subtask - Define which existing repository or coding agents may receive semantic query tools through explicit composition.
-      [ ] 22.2.2.2 Subtask - Preserve repository-scoped gating so those tools only run when the semantic graph is enabled and ready.
-      [ ] 22.2.2.3 Subtask - Keep semantic queries as explicit tool calls in prompts and activity history rather than hidden helper behavior.
+      [x] 22.2.2.1 Subtask - Define which existing repository or coding agents may receive semantic query tools through explicit composition.
+      [x] 22.2.2.2 Subtask - Preserve repository-scoped gating so those tools only run when the semantic graph is enabled and ready.
+      [x] 22.2.2.3 Subtask - Keep semantic queries as explicit tool calls in prompts and activity history rather than hidden helper behavior.
 
   [ ] 22.3 Section - Product Workflow Entry Points
     Expose semantic graph query and refresh behavior through product-owned workspace APIs so the pod can be used by higher-level workflows without leaking topology.

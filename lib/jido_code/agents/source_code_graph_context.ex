@@ -47,6 +47,11 @@ defmodule JidoCode.Agents.SourceCodeGraphContext do
         default: %{},
         doc: "Repository-local dataset metadata for source graph storage."
       ],
+      latest_analysis_status: [
+        type: :map,
+        default: %{},
+        doc: "Most recent ontology-analysis summary for this repository graph."
+      ],
       latest_import_status: [
         type: :map,
         default: %{},

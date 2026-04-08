@@ -152,3 +152,18 @@ Phase 22 begins the semantic query surface on top of that stored graph:
 - helper actions now compile common module, function, runtime-pattern, and
   bounded impact lookups down to explicit SPARQL queries instead of introducing
   an ambient hidden semantic side channel
+
+Phase 22.2 extends that query surface into the pod and selected coding
+specialists:
+
+- the SourceCodeGraph analyzer, loader, and querier agents now expose explicit
+  bounded signal routes and state shapes for analysis, refresh, query, and
+  helper-query activity
+- the querier specialist now owns explicit helper routes for module, function,
+  runtime-pattern, and bounded impact lookups instead of generic hidden graph
+  inspection
+- selected coding specialists (planner, reviewer, explainer) now receive
+  semantic graph tools through explicit composition, while coder and refactorer
+  remain free of semantic graph tooling by default
+- prompts now state that semantic lookup is an explicit tool call gated by
+  repository readiness rather than an ambient assumption

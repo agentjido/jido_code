@@ -1,5 +1,6 @@
 defmodule JidoCode.AgentOSPodsTest do
   # covers: architecture.agent_os_integration.pod_hierarchy
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   use ExUnit.Case, async: true
 
   alias JidoCode.Pods.{RepoPod, CodingPod, SourceCodeGraphPod}
@@ -132,6 +133,65 @@ defmodule JidoCode.AgentOSPodsTest do
     test "has correct name and schema" do
       assert SourceCodeGraphContext.name() == "source_code_graph_context"
       assert is_map(SourceCodeGraphContext.schema())
+
+      state = SourceCodeGraphContext.new().state
+      assert Map.has_key?(state, :latest_analysis_status)
+      assert Map.has_key?(state, :latest_import_status)
+    end
+  end
+
+  describe "SourceCodeGraph specialist agents" do
+    test "analyzer exposes bounded analysis signal routes and state" do
+      assert SourceCodeGraphAnalyzer.name() == "source_code_graph_analyzer"
+
+      assert SourceCodeGraphAnalyzer.signal_routes() == [
+               {"source_graph.status", JidoCode.Actions.GetSourceCodeGraphStatus},
+               {"source_graph.analyze", JidoCode.Actions.AnalyzeSourceCodeGraph},
+               {"source_graph.inspect", JidoCode.Actions.InspectSourceCodeGraphDataset}
+             ]
+
+      state = SourceCodeGraphAnalyzer.new().state
+      assert Map.has_key?(state, :last_analysis_result)
+      assert Map.has_key?(state, :latest_analysis_status)
+      assert Map.has_key?(state, :last_analysis_failure)
+    end
+
+    test "loader exposes explicit load and refresh routes plus readiness state" do
+      assert SourceCodeGraphLoader.name() == "source_code_graph_loader"
+
+      assert SourceCodeGraphLoader.signal_routes() == [
+               {"source_graph.status", JidoCode.Actions.GetSourceCodeGraphStatus},
+               {"source_graph.load", JidoCode.Actions.LoadSourceCodeGraph},
+               {"source_graph.refresh", JidoCode.Actions.RefreshSourceCodeGraph},
+               {"source_graph.inspect", JidoCode.Actions.InspectSourceCodeGraphDataset}
+             ]
+
+      state = SourceCodeGraphLoader.new().state
+      assert Map.has_key?(state, :last_load_result)
+      assert Map.has_key?(state, :latest_analysis_status)
+      assert Map.has_key?(state, :latest_import_status)
+      assert Map.has_key?(state, :last_load_failure)
+    end
+
+    test "querier exposes helper-query routes and bounded query state" do
+      assert SourceCodeGraphQuerier.name() == "source_code_graph_querier"
+
+      assert SourceCodeGraphQuerier.signal_routes() == [
+               {"source_graph.status", JidoCode.Actions.GetSourceCodeGraphStatus},
+               {"source_graph.query", JidoCode.Actions.QuerySourceCodeGraph},
+               {"source_graph.inspect", JidoCode.Actions.InspectSourceCodeGraphDataset},
+               {"source_graph.find_modules", JidoCode.Actions.FindSourceCodeGraphModules},
+               {"source_graph.find_functions", JidoCode.Actions.FindSourceCodeGraphFunctions},
+               {"source_graph.find_runtime_patterns",
+                JidoCode.Actions.FindSourceCodeGraphRuntimePatterns},
+               {"source_graph.trace_impact", JidoCode.Actions.TraceSourceCodeGraphImpact}
+             ]
+
+      state = SourceCodeGraphQuerier.new().state
+      assert Map.has_key?(state, :last_query_result)
+      assert Map.has_key?(state, :latest_import_status)
+      assert Map.has_key?(state, :available_helpers)
+      assert Map.has_key?(state, :last_query_failure)
     end
   end
 end

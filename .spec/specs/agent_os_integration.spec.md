@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -166,6 +166,19 @@ surface:
     - The planner agent starts on demand (lazy).
     - The planner uses tools (ReadFile, SearchCode) to analyze the codebase.
     - The plan is stored in the task_board agent state.
+
+- id: architecture.agent_os_integration.scenario_selected_coding_agents_receive_semantic_tools_explicitly
+  covers:
+    - architecture.agent_os_integration.pod_contains_multiple_agents
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  given:
+    - A managed repository has a loaded source-code graph.
+  when:
+    - Planning, review, or explanation specialists need semantic repository context.
+  then:
+    - Only selected coding specialists receive semantic graph tools through explicit composition.
+    - The same bounded source-graph action surface is reused rather than hidden helper pathways.
+    - Repository readiness and stale-revision gating remain enforced by the product boundary and action layer.
 
 - id: architecture.agent_os_integration.scenario_workspace_context_hides_topology
   covers:

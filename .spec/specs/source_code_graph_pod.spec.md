@@ -18,6 +18,7 @@ surface:
   - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
   - .spec/specs/agent_os_integration.spec.md
   - lib/jido_code/agent_workspace.ex
+  - lib/jido_code/agent_workspace/
   - lib/jido_code/pods/
   - lib/jido_code/agents/
   - lib/jido_code/actions/
@@ -235,6 +236,12 @@ surface:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+
+- kind: source_file
+  target: test/jido_code/agent_workspace_test.exs
+  covers:
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
 
 - kind: source_file

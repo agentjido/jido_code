@@ -32,6 +32,11 @@ defmodule JidoCode.Pods.CodingPod do
 
   use Jido.AgentOS.Pod,
     name: "coding_pod",
+    signal_routes: [
+      {"jido.agent.child.started", Jido.Actions.Control.Noop},
+      {"jido.agent.child.exit", Jido.Actions.Control.Noop},
+      {"jido.agent.orphaned", Jido.Actions.Control.Noop}
+    ],
     topology: %{
       task_board: %{
         agent: JidoCode.Agents.TaskBoard,

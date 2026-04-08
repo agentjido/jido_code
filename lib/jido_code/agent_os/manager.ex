@@ -298,7 +298,7 @@ defmodule JidoCode.AgentOS.Manager do
   defp kernel_child_spec(kernel_name) do
     # Build kernel configuration
     config = [
-      kernel_name: kernel_name,
+      name: kernel_name,
       otp_app: :jido_code,
       pod: JidoCode.Pods.Empty,
       persistence: persistence_config()
@@ -316,7 +316,7 @@ defmodule JidoCode.AgentOS.Manager do
     case Application.get_env(:jido_code, :agent_os_persistence) do
       nil ->
         # Default to Ecto if configured
-        if Code.ensure_loaded?(JidoCode.Repo) do
+        if Code.ensure_loaded?(JidoCode.Repo) and Code.ensure_loaded?(Jido.Ecto.Storage) do
           [
             adapter: Jido.Ecto.Storage,
             repo: JidoCode.Repo
@@ -326,7 +326,13 @@ defmodule JidoCode.AgentOS.Manager do
         end
 
       config when is_list(config) ->
-        config
+        case Keyword.get(config, :adapter) || Keyword.get(config, :module) do
+          adapter when is_atom(adapter) ->
+            if Code.ensure_loaded?(adapter), do: config, else: nil
+
+          _other ->
+            nil
+        end
     end
   end
 

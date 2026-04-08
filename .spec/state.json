@@ -5297,6 +5297,15 @@
       },
       {
         "covers": [
+          "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
+      },
+      {
+        "covers": [
           "architecture.demand_ingress.external_object_tracks_repo_external_entities"
         ],
         "file": ".spec/specs/demand_ingress.spec.md",
@@ -7059,6 +7068,17 @@
         "kind": "source_file",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+          "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+          "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
       },
       {
         "covers": [
@@ -9247,7 +9267,7 @@
     "requirements": 236,
     "scenarios": 105,
     "subjects": 35,
-    "verifications": 415
+    "verifications": 417
   },
   "verification": {
     "claims": [
@@ -9701,6 +9721,17 @@
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/source_code_graph_workspace_test.exs",
         "verification_index": 14
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -13806,6 +13837,39 @@
         "verification_index": 31
       },
       {
+        "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 32
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 32
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 32
+      },
+      {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
         "file": ".spec/specs/vsm_recursion.spec.md",
         "kind": "source_file",
@@ -17859,7 +17923,7 @@
     "strength_summary": {
       "claimed": 56,
       "executed": 0,
-      "linked": 726
+      "linked": 730
     },
     "threshold_failures": 0
   },

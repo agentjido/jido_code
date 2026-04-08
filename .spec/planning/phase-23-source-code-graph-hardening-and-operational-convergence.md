@@ -23,7 +23,7 @@ Back to index: [README](./README.md)
 - The next step is operational hardening: revision coherence, failure visibility, contributor guidance, and end-to-end pod confidence.
 - Semantic source-code graph capability remains repository-scoped and bounded; it is not the product's durable control-plane truth.
 
-[ ] 23 Phase 23 - Source Code Graph Hardening and Operational Convergence
+[x] 23 Phase 23 - Source Code Graph Hardening and Operational Convergence
   Harden the repository semantic graph capability so refresh, failure handling, contributor guidance, and end-to-end pod scenarios are durable enough for regular product use.
 
   [x] 23.1 Section - Revision Coherence and Failure Recovery
@@ -60,19 +60,19 @@ Back to index: [README](./README.md)
       [x] 23.2.2.2 Subtask - Ensure contributor guidance references the semantic graph verification path in the current stack.
       [x] 23.2.2.3 Subtask - Keep graph-store and ontology dependencies version-controlled and explicit in repo-owned setup surfaces.
 
-  [ ] 23.3 Section - Phase 23 Integration Tests
+  [x] 23.3 Section - Phase 23 Integration Tests
     Verify the hardened semantic graph capability remains repository-scoped, revision-aware, failure-explainable, and contributor-maintainable in end-to-end scenarios.
 
-    [ ] 23.3.1 Task - Revision and recovery scenarios
+    [x] 23.3.1 Task - Revision and recovery scenarios
       Prove the pod can detect stale graph state, refresh coherently, and recover from failed analysis or load attempts without leaving ambiguous repository graph state.
 
-      [ ] 23.3.1.1 Subtask - Add coverage proving stale repository revision is surfaced explicitly after source changes.
-      [ ] 23.3.1.2 Subtask - Add coverage proving refresh clears stale state and returns the graph to a coherent ready status.
-      [ ] 23.3.1.3 Subtask - Add coverage proving failed analysis/load attempts preserve typed recovery information and bounded query behavior.
+      [x] 23.3.1.1 Subtask - Add coverage proving stale repository revision is surfaced explicitly after source changes.
+      [x] 23.3.1.2 Subtask - Add coverage proving refresh clears stale state and returns the graph to a coherent ready status.
+      [x] 23.3.1.3 Subtask - Add coverage proving failed analysis/load attempts preserve typed recovery information and bounded query behavior.
 
-    [ ] 23.3.2 Task - End-to-end repository semantic workflow scenarios
+    [x] 23.3.2 Task - End-to-end repository semantic workflow scenarios
       Prove the new pod works as a durable repository semantic service from setup through query without reintroducing a global knowledge subsystem.
 
-      [ ] 23.3.2.1 Subtask - Add coverage proving one repository can analyze, load, refresh, and query its `source_code` graph end to end.
-      [ ] 23.3.2.2 Subtask - Add coverage proving multiple repositories keep isolated local stores and `source_code` named graphs.
-      [ ] 23.3.2.3 Subtask - Verify docs, contributor guidance, and repo-owned verification surfaces remain aligned with the final semantic graph architecture.
+      [x] 23.3.2.1 Subtask - Add coverage proving one repository can analyze, load, refresh, and query its `source_code` graph end to end.
+      [x] 23.3.2.2 Subtask - Add coverage proving multiple repositories keep isolated local stores and `source_code` named graphs.
+      [x] 23.3.2.3 Subtask - Verify docs, contributor guidance, and repo-owned verification surfaces remain aligned with the final semantic graph architecture.

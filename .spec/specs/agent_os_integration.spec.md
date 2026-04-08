@@ -357,4 +357,9 @@ surface:
   target: test/jido_code/source_code_graph_workspace_test.exs
   covers:
     - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_three_integration_test.exs
+  covers:
+    - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
 ```

@@ -255,7 +255,7 @@ defmodule JidoCode.MixProject do
       ],
       "frontend.verify": ["assets.setup", "assets.build"],
       "source_graph.verify": [
-        "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/agent_os/phase_twenty_integration_test.exs test/jido_code/agent_os/phase_twenty_one_integration_test.exs test/jido_code/agent_os/phase_twenty_two_integration_test.exs"
+        "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/agent_os/phase_twenty_integration_test.exs test/jido_code/agent_os/phase_twenty_one_integration_test.exs test/jido_code/agent_os/phase_twenty_two_integration_test.exs test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
       ],
       "assets.deploy": [
         "assets.build"

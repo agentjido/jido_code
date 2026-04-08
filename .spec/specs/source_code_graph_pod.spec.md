@@ -393,4 +393,11 @@ surface:
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_three_integration_test.exs
+  covers:
+    - architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
+    - architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+    - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
 ```

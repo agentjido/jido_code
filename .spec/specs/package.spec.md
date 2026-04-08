@@ -112,6 +112,11 @@ surface:
     - package.jido_code.spec_led_workspace
 
 - kind: source_file
+  target: .spec/planning/phase-20-source-code-graph-pod-foundation.md
+  covers:
+    - package.jido_code.spec_led_workspace
+
+- kind: source_file
   target: .spec/specs/demand_ingress.spec.md
   covers:
     - package.jido_code.spec_led_workspace
@@ -288,6 +293,21 @@ surface:
 
 - kind: source_file
   target: test/jido_code_web/live/run_detail_live_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_actions_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_workspace_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

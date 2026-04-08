@@ -25,7 +25,7 @@ Back to index: [README](./README.md)
 - `triple_store` is the canonical local RDF store and named-graph database for this capability.
 - The canonical named graph is `source_code`.
 
-[ ] 20 Phase 20 - Source Code Graph Pod Foundation
+[x] 20 Phase 20 - Source Code Graph Pod Foundation
   Establish the repository-scoped SourceCodeGraphPod contract, state ownership model, and explicit action surfaces needed for full-mode ontology analysis and named-graph ingestion.
 
   [x] 20.1 Section - Pod Contract and Runtime Boundaries
@@ -79,19 +79,19 @@ Back to index: [README](./README.md)
       [x] 20.3.2.2 Subtask - Define typed failure outcomes for ontology analysis, graph load, and query attempts.
       [x] 20.3.2.3 Subtask - Define how graph readiness and degradation remain repository-scoped rather than becoming global product state.
 
-  [ ] 20.4 Section - Phase 20 Integration Tests
+  [x] 20.4 Section - Phase 20 Integration Tests
     Verify the new SourceCodeGraphPod contract fits the existing repository-scoped AgentOS model and exposes explicit, product-owned entrypoints without ambient graph coupling.
 
-    [ ] 20.4.1 Task - Repository-scoped pod contract scenarios
+    [x] 20.4.1 Task - Repository-scoped pod contract scenarios
       Prove the source-code graph capability is owned per repository kernel and does not leak as a singleton service or work-item-scoped pod.
 
-      [ ] 20.4.1.1 Subtask - Add coverage proving one managed repository can host a SourceCodeGraphPod without affecting another repository kernel.
-      [ ] 20.4.1.2 Subtask - Add coverage proving the pod is singleton-per-repository when enabled and not multiplied per WorkItem.
-      [ ] 20.4.1.3 Subtask - Add coverage proving AgentWorkspace hides the pod topology from product callers.
+      [x] 20.4.1.1 Subtask - Add coverage proving one managed repository can host a SourceCodeGraphPod without affecting another repository kernel.
+      [x] 20.4.1.2 Subtask - Add coverage proving the pod is singleton-per-repository when enabled and not multiplied per WorkItem.
+      [x] 20.4.1.3 Subtask - Add coverage proving AgentWorkspace hides the pod topology from product callers.
 
-    [ ] 20.4.2 Task - Explicit action and boundary scenarios
+    [x] 20.4.2 Task - Explicit action and boundary scenarios
       Prove analyze/load/query behavior is represented by explicit tools and typed workspace entrypoints rather than hidden helper calls.
 
-      [ ] 20.4.2.1 Subtask - Add coverage proving the action set for analyze, load, refresh, and query is explicit and schema-driven.
-      [ ] 20.4.2.2 Subtask - Add coverage proving disabled or not-ready graph states surface as typed workspace outcomes.
-      [ ] 20.4.2.3 Subtask - Verify the current product and spec workspace remain coherent after adding the new pod contract.
+      [x] 20.4.2.1 Subtask - Add coverage proving the action set for analyze, load, refresh, and query is explicit and schema-driven.
+      [x] 20.4.2.2 Subtask - Add coverage proving disabled or not-ready graph states surface as typed workspace outcomes.
+      [x] 20.4.2.3 Subtask - Verify the current product and spec workspace remain coherent after adding the new pod contract.

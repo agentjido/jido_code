@@ -5,6 +5,7 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.agent_os_integration.pod_naming_convention
   # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
   # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   @moduledoc """
   Context module for AgentOS workspace operations.
 

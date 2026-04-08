@@ -126,6 +126,7 @@ surface:
     - Effective review behavior may be tightened or relaxed by repo posture while the configured policy remains explicit repo-governance state.
     - Repo, run, and GitHub-ingress paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
     - Hybrid settings summary widgets may improve operator scanning or event handoff, but the underlying repo mutation path still requires explicit current-actor propagation through LiveView-owned events.
+    - Optional repository-scoped runtime capabilities fail closed with typed disabled or not-ready outcomes instead of silently enabling an ambient global service.
 ```
 
 ## Verification
@@ -212,5 +213,15 @@ surface:
   target: test/jido_code/control/phase_six_integration_test.exs
   covers:
     - architecture.policy_layers.legacy_and_ingress_surfaces_require_explicit_actor_context
+
+- kind: source_file
+  target: lib/jido_code/agent_workspace.ex
+  covers:
+    - architecture.policy_layers.runtime_policy_governs_runtime_capability
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_workspace_test.exs
+  covers:
+    - architecture.policy_layers.runtime_policy_governs_runtime_capability
 
 ```

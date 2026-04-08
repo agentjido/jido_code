@@ -1,6 +1,8 @@
 defmodule JidoCode.SourceCodeGraphWorkspaceTest do
   # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
+  # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: package.jido_code.version_controlled_quality_surfaces
   use ExUnit.Case, async: false
 
   alias JidoCode.AgentWorkspace

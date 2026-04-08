@@ -141,3 +141,14 @@ Phase 21 extends that foundation with the first real semantic ingestion path:
 - `AgentWorkspace` now preserves repository-scoped analysis/import status,
   imported revision, and typed stale-revision outcomes through the pod metadata
   boundary
+
+Phase 22 begins the semantic query surface on top of that stored graph:
+
+- `QuerySourceCodeGraph` now validates and executes SPARQL through the `sparql`
+  library while targeting the repository-local `source_code` named graph from
+  `TripleStore`
+- query results are returned as bounded product-shaped rows and metadata rather
+  than raw store handles or internal result structs
+- helper actions now compile common module, function, runtime-pattern, and
+  bounded impact lookups down to explicit SPARQL queries instead of introducing
+  an ambient hidden semantic side channel

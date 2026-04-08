@@ -22,22 +22,22 @@ Back to index: [README](./README.md)
 [ ] 22 Phase 22 - Source Code Graph Query Agents and Workflow Adoption
   Add SPARQL-backed query tools and specialist agents to the SourceCodeGraphPod, then expose repository-scoped semantic query behavior through product-owned workspace entrypoints and pod workflows.
 
-  [ ] 22.1 Section - SPARQL Query Action Surface
+  [x] 22.1 Section - SPARQL Query Action Surface
     Implement the explicit query tools that let repository-scoped agents interrogate the loaded `source_code` graph through a stable SPARQL boundary.
 
-    [ ] 22.1.1 Task - Implement SPARQL-backed query action
+    [x] 22.1.1 Task - Implement SPARQL-backed query action
       Build the canonical query action that validates and runs graph queries against the loaded `source_code` graph.
 
-      [ ] 22.1.1.1 Subtask - Use the `sparql` library as the canonical SPARQL surface for parsing or constructing repository graph queries.
-      [ ] 22.1.1.2 Subtask - Route query execution against the repository-local TripleStore dataset and `source_code` named graph.
-      [ ] 22.1.1.3 Subtask - Return structured result rows and query metadata without leaking raw store internals.
+      [x] 22.1.1.1 Subtask - Use the `sparql` library as the canonical SPARQL surface for parsing or constructing repository graph queries.
+      [x] 22.1.1.2 Subtask - Route query execution against the repository-local TripleStore dataset and `source_code` named graph.
+      [x] 22.1.1.3 Subtask - Return structured result rows and query metadata without leaking raw store internals.
 
-    [ ] 22.1.2 Task - Implement bounded semantic helper actions
+    [x] 22.1.2 Task - Implement bounded semantic helper actions
       Add reusable higher-level actions that sit on top of SPARQL for common source-code graph workflows without hiding the underlying explicit query contract.
 
-      [ ] 22.1.2.1 Subtask - Define helper actions for module/function/runtime-pattern lookups that compile to explicit SPARQL queries.
-      [ ] 22.1.2.2 Subtask - Define helper actions for impact-style traversals over semantic relationships when those are common agent needs.
-      [ ] 22.1.2.3 Subtask - Define typed query failure and empty-result behavior for pod agents and product-owned callers.
+      [x] 22.1.2.1 Subtask - Define helper actions for module/function/runtime-pattern lookups that compile to explicit SPARQL queries.
+      [x] 22.1.2.2 Subtask - Define helper actions for impact-style traversals over semantic relationships when those are common agent needs.
+      [x] 22.1.2.3 Subtask - Define typed query failure and empty-result behavior for pod agents and product-owned callers.
 
   [ ] 22.2 Section - Specialist Agent Adoption
     Add the lazy specialist agents that perform semantic graph analysis, refresh, and query work inside the SourceCodeGraphPod.

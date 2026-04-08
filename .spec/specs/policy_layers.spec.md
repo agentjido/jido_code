@@ -6,7 +6,7 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness and stale-revision gating, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -223,5 +223,6 @@ surface:
   target: test/jido_code/source_code_graph_workspace_test.exs
   covers:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
+    - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
 
 ```

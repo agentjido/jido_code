@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration

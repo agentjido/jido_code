@@ -2,6 +2,7 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
   # covers: architecture.agent_os_integration.workspace_context_hides_kernel_topology
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
   # covers: package.jido_code.version_controlled_quality_surfaces
   use ExUnit.Case, async: false
 
@@ -126,12 +127,17 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
                AgentWorkspace.query_source_code_graph(
                  managed_repo_id,
                  workspace_path,
-                 "SELECT * WHERE { GRAPH <source_code> { ?s ?p ?o } }"
+                 """
+                 SELECT ?module
+                 WHERE {
+                   ?module a struct:Module .
+                 }
+                 """
                )
 
       assert query_result.engine == :sparql
       assert query_result.graph_name == "source_code"
-      assert query_result.bindings == []
+      assert query_result.row_count >= 1
     end
 
     test "returns a typed stale outcome when the loaded revision is outdated" do

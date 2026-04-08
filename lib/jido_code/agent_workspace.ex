@@ -294,16 +294,23 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_source_code_graph_pod(managed_repo_id(), String.t(), keyword()) ::
           {:ok, source_code_graph_summary()} | {:error, term()}
   def ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts \\ []) do
-    with :ok <- ensure_source_code_graph_enabled(opts),
-         {:ok, pod_metadata} <- SourceCodeGraph.pod_metadata(managed_repo_id, workspace_path, opts),
-         {:ok, pod_entry} <-
-           Manager.ensure_pod(
-             managed_repo_id,
-             SourceCodeGraph.pod_id(),
-             SourceCodeGraphPod,
-             pod_metadata
-           ) do
-      {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+    with :ok <- ensure_source_code_graph_enabled(opts) do
+      case Manager.pod_status(managed_repo_id, SourceCodeGraph.pod_id()) do
+        nil ->
+          with {:ok, pod_metadata} <- SourceCodeGraph.pod_metadata(managed_repo_id, workspace_path, opts),
+               {:ok, pod_entry} <-
+                 Manager.ensure_pod(
+                   managed_repo_id,
+                   SourceCodeGraph.pod_id(),
+                   SourceCodeGraphPod,
+                   pod_metadata
+                 ) do
+            {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+          end
+
+        pod_entry ->
+          {:ok, source_code_graph_summary(managed_repo_id, pod_entry)}
+      end
     end
   end
 
@@ -328,7 +335,11 @@ defmodule JidoCode.AgentWorkspace do
   def analyze_source_code_graph(managed_repo_id, workspace_path, opts \\ []) do
     with {:ok, _pod} <- ensure_source_code_graph_pod(managed_repo_id, workspace_path, opts),
          {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
-         {:ok, result} <- AnalyzeSourceCodeGraph.run(source_code_graph_params(opts), action_context) do
+         {:ok, result} <- AnalyzeSourceCodeGraph.run(source_code_graph_params(opts), action_context),
+         {:ok, _pod_entry} <-
+           persist_source_code_graph_state(managed_repo_id, %{
+             latest_analysis_status: result.latest_analysis_status
+           }) do
       {:ok, result}
     end
   end
@@ -343,7 +354,10 @@ defmodule JidoCode.AgentWorkspace do
          {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
          {:ok, result} <- LoadSourceCodeGraph.run(source_code_graph_params(opts), action_context),
          {:ok, _pod_entry} <-
-           persist_source_code_graph_status(managed_repo_id, result.latest_import_status) do
+           persist_source_code_graph_state(managed_repo_id, %{
+             latest_analysis_status: result.latest_analysis_status,
+             latest_import_status: result.latest_import_status
+           }) do
       {:ok, result}
     end
   end
@@ -358,7 +372,10 @@ defmodule JidoCode.AgentWorkspace do
          {:ok, action_context} <- source_code_graph_action_context(managed_repo_id, workspace_path, opts),
          {:ok, result} <- RefreshSourceCodeGraph.run(source_code_graph_params(opts), action_context),
          {:ok, _pod_entry} <-
-           persist_source_code_graph_status(managed_repo_id, result.latest_import_status) do
+           persist_source_code_graph_state(managed_repo_id, %{
+             latest_analysis_status: result.latest_analysis_status,
+             latest_import_status: result.latest_import_status
+           }) do
       {:ok, result}
     end
   end
@@ -405,18 +422,13 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
-    latest_import_status =
-      managed_repo_id
-      |> Manager.pod_status(SourceCodeGraph.pod_id())
-      |> case do
-        nil -> nil
-        pod_entry -> get_in(pod_entry, [:metadata, :latest_import_status])
-      end
+    pod_entry = Manager.pod_status(managed_repo_id, SourceCodeGraph.pod_id())
 
     context = %{
       managed_repo_id: managed_repo_id,
       workspace_path: workspace_path,
-      latest_import_status: latest_import_status,
+      latest_import_status: get_in(pod_entry, [:metadata, :latest_import_status]),
+      latest_analysis_status: get_in(pod_entry, [:metadata, :latest_analysis_status]),
       graph: %{revision: Keyword.get(opts, :revision)}
     }
 
@@ -425,10 +437,8 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
-  defp persist_source_code_graph_status(managed_repo_id, latest_import_status) when is_map(latest_import_status) do
-    Manager.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), %{
-      latest_import_status: latest_import_status
-    })
+  defp persist_source_code_graph_state(managed_repo_id, updates) when is_map(updates) do
+    Manager.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), updates)
   end
 
   defp source_code_graph_summary(managed_repo_id, pod_entry) do

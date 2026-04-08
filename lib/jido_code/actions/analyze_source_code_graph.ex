@@ -11,7 +11,7 @@ defmodule JidoCode.Actions.AnalyzeSourceCodeGraph do
 
   use Jido.Action,
     name: "jido_code_analyze_source_code_graph",
-    description: "Prepare a full-profile ontology analysis for a repository source graph.",
+    description: "Run full-profile ontology analysis for a repository source graph.",
     schema: [
       managed_repo_id: [type: :string, default: nil],
       workspace_path: [type: :string, default: nil],
@@ -19,22 +19,18 @@ defmodule JidoCode.Actions.AnalyzeSourceCodeGraph do
     ]
 
   alias JidoCode.Actions.SourceCodeGraphSupport
+  alias JidoCode.SourceCodeGraph.Analysis
 
   @impl true
   def run(params, context) do
     with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
-      {:ok,
-       %{
-         status: :analysis_ready,
-         graph_name: graph_context.graph_name,
-         ontology_profile: graph_context.ontology_profile,
-         analysis: %{
-           adapter: :elixir_ontologies,
-           extraction_mode: :full,
-           workspace_path: graph_context.workspace_path
-         },
-         dataset: graph_context.dataset_metadata
-       }}
+      case Analysis.analyze(graph_context) do
+        {:ok, result} ->
+          {:ok, result}
+
+        {:error, diagnostics} ->
+          {:error, :source_code_graph_analysis_failed, diagnostics}
+      end
     else
       {:error, reason} -> {:error, reason}
     end

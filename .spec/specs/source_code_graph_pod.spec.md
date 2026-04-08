@@ -10,7 +10,7 @@ ingestion and query.
 id: architecture.source_code_graph_pod
 kind: feature
 status: proposed
-summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, loads ontology schema and extracted project individuals into the canonical `source_code` named graph of a local TripleStore database, and exposes explicit SPARQL-based query actions for pod-local agents.
+summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness and stale-revision status through AgentWorkspace, and continues toward explicit SPARQL-based specialist query actions for pod-local agents.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -136,6 +136,20 @@ surface:
     - architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target
 
 - kind: source_file
+  target: lib/jido_code/source_code_graph/analysis.ex
+  covers:
+    - architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
+    - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph/store.ex
+  covers:
+    - architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store
+    - architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target
+    - architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together
+    - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+
+- kind: source_file
   target: lib/jido_code/pods/source_code_graph_pod.ex
   covers:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
@@ -169,4 +183,13 @@ surface:
   covers:
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_one_integration_test.exs
+  covers:
+    - architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
+    - architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store
+    - architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target
+    - architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together
+    - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
 ```

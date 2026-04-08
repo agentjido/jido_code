@@ -19,24 +19,33 @@ defmodule JidoCode.Actions.QuerySourceCodeGraph do
 
   @impl true
   def run(params, context) do
-    with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context),
-         true <- SourceCodeGraphSupport.ready?(graph_context.latest_import_status) do
-      {:ok,
-       %{
-         graph_name: graph_context.graph_name,
-         engine: :sparql,
-         library: :sparql,
-         sparql: params.sparql,
-         bindings: [],
-         row_count: 0,
-         latest_import_status: graph_context.latest_import_status
-       }}
-    else
-      false ->
-        {:error, :source_code_graph_not_ready, "The source_code graph must be loaded before semantic queries can run."}
+    with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
+      cond do
+        not SourceCodeGraphSupport.ready?(graph_context.latest_import_status) ->
+          {:error, :source_code_graph_not_ready,
+           "The source_code graph must be loaded before semantic queries can run."}
 
-      {:error, reason} ->
-        {:error, reason}
+        SourceCodeGraphSupport.stale?(
+          graph_context.latest_import_status,
+          graph_context.revision_metadata.revision
+        ) ->
+          {:error, :source_code_graph_stale,
+           "The source_code graph must be refreshed for the requested revision before semantic queries can run."}
+
+        true ->
+          {:ok,
+           %{
+             graph_name: graph_context.graph_name,
+             engine: :sparql,
+             library: :sparql,
+             sparql: params.sparql,
+             bindings: [],
+             row_count: 0,
+             latest_import_status: graph_context.latest_import_status
+           }}
+      end
+    else
+      {:error, reason} -> {:error, reason}
     end
   end
 end

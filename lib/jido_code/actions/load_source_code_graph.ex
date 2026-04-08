@@ -3,9 +3,6 @@ defmodule JidoCode.Actions.LoadSourceCodeGraph do
   # covers: architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together
   @moduledoc """
   Defines named-graph load behavior for ontology/schema and project individuals.
-
-  Phase 20 keeps the load contract explicit and typed before later phases connect
-  the action to TripleStore-backed persistence.
   """
 
   use Jido.Action,
@@ -18,33 +15,22 @@ defmodule JidoCode.Actions.LoadSourceCodeGraph do
     ]
 
   alias JidoCode.Actions.SourceCodeGraphSupport
+  alias JidoCode.SourceCodeGraph.Analysis
+  alias JidoCode.SourceCodeGraph.Store
 
   @impl true
   def run(params, context) do
     with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
-      latest_import_status = %{
-        state: :loaded,
-        ready?: true,
-        graph_name: graph_context.graph_name,
-        imported_revision: graph_context.revision_metadata.revision,
-        imported_at: DateTime.utc_now(),
-        load_strategy: :replace_named_graph,
-        schema_included?: true,
-        individuals_included?: true
-      }
+      with {:ok, analysis_result} <- Analysis.analyze(graph_context),
+           {:ok, load_result} <- Store.load_snapshot(analysis_result, mode: :load) do
+        {:ok, load_result}
+      else
+        {:error, %{state: :analysis_failed} = diagnostics} ->
+          {:error, :source_code_graph_analysis_failed, diagnostics}
 
-      {:ok,
-       %{
-         status: :graph_loaded,
-         graph_name: graph_context.graph_name,
-         store: %{
-           backend: :triple_store,
-           schema: :quad,
-           path: graph_context.graph_store_path
-         },
-         dataset: graph_context.dataset_metadata,
-         latest_import_status: latest_import_status
-       }}
+        {:error, diagnostics} when is_map(diagnostics) ->
+          {:error, :source_code_graph_store_failed, diagnostics}
+      end
     else
       {:error, reason} -> {:error, reason}
     end

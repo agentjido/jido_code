@@ -23,7 +23,14 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
          graph_context,
          :latest_import_status,
          latest_import_status(context, graph_context.latest_import_status)
-       )}
+       )
+       |> then(fn graph_context ->
+         Map.put(
+           graph_context,
+           :latest_analysis_status,
+           latest_analysis_status(context, graph_context.latest_analysis_status)
+         )
+       end)}
     end
   end
 
@@ -34,8 +41,25 @@ defmodule JidoCode.Actions.SourceCodeGraphSupport do
       default_status
   end
 
+  @spec latest_analysis_status(map(), map()) :: map()
+  def latest_analysis_status(context, default_status) do
+    context[:latest_analysis_status] ||
+      get_in(context, [:graph, :latest_analysis_status]) ||
+      default_status
+  end
+
   @spec ready?(map()) :: boolean()
   def ready?(status) when is_map(status), do: Map.get(status, :ready?, false)
+
+  @spec stale?(map(), String.t() | nil) :: boolean()
+  def stale?(status, requested_revision) when is_map(status) and is_binary(requested_revision) do
+    case Map.get(status, :imported_revision) do
+      nil -> false
+      imported_revision -> imported_revision != requested_revision
+    end
+  end
+
+  def stale?(_status, _requested_revision), do: false
 
   defp normalize_managed_repo_id(value) when is_binary(value) do
     case String.trim(value) do

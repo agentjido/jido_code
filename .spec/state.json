@@ -434,27 +434,6 @@
       "message": "Verification target file does not exist: test/jido_code/governance/phase_ten_integration_test.exs"
     },
     {
-      "code": "missing_meta_field",
-      "entity_id": ".spec/specs/knowledge_graph_service.spec.md",
-      "file": ".spec/specs/knowledge_graph_service.spec.md",
-      "level": "error",
-      "message": "Missing required spec-meta field: id"
-    },
-    {
-      "code": "missing_meta_field",
-      "entity_id": ".spec/specs/knowledge_graph_service.spec.md",
-      "file": ".spec/specs/knowledge_graph_service.spec.md",
-      "level": "error",
-      "message": "Missing required spec-meta field: kind"
-    },
-    {
-      "code": "missing_meta_field",
-      "entity_id": ".spec/specs/knowledge_graph_service.spec.md",
-      "file": ".spec/specs/knowledge_graph_service.spec.md",
-      "level": "error",
-      "message": "Missing required spec-meta field: status"
-    },
-    {
       "code": "verification_target_missing",
       "entity_id": "package.jido_code",
       "file": ".spec/specs/package.spec.md",
@@ -4789,12 +4768,6 @@
           "verification_minimum_strength": null
         },
         "title": "GitHub Service Credentials"
-      },
-      {
-        "file": ".spec/specs/knowledge_graph_service.spec.md",
-        "id": null,
-        "meta": null,
-        "title": "Knowledge Graph Service Specification"
       },
       {
         "file": ".spec/specs/operator_auth_settings.spec.md",
@@ -9376,10 +9349,10 @@
     "decision_parse_errors": 0,
     "decisions": 15,
     "exceptions": 0,
-    "findings": 99,
+    "findings": 96,
     "requirements": 223,
     "scenarios": 93,
-    "subjects": 35,
+    "subjects": 34,
     "verifications": 398
   },
   "verification": {
@@ -17360,6 +17333,6 @@
   },
   "workspace": {
     "decision_count": 15,
-    "spec_count": 35
+    "spec_count": 34
   }
 }

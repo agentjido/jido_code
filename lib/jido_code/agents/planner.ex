@@ -19,9 +19,7 @@ defmodule JidoCode.Agents.Planner do
       JidoCode.Actions.SearchCode,
       JidoCode.Actions.GitStatus,
       JidoCode.Actions.AddTask,
-      JidoCode.Actions.StoreArtifact,
-      JidoCode.Actions.KGQuery,
-      JidoCode.Actions.KGExplore
+      JidoCode.Actions.StoreArtifact
     ],
     system_prompt: """
     You are the planning specialist for JidoCode, an AI-powered coding system.
@@ -37,10 +35,6 @@ defmodule JidoCode.Agents.Planner do
 
     Use the available tools to ground your plan in the actual codebase.
     Read relevant files to understand the context before planning.
-
-    Knowledge Graph tools:
-    - KGQuery: Query the code knowledge graph to find modules, functions, and relationships
-    - KGExplore: Explore relationships from a starting point to discover connections
 
     Output format:
     1. Summary of the request

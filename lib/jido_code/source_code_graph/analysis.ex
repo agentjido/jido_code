@@ -1,4 +1,6 @@
 defmodule JidoCode.SourceCodeGraph.Analysis do
+  # covers: architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required
+  # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   @moduledoc false
 
   alias JidoCode.SourceCodeGraph

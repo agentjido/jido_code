@@ -125,3 +125,19 @@ Phase 20 now establishes the product-owned foundation for this decision inside
 - `AgentWorkspace` entrypoints that ensure the capability, hide pod topology,
   preserve repository-scoped readiness, and fail closed on disabled or not-ready
   graph states
+
+Phase 21 extends that foundation with the first real semantic ingestion path:
+
+- `ElixirOntologies.analyze_project/2` now runs in explicit full mode with
+  expression-level extraction enabled and repository revision metadata preserved
+  in the staged analysis result
+- ontology schema artifacts and repository-derived individuals are normalized
+  into one coherent intermediate snapshot before import
+- a repository-local `TripleStore` quad store is opened through a staged-store
+  swap strategy that loads ontology schema and project individuals into the
+  canonical named graph IRI for `source_code`
+- refresh replaces the canonical store coherently rather than mutating a live
+  mixed snapshot in place
+- `AgentWorkspace` now preserves repository-scoped analysis/import status,
+  imported revision, and typed stale-revision outcomes through the pod metadata
+  boundary

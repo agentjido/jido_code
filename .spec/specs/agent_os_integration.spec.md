@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness state preserved through AgentWorkspace, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -217,7 +217,7 @@ surface:
     - `AgentWorkspace` ensures one repository-scoped SourceCodeGraphPod.
     - The workspace boundary returns product-owned graph summaries rather than pod internals.
     - Analyze, load, refresh, status, and query operations route through explicit `Jido.Action` tools.
-    - Repository-local readiness is preserved per repository kernel rather than as global state.
+    - Repository-local readiness and stale-revision state are preserved per repository kernel rather than as global state.
 ```
 
 ## Verification
@@ -249,6 +249,13 @@ surface:
     - architecture.agent_os_integration.multiple_pods_parallel_execution
     - architecture.agent_os_integration.signal_routing_within_pod
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_one_integration_test.exs
+  covers:
+    - architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+    - architecture.agent_os_integration.workspace_context_hides_kernel_topology
 
 - kind: source_file
   target: lib/jido_code/agent_os.ex

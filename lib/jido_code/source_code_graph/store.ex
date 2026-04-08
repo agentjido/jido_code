@@ -1,4 +1,8 @@
 defmodule JidoCode.SourceCodeGraph.Store do
+  # covers: architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store
+  # covers: architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target
+  # covers: architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together
+  # covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
   @moduledoc false
 
   alias JidoCode.SourceCodeGraph

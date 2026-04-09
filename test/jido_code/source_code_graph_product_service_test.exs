@@ -1,4 +1,7 @@
 defmodule JidoCode.SourceCodeGraphProductServiceTest do
+  # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
+  # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace

@@ -1,4 +1,7 @@
 defmodule JidoCode.SourceCodeGraph.ViewModel do
+  # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
+  # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+  # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
   @moduledoc false
 
   @type graph_state :: map()

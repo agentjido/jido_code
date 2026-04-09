@@ -23,7 +23,7 @@ Back to index: [README](./README.md)
 - Product code should consume semantic capability through bounded product-owned services over `AgentWorkspace`.
 - Semantic outputs only matter to factory behavior once they rejoin governed product records.
 
-[ ] 24 Phase 24 - Source Code Graph Product Service Foundation
+[x] 24 Phase 24 - Source Code Graph Product Service Foundation
   Establish the product-owned semantic service and view-model boundaries that let managed-repository features consume source-code graph capability without leaking pod, SPARQL, or store internals.
 
   [x] 24.1 Section - Product-Owned Semantic Service Boundary
@@ -60,19 +60,19 @@ Back to index: [README](./README.md)
       [x] 24.2.2.2 Subtask - Preserve semantic freshness and degradation metadata on any materialized finding.
       [x] 24.2.2.3 Subtask - Keep graph-local runtime facts separate from Ash-backed governed records unless materialization is requested.
 
-  [ ] 24.3 Section - Phase 24 Integration Tests
+  [x] 24.3 Section - Phase 24 Integration Tests
     Verify the new product-owned semantic boundary is repository-scoped, bounded, and control-plane aligned before any browser surface begins depending on it.
 
-    [ ] 24.3.1 Task - Product service boundary scenarios
+    [x] 24.3.1 Task - Product service boundary scenarios
       Prove semantic product services return product-shaped, bounded outcomes without leaking runtime internals.
 
-      [ ] 24.3.1.1 Subtask - Add coverage proving module, function, runtime-pattern, and impact lookups return product-shaped semantic projections.
-      [ ] 24.3.1.2 Subtask - Add coverage proving stale, degraded, and recovery-required states remain explicit at the product boundary.
-      [ ] 24.3.1.3 Subtask - Add coverage proving direct pod or raw SPARQL access is not required by product-owned callers.
+      [x] 24.3.1.1 Subtask - Add coverage proving module, function, runtime-pattern, and impact lookups return product-shaped semantic projections.
+      [x] 24.3.1.2 Subtask - Add coverage proving stale, degraded, and recovery-required states remain explicit at the product boundary.
+      [x] 24.3.1.3 Subtask - Add coverage proving direct pod or raw SPARQL access is not required by product-owned callers.
 
-    [ ] 24.3.2 Task - Governed materialization scenarios
+    [x] 24.3.2 Task - Governed materialization scenarios
       Prove semantic findings only influence the factory after explicit materialization into governed records.
 
-      [ ] 24.3.2.1 Subtask - Add coverage proving semantic findings can become bounded Observation or Assessment inputs.
-      [ ] 24.3.2.2 Subtask - Add coverage proving semantic findings can become governed work or evidence inputs when explicitly requested.
-      [ ] 24.3.2.3 Subtask - Verify the product and spec workspace remain coherent after adding the product semantic service layer.
+      [x] 24.3.2.1 Subtask - Add coverage proving semantic findings can become bounded Observation or Assessment inputs.
+      [x] 24.3.2.2 Subtask - Add coverage proving semantic findings can become governed work or evidence inputs when explicitly requested.
+      [x] 24.3.2.3 Subtask - Verify the product and spec workspace remain coherent after adding the product semantic service layer.

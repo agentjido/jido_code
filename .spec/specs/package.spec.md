@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, and the future product-owned semantic inspection and workflow adoption layer built on top of that runtime capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, the product-owned semantic service, view-model, and semantic-finding materialization layer built on top of that runtime capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
@@ -215,6 +215,21 @@ surface:
 
 - kind: source_file
   target: test/jido_code/agent_os/phase_twenty_one_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_product_service_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/source_code_graph_materialization_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/phase_twenty_four_integration_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

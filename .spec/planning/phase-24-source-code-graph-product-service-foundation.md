@@ -26,22 +26,22 @@ Back to index: [README](./README.md)
 [ ] 24 Phase 24 - Source Code Graph Product Service Foundation
   Establish the product-owned semantic service and view-model boundaries that let managed-repository features consume source-code graph capability without leaking pod, SPARQL, or store internals.
 
-  [ ] 24.1 Section - Product-Owned Semantic Service Boundary
+  [x] 24.1 Section - Product-Owned Semantic Service Boundary
     Create the product-layer service and shaping boundaries that sit between operator features and the repository-scoped semantic runtime capability.
 
-    [ ] 24.1.1 Task - Introduce product-owned semantic service modules
+    [x] 24.1.1 Task - Introduce product-owned semantic service modules
       Define the product-facing service modules that wrap AgentWorkspace semantic entrypoints and return product-shaped semantic summaries.
 
-      [ ] 24.1.1.1 Subtask - Add a repository-scoped semantic service boundary for modules, functions, runtime patterns, and bounded impact lookups.
-      [ ] 24.1.1.2 Subtask - Ensure the service returns product-shaped maps and typed outcomes instead of raw SPARQL rows or pod metadata.
-      [ ] 24.1.1.3 Subtask - Keep stale, degraded, and recovery-required states explicit in the service contract.
+      [x] 24.1.1.1 Subtask - Add a repository-scoped semantic service boundary for modules, functions, runtime patterns, and bounded impact lookups.
+      [x] 24.1.1.2 Subtask - Ensure the service returns product-shaped maps and typed outcomes instead of raw SPARQL rows or pod metadata.
+      [x] 24.1.1.3 Subtask - Keep stale, degraded, and recovery-required states explicit in the service contract.
 
-    [ ] 24.1.2 Task - Add semantic view-model shaping
+    [x] 24.1.2 Task - Add semantic view-model shaping
       Introduce bounded semantic view-model helpers so LiveViews and widgets can render semantic repository data without reimplementing graph result shaping ad hoc.
 
-      [ ] 24.1.2.1 Subtask - Define bounded projections for semantic repository summaries and result groups.
-      [ ] 24.1.2.2 Subtask - Define freshness, stale-state, degraded, and recovery affordance shaping for operator-facing surfaces.
-      [ ] 24.1.2.3 Subtask - Ensure semantic view-models remain repo-scoped and managed-repo-first in naming and identifiers.
+      [x] 24.1.2.1 Subtask - Define bounded projections for semantic repository summaries and result groups.
+      [x] 24.1.2.2 Subtask - Define freshness, stale-state, degraded, and recovery affordance shaping for operator-facing surfaces.
+      [x] 24.1.2.3 Subtask - Ensure semantic view-models remain repo-scoped and managed-repo-first in naming and identifiers.
 
   [ ] 24.2 Section - Governed Semantic Finding Materialization
     Define how semantic findings leave the runtime/service layer and rejoin governed product records when they matter to the factory.

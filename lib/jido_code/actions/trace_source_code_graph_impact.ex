@@ -30,7 +30,11 @@ defmodule JidoCode.Actions.TraceSourceCodeGraphImpact do
       with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context),
            compiled_query <- HelperQueries.impact(graph_context, params) do
         case QuerySourceCodeGraph.run(
-               %{sparql: compiled_query, revision: params[:revision], allow_stale?: params[:allow_stale?]},
+               %{
+                 sparql: compiled_query,
+                 revision: params[:revision],
+                 allow_stale?: Map.get(params, :allow_stale?, false) == true
+               },
                context
              ) do
           {:ok, result} ->

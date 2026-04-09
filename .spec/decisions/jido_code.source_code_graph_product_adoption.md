@@ -86,6 +86,9 @@ the control plane:
 - Managed-repository UI and workflow entrypoints can expose semantic structure,
   runtime patterns, and bounded impact traces without leaking SPARQL, pod
   topology, or store handles.
+- Canonical repo detail and workbench surfaces now reuse one product-owned
+  semantic inspection boundary, making semantic freshness and recovery visible
+  in normal managed-repository routes instead of a separate graph browser.
 - Product behavior stays explainable because semantic freshness and recovery
   remain explicit in operator-visible state.
 - The control plane remains canonical: semantic outputs matter only when they

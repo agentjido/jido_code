@@ -1,4 +1,6 @@
 defmodule JidoCode.Workbench.ProjectSemanticInspection do
+  # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+  # covers: architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
   # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery

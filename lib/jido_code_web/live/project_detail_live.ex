@@ -1,6 +1,11 @@
 defmodule JidoCodeWeb.ProjectDetailLive do
+  # covers: architecture.frontend_stack.liveview_remains_product_host_shell
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
+  # covers: architecture.frontend_stack.product_owned_mounting_boundary
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+  # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
+  # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 

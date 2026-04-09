@@ -1,4 +1,6 @@
 defmodule JidoCode.Workbench.Inventory do
+  # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
+  # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   @moduledoc """
   Loads managed-repo-first workbench inventory rows and stale-state warnings.
   """

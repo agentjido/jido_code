@@ -8,7 +8,7 @@ This subject defines the first signed-in product entry contract after bootstrap 
 id: setup.onboarding
 kind: feature
 status: active
-summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard.
+summary: jido_code treats bootstrap-admin creation as the only hard first-run gate, auto-detects a global deployment mode for start-surface defaults, keeps the preferred local start path aligned to the current browser architecture, and defers repo/provider/integration setup into signed-in follow-up work where repository import writes canonical control-plane records without reintroducing a blocking wizard, while post-bootstrap managed-repository surfaces may now expose bounded semantic repository inspection and recovery once those control-plane records exist.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.auth_user_system
@@ -145,7 +145,7 @@ surface:
     - The operator opens dashboard, workbench, or repo detail through the post-bootstrap routes.
   then:
     - Those post-bootstrap surfaces present managed-repository and governed-run concepts as the operator language.
-    - They may also adopt bounded hybrid summary widgets incrementally as long as those routed surfaces keep onboarding-era auth, loading, and control-plane language in the LiveView host shell.
+    - They may also adopt bounded hybrid summary widgets and repo-scoped semantic inspection incrementally as long as those routed surfaces keep onboarding-era auth, loading, and control-plane language in the LiveView host shell.
 ```
 
 ## Verification
@@ -236,6 +236,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_code_web/live/project_detail_live.ex
+  covers:
+    - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
+
+- kind: source_file
+  target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
   covers:
     - setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
 ```

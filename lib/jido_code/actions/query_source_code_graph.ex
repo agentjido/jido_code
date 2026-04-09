@@ -23,6 +23,8 @@ defmodule JidoCode.Actions.QuerySourceCodeGraph do
   @impl true
   def run(params, context) do
     with {:ok, graph_context} <- SourceCodeGraphSupport.resolve_graph_context(params, context) do
+      allow_stale? = Map.get(params, :allow_stale?) == true
+
       stale_status =
         SourceCodeGraphSupport.stale_status(
           graph_context.latest_import_status,
@@ -34,7 +36,7 @@ defmodule JidoCode.Actions.QuerySourceCodeGraph do
           {:error, :source_code_graph_not_ready,
            "The source_code graph must be loaded before semantic queries can run."}
 
-        stale_status.stale? and not Map.get(params, :allow_stale?, false) ->
+        stale_status.stale? and not allow_stale? ->
           {:error, :source_code_graph_stale,
            "The source_code graph must be refreshed for the requested revision before semantic queries can run."}
 

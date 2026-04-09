@@ -26,7 +26,11 @@ defmodule JidoCode.Actions.FindSourceCodeGraphModules do
       compiled_query = HelperQueries.modules(graph_context, params)
 
       case QuerySourceCodeGraph.run(
-             %{sparql: compiled_query, revision: params[:revision], allow_stale?: params[:allow_stale?]},
+             %{
+               sparql: compiled_query,
+               revision: params[:revision],
+               allow_stale?: Map.get(params, :allow_stale?, false) == true
+             },
              context
            ) do
         {:ok, result} ->

@@ -78,6 +78,11 @@ the control plane:
 
 - The semantic graph now has a clear product destination instead of remaining a
   runtime-only specialist feature.
+- The product foundation for that destination now includes a bounded
+  `SourceCodeGraph.ProductService`, repo-first semantic view models, and
+  explicit semantic-finding materialization helpers that can create governed
+  `Observation` and `Assessment` records or build work and evidence inputs
+  without leaking SPARQL or pod metadata into product callers.
 - Managed-repository UI and workflow entrypoints can expose semantic structure,
   runtime patterns, and bounded impact traces without leaking SPARQL, pod
   topology, or store handles.

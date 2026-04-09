@@ -10,7 +10,7 @@ entrypoints.
 id: architecture.source_code_graph_product_adoption
 kind: feature
 status: proposed
-summary: Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.
+summary: Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.
 decisions:
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
   - jido_code.live_vue_frontend_adoption
@@ -21,9 +21,16 @@ surface:
   - .spec/specs/source_code_graph_pod.spec.md
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/source_code_graph/
+  - lib/jido_code/source_code_graph/product_service.ex
+  - lib/jido_code/source_code_graph/view_model.ex
+  - lib/jido_code/source_code_graph/finding.ex
+  - lib/jido_code/source_code_graph/materialization.ex
   - lib/jido_code/workbench/
   - lib/jido_code_web/live/
   - lib/jido_code_web/components/
+  - test/jido_code/source_code_graph_product_service_test.exs
+  - test/jido_code/source_code_graph_materialization_test.exs
+  - test/jido_code/phase_twenty_four_integration_test.exs
   - test/jido_code/source_code_graph_workspace_test.exs
   - test/jido_code_web/live/
 ```
@@ -129,4 +136,23 @@ surface:
     - architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
     - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
     - architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph/product_service.ex
+  covers:
+    - architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
+    - architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph/materialization.ex
+  covers:
+    - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
+    - architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
+
+- kind: source_file
+  target: test/jido_code/phase_twenty_four_integration_test.exs
+  covers:
+    - architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
+    - architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+    - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
 ```

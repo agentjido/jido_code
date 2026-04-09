@@ -1,4 +1,7 @@
 defmodule JidoCode.SourceCodeGraph.ProductService do
+  # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
+  # covers: architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
+  # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
   @moduledoc """
   Product-owned semantic service boundary over AgentWorkspace.
 
@@ -8,7 +11,7 @@ defmodule JidoCode.SourceCodeGraph.ProductService do
   """
 
   alias JidoCode.AgentWorkspace
-  alias JidoCode.SourceCodeGraph.ViewModel
+  alias JidoCode.SourceCodeGraph.{Finding, Materialization, ViewModel}
 
   @type managed_repo_id :: String.t()
   @type workspace_path :: String.t()
@@ -101,6 +104,21 @@ defmodule JidoCode.SourceCodeGraph.ProductService do
       AgentWorkspace.trace_source_code_graph_impact(managed_repo_id, workspace_path, opts)
     end)
   end
+
+  @spec to_finding(map(), keyword()) :: {:ok, map()} | {:error, atom()}
+  def to_finding(projection, opts \\ []), do: Finding.from_projection(projection, opts)
+
+  @spec materialize_observation(map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def materialize_observation(projection, opts \\ []), do: Materialization.materialize_observation(projection, opts)
+
+  @spec materialize_assessment(map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def materialize_assessment(projection, opts \\ []), do: Materialization.materialize_assessment(projection, opts)
+
+  @spec work_item_seed(map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def work_item_seed(projection, opts \\ []), do: Materialization.work_item_seed(projection, opts)
+
+  @spec evidence_input(map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def evidence_input(projection, opts \\ []), do: Materialization.evidence_input(projection, opts)
 
   defp semantic_lookup(managed_repo_id, workspace_path, opts, kind, query_fun) do
     with {:ok, status_result} <- AgentWorkspace.source_code_graph_status(managed_repo_id, workspace_path, opts) do

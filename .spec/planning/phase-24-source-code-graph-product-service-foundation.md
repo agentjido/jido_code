@@ -43,22 +43,22 @@ Back to index: [README](./README.md)
       [x] 24.1.2.2 Subtask - Define freshness, stale-state, degraded, and recovery affordance shaping for operator-facing surfaces.
       [x] 24.1.2.3 Subtask - Ensure semantic view-models remain repo-scoped and managed-repo-first in naming and identifiers.
 
-  [ ] 24.2 Section - Governed Semantic Finding Materialization
+  [x] 24.2 Section - Governed Semantic Finding Materialization
     Define how semantic findings leave the runtime/service layer and rejoin governed product records when they matter to the factory.
 
-    [ ] 24.2.1 Task - Introduce semantic finding materialization helpers
+    [x] 24.2.1 Task - Introduce semantic finding materialization helpers
       Add product-owned helpers that can turn meaningful semantic results into governed observations, assessments, evidence, or work input.
 
-      [ ] 24.2.1.1 Subtask - Define a bounded semantic-finding structure that records repository, revision, freshness, and query provenance.
-      [ ] 24.2.1.2 Subtask - Define how semantic findings become Observation or Assessment records when they are operator-meaningful but not yet actionable work.
-      [ ] 24.2.1.3 Subtask - Define how semantic findings become WorkItem seed input or Evidence when they should influence planning or review.
+      [x] 24.2.1.1 Subtask - Define a bounded semantic-finding structure that records repository, revision, freshness, and query provenance.
+      [x] 24.2.1.2 Subtask - Define how semantic findings become Observation or Assessment records when they are operator-meaningful but not yet actionable work.
+      [x] 24.2.1.3 Subtask - Define how semantic findings become WorkItem seed input or Evidence when they should influence planning or review.
 
-    [ ] 24.2.2 Task - Keep materialization governed and optional
+    [x] 24.2.2 Task - Keep materialization governed and optional
       Ensure semantic findings never silently become durable business truth and only rejoin the control plane through explicit product actions.
 
-      [ ] 24.2.2.1 Subtask - Require explicit product entrypoints for semantic-finding materialization.
-      [ ] 24.2.2.2 Subtask - Preserve semantic freshness and degradation metadata on any materialized finding.
-      [ ] 24.2.2.3 Subtask - Keep graph-local runtime facts separate from Ash-backed governed records unless materialization is requested.
+      [x] 24.2.2.1 Subtask - Require explicit product entrypoints for semantic-finding materialization.
+      [x] 24.2.2.2 Subtask - Preserve semantic freshness and degradation metadata on any materialized finding.
+      [x] 24.2.2.3 Subtask - Keep graph-local runtime facts separate from Ash-backed governed records unless materialization is requested.
 
   [ ] 24.3 Section - Phase 24 Integration Tests
     Verify the new product-owned semantic boundary is repository-scoped, bounded, and control-plane aligned before any browser surface begins depending on it.

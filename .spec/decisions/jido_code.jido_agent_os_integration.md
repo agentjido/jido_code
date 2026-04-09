@@ -27,6 +27,9 @@ related:
 <!-- covers: architecture.agent_os_integration.kernel_naming_convention -->
 <!-- covers: architecture.agent_os_integration.signal_routing_within_pod -->
 <!-- covers: architecture.agent_os_integration.pod_cleanup_on_completion -->
+<!-- covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state -->
+<!-- covers: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot -->
+<!-- covers: architecture.agent_os_integration.repository_work_queue_is_bounded -->
 <!-- covers: architecture.policy_layers.runtime_policy_governs_runtime_capability -->
 <!-- covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy -->
 <!-- covers: architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts -->
@@ -69,6 +72,18 @@ host repo, runtime pod and node startup shall fail closed into an explicit
 non-persistent path rather than pretending durable persistence exists. This
 keeps product-owned workspace execution functional without hiding missing host
 runtime dependencies behind placeholder success responses.
+
+Product-owned runtime state shall also be snapshotted into repository-local
+Ecto records so tracked kernels can restore resumable logical pod state after
+restart, and so missing runtime processes can be recovered on the next
+workspace access without losing pod metadata such as persisted specialist
+results or workspace bindings.
+
+Repository-scoped workspace admission shall remain bounded. New work-item pod
+creation may be rejected with a typed `:work_queue_full` outcome when the
+configured concurrent work limit has been reached, while already tracked
+resumable work items remain admissible so recovery does not deadlock the
+repository runtime.
 
 ## Current Domain Model
 

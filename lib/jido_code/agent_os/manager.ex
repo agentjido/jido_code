@@ -2,6 +2,8 @@ defmodule JidoCode.AgentOS.Manager do
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.dynamic_kernel_lifecycle
   # covers: architecture.agent_os_integration.kernel_naming_convention
+  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+  # covers: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
   @moduledoc """
   Dynamic kernel manager for repository-scoped AgentOS kernels.
 
@@ -31,7 +33,7 @@ defmodule JidoCode.AgentOS.Manager do
 
   require Logger
 
-  alias JidoCode.AgentOS.Manager.KernelState
+  alias JidoCode.AgentOS.Manager.{KernelState, Persistence}
 
   @type kernel_ref :: atom() | String.t()
   @type kernel_name :: atom()
@@ -57,11 +59,11 @@ defmodule JidoCode.AgentOS.Manager do
     kernel_name = kernel_name(managed_repo_id)
 
     case get_kernel_state(kernel_name) do
-      {:ok, _state} ->
-        {:ok, kernel_name}
+      {:ok, state} ->
+        ensure_live_kernel(managed_repo_id, kernel_name, state)
 
       :error ->
-        start_kernel(managed_repo_id, kernel_name)
+        restore_or_start_kernel(managed_repo_id, kernel_name)
     end
   end
 
@@ -85,7 +87,15 @@ defmodule JidoCode.AgentOS.Manager do
 
     case get_kernel_state(kernel_name) do
       {:ok, state} ->
-        build_status_from_state(kernel_name, state)
+        case current_kernel_pid(kernel_name, state) do
+          {:ok, pid} ->
+            refresh_tracked_kernel_state(kernel_name, state, pid)
+            build_status_from_state(kernel_name, %{state | pid: pid})
+
+          :error ->
+            Logger.warning("AgentOS kernel #{inspect(kernel_name)} is tracked but not currently running.")
+            nil
+        end
 
       :error ->
         nil
@@ -175,7 +185,7 @@ defmodule JidoCode.AgentOS.Manager do
         {:ok, state} ->
           pod_entry = build_pod_entry(state, pod_id, pod_module, metadata)
           next_state = put_in(state.pods[pod_id], pod_entry)
-          :ets.insert(@table_name, {kernel_name, next_state})
+          persist_tracked_kernel_state(kernel_name, next_state)
           {:ok, pod_entry}
 
         :error ->
@@ -238,7 +248,7 @@ defmodule JidoCode.AgentOS.Manager do
           pod_entry ->
             next_pod_entry = put_in(pod_entry.metadata, Map.merge(pod_entry.metadata, updates))
             next_state = put_in(state.pods[pod_id], next_pod_entry)
-            :ets.insert(@table_name, {kernel_name, next_state})
+            persist_tracked_kernel_state(kernel_name, next_state)
             {:ok, next_pod_entry}
         end
 
@@ -293,6 +303,35 @@ defmodule JidoCode.AgentOS.Manager do
     DynamicSupervisor.terminate_child(kernel_supervisor(), state.pid)
     untrack_kernel(kernel_name)
     :ok
+  end
+
+  defp ensure_live_kernel(managed_repo_id, kernel_name, state) do
+    case current_kernel_pid(kernel_name, state) do
+      {:ok, pid} ->
+        refresh_tracked_kernel_state(kernel_name, state, pid)
+        {:ok, kernel_name}
+
+      :error ->
+        Logger.warning("Recovering AgentOS kernel #{inspect(kernel_name)} after missing runtime.")
+        restore_or_start_kernel(managed_repo_id, kernel_name, state)
+    end
+  end
+
+  defp restore_or_start_kernel(managed_repo_id, kernel_name, tracked_state \\ nil) do
+    restored_state =
+      case tracked_state || Persistence.load(kernel_name) do
+        %KernelState{} = state -> state
+        {:ok, %KernelState{} = state} -> state
+        _other -> nil
+      end
+
+    with {:ok, ^kernel_name} <- start_kernel(managed_repo_id, kernel_name) do
+      if restored_state do
+        restore_tracked_kernel_state(kernel_name, restored_state)
+      end
+
+      {:ok, kernel_name}
+    end
   end
 
   defp kernel_child_spec(kernel_name) do
@@ -353,12 +392,58 @@ defmodule JidoCode.AgentOS.Manager do
 
     state = Enum.reduce(extra, state, fn {k, v}, acc -> Map.put(acc, k, v) end)
 
-    :ets.insert(@table_name, {kernel_name, state})
+    persist_tracked_kernel_state(kernel_name, state)
     :ok
+  end
+
+  defp persist_tracked_kernel_state(kernel_name, %KernelState{} = state) do
+    :ets.insert(@table_name, {kernel_name, state})
+    _ = Persistence.save(kernel_name, state)
+    :ok
+  end
+
+  defp restore_tracked_kernel_state(kernel_name, %KernelState{} = restored_state) do
+    case get_kernel_state(kernel_name) do
+      {:ok, current_state} ->
+        next_state = %KernelState{
+          managed_repo_id: restored_state.managed_repo_id || current_state.managed_repo_id,
+          pid: current_state.pid,
+          created_at: restored_state.created_at || current_state.created_at,
+          pods: pod_entries(restored_state)
+        }
+
+        persist_tracked_kernel_state(kernel_name, next_state)
+
+      :error ->
+        :ok
+    end
+  end
+
+  defp refresh_tracked_kernel_state(kernel_name, %KernelState{} = state, pid) when is_pid(pid) do
+    if state.pid == pid do
+      :ok
+    else
+      persist_tracked_kernel_state(kernel_name, %{state | pid: pid})
+    end
   end
 
   defp untrack_kernel(kernel_name) do
     :ets.delete(@table_name, kernel_name)
+  end
+
+  defp current_kernel_pid(kernel_name, %KernelState{pid: pid}) when is_pid(pid) do
+    if Process.alive?(pid) do
+      {:ok, pid}
+    else
+      current_kernel_pid(kernel_name, %KernelState{pid: nil})
+    end
+  end
+
+  defp current_kernel_pid(kernel_name, _state) do
+    case Process.whereis(kernel_name) do
+      pid when is_pid(pid) -> {:ok, pid}
+      _other -> :error
+    end
   end
 
   defp list_tracked_kernels do

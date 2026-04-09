@@ -10,7 +10,7 @@ ingestion and query.
 id: architecture.source_code_graph_pod
 kind: feature
 status: proposed
-summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
+summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, keeps semantic status product-owned even as repository kernels restore persisted runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -185,6 +185,7 @@ surface:
   then:
     - `AgentWorkspace` prepares or refreshes the repository graph explicitly when requested.
     - Semantic graph lookups route through repository-scoped workspace entrypoints instead of pod internals.
+    - Repository semantic status remains product-owned even when the surrounding repository kernel is later restored.
     - Workflow consumers receive bounded semantic input maps rather than raw TripleStore or pod state.
 ```
 

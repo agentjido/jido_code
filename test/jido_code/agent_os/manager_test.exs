@@ -1,7 +1,8 @@
 defmodule JidoCode.AgentOSManagerTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.dynamic_kernel_lifecycle
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentOS
 

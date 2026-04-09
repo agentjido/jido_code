@@ -25,7 +25,8 @@ Back to index: [README](./README.md)
 
 ## Status Reconciliation
 - Core AgentOS kernel, pod, action, and workspace routing foundations are now implemented and verified through focused AgentOS integration tests.
-- The remaining open items are durable restart restoration, kernel crash recovery, repository-scoped work queue limits, and richer specialist collaboration proofs beyond current routing coverage.
+- Durable restart restoration, kernel crash recovery, and repository-scoped work queue limits are now implemented and covered.
+- The remaining open items are deeper specialist collaboration proofs beyond current routing and persisted-result coverage.
 - The old `jido_os` work-entry integration wording from the original phase has been reconciled to the current architecture, where `AgentWorkspace` is the canonical product-owned AgentOS boundary.
 
 [ ] 19 Phase 19 - AgentOS Integration
@@ -46,22 +47,22 @@ Back to index: [README](./README.md)
       [x] 19.1.1.3 Subtask - Implement kernel naming convention
         Use the naming pattern `:"repo_{managed_repo_id}"` for clear mapping between kernels and ManagedRepos.
 
-    [ ] 19.1.2 Task - Configure Ecto persistence per kernel
+    [x] 19.1.2 Task - Configure Ecto persistence per kernel
       Enable kernel and pod state to survive application restarts through Ecto storage.
 
       [x] 19.1.2.1 Subtask - Add persistence configuration to kernel startup
         Configure each kernel with `Jido.Ecto.Storage` adapter pointing to `JidoCode.Repo`, while failing closed to an explicit non-persistent path when the adapter is unavailable in the host repo.
 
-      [ ] 19.1.2.2 Subtask - Verify state restoration across restarts
+      [x] 19.1.2.2 Subtask - Verify state restoration across restarts
         Ensure kernel, pod, and agent state restore properly after application restart.
 
-    [ ] 19.1.3 Task - Implement kernel health monitoring and recovery
+    [x] 19.1.3 Task - Implement kernel health monitoring and recovery
       Add monitoring and recovery logic for kernel failures without losing work state.
 
-      [ ] 19.1.3.1 Subtask - Add kernel crash detection
+      [x] 19.1.3.1 Subtask - Add kernel crash detection
         Detect when a kernel terminates unexpectedly and log the failure.
 
-      [ ] 19.1.3.2 Subtask - Implement kernel recovery strategies
+      [x] 19.1.3.2 Subtask - Implement kernel recovery strategies
         Provide recovery mechanisms such as restarting from persisted state or flagging affected WorkItems.
 
   [x] 19.2 Section - Core Pod Definitions
@@ -217,7 +218,7 @@ Back to index: [README](./README.md)
       [x] 19.5.3.1 Subtask - Implement `parallel_plan/2`
         Plan multiple WorkItems in parallel using separate CodingPod instances.
 
-      [ ] 19.5.3.2 Subtask - Implement work queue management
+      [x] 19.5.3.2 Subtask - Implement work queue management
         Add logic to track and limit concurrent work per repository.
 
   [x] 19.6 Section - Product Work Entrypoint Convergence
@@ -268,7 +269,7 @@ Back to index: [README](./README.md)
       [x] 19.7.2.2 Subtask - Test parallel pod execution
         Verify multiple CodingPods run concurrently without interfering with each other.
 
-      [ ] 19.7.2.3 Subtask - Test pod state persistence
+      [x] 19.7.2.3 Subtask - Test pod state persistence
         Verify pod state survives across application restarts via Ecto.
 
     [ ] 19.7.3 Task - Agent collaboration scenarios

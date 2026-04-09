@@ -5,7 +5,10 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.agent_os_integration.pod_naming_convention
   # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
   # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+  # covers: architecture.agent_os_integration.repository_work_queue_is_bounded
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
@@ -82,7 +85,8 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_kernel(managed_repo_id()) :: {:ok, kernel_name()} | {:error, term()}
   def ensure_kernel(managed_repo_id) when is_binary(managed_repo_id) do
     with {:ok, kernel_name} <- Manager.ensure_kernel(managed_repo_id),
-         {:ok, _repo_pod_entry, _repo_pod_pid} <- ensure_repo_pod_runtime(managed_repo_id) do
+         {:ok, _repo_pod_entry, _repo_pod_pid} <- ensure_repo_pod_runtime(managed_repo_id),
+         :ok <- restore_persisted_runtime_pods(managed_repo_id) do
       {:ok, kernel_name}
     end
   end
@@ -149,6 +153,7 @@ defmodule JidoCode.AgentWorkspace do
   @spec ensure_coding_pod(managed_repo_id(), work_item_id(), String.t()) :: {:ok, pod_name()} | {:error, term()}
   def ensure_coding_pod(managed_repo_id, work_item_id, workspace_path) do
     with {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
+         :ok <- admit_work_item(managed_repo_id, work_item_id),
          {:ok, resolved_workspace_path} <-
            resolve_workspace_path(managed_repo_id, work_item_id, workspace_path),
          {:ok, _pod_entry, _pod_pid} <-
@@ -246,7 +251,12 @@ defmodule JidoCode.AgentWorkspace do
              semantic_context,
              opts
            ) do
-      result = %{plan: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      result = %{
+        plan: normalize_specialist_result(response),
+        instruction: instruction,
+        semantic_context: semantic_context
+      }
+
       persist_coding_pod_result(managed_repo_id, work_item_id, :planning, %{last_plan: result})
       {:ok, result}
     end
@@ -288,7 +298,12 @@ defmodule JidoCode.AgentWorkspace do
              semantic_context,
              opts
            ) do
-      result = %{changes: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      result = %{
+        changes: normalize_specialist_result(response),
+        instruction: instruction,
+        semantic_context: semantic_context
+      }
+
       persist_coding_pod_result(managed_repo_id, work_item_id, :coding, %{last_changes: result})
       {:ok, result}
     end
@@ -330,7 +345,12 @@ defmodule JidoCode.AgentWorkspace do
              semantic_context,
              opts
            ) do
-      result = %{feedback: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      result = %{
+        feedback: normalize_specialist_result(response),
+        instruction: instruction,
+        semantic_context: semantic_context
+      }
+
       persist_coding_pod_result(managed_repo_id, work_item_id, :reviewing, %{last_review: result})
       {:ok, result}
     end
@@ -363,7 +383,12 @@ defmodule JidoCode.AgentWorkspace do
              semantic_context,
              opts
            ) do
-      result = %{explanation: normalize_specialist_result(response), instruction: instruction, semantic_context: semantic_context}
+      result = %{
+        explanation: normalize_specialist_result(response),
+        instruction: instruction,
+        semantic_context: semantic_context
+      }
+
       persist_coding_pod_result(managed_repo_id, work_item_id, :explaining, %{last_explanation: result})
       {:ok, result}
     end
@@ -756,6 +781,72 @@ defmodule JidoCode.AgentWorkspace do
     )
   end
 
+  defp restore_persisted_runtime_pods(managed_repo_id) do
+    managed_repo_id
+    |> Manager.list_pods()
+    |> Enum.reject(&(&1.pod_id == @repo_pod_id))
+    |> Enum.reduce_while(:ok, fn pod_entry, :ok ->
+      case pod_entry do
+        %{module: CodingPod, metadata: %{work_item_id: work_item_id, workspace_path: workspace_path} = metadata}
+        when is_binary(work_item_id) and is_binary(workspace_path) ->
+          if restorable_coding_pod?(metadata) do
+            case ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path) do
+              {:ok, _pod_entry, _pod_pid} -> {:cont, :ok}
+              {:error, reason} -> {:halt, {:error, reason}}
+            end
+          else
+            {:cont, :ok}
+          end
+
+        _other ->
+          {:cont, :ok}
+      end
+    end)
+  end
+
+  defp restorable_coding_pod?(metadata) when is_map(metadata) do
+    case Map.get(metadata, :runtime_status) do
+      :completed -> false
+      nil -> true
+      _other -> true
+    end
+  end
+
+  defp admit_work_item(managed_repo_id, work_item_id) do
+    if resumable_work_item?(managed_repo_id, work_item_id) do
+      :ok
+    else
+      case work_queue_limit() do
+        :infinity ->
+          :ok
+
+        limit when is_integer(limit) and limit > 0 ->
+          active_items = active_work_items(managed_repo_id)
+
+          if length(active_items) < limit do
+            :ok
+          else
+            {:error,
+             {:work_queue_full, %{managed_repo_id: managed_repo_id, limit: limit, active_work_items: active_items}}}
+          end
+      end
+    end
+  end
+
+  defp resumable_work_item?(managed_repo_id, work_item_id) do
+    case Manager.pod_status(managed_repo_id, coding_pod_id(work_item_id)) do
+      %{module: CodingPod, metadata: metadata} -> restorable_coding_pod?(metadata)
+      _other -> false
+    end
+  end
+
+  defp work_queue_limit do
+    case Application.get_env(:jido_code, :agent_workspace_max_concurrent_work_items, :infinity) do
+      limit when is_integer(limit) and limit > 0 -> limit
+      _other -> :infinity
+    end
+  end
+
   defp ensure_runtime_pod(managed_repo_id, pod_id, pod_module, metadata, initial_state) do
     case Manager.pod_status(managed_repo_id, pod_id) do
       %{metadata: %{runtime_pid: pid}} = pod_entry when is_pid(pid) ->
@@ -886,10 +977,8 @@ defmodule JidoCode.AgentWorkspace do
       agent_module,
       pid,
       instruction,
-      [
-        tool_context: specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts),
-        timeout: Keyword.get(opts, :timeout, 30_000)
-      ]
+      tool_context: specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts),
+      timeout: Keyword.get(opts, :timeout, 30_000)
     )
   end
 
@@ -971,7 +1060,8 @@ defmodule JidoCode.AgentWorkspace do
       {:ok, nil} ->
         nil
 
-      {:error, _reason} -> nil
+      {:error, _reason} ->
+        nil
     end
   end
 

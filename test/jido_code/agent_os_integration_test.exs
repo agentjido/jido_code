@@ -1,10 +1,13 @@
 defmodule JidoCode.AgentOSIntegrationTest do
+  # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.agent_os_integration.kernel_per_managed_repo
   # covers: architecture.agent_os_integration.dynamic_kernel_lifecycle
   # covers: architecture.agent_os_integration.pod_hierarchy
   # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+  # covers: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.AgentOS.Manager
@@ -111,31 +114,95 @@ defmodule JidoCode.AgentOSIntegrationTest do
       pod_names = Enum.map(results, fn {:ok, pod_name} -> pod_name end)
       assert length(Enum.uniq(pod_names)) == length(pod_names)
     end
+
+    test "19.7.2.3 pod state survives kernel restart restoration" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Plan restore scenario",
+                 workspace_path: workspace_path
+               )
+
+      assert result.plan =~ "deterministic planner response"
+      assert :ok = AgentWorkspace.shutdown_kernel(managed_repo_id)
+
+      assert {:ok, _kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
+
+      restored_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      assert get_in(restored_status, [:metadata, :last_plan, :plan]) =~ "deterministic planner response"
+      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
+    end
   end
 
   describe "19.7.3 Agent collaboration scenarios" do
-    test "19.7.3.1 planner agent has required tools" do
-      # Verify the planner agent has access to required tools
-      planner = JidoCode.Agents.Planner
+    test "19.7.3.1 planner workflow persists task output in pod metadata" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      # The agent should be callable
-      assert function_exported?(planner, :ask, 2)
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Plan with persisted result",
+                 workspace_path: workspace_path
+               )
+
+      assert result.plan =~ "deterministic planner response"
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      assert get_in(pod_status, [:metadata, :last_plan, :plan]) =~ "deterministic planner response"
     end
 
-    test "19.7.3.2 coder agent has required tools" do
-      # Verify the coder agent has access to required tools
-      coder = JidoCode.Agents.Coder
+    test "19.7.3.2 coder workflow persists change output in pod metadata" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      # The agent should be callable
-      assert function_exported?(coder, :ask, 2)
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.execute_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Code with persisted result",
+                 workspace_path: workspace_path
+               )
+
+      assert result.changes =~ "deterministic coder response"
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      assert get_in(pod_status, [:metadata, :last_changes, :changes]) =~ "deterministic coder response"
     end
 
-    test "19.7.3.3 reviewer agent has required tools" do
-      # Verify the reviewer agent has access to required tools
-      reviewer = JidoCode.Agents.Reviewer
+    test "19.7.3.3 reviewer workflow persists feedback in pod metadata" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
 
-      # The agent should be callable
-      assert function_exported?(reviewer, :ask, 2)
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, result} =
+               AgentWorkspace.review_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Review with persisted result",
+                 workspace_path: workspace_path
+               )
+
+      assert result.feedback =~ "deterministic reviewer response"
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      assert get_in(pod_status, [:metadata, :last_review, :feedback]) =~ "deterministic reviewer response"
     end
   end
 
@@ -238,8 +305,16 @@ defmodule JidoCode.AgentOSIntegrationTest do
       )
 
     File.mkdir_p!(Path.join(workspace_path, "lib"))
-    File.write!(Path.join(workspace_path, "mix.exs"), "defmodule AgentOSIntegration.MixProject do\n  use Mix.Project\n  def project, do: [app: :agent_os_integration, version: \"0.1.0\", elixir: \"~> 1.18\", deps: []]\nend\n")
-    File.write!(Path.join(workspace_path, "lib/example.ex"), "defmodule AgentOSIntegration.Example do\n  def hello, do: :world\nend\n")
+
+    File.write!(
+      Path.join(workspace_path, "mix.exs"),
+      "defmodule AgentOSIntegration.MixProject do\n  use Mix.Project\n  def project, do: [app: :agent_os_integration, version: \"0.1.0\", elixir: \"~> 1.18\", deps: []]\nend\n"
+    )
+
+    File.write!(
+      Path.join(workspace_path, "lib/example.ex"),
+      "defmodule AgentOSIntegration.Example do\n  def hello, do: :world\nend\n"
+    )
 
     workspace_path
   end

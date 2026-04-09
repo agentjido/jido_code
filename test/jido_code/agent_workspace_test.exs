@@ -4,11 +4,16 @@ defmodule JidoCode.AgentWorkspaceTest do
   # covers: architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
   # covers: architecture.agent_os_integration.pod_cleanup_on_completion
   # covers: architecture.agent_os_integration.multiple_pods_parallel_execution
+  # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+  # covers: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+  # covers: architecture.agent_os_integration.repository_work_queue_is_bounded
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
+  alias JidoCode.AgentOS.Manager
   alias JidoCode.AgentWorkspace
 
   describe "kernel lifecycle" do
@@ -36,6 +41,64 @@ defmodule JidoCode.AgentWorkspaceTest do
 
       # Should not error even if kernel doesn't exist
       assert :ok = AgentWorkspace.shutdown_kernel(managed_repo_id)
+    end
+
+    test "ensure_kernel restores persisted work pods after a restart" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, initial_result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Persist planning state",
+                 workspace_path: workspace_path
+               )
+
+      assert initial_result.plan =~ "deterministic planner response"
+      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
+
+      assert :ok = AgentWorkspace.shutdown_kernel(managed_repo_id)
+      refute Manager.kernel_exists?(managed_repo_id)
+
+      assert {:ok, _kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
+      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
+
+      pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+      assert get_in(pod_status, [:metadata, :last_plan, :plan]) =~ "deterministic planner response"
+    end
+
+    test "ensure_kernel recovers after an unexpected kernel crash" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      work_item_id = "work-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+
+      on_exit(fn -> File.rm_rf!(workspace_path) end)
+
+      assert {:ok, _pod_name} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_id, workspace_path)
+
+      old_pid =
+        managed_repo_id
+        |> Manager.kernel_status()
+        |> Map.fetch!(:supervisor_pid)
+
+      Process.exit(old_pid, :kill)
+      Process.sleep(200)
+
+      assert {:ok, _kernel_name} = AgentWorkspace.ensure_kernel(managed_repo_id)
+
+      new_pid =
+        managed_repo_id
+        |> Manager.kernel_status()
+        |> Map.fetch!(:supervisor_pid)
+
+      assert is_pid(new_pid)
+      refute new_pid == old_pid
+      assert work_item_id in AgentWorkspace.active_work_items(managed_repo_id)
     end
   end
 
@@ -81,6 +144,32 @@ defmodule JidoCode.AgentWorkspaceTest do
 
       items = AgentWorkspace.active_work_items(managed_repo_id)
       assert work_item_id in items
+    end
+
+    test "enforces a bounded concurrent work queue for new work items" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+      work_item_1 = "work-#{System.unique_integer()}"
+      work_item_2 = "work-#{System.unique_integer()}"
+      previous_limit = Application.get_env(:jido_code, :agent_workspace_max_concurrent_work_items)
+
+      Application.put_env(:jido_code, :agent_workspace_max_concurrent_work_items, 1)
+
+      on_exit(fn ->
+        if is_nil(previous_limit) do
+          Application.delete_env(:jido_code, :agent_workspace_max_concurrent_work_items)
+        else
+          Application.put_env(:jido_code, :agent_workspace_max_concurrent_work_items, previous_limit)
+        end
+
+        File.rm_rf!(workspace_path)
+      end)
+
+      assert {:ok, _pod_name} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_1, workspace_path)
+
+      assert {:error, {:work_queue_full, %{limit: 1, active_work_items: [^work_item_1]}}} =
+               AgentWorkspace.ensure_coding_pod(managed_repo_id, work_item_2, workspace_path)
     end
   end
 

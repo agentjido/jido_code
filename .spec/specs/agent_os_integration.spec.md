@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -16,10 +16,16 @@ surface:
   - .spec/decisions/jido_code.jido_os_deprecation.md
   - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
   - lib/jido_code/agent_os.ex
+  - lib/jido_code/agent_os/manager.ex
+  - lib/jido_code/agent_os/manager/persistence.ex
+  - lib/jido_code/agent_os/manager/persisted_kernel.ex
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/pods/
   - lib/jido_code/agents/
   - lib/jido_code/actions/
+  - priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs
+  - test/jido_code/agent_workspace_test.exs
+  - test/jido_code/agent_os_integration_test.exs
 ```
 
 ## Requirements
@@ -75,6 +81,16 @@ surface:
   priority: must
   stability: proposed
 
+- id: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+  statement: Product-owned AgentOS kernel snapshots shall persist logical pod metadata and resumable runtime state so repository kernels can restore restorable CodingPods after application restart.
+  priority: must
+  stability: proposed
+
+- id: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+  statement: When a tracked repository kernel is missing at runtime, the kernel manager and AgentWorkspace shall detect the missing runtime, log recovery, and rebuild the kernel from persisted state before admitting new work.
+  priority: must
+  stability: proposed
+
 - id: architecture.agent_os_integration.workspace_context_hides_kernel_topology
   statement: The AgentWorkspace context shall hide kernel and pod topology details from Phoenix controllers and LiveViews.
   priority: must
@@ -112,6 +128,11 @@ surface:
 
 - id: architecture.agent_os_integration.pod_cleanup_on_completion
   statement: CodingPod instances shall be shut down and archived when work completes, with state persisted for potential resumption.
+  priority: should
+  stability: proposed
+
+- id: architecture.agent_os_integration.repository_work_queue_is_bounded
+  statement: AgentWorkspace shall enforce a repository-scoped concurrent work-item limit with typed `:work_queue_full` outcomes for new work while allowing resumable work items to re-enter without consuming new queue capacity.
   priority: should
   stability: proposed
 ```
@@ -201,13 +222,28 @@ surface:
 - id: architecture.agent_os_integration.scenario_persistence_survives_restart
   covers:
     - architecture.agent_os_integration.ecto_persistence_per_kernel
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
   given:
     - A kernel and pods are running with active work.
   when:
     - The application restarts.
   then:
-    - Kernels and pods restore their previous state from Ecto storage.
+    - Kernel snapshot state restores from product-owned Ecto storage.
+    - Restorable CodingPods are reconstituted with their prior workspace and persisted specialist outputs.
     - Work can continue without losing context.
+
+- id: architecture.agent_os_integration.scenario_missing_runtime_recovers_before_new_work
+  covers:
+    - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+  given:
+    - A repository kernel is still tracked in product state, but the runtime process is no longer alive.
+  when:
+    - Product code asks AgentWorkspace to ensure the kernel again.
+  then:
+    - The missing runtime is detected and logged as a recovery event.
+    - The kernel is restarted from persisted state.
+    - Restorable CodingPods become active again without creating duplicate logical pod entries.
 
 - id: architecture.agent_os_integration.scenario_product_work_entrypoint_routes_to_workspace
   covers:
@@ -220,6 +256,18 @@ surface:
     - The entrypoint ensures the repository kernel exists.
     - The entrypoint ensures or finds the CodingPod for the WorkItem.
     - The entrypoint routes the operation to the appropriate agent (planner, coder, reviewer).
+
+- id: architecture.agent_os_integration.scenario_repository_work_queue_limits_new_work
+  covers:
+    - architecture.agent_os_integration.repository_work_queue_is_bounded
+    - architecture.agent_os_integration.coding_pod_per_work_item
+  given:
+    - A repository has reached its configured concurrent CodingPod limit.
+  when:
+    - Product code tries to admit a new WorkItem through AgentWorkspace.
+  then:
+    - AgentWorkspace returns a typed `:work_queue_full` outcome with the active work-item set.
+    - Already tracked resumable WorkItems remain admissible without counting as new queue pressure.
 
 - id: architecture.agent_os_integration.scenario_workflows_consult_source_graph_through_workspace
   covers:
@@ -268,6 +316,9 @@ surface:
     - architecture.agent_os_integration.kernel_naming_convention
     - architecture.agent_os_integration.pod_naming_convention
     - architecture.agent_os_integration.signal_routing_within_pod
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+    - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+    - architecture.agent_os_integration.repository_work_queue_is_bounded
 
 - kind: source_file
   target: .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
@@ -284,6 +335,8 @@ surface:
     - architecture.agent_os_integration.signal_routing_within_pod
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+    - architecture.agent_os_integration.repository_work_queue_is_bounded
 
 - kind: source_file
   target: lib/jido_code/agent_workspace/runtime_specialist_runner.ex
@@ -314,6 +367,20 @@ surface:
   covers:
     - architecture.agent_os_integration.dynamic_kernel_lifecycle
     - architecture.agent_os_integration.kernel_naming_convention
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+    - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+
+- kind: source_file
+  target: lib/jido_code/agent_os/manager/persistence.ex
+  covers:
+    - architecture.agent_os_integration.ecto_persistence_per_kernel
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+
+- kind: source_file
+  target: lib/jido_code/agent_os/manager/persisted_kernel.ex
+  covers:
+    - architecture.agent_os_integration.ecto_persistence_per_kernel
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
 
 - kind: source_file
   target: lib/jido_code/pods/repo_pod.ex
@@ -379,6 +446,9 @@ surface:
     - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
     - architecture.agent_os_integration.pod_cleanup_on_completion
     - architecture.agent_os_integration.multiple_pods_parallel_execution
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+    - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+    - architecture.agent_os_integration.repository_work_queue_is_bounded
 
 - kind: source_file
   target: test/jido_code/agent_os_integration_test.exs
@@ -386,4 +456,12 @@ surface:
     - architecture.agent_os_integration.kernel_per_managed_repo
     - architecture.agent_os_integration.dynamic_kernel_lifecycle
     - architecture.agent_os_integration.signal_routing_within_pod
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
+    - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+
+- kind: source_file
+  target: priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs
+  covers:
+    - architecture.agent_os_integration.ecto_persistence_per_kernel
+    - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
 ```

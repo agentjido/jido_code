@@ -6,7 +6,7 @@ High-level package contract for `jido_code`.
 id: package.jido_code
 kind: package
 status: active
-summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, and AgentWorkspace specialist-runner support code version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, and semantic helper action surface for that capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.
+summary: jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, and AgentOS kernel-snapshot persistence helpers version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, and repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.
 decisions:
   - jido_code.auth_user_system
   - jido_code.canonical_repo_surface
@@ -268,6 +268,16 @@ surface:
     - package.jido_code.version_controlled_quality_surfaces
 
 - kind: source_file
+  target: test/jido_code/agent_os_integration_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: test/jido_code/agent_os/manager_test.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
   target: test/jido_code_web/components/live_vue_components_test.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
@@ -329,6 +339,11 @@ surface:
 
 - kind: source_file
   target: mix.exs
+  covers:
+    - package.jido_code.version_controlled_quality_surfaces
+
+- kind: source_file
+  target: priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs
   covers:
     - package.jido_code.version_controlled_quality_surfaces
 

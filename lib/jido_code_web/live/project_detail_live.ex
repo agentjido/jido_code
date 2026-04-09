@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Workbench.ProjectDetail
+  alias JidoCode.Workbench.ProjectSemanticInspection
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
 
   @impl true
@@ -13,6 +14,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      socket
      |> assign(:project_detail, nil)
      |> assign(:project_load_error, nil)
+     |> assign(:semantic_inspection, nil)
+     |> assign(:semantic_action_feedback, nil)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
      |> assign(:supported_workflows, ProjectDetailWorkflowKickoff.supported_workflows())}
@@ -29,11 +32,15 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           socket
           |> assign(:project_detail, project_detail)
           |> assign(:project_load_error, nil)
+          |> assign(:semantic_inspection, ProjectSemanticInspection.load_repo_detail(project_detail))
+          |> assign(:semantic_action_feedback, nil)
 
         {:error, project_load_error} ->
           socket
           |> assign(:project_detail, nil)
           |> assign(:project_load_error, project_load_error)
+          |> assign(:semantic_inspection, nil)
+          |> assign(:semantic_action_feedback, nil)
       end
 
     {:noreply,
@@ -54,6 +61,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
       )
 
     {:noreply, put_workflow_launch_state(socket, workflow_key, kickoff_result)}
+  end
+
+  @impl true
+  def handle_event("recover_semantic_graph", _params, socket) do
+    project_detail = Map.get(socket.assigns, :project_detail)
+
+    case ProjectSemanticInspection.recover(project_detail) do
+      {:ok, %{inspection: inspection, feedback: feedback}} ->
+        {:noreply,
+         socket
+         |> assign(:semantic_inspection, inspection)
+         |> assign(:semantic_action_feedback, feedback)}
+
+      {:error, %{inspection: inspection, feedback: feedback}} ->
+        {:noreply,
+         socket
+         |> assign(:semantic_inspection, inspection)
+         |> assign(:semantic_action_feedback, feedback)}
+    end
   end
 
   @impl true
@@ -100,6 +126,120 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           socket={@socket}
           props={project_detail_overview_props(assigns)}
         />
+
+        <section id="project-detail-semantic-inspection" class="space-y-4">
+          <div class="space-y-1">
+            <h2 class="text-lg font-semibold">Semantic repository inspection</h2>
+            <p class="text-sm text-base-content/70">
+              Semantic source-code graph insights stay repo-scoped, bounded, and product-owned on this managed-repository route.
+            </p>
+          </div>
+
+          <.operator_state_notice
+            :if={@semantic_action_feedback}
+            id="project-detail-semantic-feedback"
+            title="Semantic graph recovery update"
+            state={@semantic_action_feedback}
+            kind={:info}
+          />
+
+          <.operator_state_notice
+            :if={semantic_notice_visible?(@semantic_inspection)}
+            id="project-detail-semantic-notice"
+            title="Semantic graph status"
+            state={@semantic_inspection.notice}
+            kind={semantic_notice_kind(@semantic_inspection)}
+          >
+            <:actions>
+              <button
+                :if={semantic_recovery_available?(@semantic_inspection)}
+                id="project-detail-semantic-recover"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="recover_semantic_graph"
+              >
+                {semantic_recovery_label(@semantic_inspection)}
+              </button>
+            </:actions>
+          </.operator_state_notice>
+
+          <.vue_surface
+            id="project-detail-semantic-explorer-widget"
+            component="ProjectDetailSemanticExplorerWidget"
+            socket={@socket}
+            props={project_detail_semantic_explorer_props(assigns)}
+            events={%{"requestRecovery" => "recover_semantic_graph"}}
+            fallback_title="Interactive semantic explorer temporarily unavailable"
+            fallback_detail="This repository is using the server-rendered semantic summary while the richer explorer is unavailable."
+          >
+            <section id="project-detail-semantic-fallback" class="space-y-3">
+              <div class="grid gap-3 md:grid-cols-4">
+                <article
+                  id="project-detail-semantic-fallback-modules"
+                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                >
+                  <p class="text-xs uppercase text-base-content/60">Modules</p>
+                  <p class="mt-1 text-xl font-semibold">{semantic_group_count(@semantic_inspection.summary, :modules)}</p>
+                </article>
+                <article
+                  id="project-detail-semantic-fallback-functions"
+                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                >
+                  <p class="text-xs uppercase text-base-content/60">Functions</p>
+                  <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.functions)}</p>
+                </article>
+                <article
+                  id="project-detail-semantic-fallback-runtime-patterns"
+                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                >
+                  <p class="text-xs uppercase text-base-content/60">Runtime patterns</p>
+                  <p class="mt-1 text-xl font-semibold">
+                    {semantic_result_count(@semantic_inspection.runtime_patterns)}
+                  </p>
+                </article>
+                <article
+                  id="project-detail-semantic-fallback-impact"
+                  class="rounded-lg border border-base-300/70 bg-base-100 p-3"
+                >
+                  <p class="text-xs uppercase text-base-content/60">Impact relationships</p>
+                  <p class="mt-1 text-xl font-semibold">{semantic_result_count(@semantic_inspection.impact)}</p>
+                </article>
+              </div>
+
+              <div class="grid gap-3 lg:grid-cols-2">
+                <section id="project-detail-semantic-fallback-module-list" class="space-y-2">
+                  <h3 class="font-medium">Modules</h3>
+                  <p
+                    :if={Enum.empty?(semantic_items(@semantic_inspection.modules))}
+                    class="text-sm text-base-content/70"
+                  >
+                    No module summaries are currently available.
+                  </p>
+                  <ul :if={!Enum.empty?(semantic_items(@semantic_inspection.modules))} class="space-y-1 text-sm">
+                    <li :for={item <- semantic_items(@semantic_inspection.modules)}>
+                      {Map.get(item, :module_name) || "Unnamed module"}
+                    </li>
+                  </ul>
+                </section>
+
+                <section id="project-detail-semantic-fallback-impact-list" class="space-y-2">
+                  <h3 class="font-medium">Impact</h3>
+                  <p
+                    :if={Enum.empty?(semantic_items(@semantic_inspection.impact))}
+                    class="text-sm text-base-content/70"
+                  >
+                    No bounded impact relationships are currently available.
+                  </p>
+                  <ul :if={!Enum.empty?(semantic_items(@semantic_inspection.impact))} class="space-y-1 text-sm">
+                    <li :for={item <- semantic_items(@semantic_inspection.impact)}>
+                      {Map.get(item, :predicate_name) || "relationship"}
+                    </li>
+                  </ul>
+                </section>
+              </div>
+            </section>
+          </.vue_surface>
+        </section>
 
         <section
           id="project-detail-workflow-defaults"
@@ -319,6 +459,111 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   end
 
   defp workflow_feedback_message(_feedback), do: nil
+
+  defp project_detail_semantic_explorer_props(assigns) do
+    inspection = Map.get(assigns, :semantic_inspection) || %{}
+    graph = Map.get(inspection, :graph, %{})
+
+    %{
+      managedRepoId: Map.get(inspection, :managed_repo_id),
+      graph: %{
+        state: graph |> Map.get(:state, :unavailable) |> to_string(),
+        ready: Map.get(graph, :ready?, false),
+        stale: Map.get(graph, :stale?, false),
+        degraded: Map.get(graph, :degraded?, false),
+        importedRevision: Map.get(graph, :imported_revision),
+        currentRevision: Map.get(graph, :current_revision)
+      },
+      summaryCards: [
+        %{
+          id: "modules",
+          label: "Modules",
+          count: semantic_group_count(Map.get(inspection, :summary), :modules),
+          detail: "Bounded module summaries from the managed repository semantic graph."
+        },
+        %{
+          id: "functions",
+          label: "Functions",
+          count: semantic_result_count(Map.get(inspection, :functions)),
+          detail: "Function summaries stay bounded to product-authored semantic projections."
+        },
+        %{
+          id: "runtime_patterns",
+          label: "Runtime patterns",
+          count: semantic_result_count(Map.get(inspection, :runtime_patterns)),
+          detail: "Runtime patterns remain explainable without exposing raw graph internals."
+        },
+        %{
+          id: "impact",
+          label: "Impact",
+          count: semantic_result_count(Map.get(inspection, :impact)),
+          detail: "Impact relationships stay repo-scoped and recovery-aware."
+        }
+      ],
+      modules:
+        Enum.map(semantic_items(Map.get(inspection, :modules)), fn item ->
+          %{
+            moduleName: Map.get(item, :module_name),
+            moduleIri: Map.get(item, :module_iri)
+          }
+        end),
+      functions:
+        Enum.map(semantic_items(Map.get(inspection, :functions)), fn item ->
+          %{
+            moduleName: Map.get(item, :module_name),
+            functionName: Map.get(item, :function_name),
+            arity: Map.get(item, :arity)
+          }
+        end),
+      runtimePatterns:
+        Enum.map(semantic_items(Map.get(inspection, :runtime_patterns)), fn item ->
+          %{
+            patternName: Map.get(item, :pattern_name),
+            patternIri: Map.get(item, :pattern_iri)
+          }
+        end),
+      impact:
+        Enum.map(semantic_items(Map.get(inspection, :impact)), fn item ->
+          %{
+            predicateName: Map.get(item, :predicate_name),
+            sourceIri: Map.get(item, :source_iri),
+            targetIri: Map.get(item, :target_iri)
+          }
+        end),
+      recovery: %{
+        available: semantic_recovery_available?(inspection),
+        label: semantic_recovery_label(inspection)
+      }
+    }
+  end
+
+  defp semantic_notice_visible?(%{notice: notice}) when is_map(notice), do: true
+  defp semantic_notice_visible?(_inspection), do: false
+
+  defp semantic_notice_kind(%{notice_kind: notice_kind}) when is_atom(notice_kind), do: notice_kind
+  defp semantic_notice_kind(_inspection), do: :warning
+
+  defp semantic_recovery_available?(%{recovery: %{available?: true}}), do: true
+  defp semantic_recovery_available?(_inspection), do: false
+
+  defp semantic_recovery_label(%{recovery: %{label: label}}) when is_binary(label), do: label
+  defp semantic_recovery_label(_inspection), do: "Recover semantic graph"
+
+  defp semantic_group_count(%{groups: groups}, group_key) when is_map(groups) do
+    groups
+    |> Map.get(group_key, %{})
+    |> Map.get(:count, 0)
+  end
+
+  defp semantic_group_count(_summary, _group_key), do: 0
+
+  defp semantic_result_count(%{result_group: result_group}) when is_map(result_group),
+    do: Map.get(result_group, :count, 0)
+
+  defp semantic_result_count(_projection), do: 0
+
+  defp semantic_items(%{items: items}) when is_list(items), do: items
+  defp semantic_items(_projection), do: []
 
   defp project_ready_for_launch?(project_detail) do
     ProjectDetail.ready_for_execution?(project_detail)

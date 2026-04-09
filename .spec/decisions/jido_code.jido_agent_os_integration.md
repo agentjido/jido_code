@@ -30,8 +30,10 @@ related:
 <!-- covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state -->
 <!-- covers: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot -->
 <!-- covers: architecture.agent_os_integration.repository_work_queue_is_bounded -->
+<!-- covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work -->
 <!-- covers: architecture.policy_layers.runtime_policy_governs_runtime_capability -->
 <!-- covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy -->
+<!-- covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context -->
 <!-- covers: architecture.runtime_service_overlay.product_owned_gateways_preserve_contracts -->
 <!-- covers: architecture.runtime_service_overlay.integration_service_is_canonical_external_runtime_boundary -->
 
@@ -66,6 +68,14 @@ execute, review, explain, and parallel planning calls through real pod-backed
 specialist agents rather than placeholder response maps. Runtime pod startup
 must use kernel-scoped topology so node manager names are scoped per repository
 kernel instead of falling back to compile-time logical manager atoms.
+
+Inside each `CodingPod`, eager collaboration state is part of the canonical
+runtime contract rather than incidental test scaffolding. `AgentWorkspace`
+must seed explicit workspace and work-item identity into the eager
+`project_context` node before specialist routing, and it must use `task_board`
+signals to create or select the active task, append lifecycle events, and
+persist specialist artifacts so pod collaboration remains inspectable,
+resumable, and product-owned.
 
 When a configured AgentOS persistence adapter is not actually available in the
 host repo, runtime pod and node startup shall fail closed into an explicit

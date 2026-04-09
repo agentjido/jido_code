@@ -6,11 +6,16 @@ defmodule JidoCode.AgentOSIntegrationTest do
   # covers: architecture.agent_os_integration.signal_routing_within_pod
   # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
   # covers: architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+  # covers: architecture.agent_os_integration.pod_contains_multiple_agents
+  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.AgentOS.Manager
+  alias Jido.AgentServer
+  alias Jido.Pod
 
   @moduletag :integration
 
@@ -161,6 +166,23 @@ defmodule JidoCode.AgentOSIntegrationTest do
 
       pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
       assert get_in(pod_status, [:metadata, :last_plan, :plan]) =~ "deterministic planner response"
+
+      project_context_state = pod_node_state(managed_repo_id, work_item_id, :project_context)
+      assert project_context_state.workspace_path == Path.expand(workspace_path)
+      assert project_context_state.work_item_id == work_item_id
+
+      task_board_state = pod_node_state(managed_repo_id, work_item_id, :task_board)
+      assert is_binary(task_board_state.active_task_id)
+      assert Enum.any?(task_board_state.tasks, &(&1.metadata[:work_item_id] == work_item_id))
+
+      assert Enum.any?(task_board_state.artifacts, fn artifact ->
+               artifact.type == "plan" and
+                 artifact.task_id == task_board_state.active_task_id and
+                 String.contains?(artifact.content, "deterministic planner response")
+             end)
+
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "planning.started"))
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "planning.completed"))
     end
 
     test "19.7.3.2 coder workflow persists change output in pod metadata" do
@@ -182,6 +204,16 @@ defmodule JidoCode.AgentOSIntegrationTest do
 
       pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
       assert get_in(pod_status, [:metadata, :last_changes, :changes]) =~ "deterministic coder response"
+
+      task_board_state = pod_node_state(managed_repo_id, work_item_id, :task_board)
+
+      assert Enum.any?(task_board_state.artifacts, fn artifact ->
+               artifact.type == "draft" and
+                 String.contains?(artifact.content, "deterministic coder response")
+             end)
+
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "coding.started"))
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "coding.completed"))
     end
 
     test "19.7.3.3 reviewer workflow persists feedback in pod metadata" do
@@ -203,6 +235,16 @@ defmodule JidoCode.AgentOSIntegrationTest do
 
       pod_status = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
       assert get_in(pod_status, [:metadata, :last_review, :feedback]) =~ "deterministic reviewer response"
+
+      task_board_state = pod_node_state(managed_repo_id, work_item_id, :task_board)
+
+      assert Enum.any?(task_board_state.artifacts, fn artifact ->
+               artifact.type == "review" and
+                 String.contains?(artifact.content, "deterministic reviewer response")
+             end)
+
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "reviewing.started"))
+      assert Enum.any?(task_board_state.activity_log, &(&1.type == "reviewing.completed"))
     end
   end
 
@@ -294,6 +336,16 @@ defmodule JidoCode.AgentOSIntegrationTest do
       assert Map.has_key?(result, :plan)
       assert Map.has_key?(result, :changes)
       assert Map.has_key?(result, :feedback)
+
+      task_board_state = pod_node_state(managed_repo_id, work_item_id, :task_board)
+      assert Enum.count(task_board_state.tasks) == 1
+
+      artifact_types =
+        task_board_state.artifacts
+        |> Enum.map(& &1.type)
+        |> Enum.sort()
+
+      assert artifact_types == ["draft", "plan", "review"]
     end
   end
 
@@ -317,5 +369,12 @@ defmodule JidoCode.AgentOSIntegrationTest do
     )
 
     workspace_path
+  end
+
+  defp pod_node_state(managed_repo_id, work_item_id, node_name) do
+    %{metadata: %{runtime_pid: pod_pid}} = Manager.pod_status(managed_repo_id, "coding-pod-#{work_item_id}")
+    {:ok, node_pid} = Pod.ensure_node(pod_pid, node_name)
+    {:ok, server_state} = AgentServer.state(node_pid)
+    server_state.agent.state
   end
 end

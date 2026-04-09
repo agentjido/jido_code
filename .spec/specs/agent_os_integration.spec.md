@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, and one CodingPod per WorkItem containing multiple collaborating AI agents.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, and one CodingPod per WorkItem containing multiple collaborating AI agents.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -126,6 +126,11 @@ surface:
   priority: must
   stability: proposed
 
+- id: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+  statement: AgentWorkspace shall seed explicit workspace and work-item context into the eager project_context agent and shall record task-board tasks, lifecycle events, and specialist artifacts before and after planner, coder, reviewer, and explainer runs so pod collaboration state is observable and resumable.
+  priority: must
+  stability: proposed
+
 - id: architecture.agent_os_integration.pod_cleanup_on_completion
   statement: CodingPod instances shall be shut down and archived when work completes, with state persisted for potential resumption.
   priority: should
@@ -183,15 +188,18 @@ surface:
     - architecture.agent_os_integration.pod_contains_multiple_agents
     - architecture.agent_os_integration.eager_and_lazy_agent_activation
     - architecture.agent_os_integration.signal_routing_within_pod
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
   given:
     - A CodingPod exists for a WorkItem.
   when:
     - Planning work is requested.
   then:
     - The task_board and project_context agents are already running (eager).
+    - The project_context agent receives the explicit workspace path and WorkItem identity before specialist work begins.
     - The planner agent starts on demand (lazy).
     - The planner uses tools (ReadFile, SearchCode) to analyze the codebase.
     - The plan is stored in the task_board agent state.
+    - Task-board lifecycle events and artifacts reflect the specialist run.
 
 - id: architecture.agent_os_integration.scenario_selected_coding_agents_receive_semantic_tools_explicitly
   covers:
@@ -319,6 +327,7 @@ surface:
     - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
     - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
     - architecture.agent_os_integration.repository_work_queue_is_bounded
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
 
 - kind: source_file
   target: .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
@@ -337,11 +346,38 @@ surface:
     - architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
     - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
     - architecture.agent_os_integration.repository_work_queue_is_bounded
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
 
 - kind: source_file
   target: lib/jido_code/agent_workspace/runtime_specialist_runner.ex
   covers:
     - architecture.agent_os_integration.signal_routing_within_pod
+
+- kind: source_file
+  target: lib/jido_code/actions/set_project_context.ex
+  covers:
+    - architecture.agent_os_integration.signal_routing_within_pod
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+
+- kind: source_file
+  target: lib/jido_code/agents/project_context.ex
+  covers:
+    - architecture.agent_os_integration.pod_contains_multiple_agents
+    - architecture.agent_os_integration.signal_routing_within_pod
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+
+- kind: source_file
+  target: lib/jido_code/agents/task_board.ex
+  covers:
+    - architecture.agent_os_integration.pod_contains_multiple_agents
+    - architecture.agent_os_integration.signal_routing_within_pod
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
+
+- kind: source_file
+  target: lib/jido_code/actions/add_task.ex
+  covers:
+    - architecture.agent_os_integration.state_operations_modify_agent_state
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
 
 - kind: source_file
   target: lib/jido_code/agent_workspace/deterministic_specialist_runner.ex
@@ -449,6 +485,7 @@ surface:
     - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
     - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
     - architecture.agent_os_integration.repository_work_queue_is_bounded
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
 
 - kind: source_file
   target: test/jido_code/agent_os_integration_test.exs
@@ -458,6 +495,7 @@ surface:
     - architecture.agent_os_integration.signal_routing_within_pod
     - architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
     - architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot
+    - architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
 
 - kind: source_file
   target: priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs

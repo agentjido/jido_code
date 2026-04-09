@@ -6,7 +6,7 @@ This subject defines the layered policy model for `Jido.Code`.
 id: architecture.policy_layers
 kind: policy
 status: active
-summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, stale-revision gating, bounded degraded-query admission, recovery entrypoints, bounded repository-scoped AgentWorkspace queue admission, real AgentWorkspace-to-pod routing through product-owned runtime entrypoints, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
+summary: "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, stale-revision gating, bounded degraded-query admission, recovery entrypoints, bounded repository-scoped AgentWorkspace queue admission, real AgentWorkspace-to-pod routing through product-owned runtime entrypoints, explicit repository and work-item context seeding into eager collaboration agents before specialist execution, and repo-native observations feeding repo governance independently from the global deployment-mode hint."
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
@@ -104,6 +104,11 @@ surface:
   priority: should
   stability: evolving
 
+- id: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
+  statement: Product-owned runtime entrypoints shall seed explicit repository, workspace, and work-item context into eager collaboration agents before specialist execution so runtime work remains explainable, resumable, and actor-bound.
+  priority: should
+  stability: evolving
+
 - id: architecture.policy_layers.operator_surfaces_propagate_current_actor_for_repo_mutations
   statement: Operator-facing settings flows and source-repo identity upserts shall propagate the current operator or system actor into Ash mutations, and external-ingress actors shall remain denied for human-only repo identity mutation paths.
   priority: must
@@ -132,6 +137,7 @@ surface:
     - Repo, run, and GitHub-ingress paths still carry explicit operator, run-worker, or external-ingress actor context rather than mutating data through anonymous trusted bypasses.
     - Hybrid settings summary widgets may improve operator scanning or event handoff, but the underlying repo mutation path still requires explicit current-actor propagation through LiveView-owned events.
     - Optional repository-scoped runtime capabilities fail closed with typed disabled, not-ready, stale-revision, degraded-query, recovery-required, or work-queue-full outcomes instead of silently enabling an ambient global service.
+    - AgentWorkspace seeds explicit repository, workspace, and work-item context into eager collaboration agents before specialist work begins.
 ```
 
 ## Verification
@@ -158,6 +164,7 @@ surface:
   covers:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
+    - architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
 
 - kind: source_file
   target: lib/jido_code/control/actor.ex
@@ -224,6 +231,7 @@ surface:
   covers:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.runtime_capacity_limits_fail_closed
+    - architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
 
 - kind: source_file
   target: test/jido_code/source_code_graph_workspace_test.exs
@@ -236,10 +244,12 @@ surface:
   covers:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
     - architecture.policy_layers.runtime_capacity_limits_fail_closed
+    - architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
 
 - kind: source_file
   target: test/jido_code/agent_os_integration_test.exs
   covers:
     - architecture.policy_layers.runtime_policy_governs_runtime_capability
+    - architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
 
 ```

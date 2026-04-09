@@ -1,6 +1,9 @@
 defmodule JidoCode.Agents.ProjectContext do
   # covers: architecture.agent_os_integration.pod_hierarchy
   # covers: architecture.agent_os_integration.coding_agents
+  # covers: architecture.agent_os_integration.pod_contains_multiple_agents
+  # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
   @moduledoc """
   Eager agent that maintains project context for the coding session.
 
@@ -14,6 +17,8 @@ defmodule JidoCode.Agents.ProjectContext do
   * Project metadata tracking
   * Context-aware file operations
   """
+
+  alias JidoCode.Actions.SetProjectContext
 
   use Jido.Agent,
     name: "project_context",
@@ -50,4 +55,10 @@ defmodule JidoCode.Agents.ProjectContext do
         doc: "Timestamp when the file index was last updated"
       ]
     ]
+
+  def signal_routes(_ctx) do
+    [
+      {"project.context.set", SetProjectContext}
+    ]
+  end
 end

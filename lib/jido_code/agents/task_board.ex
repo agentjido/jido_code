@@ -1,6 +1,9 @@
 defmodule JidoCode.Agents.TaskBoard do
   # covers: architecture.agent_os_integration.pod_hierarchy
   # covers: architecture.agent_os_integration.coding_agents
+  # covers: architecture.agent_os_integration.pod_contains_multiple_agents
+  # covers: architecture.agent_os_integration.signal_routing_within_pod
+  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
   @moduledoc """
   Eager agent that coordinates task status and workflow transitions.
 
@@ -23,10 +26,37 @@ defmodule JidoCode.Agents.TaskBoard do
   * Record task history and events
   """
 
+  alias JidoCode.Actions.{AddTask, AppendEvent, SelectTask, StoreArtifact}
+
   use Jido.Agent,
     name: "task_board",
     priority: :high,
     schema: [
+      tasks: [
+        type: {:list, :map},
+        default: [],
+        doc: "Tracked task records for this work item pod"
+      ],
+      active_task_id: [
+        type: :string,
+        default: nil,
+        doc: "Currently selected task identifier"
+      ],
+      activity_log: [
+        type: {:list, :map},
+        default: [],
+        doc: "Activity log for stage transitions and task events"
+      ],
+      artifacts: [
+        type: {:list, :map},
+        default: [],
+        doc: "Stored workflow artifacts emitted by specialists"
+      ],
+      last_updated_at: [
+        type: :string,
+        default: nil,
+        doc: "Timestamp when task board state last changed"
+      ],
       # Current task state
       status: [
         type: :atom,
@@ -58,4 +88,13 @@ defmodule JidoCode.Agents.TaskBoard do
         doc: "Current implementation plan"
       ]
     ]
+
+  def signal_routes(_ctx) do
+    [
+      {"task.add", AddTask},
+      {"task.select", SelectTask},
+      {"task.store", StoreArtifact},
+      {"task.event", AppendEvent}
+    ]
+  end
 end

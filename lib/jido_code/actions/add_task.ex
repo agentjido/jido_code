@@ -1,5 +1,7 @@
 defmodule JidoCode.Actions.AddTask do
   # covers: architecture.agent_os_integration.actions
+  # covers: architecture.agent_os_integration.state_operations_modify_agent_state
+  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
   @moduledoc """
   Action to add a task to the task board.
 
@@ -31,12 +33,12 @@ defmodule JidoCode.Actions.AddTask do
     }
 
     current_tasks = Map.get(context.state, :tasks, [])
-    active_task_id = Map.get(context.state, :active_task_id, "")
+    active_task_id = Map.get(context.state, :active_task_id)
 
     state_op =
       StateOp.set_state(%{
         tasks: current_tasks ++ [task],
-        active_task_id: if(active_task_id == "", do: task.id, else: active_task_id),
+        active_task_id: if(active_task_id in [nil, ""], do: task.id, else: active_task_id),
         last_updated_at: DateTime.utc_now() |> DateTime.to_iso8601()
       })
 

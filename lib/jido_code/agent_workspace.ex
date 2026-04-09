@@ -7,12 +7,15 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.agent_os_integration.signal_routing_within_pod
   # covers: architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state
   # covers: architecture.agent_os_integration.repository_work_queue_is_bounded
+  # covers: architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
+  # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
+  # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
   # covers: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
   @moduledoc """
   Context module for AgentOS workspace operations.
@@ -60,6 +63,7 @@ defmodule JidoCode.AgentWorkspace do
   alias Jido.AgentServer
   alias Jido.Pod
   alias Jido.Pod.Runtime, as: PodRuntime
+  alias Jido.Signal
 
   @type managed_repo_id :: String.t()
   @type work_item_id :: String.t()
@@ -247,9 +251,10 @@ defmodule JidoCode.AgentWorkspace do
              planner_pid,
              agent_instruction(:plan, instruction, semantic_context),
              managed_repo_id,
+             work_item_id,
              workspace_path,
              semantic_context,
-             opts
+             Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         plan: normalize_specialist_result(response),
@@ -294,9 +299,10 @@ defmodule JidoCode.AgentWorkspace do
              coder_pid,
              agent_instruction(:execute, instruction, semantic_context),
              managed_repo_id,
+             work_item_id,
              workspace_path,
              semantic_context,
-             opts
+             Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         changes: normalize_specialist_result(response),
@@ -341,9 +347,10 @@ defmodule JidoCode.AgentWorkspace do
              reviewer_pid,
              agent_instruction(:review, instruction, semantic_context),
              managed_repo_id,
+             work_item_id,
              workspace_path,
              semantic_context,
-             opts
+             Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         feedback: normalize_specialist_result(response),
@@ -379,9 +386,10 @@ defmodule JidoCode.AgentWorkspace do
              explainer_pid,
              agent_instruction(:explain, instruction, semantic_context),
              managed_repo_id,
+             work_item_id,
              workspace_path,
              semantic_context,
-             opts
+             Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         explanation: normalize_specialist_result(response),
@@ -762,23 +770,27 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp ensure_runtime_coding_pod(managed_repo_id, work_item_id, workspace_path) do
-    ensure_runtime_pod(
-      managed_repo_id,
-      coding_pod_id(work_item_id),
-      CodingPod,
-      %{
-        scope: :work_item,
-        managed_repo_id: managed_repo_id,
-        work_item_id: work_item_id,
-        workspace_path: workspace_path,
-        runtime_status: :running
-      },
-      %{
-        managed_repo_id: managed_repo_id,
-        work_item_id: work_item_id,
-        workspace_path: workspace_path
-      }
-    )
+    with {:ok, pod_entry, pod_pid} <-
+           ensure_runtime_pod(
+             managed_repo_id,
+             coding_pod_id(work_item_id),
+             CodingPod,
+             %{
+               scope: :work_item,
+               managed_repo_id: managed_repo_id,
+               work_item_id: work_item_id,
+               workspace_path: workspace_path,
+               runtime_status: :running
+             },
+             %{
+               managed_repo_id: managed_repo_id,
+               work_item_id: work_item_id,
+               workspace_path: workspace_path
+             }
+           ),
+         :ok <- sync_project_context(managed_repo_id, work_item_id, workspace_path, pod_pid) do
+      {:ok, pod_entry, pod_pid}
+    end
   end
 
   defp restore_persisted_runtime_pods(managed_repo_id) do
@@ -972,15 +984,213 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
-  defp run_specialist(agent_module, pid, instruction, managed_repo_id, workspace_path, semantic_context, opts) do
-    specialist_runner().run(
-      agent_module,
-      pid,
-      instruction,
-      tool_context: specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts),
-      timeout: Keyword.get(opts, :timeout, 30_000)
+  defp run_specialist(
+         agent_module,
+         pid,
+         instruction,
+         managed_repo_id,
+         work_item_id,
+         workspace_path,
+         semantic_context,
+         opts
+       ) do
+    stage = specialist_stage(agent_module)
+
+    with {:ok, task_context} <- start_task_board_stage(managed_repo_id, work_item_id, stage, instruction),
+         {:ok, response} <-
+           specialist_runner().run(
+             agent_module,
+             pid,
+             instruction,
+             tool_context: specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts),
+             timeout: Keyword.get(opts, :timeout, 30_000)
+           ),
+         :ok <- complete_task_board_stage(managed_repo_id, work_item_id, stage, task_context, response) do
+      {:ok, response}
+    else
+      {:error, reason} = error ->
+        _ = fail_task_board_stage(managed_repo_id, work_item_id, stage, instruction, reason)
+        error
+    end
+  end
+
+  defp specialist_stage(Planner), do: :planning
+  defp specialist_stage(Coder), do: :coding
+  defp specialist_stage(Reviewer), do: :reviewing
+  defp specialist_stage(Explainer), do: :explaining
+  defp specialist_stage(_other), do: :working
+
+  defp sync_project_context(_managed_repo_id, work_item_id, workspace_path, pod_pid) when is_pid(pod_pid) do
+    with {:ok, project_context_pid} <- Pod.ensure_node(pod_pid, :project_context),
+         {:ok, _agent} <-
+           AgentServer.call(
+             project_context_pid,
+             Signal.new!(
+               "project.context.set",
+               %{workspace_path: workspace_path, work_item_id: work_item_id, project_metadata: %{}},
+               source: "/jido_code/agent_workspace"
+             )
+           ) do
+      :ok
+    end
+  end
+
+  defp start_task_board_stage(managed_repo_id, work_item_id, stage, instruction) do
+    with {:ok, task_board_pid} <- task_board_pid(managed_repo_id, work_item_id),
+         {:ok, task_id} <- ensure_task_board_task(task_board_pid, work_item_id, instruction),
+         {:ok, _agent} <-
+           append_task_board_event(
+             task_board_pid,
+             Atom.to_string(stage) <> ".started",
+             "#{humanize_stage(stage)} started for work item #{work_item_id}.",
+             task_id
+           ) do
+      {:ok, %{task_board_pid: task_board_pid, task_id: task_id}}
+    end
+  end
+
+  defp complete_task_board_stage(
+         _managed_repo_id,
+         work_item_id,
+         stage,
+         %{task_board_pid: task_board_pid, task_id: task_id},
+         response
+       ) do
+    artifact_content = normalize_specialist_result(response)
+
+    with :ok <- store_task_board_artifact(task_board_pid, stage, task_id, artifact_content),
+         {:ok, _agent} <-
+           append_task_board_event(
+             task_board_pid,
+             Atom.to_string(stage) <> ".completed",
+             "#{humanize_stage(stage)} completed for work item #{work_item_id}.",
+             task_id
+           ),
+         :ok <- select_task_board_task(task_board_pid, task_id) do
+      :ok
+    end
+  end
+
+  defp fail_task_board_stage(managed_repo_id, work_item_id, stage, instruction, reason) do
+    with {:ok, task_board_pid} <- task_board_pid(managed_repo_id, work_item_id),
+         {:ok, task_id} <- ensure_task_board_task(task_board_pid, work_item_id, instruction) do
+      _ =
+        append_task_board_event(
+          task_board_pid,
+          Atom.to_string(stage) <> ".failed",
+          "#{humanize_stage(stage)} failed for work item #{work_item_id}: #{inspect(reason)}.",
+          task_id
+        )
+
+      :ok
+    else
+      _other -> :ok
+    end
+  end
+
+  defp task_board_pid(managed_repo_id, work_item_id) do
+    with {:ok, pod_pid} <- coding_pod_pid(managed_repo_id, work_item_id) do
+      Pod.ensure_node(pod_pid, :task_board)
+    end
+  end
+
+  defp ensure_task_board_task(task_board_pid, work_item_id, instruction) when is_pid(task_board_pid) do
+    with {:ok, server_state} <- AgentServer.state(task_board_pid) do
+      state = server_state.agent.state
+
+      case Map.get(state, :active_task_id) || existing_task_id(state, work_item_id) do
+        active_task_id when is_binary(active_task_id) and active_task_id != "" ->
+          _ = select_task_board_task(task_board_pid, active_task_id)
+          {:ok, active_task_id}
+
+        _other ->
+          case AgentServer.call(
+                 task_board_pid,
+                 Signal.new!(
+                   "task.add",
+                   %{
+                     title: "Work item #{work_item_id}",
+                     description: instruction,
+                     priority: "medium",
+                     metadata: %{work_item_id: work_item_id}
+                   },
+                   source: "/jido_code/agent_workspace"
+                 )
+               ) do
+            {:ok, agent} ->
+              {:ok, agent.state.active_task_id}
+
+            {:error, reason} ->
+              {:error, reason}
+          end
+      end
+    end
+  end
+
+  defp existing_task_id(state, work_item_id) when is_map(state) do
+    state
+    |> Map.get(:tasks, [])
+    |> Enum.find_value(fn
+      %{id: task_id, metadata: %{work_item_id: ^work_item_id}} when is_binary(task_id) -> task_id
+      _other -> nil
+    end)
+  end
+
+  defp select_task_board_task(task_board_pid, task_id) do
+    case AgentServer.call(
+           task_board_pid,
+           Signal.new!("task.select", %{task_id: task_id}, source: "/jido_code/agent_workspace")
+         ) do
+      {:ok, _agent} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp store_task_board_artifact(task_board_pid, stage, task_id, content) do
+    case AgentServer.call(
+           task_board_pid,
+           Signal.new!(
+             "task.store",
+             %{
+               type: task_board_artifact_type(stage),
+               content: stringify_artifact_content(content),
+               task_id: task_id,
+               metadata: %{stage: stage}
+             },
+             source: "/jido_code/agent_workspace"
+           )
+         ) do
+      {:ok, _agent} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp append_task_board_event(task_board_pid, event_type, message, task_id) do
+    AgentServer.call(
+      task_board_pid,
+      Signal.new!(
+        "task.event",
+        %{event_type: event_type, message: message, data: %{task_id: task_id}},
+        source: "/jido_code/agent_workspace"
+      )
     )
   end
+
+  defp task_board_artifact_type(:planning), do: "plan"
+  defp task_board_artifact_type(:coding), do: "draft"
+  defp task_board_artifact_type(:reviewing), do: "review"
+  defp task_board_artifact_type(:explaining), do: "explanation"
+  defp task_board_artifact_type(_other), do: "artifact"
+
+  defp humanize_stage(stage) when is_atom(stage) do
+    stage
+    |> Atom.to_string()
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp stringify_artifact_content(content) when is_binary(content), do: content
+  defp stringify_artifact_content(content), do: inspect(content, pretty: true, limit: :infinity)
 
   defp specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts) do
     base = %{

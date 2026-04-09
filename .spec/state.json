@@ -209,6 +209,20 @@
       },
       {
         "affects": [
+          "architecture.factory_control_plane",
+          "architecture.frontend_stack",
+          "architecture.source_code_graph_pod",
+          "architecture.source_code_graph_product_adoption",
+          "package.jido_code"
+        ],
+        "date": "2026-04-09",
+        "file": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "id": "jido_code.source_code_graph_product_adoption",
+        "status": "accepted",
+        "title": "Source Code Graph Product Adoption"
+      },
+      {
+        "affects": [
           "package.jido_code",
           "architecture.vsm_recursion",
           "docs.product_foundation"
@@ -651,6 +665,14 @@
       },
       {
         "file": ".spec/specs/factory_control_plane.spec.md",
+        "id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
+        "priority": "should",
+        "stability": "evolving",
+        "statement": "Repository-scoped semantic analysis may inform operator understanding, work synthesis, and review, but any graph-backed finding that matters to the factory shall rejoin governed product records rather than becoming an alternate durable truth system.",
+        "subject_id": "architecture.factory_control_plane"
+      },
+      {
+        "file": ".spec/specs/factory_control_plane.spec.md",
         "id": "architecture.factory_control_plane.source_repo_and_managed_repo_are_primary_repo_objects",
         "priority": "must",
         "stability": "evolving",
@@ -711,6 +733,14 @@
         "priority": "must",
         "stability": "evolving",
         "statement": "`jido_code` shall not maintain React as a parallel product frontend technology stack after `live_vue` is chosen as the standard rich-component bridge.",
+        "subject_id": "architecture.frontend_stack"
+      },
+      {
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "id": "architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Semantic repository inspection and impact-exploration surfaces may use bounded LiveView-hosted Vue regions when richer graph exploration is valuable, but they shall remain managed-repository product surfaces rather than separate graph-only browser applications.",
         "subject_id": "architecture.frontend_stack"
       },
       {
@@ -1115,6 +1145,14 @@
       },
       {
         "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Product-facing semantic consumers shall receive bounded semantic projections through AgentWorkspace-owned entrypoints rather than reading pod state, raw SPARQL responses, or TripleStore handles directly.",
+        "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
         "id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
         "priority": "must",
         "stability": "proposed",
@@ -1152,6 +1190,54 @@
         "stability": "proposed",
         "statement": "Source-code graph analysis, load, refresh, and query entrypoints shall use explicit repository and workspace bindings supplied by AgentWorkspace rather than inferring workspace state from ambient pod processes.",
         "subject_id": "architecture.source_code_graph_pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "id": "architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Managed-repository operator routes shall be the canonical host surfaces for semantic repository inspection, including bounded module, function, runtime-pattern, and impact views, instead of introducing a separate graph-only browser route family.",
+        "subject_id": "architecture.source_code_graph_product_adoption"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "id": "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Product operator surfaces shall present bounded semantic projections and recovery affordances rather than raw SPARQL text, pod topology, store handles, or graph-engine implementation details.",
+        "subject_id": "architecture.source_code_graph_product_adoption"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "id": "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Product code shall consume source-code graph capability through bounded product-owned service or view-model boundaries over AgentWorkspace rather than by issuing raw SPARQL, calling pod internals, or opening TripleStore directly from UI-owned code.",
+        "subject_id": "architecture.source_code_graph_product_adoption"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "When semantic findings influence factory behavior, those findings shall be materialized back into governed product records such as Observation, Assessment, WorkItem, Evidence, or Decision instead of remaining graph-local runtime facts.",
+        "subject_id": "architecture.source_code_graph_product_adoption"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Operator-facing semantic surfaces shall expose graph freshness, stale state, degraded-query state, latest failure, and explicit recovery actions so semantic inspection remains explainable and safe.",
+        "subject_id": "architecture.source_code_graph_product_adoption"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Planning, review, and explanation workflows shall request semantic graph context explicitly through product-owned workflow options or service calls rather than assuming ambient semantic availability.",
+        "subject_id": "architecture.source_code_graph_product_adoption"
       },
       {
         "file": ".spec/specs/vsm_recursion.spec.md",
@@ -2649,7 +2735,8 @@
       },
       {
         "covers": [
-          "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane"
+          "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
+          "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane"
         ],
         "file": ".spec/specs/factory_control_plane.spec.md",
         "given": [
@@ -2658,10 +2745,10 @@
         "id": "architecture.factory_control_plane.scenario_repo_native_state_guides_factory_decisions",
         "subject_id": "architecture.factory_control_plane",
         "then": [
-          "Repo-native state may inform control decisions while the product retains its own durable control-plane records and governance boundaries."
+          "Repo-native or semantic analysis state may inform control decisions while the product retains its own durable control-plane records and governance boundaries."
         ],
         "when": [
-          "The factory evaluates planning, review, or execution readiness."
+          "The factory evaluates planning, review, execution readiness, or semantic repository findings."
         ]
       },
       {
@@ -2761,6 +2848,28 @@
         ],
         "when": [
           "The product introduces a richer browser component layer for that page."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.liveview_remains_product_host_shell",
+          "architecture.frontend_stack.product_owned_mounting_boundary",
+          "architecture.frontend_stack.server_authored_props_streams_and_events",
+          "architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "given": [
+          "A managed-repository surface needs richer semantic repository inspection such as module exploration or bounded impact visualization."
+        ],
+        "id": "architecture.frontend_stack.scenario_semantic_repo_inspection_uses_hybrid_region",
+        "subject_id": "architecture.frontend_stack",
+        "then": [
+          "The route remains LiveView-owned and repository-scoped.",
+          "Any Vue-backed semantic region mounts through the shared product boundary.",
+          "Server-owned semantic freshness and recovery state remain explicit in the LiveView-owned contract."
+        ],
+        "when": [
+          "The route adopts a semantic inspection region."
         ]
       },
       {
@@ -3232,7 +3341,8 @@
         "covers": [
           "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
           "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
-          "architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned"
+          "architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned",
+          "architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "given": [
@@ -3249,6 +3359,85 @@
         ],
         "when": [
           "Product-owned planning, review, or explanation flows request semantic inputs."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
+          "architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection",
+          "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "given": [
+          "A managed repository has source-code graph capability enabled."
+        ],
+        "id": "architecture.source_code_graph_product_adoption.scenario_repo_detail_hosts_semantic_inspection",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "then": [
+          "The route remains a canonical managed-repository product surface.",
+          "The page consumes semantic projections through a product-owned boundary over AgentWorkspace.",
+          "The operator sees bounded semantic views such as modules, functions, runtime patterns, or impact traces without raw graph-engine internals."
+        ],
+        "when": [
+          "An operator opens the repository detail surface to inspect semantic repository structure."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "given": [
+          "Semantic inspection identifies a runtime pattern, dependency relationship, or bounded impact finding that deserves action."
+        ],
+        "id": "architecture.source_code_graph_product_adoption.scenario_semantic_findings_become_governed_work",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "then": [
+          "The outcome is recorded through governed product records such as Observation, Assessment, WorkItem, Evidence, or Decision.",
+          "The semantic graph remains a supporting capability rather than the durable control-plane system of record."
+        ],
+        "when": [
+          "The factory or an operator turns that finding into follow-up work or review evidence."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
+          "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "given": [
+          "A repository has a stale, degraded, or failed semantic graph state."
+        ],
+        "id": "architecture.source_code_graph_product_adoption.scenario_semantic_surface_shows_stale_state_and_recovery",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "then": [
+          "The product surface shows explicit freshness and failure state.",
+          "The operator can trigger bounded recovery behavior through product-owned actions.",
+          "The surface does not pretend the graph is fresh or hide recovery behind raw runtime errors."
+        ],
+        "when": [
+          "An operator opens a semantic inspection surface or asks for graph-backed insight."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
+          "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "given": [
+          "A planning, review, or explanation workflow may benefit from repository semantics."
+        ],
+        "id": "architecture.source_code_graph_product_adoption.scenario_workflow_requests_graph_context_explicitly",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "then": [
+          "The product-owned workflow boundary explicitly requests graph preparation and semantic projections.",
+          "Semantic context is absent when the workflow does not request it.",
+          "Workflow logic remains independent of direct pod topology or raw SPARQL calls."
+        ],
+        "when": [
+          "The workflow opts into semantic context."
         ]
       },
       {
@@ -4413,12 +4602,13 @@
             "jido_code.factory_control_plane_and_runtime_overlay",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.runtime_evidence_posture_and_rollout_convergence",
+            "jido_code.source_code_graph_product_adoption",
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption"
           ],
           "id": "architecture.factory_control_plane",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, and whose repo-native state layers inform but do not replace Ash-backed product truth.",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose semantic repository insights may inform operator understanding and work synthesis, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -4492,12 +4682,13 @@
           "decisions": [
             "jido_code.factory_control_plane_and_runtime_overlay",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
-            "jido_code.live_vue_frontend_adoption"
+            "jido_code.live_vue_frontend_adoption",
+            "jido_code.source_code_graph_product_adoption"
           ],
           "id": "architecture.frontend_stack",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies and a dedicated semantic graph verification alias, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.",
+          "summary": "Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies and a dedicated semantic graph verification alias, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection where richer graph exploration is useful.",
           "surface": [
             ".spec/decisions/jido_code.live_vue_frontend_adoption.md",
             ".spec/specs/frontend_architecture.spec.md",
@@ -4618,13 +4809,14 @@
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.jido_os_deprecation",
             "jido_code.source_code_graph_pod_and_named_graph_ingestion",
+            "jido_code.source_code_graph_product_adoption",
             "jido_code.runtime_evidence_posture_and_rollout_convergence",
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption"
           ],
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, and repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, and the future product-owned semantic inspection and workflow adoption layer built on top of that runtime capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -5090,12 +5282,13 @@
         "meta": {
           "decisions": [
             "jido_code.jido_agent_os_integration",
-            "jido_code.source_code_graph_pod_and_named_graph_ingestion"
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion",
+            "jido_code.source_code_graph_product_adoption"
           ],
           "id": "architecture.source_code_graph_pod",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.",
+          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.",
           "surface": [
             ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
             ".spec/specs/agent_os_integration.spec.md",
@@ -5109,6 +5302,35 @@
           "verification_minimum_strength": null
         },
         "title": "Source Code Graph Pod"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "id": "architecture.source_code_graph_product_adoption",
+        "meta": {
+          "decisions": [
+            "jido_code.operator_surface_managed_repo_and_governed_run_adoption",
+            "jido_code.live_vue_frontend_adoption",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion",
+            "jido_code.source_code_graph_product_adoption"
+          ],
+          "id": "architecture.source_code_graph_product_adoption",
+          "kind": "feature",
+          "status": "proposed",
+          "summary": "Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.",
+          "surface": [
+            ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+            ".spec/specs/source_code_graph_pod.spec.md",
+            "lib/jido_code/agent_workspace.ex",
+            "lib/jido_code/source_code_graph/",
+            "lib/jido_code/workbench/",
+            "lib/jido_code_web/live/",
+            "lib/jido_code_web/components/",
+            "test/jido_code/source_code_graph_workspace_test.exs",
+            "test/jido_code_web/live/"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Source Code Graph Product Adoption"
       },
       {
         "file": ".spec/specs/source_provider_adapter.spec.md",
@@ -5847,6 +6069,15 @@
       },
       {
         "covers": [
+          "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md"
+      },
+      {
+        "covers": [
           "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
           "architecture.factory_control_plane.runtime_overlay_preserves_product_truth"
         ],
@@ -5996,6 +6227,15 @@
         "kind": "source_file",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/decisions/jido_code.live_vue_frontend_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions"
+        ],
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md"
       },
       {
         "covers": [
@@ -7010,7 +7250,8 @@
           "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
           "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
           "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-          "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently"
+          "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
+          "architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections"
         ],
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -7356,6 +7597,20 @@
         "kind": "source_file",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
+          "architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection",
+          "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
+          "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
+          "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
+          "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md"
       },
       {
         "covers": [
@@ -9574,13 +9829,13 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 16,
+    "decisions": 17,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 243,
-    "scenarios": 107,
-    "subjects": 35,
-    "verifications": 435
+    "requirements": 252,
+    "scenarios": 112,
+    "subjects": 36,
+    "verifications": 438
   },
   "verification": {
     "claims": [
@@ -11334,6 +11589,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 4
+      },
+      {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
@@ -11342,7 +11608,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.factory_control_plane.runtime_overlay_preserves_product_truth",
@@ -11353,7 +11619,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.factory_control_plane.runtime_overlay_preserves_product_truth",
@@ -11364,17 +11630,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/governance/runtime_evidence_feed_test.exs",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 6
       },
       {
@@ -11385,8 +11640,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -11397,7 +11663,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code_web/live/phase_eleven_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -11408,7 +11674,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
-        "verification_index": 9
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
@@ -11419,7 +11685,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/operations/repo_native_state.ex",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
@@ -11430,7 +11696,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/operations/repo_native_state_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
@@ -11441,7 +11707,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/governance/posture_bridge.ex",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -11452,7 +11718,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/repo_bridge.ex",
-        "verification_index": 13
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors",
@@ -11463,7 +11729,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/source_repo.ex",
-        "verification_index": 14
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -11474,7 +11740,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/workbench/project_detail.ex",
-        "verification_index": 15
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -11485,7 +11751,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/orchestration/run_summary_feed.ex",
-        "verification_index": 16
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -11496,7 +11762,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
-        "verification_index": 17
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -11507,7 +11773,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code_web/live/run_detail_live.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -11598,6 +11864,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
         "file": ".spec/specs/frontend_architecture.spec.md",
         "kind": "source_file",
@@ -11606,7 +11883,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -11617,7 +11894,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -11628,7 +11905,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -11639,7 +11916,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.react_is_not_parallel_product_frontend_stack",
@@ -11650,7 +11927,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -11661,7 +11938,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -11672,7 +11949,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
@@ -11683,7 +11960,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": ".spec/specs/frontend_architecture.spec.md",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -11694,7 +11971,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/components/live_vue_components.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -11705,7 +11982,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/components/live_vue_components.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -11716,7 +11993,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/components/live_vue_components.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -11727,7 +12004,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/components/live_vue_components.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
@@ -11738,7 +12015,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/frontend_assets.ex",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -11749,7 +12026,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/frontend_assets.ex",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
@@ -11760,7 +12037,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/frontend_assets.ex",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -11771,7 +12048,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/live/project_inventory_live.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -11782,7 +12059,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "lib/jido_code_web/live/project_inventory_live.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -11793,28 +12070,6 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/support/live_vue_case.ex",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
-        "file": ".spec/specs/frontend_architecture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
-        "verification_index": 6
-      },
-      {
-        "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
-        "file": ".spec/specs/frontend_architecture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
         "verification_index": 6
       },
       {
@@ -11825,7 +12080,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/agents_live_test.exs",
+        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
         "verification_index": 7
       },
       {
@@ -11836,7 +12091,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/agents_live_test.exs",
+        "target": "test/jido_code_web/live/project_inventory_live_test.exs",
         "verification_index": 7
       },
       {
@@ -11847,7 +12102,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workflows_live_test.exs",
+        "target": "test/jido_code_web/live/agents_live_test.exs",
         "verification_index": 8
       },
       {
@@ -11858,7 +12113,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workflows_live_test.exs",
+        "target": "test/jido_code_web/live/agents_live_test.exs",
         "verification_index": 8
       },
       {
@@ -11869,29 +12124,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "test/jido_code_web/live/workflows_live_test.exs",
         "verification_index": 9
       },
       {
-        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
         "file": ".spec/specs/frontend_architecture.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
-        "verification_index": 9
-      },
-      {
-        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
-        "file": ".spec/specs/frontend_architecture.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "test/jido_code_web/live/workflows_live_test.exs",
         "verification_index": 9
       },
       {
@@ -11902,7 +12146,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 10
       },
       {
@@ -11913,7 +12157,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 10
       },
       {
@@ -11924,7 +12168,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 10
       },
       {
@@ -11935,7 +12179,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
         "verification_index": 11
       },
       {
@@ -11946,7 +12190,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
         "verification_index": 11
       },
       {
@@ -11957,7 +12201,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/DashboardRuntimePostureWidget.vue",
         "verification_index": 11
       },
       {
@@ -11968,7 +12212,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
         "verification_index": 12
       },
       {
@@ -11979,7 +12223,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
         "verification_index": 12
       },
       {
@@ -11990,7 +12234,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/SettingsOverviewWidget.vue",
         "verification_index": 12
       },
       {
@@ -12001,7 +12245,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
         "verification_index": 13
       },
       {
@@ -12012,7 +12256,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
         "verification_index": 13
       },
       {
@@ -12023,7 +12267,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
+        "target": "lib/jido_code_web/live/ProjectDetailOverviewWidget.vue",
         "verification_index": 13
       },
       {
@@ -12034,7 +12278,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
         "verification_index": 14
       },
       {
@@ -12045,7 +12289,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
         "verification_index": 14
       },
       {
@@ -12056,7 +12300,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "target": "lib/jido_code_web/live/RunGovernanceOverviewWidget.vue",
         "verification_index": 14
       },
       {
@@ -12067,7 +12311,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
+        "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
         "verification_index": 15
       },
       {
@@ -12078,7 +12333,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
+        "target": "lib/jido_code_web/live/WorkbenchSummaryWidget.vue",
         "verification_index": 15
       },
       {
@@ -12089,7 +12344,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/security_settings_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 16
       },
       {
@@ -12100,7 +12355,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/security_settings_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 16
       },
       {
@@ -12111,7 +12366,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "target": "test/jido_code_web/live/security_settings_live_test.exs",
         "verification_index": 17
       },
       {
@@ -12122,7 +12377,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/project_detail_live_test.exs",
+        "target": "test/jido_code_web/live/security_settings_live_test.exs",
         "verification_index": 17
       },
       {
@@ -12133,7 +12388,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 18
       },
       {
@@ -12144,7 +12399,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/project_detail_live_test.exs",
         "verification_index": 18
       },
       {
@@ -12155,7 +12410,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 19
       },
       {
@@ -12166,8 +12421,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
-        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 19
+      },
+      {
+        "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "verification_index": 20
+      },
+      {
+        "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
+        "file": ".spec/specs/frontend_architecture.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.frontend_stack",
+        "target": "test/jido_code_web/live/workbench_live_test.exs",
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -12178,7 +12455,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 20
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -12189,7 +12466,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 20
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -12200,7 +12477,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/components/live_vue_components_test.exs",
-        "verification_index": 20
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
@@ -12211,7 +12488,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -12222,7 +12499,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.frontend_stack.vite_and_ssr_are_standard_live_vue_tooling",
@@ -12233,7 +12510,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/frontend_assets_test.exs",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -12244,7 +12521,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -12255,7 +12532,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -12266,7 +12543,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -12277,7 +12554,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -12288,7 +12565,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_thirteen_integration_test.exs",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -12299,7 +12576,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge",
@@ -12310,7 +12587,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -12321,7 +12598,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.frontend_stack.product_owned_mounting_boundary",
@@ -12332,7 +12609,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.frontend_stack.server_authored_props_streams_and_events",
@@ -12343,7 +12620,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers",
@@ -12354,7 +12631,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fourteen_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.frontend_stack.frontend_bridge_observability_stays_product_oriented",
@@ -12365,7 +12642,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.frontend_stack.hybrid_surfaces_fail_safe_when_richer_client_path_degrades",
@@ -12376,7 +12653,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.frontend_stack.liveview_remains_product_host_shell",
@@ -12387,7 +12664,7 @@
         "strength": "linked",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
@@ -13897,6 +14174,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+        "verification_index": 0
+      },
+      {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -14764,6 +15052,72 @@
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
         "verification_index": 33
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+        "verification_index": 0
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -18863,12 +19217,12 @@
     "strength_summary": {
       "claimed": 56,
       "executed": 0,
-      "linked": 787
+      "linked": 796
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 16,
-    "spec_count": 35
+    "decision_count": 17,
+    "spec_count": 36
   }
 }

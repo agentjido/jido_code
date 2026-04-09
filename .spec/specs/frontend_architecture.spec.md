@@ -8,11 +8,12 @@ ownership across multiple unrelated frontend stacks.
 id: architecture.frontend_stack
 kind: policy
 status: active
-summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies and a dedicated semantic graph verification alias, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages.
+summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph runtime dependencies and a dedicated semantic graph verification alias, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection where richer graph exploration is useful.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
+  - jido_code.source_code_graph_product_adoption
 surface:
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
   - .spec/specs/frontend_architecture.spec.md
@@ -89,6 +90,11 @@ surface:
   statement: Frontend rollout observability for LiveVue delivery, SSR reduction, and fallback delivery shall remain distinguishable from runtime-service observability and describe degraded browser behavior in product-oriented terms.
   priority: should
   stability: evolving
+
+- id: architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+  statement: Semantic repository inspection and impact-exploration surfaces may use bounded LiveView-hosted Vue regions when richer graph exploration is valuable, but they shall remain managed-repository product surfaces rather than separate graph-only browser applications.
+  priority: should
+  stability: proposed
 ```
 
 ## Scenarios
@@ -158,6 +164,21 @@ surface:
   then:
     - Conversation, governance, filters, and runtime evidence continue to flow through LiveView-owned product boundaries while the Vue-backed region only renders bounded projections and mapped emits.
 
+- id: architecture.frontend_stack.scenario_semantic_repo_inspection_uses_hybrid_region
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+  given:
+    - A managed-repository surface needs richer semantic repository inspection such as module exploration or bounded impact visualization.
+  when:
+    - The route adopts a semantic inspection region.
+  then:
+    - The route remains LiveView-owned and repository-scoped.
+    - Any Vue-backed semantic region mounts through the shared product boundary.
+    - Server-owned semantic freshness and recovery state remain explicit in the LiveView-owned contract.
+
 - id: architecture.frontend_stack.scenario_frontend_stack_does_not_re_fragment
   covers:
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
@@ -197,6 +218,11 @@ surface:
     - architecture.frontend_stack.react_is_not_parallel_product_frontend_stack
     - architecture.frontend_stack.adoption_is_incremental_per_surface
     - architecture.frontend_stack.testing_keeps_liveview_and_adds_live_vue_aware_helpers
+
+- kind: source_file
+  target: .spec/decisions/jido_code.source_code_graph_product_adoption.md
+  covers:
+    - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
 
 - kind: source_file
   target: .spec/specs/frontend_architecture.spec.md

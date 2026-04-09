@@ -7,7 +7,7 @@ Git-backed repositories.
 id: architecture.factory_control_plane
 kind: policy
 status: active
-summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, and whose repo-native state layers inform but do not replace Ash-backed product truth.
+summary: Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose semantic repository insights may inform operator understanding and work synthesis, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.
 decisions:
   - jido_code.compatibility_era_removal_and_canonical_cutover
   - jido_code.internal_domain_and_execution_canonicalization
@@ -15,6 +15,7 @@ decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.runtime_evidence_posture_and_rollout_convergence
+  - jido_code.source_code_graph_product_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
   - .spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md
@@ -122,6 +123,11 @@ surface:
   priority: must
   stability: evolving
 
+- id: architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+  statement: Repository-scoped semantic analysis may inform operator understanding, work synthesis, and review, but any graph-backed finding that matters to the factory shall rejoin governed product records rather than becoming an alternate durable truth system.
+  priority: should
+  stability: evolving
+
 - id: architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors
   statement: Canonical managed-repository scope resolution and source-repo identity updates shall use explicit factory-system, operator, or orchestrator actors for control-plane reads and writes instead of anonymous repair or compatibility bypasses.
   priority: must
@@ -147,12 +153,13 @@ surface:
 - id: architecture.factory_control_plane.scenario_repo_native_state_guides_factory_decisions
   covers:
     - architecture.factory_control_plane.repo_native_state_layers_inform_control_plane
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
   given:
     - A managed repository contains `.spec/` state and may also contain Git-native planning state.
   when:
-    - The factory evaluates planning, review, or execution readiness.
+    - The factory evaluates planning, review, execution readiness, or semantic repository findings.
   then:
-    - Repo-native state may inform control decisions while the product retains its own durable control-plane records and governance boundaries.
+    - Repo-native or semantic analysis state may inform control decisions while the product retains its own durable control-plane records and governance boundaries.
 
 - id: architecture.factory_control_plane.scenario_hosted_mode_stays_lightweight
   covers:
@@ -204,6 +211,11 @@ surface:
   target: .spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md
   covers:
     - architecture.factory_control_plane.runtime_overlay_preserves_product_truth
+
+- kind: source_file
+  target: .spec/decisions/jido_code.source_code_graph_product_adoption.md
+  covers:
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
 
 - kind: source_file
   target: lib/jido_code/governance/runtime_evidence_feed.ex

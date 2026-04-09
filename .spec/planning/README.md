@@ -11,11 +11,13 @@ The plan aligns to:
 - `../specs/frontend_architecture.spec.md`
 - `../specs/policy_layers.spec.md`
 - `../specs/source_code_graph_pod.spec.md`
+- `../specs/source_code_graph_product_adoption.spec.md`
 - `../specs/vsm_recursion.spec.md`
 - `../specs/execution_pipeline.spec.md`
 - `../specs/run_governance.spec.md`
 - `../decisions/jido_code.factory_control_plane.md`
 - `../decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md`
+- `../decisions/jido_code.source_code_graph_product_adoption.md`
 - `../decisions/jido_code.live_vue_frontend_adoption.md`
 - `../decisions/jido_code.runic_execution_model.md`
 - `../decisions/jido_code.vsm_recursion_and_scope.md`
@@ -39,6 +41,10 @@ The plan aligns to:
 15. [Phase 21 - Full Ontology Analysis and Named Graph Load](./phase-21-full-ontology-analysis-and-named-graph-load.md): implement the ElixirOntologies full-profile analysis pipeline and coherent loading into the canonical `source_code` named graph of the local TripleStore database.
 16. [Phase 22 - Source Code Graph Query Agents and Workflow Adoption](./phase-22-source-code-graph-query-agents-and-workflow-adoption.md): add SPARQL-backed query tools and specialist agents to the SourceCodeGraphPod, then expose repository-scoped query and refresh behavior through product-owned workspace entrypoints.
 17. [Phase 23 - Source Code Graph Hardening and Operational Convergence](./phase-23-source-code-graph-hardening-and-operational-convergence.md): harden refresh semantics, revision tracking, failure reporting, contributor guidance, and end-to-end pod scenarios so the source-code graph capability becomes a durable AgentOS-native repository service.
+18. [Phase 24 - Source Code Graph Product Service Foundation](./phase-24-source-code-graph-product-service-foundation.md): add the bounded product-owned semantic service and governed finding materialization layer that turns the source-code graph from a runtime capability into a reusable product boundary.
+19. [Phase 25 - Semantic Operator Surface Adoption](./phase-25-semantic-operator-surface-adoption.md): adopt semantic inspection into canonical managed-repository operator surfaces, including bounded hybrid regions where richer graph exploration is useful.
+20. [Phase 26 - Semantic Workflow And Governed Finding Adoption](./phase-26-semantic-workflow-and-governed-finding-adoption.md): let planning, review, and explanation workflows request semantic context explicitly and adopt semantic findings into governed product records.
+21. [Phase 27 - Semantic Product Hardening And Contributor Convergence](./phase-27-semantic-product-hardening-and-contributor-convergence.md): harden the product-facing semantic experience, align contributor guidance, and converge verification around the final semantic product architecture.
 
 ## Shared Conventions
 - Numbering:

@@ -24,6 +24,7 @@ related:
 <!-- covers: architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface -->
 <!-- covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently -->
 <!-- covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable -->
+<!-- covers: architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections -->
 <!-- covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded -->
 
 # Source Code Graph Pod And Named Graph Ingestion
@@ -50,6 +51,8 @@ For each managed repository, we want a durable local source-code graph that:
 - loads the ontology and extracted individuals into a canonical named graph
   called `source_code`
 - remains queryable by pod-local agents afterward through explicit tools
+- can later feed bounded product-owned semantic projections without exposing pod
+  or store internals directly to operator surfaces
 
 This capability belongs naturally inside the repository-scoped AgentOS kernel
 model rather than in top-level product controllers or in a resurrected

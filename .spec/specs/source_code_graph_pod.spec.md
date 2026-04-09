@@ -10,10 +10,11 @@ ingestion and query.
 id: architecture.source_code_graph_pod
 kind: feature
 status: proposed
-summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
+summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, and routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
+  - jido_code.source_code_graph_product_adoption
 surface:
   - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
   - .spec/specs/agent_os_integration.spec.md
@@ -75,6 +76,11 @@ surface:
 
 - id: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
   statement: Source-code graph analysis, load, refresh, and query entrypoints shall use explicit repository and workspace bindings supplied by AgentWorkspace rather than inferring workspace state from ambient pod processes.
+  priority: should
+  stability: proposed
+
+- id: architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections
+  statement: Product-facing semantic consumers shall receive bounded semantic projections through AgentWorkspace-owned entrypoints rather than reading pod state, raw SPARQL responses, or TripleStore handles directly.
   priority: should
   stability: proposed
 
@@ -184,6 +190,7 @@ surface:
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
     - architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
+    - architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections
   given:
     - A managed repository has the source-code graph capability enabled.
   when:
@@ -210,6 +217,7 @@ surface:
     - architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
     - architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
     - architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
+    - architecture.source_code_graph_pod.product_surfaces_consume_workspace_bound_semantic_projections
 
 - kind: source_file
   target: lib/jido_code/source_code_graph.ex

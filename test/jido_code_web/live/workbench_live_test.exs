@@ -5,6 +5,7 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Orchestration.{RunPubSub, WorkflowRun}
   alias JidoCode.Projects.Project
@@ -24,6 +25,9 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
 
     original_system_config_loader =
       Application.get_env(:jido_code, :system_config_loader, :__missing__)
+
+    original_source_code_graph_enabled =
+      Application.get_env(:jido_code, :source_code_graph_enabled, false)
 
     Application.put_env(:jido_code, :system_config_loader, fn ->
       {:ok,
@@ -51,9 +55,116 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       )
 
       restore_env(:system_config_loader, original_system_config_loader)
+      Application.put_env(:jido_code, :source_code_graph_enabled, original_source_code_graph_enabled)
     end)
 
     :ok
+  end
+
+  test "shows repo-scoped semantic readiness hints on managed repo rows", %{conn: _conn} do
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
+
+    register_owner("workbench-semantic-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("workbench-semantic-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("WorkbenchSemantic.Ready")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-semantic-ready",
+        github_full_name: "owner/repo-semantic-ready",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    route_id = managed_repo_route_id!(project.id)
+
+    assert {:ok, _load_result} = AgentWorkspace.load_source_code_graph(route_id, workspace_path)
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+
+    assert has_element?(view, "#workbench-project-semantic-hint-#{route_id}")
+
+    assert has_element?(
+             view,
+             "#workbench-project-semantic-hint-badge-#{route_id}",
+             "Semantic graph ready"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-semantic-hint-detail-#{route_id}",
+             "ready for inspection"
+           )
+
+    refute has_element?(view, "#workbench-project-semantic-hint-recovery-#{route_id}")
+  end
+
+  test "surfaces stale semantic hints on workbench rows and routes recovery back to repo detail", %{
+    conn: _conn
+  } do
+    Application.put_env(:jido_code, :source_code_graph_enabled, true)
+
+    register_owner("workbench-semantic-stale-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("workbench-semantic-stale-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("WorkbenchSemantic.Stale")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-semantic-stale",
+        github_full_name: "owner/repo-semantic-stale",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    route_id = managed_repo_route_id!(project.id)
+
+    assert {:ok, _load_result} = AgentWorkspace.load_source_code_graph(route_id, workspace_path)
+
+    rewrite_semantic_workspace_module!(workspace_path, "WorkbenchSemantic.Refreshed")
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/workbench", on_error: :warn)
+
+    assert has_element?(view, "#workbench-project-semantic-hint-#{route_id}")
+
+    assert has_element?(
+             view,
+             "#workbench-project-semantic-hint-badge-#{route_id}",
+             "Semantic graph stale"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-semantic-hint-detail-#{route_id}",
+             "should be refreshed"
+           )
+
+    assert has_element?(
+             view,
+             "#workbench-project-semantic-hint-recovery-#{route_id}[href='/repos/#{route_id}']",
+             "Open repo detail to refresh semantic graph data."
+           )
   end
 
   test "renders cross-project workbench inventory rows with issue and PR counts plus activity summary",
@@ -1485,6 +1596,57 @@ defmodule JidoCodeWeb.WorkbenchLiveTest do
       ManagedRepo.get_by_legacy_project_id(legacy_project_id, actor: Actor.operator_actor())
 
     managed_repo.id
+  end
+
+  defp create_semantic_workspace_path!(module_name) do
+    workspace_path =
+      Path.join(
+        System.tmp_dir!(),
+        "jido_code_workbench_semantic_#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(Path.join(workspace_path, "lib"))
+
+    File.write!(
+      Path.join(workspace_path, "mix.exs"),
+      """
+      defmodule WorkbenchSemantic.MixProject do
+        use Mix.Project
+
+        def project do
+          [app: :workbench_semantic, version: "0.1.0", elixir: "~> 1.18", deps: []]
+        end
+      end
+      """
+    )
+
+    rewrite_semantic_workspace_module!(workspace_path, module_name)
+
+    on_exit(fn -> File.rm_rf!(workspace_path) end)
+    workspace_path
+  end
+
+  defp rewrite_semantic_workspace_module!(workspace_path, module_name) do
+    module_basename =
+      module_name
+      |> String.split(".")
+      |> List.last()
+      |> Macro.underscore()
+
+    File.write!(
+      Path.join(workspace_path, "lib/#{module_basename}.ex"),
+      """
+      defmodule #{module_name} do
+        def greet(name) when is_binary(name), do: "hello " <> name
+      end
+      """
+    )
+
+    workspace_path
+    |> Path.join("lib/*.ex")
+    |> Path.wildcard()
+    |> Enum.reject(&String.ends_with?(&1, "#{module_basename}.ex"))
+    |> Enum.each(&File.rm!/1)
   end
 
   defp assert_eventually(assertion_fun, attempts \\ 20)

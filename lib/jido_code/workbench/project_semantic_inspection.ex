@@ -314,6 +314,7 @@ defmodule JidoCode.Workbench.ProjectSemanticInspection do
   defp hint_detail(_status), do: "Semantic repository state is unavailable."
 
   defp semantic_detail(%{state: :stale}, %{detail: detail}) when is_binary(detail), do: detail
+  defp semantic_detail(%{state: :ready}, _error), do: "Semantic source-code graph is ready for inspection."
 
   defp semantic_detail(%{state: :failed, latest_failure: %{message: message}}, _error) when is_binary(message),
     do: message

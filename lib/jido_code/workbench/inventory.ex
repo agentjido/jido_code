@@ -3,9 +3,9 @@ defmodule JidoCode.Workbench.Inventory do
   Loads managed-repo-first workbench inventory rows and stale-state warnings.
   """
 
-  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
-  alias JidoCode.Workbench.IssueTriageWorkflowKickoff
   alias JidoCode.Setup.SystemConfig
+  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
+  alias JidoCode.Workbench.{IssueTriageWorkflowKickoff, ProjectSemanticInspection}
 
   @default_fetch_error_type "workbench_inventory_fetch_failed"
 
@@ -18,6 +18,7 @@ defmodule JidoCode.Workbench.Inventory do
           legacy_project_id: String.t() | nil,
           managed_repo_id: String.t() | nil,
           source_repo_id: String.t() | nil,
+          workspace_path: String.t() | nil,
           name: String.t(),
           github_full_name: String.t(),
           default_branch: String.t(),
@@ -25,7 +26,8 @@ defmodule JidoCode.Workbench.Inventory do
           open_pr_count: non_neg_integer(),
           recent_activity_summary: String.t(),
           recent_activity_at: DateTime.t() | nil,
-          issue_triage_policy: map()
+          issue_triage_policy: map(),
+          semantic_graph_hint: map() | nil
         }
 
   @type stale_warning :: %{
@@ -272,11 +274,15 @@ defmodule JidoCode.Workbench.Inventory do
       |> Map.put("execution", managed_execution_settings)
       |> Map.merge(managed_integration_settings)
 
-    %{
+    row = %{
       id: route_id,
       legacy_project_id: legacy_project_id,
       managed_repo_id: managed_repo_id,
       source_repo_id: source_repo_id,
+      workspace_path:
+        workspace_settings
+        |> map_get(:workspace_path, "workspace_path")
+        |> normalize_optional_string(),
       name:
         managed_repo
         |> map_get(:display_name, "display_name")
@@ -340,6 +346,8 @@ defmodule JidoCode.Workbench.Inventory do
           source_repo_id: source_repo_id
         })
     }
+
+    Map.put(row, :semantic_graph_hint, ProjectSemanticInspection.status_hint(row))
   end
 
   defp resolve_recent_activity_summary(
@@ -424,6 +432,10 @@ defmodule JidoCode.Workbench.Inventory do
         row
         |> map_get(:source_repo_id, "source_repo_id")
         |> normalize_optional_string(),
+      workspace_path:
+        row
+        |> map_get(:workspace_path, "workspace_path")
+        |> normalize_optional_string(),
       name: name || github_full_name || fallback_id,
       github_full_name: github_full_name || name || fallback_id,
       default_branch:
@@ -455,7 +467,12 @@ defmodule JidoCode.Workbench.Inventory do
             datetime -> "Last activity: #{format_utc_datetime(datetime)}"
           end,
       recent_activity_at: recent_activity_at,
-      issue_triage_policy: IssueTriageWorkflowKickoff.policy_state(row)
+      issue_triage_policy: IssueTriageWorkflowKickoff.policy_state(row),
+      semantic_graph_hint:
+        row
+        |> map_get(:semantic_graph_hint, "semantic_graph_hint")
+        |> normalize_semantic_graph_hint() ||
+          ProjectSemanticInspection.status_hint(row)
     }
   end
 
@@ -467,6 +484,7 @@ defmodule JidoCode.Workbench.Inventory do
       legacy_project_id: nil,
       managed_repo_id: nil,
       source_repo_id: nil,
+      workspace_path: nil,
       name: fallback_id,
       github_full_name: fallback_id,
       default_branch: "main",
@@ -474,7 +492,8 @@ defmodule JidoCode.Workbench.Inventory do
       open_pr_count: 0,
       recent_activity_summary: "No recent activity metadata.",
       recent_activity_at: nil,
-      issue_triage_policy: IssueTriageWorkflowKickoff.policy_state(%{})
+      issue_triage_policy: IssueTriageWorkflowKickoff.policy_state(%{}),
+      semantic_graph_hint: nil
     }
   end
 
@@ -517,6 +536,9 @@ defmodule JidoCode.Workbench.Inventory do
   end
 
   defp parse_non_negative_integer(_value), do: nil
+
+  defp normalize_semantic_graph_hint(hint) when is_map(hint), do: hint
+  defp normalize_semantic_graph_hint(_hint), do: nil
 
   defp first_datetime(values) when is_list(values) do
     Enum.find_value(values, &normalize_optional_datetime/1)

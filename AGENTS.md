@@ -90,6 +90,7 @@ mix spec.decision.new <slug> --title "Decision title"
 - Prefer ordinary file/code tools when you need exact latest source text, line-level context, or one-off single-file inspection.
 - Keep the lifecycle explicit: analyze, load or refresh, then query. Do not assume the `source_code` graph is ambiently fresh.
 - When touching the semantic graph boundary, actions, pod agents, helper queries, or workspace entrypoints, run `mix source_graph.verify`.
+- When touching memory graph boundaries, capture envelopes, memory writers, memory actions, memory workspace entrypoints, workflow provenance capture, or durable-memory adoption, run `mix memory.verify`.
 - When touching product-facing semantic services, semantic LiveView or LiveVue surfaces, semantic workflow entrypoints, or governed semantic-finding adoption, run `mix semantic.verify`.
 - Keep semantic behavior a bounded enhancement rather than a hidden dependency: operator paths should remain legible when the graph is stale, degraded, or unavailable, and semantic findings must rejoin governed product records before they influence product behavior.
 

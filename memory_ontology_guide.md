@@ -235,6 +235,25 @@ The ontology is designed to preserve all three distinctions:
 - durable memory versus transient workflow output
 - current knowledge versus stale or superseded knowledge
 
+## Where Individuals Enter The Graph
+
+The ontology only becomes useful if the repository writes individuals into it in
+bounded, explainable places.
+
+The current write seam is:
+
+- `workflow_provenance` receives `WorkSession`, `PromptTurn`, `AgentRun`,
+  `ToolInvocation`, `Plan`, `Patch`, and `Review` individuals from
+  `AgentWorkspace` and product workflow boundaries
+- `memory` receives durable `Fact`, `Decision`, `LessonLearned`, `Invariant`,
+  `Convention`, `KnownIssue`, `OpenQuestion`, `Pattern`, and `AntiPattern`
+  individuals only after explicit classification or governed adoption
+- freshness, validation, invalidation, and supersession updates are written as
+  bounded memory-update events tied to revision and evidence metadata
+
+That means the repository treats semantic memory as curated product knowledge,
+not as a raw dump of everything an agent happened to say during one run.
+
 ## Why This Helps A Coding System
 
 In practical terms, this ontology helps a coding LLM or agent system:

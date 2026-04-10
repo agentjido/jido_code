@@ -27,22 +27,22 @@ Back to index: [README](./README.md)
 [ ] 28 Phase 28 - Memory Graph Pod And Store Foundation
   Establish the repository-scoped runtime, storage, ontology, and workspace boundaries needed before workflow provenance and durable memories can be inserted safely.
 
-  [ ] 28.1 Section - Memory Graph Runtime And Store Boundary
+  [x] 28.1 Section - Memory Graph Runtime And Store Boundary
     Create the repository-scoped pod and store contract so the memory graph becomes a first-class sibling of the source-code graph inside the managed-repository kernel.
 
-    [ ] 28.1.1 Task - Introduce the repository-scoped MemoryGraph boundary
+    [x] 28.1.1 Task - Introduce the repository-scoped MemoryGraph boundary
       Define the product-owned boundary helpers that fix canonical graph names, graph IRIs, ontology assets, and repository-local store paths for memory capability.
 
-      [ ] 28.1.1.1 Subtask - Add a repository-scoped memory graph boundary that names the `memory` and `workflow_provenance` graphs explicitly.
-      [ ] 28.1.1.2 Subtask - Reuse the repository-local TripleStore quad-store path shape already used by the semantic stack.
-      [ ] 28.1.1.3 Subtask - Ensure the boundary exposes stable base IRI helpers and ontology asset references for later capture and query work.
+      [x] 28.1.1.1 Subtask - Add a repository-scoped memory graph boundary that names the `memory` and `workflow_provenance` graphs explicitly.
+      [x] 28.1.1.2 Subtask - Reuse the repository-local TripleStore quad-store path shape already used by the semantic stack.
+      [x] 28.1.1.3 Subtask - Ensure the boundary exposes stable base IRI helpers and ontology asset references for later capture and query work.
 
-    [ ] 28.1.2 Task - Add the MemoryGraphPod contract
+    [x] 28.1.2 Task - Add the MemoryGraphPod contract
       Define the pod, eager context state, and lazy specialist roles needed to record, query, validate, invalidate, and refresh repository memory state.
 
-      [ ] 28.1.2.1 Subtask - Add one repository-scoped MemoryGraphPod singleton per managed repository when the capability is enabled.
-      [ ] 28.1.2.2 Subtask - Define eager context metadata for graph names, revision state, latest validation status, and latest failure.
-      [ ] 28.1.2.3 Subtask - Define lazy recorder, querier, and validator specialist roles without yet introducing direct caller access to pod internals.
+      [x] 28.1.2.1 Subtask - Add one repository-scoped MemoryGraphPod singleton per managed repository when the capability is enabled.
+      [x] 28.1.2.2 Subtask - Define eager context metadata for graph names, revision state, latest validation status, and latest failure.
+      [x] 28.1.2.3 Subtask - Define lazy recorder, querier, and validator specialist roles without yet introducing direct caller access to pod internals.
 
   [ ] 28.2 Section - Explicit Action And Workspace Surface
     Create the explicit action surface and bounded workspace entrypoints that will later back the memory capture plane.

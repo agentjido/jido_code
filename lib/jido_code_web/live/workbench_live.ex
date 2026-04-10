@@ -1,6 +1,8 @@
 defmodule JidoCodeWeb.WorkbenchLive do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
+  # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
@@ -399,6 +401,32 @@ defmodule JidoCodeWeb.WorkbenchLive do
                     href={semantic_graph_hint_recovery_path(project, @filter_values)}
                   >
                     {semantic_graph_hint(project).remediation}
+                  </.link>
+                </div>
+                <div
+                  :if={memory_graph_hint(project)}
+                  id={"workbench-project-memory-hint-#{project.id}"}
+                  class="space-y-1 pt-2"
+                >
+                  <span
+                    id={"workbench-project-memory-hint-badge-#{project.id}"}
+                    class={memory_graph_hint_badge_class(memory_graph_hint(project))}
+                  >
+                    {memory_graph_hint(project).label}
+                  </span>
+                  <p
+                    id={"workbench-project-memory-hint-detail-#{project.id}"}
+                    class="text-[11px] text-base-content/65"
+                  >
+                    {memory_graph_hint(project).detail}
+                  </p>
+                  <.link
+                    :if={memory_graph_hint_recovery_path(project, @filter_values)}
+                    id={"workbench-project-memory-hint-recovery-#{project.id}"}
+                    class="link link-primary text-[11px]"
+                    href={memory_graph_hint_recovery_path(project, @filter_values)}
+                  >
+                    {memory_graph_hint(project).remediation}
                   </.link>
                 </div>
               </td>
@@ -1405,6 +1433,15 @@ defmodule JidoCodeWeb.WorkbenchLive do
 
   defp semantic_graph_hint(_project), do: nil
 
+  defp memory_graph_hint(project) when is_map(project) do
+    case Map.get(project, :memory_graph_hint) do
+      %{} = hint -> hint
+      _other -> nil
+    end
+  end
+
+  defp memory_graph_hint(_project), do: nil
+
   defp semantic_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
   defp semantic_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
   defp semantic_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
@@ -1412,11 +1449,29 @@ defmodule JidoCodeWeb.WorkbenchLive do
   defp semantic_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
   defp semantic_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
 
+  defp memory_graph_hint_badge_class(%{state: :ready}), do: "badge badge-success badge-xs"
+  defp memory_graph_hint_badge_class(%{state: :stale}), do: "badge badge-warning badge-xs"
+  defp memory_graph_hint_badge_class(%{state: :invalidated}), do: "badge badge-warning badge-xs"
+  defp memory_graph_hint_badge_class(%{state: :degraded}), do: "badge badge-warning badge-xs"
+  defp memory_graph_hint_badge_class(%{state: :failed}), do: "badge badge-error badge-xs"
+  defp memory_graph_hint_badge_class(%{state: :not_ready}), do: "badge badge-outline badge-xs"
+  defp memory_graph_hint_badge_class(_hint), do: "badge badge-outline badge-xs"
+
   defp semantic_graph_hint_recovery_path(project, filter_values) do
     hint = semantic_graph_hint(project)
 
     if hint && get_in(hint, [:recovery, :available?]) do
       project_detail_path(project, filter_values)
+    end
+  end
+
+  defp memory_graph_hint_recovery_path(project, filter_values) do
+    hint = memory_graph_hint(project)
+
+    if hint && hint.recovery.available? do
+      project_detail_path(project, filter_values)
+    else
+      nil
     end
   end
 

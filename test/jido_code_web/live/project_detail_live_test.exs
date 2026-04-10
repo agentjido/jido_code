@@ -1,12 +1,16 @@
 defmodule JidoCodeWeb.ProjectDetailLiveTest do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
+  # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
   alias JidoCode.Projects.Project
 
   setup do
@@ -22,6 +26,9 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     original_source_code_graph_enabled =
       Application.get_env(:jido_code, :source_code_graph_enabled, false)
 
+    original_memory_graph_enabled =
+      Application.get_env(:jido_code, :memory_graph_enabled, false)
+
     on_exit(fn ->
       restore_env(:workbench_fix_workflow_launcher, original_fix_workflow_launcher)
 
@@ -32,6 +39,7 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
 
       restore_env(:frontend_assets_override, original_frontend_override)
       Application.put_env(:jido_code, :source_code_graph_enabled, original_source_code_graph_enabled)
+      Application.put_env(:jido_code, :memory_graph_enabled, original_memory_graph_enabled)
     end)
 
     :ok
@@ -442,6 +450,93 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     assert has_element?(view, "#project-detail-semantic-fallback-impact-list")
   end
 
+  test "hosts bounded memory and provenance inspection inside the managed repo detail route", %{conn: _conn} do
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    register_owner("memory-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("memory-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("ProjectDetailMemory.Alpha")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-ui",
+        github_full_name: "owner/repo-memory-ui",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+    seed_memory_graph!(managed_repo_id, workspace_path, "phase-32-repo-detail")
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-memory-inspection")
+    assert has_element?(view, "#project-detail-memory-summary-memories")
+    assert has_element?(view, "#project-detail-memory-summary-provenance")
+    assert has_element?(view, "#project-detail-memory-list")
+    assert has_element?(view, "#project-detail-provenance-list")
+    assert has_element?(view, "#project-detail-memory-summary-memories")
+  end
+
+  test "surfaces stale memory inspection with recovery on repo detail", %{conn: _conn} do
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    register_owner("memory-stale-owner@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("memory-stale-owner@example.com", "owner-password-123")
+
+    workspace_path = create_semantic_workspace_path!("ProjectDetailMemory.Stale")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-stale",
+        github_full_name: "owner/repo-memory-stale",
+        default_branch: "main",
+        settings: %{
+          "workspace" => %{
+            "workspace_environment" => "local",
+            "workspace_path" => workspace_path,
+            "clone_status" => "ready",
+            "workspace_initialized" => true,
+            "baseline_synced" => true
+          }
+        }
+      })
+
+    managed_repo_id = managed_repo_route_id!(project.id)
+    seed_memory_graph!(managed_repo_id, workspace_path, "phase-32-repo-stale")
+
+    assert {:ok, _invalidate_result} =
+             AgentWorkspace.invalidate_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               reason: :manual_invalidation
+             )
+
+    {:ok, view, _html} = live(recycle(authed_conn), ~p"/repos/#{project.id}", on_error: :warn)
+
+    assert has_element?(view, "#project-detail-memory-notice")
+    assert has_element?(view, "#project-detail-memory-recover", "Validate memory graph")
+
+    view
+    |> element("#project-detail-memory-recover")
+    |> render_click()
+
+    assert has_element?(view, "#project-detail-memory-feedback-type", "memory_graph_recovered")
+  end
+
   defp create_workspace_path! do
     workspace_path =
       Path.join(
@@ -503,5 +598,66 @@ defmodule JidoCodeWeb.ProjectDetailLiveTest do
     |> Path.wildcard()
     |> Enum.reject(&String.ends_with?(&1, "#{module_basename}.ex"))
     |> Enum.each(&File.rm!/1)
+  end
+
+  defp seed_memory_graph!(managed_repo_id, workspace_path, revision) do
+    assert {:ok, _refresh_result} =
+             AgentWorkspace.refresh_memory_graph(managed_repo_id, workspace_path, revision: revision)
+
+    session_id = "detail-session-#{System.unique_integer([:positive])}"
+
+    assert {:ok, _session_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.work_session(
+                 session_id: session_id,
+                 actor_id: "system:project-detail-memory",
+                 workflow: :plan,
+                 work_item_id: "work-32",
+                 goal: "Seed project detail memory inspection"
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
+    assert {:ok, _plan_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               CaptureEnvelope.plan(
+                 session_id: session_id,
+                 actor_id: "system:project-detail-memory",
+                 workflow: :plan,
+                 work_item_id: "work-32",
+                 content: "Generated a bounded plan artifact for the repository.",
+                 anchors: %{module_name: "ExampleWorkspace"}
+               ),
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             )
+
+    assert {:ok, _memory_result} =
+             AgentWorkspace.record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               DurableMemoryEnvelope.decision(
+                 session_id: session_id,
+                 actor_id: "system:project-detail-memory",
+                 workflow: :review,
+                 work_item_id: "work-32",
+                 content: "Repository decisions should keep ExampleWorkspace.greet/1 stable.",
+                 rationale: "Greeting behavior is used as a stable onboarding example.",
+                 decision_status: :accepted,
+                 revision: revision,
+                 anchors: %{module_name: "ExampleWorkspace"},
+                 governed_context: %{run_id: "run-32", work_item_id: "work-32"},
+                 classification: %{
+                   source: "project_detail_test",
+                   reason: "Repo detail memory inspection needs durable decision history."
+                 }
+               ),
+               revision: revision
+             )
   end
 end

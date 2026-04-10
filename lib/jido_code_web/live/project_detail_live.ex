@@ -4,12 +4,15 @@ defmodule JidoCodeWeb.ProjectDetailLive do
   # covers: architecture.frontend_stack.product_owned_mounting_boundary
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+  # covers: architecture.memory_graph_product_adoption.managed_repo_routes_host_memory_and_provenance_inspection
+  # covers: architecture.memory_graph_product_adoption.memory_operator_surfaces_show_freshness_validation_and_recovery
   # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
   # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   # covers: setup.onboarding.post_bootstrap_surfaces_adopt_control_plane_language
   use JidoCodeWeb, :live_view
 
   alias JidoCode.Workbench.ProjectDetail
+  alias JidoCode.Workbench.ProjectMemoryInspection
   alias JidoCode.Workbench.ProjectSemanticInspection
   alias JidoCode.Workbench.ProjectDetailWorkflowKickoff
 
@@ -21,6 +24,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
      |> assign(:project_load_error, nil)
      |> assign(:semantic_inspection, nil)
      |> assign(:semantic_action_feedback, nil)
+     |> assign(:memory_inspection, nil)
+     |> assign(:memory_action_feedback, nil)
      |> assign(:workflow_launch_states, %{})
      |> assign(:return_to_path, "/workbench")
      |> assign(:supported_workflows, ProjectDetailWorkflowKickoff.supported_workflows())}
@@ -39,6 +44,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           |> assign(:project_load_error, nil)
           |> assign(:semantic_inspection, ProjectSemanticInspection.load_repo_detail(project_detail))
           |> assign(:semantic_action_feedback, nil)
+          |> assign(:memory_inspection, ProjectMemoryInspection.load_repo_detail(project_detail))
+          |> assign(:memory_action_feedback, nil)
 
         {:error, project_load_error} ->
           socket
@@ -46,6 +53,8 @@ defmodule JidoCodeWeb.ProjectDetailLive do
           |> assign(:project_load_error, project_load_error)
           |> assign(:semantic_inspection, nil)
           |> assign(:semantic_action_feedback, nil)
+          |> assign(:memory_inspection, nil)
+          |> assign(:memory_action_feedback, nil)
       end
 
     {:noreply,
@@ -84,6 +93,25 @@ defmodule JidoCodeWeb.ProjectDetailLive do
          socket
          |> assign(:semantic_inspection, inspection)
          |> assign(:semantic_action_feedback, feedback)}
+    end
+  end
+
+  @impl true
+  def handle_event("recover_memory_graph", _params, socket) do
+    project_detail = Map.get(socket.assigns, :project_detail)
+
+    case ProjectMemoryInspection.recover(project_detail) do
+      {:ok, %{inspection: inspection, feedback: feedback}} ->
+        {:noreply,
+         socket
+         |> assign(:memory_inspection, inspection)
+         |> assign(:memory_action_feedback, feedback)}
+
+      {:error, %{inspection: inspection, feedback: feedback}} ->
+        {:noreply,
+         socket
+         |> assign(:memory_inspection, inspection)
+         |> assign(:memory_action_feedback, feedback)}
     end
   end
 
@@ -244,6 +272,125 @@ defmodule JidoCodeWeb.ProjectDetailLive do
               </div>
             </section>
           </.vue_surface>
+        </section>
+
+        <section id="project-detail-memory-inspection" class="space-y-4">
+          <div class="space-y-1">
+            <h2 class="text-lg font-semibold">Repository memory and provenance</h2>
+            <p class="text-sm text-base-content/70">
+              Durable coding memory and workflow provenance stay repository-scoped, freshness-aware, and product-owned on this managed-repository route.
+            </p>
+          </div>
+
+          <.operator_state_notice
+            :if={@memory_action_feedback}
+            id="project-detail-memory-feedback"
+            title="Memory graph recovery update"
+            state={@memory_action_feedback}
+            kind={:info}
+          />
+
+          <.operator_state_notice
+            :if={memory_notice_visible?(@memory_inspection)}
+            id="project-detail-memory-notice"
+            title="Repository memory status"
+            state={@memory_inspection.notice}
+            kind={memory_notice_kind(@memory_inspection)}
+          >
+            <:actions>
+              <button
+                :if={memory_recovery_available?(@memory_inspection)}
+                id="project-detail-memory-recover"
+                type="button"
+                class="btn btn-sm btn-outline"
+                phx-click="recover_memory_graph"
+              >
+                {memory_recovery_label(@memory_inspection)}
+              </button>
+            </:actions>
+          </.operator_state_notice>
+
+          <div id="project-detail-memory-summary" class="grid gap-3 md:grid-cols-4">
+            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+              <p class="text-xs uppercase text-base-content/60">Durable memories</p>
+              <p id="project-detail-memory-summary-memories" class="mt-1 text-xl font-semibold">
+                {memory_group_count(@memory_inspection.summary, :memories)}
+              </p>
+            </article>
+            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+              <p class="text-xs uppercase text-base-content/60">Workflow provenance</p>
+              <p id="project-detail-memory-summary-provenance" class="mt-1 text-xl font-semibold">
+                {memory_group_count(@memory_inspection.summary, :provenance)}
+              </p>
+            </article>
+            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+              <p class="text-xs uppercase text-base-content/60">Memory state</p>
+              <p id="project-detail-memory-summary-state" class="mt-1 text-sm font-semibold">
+                {Map.get(@memory_inspection.graph, :state, :unavailable)}
+              </p>
+            </article>
+            <article class="rounded-lg border border-base-300/70 bg-base-100 p-3">
+              <p class="text-xs uppercase text-base-content/60">Validated revision</p>
+              <p id="project-detail-memory-summary-revision" class="mt-1 text-sm font-semibold break-all">
+                {Map.get(@memory_inspection.graph, :validated_revision) || "Not validated"}
+              </p>
+            </article>
+          </div>
+
+          <div class="grid gap-3 lg:grid-cols-2">
+            <section id="project-detail-memory-list" class="space-y-2">
+              <h3 class="font-medium">Durable memory</h3>
+              <p :if={Enum.empty?(memory_items(@memory_inspection.memories))} class="text-sm text-base-content/70">
+                No durable memory is currently available for this repository.
+              </p>
+              <ul :if={!Enum.empty?(memory_items(@memory_inspection.memories))} class="space-y-2 text-sm">
+                <li
+                  :for={item <- memory_items(@memory_inspection.memories)}
+                  id={"project-detail-memory-item-#{memory_item_dom_id(item)}"}
+                  class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                >
+                  <p class="font-medium">
+                    {Map.get(item, :memory_kind) || "Memory"}
+                  </p>
+                  <p class="text-base-content/80">{Map.get(item, :content)}</p>
+                  <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
+                    Code anchor: {Map.get(item, :module_name)}
+                  </p>
+                  <.link
+                    :for={link <- memory_navigation_links(item, :governed_records)}
+                    id={"project-detail-memory-item-governed-link-#{memory_item_dom_id(item)}-#{link.kind}"}
+                    :if={link.route}
+                    navigate={link.route}
+                    class="link link-primary text-xs"
+                  >
+                    {link.label}
+                  </.link>
+                </li>
+              </ul>
+            </section>
+
+            <section id="project-detail-provenance-list" class="space-y-2">
+              <h3 class="font-medium">Workflow provenance</h3>
+              <p :if={Enum.empty?(memory_items(@memory_inspection.provenance))} class="text-sm text-base-content/70">
+                No workflow provenance is currently available for this repository.
+              </p>
+              <ul :if={!Enum.empty?(memory_items(@memory_inspection.provenance))} class="space-y-2 text-sm">
+                <li
+                  :for={item <- memory_items(@memory_inspection.provenance)}
+                  id={"project-detail-provenance-item-#{memory_item_dom_id(item)}"}
+                  class="rounded-md border border-base-300/60 bg-base-100 p-3"
+                >
+                  <p class="font-medium">
+                    {Map.get(item, :label) || Map.get(item, :provenance_kind) || "Provenance"}
+                  </p>
+                  <p :if={Map.get(item, :content)} class="text-base-content/80">{Map.get(item, :content)}</p>
+                  <p :if={Map.get(item, :module_name)} class="text-xs text-base-content/60">
+                    Code anchor: {Map.get(item, :module_name)}
+                  </p>
+                </li>
+              </ul>
+            </section>
+          </div>
         </section>
 
         <section
@@ -569,6 +716,43 @@ defmodule JidoCodeWeb.ProjectDetailLive do
 
   defp semantic_items(%{items: items}) when is_list(items), do: items
   defp semantic_items(_projection), do: []
+
+  defp memory_notice_visible?(%{notice: notice}) when is_map(notice), do: true
+  defp memory_notice_visible?(_inspection), do: false
+
+  defp memory_notice_kind(%{notice_kind: notice_kind}) when is_atom(notice_kind), do: notice_kind
+  defp memory_notice_kind(_inspection), do: :warning
+
+  defp memory_recovery_available?(%{recovery: %{available?: true}}), do: true
+  defp memory_recovery_available?(_inspection), do: false
+
+  defp memory_recovery_label(%{recovery: %{label: label}}) when is_binary(label), do: label
+  defp memory_recovery_label(_inspection), do: "Recover memory graph"
+
+  defp memory_group_count(%{groups: groups}, group_key) when is_map(groups) do
+    groups
+    |> Map.get(group_key, %{})
+    |> Map.get(:count, 0)
+  end
+
+  defp memory_group_count(_summary, _group_key), do: 0
+
+  defp memory_items(%{items: items}) when is_list(items), do: items
+  defp memory_items(_projection), do: []
+
+  defp memory_navigation_links(item, key) when is_map(item) do
+    item
+    |> Map.get(:navigation, %{})
+    |> Map.get(key, [])
+  end
+
+  defp memory_item_dom_id(item) when is_map(item) do
+    Map.get(item, :memory_iri) ||
+      Map.get(item, :resource_iri) ||
+      "memory-item"
+    |> to_string()
+    |> Base.url_encode64(padding: false)
+  end
 
   defp project_ready_for_launch?(project_detail) do
     ProjectDetail.ready_for_execution?(project_detail)

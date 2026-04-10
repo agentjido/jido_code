@@ -7,7 +7,7 @@ defmodule JidoCode.Workbench.Inventory do
 
   alias JidoCode.Setup.SystemConfig
   alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
-  alias JidoCode.Workbench.{IssueTriageWorkflowKickoff, ProjectSemanticInspection}
+  alias JidoCode.Workbench.{IssueTriageWorkflowKickoff, ProjectMemoryInspection, ProjectSemanticInspection}
 
   @default_fetch_error_type "workbench_inventory_fetch_failed"
 
@@ -29,7 +29,8 @@ defmodule JidoCode.Workbench.Inventory do
           recent_activity_summary: String.t(),
           recent_activity_at: DateTime.t() | nil,
           issue_triage_policy: map(),
-          semantic_graph_hint: map() | nil
+          semantic_graph_hint: map() | nil,
+          memory_graph_hint: map() | nil
         }
 
   @type stale_warning :: %{
@@ -349,7 +350,9 @@ defmodule JidoCode.Workbench.Inventory do
         })
     }
 
-    Map.put(row, :semantic_graph_hint, ProjectSemanticInspection.status_hint(row))
+    row
+    |> Map.put(:semantic_graph_hint, ProjectSemanticInspection.status_hint(row))
+    |> Map.put(:memory_graph_hint, ProjectMemoryInspection.status_hint(row))
   end
 
   defp resolve_recent_activity_summary(
@@ -474,7 +477,12 @@ defmodule JidoCode.Workbench.Inventory do
         row
         |> map_get(:semantic_graph_hint, "semantic_graph_hint")
         |> normalize_semantic_graph_hint() ||
-          ProjectSemanticInspection.status_hint(row)
+          ProjectSemanticInspection.status_hint(row),
+      memory_graph_hint:
+        row
+        |> map_get(:memory_graph_hint, "memory_graph_hint")
+        |> normalize_memory_graph_hint() ||
+          ProjectMemoryInspection.status_hint(row)
     }
   end
 
@@ -495,7 +503,8 @@ defmodule JidoCode.Workbench.Inventory do
       recent_activity_summary: "No recent activity metadata.",
       recent_activity_at: nil,
       issue_triage_policy: IssueTriageWorkflowKickoff.policy_state(%{}),
-      semantic_graph_hint: nil
+      semantic_graph_hint: nil,
+      memory_graph_hint: nil
     }
   end
 
@@ -541,6 +550,9 @@ defmodule JidoCode.Workbench.Inventory do
 
   defp normalize_semantic_graph_hint(hint) when is_map(hint), do: hint
   defp normalize_semantic_graph_hint(_hint), do: nil
+
+  defp normalize_memory_graph_hint(hint) when is_map(hint), do: hint
+  defp normalize_memory_graph_hint(_hint), do: nil
 
   defp first_datetime(values) when is_list(values) do
     Enum.find_value(values, &normalize_optional_datetime/1)

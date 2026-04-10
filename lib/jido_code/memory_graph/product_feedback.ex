@@ -93,6 +93,17 @@ defmodule JidoCode.MemoryGraph.ProductFeedback do
   @spec fallback_graph(atom() | nil) :: map()
   def fallback_graph(reason), do: normalize_graph(nil, reason)
 
+  @spec notice_kind(map() | nil) :: atom()
+  def notice_kind(graph) do
+    case normalize_graph(graph) do
+      %{state: :failed} -> :error
+      %{state: :degraded} -> :warning
+      %{state: :stale} -> :warning
+      %{state: :invalidated} -> :warning
+      _other -> :warning
+    end
+  end
+
   @spec recovery(map() | nil) :: map()
   def recovery(graph) do
     normalized_graph = normalize_graph(graph)

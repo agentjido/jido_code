@@ -11,6 +11,7 @@ The plan aligns to:
 - `../specs/frontend_architecture.spec.md`
 - `../specs/memory_capture_plane.spec.md`
 - `../specs/memory_graph.spec.md`
+- `../specs/memory_graph_product_adoption.spec.md`
 - `../specs/memory_ontology.spec.md`
 - `../specs/policy_layers.spec.md`
 - `../specs/source_code_graph_pod.spec.md`
@@ -21,6 +22,7 @@ The plan aligns to:
 - `../decisions/jido_code.factory_control_plane.md`
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
 - `../decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md`
+- `../decisions/jido_code.memory_graph_product_adoption.md`
 - `../decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md`
 - `../decisions/jido_code.source_code_graph_product_adoption.md`
 - `../decisions/jido_code.live_vue_frontend_adoption.md`
@@ -54,6 +56,7 @@ The plan aligns to:
 23. [Phase 29 - Workflow Provenance Capture Plane](./phase-29-workflow-provenance-capture-plane.md): add the bounded capture seam that records work-session, agent, tool, prompt, review, plan, and patch provenance into `workflow_provenance` through runtime and workflow boundaries.
 24. [Phase 30 - Durable Coding Memory Adoption And Validation](./phase-30-durable-coding-memory-adoption-and-validation.md): classify and adopt durable memories into the `memory` graph, then add freshness, validation, and invalidation behavior driven by revision and test evidence.
 25. [Phase 31 - Memory Graph Product Hardening And Contributor Convergence](./phase-31-memory-graph-product-hardening-and-contributor-convergence.md): harden memory-graph behavior, recovery, docs, and verification so the capture plane and memory graph become durable product capabilities.
+26. [Phase 32 - Memory Graph Product Adoption](./phase-32-memory-graph-product-adoption.md): adopt repository memory and workflow provenance into canonical managed-repository product services and operator surfaces so durable memory becomes explorable, actionable, and cross-linked through product-owned boundaries.
 
 ## Shared Conventions
 - Numbering:

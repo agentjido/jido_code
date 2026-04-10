@@ -83,6 +83,13 @@ the control plane:
   explicit semantic-finding materialization helpers that can create governed
   `Observation` and `Assessment` records or build work and evidence inputs
   without leaking SPARQL or pod metadata into product callers.
+- Planning, review, and explanation flows now have an explicit
+  product-owned semantic workflow boundary that opts into graph-backed context
+  intentionally and returns bounded semantic input maps instead of raw SPARQL
+  or pod-native shapes.
+- Semantic finding adoption now has a canonical governed path that can route
+  findings through normal work synthesis and evidence materialization while
+  preserving graph freshness and provenance on the resulting product records.
 - Managed-repository UI and workflow entrypoints can expose semantic structure,
   runtime patterns, and bounded impact traces without leaking SPARQL, pod
   topology, or store handles.

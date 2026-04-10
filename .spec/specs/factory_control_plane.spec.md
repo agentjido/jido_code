@@ -226,6 +226,11 @@ surface:
     - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
 
 - kind: source_file
+  target: lib/jido_code/source_code_graph/governed_adoption.ex
+  covers:
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+
+- kind: source_file
   target: lib/jido_code/governance/runtime_evidence_feed.ex
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
@@ -255,6 +260,11 @@ surface:
   target: test/jido_code_web/live/phase_twenty_five_integration_test.exs
   covers:
     - architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+
+- kind: source_file
+  target: test/jido_code/phase_twenty_six_integration_test.exs
+  covers:
     - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
 
 - kind: source_file

@@ -7,7 +7,7 @@ defmodule JidoCode.AgentOSPhaseTwentyTwoIntegrationTest do
   # covers: architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface
   # covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
   # covers: package.jido_code.version_controlled_quality_surfaces
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
   alias JidoCode.SourceCodeGraph
@@ -201,7 +201,12 @@ defmodule JidoCode.AgentOSPhaseTwentyTwoIntegrationTest do
       workspace_path = create_workspace_path!("PhaseTwentyTwo.Alpha")
 
       assert {:ok, plain_plan} =
-               AgentWorkspace.plan_work(managed_repo_id, work_item_id, "Plan with no semantic context")
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 work_item_id,
+                 "Plan with no semantic context",
+                 workspace_path: workspace_path
+               )
 
       assert plain_plan.semantic_context == %{}
 

@@ -4,7 +4,7 @@ defmodule JidoCode.AgentOSPhaseTwentyThreeIntegrationTest do
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently
   # covers: package.jido_code.version_controlled_quality_surfaces
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
 

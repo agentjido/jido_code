@@ -1,5 +1,6 @@
 defmodule JidoCode.MixProject do
   # covers: package.jido_code.version_controlled_quality_surfaces
+  # covers: package.jido_code.mix_first_cli_surface
   # covers: package.jido_code.package_quality_mix_surface_aligned
   # covers: workflow.runtime.compatibility.local_override_present
   use Mix.Project
@@ -61,6 +62,7 @@ defmodule JidoCode.MixProject do
         "coveralls.github": :test,
         "coveralls.html": :test,
         precommit: :test,
+        "semantic.verify": :test,
         "source_graph.verify": :test
       ]
     ]
@@ -256,6 +258,10 @@ defmodule JidoCode.MixProject do
       "frontend.verify": ["assets.setup", "assets.build"],
       "source_graph.verify": [
         "test test/jido_code/source_code_graph_test.exs test/jido_code/source_code_graph_actions_test.exs test/jido_code/source_code_graph_workspace_test.exs test/jido_code/agent_os/phase_twenty_integration_test.exs test/jido_code/agent_os/phase_twenty_one_integration_test.exs test/jido_code/agent_os/phase_twenty_two_integration_test.exs test/jido_code/agent_os/phase_twenty_three_integration_test.exs"
+      ],
+      "semantic.verify": [
+        "source_graph.verify",
+        "test test/jido_code/source_code_graph_product_service_test.exs test/jido_code/source_code_graph_materialization_test.exs test/jido_code/source_code_graph_workflow_service_test.exs test/jido_code/source_code_graph_governed_adoption_test.exs test/jido_code/phase_twenty_four_integration_test.exs test/jido_code/phase_twenty_six_integration_test.exs test/jido_code/phase_twenty_seven_integration_test.exs test/jido_code_web/live/phase_twenty_five_integration_test.exs test/jido_code_web/live/phase_twenty_seven_integration_test.exs"
       ],
       "assets.deploy": [
         "assets.build"

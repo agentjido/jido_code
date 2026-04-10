@@ -9,7 +9,7 @@ defmodule JidoCode.SourceCodeGraphWorkspaceTest do
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy
   # covers: package.jido_code.version_controlled_quality_surfaces
-  use ExUnit.Case, async: false
+  use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
 

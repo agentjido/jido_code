@@ -10,15 +10,18 @@ entrypoints.
 id: architecture.source_code_graph_product_adoption
 kind: feature
 status: proposed
-summary: Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.
+summary: Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.
 decisions:
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
   - jido_code.live_vue_frontend_adoption
+  - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
   - jido_code.source_code_graph_product_adoption
 surface:
   - .spec/decisions/jido_code.source_code_graph_product_adoption.md
+  - .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
   - .spec/specs/source_code_graph_pod.spec.md
+  - .spec/specs/memory_capture_plane.spec.md
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/source_code_graph/
   - lib/jido_code/source_code_graph/product_service.ex

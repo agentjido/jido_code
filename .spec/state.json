@@ -145,6 +145,37 @@
       {
         "affects": [
           "package.jido_code",
+          "architecture.agent_os_integration",
+          "architecture.memory_graph",
+          "architecture.memory_ontology",
+          "architecture.memory_capture_plane",
+          "architecture.factory_control_plane",
+          "architecture.source_code_graph_product_adoption"
+        ],
+        "date": "2026-04-10",
+        "file": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "id": "jido_code.memory_capture_plane_and_insertion_seams",
+        "status": "accepted",
+        "title": "Memory Capture Plane And Insertion Seams"
+      },
+      {
+        "affects": [
+          "package.jido_code",
+          "architecture.agent_os_integration",
+          "architecture.source_code_graph_pod",
+          "architecture.memory_graph",
+          "architecture.memory_ontology",
+          "architecture.factory_control_plane"
+        ],
+        "date": "2026-04-10",
+        "file": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "id": "jido_code.memory_graph_and_coding_memory_ontology_adoption",
+        "status": "accepted",
+        "title": "Memory Graph And Coding Memory Ontology Adoption"
+      },
+      {
+        "affects": [
+          "package.jido_code",
           "docs.product_foundation"
         ],
         "date": "2026-03-23",
@@ -309,6 +340,30 @@
         "priority": "must",
         "stability": "proposed",
         "statement": "Product-owned AgentOS kernel snapshots shall persist logical pod metadata and resumable runtime state so repository kernels can restore restorable CodingPods after application restart.",
+        "subject_id": "architecture.agent_os_integration"
+      },
+      {
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "id": "architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "AgentWorkspace and bounded workflow services shall emit workflow-provenance capture requests for work-session, agent-run, tool-invocation, plan, patch, and review boundaries instead of allowing specialist nodes to write memory-graph triples directly.",
+        "subject_id": "architecture.agent_os_integration"
+      },
+      {
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "id": "architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "When coding-memory capability is enabled for a managed repository, its kernel shall host one repository-scoped MemoryGraphPod singleton for durable memory recording, provenance linkage, and bounded semantic recall.",
+        "subject_id": "architecture.agent_os_integration"
+      },
+      {
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "id": "architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Repository-scoped memory-graph recording, query, validation, invalidation, and recovery entrypoints shall remain exposed through AgentWorkspace and product-owned actions instead of leaking pod or store internals.",
         "subject_id": "architecture.agent_os_integration"
       },
       {
@@ -668,7 +723,7 @@
         "id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
         "priority": "should",
         "stability": "evolving",
-        "statement": "Repository-scoped semantic analysis may inform operator understanding, work synthesis, and review, but any graph-backed finding that matters to the factory shall rejoin governed product records rather than becoming an alternate durable truth system.",
+        "statement": "Repository-scoped source-code, memory, and workflow-provenance analysis may inform operator understanding, work synthesis, and review, but any graph-backed finding that matters to the factory shall rejoin governed product records rather than becoming an alternate durable truth system.",
         "subject_id": "architecture.factory_control_plane"
       },
       {
@@ -766,6 +821,206 @@
         "stability": "evolving",
         "statement": "Once Vue-backed surfaces are adopted, the canonical browser asset path for those surfaces shall use the `live_vue`-aligned Vite and SSR toolchain rather than a React-specific or one-off client build path.",
         "subject_id": "architecture.frontend_stack"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Durable memory classes such as Fact, Decision, LessonLearned, Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern shall be inserted only after explicit classification or adoption through product-owned workflow, semantic, or governed-adoption boundaries rather than from raw intermediate runtime output.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Jido.Code shall insert memory-graph individuals and relationships through one bounded memory capture plane rather than allowing direct graph writes from UI surfaces, specialist agents, or ad hoc helpers.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Durable memory capture shall require explicit repository identity, actor identity, and revision context, and shall include work-item or workflow context whenever the memory originated from bounded work execution.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Product and runtime callers shall emit typed capture envelopes or bounded capture requests rather than authoring raw RDF triples directly.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Transient model text, intermediate reasoning artifacts, or unadopted helper output shall not be inserted as durable memory unless a bounded product or governed boundary explicitly classifies and adopts them.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Freshness, validation, and invalidation relationships shall be inserted or updated when revision movement, test validation, explicit review, or recovery behavior produces bounded evidence that a memory still applies or no longer applies.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Workflow provenance activity shall be written to the `workflow_provenance` named graph, while durable coding memories shall be written to the `memory` named graph, with explicit cross-graph links instead of flattening both concerns into one graph.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Workflow provenance individuals such as WorkSession, AgentRun, ToolInvocation, PromptTurn, Plan, Patch, and Review shall be inserted at AgentWorkspace and explicit workflow-boundary transitions where repository, work-item, actor, workspace, and revision context are already explicit.",
+        "subject_id": "architecture.memory_capture_plane"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Recording memories, querying memories, validating freshness, invalidating stale facts, and refreshing memory-graph state shall route through explicit Jido.Action tools rather than ambient helper calls or direct TripleStore access from callers.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The memory graph and workflow provenance graph shall live in the same repository-local TripleStore quad store that hosts the `source_code` graph so code, memory, and provenance links remain local, durable, and queryable together.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Product code, workflow services, and operator surfaces shall consume memory-graph capability through bounded product-owned services or AgentWorkspace entrypoints rather than by issuing raw SPARQL or reading pod/store internals.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Memories and workflow provenance shall link to repository, file, module, function, test, config, and symbol entities in the `source_code` graph through stable repository-scoped IRIs rather than string-only labels.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.memory_graph_status_and_freshness_are_explicit",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Repository-scoped memory-graph status shall surface current workspace revision, latest validated revision, stale state, bounded failure metadata, and validation freshness so callers can reason safely about whether a memory still applies.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.memory_graph_supports_cross_graph_provenance",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "Memory and workflow provenance records shall preserve explicit links among work sessions, agent activity, tool use, code entities, revisions, and evidence artifacts so coding memories remain explainable over time.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.memory_named_graph_is_canonical_target",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The canonical named graph for repository coding memories shall be exactly `memory`.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.repo_scoped_memory_graph_pod",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "When coding-memory capability is enabled for a managed repository, Jido.Code shall provide one repository-scoped MemoryGraphPod inside that repository's AgentOS kernel rather than a cross-repository memory singleton.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The canonical named graph for repository workflow, agent, and evidence provenance shall be exactly `workflow_provenance`.",
+        "subject_id": "architecture.memory_graph"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The ontology shall model revision and change provenance explicitly through relationships such as `introducedInCommit`, `validatedByTestRun`, `mentionedInPR`, `derivedFromIssue`, `observedAtRevision`, and `invalidatedByRevision`.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The ontology shall extend the core Jido memory model beyond Fact, Decision, and LessonLearned to include at least Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern as first-class memory classes.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Decision memories shall support richer structure including `alternativeConsidered`, `decisionStatus`, `supersedes`, and `hasConsequence` so coding decisions can evolve over time without losing lineage.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Memories and workflow provenance shall support explicit freshness, evidence, and validation metadata including `freshnessScore`, `staleReason`, `lastValidatedAt`, `validForRevision`, `supportedBy`, `confidenceSource`, and `evidenceArtifact`.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The ontology shall provide explicit relationships that let memories anchor to repository, file, module, function, test, configuration, and symbol entities through relations such as `aboutRepository`, `aboutFile`, `aboutModule`, `aboutFunction`, `aboutTest`, `aboutConfig`, and `affectsSymbol`.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "The ontology shall prefer rdf:type-driven class membership and repeated first-class tag values or tag entities over stringly `memoryType` or comma-delimited tag blobs.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context",
+        "priority": "should",
+        "stability": "proposed",
+        "statement": "WorkSession entities shall capture repository, branch, revision, actor, model, toolchain, goal, and outcome context so memories remain attributable to the runtime conditions under which they were recorded.",
+        "subject_id": "architecture.memory_ontology"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "The ontology shall model workflow and LLM provenance with first-class entities including WorkSession, AgentRun, ToolInvocation, PromptTurn, Review, Patch, and Plan rather than flattening those concepts into string metadata.",
+        "subject_id": "architecture.memory_ontology"
       },
       {
         "file": ".spec/specs/policy_layers.spec.md",
@@ -1094,6 +1349,14 @@
         "stability": "evolving",
         "statement": "Ongoing internal runtime migrations inside jido_os, including authority-family reshaping or turn-execution ownership changes, shall not require Jido.Code to change its product architecture so long as the documented public `Jido.Os.*` contracts remain stable.",
         "subject_id": "architecture.runtime_service_overlay"
+      },
+      {
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "id": "architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links",
+        "priority": "must",
+        "stability": "proposed",
+        "statement": "Repository, file, module, function, test, config, and related symbol entities produced by the source-code graph shall use stable repository-scoped IRIs so memory and workflow-provenance graphs can link to them without string-only joins.",
+        "subject_id": "architecture.source_code_graph_pod"
       },
       {
         "file": ".spec/specs/source_code_graph_pod.spec.md",
@@ -2304,6 +2567,26 @@
       },
       {
         "covers": [
+          "architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled",
+          "architecture.agent_os_integration.kernel_per_managed_repo",
+          "architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "given": [
+          "Coding-memory capability is enabled for a managed repository."
+        ],
+        "id": "architecture.agent_os_integration.scenario_memory_graph_pod_is_repo_scoped",
+        "subject_id": "architecture.agent_os_integration",
+        "then": [
+          "The kernel hosts one repository-scoped MemoryGraphPod singleton.",
+          "Recording, query, validation, invalidation, and recovery stay available through AgentWorkspace rather than pod or store internals."
+        ],
+        "when": [
+          "The repository kernel prepares semantic graph services for durable coding memory."
+        ]
+      },
+      {
+        "covers": [
           "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
           "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state"
         ],
@@ -2503,6 +2786,26 @@
         ],
         "when": [
           "The controller calls AgentWorkspace.plan_work."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound",
+          "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
+          "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "given": [
+          "A repository-scoped work or semantic workflow starts through AgentWorkspace."
+        ],
+        "id": "architecture.agent_os_integration.scenario_workspace_emits_memory_provenance_at_runtime_boundaries",
+        "subject_id": "architecture.agent_os_integration",
+        "then": [
+          "AgentWorkspace emits bounded workflow-provenance capture requests with explicit repo, actor, workspace, work-item, and revision context.",
+          "Specialist nodes do not write raw memory triples directly."
+        ],
+        "when": [
+          "Planning, execution, review, explanation, or semantic workflow preparation crosses a bounded runtime step."
         ]
       },
       {
@@ -2912,6 +3215,284 @@
       },
       {
         "covers": [
+          "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+          "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
+          "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
+          "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "given": [
+          "A repository-scoped workflow begins through AgentWorkspace with explicit managed-repo, actor, workspace, and revision context."
+        ],
+        "id": "architecture.memory_capture_plane.scenario_agent_workspace_starts_work_session_provenance",
+        "subject_id": "architecture.memory_capture_plane",
+        "then": [
+          "The memory capture plane records a WorkSession and relevant AgentRun provenance in `workflow_provenance`.",
+          "The caller does not write raw triples directly."
+        ],
+        "when": [
+          "Planning, execution, review, explanation, or semantic workflow preparation starts."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
+          "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
+          "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
+          "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "given": [
+          "A bounded workflow or semantic product service identifies a reusable convention, decision, known issue, lesson, or pattern."
+        ],
+        "id": "architecture.memory_capture_plane.scenario_classified_semantic_finding_becomes_memory",
+        "subject_id": "architecture.memory_capture_plane",
+        "then": [
+          "The capture plane inserts the corresponding memory individual into `memory`.",
+          "The inserted memory links to source-code entities, provenance, and governed context when available.",
+          "Unadopted raw intermediate output is not inserted."
+        ],
+        "when": [
+          "The result is explicitly classified or adopted as durable memory."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+          "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
+          "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "given": [
+          "An operator wants to record a bounded convention, invariant, or open question for a repository."
+        ],
+        "id": "architecture.memory_capture_plane.scenario_operator_authored_memory_uses_same_capture_boundary",
+        "subject_id": "architecture.memory_capture_plane",
+        "then": [
+          "The product emits a typed capture request through the same memory capture plane.",
+          "The operator path does not bypass the canonical memory insertion seam."
+        ],
+        "when": [
+          "The product accepts that input."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
+          "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "given": [
+          "A repository already contains one or more durable memories tied to prior revisions."
+        ],
+        "id": "architecture.memory_capture_plane.scenario_revision_or_test_evidence_updates_memory_freshness",
+        "subject_id": "architecture.memory_capture_plane",
+        "then": [
+          "The capture plane updates freshness, validation, or invalidation metadata explicitly.",
+          "The memory remains durable, but its applicability becomes queryable and explainable."
+        ],
+        "when": [
+          "A later test run validates the memory or a later revision invalidates it."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
+          "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+          "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "given": [
+          "A specialist run performs tool calls or produces a plan, patch, or review artifact."
+        ],
+        "id": "architecture.memory_capture_plane.scenario_tool_and_patch_activity_remain_workflow_provenance",
+        "subject_id": "architecture.memory_capture_plane",
+        "then": [
+          "The activity is inserted as workflow provenance in `workflow_provenance`.",
+          "It does not become a durable memory class merely because it happened."
+        ],
+        "when": [
+          "The system records that workflow activity."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri",
+          "architecture.memory_graph.memory_graph_supports_cross_graph_provenance"
+        ],
+        "file": ".spec/specs/memory_graph.spec.md",
+        "given": [
+          "A work session discovers an invariant, decision, or known issue about a repository module or function."
+        ],
+        "id": "architecture.memory_graph.scenario_memory_entry_links_to_code_entities_and_revision_context",
+        "subject_id": "architecture.memory_graph",
+        "then": [
+          "The memory links to stable repository-scoped code IRIs.",
+          "The entry also links to session, revision, and evidence provenance rather than storing only free-form text."
+        ],
+        "when": [
+          "The memory entry is recorded."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints",
+          "architecture.memory_graph.memory_graph_supports_cross_graph_provenance"
+        ],
+        "file": ".spec/specs/memory_graph.spec.md",
+        "given": [
+          "A memory-graph finding suggests follow-up work or review evidence."
+        ],
+        "id": "architecture.memory_graph.scenario_memory_findings_support_but_do_not_replace_control_plane_truth",
+        "subject_id": "architecture.memory_graph",
+        "then": [
+          "The finding re-enters governed product records through bounded product services.",
+          "The memory graph remains a semantic support layer rather than the durable business system of record."
+        ],
+        "when": [
+          "The factory decides to act on that finding."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation",
+          "architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints"
+        ],
+        "file": ".spec/specs/memory_graph.spec.md",
+        "given": [
+          "A workflow or operator wants to record or query coding memory."
+        ],
+        "id": "architecture.memory_graph.scenario_memory_recording_and_query_are_explicit_actions",
+        "subject_id": "architecture.memory_graph",
+        "then": [
+          "The operation routes through explicit actions and bounded workspace or product entrypoints.",
+          "The caller does not open raw TripleStore or pod internals directly."
+        ],
+        "when": [
+          "The caller asks for memory recording or semantic recall."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph.repo_scoped_memory_graph_pod",
+          "architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs",
+          "architecture.memory_graph.memory_named_graph_is_canonical_target",
+          "architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target"
+        ],
+        "file": ".spec/specs/memory_graph.spec.md",
+        "given": [
+          "A managed repository has source-code graph capability and coding-memory capability enabled."
+        ],
+        "id": "architecture.memory_graph.scenario_repo_scoped_memory_graph_joins_source_code_graph",
+        "subject_id": "architecture.memory_graph",
+        "then": [
+          "One repository-scoped MemoryGraphPod is available alongside the SourceCodeGraphPod.",
+          "The repository-local quad store hosts the `source_code`, `memory`, and `workflow_provenance` named graphs together."
+        ],
+        "when": [
+          "The repository kernel prepares semantic graph services."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_graph.memory_graph_status_and_freshness_are_explicit",
+          "architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation"
+        ],
+        "file": ".spec/specs/memory_graph.spec.md",
+        "given": [
+          "A previously validated memory was recorded against an older repository revision."
+        ],
+        "id": "architecture.memory_graph.scenario_stale_memory_is_visible_and_can_be_invalidated",
+        "subject_id": "architecture.memory_graph",
+        "then": [
+          "The memory graph exposes explicit stale or invalidated state.",
+          "Callers can invalidate or refresh that memory through bounded explicit actions."
+        ],
+        "when": [
+          "The repository changes or validation later fails."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+          "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+          "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "given": [
+          "A repository already contains a prior architectural decision about a module or function."
+        ],
+        "id": "architecture.memory_ontology.scenario_decision_links_to_code_and_supersedes_prior_decision",
+        "subject_id": "architecture.memory_ontology",
+        "then": [
+          "The new memory uses the Decision class.",
+          "It links to the affected code entities explicitly.",
+          "It records rationale, alternatives, supersession, and consequences rather than only free-form prose."
+        ],
+        "when": [
+          "A later work session records a new decision that replaces or refines the earlier one."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+          "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+          "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "given": [
+          "A repository has a recurring bug or operational weakness."
+        ],
+        "id": "architecture.memory_ontology.scenario_known_issue_is_tracked_across_revisions",
+        "subject_id": "architecture.memory_ontology",
+        "then": [
+          "The memory can be typed as a KnownIssue.",
+          "The ontology records the revision where it was observed, later validations, and any revision that invalidates it.",
+          "Freshness and evidence metadata remain explicit."
+        ],
+        "when": [
+          "The system records that knowledge as durable memory and later validates or invalidates it."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "given": [
+          "A memory entry needs multiple classifications or tags."
+        ],
+        "id": "architecture.memory_ontology.scenario_tags_and_types_are_not_stringly",
+        "subject_id": "architecture.memory_ontology",
+        "then": [
+          "Memory class is expressed through rdf:type rather than a string field.",
+          "Tags remain repeated values or tag entities rather than one delimited text blob."
+        ],
+        "when": [
+          "The memory is stored in the ontology."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
+          "architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "given": [
+          "An agent-assisted coding workflow plans, edits, reviews, and validates a change."
+        ],
+        "id": "architecture.memory_ontology.scenario_workflow_activity_is_provenance_not_blob_metadata",
+        "subject_id": "architecture.memory_ontology",
+        "then": [
+          "WorkSession, AgentRun, ToolInvocation, PromptTurn, Review, Patch, and Plan can each appear as first-class linked entities.",
+          "Repository, revision, actor, model, toolchain, goal, and outcome context remain attached to the session."
+        ],
+        "when": [
+          "The system records the resulting memories and provenance."
+        ]
+      },
+      {
+        "covers": [
           "architecture.policy_layers.repository_governance_policy_is_repo_control_layer",
           "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
           "architecture.policy_layers.runtime_policy_governs_runtime_capability",
@@ -3296,6 +3877,25 @@
         ],
         "when": [
           "Planning, review, or explanation specialists need semantic graph context."
+        ]
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links",
+          "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "given": [
+          "A repository has a loaded `source_code` named graph and later records coding memory or workflow provenance."
+        ],
+        "id": "architecture.source_code_graph_pod.scenario_source_entities_can_anchor_memory_and_workflow_graphs",
+        "subject_id": "architecture.source_code_graph_pod",
+        "then": [
+          "The source-code graph provides stable repository-scoped IRIs for those entities.",
+          "Cross-graph links do not rely on ad hoc string matching alone."
+        ],
+        "when": [
+          "Memory or provenance entries need to link to modules, functions, tests, or other source entities."
         ]
       },
       {
@@ -4392,16 +4992,20 @@
           "decisions": [
             "jido_code.jido_os_deprecation",
             "jido_code.jido_agent_os_integration",
-            "jido_code.source_code_graph_pod_and_named_graph_ingestion"
+            "jido_code.memory_capture_plane_and_insertion_seams",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion",
+            "jido_code.memory_graph_and_coding_memory_ontology_adoption"
           ],
           "id": "architecture.agent_os_integration",
           "kind": "policy",
           "status": "proposed",
-          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup that can also back bounded product-owned semantic services, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.",
+          "summary": "JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, and query that can also back product-owned services, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that records workflow provenance at runtime boundaries instead of letting specialists author raw triples, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.",
           "surface": [
             ".spec/decisions/jido_code.jido_agent_os_integration.md",
             ".spec/decisions/jido_code.jido_os_deprecation.md",
+            ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
             ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+            ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
             "lib/jido_code/agent_os.ex",
             "lib/jido_code/agent_os/manager.ex",
             "lib/jido_code/agent_os/manager/persistence.ex",
@@ -4602,13 +5206,15 @@
             "jido_code.factory_control_plane_and_runtime_overlay",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.runtime_evidence_posture_and_rollout_convergence",
+            "jido_code.memory_capture_plane_and_insertion_seams",
+            "jido_code.memory_graph_and_coding_memory_ontology_adoption",
             "jido_code.source_code_graph_product_adoption",
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption"
           ],
           "id": "architecture.factory_control_plane",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose semantic repository insights may inform operator understanding and work synthesis through canonical managed-repository surfaces while preserving explicit freshness, recovery, and provenance metadata when those findings rejoin governed product records, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding and work synthesis through canonical managed-repository surfaces while preserving explicit freshness, recovery, and provenance metadata when those findings rejoin governed product records, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -4769,6 +5375,89 @@
         "title": "GitHub Service Credentials"
       },
       {
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "id": "architecture.memory_capture_plane",
+        "meta": {
+          "decisions": [
+            "jido_code.memory_graph_and_coding_memory_ontology_adoption",
+            "jido_code.memory_capture_plane_and_insertion_seams",
+            "jido_code.source_code_graph_product_adoption"
+          ],
+          "id": "architecture.memory_capture_plane",
+          "kind": "feature",
+          "status": "proposed",
+          "summary": "Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, updates freshness and invalidation metadata when revision or test evidence changes, and requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion.",
+          "surface": [
+            ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+            ".spec/specs/memory_graph.spec.md",
+            ".spec/specs/memory_ontology.spec.md",
+            ".spec/specs/agent_os_integration.spec.md",
+            ".spec/specs/source_code_graph_product_adoption.spec.md",
+            "lib/jido_code/agent_workspace.ex",
+            "lib/jido_code/source_code_graph/workflow_service.ex",
+            "lib/jido_code/source_code_graph/governed_adoption.ex",
+            "lib/jido_code/source_code_graph/materialization.ex",
+            "priv/ontologies/jido-memory.ttl"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Memory Capture Plane"
+      },
+      {
+        "file": ".spec/specs/memory_graph.spec.md",
+        "id": "architecture.memory_graph",
+        "meta": {
+          "decisions": [
+            "jido_code.jido_agent_os_integration",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion",
+            "jido_code.memory_capture_plane_and_insertion_seams",
+            "jido_code.memory_graph_and_coding_memory_ontology_adoption"
+          ],
+          "id": "architecture.memory_graph",
+          "kind": "feature",
+          "status": "proposed",
+          "summary": "Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, inserts individuals through a bounded memory capture plane rather than direct graph writes, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, and latest-failure state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.",
+          "surface": [
+            ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+            ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+            ".spec/specs/agent_os_integration.spec.md",
+            ".spec/specs/memory_capture_plane.spec.md",
+            ".spec/specs/source_code_graph_pod.spec.md",
+            ".spec/specs/memory_ontology.spec.md",
+            "lib/jido_code/agent_workspace.ex",
+            "lib/jido_code/source_code_graph.ex",
+            "lib/jido_code/pods/",
+            "lib/jido_code/actions/",
+            "lib/jido_code/source_code_graph/",
+            "test/jido_code/agent_os/"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Memory Graph"
+      },
+      {
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "id": "architecture.memory_ontology",
+        "meta": {
+          "decisions": [
+            "jido_code.memory_graph_and_coding_memory_ontology_adoption",
+            "jido_code.source_code_graph_pod_and_named_graph_ingestion"
+          ],
+          "id": "architecture.memory_ontology",
+          "kind": "feature",
+          "status": "proposed",
+          "summary": "Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, and validation metadata explicitly, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.",
+          "surface": [
+            ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+            ".spec/specs/memory_graph.spec.md",
+            ".spec/specs/source_code_graph_pod.spec.md",
+            "priv/ontologies/jido-memory.ttl"
+          ],
+          "verification_minimum_strength": null
+        },
+        "title": "Memory Ontology"
+      },
+      {
         "file": ".spec/specs/operator_auth_settings.spec.md",
         "id": "auth.operator_settings",
         "meta": {
@@ -4815,6 +5504,8 @@
             "jido_code.live_vue_frontend_adoption",
             "jido_code.internal_cleanup_and_ui_convergence_foundation",
             "jido_code.jido_os_deprecation",
+            "jido_code.memory_capture_plane_and_insertion_seams",
+            "jido_code.memory_graph_and_coding_memory_ontology_adoption",
             "jido_code.source_code_graph_pod_and_named_graph_ingestion",
             "jido_code.source_code_graph_product_adoption",
             "jido_code.runtime_evidence_posture_and_rollout_convergence",
@@ -4823,7 +5514,7 @@
           "id": "package.jido_code",
           "kind": "package",
           "status": "active",
-          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, and governed semantic-finding adoption layer built on top of that runtime capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
+          "summary": "jido_code is the primary implementation repo, maintains a package-local Spec Led workspace for current-truth product, architecture, and migration subjects, keeps contributor-facing quality, browser-boundary, development-command, shared product-helper surfaces, AgentWorkspace specialist-runner support code, AgentOS kernel-snapshot persistence helpers, and eager collaboration-state action surfaces version-controlled, carries the repository-local ElixirOntologies plus TripleStore semantic-analysis dependency stack in the root Mix surface for the SourceCodeGraphPod capability, now includes the repo-owned SPARQL query, stale-state, recovery, semantic helper action surface, repository-scoped AgentWorkspace recovery and queue-limit behavior for that capability, adds the repository-local memory-graph and workflow-provenance graph architecture plus the enhanced coding-memory ontology as first-class spec-owned package concerns, defines a bounded memory capture plane for inserting semantic memory and workflow-provenance individuals over time, preserves stable code-graph linkage for those semantic layers, keeps the product-owned semantic service, semantic operator-surface shaping, view-model, semantic workflow boundary, and governed semantic-finding adoption layer built on top of runtime semantic capability, keeps repo-owned AI demo and folio agent surfaces aligned to the current supported Jido.AI agent API, and keeps first-run bootstrap plus signed start surfaces version-controlled inside the product while global deployment mode stays auto-detected and repository source identity is provisioned directly through canonical source-repo and managed-repo records without requiring legacy project mirrors.",
           "surface": [
             "AGENTS.md",
             "mix.exs",
@@ -4843,6 +5534,7 @@
             "lib/jido_code/mix/frontend_start.ex",
             "lib/jido_code_web/components/operator_state_components.ex",
             "lib/mix/tasks/*.ex",
+            "priv/ontologies/",
             "priv/repo/migrations/",
             "test/",
             "test/support/conn_case.ex"
@@ -5293,14 +5985,16 @@
           "decisions": [
             "jido_code.jido_agent_os_integration",
             "jido_code.source_code_graph_pod_and_named_graph_ingestion",
-            "jido_code.source_code_graph_product_adoption"
+            "jido_code.source_code_graph_product_adoption",
+            "jido_code.memory_graph_and_coding_memory_ontology_adoption"
           ],
           "id": "architecture.source_code_graph_pod",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists and product-owned semantic service boundaries, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology, and keeps the phase and workspace verification suite aligned to the persisted-kernel runtime path that now backs source-graph pod restoration.",
+          "summary": "Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, assigns stable repository-scoped IRIs so code entities can anchor memory and workflow-provenance graphs later, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists and product-owned semantic service boundaries, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology, and keeps the phase and workspace verification suite aligned to the persisted-kernel runtime path that now backs source-graph pod restoration.",
           "surface": [
             ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
+            ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
             ".spec/specs/agent_os_integration.spec.md",
             "lib/jido_code/agent_workspace.ex",
             "lib/jido_code/agent_workspace/",
@@ -5320,16 +6014,19 @@
           "decisions": [
             "jido_code.operator_surface_managed_repo_and_governed_run_adoption",
             "jido_code.live_vue_frontend_adoption",
+            "jido_code.memory_capture_plane_and_insertion_seams",
             "jido_code.source_code_graph_pod_and_named_graph_ingestion",
             "jido_code.source_code_graph_product_adoption"
           ],
           "id": "architecture.source_code_graph_product_adoption",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.",
+          "summary": "Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.",
           "surface": [
             ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
+            ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
             ".spec/specs/source_code_graph_pod.spec.md",
+            ".spec/specs/memory_capture_plane.spec.md",
             "lib/jido_code/agent_workspace.ex",
             "lib/jido_code/source_code_graph/",
             "lib/jido_code/source_code_graph/product_service.ex",
@@ -5498,6 +6195,25 @@
       }
     ],
     "verifications": [
+      {
+        "covers": [
+          "architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled",
+          "architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.agent_os_integration",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.agent_os_integration",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md"
+      },
       {
         "covers": [
           "architecture.agent_os_integration.kernel_per_managed_repo",
@@ -6108,6 +6824,15 @@
       },
       {
         "covers": [
+          "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md"
+      },
+      {
+        "covers": [
           "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
           "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane"
         ],
@@ -6601,6 +7326,71 @@
         "kind": "source_file",
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+          "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
+          "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
+          "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
+          "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
+          "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+          "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
+          "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md"
+      },
+      {
+        "covers": [
+          "architecture.memory_graph.repo_scoped_memory_graph_pod",
+          "architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs",
+          "architecture.memory_graph.memory_named_graph_is_canonical_target",
+          "architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target",
+          "architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri",
+          "architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation",
+          "architecture.memory_graph.memory_graph_status_and_freshness_are_explicit",
+          "architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints",
+          "architecture.memory_graph.memory_graph_supports_cross_graph_provenance"
+        ],
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+          "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+          "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+          "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
+          "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
+          "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit",
+          "architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context",
+          "architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md"
+      },
+      {
+        "covers": [
+          "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+          "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+          "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+          "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
+          "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
+          "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit",
+          "architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context",
+          "architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields"
+        ],
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl"
       },
       {
         "covers": [
@@ -7358,6 +8148,15 @@
         "kind": "source_file",
         "subject_id": "architecture.source_code_graph_pod",
         "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links"
+        ],
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md"
       },
       {
         "covers": [
@@ -10208,16 +11007,49 @@
   "specification_version": "1.0",
   "summary": {
     "decision_parse_errors": 0,
-    "decisions": 17,
+    "decisions": 19,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 252,
-    "scenarios": 112,
-    "subjects": 36,
-    "verifications": 474
+    "requirements": 281,
+    "scenarios": 129,
+    "subjects": 39,
+    "verifications": 482
   },
   "verification": {
     "claims": [
+      {
+        "cover_id": "architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 1
+      },
       {
         "cover_id": "architecture.agent_os_integration.coding_pod_per_work_item",
         "file": ".spec/specs/agent_os_integration.spec.md",
@@ -10227,7 +11059,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_and_lazy_agent_activation",
@@ -10238,7 +11070,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
@@ -10249,7 +11081,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_naming_convention",
@@ -10260,7 +11092,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_per_managed_repo",
@@ -10271,7 +11103,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -10282,7 +11114,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
@@ -10293,7 +11125,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.multiple_pods_parallel_execution",
@@ -10304,7 +11136,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
@@ -10315,7 +11147,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_naming_convention",
@@ -10326,7 +11158,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.repository_work_queue_is_bounded",
@@ -10337,7 +11169,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
@@ -10348,7 +11180,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.jido_agent_os_integration.md",
-        "verification_index": 0
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -10359,127 +11191,6 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": ".spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md",
-        "verification_index": 1
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.multiple_pods_parallel_execution",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.pod_cleanup_on_completion",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.pod_naming_convention",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.repository_work_queue_is_bounded",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 2
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_workspace/runtime_specialist_runner.ex",
         "verification_index": 3
       },
       {
@@ -10490,7 +11201,73 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/actions/set_project_context.ex",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.multiple_pods_parallel_execution",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.pod_cleanup_on_completion",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.pod_naming_convention",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.repository_work_queue_is_bounded",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_workspace.ex",
         "verification_index": 4
       },
       {
@@ -10501,30 +11278,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/actions/set_project_context.ex",
+        "target": "lib/jido_code/agent_workspace.ex",
         "verification_index": 4
       },
       {
-        "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
+        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agents/project_context.ex",
-        "verification_index": 5
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
       },
       {
-        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
+        "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agents/project_context.ex",
-        "verification_index": 5
+        "target": "lib/jido_code/agent_workspace.ex",
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
@@ -10534,7 +11311,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agents/project_context.ex",
+        "target": "lib/jido_code/agent_workspace/runtime_specialist_runner.ex",
         "verification_index": 5
       },
       {
@@ -10545,18 +11322,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agents/task_board.ex",
-        "verification_index": 6
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agents/task_board.ex",
+        "target": "lib/jido_code/actions/set_project_context.ex",
         "verification_index": 6
       },
       {
@@ -10567,8 +11333,74 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agents/task_board.ex",
+        "target": "lib/jido_code/actions/set_project_context.ex",
         "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agents/project_context.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agents/project_context.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agents/project_context.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agents/task_board.ex",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agents/task_board.ex",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agents/task_board.ex",
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
@@ -10579,7 +11411,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/actions/add_task.ex",
-        "verification_index": 7
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.agent_os_integration.state_operations_modify_agent_state",
@@ -10590,7 +11422,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/actions/add_task.ex",
-        "verification_index": 7
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -10601,7 +11433,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_workspace/deterministic_specialist_runner.ex",
-        "verification_index": 8
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -10612,7 +11444,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -10623,7 +11455,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
@@ -10634,7 +11466,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
@@ -10645,7 +11477,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os.ex",
-        "verification_index": 10
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_naming_convention",
@@ -10656,7 +11488,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os.ex",
-        "verification_index": 10
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_per_managed_repo",
@@ -10667,7 +11499,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os.ex",
-        "verification_index": 10
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.agent_os_integration.dynamic_kernel_lifecycle",
@@ -10678,7 +11510,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 11
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_naming_convention",
@@ -10689,7 +11521,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 11
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -10700,7 +11532,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 11
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
@@ -10711,7 +11543,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 11
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
@@ -10722,7 +11554,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager/persistence.ex",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -10733,7 +11565,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager/persistence.ex",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
@@ -10744,7 +11576,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager/persisted_kernel.ex",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -10755,7 +11587,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager/persisted_kernel.ex",
-        "verification_index": 13
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.agent_os_integration.repo_pod_singleton_per_kernel",
@@ -10766,7 +11598,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/repo_pod.ex",
-        "verification_index": 14
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.agent_os_integration.coding_pod_per_work_item",
@@ -10777,7 +11609,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/coding_pod.ex",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_and_lazy_agent_activation",
@@ -10788,7 +11620,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/coding_pod.ex",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
@@ -10799,7 +11631,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/coding_pod.ex",
-        "verification_index": 15
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
@@ -10810,7 +11642,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agents/",
-        "verification_index": 16
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.agent_os_integration.actions_use_jido_action",
@@ -10821,7 +11653,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/actions/",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.agent_os_integration.state_operations_modify_agent_state",
@@ -10832,7 +11664,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/actions/",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -10843,7 +11675,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/source_code_graph_pod.ex",
-        "verification_index": 18
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.agent_os_integration.actions_use_jido_action",
@@ -10854,7 +11686,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/actions/analyze_source_code_graph.ex",
-        "verification_index": 19
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.agent_os_integration.actions_use_jido_action",
@@ -10865,7 +11697,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -10876,7 +11708,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -10887,7 +11719,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
@@ -10898,7 +11730,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 20
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -10909,7 +11741,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -10920,7 +11752,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
@@ -10931,7 +11763,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 21
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
@@ -10942,7 +11774,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/source_code_graph_workspace_test.exs",
-        "verification_index": 22
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
@@ -10953,7 +11785,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
-        "verification_index": 23
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
@@ -10964,7 +11796,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -10975,7 +11807,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
@@ -10986,7 +11818,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.agent_os_integration.multiple_pods_parallel_execution",
@@ -10997,7 +11829,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_cleanup_on_completion",
@@ -11008,7 +11840,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -11019,7 +11851,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.agent_os_integration.repository_work_queue_is_bounded",
@@ -11030,7 +11862,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 24
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.agent_os_integration.dynamic_kernel_lifecycle",
@@ -11041,7 +11873,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
@@ -11052,7 +11884,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_per_managed_repo",
@@ -11063,7 +11895,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -11074,7 +11906,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
@@ -11085,7 +11917,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
@@ -11096,7 +11928,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
@@ -11107,7 +11939,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs",
-        "verification_index": 26
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -11118,7 +11950,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs",
-        "verification_index": 26
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -11979,6 +12811,17 @@
         "verification_index": 4
       },
       {
+        "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 5
+      },
+      {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
@@ -11987,7 +12830,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/workbench/project_semantic_inspection.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
@@ -11998,7 +12841,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/workbench/project_semantic_inspection.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
@@ -12009,7 +12852,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/source_code_graph/governed_adoption.ex",
-        "verification_index": 6
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -12020,7 +12863,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.factory_control_plane.runtime_overlay_preserves_product_truth",
@@ -12031,7 +12874,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
-        "verification_index": 7
+        "verification_index": 8
       },
       {
         "cover_id": "architecture.factory_control_plane.runtime_overlay_preserves_product_truth",
@@ -12042,17 +12885,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/governance/runtime_evidence_feed_test.exs",
-        "verification_index": 8
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 9
       },
       {
@@ -12063,7 +12895,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 10
       },
       {
@@ -12074,7 +12906,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/phase_eleven_integration_test.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 11
       },
       {
@@ -12085,8 +12917,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "test/jido_code_web/live/phase_eleven_integration_test.exs",
         "verification_index": 12
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
@@ -12097,7 +12940,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
@@ -12108,7 +12951,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 13
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -12119,17 +12962,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
-        "verification_index": 14
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/operations/repo_native_state.ex",
         "verification_index": 15
       },
       {
@@ -12140,7 +12972,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code/operations/repo_native_state_test.exs",
+        "target": "lib/jido_code/operations/repo_native_state.ex",
         "verification_index": 16
       },
       {
@@ -12151,8 +12983,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "target": "test/jido_code/operations/repo_native_state_test.exs",
         "verification_index": 17
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -12163,7 +13006,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/repo_bridge.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors",
@@ -12174,17 +13017,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/source_repo.ex",
-        "verification_index": 19
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 20
       },
       {
@@ -12195,7 +13027,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
+        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 21
       },
       {
@@ -12206,7 +13038,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
         "verification_index": 22
       },
       {
@@ -12217,8 +13049,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 23
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -13209,6 +14052,369 @@
         "subject_id": "architecture.frontend_stack",
         "target": "test/jido_code_web/live/phase_fifteen_integration_test.exs",
         "verification_index": 28
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.memory_graph_status_and_freshness_are_explicit",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.memory_graph_supports_cross_graph_provenance",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.memory_named_graph_is_canonical_target",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.repo_scoped_memory_graph_pod",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target",
+        "file": ".spec/specs/memory_graph.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_graph",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 0
+      },
+      {
+        "cover_id": "architecture.memory_ontology.change_and_revision_provenance_is_explicit",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_ontology.coding_memory_types_extend_core_memory_model",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_ontology.decision_structure_supports_supersession_and_consequence",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled",
+        "file": ".spec/specs/memory_ontology.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_ontology",
+        "target": "priv/ontologies/jido-memory.ttl",
+        "verification_index": 1
       },
       {
         "cover_id": "architecture.policy_layers.ash_policy_is_first_class_data_plane_membrane",
@@ -14762,6 +15968,17 @@
         "verification_index": 0
       },
       {
+        "cover_id": "architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": ".spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md",
+        "verification_index": 1
+      },
+      {
         "cover_id": "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
@@ -14770,7 +15987,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph.ex",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
@@ -14781,7 +15998,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph.ex",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
@@ -14792,7 +16009,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph.ex",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
@@ -14803,7 +16020,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph.ex",
-        "verification_index": 1
+        "verification_index": 2
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -14814,7 +16031,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/analysis.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
@@ -14825,7 +16042,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/analysis.ex",
-        "verification_index": 2
+        "verification_index": 3
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
@@ -14836,7 +16053,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/store.ex",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
@@ -14847,7 +16064,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/store.ex",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
@@ -14858,7 +16075,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/store.ex",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
@@ -14869,7 +16086,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/source_code_graph/store.ex",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
@@ -14880,7 +16097,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/pods/source_code_graph_pod.ex",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -14891,7 +16108,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
@@ -14902,7 +16119,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
@@ -14913,39 +16130,6 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agent_workspace.ex",
-        "verification_index": 5
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_workspace_test.exs",
         "verification_index": 6
       },
       {
@@ -14956,7 +16140,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_workspace_test.exs",
+        "target": "lib/jido_code/agent_workspace.ex",
         "verification_index": 6
       },
       {
@@ -14967,7 +16151,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_workspace_test.exs",
+        "target": "lib/jido_code/agent_workspace.ex",
         "verification_index": 6
       },
       {
@@ -14978,7 +16162,29 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agents/source_code_graph_analyzer.ex",
+        "target": "test/jido_code/agent_workspace_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_workspace_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_workspace_test.exs",
         "verification_index": 7
       },
       {
@@ -14989,7 +16195,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agents/source_code_graph_loader.ex",
+        "target": "lib/jido_code/agents/source_code_graph_analyzer.ex",
         "verification_index": 8
       },
       {
@@ -15000,18 +16206,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agents/source_code_graph_querier.ex",
-        "verification_index": 9
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agents/source_code_graph_querier.ex",
+        "target": "lib/jido_code/agents/source_code_graph_loader.ex",
         "verification_index": 9
       },
       {
@@ -15022,7 +16217,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agents/planner.ex",
+        "target": "lib/jido_code/agents/source_code_graph_querier.ex",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/agents/source_code_graph_querier.ex",
         "verification_index": 10
       },
       {
@@ -15033,7 +16239,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agents/reviewer.ex",
+        "target": "lib/jido_code/agents/planner.ex",
         "verification_index": 11
       },
       {
@@ -15044,7 +16250,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/agents/explainer.ex",
+        "target": "lib/jido_code/agents/reviewer.ex",
         "verification_index": 12
       },
       {
@@ -15055,8 +16261,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/analyze_source_code_graph.ex",
+        "target": "lib/jido_code/agents/explainer.ex",
         "verification_index": 13
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/analyze_source_code_graph.ex",
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
@@ -15067,7 +16284,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/analyze_source_code_graph.ex",
-        "verification_index": 13
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -15078,7 +16295,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/load_source_code_graph.ex",
-        "verification_index": 14
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
@@ -15089,39 +16306,6 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/load_source_code_graph.ex",
-        "verification_index": 14
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/query_source_code_graph.ex",
-        "verification_index": 15
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/query_source_code_graph.ex",
-        "verification_index": 15
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/query_source_code_graph.ex",
         "verification_index": 15
       },
       {
@@ -15132,7 +16316,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/source_code_graph/query.ex",
+        "target": "lib/jido_code/actions/query_source_code_graph.ex",
         "verification_index": 16
       },
       {
@@ -15143,7 +16327,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/source_code_graph/query.ex",
+        "target": "lib/jido_code/actions/query_source_code_graph.ex",
         "verification_index": 16
       },
       {
@@ -15154,18 +16338,40 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/source_code_graph/query.ex",
+        "target": "lib/jido_code/actions/query_source_code_graph.ex",
         "verification_index": 16
       },
       {
-        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
         "file": ".spec/specs/source_code_graph_pod.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/get_source_code_graph_status.ex",
+        "target": "lib/jido_code/source_code_graph/query.ex",
+        "verification_index": 17
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/source_code_graph/query.ex",
+        "verification_index": 17
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/source_code_graph/query.ex",
         "verification_index": 17
       },
       {
@@ -15176,8 +16382,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/source_code_graph_support.ex",
+        "target": "lib/jido_code/actions/get_source_code_graph_status.ex",
         "verification_index": 18
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/source_code_graph_support.ex",
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
@@ -15188,17 +16405,6 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/source_code_graph_support.ex",
-        "verification_index": 18
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/source_code_graph/helper_queries.ex",
         "verification_index": 19
       },
       {
@@ -15209,18 +16415,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
-        "verification_index": 20
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
+        "target": "lib/jido_code/source_code_graph/helper_queries.ex",
         "verification_index": 20
       },
       {
@@ -15231,7 +16426,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
         "verification_index": 21
       },
       {
@@ -15242,7 +16437,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_modules.ex",
         "verification_index": 21
       },
       {
@@ -15253,7 +16448,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
         "verification_index": 22
       },
       {
@@ -15264,7 +16459,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_functions.ex",
         "verification_index": 22
       },
       {
@@ -15275,7 +16470,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
         "verification_index": 23
       },
       {
@@ -15286,8 +16481,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "target": "lib/jido_code/actions/find_source_code_graph_runtime_patterns.ex",
         "verification_index": 23
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "verification_index": 24
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "lib/jido_code/actions/trace_source_code_graph_impact.ex",
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -15298,7 +16515,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/refresh_source_code_graph.ex",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
@@ -15309,7 +16526,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "lib/jido_code/actions/refresh_source_code_graph.ex",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -15320,7 +16537,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
@@ -15331,7 +16548,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 25
+        "verification_index": 26
       },
       {
         "cover_id": "architecture.source_code_graph_pod.full_elixir_ontology_profile_is_required",
@@ -15342,7 +16559,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
@@ -15353,7 +16570,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.source_code_graph_pod.local_triple_store_quad_schema_is_canonical_store",
@@ -15364,7 +16581,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.source_code_graph_pod.ontology_schema_and_project_individuals_are_loaded_together",
@@ -15375,7 +16592,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.source_code_graph_pod.source_code_named_graph_is_canonical_target",
@@ -15386,7 +16603,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_one_integration_test.exs",
-        "verification_index": 26
+        "verification_index": 27
       },
       {
         "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
@@ -15397,7 +16614,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/source_code_graph_actions_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
@@ -15408,7 +16625,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/source_code_graph_actions_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
@@ -15419,17 +16636,6 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/source_code_graph_actions_test.exs",
-        "verification_index": 27
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/pods_test.exs",
         "verification_index": 28
       },
       {
@@ -15440,18 +16646,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
-        "verification_index": 29
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
+        "target": "test/jido_code/agent_os/pods_test.exs",
         "verification_index": 29
       },
       {
@@ -15462,8 +16657,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
         "verification_index": 30
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/source_code_graph_agent_adoption_test.exs",
+        "verification_index": 30
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
@@ -15474,7 +16691,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/source_code_graph_workspace_test.exs",
-        "verification_index": 30
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
@@ -15485,7 +16702,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/source_code_graph_workspace_test.exs",
-        "verification_index": 30
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
@@ -15496,7 +16713,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/source_code_graph_workspace_test.exs",
-        "verification_index": 30
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned",
@@ -15507,17 +16724,6 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/source_code_graph_workspace_test.exs",
-        "verification_index": 30
-      },
-      {
-        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
-        "file": ".spec/specs/source_code_graph_pod.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_workspace_test.exs",
         "verification_index": 31
       },
       {
@@ -15528,8 +16734,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
-        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "target": "test/jido_code/agent_workspace_test.exs",
         "verification_index": 32
+      },
+      {
+        "cover_id": "architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query",
+        "file": ".spec/specs/source_code_graph_pod.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_pod",
+        "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
@@ -15540,7 +16757,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod",
@@ -15551,7 +16768,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.source_code_graph_pod.sparql_library_is_canonical_query_surface",
@@ -15562,7 +16779,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_refresh_replaces_named_graph_coherently",
@@ -15573,7 +16790,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable",
@@ -15584,7 +16801,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded",
@@ -15595,7 +16812,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_pod",
         "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection",
@@ -20267,12 +21484,12 @@
     "strength_summary": {
       "claimed": 58,
       "executed": 0,
-      "linked": 855
+      "linked": 893
     },
     "threshold_failures": 0
   },
   "workspace": {
-    "decision_count": 17,
-    "spec_count": 36
+    "decision_count": 19,
+    "spec_count": 39
   }
 }

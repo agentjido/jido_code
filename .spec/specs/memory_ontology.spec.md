@@ -1,0 +1,149 @@
+# Memory Ontology
+
+This subject defines the enhanced coding-memory ontology that complements the
+repository `source_code` graph with durable memory, decision, freshness, and
+workflow provenance semantics.
+
+<!-- covers: package.jido_code.spec_led_workspace -->
+
+```spec-meta
+id: architecture.memory_ontology
+kind: feature
+status: proposed
+summary: Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, and validation metadata explicitly, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.
+decisions:
+  - jido_code.memory_graph_and_coding_memory_ontology_adoption
+  - jido_code.source_code_graph_pod_and_named_graph_ingestion
+surface:
+  - .spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md
+  - .spec/specs/memory_graph.spec.md
+  - .spec/specs/source_code_graph_pod.spec.md
+  - priv/ontologies/jido-memory.ttl
+```
+
+## Requirements
+
+```spec-requirements
+- id: architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+  statement: The ontology shall extend the core Jido memory model beyond Fact, Decision, and LessonLearned to include at least Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern as first-class memory classes.
+  priority: must
+  stability: proposed
+
+- id: architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols
+  statement: The ontology shall provide explicit relationships that let memories anchor to repository, file, module, function, test, configuration, and symbol entities through relations such as `aboutRepository`, `aboutFile`, `aboutModule`, `aboutFunction`, `aboutTest`, `aboutConfig`, and `affectsSymbol`.
+  priority: must
+  stability: proposed
+
+- id: architecture.memory_ontology.change_and_revision_provenance_is_explicit
+  statement: The ontology shall model revision and change provenance explicitly through relationships such as `introducedInCommit`, `validatedByTestRun`, `mentionedInPR`, `derivedFromIssue`, `observedAtRevision`, and `invalidatedByRevision`.
+  priority: must
+  stability: proposed
+
+- id: architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
+  statement: Decision memories shall support richer structure including `alternativeConsidered`, `decisionStatus`, `supersedes`, and `hasConsequence` so coding decisions can evolve over time without losing lineage.
+  priority: must
+  stability: proposed
+
+- id: architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled
+  statement: The ontology shall model workflow and LLM provenance with first-class entities including WorkSession, AgentRun, ToolInvocation, PromptTurn, Review, Patch, and Plan rather than flattening those concepts into string metadata.
+  priority: must
+  stability: proposed
+
+- id: architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+  statement: Memories and workflow provenance shall support explicit freshness, evidence, and validation metadata including `freshnessScore`, `staleReason`, `lastValidatedAt`, `validForRevision`, `supportedBy`, `confidenceSource`, and `evidenceArtifact`.
+  priority: must
+  stability: proposed
+
+- id: architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context
+  statement: WorkSession entities shall capture repository, branch, revision, actor, model, toolchain, goal, and outcome context so memories remain attributable to the runtime conditions under which they were recorded.
+  priority: should
+  stability: proposed
+
+- id: architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
+  statement: The ontology shall prefer rdf:type-driven class membership and repeated first-class tag values or tag entities over stringly `memoryType` or comma-delimited tag blobs.
+  priority: should
+  stability: proposed
+```
+
+## Scenarios
+
+```spec-scenarios
+- id: architecture.memory_ontology.scenario_decision_links_to_code_and_supersedes_prior_decision
+  covers:
+    - architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+    - architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols
+    - architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
+  given:
+    - A repository already contains a prior architectural decision about a module or function.
+  when:
+    - A later work session records a new decision that replaces or refines the earlier one.
+  then:
+    - The new memory uses the Decision class.
+    - It links to the affected code entities explicitly.
+    - It records rationale, alternatives, supersession, and consequences rather than only free-form prose.
+
+- id: architecture.memory_ontology.scenario_known_issue_is_tracked_across_revisions
+  covers:
+    - architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+    - architecture.memory_ontology.change_and_revision_provenance_is_explicit
+    - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+  given:
+    - A repository has a recurring bug or operational weakness.
+  when:
+    - The system records that knowledge as durable memory and later validates or invalidates it.
+  then:
+    - The memory can be typed as a KnownIssue.
+    - The ontology records the revision where it was observed, later validations, and any revision that invalidates it.
+    - Freshness and evidence metadata remain explicit.
+
+- id: architecture.memory_ontology.scenario_workflow_activity_is_provenance_not_blob_metadata
+  covers:
+    - architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled
+    - architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context
+  given:
+    - An agent-assisted coding workflow plans, edits, reviews, and validates a change.
+  when:
+    - The system records the resulting memories and provenance.
+  then:
+    - WorkSession, AgentRun, ToolInvocation, PromptTurn, Review, Patch, and Plan can each appear as first-class linked entities.
+    - Repository, revision, actor, model, toolchain, goal, and outcome context remain attached to the session.
+
+- id: architecture.memory_ontology.scenario_tags_and_types_are_not_stringly
+  covers:
+    - architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
+  given:
+    - A memory entry needs multiple classifications or tags.
+  when:
+    - The memory is stored in the ontology.
+  then:
+    - Memory class is expressed through rdf:type rather than a string field.
+    - Tags remain repeated values or tag entities rather than one delimited text blob.
+```
+
+## Verification
+
+```spec-verification
+- kind: source_file
+  target: .spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md
+  covers:
+    - architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+    - architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols
+    - architecture.memory_ontology.change_and_revision_provenance_is_explicit
+    - architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
+    - architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled
+    - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+    - architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context
+    - architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
+
+- kind: source_file
+  target: priv/ontologies/jido-memory.ttl
+  covers:
+    - architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+    - architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols
+    - architecture.memory_ontology.change_and_revision_provenance_is_explicit
+    - architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
+    - architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled
+    - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+    - architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context
+    - architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
+```

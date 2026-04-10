@@ -1,0 +1,419 @@
+# covers: architecture.memory_ontology.coding_memory_types_extend_core_memory_model
+# covers: architecture.memory_ontology.memories_anchor_to_code_entities_and_symbols
+# covers: architecture.memory_ontology.change_and_revision_provenance_is_explicit
+# covers: architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
+# covers: architecture.memory_ontology.workflow_and_llm_provenance_entities_are_modeled
+# covers: architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+# covers: architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context
+# covers: architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
+
+@prefix jido: <https://jido.run/ontology/memory#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+jido: a owl:Ontology ;
+    rdfs:label "Jido Coding Memory Ontology" ;
+    rdfs:comment "A coding-memory and workflow-provenance ontology for durable facts, decisions, lessons, conventions, issues, patterns, and semantic workflow context linked to repository code entities over time." ;
+    owl:versionInfo "2026-04-10" .
+
+### Classes
+
+jido:Memory a owl:Class ;
+    rdfs:label "Memory" ;
+    rdfs:comment "Durable coding memory recorded about a repository, symbol, change, or workflow outcome." ;
+    rdfs:subClassOf prov:Entity ,
+        [ a owl:Restriction ;
+            owl:onProperty jido:content ;
+            owl:minCardinality "1"^^xsd:nonNegativeInteger
+        ] ,
+        [ a owl:Restriction ;
+            owl:onProperty jido:timestamp ;
+            owl:minCardinality "1"^^xsd:nonNegativeInteger
+        ] ,
+        [ a owl:Restriction ;
+            owl:onProperty jido:sourceSession ;
+            owl:minCardinality "1"^^xsd:nonNegativeInteger
+        ] .
+
+jido:Fact a owl:Class ;
+    rdfs:label "Fact" ;
+    rdfs:subClassOf jido:Memory ,
+        [ a owl:Restriction ;
+            owl:onProperty jido:confidence ;
+            owl:minCardinality "1"^^xsd:nonNegativeInteger
+        ] .
+
+jido:Decision a owl:Class ;
+    rdfs:label "Decision" ;
+    rdfs:subClassOf jido:Memory ,
+        [ a owl:Restriction ;
+            owl:onProperty jido:rationale ;
+            owl:minCardinality "1"^^xsd:nonNegativeInteger
+        ] .
+
+jido:LessonLearned a owl:Class ;
+    rdfs:label "Lesson Learned" ;
+    rdfs:subClassOf jido:Memory ,
+        [ a owl:Restriction ;
+            owl:onProperty jido:context ;
+            owl:minCardinality "1"^^xsd:nonNegativeInteger
+        ] .
+
+jido:Invariant a owl:Class ;
+    rdfs:label "Invariant" ;
+    rdfs:comment "A condition that should continue to hold across revisions or workflows." ;
+    rdfs:subClassOf jido:Memory .
+
+jido:Convention a owl:Class ;
+    rdfs:label "Convention" ;
+    rdfs:comment "A repository-specific convention or house style worth reusing later." ;
+    rdfs:subClassOf jido:Memory .
+
+jido:KnownIssue a owl:Class ;
+    rdfs:label "Known Issue" ;
+    rdfs:comment "A durable record of a known defect, caveat, or operational weakness." ;
+    rdfs:subClassOf jido:Memory .
+
+jido:OpenQuestion a owl:Class ;
+    rdfs:label "Open Question" ;
+    rdfs:comment "An unresolved question discovered during work that should remain queryable later." ;
+    rdfs:subClassOf jido:Memory .
+
+jido:Pattern a owl:Class ;
+    rdfs:label "Pattern" ;
+    rdfs:comment "A reusable design, implementation, or operational pattern discovered in the codebase." ;
+    rdfs:subClassOf jido:Memory .
+
+jido:AntiPattern a owl:Class ;
+    rdfs:label "Anti-Pattern" ;
+    rdfs:comment "A recurring implementation or runtime pattern that should be avoided." ;
+    rdfs:subClassOf jido:Memory .
+
+jido:WorkSession a owl:Class ;
+    rdfs:label "Work Session" ;
+    rdfs:comment "A bounded repository work session that groups memories and workflow provenance." ;
+    rdfs:subClassOf prov:Activity ,
+        [ a owl:Restriction ;
+            owl:onProperty jido:sessionId ;
+            owl:cardinality "1"^^xsd:nonNegativeInteger
+        ] ,
+        [ a owl:Restriction ;
+            owl:onProperty prov:startedAtTime ;
+            owl:cardinality "1"^^xsd:nonNegativeInteger
+        ] .
+
+jido:AgentRun a owl:Class ;
+    rdfs:label "Agent Run" ;
+    rdfs:subClassOf prov:Activity .
+
+jido:ToolInvocation a owl:Class ;
+    rdfs:label "Tool Invocation" ;
+    rdfs:subClassOf prov:Activity .
+
+jido:PromptTurn a owl:Class ;
+    rdfs:label "Prompt Turn" ;
+    rdfs:subClassOf prov:Activity .
+
+jido:Review a owl:Class ;
+    rdfs:label "Review" ;
+    rdfs:subClassOf prov:Activity .
+
+jido:Patch a owl:Class ;
+    rdfs:label "Patch" ;
+    rdfs:subClassOf prov:Entity .
+
+jido:Plan a owl:Class ;
+    rdfs:label "Plan" ;
+    rdfs:subClassOf prov:Entity .
+
+jido:Commit a owl:Class ;
+    rdfs:label "Commit" ;
+    rdfs:subClassOf prov:Entity .
+
+jido:TestRun a owl:Class ;
+    rdfs:label "Test Run" ;
+    rdfs:subClassOf prov:Activity .
+
+jido:PullRequest a owl:Class ;
+    rdfs:label "Pull Request" ;
+    rdfs:subClassOf prov:Entity .
+
+jido:Issue a owl:Class ;
+    rdfs:label "Issue" ;
+    rdfs:subClassOf prov:Entity .
+
+jido:RepositoryRevision a owl:Class ;
+    rdfs:label "Repository Revision" ;
+    rdfs:subClassOf prov:Entity .
+
+jido:Actor a owl:Class ;
+    rdfs:label "Actor" ;
+    rdfs:subClassOf prov:Agent .
+
+jido:Model a owl:Class ;
+    rdfs:label "Model" ;
+    rdfs:subClassOf prov:Agent .
+
+jido:Toolchain a owl:Class ;
+    rdfs:label "Toolchain" ;
+    rdfs:subClassOf prov:Entity .
+
+jido:DecisionStatus a owl:Class ;
+    rdfs:label "Decision Status" .
+
+jido:Tag a owl:Class ;
+    rdfs:label "Tag" .
+
+jido:EvidenceArtifact a owl:Class ;
+    rdfs:label "Evidence Artifact" ;
+    rdfs:subClassOf prov:Entity .
+
+### Decision status individuals
+
+jido:proposed a jido:DecisionStatus ;
+    rdfs:label "proposed" .
+
+jido:accepted a jido:DecisionStatus ;
+    rdfs:label "accepted" .
+
+jido:superseded a jido:DecisionStatus ;
+    rdfs:label "superseded" .
+
+jido:rejected a jido:DecisionStatus ;
+    rdfs:label "rejected" .
+
+### Object properties
+
+jido:hasMemory a owl:ObjectProperty ;
+    rdfs:label "has memory" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:Memory ;
+    owl:inverseOf jido:sourceSession .
+
+jido:sourceSession a owl:ObjectProperty ;
+    rdfs:label "source session" ;
+    rdfs:domain jido:Memory ;
+    rdfs:range jido:WorkSession .
+
+jido:relatedTo a owl:ObjectProperty ;
+    rdfs:label "related to" ;
+    rdfs:domain jido:Memory ;
+    rdfs:range jido:Memory .
+
+jido:aboutRepository a owl:ObjectProperty ;
+    rdfs:label "about repository" ;
+    rdfs:comment "Links a memory or workflow node to a stable repository IRI from the source_code graph." ;
+    rdfs:range rdfs:Resource .
+
+jido:aboutFile a owl:ObjectProperty ;
+    rdfs:label "about file" ;
+    rdfs:comment "Links a memory or workflow node to a stable file IRI from the source_code graph." ;
+    rdfs:range rdfs:Resource .
+
+jido:aboutModule a owl:ObjectProperty ;
+    rdfs:label "about module" ;
+    rdfs:comment "Links a memory or workflow node to a stable module IRI from the source_code graph." ;
+    rdfs:range rdfs:Resource .
+
+jido:aboutFunction a owl:ObjectProperty ;
+    rdfs:label "about function" ;
+    rdfs:comment "Links a memory or workflow node to a stable function IRI from the source_code graph." ;
+    rdfs:range rdfs:Resource .
+
+jido:aboutTest a owl:ObjectProperty ;
+    rdfs:label "about test" ;
+    rdfs:comment "Links a memory or workflow node to a stable test IRI from the source_code graph." ;
+    rdfs:range rdfs:Resource .
+
+jido:aboutConfig a owl:ObjectProperty ;
+    rdfs:label "about config" ;
+    rdfs:comment "Links a memory or workflow node to a stable configuration IRI from the source_code graph." ;
+    rdfs:range rdfs:Resource .
+
+jido:affectsSymbol a owl:ObjectProperty ;
+    rdfs:label "affects symbol" ;
+    rdfs:comment "Links a memory or workflow node to any stable source-code symbol IRI." ;
+    rdfs:range rdfs:Resource .
+
+jido:introducedInCommit a owl:ObjectProperty ;
+    rdfs:label "introduced in commit" ;
+    rdfs:range jido:Commit .
+
+jido:validatedByTestRun a owl:ObjectProperty ;
+    rdfs:label "validated by test run" ;
+    rdfs:range jido:TestRun .
+
+jido:mentionedInPR a owl:ObjectProperty ;
+    rdfs:label "mentioned in PR" ;
+    rdfs:range jido:PullRequest .
+
+jido:derivedFromIssue a owl:ObjectProperty ;
+    rdfs:label "derived from issue" ;
+    rdfs:range jido:Issue .
+
+jido:observedAtRevision a owl:ObjectProperty ;
+    rdfs:label "observed at revision" ;
+    rdfs:range jido:RepositoryRevision .
+
+jido:invalidatedByRevision a owl:ObjectProperty ;
+    rdfs:label "invalidated by revision" ;
+    rdfs:range jido:RepositoryRevision .
+
+jido:alternativeConsidered a owl:ObjectProperty ;
+    rdfs:label "alternative considered" ;
+    rdfs:domain jido:Decision ;
+    rdfs:range jido:Memory .
+
+jido:decisionStatus a owl:ObjectProperty ;
+    rdfs:label "decision status" ;
+    rdfs:domain jido:Decision ;
+    rdfs:range jido:DecisionStatus .
+
+jido:supersedes a owl:ObjectProperty ;
+    rdfs:label "supersedes" ;
+    rdfs:domain jido:Decision ;
+    rdfs:range jido:Decision .
+
+jido:hasConsequence a owl:ObjectProperty ;
+    rdfs:label "has consequence" ;
+    rdfs:domain jido:Decision ;
+    rdfs:range jido:Memory .
+
+jido:supportedBy a owl:ObjectProperty ;
+    rdfs:label "supported by" ;
+    rdfs:range prov:Entity .
+
+jido:confidenceSource a owl:ObjectProperty ;
+    rdfs:label "confidence source" ;
+    rdfs:range prov:Entity .
+
+jido:evidenceArtifact a owl:ObjectProperty ;
+    rdfs:label "evidence artifact" ;
+    rdfs:range jido:EvidenceArtifact .
+
+jido:hasTag a owl:ObjectProperty ;
+    rdfs:label "has tag" ;
+    rdfs:range jido:Tag .
+
+jido:hasAgentRun a owl:ObjectProperty ;
+    rdfs:label "has agent run" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:AgentRun .
+
+jido:hasToolInvocation a owl:ObjectProperty ;
+    rdfs:label "has tool invocation" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:ToolInvocation .
+
+jido:hasPromptTurn a owl:ObjectProperty ;
+    rdfs:label "has prompt turn" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:PromptTurn .
+
+jido:hasReview a owl:ObjectProperty ;
+    rdfs:label "has review" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:Review .
+
+jido:hasPatch a owl:ObjectProperty ;
+    rdfs:label "has patch" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:Patch .
+
+jido:hasPlan a owl:ObjectProperty ;
+    rdfs:label "has plan" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:Plan .
+
+jido:performedByActor a owl:ObjectProperty ;
+    rdfs:label "performed by actor" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:Actor .
+
+jido:usedModel a owl:ObjectProperty ;
+    rdfs:label "used model" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:Model .
+
+jido:usedToolchain a owl:ObjectProperty ;
+    rdfs:label "used toolchain" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range jido:Toolchain .
+
+jido:validForRevision a owl:ObjectProperty ;
+    rdfs:label "valid for revision" ;
+    rdfs:range jido:RepositoryRevision .
+
+### Datatype properties
+
+jido:sessionId a owl:DatatypeProperty ;
+    rdfs:label "session id" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range xsd:string .
+
+jido:content a owl:DatatypeProperty ;
+    rdfs:label "content" ;
+    rdfs:domain jido:Memory ;
+    rdfs:range xsd:string .
+
+jido:confidence a owl:DatatypeProperty ;
+    rdfs:label "confidence" ;
+    rdfs:domain jido:Memory ;
+    rdfs:range xsd:decimal .
+
+jido:timestamp a owl:DatatypeProperty ;
+    rdfs:label "timestamp" ;
+    rdfs:domain jido:Memory ;
+    rdfs:range xsd:dateTime .
+
+jido:rationale a owl:DatatypeProperty ;
+    rdfs:label "rationale" ;
+    rdfs:domain jido:Decision ;
+    rdfs:range xsd:string .
+
+jido:context a owl:DatatypeProperty ;
+    rdfs:label "context" ;
+    rdfs:domain jido:LessonLearned ;
+    rdfs:range xsd:string .
+
+jido:freshnessScore a owl:DatatypeProperty ;
+    rdfs:label "freshness score" ;
+    rdfs:range xsd:decimal .
+
+jido:staleReason a owl:DatatypeProperty ;
+    rdfs:label "stale reason" ;
+    rdfs:range xsd:string .
+
+jido:lastValidatedAt a owl:DatatypeProperty ;
+    rdfs:label "last validated at" ;
+    rdfs:range xsd:dateTime .
+
+jido:sessionGoal a owl:DatatypeProperty ;
+    rdfs:label "session goal" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range xsd:string .
+
+jido:sessionOutcome a owl:DatatypeProperty ;
+    rdfs:label "session outcome" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range xsd:string .
+
+jido:branchName a owl:DatatypeProperty ;
+    rdfs:label "branch name" ;
+    rdfs:domain jido:WorkSession ;
+    rdfs:range xsd:string .
+
+### Deprecated legacy properties
+
+jido:memoryType a owl:ObjectProperty ;
+    rdfs:label "memory type" ;
+    rdfs:comment "Deprecated. Use rdf:type on memory instances instead." ;
+    owl:deprecated "true"^^xsd:boolean .
+
+jido:tags a owl:DatatypeProperty ;
+    rdfs:label "tags" ;
+    rdfs:comment "Deprecated. Use repeated hasTag relations to first-class tag values instead of string blobs." ;
+    owl:deprecated "true"^^xsd:boolean .

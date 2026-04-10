@@ -6,15 +6,19 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph helper actions for semantic lookup that can also back bounded product-owned semantic services, explicit semantic-tool composition into selected coding specialists, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, and query that can also back product-owned services, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that records workflow provenance at runtime boundaries instead of letting specialists author raw triples, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
+  - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
+  - jido_code.memory_graph_and_coding_memory_ontology_adoption
 surface:
   - .spec/decisions/jido_code.jido_agent_os_integration.md
   - .spec/decisions/jido_code.jido_os_deprecation.md
+  - .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
   - .spec/decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md
+  - .spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md
   - lib/jido_code/agent_os.ex
   - lib/jido_code/agent_os/manager.ex
   - lib/jido_code/agent_os/manager/persistence.ex
@@ -53,6 +57,21 @@ surface:
 
 - id: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
   statement: Repository-scoped source graph stale status, latest failure metadata, degraded-query admission, and recovery entrypoints shall remain exposed through AgentWorkspace and product-owned actions instead of leaking pod or store internals.
+  priority: should
+  stability: proposed
+
+- id: architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled
+  statement: When coding-memory capability is enabled for a managed repository, its kernel shall host one repository-scoped MemoryGraphPod singleton for durable memory recording, provenance linkage, and bounded semantic recall.
+  priority: should
+  stability: proposed
+
+- id: architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+  statement: Repository-scoped memory-graph recording, query, validation, invalidation, and recovery entrypoints shall remain exposed through AgentWorkspace and product-owned actions instead of leaking pod or store internals.
+  priority: should
+  stability: proposed
+
+- id: architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound
+  statement: AgentWorkspace and bounded workflow services shall emit workflow-provenance capture requests for work-session, agent-run, tool-invocation, plan, patch, and review boundaries instead of allowing specialist nodes to write memory-graph triples directly.
   priority: should
   stability: proposed
 
@@ -182,6 +201,32 @@ surface:
   then:
     - The kernel hosts one repository-scoped SourceCodeGraphPod singleton.
     - The pod remains associated with that managed repository rather than one WorkItem.
+
+- id: architecture.agent_os_integration.scenario_memory_graph_pod_is_repo_scoped
+  covers:
+    - architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.kernel_per_managed_repo
+    - architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+  given:
+    - Coding-memory capability is enabled for a managed repository.
+  when:
+    - The repository kernel prepares semantic graph services for durable coding memory.
+  then:
+    - The kernel hosts one repository-scoped MemoryGraphPod singleton.
+    - Recording, query, validation, invalidation, and recovery stay available through AgentWorkspace rather than pod or store internals.
+
+- id: architecture.agent_os_integration.scenario_workspace_emits_memory_provenance_at_runtime_boundaries
+  covers:
+    - architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound
+    - architecture.agent_os_integration.workspace_context_hides_kernel_topology
+    - architecture.agent_os_integration.product_work_entrypoints_route_to_workspace
+  given:
+    - A repository-scoped work or semantic workflow starts through AgentWorkspace.
+  when:
+    - Planning, execution, review, explanation, or semantic workflow preparation crosses a bounded runtime step.
+  then:
+    - AgentWorkspace emits bounded workflow-provenance capture requests with explicit repo, actor, workspace, work-item, and revision context.
+    - Specialist nodes do not write raw memory triples directly.
 
 - id: architecture.agent_os_integration.scenario_agent_collaboration_within_pod
   covers:
@@ -313,6 +358,17 @@ surface:
 ## Verification
 
 ```spec-verification
+- kind: source_file
+  target: .spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md
+  covers:
+    - architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled
+    - architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+
+- kind: source_file
+  target: .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
+  covers:
+    - architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound
+
 - kind: source_file
   target: .spec/decisions/jido_code.jido_agent_os_integration.md
   covers:

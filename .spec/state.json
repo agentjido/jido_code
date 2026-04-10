@@ -6395,6 +6395,16 @@
       },
       {
         "covers": [
+          "architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound",
+          "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot"
+        ],
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs"
+      },
+      {
+        "covers": [
           "architecture.agent_os_integration.kernel_per_managed_repo",
           "architecture.agent_os_integration.ecto_persistence_per_kernel",
           "architecture.agent_os_integration.kernel_naming_convention"
@@ -7477,6 +7487,18 @@
         "kind": "source_file",
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_workspace_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+          "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
+          "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
+          "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples"
+        ],
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs"
       },
       {
         "covers": [
@@ -8938,6 +8960,16 @@
         "kind": "source_file",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/source_code_graph_governed_adoption_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
+          "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs"
       },
       {
         "covers": [
@@ -11459,7 +11491,7 @@
     "requirements": 281,
     "scenarios": 129,
     "subjects": 39,
-    "verifications": 525
+    "verifications": 528
   },
   "verification": {
     "claims": [
@@ -11992,6 +12024,28 @@
         "verification_index": 16
       },
       {
+        "cover_id": "architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 17
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 17
+      },
+      {
         "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
         "file": ".spec/specs/agent_os_integration.spec.md",
         "kind": "source_file",
@@ -12000,7 +12054,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os.ex",
-        "verification_index": 17
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_naming_convention",
@@ -12011,7 +12065,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os.ex",
-        "verification_index": 17
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_per_managed_repo",
@@ -12022,7 +12076,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os.ex",
-        "verification_index": 17
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.agent_os_integration.dynamic_kernel_lifecycle",
@@ -12033,7 +12087,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_naming_convention",
@@ -12044,7 +12098,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -12055,7 +12109,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 18
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
@@ -12066,28 +12120,6 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agent_os/manager.ex",
-        "verification_index": 18
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/manager/persistence.ex",
-        "verification_index": 19
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/manager/persistence.ex",
         "verification_index": 19
       },
       {
@@ -12098,7 +12130,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/manager/persisted_kernel.ex",
+        "target": "lib/jido_code/agent_os/manager/persistence.ex",
         "verification_index": 20
       },
       {
@@ -12109,8 +12141,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/agent_os/manager/persisted_kernel.ex",
+        "target": "lib/jido_code/agent_os/manager/persistence.ex",
         "verification_index": 20
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_os/manager/persisted_kernel.ex",
+        "verification_index": 21
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "lib/jido_code/agent_os/manager/persisted_kernel.ex",
+        "verification_index": 21
       },
       {
         "cover_id": "architecture.agent_os_integration.repo_pod_singleton_per_kernel",
@@ -12121,7 +12175,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/repo_pod.ex",
-        "verification_index": 21
+        "verification_index": 22
       },
       {
         "cover_id": "architecture.agent_os_integration.coding_pod_per_work_item",
@@ -12132,7 +12186,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/coding_pod.ex",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_and_lazy_agent_activation",
@@ -12143,7 +12197,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/coding_pod.ex",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
@@ -12154,7 +12208,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/coding_pod.ex",
-        "verification_index": 22
+        "verification_index": 23
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_contains_multiple_agents",
@@ -12165,7 +12219,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/agents/",
-        "verification_index": 23
+        "verification_index": 24
       },
       {
         "cover_id": "architecture.agent_os_integration.actions_use_jido_action",
@@ -12176,7 +12230,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/actions/",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.agent_os_integration.state_operations_modify_agent_state",
@@ -12187,7 +12241,7 @@
         "strength": "claimed",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/actions/",
-        "verification_index": 24
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -12198,17 +12252,6 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "lib/jido_code/pods/source_code_graph_pod.ex",
-        "verification_index": 25
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.actions_use_jido_action",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "lib/jido_code/actions/analyze_source_code_graph.ex",
         "verification_index": 26
       },
       {
@@ -12219,8 +12262,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
+        "target": "lib/jido_code/actions/analyze_source_code_graph.ex",
         "verification_index": 27
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.actions_use_jido_action",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -12231,7 +12285,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -12242,7 +12296,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
@@ -12253,7 +12307,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_integration_test.exs",
-        "verification_index": 27
+        "verification_index": 28
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -12264,7 +12318,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.agent_os_integration.source_code_graph_pod_singleton_when_enabled",
@@ -12275,7 +12329,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 28
+        "verification_index": 29
       },
       {
         "cover_id": "architecture.agent_os_integration.workspace_context_hides_kernel_topology",
@@ -12286,17 +12340,6 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os/phase_twenty_two_integration_test.exs",
-        "verification_index": 28
-      },
-      {
-        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
-        "file": ".spec/specs/agent_os_integration.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.agent_os_integration",
-        "target": "test/jido_code/source_code_graph_workspace_test.exs",
         "verification_index": 29
       },
       {
@@ -12307,8 +12350,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
-        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
         "verification_index": 30
+      },
+      {
+        "cover_id": "architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound",
+        "file": ".spec/specs/agent_os_integration.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.agent_os_integration",
+        "target": "test/jido_code/agent_os/phase_twenty_three_integration_test.exs",
+        "verification_index": 31
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
@@ -12319,7 +12373,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -12330,7 +12384,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
@@ -12341,7 +12395,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.agent_os_integration.multiple_pods_parallel_execution",
@@ -12352,7 +12406,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.agent_os_integration.pod_cleanup_on_completion",
@@ -12363,7 +12417,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.agent_os_integration.product_work_entrypoints_route_to_workspace",
@@ -12374,7 +12428,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.agent_os_integration.repository_work_queue_is_bounded",
@@ -12385,7 +12439,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 31
+        "verification_index": 32
       },
       {
         "cover_id": "architecture.agent_os_integration.dynamic_kernel_lifecycle",
@@ -12396,7 +12450,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.agent_os_integration.eager_collaboration_state_is_seeded_before_specialist_work",
@@ -12407,7 +12461,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_per_managed_repo",
@@ -12418,7 +12472,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -12429,7 +12483,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.agent_os_integration.missing_kernel_runtime_recovers_from_snapshot",
@@ -12440,7 +12494,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.agent_os_integration.signal_routing_within_pod",
@@ -12451,7 +12505,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 32
+        "verification_index": 33
       },
       {
         "cover_id": "architecture.agent_os_integration.ecto_persistence_per_kernel",
@@ -12462,7 +12516,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.agent_os_integration.kernel_snapshots_restore_resumable_runtime_state",
@@ -12473,7 +12527,7 @@
         "strength": "linked",
         "subject_id": "architecture.agent_os_integration",
         "target": "priv/repo/migrations/20260409130000_add_agent_os_kernel_snapshots.exs",
-        "verification_index": 33
+        "verification_index": 34
       },
       {
         "cover_id": "architecture.demand_ingress.external_object_tracks_repo_external_entities",
@@ -14861,6 +14915,50 @@
         "subject_id": "architecture.memory_capture_plane",
         "target": "test/jido_code/memory_graph_workspace_test.exs",
         "verification_index": 6
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries",
+        "file": ".spec/specs/memory_capture_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.memory_capture_plane",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 7
       },
       {
         "cover_id": "architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation",
@@ -18350,6 +18448,28 @@
         "verification_index": 9
       },
       {
+        "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/agent_os/phase_twenty_nine_integration_test.exs",
+        "verification_index": 10
+      },
+      {
         "cover_id": "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
         "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
         "kind": "source_file",
@@ -18358,7 +18478,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_four_integration_test.exs",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
@@ -18369,7 +18489,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_four_integration_test.exs",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
@@ -18380,7 +18500,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_four_integration_test.exs",
-        "verification_index": 10
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
@@ -18391,7 +18511,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
@@ -18402,7 +18522,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
@@ -18413,7 +18533,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 11
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection",
@@ -18424,7 +18544,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals",
@@ -18435,7 +18555,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
@@ -18446,7 +18566,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 12
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
@@ -18457,7 +18577,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_seven_integration_test.exs",
-        "verification_index": 13
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
@@ -18468,7 +18588,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_seven_integration_test.exs",
-        "verification_index": 13
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals",
@@ -18479,7 +18599,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
-        "verification_index": 14
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
@@ -18490,7 +18610,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
-        "verification_index": 14
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -22898,7 +23018,7 @@
     "strength_summary": {
       "claimed": 58,
       "executed": 0,
-      "linked": 981
+      "linked": 989
     },
     "threshold_failures": 0
   },

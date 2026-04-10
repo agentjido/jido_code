@@ -202,4 +202,12 @@ surface:
   covers:
     - architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
     - architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_nine_integration_test.exs
+  covers:
+    - architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
+    - architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+    - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
+    - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
 ```

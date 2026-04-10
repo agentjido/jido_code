@@ -209,6 +209,12 @@ surface:
     - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
 
 - kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_nine_integration_test.exs
+  covers:
+    - architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
+    - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
+
+- kind: source_file
   target: test/jido_code/phase_twenty_four_integration_test.exs
   covers:
     - architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary

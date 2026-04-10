@@ -23,7 +23,7 @@ Back to index: [README](./README.md)
 - Runtime and workflow callers should emit typed capture envelopes, not raw RDF triples.
 - Work session and provenance insertion must only happen when repo, actor, workspace, and revision context are explicit.
 
-[ ] 29 Phase 29 - Workflow Provenance Capture Plane
+[x] 29 Phase 29 - Workflow Provenance Capture Plane
   Add the bounded capture seam that records workflow provenance into `workflow_provenance` at runtime and workflow boundaries without turning every intermediate model artifact into durable memory.
 
   [x] 29.1 Section - Capture Envelope And Writer Boundary
@@ -60,19 +60,19 @@ Back to index: [README](./README.md)
       [x] 29.2.2.2 Subtask - Keep workflow provenance insertion in `workflow_provenance`, not `memory`.
       [x] 29.2.2.3 Subtask - Explicitly reject transient helper output or unadopted model text as durable memory at this stage.
 
-  [ ] 29.3 Section - Phase 29 Integration Tests
+  [x] 29.3 Section - Phase 29 Integration Tests
     Verify the new capture plane records provenance at the intended seams and stays bounded under normal, resumed, and failed runtime conditions.
 
-    [ ] 29.3.1 Task - Capture envelope and writer scenarios
+    [x] 29.3.1 Task - Capture envelope and writer scenarios
       Prove provenance insertion uses the capture plane rather than raw graph access.
 
-      [ ] 29.3.1.1 Subtask - Add coverage proving typed provenance envelopes become ontology-aligned individuals in `workflow_provenance`.
-      [ ] 29.3.1.2 Subtask - Add coverage proving capture requests fail safely when required repo, actor, workspace, or revision context is missing.
-      [ ] 29.3.1.3 Subtask - Add coverage proving raw direct triple-writing is not required by runtime or workflow callers.
+      [x] 29.3.1.1 Subtask - Add coverage proving typed provenance envelopes become ontology-aligned individuals in `workflow_provenance`.
+      [x] 29.3.1.2 Subtask - Add coverage proving capture requests fail safely when required repo, actor, workspace, or revision context is missing.
+      [x] 29.3.1.3 Subtask - Add coverage proving raw direct triple-writing is not required by runtime or workflow callers.
 
-    [ ] 29.3.2 Task - Runtime and workflow seam scenarios
+    [x] 29.3.2 Task - Runtime and workflow seam scenarios
       Prove provenance is inserted at the real runtime and product workflow boundaries where it belongs.
 
-      [ ] 29.3.2.1 Subtask - Add coverage proving AgentWorkspace emits WorkSession and AgentRun provenance for bounded work entrypoints.
-      [ ] 29.3.2.2 Subtask - Add coverage proving tool, plan, patch, and review activity remains workflow provenance rather than durable memory.
-      [ ] 29.3.2.3 Subtask - Verify the spec workspace remains coherent after workflow provenance capture lands.
+      [x] 29.3.2.1 Subtask - Add coverage proving AgentWorkspace emits WorkSession and AgentRun provenance for bounded work entrypoints.
+      [x] 29.3.2.2 Subtask - Add coverage proving tool, plan, patch, and review activity remains workflow provenance rather than durable memory.
+      [x] 29.3.2.3 Subtask - Verify the spec workspace remains coherent after workflow provenance capture lands.

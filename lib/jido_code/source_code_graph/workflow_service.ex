@@ -388,16 +388,19 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
       {:ok, %{ready?: true, stale?: false}} ->
         :ok
 
-      _other ->
-        case AgentWorkspace.refresh_memory_graph(
+      {:ok, _status} ->
+        case AgentWorkspace.recover_memory_graph(
                managed_repo_id,
                workspace_path,
                graph_name: MemoryGraph.workflow_provenance_graph_name(),
                revision: revision
              ) do
-          {:ok, _result} -> :ok
+          {:ok, %{graph_status: %{ready?: true, stale?: false}}} -> :ok
           _other -> :ok
         end
+
+      _other ->
+        :ok
     end
   end
 

@@ -28,6 +28,8 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.CaptureEnvelope
   alias JidoCode.MemoryGraph.CaptureWriter
+  alias JidoCode.MemoryGraph.DurableMemoryEnvelope
+  alias JidoCode.MemoryGraph.DurableMemoryWriter
 
   @impl true
   def run(params, context) do
@@ -52,16 +54,7 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
            "The memory graph must be revalidated for the requested revision before capture requests can be accepted."}
 
         memory_kind?(capture) ->
-          {:error, :memory_capture_plane_not_ready,
-           %{
-             state: :capture_plane_not_ready,
-             graph_name: graph_context.selected_graph_name,
-             named_graph_iri: graph_context.selected_named_graph_iri,
-             capture_ready?: false,
-             current_revision: graph_context.revision_metadata.current_revision,
-             requested_revision: graph_context.revision_metadata.requested_revision,
-             capture: capture
-           }}
+          DurableMemoryWriter.write(graph_context, capture)
 
         true ->
           CaptureWriter.write(graph_context, capture)
@@ -101,25 +94,6 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
   defp provenance_kind?(_kind), do: false
 
   defp memory_kind?(capture) when is_map(capture) do
-    case Map.get(capture, :kind) || Map.get(capture, "kind") do
-      kind when kind in [:fact, :decision, :lesson_learned, :invariant, :convention, :known_issue, :open_question, :pattern, :anti_pattern] ->
-        true
-
-      kind when is_binary(kind) ->
-        String.trim(kind) in [
-          "fact",
-          "decision",
-          "lesson_learned",
-          "invariant",
-          "convention",
-          "known_issue",
-          "open_question",
-          "pattern",
-          "anti_pattern"
-        ]
-
-      _other ->
-        false
-    end
+    DurableMemoryEnvelope.supported_kind?(Map.get(capture, :kind) || Map.get(capture, "kind"))
   end
 end

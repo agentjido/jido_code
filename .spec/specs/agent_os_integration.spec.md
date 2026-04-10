@@ -6,7 +6,7 @@ This subject defines how `JidoCode` integrates with `jido_agent_os` for durable,
 id: architecture.agent_os_integration
 kind: policy
 status: proposed
-summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, and query that can also back product-owned services, an implemented MemoryGraphPod foundation with one eager context agent plus lazy recorder, querier, and validator specialists, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that now normalizes typed workflow-provenance envelopes before writing them through the canonical capture plane, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.
+summary: JidoCode integrates with jido_agent_os using one kernel per ManagedRepo, one RepoPod singleton per kernel for repository monitoring, optional repository-scoped specialist pods such as SourceCodeGraphPod and MemoryGraphPod with repository-local semantic readiness, stale-revision, latest-failure, and recovery state preserved through AgentWorkspace, explicit source-graph and memory-graph actions for bounded semantic lookup, recording, validation, and query that can also back product-owned services, an implemented MemoryGraphPod foundation with one eager context agent plus lazy recorder, querier, and validator specialists, explicit semantic-tool composition into selected coding specialists, a workspace-bound memory capture seam that now normalizes typed workflow-provenance envelopes and durable-memory envelopes before writing them through the canonical capture plane, product-owned workflow entrypoints that gather semantic inputs without leaking pod topology, real pod-backed specialist routing for plan/execute/review/explain and parallel planning through AgentWorkspace, eager project-context seeding plus task-board task, event, and artifact updates as the collaboration substrate inside each CodingPod, persisted kernel snapshots that restore resumable pod state after restart or missing-runtime recovery, repository-scoped work-queue admission limits, one CodingPod per WorkItem containing multiple collaborating AI agents, and repo-owned integration coverage that exercises those runtime boundaries through the persisted kernel path instead of an in-memory-only test seam.
 decisions:
   - jido_code.jido_os_deprecation
   - jido_code.jido_agent_os_integration
@@ -73,6 +73,11 @@ surface:
 
 - id: architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound
   statement: AgentWorkspace and bounded workflow services shall emit workflow-provenance capture requests for work-session, agent-run, tool-invocation, plan, patch, and review boundaries instead of allowing specialist nodes to write memory-graph triples directly.
+  priority: should
+  stability: proposed
+
+- id: architecture.agent_os_integration.durable_memory_adoption_stays_workspace_or_product_bound
+  statement: Durable memory insertion for facts, decisions, lessons, conventions, patterns, issues, questions, or invariants shall route through AgentWorkspace-owned memory-graph actions or bounded product-owned adoption helpers instead of allowing specialist nodes to persist durable memory directly.
   priority: should
   stability: proposed
 
@@ -369,6 +374,7 @@ surface:
   target: .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
   covers:
     - architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound
+    - architecture.agent_os_integration.durable_memory_adoption_stays_workspace_or_product_bound
 
 - kind: source_file
   target: lib/jido_code/pods/memory_graph_pod.ex

@@ -23,9 +23,12 @@ surface:
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/memory_graph/capture_envelope.ex
   - lib/jido_code/memory_graph/capture_writer.ex
+  - lib/jido_code/memory_graph/durable_memory_envelope.ex
+  - lib/jido_code/memory_graph/durable_memory_writer.ex
   - lib/jido_code/actions/record_memory_graph.ex
   - lib/jido_code/source_code_graph/workflow_service.ex
   - lib/jido_code/source_code_graph/governed_adoption.ex
+  - lib/jido_code/source_code_graph/memory_capture.ex
   - lib/jido_code/source_code_graph/materialization.ex
   - priv/ontologies/jido-memory.ttl
   - test/jido_code/memory_graph_actions_test.exs
@@ -181,6 +184,25 @@ surface:
     - architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
     - architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
     - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_envelope.ex
+  covers:
+    - architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption
+    - architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context
+    - architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_writer.ex
+  covers:
+    - architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption
+    - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph/memory_capture.ex
+  covers:
+    - architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption
+    - architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
 
 - kind: source_file
   target: lib/jido_code/actions/record_memory_graph.ex

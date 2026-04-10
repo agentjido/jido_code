@@ -181,6 +181,66 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
     assert provenance_query.row_count >= 1
   end
 
+  test "adopt_memory records durable memory with governed context when explicitly requested", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo = create_managed_repo!()
+
+    assert {:ok, _load_result} =
+             JidoCode.AgentWorkspace.load_source_code_graph(
+               managed_repo.id,
+               workspace_path,
+               revision: "rev-30-governed-memory"
+             )
+
+    assert {:ok, projection} =
+             ProductService.impact(
+               managed_repo.id,
+               workspace_path,
+               module_name: "ExampleWorkspace",
+               revision: "rev-30-governed-memory"
+             )
+
+    assert {:ok, adoption} =
+             GovernedAdoption.adopt_work_item(
+               projection,
+               query: %{module_name: "ExampleWorkspace"},
+               workspace_path: workspace_path
+             )
+
+    assert {:ok, memory_adoption} =
+             GovernedAdoption.adopt_memory(
+               projection,
+               workspace_path: workspace_path,
+               query: %{module_name: "ExampleWorkspace"},
+               memory_kind: :known_issue,
+               classification_reason:
+                 "The governed adoption path explicitly accepted this semantic finding as durable issue memory.",
+               actor_id: "system:governed-memory",
+               work_item_id: adoption.work_item.id,
+               assessment_id: adoption.assessment.id
+             )
+
+    assert memory_adoption.record.status == :durable_memory_recorded
+    assert memory_adoption.memory_kind == :known_issue
+
+    assert {:ok, memory_query} =
+             AgentWorkspace.query_memory_graph(
+               managed_repo.id,
+               workspace_path,
+               """
+               SELECT ?memory ?artifact
+               WHERE {
+                 ?memory a jido:KnownIssue ;
+                   jido:evidenceArtifact ?artifact .
+               }
+               """,
+               allow_stale?: true
+             )
+
+    assert memory_query.row_count >= 1
+  end
+
   defp governed_session_id(:plan, digest, work_item_id), do: "governed-plan-#{digest}-#{work_item_id}"
   defp governed_session_id(:review, digest, work_item_id), do: "governed-review-#{digest}-#{work_item_id}"
 

@@ -26,22 +26,22 @@ Back to index: [README](./README.md)
 [ ] 30 Phase 30 - Durable Coding Memory Adoption And Validation
   Add the durable memory insertion and update behavior that turns selected findings, decisions, conventions, issues, and lessons into reusable coding memory over time.
 
-  [ ] 30.1 Section - Durable Memory Classification And Adoption
+  [x] 30.1 Section - Durable Memory Classification And Adoption
     Create the bounded product and governed entrypoints that decide when a semantic or workflow outcome deserves durable memory insertion.
 
-    [ ] 30.1.1 Task - Introduce classified durable memory insertion
+    [x] 30.1.1 Task - Introduce classified durable memory insertion
       Add the insertion boundary that accepts explicitly classified durable memories and writes them into the `memory` graph.
 
-      [ ] 30.1.1.1 Subtask - Support insertion of Fact, Decision, LessonLearned, Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern.
-      [ ] 30.1.1.2 Subtask - Require explicit classification or adoption metadata rather than accepting ambient runtime output as memory.
-      [ ] 30.1.1.3 Subtask - Ensure inserted memories link to source-code entities, workflow provenance, and governed product context when available.
+      [x] 30.1.1.1 Subtask - Support insertion of Fact, Decision, LessonLearned, Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern.
+      [x] 30.1.1.2 Subtask - Require explicit classification or adoption metadata rather than accepting ambient runtime output as memory.
+      [x] 30.1.1.3 Subtask - Ensure inserted memories link to source-code entities, workflow provenance, and governed product context when available.
 
-    [ ] 30.1.2 Task - Connect product and governed adoption seams
+    [x] 30.1.2 Task - Connect product and governed adoption seams
       Let product-owned workflow and governed-adoption boundaries turn meaningful findings into durable memory without bypassing the capture plane.
 
-      [ ] 30.1.2.1 Subtask - Allow semantic workflow services to propose bounded durable memories intentionally.
-      [ ] 30.1.2.2 Subtask - Allow governed adoption paths to insert durable decision, lesson, issue, or convention memory when the factory explicitly adopts the finding.
-      [ ] 30.1.2.3 Subtask - Keep memory insertion separate from merely materializing governed Observation, Assessment, WorkItem, Evidence, or Decision records.
+      [x] 30.1.2.1 Subtask - Allow semantic workflow services to propose bounded durable memories intentionally.
+      [x] 30.1.2.2 Subtask - Allow governed adoption paths to insert durable decision, lesson, issue, or convention memory when the factory explicitly adopts the finding.
+      [x] 30.1.2.3 Subtask - Keep memory insertion separate from merely materializing governed Observation, Assessment, WorkItem, Evidence, or Decision records.
 
   [ ] 30.2 Section - Freshness, Validation, And Invalidation
     Add the metadata and update behavior that keeps durable memory explainable as repositories evolve.

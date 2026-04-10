@@ -197,12 +197,20 @@ defmodule JidoCode.MemoryGraphActionsTest do
       assert diagnostics.reason == :missing
     end
 
-    test "keeps durable memory writes unavailable before the later memory-adoption phase", %{context: context} do
+    test "requires explicit classification metadata before durable memory is recorded", %{context: context} do
       assert {:ok, refresh_result} = RefreshMemoryGraph.run(%{}, context)
 
-      assert {:error, :memory_capture_plane_not_ready, diagnostics} =
+      assert {:error, :invalid_memory_capture, diagnostics} =
                RecordMemoryGraph.run(
-                 %{capture: %{kind: :fact, content: "example"}},
+                 %{
+                   capture: %{
+                     kind: :fact,
+                     actor_id: "system:test",
+                     session_id: "missing-classification",
+                     content: "example",
+                     confidence: 0.8
+                   }
+                 },
                  %{
                    managed_repo_id: context.managed_repo_id,
                    workspace_path: context.workspace_path,
@@ -210,9 +218,88 @@ defmodule JidoCode.MemoryGraphActionsTest do
                  }
                )
 
-      assert diagnostics.state == :capture_plane_not_ready
-      assert diagnostics.capture_ready? == false
-      assert diagnostics.graph_name == "memory"
+      assert diagnostics.field == :classification
+      assert diagnostics.reason == :missing
+    end
+
+    test "records typed durable memory instances into the memory graph", %{context: context} do
+      assert {:ok, refresh_result} = RefreshMemoryGraph.run(%{}, context)
+      revision = refresh_result.latest_validation_status.current_revision
+
+      assert {:ok, _provenance_result} =
+               RecordMemoryGraph.run(
+                 %{
+                   graph_name: "workflow_provenance",
+                   capture:
+                     JidoCode.MemoryGraph.CaptureEnvelope.work_session(
+                       session_id: "memory-session-1",
+                       actor_id: "system:test",
+                       workflow: :memory_capture,
+                       work_item_id: "work-1",
+                       goal: "Record durable memory",
+                       revision: revision,
+                       anchors: %{module_name: "ExampleMemoryGraph"}
+                     )
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status
+                 }
+               )
+
+      assert {:ok, record_result} =
+               RecordMemoryGraph.run(
+                 %{
+                   capture:
+                     JidoCode.MemoryGraph.DurableMemoryEnvelope.fact(
+                       id: "memory-fact-1",
+                       session_id: "memory-session-1",
+                       actor_id: "system:test",
+                       revision: revision,
+                       content: "ExampleMemoryGraph.greet/1 should keep accepting binaries.",
+                       confidence: 0.9,
+                       classification: %{
+                         source: "memory_graph_actions_test",
+                         reason: "The operator explicitly adopted a durable fact."
+                       },
+                       anchors: %{module_name: "ExampleMemoryGraph"}
+                     )
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert record_result.status == :durable_memory_recorded
+      assert record_result.graph_name == "memory"
+      assert record_result.capture.kind == :fact
+
+      assert {:ok, query_result} =
+               QueryMemoryGraph.run(
+                 %{
+                   sparql: """
+                   SELECT ?memory ?module ?session
+                   WHERE {
+                     ?memory a jido:Fact ;
+                       jido:content "ExampleMemoryGraph.greet/1 should keep accepting binaries." ;
+                       jido:sourceSession ?session ;
+                       jido:aboutModule ?module .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status,
+                   graph: %{revision: revision}
+                 }
+               )
+
+      assert query_result.row_count == 1
     end
 
     test "returns a bounded invalidation outcome", %{context: context} do

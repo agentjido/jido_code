@@ -26,6 +26,7 @@ surface:
   - lib/jido_code/source_code_graph/
   - lib/jido_code/source_code_graph/product_service.ex
   - lib/jido_code/source_code_graph/product_feedback.ex
+  - lib/jido_code/source_code_graph/memory_capture.ex
   - lib/jido_code/source_code_graph/workflow_service.ex
   - lib/jido_code/source_code_graph/governed_adoption.ex
   - lib/jido_code/source_code_graph/view_model.ex
@@ -184,6 +185,12 @@ surface:
   covers:
     - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
     - architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
+
+- kind: source_file
+  target: lib/jido_code/source_code_graph/memory_capture.ex
+  covers:
+    - architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
+    - architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
 
 - kind: source_file
   target: lib/jido_code/source_code_graph/workflow_service.ex

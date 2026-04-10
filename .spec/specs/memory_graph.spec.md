@@ -28,6 +28,8 @@ surface:
   - lib/jido_code/memory_graph/
   - lib/jido_code/memory_graph/capture_envelope.ex
   - lib/jido_code/memory_graph/capture_writer.ex
+  - lib/jido_code/memory_graph/durable_memory_envelope.ex
+  - lib/jido_code/memory_graph/durable_memory_writer.ex
   - lib/jido_code/source_code_graph.ex
   - lib/jido_code/pods/
   - lib/jido_code/actions/
@@ -227,6 +229,13 @@ surface:
   covers:
     - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
     - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_writer.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+    - architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri
 
 - kind: source_file
   target: lib/jido_code/pods/memory_graph_pod.ex

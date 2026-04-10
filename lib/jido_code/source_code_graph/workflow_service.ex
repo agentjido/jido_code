@@ -18,7 +18,7 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
   alias JidoCode.Control.Actor
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.CaptureEnvelope
-  alias JidoCode.SourceCodeGraph.{ProductFeedback, ProductService}
+  alias JidoCode.SourceCodeGraph.{MemoryCapture, ProductFeedback, ProductService}
 
   @type workflow_kind :: :plan | :review | :explain
   @type workflow_result :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
@@ -40,6 +40,14 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
   @spec explain(String.t(), String.t(), String.t(), keyword()) :: workflow_result()
   def explain(managed_repo_id, work_item_id, instruction, opts \\ []) do
     run_workflow(:explain, managed_repo_id, work_item_id, instruction, opts)
+  end
+
+  @spec record_memory(map(), keyword()) :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
+  def record_memory(projection_or_finding, opts \\ []) do
+    MemoryCapture.record(
+      projection_or_finding,
+      Keyword.put_new(opts, :classification_source, "semantic_workflow")
+    )
   end
 
   defp run_workflow(workflow, managed_repo_id, work_item_id, instruction, opts)
@@ -399,11 +407,9 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
     Keyword.put(
       opts,
       :provenance,
-      [
-        session_id: workflow_provenance.session_id,
-        actor_id: workflow_provenance.actor_id,
-        revision: workflow_provenance.revision
-      ]
+      session_id: workflow_provenance.session_id,
+      actor_id: workflow_provenance.actor_id,
+      revision: workflow_provenance.revision
     )
   end
 

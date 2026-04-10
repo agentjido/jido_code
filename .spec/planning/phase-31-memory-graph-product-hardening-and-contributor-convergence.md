@@ -25,56 +25,56 @@ Back to index: [README](./README.md)
 - The remaining work is hardening, contributor convergence, and safe product-facing operational behavior.
 - Memory capture and memory recall must remain explainable, bounded, and recoverable across repositories and revisions.
 
-[ ] 31 Phase 31 - Memory Graph Product Hardening And Contributor Convergence
+[x] 31 Phase 31 - Memory Graph Product Hardening And Contributor Convergence
   Harden the memory graph and capture plane so semantic memory becomes a durable product capability rather than a fragile experimental side layer.
 
-  [ ] 31.1 Section - Product Hardening And Recovery Convergence
+  [x] 31.1 Section - Product Hardening And Recovery Convergence
     Strengthen operator- and workflow-facing memory behavior so stale, degraded, or recovering memory state remains legible and safe.
 
-    [ ] 31.1.1 Task - Harden bounded memory status and recovery behavior
+    [x] 31.1.1 Task - Harden bounded memory status and recovery behavior
       Standardize how memory freshness, invalidation, degradation, and recovery appear at product and workflow boundaries.
 
-      [ ] 31.1.1.1 Subtask - Standardize memory freshness, stale, invalidated, and recovery-required feedback across product-owned boundaries.
-      [ ] 31.1.1.2 Subtask - Ensure memory capture and query paths fail safely when repository memory state is unavailable or inconsistent.
-      [ ] 31.1.1.3 Subtask - Keep memory recovery actions repository-scoped and product-owned.
+      [x] 31.1.1.1 Subtask - Standardize memory freshness, stale, invalidated, and recovery-required feedback across product-owned boundaries.
+      [x] 31.1.1.2 Subtask - Ensure memory capture and query paths fail safely when repository memory state is unavailable or inconsistent.
+      [x] 31.1.1.3 Subtask - Keep memory recovery actions repository-scoped and product-owned.
 
-    [ ] 31.1.2 Task - Harden cross-graph consistency and isolation
+    [x] 31.1.2 Task - Harden cross-graph consistency and isolation
       Ensure the `source_code`, `memory`, and `workflow_provenance` graphs remain coherent and isolated per repository.
 
-      [ ] 31.1.2.1 Subtask - Verify stable cross-graph links remain consistent after refresh, restart, and recovery flows.
-      [ ] 31.1.2.2 Subtask - Ensure multi-repository memory state stays isolated even under shared runtime and verification flows.
-      [ ] 31.1.2.3 Subtask - Keep memory graph behavior explainable when code graph or provenance graph state is stale independently.
+      [x] 31.1.2.1 Subtask - Verify stable cross-graph links remain consistent after refresh, restart, and recovery flows.
+      [x] 31.1.2.2 Subtask - Ensure multi-repository memory state stays isolated even under shared runtime and verification flows.
+      [x] 31.1.2.3 Subtask - Keep memory graph behavior explainable when code graph or provenance graph state is stale independently.
 
-  [ ] 31.2 Section - Contributor Workflow And Documentation Convergence
+  [x] 31.2 Section - Contributor Workflow And Documentation Convergence
     Align docs and verification so contributors know how semantic memory is captured, validated, and kept safe over time.
 
-    [ ] 31.2.1 Task - Update contributor guidance for semantic memory
+    [x] 31.2.1 Task - Update contributor guidance for semantic memory
       Document the new write seam, ontology artifact, and adoption boundaries so contributors extend the memory system consistently.
 
-      [ ] 31.2.1.1 Subtask - Update README guidance for the repository semantic stack to include memory and workflow provenance.
-      [ ] 31.2.1.2 Subtask - Update contributor guidance to explain where provenance is inserted and where durable memory is adopted.
-      [ ] 31.2.1.3 Subtask - Clarify that raw runtime output is not durable memory without explicit classification or governed adoption.
+      [x] 31.2.1.1 Subtask - Update README guidance for the repository semantic stack to include memory and workflow provenance.
+      [x] 31.2.1.2 Subtask - Update contributor guidance to explain where provenance is inserted and where durable memory is adopted.
+      [x] 31.2.1.3 Subtask - Clarify that raw runtime output is not durable memory without explicit classification or governed adoption.
 
-    [ ] 31.2.2 Task - Align verification paths with the memory stack
+    [x] 31.2.2 Task - Align verification paths with the memory stack
       Make repo-owned checks and test grouping reflect the new capture plane and memory graph architecture.
 
-      [ ] 31.2.2.1 Subtask - Add or update repo-owned verification aliases for memory graph and capture-plane behavior where needed.
-      [ ] 31.2.2.2 Subtask - Keep ontology, capture-plane, runtime, and durable-memory tests discoverable in contributor guidance.
-      [ ] 31.2.2.3 Subtask - Ensure memory graph verification remains compatible with existing repo quality and semantic verification flows.
+      [x] 31.2.2.1 Subtask - Add or update repo-owned verification aliases for memory graph and capture-plane behavior where needed.
+      [x] 31.2.2.2 Subtask - Keep ontology, capture-plane, runtime, and durable-memory tests discoverable in contributor guidance.
+      [x] 31.2.2.3 Subtask - Ensure memory graph verification remains compatible with existing repo quality and semantic verification flows.
 
-  [ ] 31.3 Section - Phase 31 Integration Tests
+  [x] 31.3 Section - Phase 31 Integration Tests
     Verify the final memory graph architecture is safe, explainable, and maintainable across runtime recovery, product behavior, and contributor workflows.
 
-    [ ] 31.3.1 Task - Product hardening scenarios
+    [x] 31.3.1 Task - Product hardening scenarios
       Prove the memory graph remains bounded and recoverable under stale, degraded, restarted, and multi-repository conditions.
 
-      [ ] 31.3.1.1 Subtask - Add coverage proving memory status and recovery remain explicit across product and workflow boundaries.
-      [ ] 31.3.1.2 Subtask - Add coverage proving cross-graph links remain coherent after refresh and restart behavior.
-      [ ] 31.3.1.3 Subtask - Add coverage proving multi-repository memory behavior stays isolated and explainable.
+      [x] 31.3.1.1 Subtask - Add coverage proving memory status and recovery remain explicit across product and workflow boundaries.
+      [x] 31.3.1.2 Subtask - Add coverage proving cross-graph links remain coherent after refresh and restart behavior.
+      [x] 31.3.1.3 Subtask - Add coverage proving multi-repository memory behavior stays isolated and explainable.
 
-    [ ] 31.3.2 Task - Contributor and verification convergence scenarios
+    [x] 31.3.2 Task - Contributor and verification convergence scenarios
       Prove the semantic memory stack is documented and verifiable through normal contributor workflows.
 
-      [ ] 31.3.2.1 Subtask - Add coverage proving memory graph and capture-plane behavior are included in the intended verification paths.
-      [ ] 31.3.2.2 Subtask - Add coverage proving contributor guidance matches the final semantic memory architecture.
-      [ ] 31.3.2.3 Subtask - Verify the full spec workspace remains coherent after the memory graph roadmap is complete.
+      [x] 31.3.2.1 Subtask - Add coverage proving memory graph and capture-plane behavior are included in the intended verification paths.
+      [x] 31.3.2.2 Subtask - Add coverage proving contributor guidance matches the final semantic memory architecture.
+      [x] 31.3.2.3 Subtask - Verify the full spec workspace remains coherent after the memory graph roadmap is complete.

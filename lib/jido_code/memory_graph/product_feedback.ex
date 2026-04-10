@@ -1,6 +1,7 @@
 defmodule JidoCode.MemoryGraph.ProductFeedback do
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+  # covers: architecture.memory_graph.cross_graph_consistency_and_isolation_are_explainable
   @moduledoc false
 
   @default_graph %{

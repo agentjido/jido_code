@@ -253,6 +253,8 @@ The current write seam is:
 
 That means the repository treats semantic memory as curated product knowledge,
 not as a raw dump of everything an agent happened to say during one run.
+Raw runtime or model output is not durable memory until a bounded product path
+explicitly adopts it.
 
 ## Why This Helps A Coding System
 

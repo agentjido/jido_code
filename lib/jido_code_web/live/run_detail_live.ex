@@ -11,8 +11,9 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   alias JidoCode.Control.{Actor, RepoBridge}
   alias JidoCode.Governance.{ChangeRequest, Decision, Evidence, RepoPosture}
-  alias JidoCode.MemoryGraph.GovernedSurfaceContext
+  alias JidoCode.MemoryGraph.{GovernedSurfaceContext, OperatorService}
   alias JidoCode.Orchestration.{Run, RunPubSub}
+  alias JidoCode.Projects.Project
 
   @run_events_for_refresh MapSet.new([
                             "run_started",
@@ -43,6 +44,7 @@ defmodule JidoCodeWeb.RunDetailLive do
           |> assign(:project_id, project_id)
           |> assign(:run_id, run_id)
           |> assign_run_state(run_state)
+          |> assign(:memory_action_feedback, nil)
           |> assign(:approval_action_error, nil)
           |> assign(:retry_action_error, nil)
 
@@ -171,6 +173,111 @@ defmodule JidoCodeWeb.RunDetailLive do
 
   @impl true
   def handle_event("retry_step", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "validate_memory",
+        %{"memory_iri" => memory_iri},
+        %{assigns: %{memory_context: %{memories: projection}, run: %Run{} = run}} = socket
+      ) do
+    case OperatorService.validate(projection, memory_iri, memory_operator_opts(socket, run)) do
+      {:ok, _result} ->
+        {:noreply,
+         socket
+         |> refresh_run_assigns()
+         |> assign(:memory_action_feedback, %{
+           type: :info,
+           detail: "Durable memory validation was recorded through the bounded capture plane."
+         })}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("validate_memory", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "invalidate_memory",
+        %{"memory_iri" => memory_iri},
+        %{assigns: %{memory_context: %{memories: projection}, run: %Run{} = run}} = socket
+      ) do
+    case OperatorService.invalidate(projection, memory_iri, memory_operator_opts(socket, run)) do
+      {:ok, _result} ->
+        {:noreply,
+         socket
+         |> refresh_run_assigns()
+         |> assign(:memory_action_feedback, %{
+           type: :info,
+           detail: "Durable memory invalidation was recorded and the governed history stays canonical."
+         })}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("invalidate_memory", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "promote_memory_follow_up",
+        %{"memory_iri" => memory_iri},
+        %{assigns: %{memory_context: %{memories: projection}, run: %Run{} = run}} = socket
+      ) do
+    case OperatorService.promote_follow_up(projection, memory_iri, memory_operator_opts(socket, run)) do
+      {:ok, %{result: %{work_item: work_item}, target: :work_item}} ->
+        {:noreply,
+         socket
+         |> refresh_run_assigns()
+         |> assign(:memory_action_feedback, %{
+           type: :info,
+           detail: "Created governed follow-up work item #{work_item.id} from durable memory."
+         })}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("promote_memory_follow_up", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event(
+        "supersede_memory",
+        %{"memory_iri" => memory_iri, "decision_id" => decision_id},
+        %{assigns: %{memory_context: %{memories: projection}, decisions: decisions, run: %Run{} = run}} = socket
+      ) do
+    with %{} = decision <- Enum.find(decisions, &(normalize_optional_string(map_get(&1, :id, "id")) == decision_id)),
+         {:ok, _result} <-
+           OperatorService.supersede_with_governed_decision(
+             projection,
+             memory_iri,
+             decision,
+             memory_operator_opts(socket, run, decision_id: decision_id)
+           ) do
+      {:noreply,
+       socket
+       |> refresh_run_assigns()
+       |> assign(:memory_action_feedback, %{
+         type: :info,
+         detail: "Durable decision memory was superseded using the latest governed decision."
+       })}
+    else
+      nil ->
+        {:noreply, assign_memory_action_error(socket, :governed_decision_not_found)}
+
+      {:error, reason} ->
+        {:noreply, assign_memory_action_error(socket, reason)}
+    end
+  end
+
+  @impl true
+  def handle_event("supersede_memory", _params, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
@@ -352,6 +459,19 @@ defmodule JidoCodeWeb.RunDetailLive do
                   Memory state: {Map.get(@memory_context.graph, :state, :unavailable)}
                 </p>
                 <p
+                  :if={@memory_action_feedback}
+                  id="run-detail-memory-action-feedback"
+                  class={[
+                    "text-xs",
+                    if(Map.get(@memory_action_feedback, :type) == :error,
+                      do: "text-error",
+                      else: "text-success"
+                    )
+                  ]}
+                >
+                  {@memory_action_feedback.detail}
+                </p>
+                <p
                   :if={@memory_context.notice}
                   id="run-detail-memory-context-notice"
                   class="text-xs text-base-content/80"
@@ -424,6 +544,35 @@ defmodule JidoCodeWeb.RunDetailLive do
                       <p class="text-xs text-base-content/70">
                         Freshness: {item.freshness_score || "unknown"} | Decision status: {item.decision_status || "n/a"}
                       </p>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          id={"run-detail-memory-validate-#{index}"}
+                          phx-click="validate_memory"
+                          phx-value-memory_iri={item.memory_iri}
+                          class="btn btn-xs btn-outline"
+                        >
+                          Validate
+                        </button>
+                        <button
+                          type="button"
+                          id={"run-detail-memory-invalidate-#{index}"}
+                          phx-click="invalidate_memory"
+                          phx-value-memory_iri={item.memory_iri}
+                          class="btn btn-xs btn-outline btn-warning"
+                        >
+                          Invalidate
+                        </button>
+                        <button
+                          type="button"
+                          id={"run-detail-memory-promote-#{index}"}
+                          phx-click="promote_memory_follow_up"
+                          phx-value-memory_iri={item.memory_iri}
+                          class="btn btn-xs btn-primary"
+                        >
+                          Create follow-up
+                        </button>
+                      </div>
                       <div
                         :if={item.navigation.governed_records != []}
                         id={"run-detail-memory-links-#{index}"}
@@ -931,6 +1080,7 @@ defmodule JidoCodeWeb.RunDetailLive do
     |> assign(:runtime_evidence_summary, nil)
     |> assign(:memory_context, nil)
     |> assign(:step_retry_state, step_retry_state(nil))
+    |> assign(:memory_action_feedback, nil)
     |> assign(:approval_action_error, nil)
     |> assign(:retry_action_error, nil)
   end
@@ -978,6 +1128,15 @@ defmodule JidoCodeWeb.RunDetailLive do
     end
   end
 
+  defp assign_memory_action_error(socket, reason) do
+    socket
+    |> refresh_run_assigns()
+    |> assign(:memory_action_feedback, %{
+      type: :error,
+      detail: normalize_memory_action_failure(reason)
+    })
+  end
+
   defp load_run_state(project_id, run_id) do
     with {:ok, project_scope} <- RepoBridge.repo_scope(project_id),
          {:ok, run} <- load_governed_run(project_scope, run_id) do
@@ -991,7 +1150,15 @@ defmodule JidoCodeWeb.RunDetailLive do
          change_request: load_change_request(run),
          decisions: decisions,
          repo_posture: load_repo_posture(run),
-         memory_context: GovernedSurfaceContext.load_run_detail(project_scope, run, evidence_records, decisions)
+         memory_context:
+           GovernedSurfaceContext.load_run_detail(
+             project_scope,
+             run,
+             evidence_records,
+             decisions,
+             managed_repo_id: memory_context_managed_repo_id(project_scope, run),
+             workspace_path: load_project_workspace_path(project_id)
+           )
        }}
     else
       {:error, :governed_run_not_found} ->
@@ -1076,6 +1243,28 @@ defmodule JidoCodeWeb.RunDetailLive do
   end
 
   defp load_repo_posture(_run), do: nil
+
+  defp load_project_workspace_path(project_id) do
+    with {:ok, [project]} <-
+           Project.read(query: [filter: [id: project_id], limit: 1], actor: Actor.operator_actor()) do
+      project
+      |> map_get(:settings, "settings", %{})
+      |> map_get(:workspace, "workspace", %{})
+      |> map_get(:workspace_path, "workspace_path")
+      |> normalize_optional_string()
+    else
+      _other -> nil
+    end
+  end
+
+  defp memory_context_managed_repo_id(project_scope, %Run{} = run) do
+    normalize_optional_string(map_get(run, :managed_repo_id, "managed_repo_id")) ||
+      normalize_optional_string(map_get(project_scope, :managed_repo_id, "managed_repo_id")) ||
+      project_scope
+      |> map_get(:managed_repo, "managed_repo", %{})
+      |> map_get(:id, "id")
+      |> normalize_optional_string()
+  end
 
   defp run_governance_widget_props(assigns) do
     %{
@@ -2046,6 +2235,33 @@ defmodule JidoCodeWeb.RunDetailLive do
     }
   end
 
+  defp normalize_memory_action_failure(reason) when is_atom(reason) do
+    case reason do
+      :memory_item_not_found ->
+        "The selected durable memory could not be found on this governed surface."
+
+      :governed_decision_not_found ->
+        "The latest governed decision was unavailable for durable supersession."
+
+      :memory_supersession_requires_decision ->
+        "Only durable decision memories can be superseded from the governed run surface."
+
+      :unsupported_memory_promotion_target ->
+        "The requested memory promotion target is not available on this governed surface."
+
+      _other ->
+        "The memory action could not be completed through the bounded product service."
+    end
+  end
+
+  defp normalize_memory_action_failure({:missing_memory_operator_context, field}) do
+    "Memory action context is incomplete: #{field}."
+  end
+
+  defp normalize_memory_action_failure(_reason) do
+    "The memory action could not be completed through the bounded product service."
+  end
+
   defp status_label(status) do
     status
     |> normalize_optional_string()
@@ -2179,6 +2395,31 @@ defmodule JidoCodeWeb.RunDetailLive do
       _other ->
         Actor.operator_actor(%{"id" => "unknown", "email" => nil})
     end
+  end
+
+  defp memory_operator_opts(socket, %Run{} = run, extra_opts \\ []) do
+    actor = approving_actor(socket)
+
+    [
+      actor: actor,
+      workspace_path: memory_operator_workspace_path(socket),
+      revision: memory_operator_revision(socket),
+      run_id: map_get(run, :run_id, "run_id"),
+      work_item_id: map_get(run, :work_item_id, "work_item_id")
+    ] ++ extra_opts
+  end
+
+  defp memory_operator_workspace_path(socket) do
+    socket.assigns
+    |> Map.get(:memory_context, %{})
+    |> Map.get(:workspace_path)
+  end
+
+  defp memory_operator_revision(socket) do
+    socket.assigns
+    |> Map.get(:memory_context, %{})
+    |> Map.get(:graph, %{})
+    |> Map.get(:current_revision)
   end
 
   defp normalize_map(%{} = map), do: map

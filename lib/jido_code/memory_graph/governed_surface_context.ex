@@ -101,6 +101,8 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
     workspace_path =
       normalize_optional_string(Keyword.get(opts, :workspace_path)) ||
         normalize_optional_string(map_get(scope, :workspace_path, "workspace_path")) ||
+        workspace_path_from_settings(map_get(scope, :workspace_settings, "workspace_settings")) ||
+        workspace_path_from_settings(map_get(scope, :settings, "settings")) ||
         managed_workspace_path(map_get(scope, :managed_repo, "managed_repo"))
 
     cond do
@@ -128,11 +130,20 @@ defmodule JidoCode.MemoryGraph.GovernedSurfaceContext do
   defp managed_workspace_path(managed_repo) when is_map(managed_repo) do
     managed_repo
     |> map_get(:workspace_settings, "workspace_settings", %{})
-    |> map_get(:workspace_path, "workspace_path")
-    |> normalize_optional_string()
+    |> workspace_path_from_settings()
   end
 
   defp managed_workspace_path(_managed_repo), do: nil
+
+  defp workspace_path_from_settings(settings) when is_map(settings) do
+    normalize_optional_string(map_get(settings, :workspace_path, "workspace_path")) ||
+      settings
+      |> map_get(:workspace, "workspace", %{})
+      |> map_get(:workspace_path, "workspace_path")
+      |> normalize_optional_string()
+  end
+
+  defp workspace_path_from_settings(_settings), do: nil
 
   defp run_artifact_paths(%Run{} = run, evidence_records, decisions) do
     []

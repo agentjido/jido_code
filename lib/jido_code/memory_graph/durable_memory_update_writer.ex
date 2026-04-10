@@ -168,6 +168,7 @@ defmodule JidoCode.MemoryGraph.DurableMemoryUpdateWriter do
 
   defp artifact_links(subject, envelope) do
     []
+    |> add_artifacts(subject, envelope.governed_artifacts, jido("supportedBy"))
     |> add_artifacts(subject, envelope.supported_by_artifacts, jido("supportedBy"))
     |> add_artifacts(subject, envelope.evidence_artifacts, jido("evidenceArtifact"))
     |> maybe_add_confidence_source(subject, envelope.confidence_source)

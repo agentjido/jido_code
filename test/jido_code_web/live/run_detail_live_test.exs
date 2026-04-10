@@ -12,10 +12,11 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
   import Phoenix.LiveViewTest
 
   alias JidoCode.AgentWorkspace
-  alias JidoCode.Control.{Actor, ManagedRepo}
+  alias JidoCode.Control.{Actor, ManagedRepo, RepoBridge}
   alias JidoCode.Governance.{Decision, Evidence, RepoPosture}
   alias JidoCode.MemoryGraph
-  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope}
+  alias JidoCode.MemoryGraph.{CaptureEnvelope, DurableMemoryEnvelope, GovernedSurfaceContext, ProductService}
+  alias JidoCode.Operations.WorkItem
   alias JidoCode.Orchestration.WorkflowRun
   alias JidoCode.Projects.Project
 
@@ -313,7 +314,8 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
         actor: Actor.operator_actor()
       )
 
-    revision = "rev-run-detail-memory"
+    {:ok, revision_metadata} = MemoryGraph.current_revision_metadata(workspace_path)
+    revision = revision_metadata.current_revision
 
     seed_run_memory_context!(
       managed_repo.id,
@@ -333,6 +335,168 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     assert has_element?(view, "#run-detail-memory-context-state", "ready")
     assert rendered =~ "memory_history"
     assert rendered =~ "defer"
+  end
+
+  test "supports bounded operator memory actions from the governed run surface", %{conn: _conn} do
+    previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+    on_exit(fn ->
+      Application.put_env(:jido_code, :memory_graph_enabled, previous)
+    end)
+
+    register_owner("memory-run-operator@example.com", "owner-password-123")
+
+    {authed_conn, _session_token} =
+      authenticate_owner_conn("memory-run-operator@example.com", "owner-password-123")
+
+    workspace_path = create_memory_workspace_path!("run_detail_memory_operator_actions")
+
+    {:ok, project} =
+      Project.create(%{
+        name: "repo-memory-run-operator",
+        github_full_name: "owner/repo-memory-run-operator",
+        default_branch: "main",
+        settings: %{workspace: %{workspace_path: workspace_path}}
+      })
+
+    {:ok, managed_repo} =
+      ManagedRepo.get_by_legacy_project_id(project.id, actor: Actor.operator_actor())
+
+    run_id = "run-memory-operator-#{System.unique_integer([:positive])}"
+
+    {:ok, workflow_run} =
+      WorkflowRun.create(%{
+        project_id: project.id,
+        run_id: run_id,
+        workflow_name: "implement_task",
+        workflow_version: 2,
+        trigger: %{source: "workflows", mode: "manual"},
+        inputs: %{"task_summary" => "Render memory operator actions"},
+        input_metadata: %{"task_summary" => %{required: true, source: "manual_workflows_ui"}},
+        initiating_actor: %{id: "owner-2", email: "memory-run-operator@example.com"},
+        current_step: "queued",
+        started_at: ~U[2026-04-10 20:00:00Z]
+      })
+
+    {:ok, workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :running,
+        current_step: "plan_changes",
+        transitioned_at: ~U[2026-04-10 20:00:30Z]
+      })
+
+    {:ok, _workflow_run} =
+      WorkflowRun.transition_status(workflow_run, %{
+        to_status: :awaiting_approval,
+        current_step: "approval_gate",
+        transitioned_at: ~U[2026-04-10 20:01:00Z]
+      })
+
+    {:ok, run} =
+      JidoCode.Orchestration.Run.get_by_managed_repo_and_run_id(
+        managed_repo.id,
+        run_id,
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, evidence} =
+      Evidence.create(
+        %{
+          run_id: run.id,
+          managed_repo_id: managed_repo.id,
+          key: "memory_operator_history",
+          evidence_type: "memory_graph_finding",
+          summary: "Memory operator actions should stay bounded.",
+          evidence_details: %{"source" => "run_detail_live_test"},
+          source: "memory_graph",
+          recorded_at: DateTime.utc_now()
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, decision} =
+      Decision.create(
+        %{
+          decision_key: "memory-operator-run-#{run.id}",
+          run_id: run.id,
+          managed_repo_id: managed_repo.id,
+          decision: :approve,
+          actor: %{"id" => "owner-2", "email" => "memory-run-operator@example.com"},
+          rationale: "The latest governed decision can supersede older durable decision memory.",
+          decision_metadata: %{"source" => "run_detail_live_test"},
+          decided_at: DateTime.utc_now()
+        },
+        actor: Actor.operator_actor()
+      )
+
+    {:ok, revision_metadata} = MemoryGraph.current_revision_metadata(workspace_path)
+    revision = revision_metadata.current_revision
+
+    seed_run_memory_context!(
+      managed_repo.id,
+      workspace_path,
+      revision,
+      run.run_id,
+      evidence.id,
+      decision.id,
+      include_decision_memory?: true
+    )
+
+    assert {:ok, memory_projection} =
+             ProductService.memories_for_governed_artifacts(
+               managed_repo.id,
+               workspace_path,
+               [
+                 MemoryGraph.artifact_path(:run, run.run_id),
+                 MemoryGraph.artifact_path(:evidence, evidence.id),
+                 MemoryGraph.artifact_path(:decision, decision.id)
+               ],
+               revision: revision
+             )
+
+    assert memory_projection.items != []
+
+    assert {:ok, project_scope} = RepoBridge.repo_scope(project.id)
+
+    memory_context =
+      GovernedSurfaceContext.load_run_detail(
+        project_scope,
+        run,
+        [evidence],
+        [decision],
+        revision: revision,
+        managed_repo_id: managed_repo.id,
+        workspace_path: workspace_path
+      )
+
+    assert memory_context.graph.state == :ready
+    assert memory_context.graph.ready? == true
+    assert memory_context.memories.items != []
+
+    {:ok, view, _html} =
+      live(recycle(authed_conn), ~p"/repos/#{project.id}/runs/#{run_id}", on_error: :warn)
+
+    assert has_element?(view, "#run-detail-memory-context")
+    assert has_element?(view, "#run-detail-memory-list")
+    assert render(view) =~ "Validate"
+    assert render(view) =~ "Create follow-up"
+    assert has_element?(view, "#run-detail-memory-validate-1")
+    assert has_element?(view, "#run-detail-memory-promote-1")
+
+    render_click(element(view, "#run-detail-memory-validate-1"))
+    assert has_element?(view, "#run-detail-memory-action-feedback", "validation was recorded")
+
+    render_click(element(view, "#run-detail-memory-promote-1"))
+    assert has_element?(view, "#run-detail-memory-action-feedback", "Created governed follow-up work item")
+
+    {:ok, work_items} =
+      WorkItem.read(
+        query: [filter: [managed_repo_id: managed_repo.id]],
+        actor: Actor.operator_actor()
+      )
+
+    assert length(work_items) >= 1
   end
 
   test "renders bounded runtime evidence using product-oriented posture language", %{conn: _conn} do
@@ -1878,7 +2042,7 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
     workspace_path
   end
 
-  defp seed_run_memory_context!(managed_repo_id, workspace_path, revision, run_id, evidence_id, decision_id) do
+  defp seed_run_memory_context!(managed_repo_id, workspace_path, revision, run_id, evidence_id, decision_id, opts \\ []) do
     assert {:ok, _refresh_result} =
              AgentWorkspace.refresh_memory_graph(
                managed_repo_id,
@@ -1940,6 +2104,31 @@ defmodule JidoCodeWeb.RunDetailLiveTest do
                ),
                revision: revision
              )
+
+    if Keyword.get(opts, :include_decision_memory?, false) do
+      assert {:ok, _decision_memory_result} =
+               AgentWorkspace.record_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 DurableMemoryEnvelope.decision(
+                   session_id: session_id,
+                   actor_id: "system:run-detail-memory",
+                   workflow: :review,
+                   work_item_id: "work-memory",
+                   content: "Earlier governed decisions should remain reviewable in durable memory.",
+                   rationale: "Operator supersession coverage needs a prior durable decision memory.",
+                   decision_status: :accepted,
+                   revision: revision,
+                   anchors: %{module_name: "ExampleRunDetailMemory"},
+                   governed_context: %{run_id: run_id},
+                   classification: %{
+                     source: "run_detail_live_test",
+                     reason: "Phase 33.2 requires a durable decision memory for supersession coverage."
+                   }
+                 ),
+                 revision: revision
+               )
+    end
   end
 
   defp assert_eventually(assertion_fun, attempts \\ 20)

@@ -1,12 +1,17 @@
 defmodule JidoCodeWeb.RunDetailLiveTest do
   # covers: package.jido_code.version_controlled_quality_surfaces
   # covers: architecture.repo_posture.operator_surfaces_expose_explainable_governance_state
+  # covers: architecture.repo_posture.governed_run_memory_context_does_not_displace_posture_state
   # covers: architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records
   # covers: architecture.run_governance.execution_projection_stays_internal_to_canonical_run_model
+  # covers: architecture.run_governance.run_detail_can_host_bounded_memory_context
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
   # covers: architecture.runtime_service_overlay.operator_surfaces_keep_runtime_rollout_narratives_product_oriented
   # covers: architecture.runtime_service_overlay.runtime_topology_details_remain_opaque_to_product
+  # covers: architecture.runtime_service_overlay.runtime_narratives_can_coexist_with_bounded_memory_context
+  # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
+  # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

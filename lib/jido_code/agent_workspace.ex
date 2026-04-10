@@ -11,6 +11,7 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
   # covers: architecture.policy_layers.runtime_capacity_limits_fail_closed
   # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
+  # covers: architecture.policy_layers.memory_operator_actions_remain_policy_bound
   # covers: architecture.source_code_graph_pod.repo_scoped_source_code_graph_pod
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.graph_revision_state_is_explicit_and_explainable
@@ -26,6 +27,8 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
   # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
   # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
+  # covers: architecture.source_code_graph_product_adoption.governed_surfaces_may_cohost_semantic_cross_links
+  # covers: architecture.agent_os_integration.memory_graph_product_actions_stay_workspace_bound
   @moduledoc """
   Context module for AgentOS workspace operations.
 

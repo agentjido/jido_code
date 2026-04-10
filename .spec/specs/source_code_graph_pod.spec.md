@@ -10,7 +10,7 @@ ingestion and query.
 id: architecture.source_code_graph_pod
 kind: feature
 status: proposed
-summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, assigns stable repository-scoped IRIs so code entities can anchor sibling memory and workflow-provenance graphs later, now feeds those stable IRIs into the typed memory-capture envelope seam for workflow provenance links and durable-memory anchors when code entities are known, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, supports explainable sibling memory-graph consistency by keeping those code anchors stable across refresh and recovery, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists and product-owned semantic service boundaries, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology, and keeps the phase and workspace verification suite aligned to the persisted-kernel runtime path that now backs source-graph pod restoration.
+summary: Jido.Code provides a repository-scoped SourceCodeGraphPod that analyzes a managed repository with ElixirOntologies in full mode, stages ontology schema plus extracted project individuals as one semantic snapshot, loads that snapshot into the canonical `source_code` named graph of a local TripleStore quad store, assigns stable repository-scoped IRIs so code entities can anchor sibling memory and workflow-provenance graphs later, now feeds those stable IRIs into the typed memory-capture envelope seam for workflow provenance links and durable-memory anchors when code entities are known, preserves bounded repository-scoped readiness, explicit stale-revision state, latest failure metadata, degraded stale-query behavior, and recovery entrypoints through AgentWorkspace, supports explainable sibling memory-graph consistency by keeping those code anchors stable across refresh and recovery, keeps governed-surface memory context and cross-graph navigation anchored to the same stable source-code IRIs instead of ad hoc graph joins, keeps semantic status product-owned even as repository kernels restore persisted runtime state, relies on explicit AgentWorkspace-managed workspace binding rather than ambient runtime state, exposes both explicit SPARQL query actions and compiled semantic helper actions for pod-local specialists and product-owned semantic service boundaries, feeds bounded product-owned semantic projections instead of direct pod internals, grants selected coding specialists explicit semantic lookup tools only through bounded composition, routes higher-level workflow semantic inputs through product-owned workspace entrypoints rather than pod topology, and keeps the phase and workspace verification suite aligned to the persisted-kernel runtime path that now backs source-graph pod restoration.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -89,6 +89,11 @@ surface:
 - id: architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links
   statement: Repository, file, module, function, test, config, and related symbol entities produced by the source-code graph shall use stable repository-scoped IRIs so memory and workflow-provenance graphs can link to them without string-only joins.
   priority: must
+  stability: proposed
+
+- id: architecture.source_code_graph_pod.stable_code_links_support_governed_memory_navigation
+  statement: Stable repository-scoped source-code IRIs shall remain usable by product-owned memory and governed-surface services so run-detail memory context and cross-graph navigation can link back to code without exposing raw graph joins or store-local identifiers as product contracts.
+  priority: should
   stability: proposed
 
 - id: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
@@ -252,6 +257,7 @@ surface:
   target: lib/jido_code/memory_graph.ex
   covers:
     - architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links
+    - architecture.source_code_graph_pod.stable_code_links_support_governed_memory_navigation
 
 - kind: source_file
   target: lib/jido_code/source_code_graph.ex

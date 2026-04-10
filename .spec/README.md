@@ -13,6 +13,7 @@ The authored specs and generated state in this folder are maintained through the
 
 - `README.md` (authored)
 - `AGENTS.md` (authored, local operating guidance for agents working in this folder)
+- `topology.md` (authored architecture-topology explainer for the current product, runtime, and semantic stack)
 - `decisions/README.md` (authored ADR guidance for this workspace)
 - `decisions/*.md` (authored durable cross-cutting ADRs)
 - `planning/README.md` (authored index for phased migration and rollout plans kept beside the current-truth workspace)

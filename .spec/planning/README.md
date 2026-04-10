@@ -12,6 +12,7 @@ The plan aligns to:
 - `../specs/memory_capture_plane.spec.md`
 - `../specs/memory_graph.spec.md`
 - `../specs/memory_graph_product_adoption.spec.md`
+- `../specs/memory_graph_workflow_and_operator_expansion.spec.md`
 - `../specs/memory_ontology.spec.md`
 - `../specs/policy_layers.spec.md`
 - `../specs/source_code_graph_pod.spec.md`
@@ -23,6 +24,7 @@ The plan aligns to:
 - `../decisions/jido_code.memory_capture_plane_and_insertion_seams.md`
 - `../decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md`
 - `../decisions/jido_code.memory_graph_product_adoption.md`
+- `../decisions/jido_code.memory_graph_workflow_and_operator_expansion.md`
 - `../decisions/jido_code.source_code_graph_pod_and_named_graph_ingestion.md`
 - `../decisions/jido_code.source_code_graph_product_adoption.md`
 - `../decisions/jido_code.live_vue_frontend_adoption.md`
@@ -57,6 +59,7 @@ The plan aligns to:
 24. [Phase 30 - Durable Coding Memory Adoption And Validation](./phase-30-durable-coding-memory-adoption-and-validation.md): classify and adopt durable memories into the `memory` graph, then add freshness, validation, and invalidation behavior driven by revision and test evidence.
 25. [Phase 31 - Memory Graph Product Hardening And Contributor Convergence](./phase-31-memory-graph-product-hardening-and-contributor-convergence.md): harden memory-graph behavior, recovery, docs, and verification so the capture plane and memory graph become durable product capabilities.
 26. [Phase 32 - Memory Graph Product Adoption](./phase-32-memory-graph-product-adoption.md): adopt repository memory and workflow provenance into canonical managed-repository product services and operator surfaces so durable memory becomes explorable, actionable, and cross-linked through product-owned boundaries.
+27. [Phase 33 - Memory Graph Workflow And Operator Expansion](./phase-33-memory-graph-workflow-and-operator-expansion.md): expand bounded memory and workflow-provenance adoption into governed workflow surfaces, operator memory actions, and intent-specific workflow retrieval so memory becomes actionable across the canonical product.
 
 ## Shared Conventions
 - Numbering:

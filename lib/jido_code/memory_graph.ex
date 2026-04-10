@@ -4,6 +4,7 @@ defmodule JidoCode.MemoryGraph do
   # covers: architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.source_code_graph_pod.code_entities_use_stable_iris_for_cross_graph_links
+  # covers: architecture.source_code_graph_pod.stable_code_links_support_governed_memory_navigation
   @moduledoc """
   Product-owned boundary helpers for repository-scoped memory graph state.
 

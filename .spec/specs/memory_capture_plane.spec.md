@@ -9,17 +9,19 @@ durable coding memories into the repository semantic store over time.
 id: architecture.memory_capture_plane
 kind: feature
 status: proposed
-summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, and now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam.
+summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh and repository-scoped recovery workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion, now supports product-owned memory inspection and adoption surfaces that still emit typed capture requests instead of bypassing the canonical write seam, and extends that same seam to future operator memory actions and governed workflow follow-up rather than allowing direct graph mutation from richer product surfaces.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.source_code_graph_product_adoption
   - jido_code.memory_graph_product_adoption
+  - jido_code.memory_graph_workflow_and_operator_expansion
 surface:
   - .spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md
   - .spec/specs/memory_graph.spec.md
   - .spec/specs/memory_ontology.spec.md
   - .spec/specs/memory_graph_product_adoption.spec.md
+  - .spec/specs/memory_graph_workflow_and_operator_expansion.spec.md
   - .spec/specs/agent_os_integration.spec.md
   - .spec/specs/source_code_graph_product_adoption.spec.md
   - lib/jido_code/agent_workspace.ex

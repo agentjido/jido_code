@@ -15,6 +15,7 @@ decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.memory_graph_product_adoption
+  - jido_code.memory_graph_workflow_and_operator_expansion
   - jido_code.source_code_graph_product_adoption
 surface:
   - .spec/decisions/jido_code.memory_graph_product_adoption.md

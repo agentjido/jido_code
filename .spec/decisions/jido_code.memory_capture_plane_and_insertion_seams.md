@@ -115,6 +115,18 @@ The next implementation slice extends the same plane to durable coding memory:
   `KnownIssue`, `OpenQuestion`, `Pattern`, and `AntiPattern` without exposing
   raw triple authoring to callers
 
+The following slice extends the same write seam again for explainable memory
+evolution over time:
+
+- typed durable-memory update envelopes for validation, invalidation, and
+  decision supersession
+- a canonical durable-memory update writer that preserves freshness,
+  validation, invalidation, test-run, revision, and evidence relationships in
+  the `memory` graph without introducing a second update pathway
+- stale-safe update routing so revision movement can invalidate or revalidate
+  durable memories through the same bounded capture plane instead of bypassing
+  it
+
 ## Consequences
 
 - The memory graph gains a safe write path instead of becoming an open semantic
@@ -126,6 +138,8 @@ The next implementation slice extends the same plane to durable coding memory:
 - Durable coding memory can now be inserted through explicit workflow or
   governed adoption while still preserving a later freshness and invalidation
   phase for revision and test evidence.
+- Durable coding memory can now evolve over time through explicit validation,
+  invalidation, and supersession updates that remain queryable and bounded.
 - Memory freshness and invalidation become part of the write boundary itself,
   not a later cleanup concern.
 - The control plane remains canonical because semantic memory is created through

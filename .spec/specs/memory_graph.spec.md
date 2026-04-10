@@ -10,7 +10,7 @@ workflow provenance.
 id: architecture.memory_graph
 kind: feature
 status: proposed
-summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and a canonical writer boundary for `workflow_provenance`, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, and latest-failure state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
+summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and canonical writer boundaries for workflow provenance, durable memory insertion, and durable memory update operations, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, latest-failure, and durable-memory validation or invalidation state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -30,6 +30,8 @@ surface:
   - lib/jido_code/memory_graph/capture_writer.ex
   - lib/jido_code/memory_graph/durable_memory_envelope.ex
   - lib/jido_code/memory_graph/durable_memory_writer.ex
+  - lib/jido_code/memory_graph/durable_memory_update_envelope.ex
+  - lib/jido_code/memory_graph/durable_memory_update_writer.ex
   - lib/jido_code/source_code_graph.ex
   - lib/jido_code/pods/
   - lib/jido_code/actions/
@@ -236,6 +238,19 @@ surface:
     - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
     - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
     - architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_update_envelope.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_update_writer.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
 
 - kind: source_file
   target: lib/jido_code/pods/memory_graph_pod.ex

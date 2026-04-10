@@ -9,7 +9,7 @@ durable coding memories into the repository semantic store over time.
 id: architecture.memory_capture_plane
 kind: feature
 status: proposed
-summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus a canonical writer boundary over the repository-local store, keeps explicit record/query/validate/invalidate/refresh workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, and requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion.
+summary: Jido.Code inserts memory-graph individuals through a bounded memory capture plane that accepts typed capture envelopes instead of raw triples, records workflow provenance at AgentWorkspace and workflow-boundary transitions into `workflow_provenance`, records durable classified memories into `memory` only through explicit product or governed adoption paths, now includes typed workflow-provenance envelope normalization plus canonical writer boundaries for both workflow provenance and durable memory, adds typed durable-memory update envelopes plus a canonical update writer for validation, invalidation, and supersession, keeps explicit record/query/validate/invalidate/refresh workspace entrypoints so callers stop assuming direct store writes, updates freshness and invalidation metadata when revision or test evidence changes, and requires explicit repository, work-item, workspace, actor, and revision context for any durable insertion.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.memory_capture_plane_and_insertion_seams
@@ -25,6 +25,8 @@ surface:
   - lib/jido_code/memory_graph/capture_writer.ex
   - lib/jido_code/memory_graph/durable_memory_envelope.ex
   - lib/jido_code/memory_graph/durable_memory_writer.ex
+  - lib/jido_code/memory_graph/durable_memory_update_envelope.ex
+  - lib/jido_code/memory_graph/durable_memory_update_writer.ex
   - lib/jido_code/actions/record_memory_graph.ex
   - lib/jido_code/source_code_graph/workflow_service.ex
   - lib/jido_code/source_code_graph/governed_adoption.ex
@@ -199,6 +201,19 @@ surface:
     - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
 
 - kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_update_envelope.ex
+  covers:
+    - architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence
+    - architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context
+    - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_update_writer.ex
+  covers:
+    - architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence
+    - architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
+
+- kind: source_file
   target: lib/jido_code/source_code_graph/memory_capture.ex
   covers:
     - architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption
@@ -218,6 +233,7 @@ surface:
     - architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
     - architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context
     - architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
+    - architecture.memory_capture_plane.validation_and_invalidation_follow_revision_and_test_evidence
 
 - kind: source_file
   target: test/jido_code/memory_graph_workspace_test.exs

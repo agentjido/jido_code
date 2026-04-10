@@ -43,22 +43,22 @@ Back to index: [README](./README.md)
       [x] 30.1.2.2 Subtask - Allow governed adoption paths to insert durable decision, lesson, issue, or convention memory when the factory explicitly adopts the finding.
       [x] 30.1.2.3 Subtask - Keep memory insertion separate from merely materializing governed Observation, Assessment, WorkItem, Evidence, or Decision records.
 
-  [ ] 30.2 Section - Freshness, Validation, And Invalidation
+  [x] 30.2 Section - Freshness, Validation, And Invalidation
     Add the metadata and update behavior that keeps durable memory explainable as repositories evolve.
 
-    [ ] 30.2.1 Task - Introduce freshness and validation updates
+    [x] 30.2.1 Task - Introduce freshness and validation updates
       Record how durable memories remain valid, become stale, or get revalidated over time.
 
-      [ ] 30.2.1.1 Subtask - Update `freshnessScore`, `lastValidatedAt`, and `validForRevision` when revision or validation evidence is available.
-      [ ] 30.2.1.2 Subtask - Attach `validatedByTestRun`, `supportedBy`, and related evidence links when tests or review outputs confirm a memory.
-      [ ] 30.2.1.3 Subtask - Preserve bounded typed outcomes when freshness or validation evidence cannot be computed safely.
+      [x] 30.2.1.1 Subtask - Update `freshnessScore`, `lastValidatedAt`, and `validForRevision` when revision or validation evidence is available.
+      [x] 30.2.1.2 Subtask - Attach `validatedByTestRun`, `supportedBy`, and related evidence links when tests or review outputs confirm a memory.
+      [x] 30.2.1.3 Subtask - Preserve bounded typed outcomes when freshness or validation evidence cannot be computed safely.
 
-    [ ] 30.2.2 Task - Introduce invalidation and supersession behavior
+    [x] 30.2.2 Task - Introduce invalidation and supersession behavior
       Let the system express when durable memory no longer applies or has been superseded.
 
-      [ ] 30.2.2.1 Subtask - Record `invalidatedByRevision` and `staleReason` when revision movement or explicit review invalidates a memory.
-      [ ] 30.2.2.2 Subtask - Support decision supersession through `supersedes` and `decisionStatus`.
-      [ ] 30.2.2.3 Subtask - Ensure queries can distinguish durable but invalidated memory from still-valid memory.
+      [x] 30.2.2.1 Subtask - Record `invalidatedByRevision` and `staleReason` when revision movement or explicit review invalidates a memory.
+      [x] 30.2.2.2 Subtask - Support decision supersession through `supersedes` and `decisionStatus`.
+      [x] 30.2.2.3 Subtask - Ensure queries can distinguish durable but invalidated memory from still-valid memory.
 
   [ ] 30.3 Section - Phase 30 Integration Tests
     Verify durable memory is inserted only through explicit adoption paths and remains explainable under later validation and invalidation.

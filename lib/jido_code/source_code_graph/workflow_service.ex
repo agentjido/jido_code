@@ -2,6 +2,10 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
   # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
   # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
   # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+  # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+  # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+  # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
   @moduledoc """
   Product-owned semantic workflow boundary over AgentWorkspace.
 
@@ -11,10 +15,17 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
   """
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.Control.Actor
+  alias JidoCode.MemoryGraph
+  alias JidoCode.MemoryGraph.CaptureEnvelope
   alias JidoCode.SourceCodeGraph.{ProductFeedback, ProductService}
 
   @type workflow_kind :: :plan | :review | :explain
   @type workflow_result :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
+  @workflow_provenance_actor Actor.factory_system_actor(%{
+                               "id" => "system:source-code-graph-workflow-provenance",
+                               "email" => "source-code-graph-workflow-provenance@system.local"
+                             })
 
   @spec plan(String.t(), String.t(), String.t(), keyword()) :: workflow_result()
   def plan(managed_repo_id, work_item_id, instruction, opts \\ []) do
@@ -34,12 +45,21 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
   defp run_workflow(workflow, managed_repo_id, work_item_id, instruction, opts)
        when workflow in [:plan, :review, :explain] and is_list(opts) do
     with {:ok, semantic_opts} <- normalize_semantic_opts(Keyword.get(opts, :semantic)),
+         {:ok, workflow_provenance} <-
+           workflow_provenance_context(
+             workflow,
+             managed_repo_id,
+             work_item_id,
+             instruction,
+             opts,
+             semantic_opts
+           ),
          {:ok, semantic_input, runtime_semantic_opts} <-
            prepare_semantic_input(workflow, managed_repo_id, opts, semantic_opts),
-         workspace_opts <- workspace_opts(opts, runtime_semantic_opts),
+         workspace_opts <- workspace_opts(opts, runtime_semantic_opts, workflow_provenance),
          {:ok, raw_result} <-
            invoke_workspace(workflow, managed_repo_id, work_item_id, instruction, workspace_opts) do
-      {:ok, shape_result(workflow, managed_repo_id, work_item_id, raw_result, semantic_input)}
+      {:ok, shape_result(workflow, managed_repo_id, work_item_id, raw_result, semantic_input, workflow_provenance)}
     else
       {:error, reason, detail} ->
         {:error, reason, workflow_error(workflow, managed_repo_id, work_item_id, reason, detail)}
@@ -189,12 +209,13 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
     end
   end
 
-  defp workspace_opts(opts, nil), do: Keyword.delete(opts, :semantic)
+  defp workspace_opts(opts, nil, nil), do: Keyword.delete(opts, :semantic)
 
-  defp workspace_opts(opts, runtime_semantic_opts) do
+  defp workspace_opts(opts, runtime_semantic_opts, workflow_provenance) do
     opts
     |> Keyword.delete(:semantic)
     |> Keyword.put(:source_code_graph, runtime_semantic_opts)
+    |> maybe_put_provenance(workflow_provenance)
   end
 
   defp merge_lookup_opts(semantic_opts, request_opts) do
@@ -214,36 +235,200 @@ defmodule JidoCode.SourceCodeGraph.WorkflowService do
 
   defp normalize_workspace_path(_path), do: {:error, :missing_workspace_path}
 
-  defp shape_result(:plan, managed_repo_id, work_item_id, raw_result, semantic_input) do
+  defp shape_result(:plan, managed_repo_id, work_item_id, raw_result, semantic_input, workflow_provenance) do
     %{
       workflow: :plan,
       managed_repo_id: managed_repo_id,
       work_item_id: work_item_id,
       instruction: Map.get(raw_result, :instruction),
       plan: Map.get(raw_result, :plan),
-      semantic_input: semantic_input
+      semantic_input: semantic_input,
+      workflow_provenance: provenance_summary(workflow_provenance)
     }
   end
 
-  defp shape_result(:review, managed_repo_id, work_item_id, raw_result, semantic_input) do
+  defp shape_result(:review, managed_repo_id, work_item_id, raw_result, semantic_input, workflow_provenance) do
     %{
       workflow: :review,
       managed_repo_id: managed_repo_id,
       work_item_id: work_item_id,
       instruction: Map.get(raw_result, :instruction),
       feedback: Map.get(raw_result, :feedback),
-      semantic_input: semantic_input
+      semantic_input: semantic_input,
+      workflow_provenance: provenance_summary(workflow_provenance)
     }
   end
 
-  defp shape_result(:explain, managed_repo_id, work_item_id, raw_result, semantic_input) do
+  defp shape_result(:explain, managed_repo_id, work_item_id, raw_result, semantic_input, workflow_provenance) do
     %{
       workflow: :explain,
       managed_repo_id: managed_repo_id,
       work_item_id: work_item_id,
       instruction: Map.get(raw_result, :instruction),
       explanation: Map.get(raw_result, :explanation),
-      semantic_input: semantic_input
+      semantic_input: semantic_input,
+      workflow_provenance: provenance_summary(workflow_provenance)
+    }
+  end
+
+  defp workflow_provenance_context(_workflow, _managed_repo_id, _work_item_id, _instruction, _opts, nil),
+    do: {:ok, nil}
+
+  defp workflow_provenance_context(workflow, managed_repo_id, work_item_id, instruction, opts, semantic_opts)
+       when is_list(semantic_opts) do
+    workspace_path =
+      Keyword.get(semantic_opts, :workspace_path) ||
+        Keyword.get(opts, :workspace_path)
+
+    with {:ok, workspace_path} <- normalize_workspace_path(workspace_path) do
+      context = %{
+        enabled?: MemoryGraph.capability_enabled?(opts),
+        session_id: provenance_session_id(workflow, work_item_id, opts),
+        actor_id: provenance_actor_id(opts),
+        revision: Keyword.get(semantic_opts, :revision),
+        workflow: workflow
+      }
+
+      _ =
+        capture_workflow_preparation(
+          managed_repo_id,
+          work_item_id,
+          workspace_path,
+          instruction,
+          semantic_opts,
+          context
+        )
+
+      {:ok, context}
+    else
+      _other -> {:ok, nil}
+    end
+  end
+
+  defp capture_workflow_preparation(
+         managed_repo_id,
+         work_item_id,
+         workspace_path,
+         instruction,
+         semantic_opts,
+         context
+       ) do
+    if context.enabled? do
+      revision = context.revision
+      _ = ensure_workflow_provenance_ready(managed_repo_id, workspace_path, revision)
+
+      session_capture =
+        CaptureEnvelope.work_session(
+          session_id: context.session_id,
+          actor_id: context.actor_id,
+          workflow: context.workflow,
+          work_item_id: work_item_id,
+          goal: instruction,
+          outcome: "semantic-preparation",
+          revision: revision
+        )
+
+      prompt_capture =
+        CaptureEnvelope.prompt_turn(
+          session_id: context.session_id,
+          actor_id: context.actor_id,
+          workflow: context.workflow,
+          work_item_id: work_item_id,
+          content:
+            inspect(
+              %{
+                instruction: instruction,
+                semantic_requests: Keyword.drop(semantic_opts, [:workspace_path])
+              },
+              pretty: true,
+              limit: :infinity
+            ),
+          revision: revision
+        )
+
+      _ =
+        AgentWorkspace.record_memory_graph(
+          managed_repo_id,
+          workspace_path,
+          session_capture,
+          graph_name: MemoryGraph.workflow_provenance_graph_name(),
+          revision: revision
+        )
+
+      _ =
+        AgentWorkspace.record_memory_graph(
+          managed_repo_id,
+          workspace_path,
+          prompt_capture,
+          graph_name: MemoryGraph.workflow_provenance_graph_name(),
+          revision: revision
+        )
+
+      :ok
+    else
+      :ok
+    end
+  end
+
+  defp ensure_workflow_provenance_ready(managed_repo_id, workspace_path, revision) do
+    case AgentWorkspace.memory_graph_status(
+           managed_repo_id,
+           workspace_path,
+           graph_name: MemoryGraph.workflow_provenance_graph_name(),
+           revision: revision
+         ) do
+      {:ok, %{ready?: true, stale?: false}} ->
+        :ok
+
+      _other ->
+        case AgentWorkspace.refresh_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             ) do
+          {:ok, _result} -> :ok
+          _other -> :ok
+        end
+    end
+  end
+
+  defp maybe_put_provenance(opts, nil), do: opts
+
+  defp maybe_put_provenance(opts, workflow_provenance) do
+    Keyword.put(
+      opts,
+      :provenance,
+      [
+        session_id: workflow_provenance.session_id,
+        actor_id: workflow_provenance.actor_id,
+        revision: workflow_provenance.revision
+      ]
+    )
+  end
+
+  defp provenance_session_id(workflow, work_item_id, opts) do
+    opts
+    |> Keyword.get(:provenance, [])
+    |> Keyword.get(:session_id, "#{workflow}-#{work_item_id}-#{System.unique_integer([:positive])}")
+  end
+
+  defp provenance_actor_id(opts) do
+    case Keyword.get(opts, :actor) do
+      %{} = actor -> actor["id"] || actor[:id] || @workflow_provenance_actor["id"]
+      _other -> @workflow_provenance_actor["id"]
+    end
+  end
+
+  defp provenance_summary(nil), do: nil
+  defp provenance_summary(%{enabled?: false}), do: nil
+
+  defp provenance_summary(provenance) do
+    %{
+      session_id: provenance.session_id,
+      actor_id: provenance.actor_id,
+      revision: provenance.revision,
+      workflow: provenance.workflow
     }
   end
 

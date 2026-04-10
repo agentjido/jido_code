@@ -4,6 +4,8 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
   # covers: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
   # covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+  # covers: architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
+  # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
   # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 
@@ -185,14 +187,36 @@ defmodule JidoCode.MemoryGraphWorkspaceTest do
       assert {:ok, _refresh_result} =
                AgentWorkspace.refresh_memory_graph(managed_repo_id, workspace_path)
 
-      assert {:error, :memory_capture_plane_not_ready, diagnostics} =
+      assert {:ok, record_result} =
                AgentWorkspace.record_memory_graph(
                  managed_repo_id,
                  workspace_path,
-                 %{kind: :fact, content: "placeholder"}
+                 JidoCode.MemoryGraph.CaptureEnvelope.work_session(
+                   session_id: "workspace-session",
+                   actor_id: "system:workspace-test",
+                   workflow: :plan,
+                   work_item_id: "work-1",
+                   goal: "Test workspace provenance"
+                 )
                )
 
-      assert diagnostics.state == :capture_plane_not_ready
+      assert record_result.status == :workflow_provenance_recorded
+
+      assert {:ok, query_result} =
+               AgentWorkspace.query_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 """
+                 SELECT ?session
+                 WHERE {
+                   ?session a jido:WorkSession ;
+                     jido:sessionId "workspace-session" .
+                 }
+                 """,
+                 graph_name: "workflow_provenance"
+               )
+
+      assert query_result.row_count == 1
 
       assert {:ok, invalidate_result} =
                AgentWorkspace.invalidate_memory_graph(

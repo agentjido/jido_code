@@ -2,19 +2,27 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
   # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
   # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
   # covers: architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+  # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+  # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+  # covers: architecture.policy_layers.runtime_policy_governs_runtime_capability
+  # covers: architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context
   # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 
+  alias JidoCode.AgentWorkspace
   alias JidoCode.SourceCodeGraph.WorkflowService
 
   setup do
     previous = Application.get_env(:jido_code, :source_code_graph_enabled, false)
+    previous_memory = Application.get_env(:jido_code, :memory_graph_enabled, false)
     Application.put_env(:jido_code, :source_code_graph_enabled, true)
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
 
     workspace_path = create_workspace_path!()
 
     on_exit(fn ->
       Application.put_env(:jido_code, :source_code_graph_enabled, previous)
+      Application.put_env(:jido_code, :memory_graph_enabled, previous_memory)
       File.rm_rf!(workspace_path)
     end)
 
@@ -68,8 +76,30 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
     assert result.semantic_input.freshness.label == "Semantic graph ready"
     assert result.semantic_input.results.modules.kind == :modules
     assert result.semantic_input.results.impact.kind == :impact
+    assert result.workflow_provenance.workflow == :plan
+    assert is_binary(result.workflow_provenance.session_id)
     refute Map.has_key?(result.semantic_input.results.modules, :bindings)
     refute Map.has_key?(result.semantic_input.results.impact, :compiled_sparql)
+
+    assert {:ok, provenance_query} =
+             AgentWorkspace.query_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               """
+               SELECT ?session ?prompt ?run ?plan
+               WHERE {
+                 ?session a jido:WorkSession ;
+                   jido:sessionId "#{result.workflow_provenance.session_id}" ;
+                   jido:hasPromptTurn ?prompt ;
+                   jido:hasAgentRun ?run ;
+                   jido:hasPlan ?plan .
+               }
+               """,
+               graph_name: "workflow_provenance",
+               allow_stale?: true
+             )
+
+    assert provenance_query.row_count == 1
   end
 
   test "review and explanation use bounded semantic inputs without raw SPARQL coupling", %{

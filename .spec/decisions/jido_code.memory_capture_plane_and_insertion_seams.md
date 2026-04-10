@@ -93,6 +93,15 @@ The canonical shape is therefore:
 - cross-graph links bind both back to stable `source_code` IRIs and, when
   relevant, to governed product records
 
+The first concrete implementation slice of this plane should therefore land as:
+
+- typed envelope normalization modules that validate provenance capture context
+  before any write occurs
+- a canonical writer boundary that owns TripleStore interaction for
+  `workflow_provenance`
+- bounded action and workspace entrypoints that can accept workflow-provenance
+  envelopes now while durable `memory`-graph adoption remains a later phase
+
 ## Consequences
 
 - The memory graph gains a safe write path instead of becoming an open semantic

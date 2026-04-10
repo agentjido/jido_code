@@ -8,11 +8,12 @@ ownership across multiple unrelated frontend stacks.
 id: architecture.frontend_stack
 kind: policy
 status: active
-summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection where richer graph exploration is useful.
+summary: Jido.Code keeps Phoenix LiveView as the routed product host shell while adopting `live_vue` as the canonical bridge for richer client-side Vue components, standardizing on a LiveView-plus-Vue composition model with product-owned mounting and operator-state boundaries, a repo-owned Mix start path that respects the current browser toolchain even while the root Mix surface carries additional source-code graph and memory-graph runtime dependencies plus dedicated semantic verification aliases, and LiveVue-aware test helpers instead of a parallel React or SPA frontend, beginning with bounded operator summary surfaces before deeper workflow pages and extending to bounded semantic repository inspection plus bounded memory and provenance exploration where richer graph exploration is useful.
 decisions:
   - jido_code.factory_control_plane_and_runtime_overlay
   - jido_code.internal_cleanup_and_ui_convergence_foundation
   - jido_code.live_vue_frontend_adoption
+  - jido_code.memory_graph_product_adoption
   - jido_code.source_code_graph_product_adoption
 surface:
   - .spec/decisions/jido_code.live_vue_frontend_adoption.md
@@ -97,7 +98,7 @@ surface:
   stability: evolving
 
 - id: architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
-  statement: Semantic repository inspection and impact-exploration surfaces may use bounded LiveView-hosted Vue regions when richer graph exploration is valuable, but they shall remain managed-repository product surfaces rather than separate graph-only browser applications.
+  statement: Semantic repository inspection, memory history, provenance exploration, and impact-exploration surfaces may use bounded LiveView-hosted Vue regions when richer graph exploration is valuable, but they shall remain managed-repository product surfaces rather than separate graph-only browser applications.
   priority: should
   stability: proposed
 ```
@@ -184,6 +185,21 @@ surface:
     - Any Vue-backed semantic region mounts through the shared product boundary.
     - Server-owned semantic freshness and recovery state remain explicit in the LiveView-owned contract.
 
+- id: architecture.frontend_stack.scenario_memory_and_provenance_exploration_use_hybrid_region
+  covers:
+    - architecture.frontend_stack.liveview_remains_product_host_shell
+    - architecture.frontend_stack.product_owned_mounting_boundary
+    - architecture.frontend_stack.server_authored_props_streams_and_events
+    - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+  given:
+    - A managed-repository surface needs richer memory history or workflow provenance exploration such as decision timelines, memory freshness context, or cross-graph navigation.
+  when:
+    - The route adopts a memory or provenance exploration region.
+  then:
+    - The route remains LiveView-owned and repository-scoped.
+    - Any Vue-backed memory/provenance region mounts through the shared product boundary.
+    - Server-owned freshness, invalidation, and recovery state remain explicit in the LiveView-owned contract.
+
 - id: architecture.frontend_stack.scenario_frontend_stack_does_not_re_fragment
   covers:
     - architecture.frontend_stack.live_vue_is_canonical_rich_component_bridge
@@ -226,6 +242,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.source_code_graph_product_adoption.md
+  covers:
+    - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
+
+- kind: source_file
+  target: .spec/decisions/jido_code.memory_graph_product_adoption.md
   covers:
     - architecture.frontend_stack.semantic_operator_surfaces_can_use_bounded_hybrid_regions
 

@@ -17,6 +17,7 @@ decisions:
   - jido_code.runtime_evidence_posture_and_rollout_convergence
   - jido_code.memory_capture_plane_and_insertion_seams
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
+  - jido_code.memory_graph_product_adoption
   - jido_code.source_code_graph_product_adoption
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
 surface:
@@ -128,7 +129,7 @@ surface:
   stability: evolving
 
 - id: architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
-  statement: Repository-scoped source-code, memory, and workflow-provenance analysis may inform operator understanding, work synthesis, and review, but any graph-backed finding that matters to the factory shall rejoin governed product records rather than becoming an alternate durable truth system.
+  statement: Repository-scoped source-code, memory, and workflow-provenance analysis may inform operator understanding, work synthesis, review, and decision history through canonical managed-repository surfaces, but any graph-backed finding that matters to the factory shall rejoin governed product records rather than becoming an alternate durable truth system.
   priority: should
   stability: evolving
 
@@ -223,6 +224,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md
+  covers:
+    - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+
+- kind: source_file
+  target: .spec/decisions/jido_code.memory_graph_product_adoption.md
   covers:
     - architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
 

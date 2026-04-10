@@ -10,7 +10,7 @@ entrypoints.
 id: architecture.source_code_graph_product_adoption
 kind: feature
 status: proposed
-summary: Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, letting semantic workflow preparation and governed adoption extend the shared workflow-provenance capture plane through typed envelopes rather than raw triples, using repository-scoped memory-graph recovery before bounded provenance or durable-memory capture proceeds, coexisting with separate memory-graph workspace entrypoints without leaking shared pod/store topology into product code, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.
+summary: Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, letting semantic workflow preparation and governed adoption extend the shared workflow-provenance capture plane through typed envelopes rather than raw triples, using repository-scoped memory-graph recovery before bounded provenance or durable-memory capture proceeds, coexisting with bounded memory and provenance inspection in the same managed-repository routes without leaking shared pod or store topology into product code, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.
 decisions:
   - jido_code.operator_surface_managed_repo_and_governed_run_adoption
   - jido_code.live_vue_frontend_adoption
@@ -102,6 +102,7 @@ surface:
     - The route remains a canonical managed-repository product surface.
     - The page consumes semantic projections through a product-owned boundary over AgentWorkspace.
     - The operator sees bounded semantic views such as modules, functions, runtime patterns, or impact traces without raw graph-engine internals.
+    - Co-located memory and provenance regions may coexist in the same route as long as semantic inspection remains bounded and product-owned.
 
 - id: architecture.source_code_graph_product_adoption.scenario_semantic_surface_shows_stale_state_and_recovery
   covers:
@@ -258,4 +259,16 @@ surface:
   covers:
     - architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
     - architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals
+
+- kind: source_file
+  target: test/jido_code_web/live/project_detail_live_test.exs
+  covers:
+    - architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
+    - architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
+
+- kind: source_file
+  target: test/jido_code_web/live/workbench_live_test.exs
+  covers:
+    - architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
+    - architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
 ```

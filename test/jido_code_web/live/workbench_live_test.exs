@@ -1,6 +1,8 @@
 defmodule JidoCodeWeb.WorkbenchLiveTest do
   # covers: architecture.frontend_stack.adoption_is_incremental_per_surface
   # covers: architecture.frontend_stack.server_authored_props_streams_and_events
+  # covers: architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection
+  # covers: architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery
   use JidoCodeWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

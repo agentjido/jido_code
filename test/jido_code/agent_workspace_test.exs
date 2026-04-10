@@ -14,6 +14,8 @@ defmodule JidoCode.AgentWorkspaceTest do
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
+  # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+  # covers: architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentOS.Manager
@@ -255,6 +257,134 @@ defmodule JidoCode.AgentWorkspaceTest do
       assert Map.has_key?(result, :plan)
       assert Map.has_key?(result, :changes)
       assert Map.has_key?(result, :feedback)
+    end
+
+    test "work entrypoints emit workflow provenance in the workflow_provenance graph" do
+      managed_repo_id = "test-repo-#{System.unique_integer()}"
+      workspace_path = create_workspace_path!()
+      plan_work_item_id = "plan-#{System.unique_integer()}"
+      coding_work_item_id = "code-#{System.unique_integer()}"
+      review_work_item_id = "review-#{System.unique_integer()}"
+      explain_work_item_id = "explain-#{System.unique_integer()}"
+      previous = Application.get_env(:jido_code, :memory_graph_enabled, false)
+
+      Application.put_env(:jido_code, :memory_graph_enabled, true)
+
+      on_exit(fn ->
+        Application.put_env(:jido_code, :memory_graph_enabled, previous)
+        File.rm_rf!(workspace_path)
+      end)
+
+      assert {:ok, plan_result} =
+               AgentWorkspace.plan_work(
+                 managed_repo_id,
+                 plan_work_item_id,
+                 "Plan with provenance",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, code_result} =
+               AgentWorkspace.execute_work(
+                 managed_repo_id,
+                 coding_work_item_id,
+                 "Code with provenance",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, review_result} =
+               AgentWorkspace.review_work(
+                 managed_repo_id,
+                 review_work_item_id,
+                 "Review with provenance",
+                 workspace_path: workspace_path
+               )
+
+      assert {:ok, explain_result} =
+               AgentWorkspace.explain_work(
+                 managed_repo_id,
+                 explain_work_item_id,
+                 "Explain with provenance",
+                 workspace_path: workspace_path
+               )
+
+      assert plan_result.workflow_provenance.workflow == :plan
+      assert code_result.workflow_provenance.workflow == :execute
+      assert review_result.workflow_provenance.workflow == :review
+      assert explain_result.workflow_provenance.workflow == :explain
+
+      assert {:ok, plan_query} =
+               AgentWorkspace.query_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 """
+                 SELECT ?session ?run ?tool ?plan
+                 WHERE {
+                   ?session a jido:WorkSession ;
+                     jido:sessionId "#{plan_result.workflow_provenance.session_id}" ;
+                     jido:hasAgentRun ?run ;
+                     jido:hasToolInvocation ?tool ;
+                     jido:hasPlan ?plan .
+                 }
+                 """,
+                 graph_name: "workflow_provenance",
+                 allow_stale?: true
+               )
+
+      assert plan_query.row_count == 1
+
+      assert {:ok, code_query} =
+               AgentWorkspace.query_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 """
+                 SELECT ?session ?patch
+                 WHERE {
+                   ?session a jido:WorkSession ;
+                     jido:sessionId "#{code_result.workflow_provenance.session_id}" ;
+                     jido:hasPatch ?patch .
+                 }
+                 """,
+                 graph_name: "workflow_provenance",
+                 allow_stale?: true
+               )
+
+      assert code_query.row_count == 1
+
+      assert {:ok, review_query} =
+               AgentWorkspace.query_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 """
+                 SELECT ?session ?review
+                 WHERE {
+                   ?session a jido:WorkSession ;
+                     jido:sessionId "#{review_result.workflow_provenance.session_id}" ;
+                     jido:hasReview ?review .
+                 }
+                 """,
+                 graph_name: "workflow_provenance",
+                 allow_stale?: true
+               )
+
+      assert review_query.row_count == 1
+
+      assert {:ok, explain_query} =
+               AgentWorkspace.query_memory_graph(
+                 managed_repo_id,
+                 workspace_path,
+                 """
+                 SELECT ?session ?run
+                 WHERE {
+                   ?session a jido:WorkSession ;
+                     jido:sessionId "#{explain_result.workflow_provenance.session_id}" ;
+                     jido:hasAgentRun ?run .
+                 }
+                 """,
+                 graph_name: "workflow_provenance",
+                 allow_stale?: true
+               )
+
+      assert explain_query.row_count == 1
     end
   end
 

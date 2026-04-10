@@ -1,9 +1,12 @@
 defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
   # covers: architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records
   # covers: architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane
+  # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+  # covers: architecture.memory_capture_plane.workflow_provenance_and_memory_are_written_to_distinct_named_graphs
   # covers: package.jido_code.version_controlled_quality_surfaces
   use JidoCode.DataCase, async: false
 
+  alias JidoCode.AgentWorkspace
   alias JidoCode.Control.{Actor, ManagedRepo}
   alias JidoCode.Governance.Evidence
   alias JidoCode.Operations.WorkItem
@@ -13,12 +16,15 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
 
   setup do
     previous = Application.get_env(:jido_code, :source_code_graph_enabled, false)
+    previous_memory = Application.get_env(:jido_code, :memory_graph_enabled, false)
     Application.put_env(:jido_code, :source_code_graph_enabled, true)
+    Application.put_env(:jido_code, :memory_graph_enabled, true)
 
     workspace_path = create_workspace_path!()
 
     on_exit(fn ->
       Application.put_env(:jido_code, :source_code_graph_enabled, previous)
+      Application.put_env(:jido_code, :memory_graph_enabled, previous_memory)
       File.rm_rf!(workspace_path)
     end)
 
@@ -48,7 +54,8 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
     assert {:ok, adoption} =
              GovernedAdoption.adopt_work_item(
                projection,
-               query: %{module_name: "ExampleWorkspace"}
+               query: %{module_name: "ExampleWorkspace"},
+               workspace_path: workspace_path
              )
 
     assert adoption.action == :created
@@ -66,6 +73,24 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
              )
 
     assert persisted_work_item.work_metadata["semantic_finding"]["summary"] == adoption.finding.summary
+
+    assert {:ok, provenance_query} =
+             AgentWorkspace.query_memory_graph(
+               managed_repo.id,
+               workspace_path,
+               """
+               SELECT ?session ?plan
+               WHERE {
+                 ?session a jido:WorkSession ;
+                   jido:sessionId "#{governed_session_id(:plan, adoption.finding.digest, adoption.work_item.id)}" ;
+                   jido:hasPlan ?plan .
+               }
+               """,
+               graph_name: "workflow_provenance",
+               allow_stale?: true
+             )
+
+    assert provenance_query.row_count == 1
   end
 
   test "review support and evidence adoption retain semantic provenance and freshness", %{
@@ -99,7 +124,8 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
              GovernedAdoption.review_support(
                projection,
                query: %{module_name: "ExampleWorkspace", function_name: "greet"},
-               work_item_id: adoption.work_item.id
+               work_item_id: adoption.work_item.id,
+               workspace_path: workspace_path
              )
 
     assert review_support.evidence_input.evidence_details["graph"]["imported_revision"] == "rev-26-evidence"
@@ -117,7 +143,8 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
                projection,
                query: %{module_name: "ExampleWorkspace", function_name: "greet"},
                run_id: run.id,
-               work_item_id: adoption.work_item.id
+               work_item_id: adoption.work_item.id,
+               workspace_path: workspace_path
              )
 
     assert evidence.run_id == run.id
@@ -134,7 +161,28 @@ defmodule JidoCode.SourceCodeGraphGovernedAdoptionTest do
 
     assert persisted_evidence.evidence_details["finding_digest"] ==
              review_support.evidence_input.evidence_details["finding_digest"]
+
+    assert {:ok, provenance_query} =
+             AgentWorkspace.query_memory_graph(
+               managed_repo.id,
+               workspace_path,
+               """
+               SELECT ?session ?review
+               WHERE {
+                 ?session a jido:WorkSession ;
+                   jido:sessionId "#{governed_session_id(:review, review_support.finding.digest, adoption.work_item.id)}" ;
+                   jido:hasReview ?review .
+               }
+               """,
+               graph_name: "workflow_provenance",
+               allow_stale?: true
+             )
+
+    assert provenance_query.row_count >= 1
   end
+
+  defp governed_session_id(:plan, digest, work_item_id), do: "governed-plan-#{digest}-#{work_item_id}"
+  defp governed_session_id(:review, digest, work_item_id), do: "governed-review-#{digest}-#{work_item_id}"
 
   defp create_managed_repo! do
     name = "phase-26-#{System.unique_integer([:positive])}"

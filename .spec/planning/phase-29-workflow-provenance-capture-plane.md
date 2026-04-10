@@ -43,22 +43,22 @@ Back to index: [README](./README.md)
       [x] 29.1.2.2 Subtask - Ensure inserted provenance links back to stable `source_code` graph anchors when code entities are known.
       [x] 29.1.2.3 Subtask - Preserve bounded failure, stale, and recovery behavior at the writer boundary.
 
-  [ ] 29.2 Section - Runtime And Workflow Insertion Seams
+  [x] 29.2 Section - Runtime And Workflow Insertion Seams
     Connect the capture plane to the real runtime and workflow boundaries where provenance should be created over time.
 
-    [ ] 29.2.1 Task - Emit provenance from AgentWorkspace runtime boundaries
+    [x] 29.2.1 Task - Emit provenance from AgentWorkspace runtime boundaries
       Make AgentWorkspace the canonical place where repository-scoped runtime work starts and therefore where workflow provenance begins.
 
-      [ ] 29.2.1.1 Subtask - Record WorkSession and AgentRun provenance when bounded planning, execution, review, explanation, and semantic workflow work begins.
-      [ ] 29.2.1.2 Subtask - Record tool, plan, patch, and review provenance around specialist execution without leaking specialist internals into callers.
-      [ ] 29.2.1.3 Subtask - Ensure resumable and recovered runtime paths continue to emit bounded provenance consistently.
+      [x] 29.2.1.1 Subtask - Record WorkSession and AgentRun provenance when bounded planning, execution, review, explanation, and semantic workflow work begins.
+      [x] 29.2.1.2 Subtask - Record tool, plan, patch, and review provenance around specialist execution without leaking specialist internals into callers.
+      [x] 29.2.1.3 Subtask - Ensure resumable and recovered runtime paths continue to emit bounded provenance consistently.
 
-    [ ] 29.2.2 Task - Emit provenance from product-owned workflow boundaries
+    [x] 29.2.2 Task - Emit provenance from product-owned workflow boundaries
       Ensure product-owned workflow services can extend provenance capture without bypassing the canonical runtime seam.
 
-      [ ] 29.2.2.1 Subtask - Allow workflow services to emit bounded capture envelopes for semantic workflow preparation and governed adoption steps.
-      [ ] 29.2.2.2 Subtask - Keep workflow provenance insertion in `workflow_provenance`, not `memory`.
-      [ ] 29.2.2.3 Subtask - Explicitly reject transient helper output or unadopted model text as durable memory at this stage.
+      [x] 29.2.2.1 Subtask - Allow workflow services to emit bounded capture envelopes for semantic workflow preparation and governed adoption steps.
+      [x] 29.2.2.2 Subtask - Keep workflow provenance insertion in `workflow_provenance`, not `memory`.
+      [x] 29.2.2.3 Subtask - Explicitly reject transient helper output or unadopted model text as durable memory at this stage.
 
   [ ] 29.3 Section - Phase 29 Integration Tests
     Verify the new capture plane records provenance at the intended seams and stays bounded under normal, resumed, and failed runtime conditions.

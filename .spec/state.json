@@ -5215,7 +5215,7 @@
           "id": "architecture.factory_control_plane",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding and work synthesis through canonical managed-repository surfaces while preserving explicit freshness, recovery, and provenance metadata when those findings rejoin governed product records, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
+          "summary": "Jido.Code centers the product on a governed software-factory control plane whose primary managed repository object is `ManagedRepo`, whose durable loop turns repo demand into governed work, whose repository-scoped source-code, memory, and workflow-provenance insights may inform operator understanding and work synthesis through canonical managed-repository surfaces while preserving explicit freshness, recovery, and provenance metadata when those findings rejoin governed product records, whose semantic workflow and governed-adoption boundaries may emit supporting workflow provenance without turning graph-local activity into alternate control-plane truth, and whose repo-native or runtime-derived analysis layers inform but do not replace Ash-backed product truth.",
           "surface": [
             ".spec/decisions/jido_code.compatibility_era_removal_and_canonical_cutover.md",
             ".spec/decisions/jido_code.internal_domain_and_execution_canonicalization.md",
@@ -5599,7 +5599,7 @@
           "id": "architecture.policy_layers",
           "kind": "policy",
           "status": "active",
-          "summary": "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, repository-scoped memory-graph enablement and validation gating, stale-revision gating, bounded degraded-query admission, typed capture-plane-not-ready outcomes, recovery entrypoints, bounded repository-scoped AgentWorkspace queue admission, real AgentWorkspace-to-pod routing through product-owned runtime entrypoints, explicit repository and work-item context seeding into eager collaboration agents before specialist execution, persisted-kernel source-graph restoration that still respects the same typed runtime policy outcomes, and repo-native observations feeding repo governance independently from the global deployment-mode hint.",
+          "summary": "Jido.Code uses three interlocking policy layers: repository governance policy in product records, Ash policy as a first-class data-plane authority membrane, and runtime capability policy for admitted product-owned runtime operations, with per-managed-repository source identity, repository-scoped source-graph readiness, repository-scoped memory-graph enablement and validation gating, stale-revision gating, bounded degraded-query admission, typed capture-plane-not-ready outcomes, recovery entrypoints, bounded repository-scoped AgentWorkspace queue admission, real AgentWorkspace-to-pod routing through product-owned runtime entrypoints, explicit repository and work-item context seeding into eager collaboration agents before specialist execution, bounded workflow-provenance capture at AgentWorkspace and semantic workflow boundaries under the same runtime capability policy, persisted-kernel source-graph restoration that still respects the same typed runtime policy outcomes, and repo-native observations feeding repo governance independently from the global deployment-mode hint.",
           "surface": [
             ".spec/decisions/jido_code.factory_control_plane.md",
             ".spec/decisions/jido_code.runtime_evidence_posture_and_rollout_convergence.md",
@@ -6035,7 +6035,7 @@
           "id": "architecture.source_code_graph_product_adoption",
           "kind": "feature",
           "status": "proposed",
-          "summary": "Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, coexisting with separate memory-graph workspace entrypoints without leaking shared pod/store topology into product code, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.",
+          "summary": "Jido.Code adopts the repository-scoped source-code graph as a bounded product capability by adding product-owned semantic service, view-model, and semantic-finding materialization boundaries over AgentWorkspace, hosting semantic inspection inside canonical managed-repository routes, exposing freshness, stale, degraded, and recovery state in operator surfaces, enriching planning, review, and explanation flows only through explicit semantic requests, letting semantic workflow preparation and governed adoption extend the shared workflow-provenance capture plane through typed envelopes rather than raw triples, coexisting with separate memory-graph workspace entrypoints without leaking shared pod/store topology into product code, allowing those bounded workflow and adoption paths to emit typed memory-capture requests when durable lessons or decisions are intentionally classified, and requiring semantic findings to rejoin governed product records instead of exposing raw SPARQL, pod, or TripleStore internals.",
           "surface": [
             ".spec/decisions/jido_code.source_code_graph_product_adoption.md",
             ".spec/decisions/jido_code.memory_capture_plane_and_insertion_seams.md",
@@ -6910,6 +6910,15 @@
         "kind": "source_file",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/source_code_graph/governed_adoption.ex"
+      },
+      {
+        "covers": [
+          "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane"
+        ],
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/source_code_graph_governed_adoption_test.exs"
       },
       {
         "covers": [
@@ -7834,6 +7843,16 @@
       {
         "covers": [
           "architecture.policy_layers.runtime_policy_governs_runtime_capability",
+          "architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "lib/jido_code/source_code_graph/workflow_service.ex"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.runtime_policy_governs_runtime_capability",
           "architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy"
         ],
         "file": ".spec/specs/policy_layers.spec.md",
@@ -7851,6 +7870,16 @@
         "kind": "source_file",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/agent_workspace_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.policy_layers.runtime_policy_governs_runtime_capability",
+          "architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context"
+        ],
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/source_code_graph_workflow_service_test.exs"
       },
       {
         "covers": [
@@ -8890,6 +8919,25 @@
         "kind": "source_file",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "lib/jido_code/source_code_graph/governed_adoption.ex"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
+          "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/source_code_graph_workflow_service_test.exs"
+      },
+      {
+        "covers": [
+          "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records"
+        ],
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/source_code_graph_governed_adoption_test.exs"
       },
       {
         "covers": [
@@ -11411,7 +11459,7 @@
     "requirements": 281,
     "scenarios": 129,
     "subjects": 39,
-    "verifications": 520
+    "verifications": 525
   },
   "verification": {
     "claims": [
@@ -13330,6 +13378,17 @@
         "verification_index": 7
       },
       {
+        "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code/source_code_graph_governed_adoption_test.exs",
+        "verification_index": 8
+      },
+      {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
         "file": ".spec/specs/factory_control_plane.spec.md",
         "kind": "source_file",
@@ -13338,7 +13397,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.factory_control_plane.runtime_overlay_preserves_product_truth",
@@ -13349,7 +13408,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/governance/runtime_evidence_feed.ex",
-        "verification_index": 8
+        "verification_index": 9
       },
       {
         "cover_id": "architecture.factory_control_plane.runtime_overlay_preserves_product_truth",
@@ -13360,17 +13419,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/governance/runtime_evidence_feed_test.exs",
-        "verification_index": 9
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 10
       },
       {
@@ -13381,7 +13429,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/run_detail_live_test.exs",
+        "target": "test/jido_code_web/live/dashboard_live_test.exs",
         "verification_index": 11
       },
       {
@@ -13392,7 +13440,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/phase_eleven_integration_test.exs",
+        "target": "test/jido_code_web/live/run_detail_live_test.exs",
         "verification_index": 12
       },
       {
@@ -13403,8 +13451,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "target": "test/jido_code_web/live/phase_eleven_integration_test.exs",
         "verification_index": 13
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
@@ -13415,7 +13474,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 13
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.factory_control_plane.semantic_repository_insights_rejoin_control_plane",
@@ -13426,7 +13485,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 14
+        "verification_index": 15
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -13437,17 +13496,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": ".spec/decisions/jido_code.operator_surface_managed_repo_and_governed_run_adoption.md",
-        "verification_index": 15
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/operations/repo_native_state.ex",
         "verification_index": 16
       },
       {
@@ -13458,7 +13506,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "test/jido_code/operations/repo_native_state_test.exs",
+        "target": "lib/jido_code/operations/repo_native_state.ex",
         "verification_index": 17
       },
       {
@@ -13469,8 +13517,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "target": "test/jido_code/operations/repo_native_state_test.exs",
         "verification_index": 18
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.repo_native_state_layers_inform_control_plane",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code/governance/posture_bridge.ex",
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
@@ -13481,7 +13540,7 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/repo_bridge.ex",
-        "verification_index": 19
+        "verification_index": 20
       },
       {
         "cover_id": "architecture.factory_control_plane.compatibility_repo_resolution_uses_explicit_control_plane_actors",
@@ -13492,17 +13551,6 @@
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
         "target": "lib/jido_code/control/source_repo.ex",
-        "verification_index": 20
-      },
-      {
-        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
-        "file": ".spec/specs/factory_control_plane.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 21
       },
       {
@@ -13513,7 +13561,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
+        "target": "lib/jido_code/workbench/project_detail.ex",
         "verification_index": 22
       },
       {
@@ -13524,7 +13572,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
+        "target": "lib/jido_code/orchestration/run_summary_feed.ex",
         "verification_index": 23
       },
       {
@@ -13535,8 +13583,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.factory_control_plane",
-        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "target": "lib/jido_code_web/live/DashboardRunSummaryWidget.vue",
         "verification_index": 24
+      },
+      {
+        "cover_id": "architecture.factory_control_plane.operator_surfaces_prefer_control_plane_records",
+        "file": ".spec/specs/factory_control_plane.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.factory_control_plane",
+        "target": "lib/jido_code_web/live/run_detail_live.ex",
+        "verification_index": 25
       },
       {
         "cover_id": "architecture.frontend_stack.adoption_is_incremental_per_surface",
@@ -15882,14 +15941,14 @@
         "verification_index": 14
       },
       {
-        "cover_id": "architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy",
+        "cover_id": "architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context",
         "file": ".spec/specs/policy_layers.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
-        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "target": "lib/jido_code/source_code_graph/workflow_service.ex",
         "verification_index": 15
       },
       {
@@ -15900,8 +15959,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
-        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "target": "lib/jido_code/source_code_graph/workflow_service.ex",
         "verification_index": 15
+      },
+      {
+        "cover_id": "architecture.policy_layers.runtime_integration_gateways_preserve_actor_bound_policy",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "verification_index": 16
+      },
+      {
+        "cover_id": "architecture.policy_layers.runtime_policy_governs_runtime_capability",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/source_code_graph_workspace_test.exs",
+        "verification_index": 16
       },
       {
         "cover_id": "architecture.policy_layers.runtime_capacity_limits_fail_closed",
@@ -15912,7 +15993,7 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 16
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context",
@@ -15923,7 +16004,7 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 16
+        "verification_index": 17
       },
       {
         "cover_id": "architecture.policy_layers.runtime_policy_governs_runtime_capability",
@@ -15934,7 +16015,29 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/agent_workspace_test.exs",
-        "verification_index": 16
+        "verification_index": 17
+      },
+      {
+        "cover_id": "architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/source_code_graph_workflow_service_test.exs",
+        "verification_index": 18
+      },
+      {
+        "cover_id": "architecture.policy_layers.runtime_policy_governs_runtime_capability",
+        "file": ".spec/specs/policy_layers.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.policy_layers",
+        "target": "test/jido_code/source_code_graph_workflow_service_test.exs",
+        "verification_index": 18
       },
       {
         "cover_id": "architecture.policy_layers.runtime_entrypoints_seed_explicit_collaboration_context",
@@ -15945,7 +16048,7 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.policy_layers.runtime_policy_governs_runtime_capability",
@@ -15956,7 +16059,7 @@
         "strength": "linked",
         "subject_id": "architecture.policy_layers",
         "target": "test/jido_code/agent_os_integration_test.exs",
-        "verification_index": 17
+        "verification_index": 19
       },
       {
         "cover_id": "architecture.repo_posture.repo_native_observations_capture_current_truth_signals",
@@ -18221,7 +18324,18 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
-        "target": "test/jido_code/phase_twenty_four_integration_test.exs",
+        "target": "test/jido_code/source_code_graph_workflow_service_test.exs",
+        "verification_index": 8
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/source_code_graph_workflow_service_test.exs",
         "verification_index": 8
       },
       {
@@ -18232,8 +18346,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/source_code_graph_governed_adoption_test.exs",
+        "verification_index": 9
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_four_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 10
+      },
+      {
+        "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
+        "file": ".spec/specs/source_code_graph_product_adoption.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "architecture.source_code_graph_product_adoption",
+        "target": "test/jido_code/phase_twenty_four_integration_test.exs",
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
@@ -18244,7 +18380,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_four_integration_test.exs",
-        "verification_index": 8
+        "verification_index": 10
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary",
@@ -18255,7 +18391,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
@@ -18266,7 +18402,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
@@ -18277,7 +18413,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_six_integration_test.exs",
-        "verification_index": 9
+        "verification_index": 11
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.managed_repo_routes_host_semantic_inspection",
@@ -18288,7 +18424,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 10
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals",
@@ -18299,7 +18435,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 10
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
@@ -18310,7 +18446,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_five_integration_test.exs",
-        "verification_index": 10
+        "verification_index": 12
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_findings_rejoin_governed_product_records",
@@ -18321,7 +18457,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_seven_integration_test.exs",
-        "verification_index": 11
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context",
@@ -18332,7 +18468,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code/phase_twenty_seven_integration_test.exs",
-        "verification_index": 11
+        "verification_index": 13
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.operator_surfaces_do_not_expose_raw_graph_internals",
@@ -18343,7 +18479,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.source_code_graph_product_adoption.semantic_operator_surfaces_show_freshness_and_recovery",
@@ -18354,7 +18490,7 @@
         "strength": "linked",
         "subject_id": "architecture.source_code_graph_product_adoption",
         "target": "test/jido_code_web/live/phase_twenty_seven_integration_test.exs",
-        "verification_index": 12
+        "verification_index": 14
       },
       {
         "cover_id": "architecture.vsm_recursion.algedonic_escalation",
@@ -22762,7 +22898,7 @@
     "strength_summary": {
       "claimed": 58,
       "executed": 0,
-      "linked": 973
+      "linked": 981
     },
     "threshold_failures": 0
   },

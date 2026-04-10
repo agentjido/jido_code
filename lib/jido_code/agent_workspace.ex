@@ -48,6 +48,8 @@ defmodule JidoCode.AgentWorkspace do
 
   alias JidoCode.AgentOS.Manager
   alias JidoCode.Agents.{Coder, Explainer, Planner, Reviewer}
+  alias JidoCode.Control.Actor
+  alias JidoCode.MemoryGraph.CaptureEnvelope
   alias JidoCode.Pods.{CodingPod, RepoPod}
 
   alias JidoCode.Actions.{
@@ -87,6 +89,10 @@ defmodule JidoCode.AgentWorkspace do
   @type source_code_graph_summary :: map()
   @type memory_graph_summary :: map()
   @repo_pod_id "repo-pod"
+  @workflow_provenance_actor Actor.factory_system_actor(%{
+                               "id" => "system:agent-workspace-provenance",
+                               "email" => "agent-workspace-provenance@system.local"
+                             })
 
   ## Kernel Lifecycle
 
@@ -259,6 +265,15 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, provenance_context} <-
+           workflow_provenance_context(
+             managed_repo_id,
+             work_item_id,
+             workspace_path,
+             :plan,
+             instruction,
+             opts
+           ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :plan, opts),
          {:ok, planner_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :planner),
          {:ok, response} <-
@@ -270,12 +285,14 @@ defmodule JidoCode.AgentWorkspace do
              work_item_id,
              workspace_path,
              semantic_context,
+             provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         plan: normalize_specialist_result(response),
         instruction: instruction,
-        semantic_context: semantic_context
+        semantic_context: semantic_context,
+        workflow_provenance: provenance_summary(provenance_context)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :planning, %{last_plan: result})
@@ -307,6 +324,15 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, provenance_context} <-
+           workflow_provenance_context(
+             managed_repo_id,
+             work_item_id,
+             workspace_path,
+             :execute,
+             instruction,
+             opts
+           ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :execute, opts),
          {:ok, coder_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :coder),
          {:ok, response} <-
@@ -318,12 +344,14 @@ defmodule JidoCode.AgentWorkspace do
              work_item_id,
              workspace_path,
              semantic_context,
+             provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         changes: normalize_specialist_result(response),
         instruction: instruction,
-        semantic_context: semantic_context
+        semantic_context: semantic_context,
+        workflow_provenance: provenance_summary(provenance_context)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :coding, %{last_changes: result})
@@ -355,6 +383,15 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, provenance_context} <-
+           workflow_provenance_context(
+             managed_repo_id,
+             work_item_id,
+             workspace_path,
+             :review,
+             instruction,
+             opts
+           ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :review, opts),
          {:ok, reviewer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :reviewer),
          {:ok, response} <-
@@ -366,12 +403,14 @@ defmodule JidoCode.AgentWorkspace do
              work_item_id,
              workspace_path,
              semantic_context,
+             provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         feedback: normalize_specialist_result(response),
         instruction: instruction,
-        semantic_context: semantic_context
+        semantic_context: semantic_context,
+        workflow_provenance: provenance_summary(provenance_context)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :reviewing, %{last_review: result})
@@ -394,6 +433,15 @@ defmodule JidoCode.AgentWorkspace do
            resolve_workspace_path(managed_repo_id, work_item_id, Keyword.get(opts, :workspace_path)),
          {:ok, _kernel_name} <- ensure_kernel(managed_repo_id),
          {:ok, _} <- ensure_coding_pod(managed_repo_id, work_item_id, workspace_path),
+         {:ok, provenance_context} <-
+           workflow_provenance_context(
+             managed_repo_id,
+             work_item_id,
+             workspace_path,
+             :explain,
+             instruction,
+             opts
+           ),
          {:ok, semantic_context} <- workflow_semantic_context(managed_repo_id, :explain, opts),
          {:ok, explainer_pid} <- ensure_coding_specialist(managed_repo_id, work_item_id, :explainer),
          {:ok, response} <-
@@ -405,12 +453,14 @@ defmodule JidoCode.AgentWorkspace do
              work_item_id,
              workspace_path,
              semantic_context,
+             provenance_context,
              Keyword.put(opts, :work_item_id, work_item_id)
            ) do
       result = %{
         explanation: normalize_specialist_result(response),
         instruction: instruction,
-        semantic_context: semantic_context
+        semantic_context: semantic_context,
+        workflow_provenance: provenance_summary(provenance_context)
       }
 
       persist_coding_pod_result(managed_repo_id, work_item_id, :explaining, %{last_explanation: result})
@@ -1194,9 +1244,13 @@ defmodule JidoCode.AgentWorkspace do
          work_item_id,
          workspace_path,
          semantic_context,
+         provenance_context,
          opts
        ) do
     stage = specialist_stage(agent_module)
+    started_at = DateTime.utc_now() |> DateTime.truncate(:second)
+    tool_context = specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts)
+    agent_run_id = specialist_agent_run_id(stage, work_item_id)
 
     with {:ok, task_context} <- start_task_board_stage(managed_repo_id, work_item_id, stage, instruction),
          {:ok, response} <-
@@ -1204,14 +1258,46 @@ defmodule JidoCode.AgentWorkspace do
              agent_module,
              pid,
              instruction,
-             tool_context: specialist_tool_context(managed_repo_id, workspace_path, semantic_context, opts),
+             tool_context: tool_context,
              timeout: Keyword.get(opts, :timeout, 30_000)
            ),
          :ok <- complete_task_board_stage(managed_repo_id, work_item_id, stage, task_context, response) do
+      ended_at = DateTime.utc_now() |> DateTime.truncate(:second)
+      _ = capture_specialist_success(
+        managed_repo_id,
+        workspace_path,
+        provenance_context,
+        stage,
+        agent_module,
+        agent_run_id,
+        instruction,
+        response,
+        tool_context,
+        started_at,
+        ended_at,
+        opts
+      )
+
       {:ok, response}
     else
       {:error, reason} = error ->
         _ = fail_task_board_stage(managed_repo_id, work_item_id, stage, instruction, reason)
+        ended_at = DateTime.utc_now() |> DateTime.truncate(:second)
+        _ =
+          capture_specialist_failure(
+            managed_repo_id,
+            workspace_path,
+            provenance_context,
+            stage,
+            agent_module,
+            agent_run_id,
+            instruction,
+            reason,
+            started_at,
+            ended_at,
+            opts
+          )
+
         error
     end
   end
@@ -1434,6 +1520,327 @@ defmodule JidoCode.AgentWorkspace do
   defp normalize_specialist_result(%{summary: summary}) when is_binary(summary), do: summary
   defp normalize_specialist_result(%{result: result}), do: result
   defp normalize_specialist_result(result), do: result
+
+  defp workflow_provenance_context(
+         managed_repo_id,
+         work_item_id,
+         workspace_path,
+         workflow,
+         instruction,
+         opts
+       ) do
+    actor_id = provenance_actor_id(opts)
+    revision = provenance_revision(workspace_path, opts)
+
+    context = %{
+      enabled?: MemoryGraph.capability_enabled?(opts),
+      session_id: provenance_session_id(work_item_id, workflow, opts),
+      actor_id: actor_id,
+      revision: revision,
+      workflow: workflow,
+      work_item_id: work_item_id,
+      instruction: instruction,
+      workspace_path: workspace_path
+    }
+
+    _ = capture_session_start(managed_repo_id, context, opts)
+    {:ok, context}
+  end
+
+  defp capture_session_start(_managed_repo_id, %{enabled?: false}, _opts), do: :ok
+
+  defp capture_session_start(managed_repo_id, provenance_context, opts) do
+    session_capture =
+      CaptureEnvelope.work_session(
+        session_id: provenance_context.session_id,
+        actor_id: provenance_context.actor_id,
+        workflow: provenance_context.workflow,
+        work_item_id: provenance_context.work_item_id,
+        goal: provenance_context.instruction,
+        outcome: "started",
+        revision: provenance_context.revision
+      )
+
+    prompt_capture =
+      CaptureEnvelope.prompt_turn(
+        session_id: provenance_context.session_id,
+        actor_id: provenance_context.actor_id,
+        workflow: provenance_context.workflow,
+        work_item_id: provenance_context.work_item_id,
+        content: provenance_context.instruction,
+        revision: provenance_context.revision
+      )
+
+    capture_workflow_provenance_safe(managed_repo_id, provenance_context.workspace_path, session_capture, opts)
+    capture_workflow_provenance_safe(managed_repo_id, provenance_context.workspace_path, prompt_capture, opts)
+  end
+
+  defp capture_specialist_success(
+         _managed_repo_id,
+         _workspace_path,
+         %{enabled?: false},
+         _stage,
+         _agent_module,
+         _agent_run_id,
+         _instruction,
+         _response,
+         _tool_context,
+         _started_at,
+         _ended_at,
+         _opts
+       ),
+       do: :ok
+
+  defp capture_specialist_success(
+         managed_repo_id,
+         workspace_path,
+         provenance_context,
+         stage,
+         agent_module,
+         agent_run_id,
+         instruction,
+         response,
+         tool_context,
+         started_at,
+         ended_at,
+         opts
+       ) do
+    agent_run_capture =
+      CaptureEnvelope.agent_run(
+        session_id: provenance_context.session_id,
+        id: agent_run_id,
+        actor_id: provenance_context.actor_id,
+        workflow: provenance_context.workflow,
+        work_item_id: provenance_context.work_item_id,
+        agent_name: agent_name(agent_module),
+        content: "#{instruction}\n\nOutcome: success",
+        started_at: started_at,
+        ended_at: ended_at,
+        revision: provenance_context.revision
+      )
+
+    tool_capture =
+      CaptureEnvelope.tool_invocation(
+        session_id: provenance_context.session_id,
+        actor_id: provenance_context.actor_id,
+        workflow: provenance_context.workflow,
+        work_item_id: provenance_context.work_item_id,
+        agent_run_id: agent_run_id,
+        tool_name: "specialist_tool_context",
+        content: inspect(%{agent: agent_name(agent_module), keys: Map.keys(tool_context)}, pretty: true),
+        started_at: started_at,
+        ended_at: ended_at,
+        revision: provenance_context.revision
+      )
+
+    artifact_capture =
+      specialist_artifact_capture(
+        stage,
+        provenance_context,
+        agent_run_id,
+        normalize_specialist_result(response),
+        started_at,
+        ended_at
+      )
+
+    capture_workflow_provenance_safe(managed_repo_id, workspace_path, agent_run_capture, opts)
+    capture_workflow_provenance_safe(managed_repo_id, workspace_path, tool_capture, opts)
+
+    if artifact_capture do
+      capture_workflow_provenance_safe(managed_repo_id, workspace_path, artifact_capture, opts)
+    end
+
+    :ok
+  end
+
+  defp capture_specialist_failure(
+         _managed_repo_id,
+         _workspace_path,
+         %{enabled?: false},
+         _stage,
+         _agent_module,
+         _agent_run_id,
+         _instruction,
+         _reason,
+         _started_at,
+         _ended_at,
+         _opts
+       ),
+       do: :ok
+
+  defp capture_specialist_failure(
+         managed_repo_id,
+         workspace_path,
+         provenance_context,
+         stage,
+         agent_module,
+         agent_run_id,
+         instruction,
+         reason,
+         started_at,
+         ended_at,
+         opts
+       ) do
+    agent_run_capture =
+      CaptureEnvelope.agent_run(
+        session_id: provenance_context.session_id,
+        id: agent_run_id,
+        actor_id: provenance_context.actor_id,
+        workflow: provenance_context.workflow,
+        work_item_id: provenance_context.work_item_id,
+        agent_name: agent_name(agent_module),
+        content: "#{instruction}\n\nOutcome: failed\n#{inspect(reason)}",
+        started_at: started_at,
+        ended_at: ended_at,
+        revision: provenance_context.revision,
+        metadata: %{stage: stage, failure: inspect(reason)}
+      )
+
+    capture_workflow_provenance_safe(managed_repo_id, workspace_path, agent_run_capture, opts)
+  end
+
+  defp specialist_artifact_capture(:planning, provenance_context, agent_run_id, content, started_at, ended_at) do
+    CaptureEnvelope.plan(
+      session_id: provenance_context.session_id,
+      actor_id: provenance_context.actor_id,
+      workflow: provenance_context.workflow,
+      work_item_id: provenance_context.work_item_id,
+      agent_run_id: agent_run_id,
+      content: stringify_artifact_content(content),
+      started_at: started_at,
+      ended_at: ended_at,
+      revision: provenance_context.revision
+    )
+  end
+
+  defp specialist_artifact_capture(:coding, provenance_context, agent_run_id, content, started_at, ended_at) do
+    CaptureEnvelope.patch(
+      session_id: provenance_context.session_id,
+      actor_id: provenance_context.actor_id,
+      workflow: provenance_context.workflow,
+      work_item_id: provenance_context.work_item_id,
+      agent_run_id: agent_run_id,
+      content: stringify_artifact_content(content),
+      started_at: started_at,
+      ended_at: ended_at,
+      revision: provenance_context.revision
+    )
+  end
+
+  defp specialist_artifact_capture(:reviewing, provenance_context, agent_run_id, content, started_at, ended_at) do
+    CaptureEnvelope.review(
+      session_id: provenance_context.session_id,
+      actor_id: provenance_context.actor_id,
+      workflow: provenance_context.workflow,
+      work_item_id: provenance_context.work_item_id,
+      agent_run_id: agent_run_id,
+      content: stringify_artifact_content(content),
+      started_at: started_at,
+      ended_at: ended_at,
+      revision: provenance_context.revision
+    )
+  end
+
+  defp specialist_artifact_capture(_stage, _provenance_context, _agent_run_id, _content, _started_at, _ended_at),
+    do: nil
+
+  defp capture_workflow_provenance_safe(managed_repo_id, workspace_path, capture, opts) do
+    if MemoryGraph.capability_enabled?(opts) do
+      capture_revision = Map.get(capture, :revision)
+
+      with :ok <- ensure_workflow_provenance_ready(managed_repo_id, workspace_path, capture_revision, opts),
+           {:ok, _result} <-
+             record_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               capture,
+               [graph_name: MemoryGraph.workflow_provenance_graph_name(), revision: capture_revision] ++ opts
+             ) do
+        :ok
+      else
+        _other -> :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  defp ensure_workflow_provenance_ready(managed_repo_id, workspace_path, revision, _opts) do
+    case memory_graph_status(
+           managed_repo_id,
+           workspace_path,
+           graph_name: MemoryGraph.workflow_provenance_graph_name(),
+           revision: revision
+         ) do
+      {:ok, %{ready?: true, stale?: false}} ->
+        :ok
+
+      {:ok, _status} ->
+        case refresh_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               graph_name: MemoryGraph.workflow_provenance_graph_name(),
+               revision: revision
+             ) do
+          {:ok, _result} -> :ok
+          _other -> {:error, :memory_graph_not_ready}
+        end
+
+      _other ->
+        {:error, :memory_graph_not_ready}
+    end
+  end
+
+  defp provenance_summary(%{enabled?: false}), do: nil
+
+  defp provenance_summary(provenance_context) do
+    %{
+      session_id: provenance_context.session_id,
+      actor_id: provenance_context.actor_id,
+      revision: provenance_context.revision,
+      workflow: provenance_context.workflow
+    }
+  end
+
+  defp provenance_session_id(work_item_id, workflow, opts) do
+    opts
+    |> Keyword.get(:provenance, [])
+    |> Keyword.get(:session_id, "#{workflow}-#{work_item_id}-#{System.unique_integer([:positive])}")
+  end
+
+  defp provenance_actor_id(opts) do
+    provenance_opts = Keyword.get(opts, :provenance, [])
+
+    provenance_opts
+    |> Keyword.get(:actor_id, actor_id_from_option(Keyword.get(opts, :actor)) || actor_id_from_option(@workflow_provenance_actor))
+  end
+
+  defp provenance_revision(workspace_path, opts) do
+    revision =
+      opts
+      |> Keyword.get(:provenance, [])
+      |> Keyword.get(:revision, Keyword.get(opts, :revision))
+
+    case MemoryGraph.current_revision_metadata(workspace_path, revision: revision) do
+      {:ok, revision_metadata} -> revision_metadata.current_revision
+      {:error, _reason} -> revision
+    end
+  end
+
+  defp specialist_agent_run_id(stage, work_item_id) do
+    "#{stage}-#{work_item_id}-#{System.unique_integer([:positive])}"
+  end
+
+  defp agent_name(agent_module) do
+    agent_module
+    |> Module.split()
+    |> List.last()
+  end
+
+  defp actor_id_from_option(nil), do: nil
+  defp actor_id_from_option(%{} = actor), do: actor["id"] || actor[:id]
+  defp actor_id_from_option(value) when is_binary(value), do: value
+  defp actor_id_from_option(_value), do: nil
 
   defp persist_coding_pod_result(managed_repo_id, work_item_id, runtime_status, updates) do
     _ =

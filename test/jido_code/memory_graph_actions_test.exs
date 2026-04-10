@@ -1,6 +1,10 @@
 defmodule JidoCode.MemoryGraphActionsTest do
   # covers: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
   # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+  # covers: architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
+  # covers: architecture.memory_capture_plane.memory_capture_requires_explicit_repo_work_and_actor_context
+  # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+  # covers: architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
   # covers: package.jido_code.version_controlled_quality_surfaces
   use ExUnit.Case, async: true
 
@@ -122,7 +126,78 @@ defmodule JidoCode.MemoryGraphActionsTest do
   end
 
   describe "record and invalidate actions" do
-    test "returns a typed capture-plane-not-ready outcome for record requests", %{context: context} do
+    test "records typed workflow provenance envelopes into the workflow_provenance graph", %{context: context} do
+      assert {:ok, refresh_result} = RefreshMemoryGraph.run(%{}, context)
+
+      assert {:ok, record_result} =
+               RecordMemoryGraph.run(
+                 %{
+                   graph_name: "workflow_provenance",
+                   capture:
+                     JidoCode.MemoryGraph.CaptureEnvelope.work_session(
+                       session_id: "session-1",
+                       actor_id: "system:test",
+                       workflow: :plan,
+                       work_item_id: "work-1",
+                       goal: "Plan work item",
+                       anchors: %{module_name: "ExampleMemoryGraph"}
+                     )
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status
+                 }
+               )
+
+      assert record_result.status == :workflow_provenance_recorded
+      assert record_result.graph_name == "workflow_provenance"
+      assert record_result.capture.kind == :work_session
+      assert record_result.latest_record_status.state == :recorded
+
+      assert {:ok, query_result} =
+               QueryMemoryGraph.run(
+                 %{
+                   graph_name: "workflow_provenance",
+                   sparql: """
+                   SELECT ?session
+                   WHERE {
+                     ?session a jido:WorkSession ;
+                       jido:sessionId "session-1" .
+                   }
+                   """
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status
+                 }
+               )
+
+      assert query_result.row_count == 1
+    end
+
+    test "fails safely when workflow provenance capture is missing actor context", %{context: context} do
+      assert {:ok, refresh_result} = RefreshMemoryGraph.run(%{}, context)
+
+      assert {:error, :invalid_memory_capture, diagnostics} =
+               RecordMemoryGraph.run(
+                 %{
+                   graph_name: "workflow_provenance",
+                   capture: %{kind: :work_session, session_id: "session-missing-actor"}
+                 },
+                 %{
+                   managed_repo_id: context.managed_repo_id,
+                   workspace_path: context.workspace_path,
+                   latest_validation_status: refresh_result.latest_validation_status
+                 }
+               )
+
+      assert diagnostics.field == :actor_id
+      assert diagnostics.reason == :missing
+    end
+
+    test "keeps durable memory writes unavailable before the later memory-adoption phase", %{context: context} do
       assert {:ok, refresh_result} = RefreshMemoryGraph.run(%{}, context)
 
       assert {:error, :memory_capture_plane_not_ready, diagnostics} =

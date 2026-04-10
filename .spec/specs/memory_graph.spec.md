@@ -10,7 +10,7 @@ workflow provenance.
 id: architecture.memory_graph
 kind: feature
 status: proposed
-summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, inserts individuals through a bounded memory capture plane rather than direct graph writes, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, and latest-failure state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
+summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, adds typed workflow-provenance capture envelopes and a canonical writer boundary for `workflow_provenance`, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, and latest-failure state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -26,6 +26,8 @@ surface:
   - lib/jido_code/agent_workspace.ex
   - lib/jido_code/memory_graph.ex
   - lib/jido_code/memory_graph/
+  - lib/jido_code/memory_graph/capture_envelope.ex
+  - lib/jido_code/memory_graph/capture_writer.ex
   - lib/jido_code/source_code_graph.ex
   - lib/jido_code/pods/
   - lib/jido_code/actions/

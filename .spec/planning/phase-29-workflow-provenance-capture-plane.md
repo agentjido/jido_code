@@ -26,22 +26,22 @@ Back to index: [README](./README.md)
 [ ] 29 Phase 29 - Workflow Provenance Capture Plane
   Add the bounded capture seam that records workflow provenance into `workflow_provenance` at runtime and workflow boundaries without turning every intermediate model artifact into durable memory.
 
-  [ ] 29.1 Section - Capture Envelope And Writer Boundary
+  [x] 29.1 Section - Capture Envelope And Writer Boundary
     Define the canonical capture request shape and writer behavior that turns bounded runtime/workflow events into ontology-aligned provenance individuals.
 
-    [ ] 29.1.1 Task - Introduce typed capture envelopes
+    [x] 29.1.1 Task - Introduce typed capture envelopes
       Create the typed envelope format that callers must emit instead of writing raw triples directly.
 
-      [ ] 29.1.1.1 Subtask - Define capture envelope shapes for WorkSession, AgentRun, ToolInvocation, PromptTurn, Plan, Patch, and Review provenance.
-      [ ] 29.1.1.2 Subtask - Require repository, actor, workspace, and revision context on provenance capture requests.
-      [ ] 29.1.1.3 Subtask - Keep the capture request model separate from raw ontology serialization details.
+      [x] 29.1.1.1 Subtask - Define capture envelope shapes for WorkSession, AgentRun, ToolInvocation, PromptTurn, Plan, Patch, and Review provenance.
+      [x] 29.1.1.2 Subtask - Require repository, actor, workspace, and revision context on provenance capture requests.
+      [x] 29.1.1.3 Subtask - Keep the capture request model separate from raw ontology serialization details.
 
-    [ ] 29.1.2 Task - Add the canonical provenance writer boundary
+    [x] 29.1.2 Task - Add the canonical provenance writer boundary
       Build the writer layer that accepts capture envelopes and inserts ontology-aligned individuals into `workflow_provenance`.
 
-      [ ] 29.1.2.1 Subtask - Route provenance writes through the canonical memory capture plane rather than direct store access.
-      [ ] 29.1.2.2 Subtask - Ensure inserted provenance links back to stable `source_code` graph anchors when code entities are known.
-      [ ] 29.1.2.3 Subtask - Preserve bounded failure, stale, and recovery behavior at the writer boundary.
+      [x] 29.1.2.1 Subtask - Route provenance writes through the canonical memory capture plane rather than direct store access.
+      [x] 29.1.2.2 Subtask - Ensure inserted provenance links back to stable `source_code` graph anchors when code entities are known.
+      [x] 29.1.2.3 Subtask - Preserve bounded failure, stale, and recovery behavior at the writer boundary.
 
   [ ] 29.2 Section - Runtime And Workflow Insertion Seams
     Connect the capture plane to the real runtime and workflow boundaries where provenance should be created over time.

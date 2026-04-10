@@ -10,7 +10,7 @@ workflow provenance.
 id: architecture.memory_graph
 kind: feature
 status: proposed
-summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, inserts individuals through a bounded memory capture plane rather than direct graph writes, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, and latest-failure state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
+summary: Jido.Code provides an optional repository-scoped MemoryGraphPod inside each managed-repository AgentOS kernel, reuses the repository-local TripleStore quad store that already hosts `source_code`, adds canonical `memory` and `workflow_provenance` named graphs, links those graphs to stable repository-scoped code IRIs, now includes the first concrete runtime foundation with a MemoryGraph boundary plus eager context and lazy recorder, querier, and validator specialist contracts, inserts individuals through a bounded memory capture plane rather than direct graph writes, exposes explicit record/query/validate/invalidate/refresh actions rather than raw store access, preserves revision, freshness, stale, and latest-failure state through bounded AgentWorkspace entrypoints, and keeps memory-graph findings as semantic support that must rejoin governed product records before they affect factory truth.
 decisions:
   - jido_code.jido_agent_os_integration
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -24,11 +24,17 @@ surface:
   - .spec/specs/source_code_graph_pod.spec.md
   - .spec/specs/memory_ontology.spec.md
   - lib/jido_code/agent_workspace.ex
+  - lib/jido_code/memory_graph.ex
+  - lib/jido_code/memory_graph/
   - lib/jido_code/source_code_graph.ex
   - lib/jido_code/pods/
   - lib/jido_code/actions/
-  - lib/jido_code/source_code_graph/
+  - lib/jido_code/agents/
   - test/jido_code/agent_os/
+  - test/jido_code/memory_graph_test.exs
+  - test/jido_code/memory_graph_actions_test.exs
+  - test/jido_code/memory_graph_workspace_test.exs
+  - test/jido_code/agent_os/phase_twenty_eight_integration_test.exs
 ```
 
 ## Requirements
@@ -161,4 +167,107 @@ surface:
     - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
     - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
     - architecture.memory_graph.memory_graph_supports_cross_graph_provenance
+
+- kind: source_file
+  target: lib/jido_code/memory_graph.ex
+  covers:
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+    - architecture.memory_graph.memory_named_graph_is_canonical_target
+    - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/store.ex
+  covers:
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+    - architecture.memory_graph.memory_named_graph_is_canonical_target
+    - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/query.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: lib/jido_code/actions/get_memory_graph_status.ex
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+
+- kind: source_file
+  target: lib/jido_code/actions/refresh_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+
+- kind: source_file
+  target: lib/jido_code/actions/validate_memory_graph.ex
+  covers:
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+
+- kind: source_file
+  target: lib/jido_code/actions/query_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: lib/jido_code/actions/invalidate_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: lib/jido_code/actions/record_memory_graph.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: lib/jido_code/pods/memory_graph_pod.ex
+  covers:
+    - architecture.memory_graph.repo_scoped_memory_graph_pod
+
+- kind: source_file
+  target: lib/jido_code/agent_workspace.ex
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: test/jido_code/memory_graph_test.exs
+  covers:
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+    - architecture.memory_graph.memory_named_graph_is_canonical_target
+    - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: test/jido_code/memory_graph_actions_test.exs
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+
+- kind: source_file
+  target: test/jido_code/memory_graph_workspace_test.exs
+  covers:
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+
+- kind: source_file
+  target: test/jido_code/agent_os/phase_twenty_eight_integration_test.exs
+  covers:
+    - architecture.memory_graph.repo_scoped_memory_graph_pod
+    - architecture.memory_graph.local_quad_store_hosts_source_memory_and_workflow_graphs
+    - architecture.memory_graph.memory_named_graph_is_canonical_target
+    - architecture.memory_graph.workflow_provenance_named_graph_is_canonical_target
+    - architecture.memory_graph.memory_graph_links_to_source_code_entities_by_stable_iri
+    - architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+    - architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+    - architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
 ```

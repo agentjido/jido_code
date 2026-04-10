@@ -126,3 +126,20 @@ system.
   state, freshness, and degraded behavior safely.
 - Governed product truth remains in Ash-backed product records even when memory
   and provenance graphs inform planning, review, explanation, or follow-up work.
+
+## Implementation Note
+
+Phase 28.1 now establishes the first concrete runtime and store foundation for
+this decision inside `jido_code`:
+
+- `JidoCode.MemoryGraph` defines the canonical repository-scoped graph names,
+  named-graph IRIs, ontology asset path, shared semantic-store path, and stable
+  base IRIs used by the memory graph capability
+- `MemoryGraphPod` now exists as a repository-scoped sibling to
+  `SourceCodeGraphPod`
+- the pod now includes one eager `MemoryGraphContext` agent and three lazy
+  specialist contracts for recording, querying, and validating repository memory
+  state
+- the shared semantic-store shape now explicitly reserves `memory` and
+  `workflow_provenance` beside `source_code`, while cross-graph code anchors
+  continue to rely on stable repository-scoped source-code IRIs

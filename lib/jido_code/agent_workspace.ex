@@ -17,6 +17,15 @@ defmodule JidoCode.AgentWorkspace do
   # covers: architecture.source_code_graph_pod.stale_queries_and_failures_remain_bounded
   # covers: architecture.source_code_graph_pod.workspace_binding_is_explicit_and_product_owned
   # covers: architecture.agent_os_integration.source_code_graph_stale_and_recovery_state_stays_workspace_bound
+  # covers: architecture.agent_os_integration.memory_graph_read_write_and_query_stay_workspace_bound
+  # covers: architecture.memory_graph.explicit_actions_drive_memory_recording_query_and_invalidation
+  # covers: architecture.memory_graph.memory_graph_status_and_freshness_are_explicit
+  # covers: architecture.memory_graph.memory_graph_consumers_use_bounded_product_or_workspace_entrypoints
+  # covers: architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary
+  # covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries
+  # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
+  # covers: architecture.source_code_graph_product_adoption.product_owned_semantic_service_boundary
+  # covers: architecture.source_code_graph_product_adoption.semantic_workflows_request_explicit_graph_context
   @moduledoc """
   Context module for AgentOS workspace operations.
 
@@ -47,15 +56,21 @@ defmodule JidoCode.AgentWorkspace do
     FindSourceCodeGraphModules,
     FindSourceCodeGraphRuntimePatterns,
     GetSourceCodeGraphStatus,
+    GetMemoryGraphStatus,
+    InvalidateMemoryGraph,
     LoadSourceCodeGraph,
     QuerySourceCodeGraph,
+    QueryMemoryGraph,
+    RecordMemoryGraph,
     RefreshSourceCodeGraph,
-    TraceSourceCodeGraphImpact
+    RefreshMemoryGraph,
+    TraceSourceCodeGraphImpact,
+    ValidateMemoryGraph
   }
 
   alias JidoCode.AgentWorkspace.RuntimeSpecialistRunner
-  alias JidoCode.Pods.SourceCodeGraphPod
-  alias JidoCode.SourceCodeGraph
+  alias JidoCode.Pods.{MemoryGraphPod, SourceCodeGraphPod}
+  alias JidoCode.{MemoryGraph, SourceCodeGraph}
   alias Jido.AgentOS.ManagerSupervisor
   alias Jido.AgentOS.Naming
   alias Jido.AgentOS.Persistence
@@ -70,6 +85,7 @@ defmodule JidoCode.AgentWorkspace do
   @type kernel_name :: atom()
   @type pod_name :: atom()
   @type source_code_graph_summary :: map()
+  @type memory_graph_summary :: map()
   @repo_pod_id "repo-pod"
 
   ## Kernel Lifecycle
@@ -744,6 +760,192 @@ defmodule JidoCode.AgentWorkspace do
     )
   end
 
+  ## Memory Graph
+
+  @doc """
+  Ensures the repository-scoped MemoryGraphPod is configured for a ManagedRepo.
+
+  Returns a product-owned summary of the capability rather than pod internals.
+  """
+  @spec ensure_memory_graph_pod(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, memory_graph_summary()} | {:error, term()}
+  def ensure_memory_graph_pod(managed_repo_id, workspace_path, opts \\ []) do
+    with :ok <- ensure_memory_graph_enabled(opts) do
+      case Manager.pod_status(managed_repo_id, MemoryGraph.pod_id()) do
+        nil ->
+          with {:ok, pod_metadata} <- MemoryGraph.pod_metadata(managed_repo_id, workspace_path, opts),
+               {:ok, pod_entry} <-
+                 Manager.ensure_pod(
+                   managed_repo_id,
+                   MemoryGraph.pod_id(),
+                   MemoryGraphPod,
+                   pod_metadata
+                 ) do
+            {:ok, memory_graph_summary(managed_repo_id, pod_entry)}
+          end
+
+        pod_entry ->
+          {:ok, memory_graph_summary(managed_repo_id, pod_entry)}
+      end
+    end
+  end
+
+  @doc """
+  Returns the current repository-scoped memory graph status.
+  """
+  @spec memory_graph_status(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def memory_graph_status(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_memory_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts),
+         {:ok, result} <- GetMemoryGraphStatus.run(memory_graph_params(opts), action_context) do
+      {:ok, result}
+    end
+  end
+
+  @doc """
+  Refreshes the repository-scoped memory graph foundation in the shared semantic store.
+  """
+  @spec refresh_memory_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def refresh_memory_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_memory_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case RefreshMemoryGraph.run(memory_graph_params(opts), action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_memory_graph_state(managed_repo_id, %{
+                   latest_validation_status: result.latest_validation_status,
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        {:error, reason, diagnostics} ->
+          persist_memory_graph_failure(
+            managed_repo_id,
+            :refresh,
+            reason,
+            diagnostics,
+            %{latest_validation_status: failure_validation_status(action_context, diagnostics)}
+          )
+
+          {:error, reason, diagnostics}
+      end
+    end
+  end
+
+  @doc """
+  Validates that the repository-scoped memory graph foundation is ready and revision-aware.
+  """
+  @spec validate_memory_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def validate_memory_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_memory_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case ValidateMemoryGraph.run(memory_graph_params(opts), action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_memory_graph_state(managed_repo_id, %{
+                   latest_validation_status: result.latest_validation_status,
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        {:error, reason, diagnostics} ->
+          persist_memory_graph_failure(
+            managed_repo_id,
+            :validate,
+            reason,
+            diagnostics,
+            %{latest_validation_status: failure_validation_status(action_context, diagnostics)}
+          )
+
+          {:error, reason, diagnostics}
+      end
+    end
+  end
+
+  @doc """
+  Records an explicit memory capture request through the bounded memory graph surface.
+  """
+  @spec record_memory_graph(managed_repo_id(), String.t(), map(), keyword()) ::
+          {:ok, map()} | {:error, term()} | {:error, atom(), map()}
+  def record_memory_graph(managed_repo_id, workspace_path, capture, opts \\ []) when is_map(capture) do
+    with {:ok, _pod} <- ensure_memory_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts) do
+      params =
+        memory_graph_params(opts)
+        |> Map.put(:capture, capture)
+
+      case RecordMemoryGraph.run(params, action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_memory_graph_state(managed_repo_id, %{
+                   latest_record_status: Map.get(result, :latest_record_status),
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        {:error, reason, diagnostics} ->
+          persist_memory_graph_failure(
+            managed_repo_id,
+            :record,
+            reason,
+            diagnostics,
+            %{latest_record_status: failure_record_status(action_context, reason, diagnostics)}
+          )
+
+          {:error, reason, diagnostics}
+
+        other ->
+          other
+      end
+    end
+  end
+
+  @doc """
+  Executes a structured SPARQL query over the repository-scoped memory or workflow provenance graph.
+  """
+  @spec query_memory_graph(managed_repo_id(), String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def query_memory_graph(managed_repo_id, workspace_path, sparql, opts \\ [])
+      when is_binary(sparql) do
+    run_memory_graph_action(
+      managed_repo_id,
+      workspace_path,
+      opts,
+      QueryMemoryGraph,
+      Map.put(memory_graph_params(opts, [:revision, :graph_name, :allow_stale?]), :sparql, sparql)
+    )
+  end
+
+  @doc """
+  Invalidates current memory-graph validation state with a bounded typed outcome.
+  """
+  @spec invalidate_memory_graph(managed_repo_id(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def invalidate_memory_graph(managed_repo_id, workspace_path, opts \\ []) do
+    with {:ok, _pod} <- ensure_memory_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case InvalidateMemoryGraph.run(memory_graph_params(opts, [:revision, :graph_name, :reason]), action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_memory_graph_state(managed_repo_id, %{
+                   latest_validation_status: result.latest_validation_status,
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        other ->
+          other
+      end
+    end
+  end
+
   ## Private Functions
 
   defp pod_name(work_item_id) do
@@ -1283,6 +1485,14 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp ensure_memory_graph_enabled(opts) do
+    if MemoryGraph.capability_enabled?(opts) do
+      :ok
+    else
+      {:error, :memory_graph_disabled}
+    end
+  end
+
   defp source_code_graph_action_context(managed_repo_id, workspace_path, opts) do
     pod_entry = Manager.pod_status(managed_repo_id, SourceCodeGraph.pod_id())
 
@@ -1300,8 +1510,31 @@ defmodule JidoCode.AgentWorkspace do
     end
   end
 
+  defp memory_graph_action_context(managed_repo_id, workspace_path, opts) do
+    pod_entry = Manager.pod_status(managed_repo_id, MemoryGraph.pod_id())
+
+    context = %{
+      managed_repo_id: managed_repo_id,
+      workspace_path: workspace_path,
+      graph_name: Keyword.get(opts, :graph_name, MemoryGraph.memory_graph_name()),
+      latest_record_status: get_in(pod_entry, [:metadata, :latest_record_status]),
+      latest_query_status: get_in(pod_entry, [:metadata, :latest_query_status]),
+      latest_validation_status: get_in(pod_entry, [:metadata, :latest_validation_status]),
+      latest_failure: get_in(pod_entry, [:metadata, :latest_failure]),
+      graph: %{revision: Keyword.get(opts, :revision)}
+    }
+
+    with {:ok, _graph_context} <- MemoryGraph.graph_context(managed_repo_id, workspace_path, opts) do
+      {:ok, context}
+    end
+  end
+
   defp persist_source_code_graph_state(managed_repo_id, updates) when is_map(updates) do
     Manager.update_pod_metadata(managed_repo_id, SourceCodeGraph.pod_id(), updates)
+  end
+
+  defp persist_memory_graph_state(managed_repo_id, updates) when is_map(updates) do
+    Manager.update_pod_metadata(managed_repo_id, MemoryGraph.pod_id(), updates)
   end
 
   defp persist_source_code_graph_failure(managed_repo_id, operation, reason, diagnostics, updates \\ %{})
@@ -1328,6 +1561,30 @@ defmodule JidoCode.AgentWorkspace do
     persist_source_code_graph_state(managed_repo_id, merged_updates)
   end
 
+  defp persist_memory_graph_failure(managed_repo_id, operation, reason, diagnostics, updates)
+       when is_atom(operation) and is_map(updates) do
+    failure =
+      case diagnostics do
+        diagnostics when is_map(diagnostics) ->
+          %{
+            kind: reason,
+            operation: operation,
+            stage: Map.get(diagnostics, :stage),
+            message: failure_message(reason, diagnostics),
+            recorded_at: DateTime.utc_now()
+          }
+
+        _ ->
+          nil
+      end
+
+    merged_updates =
+      updates
+      |> Map.put(:latest_failure, failure)
+
+    persist_memory_graph_state(managed_repo_id, merged_updates)
+  end
+
   defp source_code_graph_summary(managed_repo_id, pod_entry) do
     %{
       managed_repo_id: managed_repo_id,
@@ -1337,6 +1594,19 @@ defmodule JidoCode.AgentWorkspace do
       workspace_path: get_in(pod_entry, [:metadata, :workspace_path]),
       graph_store_path: get_in(pod_entry, [:metadata, :graph_store_path]),
       ready?: get_in(pod_entry, [:metadata, :latest_import_status, :ready?]) || false,
+      latest_failure: get_in(pod_entry, [:metadata, :latest_failure])
+    }
+  end
+
+  defp memory_graph_summary(managed_repo_id, pod_entry) do
+    %{
+      managed_repo_id: managed_repo_id,
+      pod_id: pod_entry.pod_id,
+      graph_names: get_in(pod_entry, [:metadata, :graph_names]) || MemoryGraph.graph_names(),
+      named_graph_iris: get_in(pod_entry, [:metadata, :named_graph_iris]) || MemoryGraph.named_graph_iris(),
+      workspace_path: get_in(pod_entry, [:metadata, :workspace_path]),
+      graph_store_path: get_in(pod_entry, [:metadata, :graph_store_path]),
+      ready?: get_in(pod_entry, [:metadata, :latest_validation_status, :ready?]) || false,
       latest_failure: get_in(pod_entry, [:metadata, :latest_failure])
     }
   end
@@ -1353,6 +1623,39 @@ defmodule JidoCode.AgentWorkspace do
         {:error, reason, diagnostics} = error ->
           if reason == :source_code_graph_query_failed and is_map(diagnostics) do
             persist_source_code_graph_failure(managed_repo_id, :query, reason, diagnostics)
+          end
+
+          error
+
+        other ->
+          other
+      end
+    end
+  end
+
+  defp run_memory_graph_action(managed_repo_id, workspace_path, opts, action_module, params)
+       when is_atom(action_module) and is_map(params) do
+    with {:ok, _pod} <- ensure_memory_graph_pod(managed_repo_id, workspace_path, opts),
+         {:ok, action_context} <- memory_graph_action_context(managed_repo_id, workspace_path, opts) do
+      case action_module.run(params, action_context) do
+        {:ok, result} ->
+          with {:ok, _pod_entry} <-
+                 persist_memory_graph_state(managed_repo_id, %{
+                   latest_query_status: success_query_status(result),
+                   latest_failure: nil
+                 }) do
+            {:ok, result}
+          end
+
+        {:error, reason, diagnostics} = error ->
+          if reason == :memory_graph_query_failed and is_map(diagnostics) do
+            persist_memory_graph_failure(
+              managed_repo_id,
+              :query,
+              reason,
+              diagnostics,
+              %{latest_query_status: failure_query_status(action_context, diagnostics)}
+            )
           end
 
           error
@@ -1489,10 +1792,10 @@ defmodule JidoCode.AgentWorkspace do
   defp failure_message(reason, diagnostics) when is_map(diagnostics) do
     Map.get(diagnostics, :failure) ||
       Map.get(diagnostics, :reason) ||
-      "Source code graph #{reason}"
+      "Graph operation #{reason}"
   end
 
-  defp failure_message(reason, _diagnostics), do: "Source code graph #{reason}"
+  defp failure_message(reason, _diagnostics), do: "Graph operation #{reason}"
 
   defp maybe_analysis_update(%{latest_analysis_status: latest_analysis_status})
        when is_map(latest_analysis_status) do
@@ -1500,6 +1803,53 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp maybe_analysis_update(_diagnostics), do: %{}
+
+  defp failure_validation_status(action_context, diagnostics) do
+    %{
+      state: :validation_failed,
+      ready?: false,
+      graph_name: action_context[:graph_name] || MemoryGraph.memory_graph_name(),
+      current_revision: get_in(action_context, [:graph, :revision]),
+      validated_revision: nil,
+      validated_at: nil,
+      stale?: false,
+      failure: diagnostics
+    }
+  end
+
+  defp failure_record_status(action_context, reason, diagnostics) do
+    %{
+      state: :record_rejected,
+      ready?: false,
+      graph_name: action_context[:graph_name] || MemoryGraph.memory_graph_name(),
+      recorded_at: nil,
+      failure: %{
+        kind: reason,
+        detail: diagnostics
+      }
+    }
+  end
+
+  defp success_query_status(result) when is_map(result) do
+    %{
+      state: :queried,
+      ready?: true,
+      graph_name: Map.get(result, :graph_name, MemoryGraph.memory_graph_name()),
+      queried_at: DateTime.utc_now(),
+      row_count: Map.get(result, :row_count, 0),
+      failure: nil
+    }
+  end
+
+  defp failure_query_status(action_context, diagnostics) do
+    %{
+      state: :query_failed,
+      ready?: false,
+      graph_name: action_context[:graph_name] || MemoryGraph.memory_graph_name(),
+      queried_at: DateTime.utc_now(),
+      failure: diagnostics
+    }
+  end
 
   defp source_code_graph_runtime_opts(opts) do
     Keyword.take(opts, [:revision, :enabled?, :allow_stale?])
@@ -1639,6 +1989,12 @@ defmodule JidoCode.AgentWorkspace do
   end
 
   defp source_code_graph_params(opts, allowed_keys \\ [:revision]) do
+    opts
+    |> Keyword.take(allowed_keys)
+    |> Enum.into(%{})
+  end
+
+  defp memory_graph_params(opts, allowed_keys \\ [:revision, :graph_name]) do
     opts
     |> Keyword.take(allowed_keys)
     |> Enum.into(%{})

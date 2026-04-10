@@ -1,9 +1,12 @@
 defmodule JidoCode.AgentOSPodsTest do
   # covers: architecture.agent_os_integration.pod_hierarchy
+  # covers: architecture.agent_os_integration.memory_graph_pod_singleton_when_enabled
   # covers: architecture.source_code_graph_pod.explicit_actions_drive_analyze_load_refresh_and_query
+  # covers: architecture.memory_graph.repo_scoped_memory_graph_pod
+  # covers: package.jido_code.version_controlled_quality_surfaces
   use ExUnit.Case, async: true
 
-  alias JidoCode.Pods.{RepoPod, CodingPod, SourceCodeGraphPod}
+  alias JidoCode.Pods.{RepoPod, CodingPod, SourceCodeGraphPod, MemoryGraphPod}
 
   alias JidoCode.Agents.{
     RepoMonitor,
@@ -13,7 +16,11 @@ defmodule JidoCode.AgentOSPodsTest do
     SourceCodeGraphContext,
     SourceCodeGraphAnalyzer,
     SourceCodeGraphLoader,
-    SourceCodeGraphQuerier
+    SourceCodeGraphQuerier,
+    MemoryGraphContext,
+    MemoryGraphRecorder,
+    MemoryGraphQuerier,
+    MemoryGraphValidator
   }
 
   describe "RepoPod" do
@@ -101,6 +108,35 @@ defmodule JidoCode.AgentOSPodsTest do
     end
   end
 
+  describe "MemoryGraphPod" do
+    test "module exists and is a pod" do
+      assert function_exported?(MemoryGraphPod, :pod?, 0)
+      assert MemoryGraphPod.pod?() == true
+    end
+
+    test "has correct pod configuration" do
+      assert MemoryGraphPod.name() == "memory_graph_pod"
+      assert is_map(MemoryGraphPod.topology())
+    end
+
+    test "has eager graph context and lazy memory specialists" do
+      topology = MemoryGraphPod.topology()
+      nodes = topology.nodes
+
+      assert nodes.memory_graph_context.module == MemoryGraphContext
+      assert nodes.memory_graph_context.activation == :eager
+
+      assert nodes.memory_graph_recorder.module == MemoryGraphRecorder
+      assert nodes.memory_graph_recorder.activation == :lazy
+
+      assert nodes.memory_graph_querier.module == MemoryGraphQuerier
+      assert nodes.memory_graph_querier.activation == :lazy
+
+      assert nodes.memory_graph_validator.module == MemoryGraphValidator
+      assert nodes.memory_graph_validator.activation == :lazy
+    end
+  end
+
   describe "RepoMonitor agent" do
     test "has correct name and schema" do
       assert RepoMonitor.name() == "repo_monitor"
@@ -137,6 +173,19 @@ defmodule JidoCode.AgentOSPodsTest do
       state = SourceCodeGraphContext.new().state
       assert Map.has_key?(state, :latest_analysis_status)
       assert Map.has_key?(state, :latest_import_status)
+    end
+  end
+
+  describe "MemoryGraphContext agent" do
+    test "has correct name and schema" do
+      assert MemoryGraphContext.name() == "memory_graph_context"
+      assert is_map(MemoryGraphContext.schema())
+
+      state = MemoryGraphContext.new().state
+      assert Map.has_key?(state, :graph_names)
+      assert Map.has_key?(state, :latest_record_status)
+      assert Map.has_key?(state, :latest_query_status)
+      assert Map.has_key?(state, :latest_validation_status)
     end
   end
 
@@ -191,6 +240,39 @@ defmodule JidoCode.AgentOSPodsTest do
       assert Map.has_key?(state, :latest_import_status)
       assert Map.has_key?(state, :available_helpers)
       assert Map.has_key?(state, :last_query_failure)
+    end
+  end
+
+  describe "MemoryGraph specialist agents" do
+    test "recorder keeps bounded record state" do
+      assert MemoryGraphRecorder.name() == "memory_graph_recorder"
+
+      state = MemoryGraphRecorder.new().state
+      assert Map.has_key?(state, :last_record_request)
+      assert Map.has_key?(state, :last_record_result)
+      assert Map.has_key?(state, :latest_record_status)
+      assert Map.has_key?(state, :last_record_failure)
+    end
+
+    test "querier keeps bounded query state" do
+      assert MemoryGraphQuerier.name() == "memory_graph_querier"
+
+      state = MemoryGraphQuerier.new().state
+      assert Map.has_key?(state, :last_query_request)
+      assert Map.has_key?(state, :last_query_result)
+      assert Map.has_key?(state, :latest_query_status)
+      assert Map.has_key?(state, :available_helpers)
+      assert Map.has_key?(state, :last_query_failure)
+    end
+
+    test "validator keeps bounded validation state" do
+      assert MemoryGraphValidator.name() == "memory_graph_validator"
+
+      state = MemoryGraphValidator.new().state
+      assert Map.has_key?(state, :last_validation_request)
+      assert Map.has_key?(state, :last_validation_result)
+      assert Map.has_key?(state, :latest_validation_status)
+      assert Map.has_key?(state, :last_validation_failure)
     end
   end
 end

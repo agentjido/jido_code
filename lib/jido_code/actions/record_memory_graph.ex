@@ -6,16 +6,14 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
   # covers: architecture.memory_capture_plane.product_and_runtime_callers_emit_capture_envelopes_not_raw_triples
   # covers: architecture.memory_capture_plane.transient_llm_output_is_not_inserted_as_memory_without_adoption
   @moduledoc """
-  Establishes the explicit memory-recording action contract for later capture work.
-
-  Phase 28 introduces the bounded action surface now so callers stop assuming
-  direct store writes, while the actual capture-plane insertion semantics arrive
-  in the later provenance and durable-memory phases.
+  Records repository-scoped workflow provenance, durable memory, and durable-memory
+  update operations through the canonical memory capture plane.
   """
 
   use Jido.Action,
     name: "jido_code_record_memory_graph",
-    description: "Define the explicit memory recording contract without exposing raw graph writes.",
+    description:
+      "Record workflow provenance, durable memory, and durable-memory updates without exposing raw graph writes.",
     schema: [
       managed_repo_id: [type: :string, default: nil],
       workspace_path: [type: :string, default: nil],
@@ -28,6 +26,10 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.CaptureEnvelope
   alias JidoCode.MemoryGraph.CaptureWriter
+  alias JidoCode.MemoryGraph.DurableMemoryEnvelope
+  alias JidoCode.MemoryGraph.DurableMemoryUpdateEnvelope
+  alias JidoCode.MemoryGraph.DurableMemoryUpdateWriter
+  alias JidoCode.MemoryGraph.DurableMemoryWriter
 
   @impl true
   def run(params, context) do
@@ -47,21 +49,15 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
           {:error, :memory_graph_not_ready,
            "The memory graph foundation must be refreshed and validated before capture requests can be accepted."}
 
-        stale_status.stale? ->
+        stale_status.stale? and not memory_update_kind?(capture) ->
           {:error, :memory_graph_stale,
            "The memory graph must be revalidated for the requested revision before capture requests can be accepted."}
 
+        memory_update_kind?(capture) ->
+          DurableMemoryUpdateWriter.write(graph_context, capture)
+
         memory_kind?(capture) ->
-          {:error, :memory_capture_plane_not_ready,
-           %{
-             state: :capture_plane_not_ready,
-             graph_name: graph_context.selected_graph_name,
-             named_graph_iri: graph_context.selected_named_graph_iri,
-             capture_ready?: false,
-             current_revision: graph_context.revision_metadata.current_revision,
-             requested_revision: graph_context.revision_metadata.requested_revision,
-             capture: capture
-           }}
+          DurableMemoryWriter.write(graph_context, capture)
 
         true ->
           CaptureWriter.write(graph_context, capture)
@@ -101,25 +97,10 @@ defmodule JidoCode.Actions.RecordMemoryGraph do
   defp provenance_kind?(_kind), do: false
 
   defp memory_kind?(capture) when is_map(capture) do
-    case Map.get(capture, :kind) || Map.get(capture, "kind") do
-      kind when kind in [:fact, :decision, :lesson_learned, :invariant, :convention, :known_issue, :open_question, :pattern, :anti_pattern] ->
-        true
+    DurableMemoryEnvelope.supported_kind?(Map.get(capture, :kind) || Map.get(capture, "kind"))
+  end
 
-      kind when is_binary(kind) ->
-        String.trim(kind) in [
-          "fact",
-          "decision",
-          "lesson_learned",
-          "invariant",
-          "convention",
-          "known_issue",
-          "open_question",
-          "pattern",
-          "anti_pattern"
-        ]
-
-      _other ->
-        false
-    end
+  defp memory_update_kind?(capture) when is_map(capture) do
+    DurableMemoryUpdateEnvelope.supported_kind?(Map.get(capture, :kind) || Map.get(capture, "kind"))
   end
 end

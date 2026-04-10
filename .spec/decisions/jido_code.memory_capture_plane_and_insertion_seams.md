@@ -19,6 +19,7 @@ related:
 <!-- covers: package.jido_code.spec_led_workspace -->
 <!-- covers: docs.product_foundation.durable_architecture_record_in_spec_workspace -->
 <!-- covers: architecture.agent_os_integration.memory_graph_capture_stays_workspace_bound -->
+<!-- covers: architecture.agent_os_integration.durable_memory_adoption_stays_workspace_or_product_bound -->
 <!-- covers: architecture.memory_capture_plane.memory_capture_plane_is_canonical_write_boundary -->
 <!-- covers: architecture.memory_capture_plane.workflow_provenance_is_inserted_at_workspace_and_workflow_boundaries -->
 <!-- covers: architecture.memory_capture_plane.durable_memories_are_inserted_through_explicit_classification_and_adoption -->
@@ -102,6 +103,30 @@ The first concrete implementation slice of this plane should therefore land as:
 - bounded action and workspace entrypoints that can accept workflow-provenance
   envelopes now while durable `memory`-graph adoption remains a later phase
 
+The next implementation slice extends the same plane to durable coding memory:
+
+- typed durable-memory envelopes that require explicit classification or
+  governed adoption metadata before insertion
+- a canonical durable-memory writer that owns `memory`-graph insertion and
+  cross-graph linkage to `source_code`, `workflow_provenance`, and governed
+  product artifacts
+- bounded product and governed adoption helpers that can intentionally record
+  `Fact`, `Decision`, `LessonLearned`, `Invariant`, `Convention`,
+  `KnownIssue`, `OpenQuestion`, `Pattern`, and `AntiPattern` without exposing
+  raw triple authoring to callers
+
+The following slice extends the same write seam again for explainable memory
+evolution over time:
+
+- typed durable-memory update envelopes for validation, invalidation, and
+  decision supersession
+- a canonical durable-memory update writer that preserves freshness,
+  validation, invalidation, test-run, revision, and evidence relationships in
+  the `memory` graph without introducing a second update pathway
+- stale-safe update routing so revision movement can invalidate or revalidate
+  durable memories through the same bounded capture plane instead of bypassing
+  it
+
 ## Consequences
 
 - The memory graph gains a safe write path instead of becoming an open semantic
@@ -110,6 +135,11 @@ The first concrete implementation slice of this plane should therefore land as:
   durable memory is inserted where product/governed meaning is strongest.
 - The repo now has an explicit answer to "where should this individual be
   created?" instead of leaving that choice implicit in each caller.
+- Durable coding memory can now be inserted through explicit workflow or
+  governed adoption while still preserving a later freshness and invalidation
+  phase for revision and test evidence.
+- Durable coding memory can now evolve over time through explicit validation,
+  invalidation, and supersession updates that remain queryable and bounded.
 - Memory freshness and invalidation become part of the write boundary itself,
   not a later cleanup concern.
 - The control plane remains canonical because semantic memory is created through

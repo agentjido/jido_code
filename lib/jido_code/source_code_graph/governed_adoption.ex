@@ -16,7 +16,7 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
   alias JidoCode.MemoryGraph
   alias JidoCode.MemoryGraph.CaptureEnvelope
   alias JidoCode.Operations.{WorkItem, WorkSynthesis}
-  alias JidoCode.SourceCodeGraph.{Finding, Materialization, ProductFeedback}
+  alias JidoCode.SourceCodeGraph.{Finding, Materialization, MemoryCapture, ProductFeedback}
 
   @adoption_actor Actor.factory_system_actor(%{
                     "id" => "system:source-code-graph-governed-adoption",
@@ -110,6 +110,23 @@ defmodule JidoCode.SourceCodeGraph.GovernedAdoption do
 
       {:ok, evidence}
     end
+  end
+
+  @spec adopt_memory(map(), keyword()) :: {:ok, map()} | {:error, term()} | {:error, atom(), map()}
+  def adopt_memory(projection_or_finding, opts \\ []) do
+    MemoryCapture.record(
+      projection_or_finding,
+      [
+        classification_source: "governed_adoption",
+        workflow: :governed_adoption,
+        work_item_id: Keyword.get(opts, :work_item_id),
+        observation_id: Keyword.get(opts, :observation_id),
+        assessment_id: Keyword.get(opts, :assessment_id),
+        evidence_id: Keyword.get(opts, :evidence_id),
+        decision_id: Keyword.get(opts, :decision_id),
+        run_id: Keyword.get(opts, :run_id)
+      ] ++ opts
+    )
   end
 
   defp ensure_finding(%{kind: :semantic_finding} = finding, _opts), do: {:ok, finding}

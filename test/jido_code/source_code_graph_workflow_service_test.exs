@@ -10,6 +10,7 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
   use JidoCode.DataCase, async: false
 
   alias JidoCode.AgentWorkspace
+  alias JidoCode.SourceCodeGraph.ProductService
   alias JidoCode.SourceCodeGraph.WorkflowService
 
   setup do
@@ -190,6 +191,57 @@ defmodule JidoCode.SourceCodeGraphWorkflowServiceTest do
     assert error.feedback.state == :not_ready
     assert error.feedback.recovery.action == :load
     assert error.error.remediation == "Open repo detail to load semantic graph data."
+  end
+
+  test "record_memory inserts durable memory only through explicit workflow adoption", %{
+    workspace_path: workspace_path
+  } do
+    managed_repo_id = "repo-#{System.unique_integer([:positive])}"
+
+    assert {:ok, _load_result} =
+             AgentWorkspace.load_source_code_graph(
+               managed_repo_id,
+               workspace_path,
+               revision: "rev-30-workflow-memory"
+             )
+
+    assert {:ok, projection} =
+             ProductService.modules(
+               managed_repo_id,
+               workspace_path,
+               module_name_contains: "ExampleWorkspace",
+               revision: "rev-30-workflow-memory"
+             )
+
+    assert {:ok, memory_result} =
+             WorkflowService.record_memory(
+               projection,
+               workspace_path: workspace_path,
+               memory_kind: :convention,
+               classification_reason: "The semantic workflow intentionally adopted this reusable module convention.",
+               actor_id: "system:workflow-memory",
+               query: %{module_name: "ExampleWorkspace"}
+             )
+
+    assert memory_result.memory_kind == :convention
+    assert memory_result.record.status == :durable_memory_recorded
+
+    assert {:ok, memory_query} =
+             AgentWorkspace.query_memory_graph(
+               managed_repo_id,
+               workspace_path,
+               """
+               SELECT ?memory ?session ?module
+               WHERE {
+                 ?memory a jido:Convention ;
+                   jido:sourceSession ?session ;
+                   jido:aboutModule ?module .
+               }
+               """,
+               allow_stale?: true
+             )
+
+    assert memory_query.row_count == 1
   end
 
   defp create_workspace_path! do

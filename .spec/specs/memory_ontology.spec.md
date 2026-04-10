@@ -10,7 +10,7 @@ workflow provenance semantics.
 id: architecture.memory_ontology
 kind: feature
 status: proposed
-summary: Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, and validation metadata explicitly, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.
+summary: Jido.Code extends the base Jido memory model into a coding-memory ontology that adds memory classes such as Invariant, Convention, KnownIssue, OpenQuestion, Pattern, and AntiPattern, anchors memories to repository code entities and symbols, models revision and change provenance explicitly, adds richer decision supersession and consequence structure, represents work sessions plus LLM and tool provenance as first-class entities, captures freshness, evidence, validation, invalidation, and supersession metadata explicitly, and replaces stringly memory typing or tag blobs with rdf:type-driven classes and first-class tag values.
 decisions:
   - jido_code.memory_graph_and_coding_memory_ontology_adoption
   - jido_code.source_code_graph_pod_and_named_graph_ingestion
@@ -18,6 +18,8 @@ surface:
   - .spec/decisions/jido_code.memory_graph_and_coding_memory_ontology_adoption.md
   - .spec/specs/memory_graph.spec.md
   - .spec/specs/source_code_graph_pod.spec.md
+  - lib/jido_code/memory_graph/durable_memory_update_envelope.ex
+  - lib/jido_code/memory_graph/durable_memory_update_writer.ex
   - priv/ontologies/jido-memory.ttl
 ```
 
@@ -146,4 +148,18 @@ surface:
     - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
     - architecture.memory_ontology.work_sessions_capture_repo_and_runtime_context
     - architecture.memory_ontology.rdf_type_and_first_class_tags_replace_stringly_type_fields
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_update_envelope.ex
+  covers:
+    - architecture.memory_ontology.change_and_revision_provenance_is_explicit
+    - architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
+    - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
+
+- kind: source_file
+  target: lib/jido_code/memory_graph/durable_memory_update_writer.ex
+  covers:
+    - architecture.memory_ontology.change_and_revision_provenance_is_explicit
+    - architecture.memory_ontology.decision_structure_supports_supersession_and_consequence
+    - architecture.memory_ontology.freshness_evidence_and_validation_metadata_are_explicit
 ```
